@@ -1,0 +1,7 @@
+apiVersion: ocs.openshift.io/v1alpha1
+kind: StorageCluster
+metadata:
+  name: example-storagecluster
+spec:
+  # Add fields here
+  size: 3
