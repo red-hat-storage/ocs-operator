@@ -1,8 +1,8 @@
 # The OCS Meta Operator
 
-This is the primary operator for Red Had OpenShift Container Storage (OCS). It
+This is the primary operator for Red Hat OpenShift Container Storage (OCS). It
 is a "meta" operator, meaning it serves to facilitate the other operators in
-OCS by performing administrative tasks outside their scope as well as 
+OCS by performing administrative tasks outside their scope as well as
 watching and configuring their CustomResources (CRs).
 
 ## Build
