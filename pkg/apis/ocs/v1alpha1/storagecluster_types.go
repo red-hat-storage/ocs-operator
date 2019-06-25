@@ -9,8 +9,9 @@ import (
 
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	ManageNodes  bool   `json:"manageNodes,omitempty"`
+	InstanceType string `json:"instanceType,omitempty"`
 }
 
 // StorageClusterStatus defines the observed state of StorageCluster
