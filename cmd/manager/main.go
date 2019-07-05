@@ -18,6 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 var log = logf.Log.WithName("cmd")
@@ -75,6 +77,11 @@ func main() {
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	if err := rookCephv1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "Failed adding rookCephv1 to scheme")
 		os.Exit(1)
 	}
 
