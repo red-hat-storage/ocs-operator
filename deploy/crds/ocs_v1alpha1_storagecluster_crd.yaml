@@ -33,6 +33,43 @@ spec:
               description: 'Important: Run "operator-sdk generate k8s" to regenerate
                 code after modifying this file'
               type: boolean
+            storageDeviceSets:
+              items:
+                properties:
+                  config:
+                    type: object
+                  count:
+                    format: int64
+                    type: integer
+                  name:
+                    type: string
+                  placement:
+                    properties:
+                      nodeAffinity:
+                        type: object
+                      podAffinity:
+                        type: object
+                      podAntiAffinity:
+                        type: object
+                      tolerations:
+                        items:
+                          type: object
+                        type: array
+                    type: object
+                  resources:
+                    type: object
+                  volumeClaimTemplates:
+                    type: object
+                required:
+                - name
+                - count
+                - resources
+                - placement
+                - volumeClaimTemplates
+                type: object
+              type: array
+          required:
+          - storageDeviceSets
           type: object
         status:
           type: object

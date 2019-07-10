@@ -42,7 +42,6 @@ rules:
   - ocs.openshift.io
   resources:
   - '*'
-  - storagedevicesets
   - storageclusters
   - ocsinitialization
   verbs:

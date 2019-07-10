@@ -113,6 +113,36 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 				Enabled:        true,
 				RulesNamespace: "openshift-storage",
 			},
+			Storage: rook.StorageScopeSpec{
+				StorageClassDeviceSets: newStorageClassDeviceSets(sc.StorageDeviceSet),
+				// XXX: Depending on how rook-ceph is going to use
+				// StorageClassDeviceSets we would be setting other required parameters
+				// for CephCluster.Storage
+			},
 		},
+	}
+}
+
+func newStorageClassDeviceSets(dss []ocsv1alpha1.StorageDeviceSet) []rookCephv1.StorageClassDeviceSet {
+	var scds []rookCephv1.StorageClassDeviceSet
+
+	for _, ds := range dss {
+		scds = append(scds, newStorageClassDeviceSet(&ds))
+	}
+
+	return scds
+}
+
+func newStorageClassDeviceSet(ds *ocsv1alpha1.StorageDeviceSet) rookCephv1.StorageClassDeviceSet {
+	return rookCephv1.StorageClassDeviceSet{
+		// XXX: We should possibly be generating and using a unique name here
+		Name:      ds.Name,
+		Count:     ds.Count,
+		Resources: ds.Resources,
+		Placement: ds.Placement,
+		// XXX: We should most likely be setting rook-ceph specific config options
+		// here, and not rely on user provided config. Just copying user provided config for now.
+		Config:               ds.Config,
+		VolumeClaimTemplates: ds.VolumeClaimTemplates,
 	}
 }
