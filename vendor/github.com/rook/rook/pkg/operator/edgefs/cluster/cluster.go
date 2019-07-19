@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/google/go-cmp/cmp"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -49,13 +50,14 @@ const (
 )
 
 type cluster struct {
-	context   *clusterd.Context
-	Namespace string
-	Spec      edgefsv1beta1.ClusterSpec
-	ownerRef  metav1.OwnerReference
-	targets   *target.Cluster
-	mgrs      *mgr.Cluster
-	stopCh    chan struct{}
+	context          *clusterd.Context
+	Namespace        string
+	Spec             edgefsv1beta1.ClusterSpec
+	ownerRef         metav1.OwnerReference
+	targets          *target.Cluster
+	mgrs             *mgr.Cluster
+	stopCh           chan struct{}
+	childControllers []childController
 }
 
 func newCluster(c *edgefsv1beta1.Cluster, context *clusterd.Context) *cluster {
@@ -69,7 +71,13 @@ func newCluster(c *edgefsv1beta1.Cluster, context *clusterd.Context) *cluster {
 	}
 }
 
-func (c *cluster) createInstance(rookImage string) error {
+// ChildController is implemented by CRs that are owned by the EdgefsCluster
+type childController interface {
+	// ParentClusterChanged is called when the EdgefsCluster CR is updated, for example for a newer edgefs version
+	ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec)
+}
+
+func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) error {
 
 	logger.Debugf("Cluster spec: %+v", c.Spec)
 	//
@@ -90,10 +98,19 @@ func (c *cluster) createInstance(rookImage string) error {
 		},
 		Data: placeholderConfig,
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			// Cluster already exists, do not do anything
+			if !isClusterUpdate {
+				logger.Infof("Cluster %s already exists. Skipping creation...", c.Namespace)
+				return nil
+			}
+			// in case of update just skip checking
+		} else {
+			return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
+		}
 	}
 
 	clusterNodes, err := c.getClusterNodes()
@@ -102,26 +119,47 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	dro := ParseDevicesResurrectMode(c.Spec.DevicesResurrectMode)
-	logger.Infof("DevicesResurrect mode: %s options %+v", c.Spec.DevicesResurrectMode, dro)
+	logger.Infof("DevicesResurrect options: %+v", dro)
 
-	deploymentConfig, err := c.createDeploymentConfig(clusterNodes, dro.NeedToResurrect)
+	// Retrive existing cluster config from Kubernetes ConfigMap
+	existingConfig, err := c.retrieveDeploymentConfig()
 	if err != nil {
-		logger.Errorf("Failed to create deploymentConfig %+v", err)
-		return err
+		return fmt.Errorf("failed to retrive DeploymentConfig for cluster %s. %s", c.Namespace, err)
 	}
-	logger.Debugf("DeploymentConfig: %+v ", deploymentConfig)
 
-	if err := c.createClusterConfigMap(clusterNodes, deploymentConfig, dro.NeedToResurrect); err != nil {
+	clusterReconfiguration, err := c.createClusterReconfigurationSpec(existingConfig, clusterNodes, dro)
+	if err != nil {
+		return fmt.Errorf("failed to create Reconfiguration specification for cluster %s. %s", c.Namespace, err)
+	}
+
+	logger.Debugf("Recovered ClusterConfig: %s", ToJSON(existingConfig))
+	c.PrintDeploymentConfig(&clusterReconfiguration.DeploymentConfig)
+
+	// Unlabel nodes
+	for _, nodeName := range clusterReconfiguration.ClusterNodesToDelete {
+		//c.UnlabelNode(node)
+		logger.Infof("Unlabeling host `%s` as [%s] cluster's target node", nodeName, c.Namespace)
+		c.UnlabelTargetNode(nodeName)
+	}
+
+	for _, nodeName := range clusterReconfiguration.ClusterNodesToAdd {
+		//c.LabelNode(node)
+		logger.Infof("Labeling host `%s` as [%s] cluster's target node", nodeName, c.Namespace)
+		c.LabelTargetNode(nodeName)
+	}
+
+	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
 		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
 		return err
 	}
+
 	//
 	// Create and start EdgeFS prepare job (set some networking parameters that we cannot set via InitContainers)
 	// Skip preparation job in case of resurrect option is on
 	//
 
 	if c.Spec.SkipHostPrepare == false && dro.NeedToResurrect == false {
-		err = c.prepareHostNodes(rookImage, deploymentConfig)
+		err = c.prepareHostNodes(rookImage, clusterReconfiguration.DeploymentConfig)
 		if err != nil {
 			logger.Errorf("Failed to create preparation jobs. %+v", err)
 		}
@@ -129,31 +167,48 @@ func (c *cluster) createInstance(rookImage string) error {
 		logger.Infof("EdgeFS node preparation will be skipped due skipHostPrepare=true or resurrect cluster option")
 	}
 
+	if err := c.createClusterConfigMap(clusterReconfiguration.DeploymentConfig, dro.NeedToResurrect); err != nil {
+		logger.Errorf("Failed to create/update Edgefs cluster configuration: %+v", err)
+		return err
+	}
+
 	//
 	// Create and start EdgeFS Targets StatefulSet
 	//
 
-	c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
-		edgefsv1beta1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1beta1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
-		c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, deploymentConfig)
+	// Do not update targets when clusterUpdate and restore option set.
+	// Because we can't recover information from 'restored' cluster's config map and deploymentConfig is incorrect
+	// Rest of deployments should be updated as is
+	if !(isClusterUpdate && dro.NeedToResurrect) {
+		c.targets = target.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
+			edgefsv1beta1.GetTargetAnnotations(c.Spec.Annotations), edgefsv1beta1.GetTargetPlacement(c.Spec.Placement), c.Spec.Network,
+			c.Spec.Resources, c.Spec.ResourceProfile, c.Spec.ChunkCacheSize, c.ownerRef, clusterReconfiguration.DeploymentConfig)
 
-	err = c.targets.Start(rookImage, clusterNodes, dro)
-	if err != nil {
-		return fmt.Errorf("failed to start the targets. %+v", err)
+		err = c.targets.Start(rookImage, clusterNodes, dro)
+		if err != nil {
+			return fmt.Errorf("failed to start the targets. %+v", err)
+		}
+
 	}
-
 	//
 	// Create and start EdgeFS manager Deployment (gRPC proxy, Prometheus metrics)
 	//
 	c.mgrs = mgr.New(c.context, c.Namespace, "latest", c.Spec.ServiceAccount, c.Spec.DataDirHostPath, c.Spec.DataVolumeSize,
 		edgefsv1beta1.GetMgrAnnotations(c.Spec.Annotations), edgefsv1beta1.GetMgrPlacement(c.Spec.Placement), c.Spec.Network, c.Spec.Dashboard,
 		v1.ResourceRequirements{}, c.Spec.ResourceProfile, c.ownerRef)
+
 	err = c.mgrs.Start(rookImage)
 	if err != nil {
 		return fmt.Errorf("failed to start the edgefs mgr. %+v", err)
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+
+	// Notify the child controllers that the cluster spec might have changed
+	for _, child := range c.childControllers {
+		child.ParentClusterChanged(c.Spec)
+	}
+
 	return nil
 }
 
@@ -212,11 +267,11 @@ func (c *cluster) validateClusterSpec() error {
 	}
 
 	if len(c.Spec.DataDirHostPath) == 0 && c.Spec.DataVolumeSize.Value() == 0 {
-		return fmt.Errorf("DataDirHostPath or DataVolumeSize EdgeFS cluster's options not specified.")
+		return fmt.Errorf("DataDirHostPath or DataVolumeSize EdgeFS cluster's options not specified")
 	}
 
 	if len(c.Spec.DataDirHostPath) > 0 && c.Spec.DataVolumeSize.Value() != 0 {
-		return fmt.Errorf("Both deployment options DataDirHostPath and DataVolumeSize are specified. Should be only one deployment option in cluster specification.")
+		return fmt.Errorf("Both deployment options DataDirHostPath and DataVolumeSize are specified. Should be only one deployment option in cluster specification")
 	}
 
 	if len(c.Spec.Storage.Directories) > 0 &&
@@ -234,17 +289,30 @@ func (c *cluster) validateClusterSpec() error {
 }
 
 func clusterChanged(oldCluster, newCluster edgefsv1beta1.ClusterSpec) bool {
-	changeFound := false
-	oldStorage := oldCluster.Storage
-	newStorage := newCluster.Storage
+	// sort the nodes by name then compare to see if there are changes
+	sort.Sort(rookv1alpha2.NodesByName(oldCluster.Storage.Nodes))
+	sort.Sort(rookv1alpha2.NodesByName(newCluster.Storage.Nodes))
 
-	// Sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldStorage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newStorage.Nodes))
-	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {
-		logger.Infof("The list of nodes has changed")
-		changeFound = true
+	var diff string
+	// any change in the crd will trigger an orchestration
+	if !reflect.DeepEqual(oldCluster, newCluster) {
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					logger.Warningf("Encountered an issue getting cluster change differences: %v", err)
+				}
+			}()
+
+			// resource.Quantity has non-exportable fields, so we use its comparator method
+			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
+			diff = cmp.Diff(oldCluster, newCluster, resourceQtyComparer)
+			logger.Infof("The Cluster CR has changed. diff=%s", diff)
+		}()
 	}
 
-	return changeFound
+	if len(diff) > 0 {
+		return true
+	}
+
+	return false
 }

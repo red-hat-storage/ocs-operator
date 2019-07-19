@@ -87,7 +87,7 @@ func NewClusterController(context *clusterd.Context, containerImage string) *Clu
 func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
-		APIVersion:         ClusterResource.Version,
+		APIVersion:         fmt.Sprintf("%s/%s", ClusterResource.Group, ClusterResource.Version),
 		Kind:               ClusterResource.Kind,
 		Name:               namespace,
 		UID:                types.UID(clusterID),
@@ -152,7 +152,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 			return false, nil
 		}
 
-		err := cluster.createInstance(c.containerImage)
+		err := cluster.createInstance(c.containerImage, false)
 		if err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
@@ -178,64 +178,80 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	logger.Infof("succeeded creating and initializing EdgeFS cluster in namespace %s", cluster.Namespace)
 
 	// Start NFS service CRD watcher
-	NFSController := nfs.NewNFSController(c.context, c.containerImage,
+	NFSController := nfs.NewNFSController(c.context,
+		cluster.Namespace,
+		c.containerImage,
 		isHostNetworkDefined(cluster.Spec.Network),
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
-	NFSController.StartWatch(cluster.Namespace, cluster.stopCh)
+	NFSController.StartWatch(cluster.stopCh)
 
 	// Start S3 service CRD watcher
-	S3Controller := s3.NewS3Controller(c.context, c.containerImage,
+	S3Controller := s3.NewS3Controller(c.context,
+		cluster.Namespace,
+		c.containerImage,
 		isHostNetworkDefined(cluster.Spec.Network),
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
-	S3Controller.StartWatch(cluster.Namespace, cluster.stopCh)
+	S3Controller.StartWatch(cluster.stopCh)
 
 	// Start SWIFT service CRD watcher
-	SWIFTController := swift.NewSWIFTController(c.context, c.containerImage,
+	SWIFTController := swift.NewSWIFTController(c.context,
+		cluster.Namespace,
+		c.containerImage,
 		isHostNetworkDefined(cluster.Spec.Network),
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
-	SWIFTController.StartWatch(cluster.Namespace, cluster.stopCh)
+	SWIFTController.StartWatch(cluster.stopCh)
 
 	// Start S3X service CRD watcher
-	S3XController := s3x.NewS3XController(c.context, c.containerImage,
+	S3XController := s3x.NewS3XController(c.context,
+		cluster.Namespace,
+		c.containerImage,
 		isHostNetworkDefined(cluster.Spec.Network),
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
-	S3XController.StartWatch(cluster.Namespace, cluster.stopCh)
+	S3XController.StartWatch(cluster.stopCh)
 
 	// Start ISCSI service CRD watcher
-	ISCSIController := iscsi.NewISCSIController(c.context, c.containerImage,
+	ISCSIController := iscsi.NewISCSIController(c.context,
+		cluster.Namespace,
+		c.containerImage,
 		isHostNetworkDefined(cluster.Spec.Network),
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
-	ISCSIController.StartWatch(cluster.Namespace, cluster.stopCh)
+	ISCSIController.StartWatch(cluster.stopCh)
 
 	// Start ISGW service CRD watcher
-	ISGWController := isgw.NewISGWController(c.context, c.containerImage,
+	ISGWController := isgw.NewISGWController(c.context,
+		cluster.Namespace,
+		c.containerImage,
 		isHostNetworkDefined(cluster.Spec.Network),
 		cluster.Spec.DataDirHostPath, cluster.Spec.DataVolumeSize,
 		edgefsv1beta1.GetTargetPlacement(cluster.Spec.Placement),
 		cluster.Spec.Resources,
 		cluster.Spec.ResourceProfile,
 		cluster.ownerRef)
-	ISGWController.StartWatch(cluster.Namespace, cluster.stopCh)
+	ISGWController.StartWatch(cluster.stopCh)
+
+	cluster.childControllers = []childController{
+		NFSController, S3Controller, S3XController, SWIFTController, ISCSIController, ISGWController,
+	}
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
@@ -307,7 +323,11 @@ func (c *ClusterController) handleUpdate(newClust *edgefsv1beta1.Cluster, cluste
 		return false, nil
 	}
 
-	if err := cluster.createInstance(c.containerImage); err != nil {
+	if newClust.Spec.EdgefsImageName != "" {
+		c.containerImage = newClust.Spec.EdgefsImageName
+	}
+
+	if err := cluster.createInstance(c.containerImage, true); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", newClust.Namespace, err)
 		return false, nil
 	}
@@ -322,8 +342,11 @@ func (c *ClusterController) handleUpdate(newClust *edgefsv1beta1.Cluster, cluste
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	clust := obj.(*edgefsv1beta1.Cluster).DeepCopy()
-
+	clust, ok := obj.(*edgefsv1beta1.Cluster)
+	if !ok {
+		return
+	}
+	clust = clust.DeepCopy()
 	logger.Infof("delete event for cluster %s in namespace %s", clust.Name, clust.Namespace)
 
 	err := c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
@@ -352,9 +375,7 @@ func (c *ClusterController) handleDelete(clust *edgefsv1beta1.Cluster, retryInte
 	}
 
 	for _, node := range cluster.targets.Storage.Nodes {
-		k := cluster.Namespace
-		err := cluster.RemoveLabelOffNode(cluster.context.Clientset, node.Name, []string{k})
-		logger.Infof("removed label %s from %s: %+v", k, node.Name, err)
+		cluster.UnlabelTargetNode(node.Name)
 	}
 
 	// delete associated node labels

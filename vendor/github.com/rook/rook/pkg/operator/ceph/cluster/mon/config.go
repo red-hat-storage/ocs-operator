@@ -121,8 +121,8 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	return clusterInfo, maxMonID, monMapping, nil
 }
 
-// writeConnectionConfig save monitor connection config to disk
-func writeConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
+// WriteConnectionConfig save monitor connection config to disk
+func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
 	// write the latest config to the config dir
 	if err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
@@ -198,7 +198,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(clientset, namespace, &secret.ObjectMeta, ownerRef)
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
 
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(secret); err != nil {
 		return fmt.Errorf("failed to save mon secrets. %+v", err)

@@ -58,7 +58,7 @@ func (c *CephNFSController) createCephNFSService(n cephv1.CephNFS, name string) 
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	if c.hostNetwork {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
@@ -86,7 +86,7 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 		},
 	}
 	n.Spec.Server.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
-	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &deployment.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
 	configMapSource := &v1.ConfigMapVolumeSource{
 		LocalObjectReference: v1.LocalObjectReference{Name: configName},
 		Items:                []v1.KeyToPath{{Key: "config", Path: "ganesha.conf"}},
@@ -98,7 +98,7 @@ func (c *CephNFSController) makeDeployment(n cephv1.CephNFS, name, configName st
 		Containers:     []v1.Container{c.daemonContainer(n, name, binariesMount)},
 		RestartPolicy:  v1.RestartPolicyAlways,
 		Volumes: append(
-			opspec.PodVolumes("", ""),
+			opspec.PodVolumes(c.dataDirHostPath, c.namespace),
 			configVolume,
 			binariesVolume,
 		),

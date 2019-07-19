@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
+
 	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -36,7 +38,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -83,63 +84,34 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context) *cluster {
 	}
 }
 
-func (c *cluster) detectCephVersion(image string, timeout time.Duration) (*cephver.CephVersion, error) {
-	// get the major ceph version by running "ceph --version" in the ceph image
-	podSpec := v1.PodSpec{
-		Containers: []v1.Container{
-			{
-				Command: []string{"ceph"},
-				Args:    []string{"--version"},
-				Name:    "version",
-				Image:   image,
-			},
-		},
-		RestartPolicy: v1.RestartPolicyOnFailure,
-	}
-
-	// apply "mon" placement
-	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&podSpec)
-
-	job := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      detectVersionName,
-			Namespace: c.Namespace,
-		},
-		Spec: batch.JobSpec{
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"job": detectVersionName,
-					},
-				},
-				Spec: podSpec,
-			},
-		},
-	}
-	k8sutil.AddRookVersionLabelToJob(job)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
-
-	// run the job to detect the version
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, true); err != nil {
-		return nil, fmt.Errorf("failed to start version job. %+v", err)
-	}
-
-	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, timeout); err != nil {
-		return nil, fmt.Errorf("failed to complete version job. %+v", err)
-	}
-
-	log, err := k8sutil.GetPodLog(c.context.Clientset, c.Namespace, "job="+detectVersionName)
+func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Duration) (*cephver.CephVersion, error) {
+	versionReporter, err := cmdreporter.New(
+		c.context.Clientset, &c.ownerRef,
+		detectVersionName, detectVersionName, c.Namespace,
+		[]string{"ceph"}, []string{"--version"},
+		rookImage, cephImage,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get version job log to detect version. %+v", err)
+		return nil, fmt.Errorf("failed to set up ceph version job. %+v", err)
 	}
 
-	version, err := cephver.ExtractCephVersion(log)
+	job := versionReporter.Job()
+	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
+
+	stdout, stderr, retcode, err := versionReporter.Run(timeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to complete ceph version job. %+v", err)
+	}
+	if retcode != 0 {
+		return nil, fmt.Errorf(`ceph version job returned failure with retcode %d.
+  stdout: %s
+  stderr: %s`, retcode, stdout, stderr)
+	}
+
+	version, err := cephver.ExtractCephVersion(stdout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract ceph version. %+v", err)
 	}
-
-	// delete the job since we're done with it
-	k8sutil.DeleteBatchJob(c.context.Clientset, c.Namespace, job.Name, false)
 
 	logger.Infof("Detected ceph image version: %s", version)
 	return version, nil
@@ -179,7 +151,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		},
 		Data: placeholderConfig,
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
@@ -197,14 +169,9 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		return fmt.Errorf("the cluster identity was not established: %+v", c.Info)
 	}
 
-	err = c.createInitialCrushMap()
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v", err)
-	}
-
 	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
 		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-		spec.Network.HostNetwork, spec.Dashboard, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
+		spec.Network.HostNetwork, spec.Dashboard, spec.Monitoring, cephv1.GetMgrResources(spec.Resources), c.ownerRef, c.Spec.DataDirHostPath)
 	err = mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -233,65 +200,6 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	// Notify the child controllers that the cluster spec might have changed
 	for _, child := range c.childControllers {
 		child.ParentClusterChanged(*c.Spec, clusterInfo)
-	}
-
-	return nil
-}
-
-func (c *cluster) createInitialCrushMap() error {
-	configMapExists := false
-	createCrushMap := false
-
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-
-		// crush config map was not found, meaning we haven't created the initial crush map
-		createCrushMap = true
-	} else {
-		// crush config map was found, look in it to verify we've created the initial crush map
-		configMapExists = true
-		val, ok := cm.Data[crushmapCreatedKey]
-		if !ok {
-			createCrushMap = true
-		} else if val != "1" {
-			createCrushMap = true
-		}
-	}
-
-	if !createCrushMap {
-		// no need to create the crushmap, bail out
-		return nil
-	}
-
-	logger.Info("creating initial crushmap")
-	out, err := client.CreateDefaultCrushMap(c.context, c.Namespace)
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v. output: %s", err, out)
-	}
-
-	logger.Info("created initial crushmap")
-
-	// save the fact that we've created the initial crushmap to a configmap
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      crushConfigMapName,
-			Namespace: c.Namespace,
-		},
-		Data: map[string]string{crushmapCreatedKey: "1"},
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
-
-	if !configMapExists {
-		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
-			return fmt.Errorf("failed to create configmap %s: %+v", crushConfigMapName, err)
-		}
-	} else {
-		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
-			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
-		}
 	}
 
 	return nil
@@ -351,4 +259,48 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 	}
 
 	return false
+}
+
+// This function compare the Ceph spec image and the cluster running version
+// It returns false if the image is different and true if identical
+func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions client.CephDaemonsVersions) (bool, error) {
+	numberOfCephVersions := len(runningVersions.Overall)
+	if numberOfCephVersions == 0 {
+		// let's return immediatly
+		return false, fmt.Errorf("no 'overall' section in the ceph versions. %+v", runningVersions.Overall)
+	}
+
+	if numberOfCephVersions > 1 {
+		// let's return immediatly
+		logger.Warningf("it looks like we have more than one ceph version running. triggering upgrade. %+v:", runningVersions.Overall)
+		return true, nil
+	}
+
+	if numberOfCephVersions == 1 {
+		for v := range runningVersions.Overall {
+			version, err := cephver.ExtractCephVersion(v)
+			if err != nil {
+				logger.Errorf("failed to extract ceph version. %+v", err)
+				return false, err
+			}
+			clusterRunningVersion := *version
+
+			// If this is the same version
+			if cephver.IsIdentical(clusterRunningVersion, imageSpecVersion) {
+				logger.Debugf("both cluster and image spec versions are identical, doing nothing %s", imageSpecVersion.String())
+				return false, nil
+			}
+
+			if cephver.IsSuperior(imageSpecVersion, clusterRunningVersion) {
+				logger.Infof("image spec version %s is higher than the running cluster version %s, upgrading", imageSpecVersion.String(), clusterRunningVersion.String())
+				return true, nil
+			}
+
+			if cephver.IsInferior(imageSpecVersion, clusterRunningVersion) {
+				return true, fmt.Errorf("image spec version %s is lower than the running cluster version %s, downgrading is not supported", imageSpecVersion.String(), clusterRunningVersion.String())
+			}
+		}
+	}
+
+	return false, nil
 }

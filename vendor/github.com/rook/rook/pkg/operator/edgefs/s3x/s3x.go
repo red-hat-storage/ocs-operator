@@ -90,6 +90,10 @@ func (c *S3XController) CreateOrUpdate(s edgefsv1beta1.S3X, update bool, ownerRe
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment already exists", appName)
+		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(deployment); err != nil {
+			return fmt.Errorf("failed to update %s deployment. %+v", appName, err)
+		}
+		logger.Infof("%s deployment updated", appName)
 	} else {
 		logger.Infof("%s deployment started", appName)
 	}
@@ -127,7 +131,7 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 		},
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -223,7 +227,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 			Replicas: &s3xSpec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	s3xSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }

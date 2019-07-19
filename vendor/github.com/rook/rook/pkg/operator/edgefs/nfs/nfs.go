@@ -74,7 +74,12 @@ func (c *NFSController) CreateOrUpdate(s edgefsv1beta1.NFS, update bool, ownerRe
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
+
 		logger.Infof("%s deployment already exists", appName)
+		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(deployment); err != nil {
+			return fmt.Errorf("failed to update %s deployment. %+v", appName, err)
+		}
+		logger.Infof("%s deployment updated", appName)
 	} else {
 		logger.Infof("%s deployment started", appName)
 	}
@@ -103,7 +108,7 @@ func (c *NFSController) makeNFSService(name, svcname, namespace string) *v1.Serv
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
+			Type:     v1.ServiceTypeNodePort,
 			Ports: []v1.ServicePort{
 				{Name: "grpc", Port: 49000, Protocol: v1.ProtocolTCP},
 				{Name: "nfs-tcp", Port: 2049, Protocol: v1.ProtocolTCP},
@@ -122,7 +127,7 @@ func (c *NFSController) makeNFSService(name, svcname, namespace string) *v1.Serv
 		},
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -188,7 +193,7 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 			Replicas: &nfsSpec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	nfsSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }

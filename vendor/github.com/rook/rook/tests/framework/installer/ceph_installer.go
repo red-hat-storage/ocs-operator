@@ -44,7 +44,7 @@ const (
 	// test with the latest mimic build
 	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14.2.1-20190430"
+	nautilusTestImage = "ceph/daemon-base:latest-nautilus-devel"
 	helmChartName     = "local/rook-ceph"
 	helmDeployName    = "rook-ceph"
 )
@@ -93,7 +93,7 @@ func (h *CephInstaller) CreateCephCRDs() error {
 		}
 
 		// ensure all the cluster CRDs are removed
-		if err = h.k8shelper.PurgeClusters(); err != nil {
+		if err = h.purgeClusters(); err != nil {
 			logger.Warningf("could not purge cluster crds. %+v", err)
 		}
 
@@ -365,6 +365,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 			h.checkCephHealthStatus(namespace)
 		}
 
+		// Gather logs after status checks
+		h.GatherAllRookLogs(namespace, SystemNamespace(namespace), h.T().Name())
+
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
@@ -450,6 +453,30 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	}
 }
 
+func (h *CephInstaller) purgeClusters() error {
+	// get all namespaces
+	namespaces, err := h.k8shelper.Clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get namespaces. %+v", err)
+	}
+
+	// look for the clusters in all namespaces
+	for _, n := range namespaces.Items {
+		namespace := n.Name
+		logger.Infof("looking in namespace %s for clusters to purge", namespace)
+		clusters, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			logger.Warningf("failed to get clusters in namespace %s. %+v", namespace, err)
+			continue
+		}
+		if len(clusters.Items) > 0 {
+			logger.Warningf("FOUND UNEXPECTED CLUSTER IN NAMESPACE %s. Removing...", namespace)
+			h.UninstallRook(namespace)
+		}
+	}
+	return nil
+}
+
 func (h *CephInstaller) checkCephHealthStatus(namespace string) {
 	clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(namespace, metav1.GetOptions{})
 	assert.Nil(h.T(), err)
@@ -484,6 +511,9 @@ func (h *CephInstaller) cleanupDir(node, dir string) error {
 }
 
 func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, testName string) {
+	if !h.T().Failed() && Env.Logs != "all" {
+		return
+	}
 	logger.Infof("Gathering all logs from Rook Cluster %s", namespace)
 	h.k8shelper.GetPreviousLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
 	h.k8shelper.GetLogs("rook-ceph-operator", Env.HostType, systemNamespace, testName)
@@ -526,7 +556,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 		useHelm:         useHelm,
 		k8sVersion:      version.String(),
 		CephVersion:     cephVersion,
-		changeHostnames: rookVersion != Version0_9 && k8shelp.VersionAtLeast("v1.13.0"),
+		changeHostnames: rookVersion != Version1_0 && k8shelp.VersionAtLeast("v1.13.0"),
 		T:               t,
 	}
 	flag.Parse()

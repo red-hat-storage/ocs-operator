@@ -29,10 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
+func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment {
+	replicas := int32(1)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.instanceName(),
+			Name:      rgwConfig.ResourceName,
 			Namespace: c.store.Namespace,
 			Labels:    c.getLabels(),
 		},
@@ -40,8 +41,8 @@ func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: c.getLabels(),
 			},
-			Template: c.makeRGWPodSpec(),
-			Replicas: &c.store.Spec.Gateway.Instances,
+			Template: c.makeRGWPodSpec(rgwConfig),
+			Replicas: &replicas,
 			Strategy: apps.DeploymentStrategy{
 				Type: apps.RecreateDeploymentStrategyType,
 			},
@@ -50,84 +51,20 @@ func (c *clusterConfig) startDeployment() (*apps.Deployment, error) {
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRefs(&d.ObjectMeta, c.ownerRefs)
 
-	logger.Debugf("starting rgw deployment: %+v", d)
-	deployment, err := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(d.Name, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to see if rgw deployment %s already exists. %+v", d.Name, err)
-	} else if err == nil {
-		// deployment exists
-		var uErr error
-		deployment, uErr = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Update(d)
-		if uErr != nil {
-			// may fail to update when labels have changed on the deployment and thus the label selector
-			// in this case we can try to delete the deployment and recreate
-			dErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
-			if dErr != nil {
-				return nil, fmt.Errorf("failed to delete existing rgw deployment %s as part of update attempt. %+v", d.Name, dErr)
-			}
-		} else {
-			return deployment, uErr
-		}
-	}
-	// err != nil && isNotFound  or  err == nil && update failed, causing earlier dep to be deleted
-	deployment, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(d)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create rgw deployment %s: %+v", c.instanceName(), err)
-	}
-	return deployment, err
+	return d
 }
 
-func (c *clusterConfig) startDaemonset() (*apps.DaemonSet, error) {
-	d := &apps.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.instanceName(),
-			Namespace: c.store.Namespace,
-			Labels:    c.getLabels(),
-		},
-		Spec: apps.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: c.getLabels(),
-			},
-			UpdateStrategy: apps.DaemonSetUpdateStrategy{
-				Type: apps.RollingUpdateDaemonSetStrategyType,
-			},
-			Template: c.makeRGWPodSpec(),
-		},
-	}
-	k8sutil.AddRookVersionLabelToDaemonSet(d)
-	opspec.AddCephVersionLabelToDaemonSet(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &d.ObjectMeta, c.ownerRefs)
-
-	logger.Debugf("starting rgw daemonset: %+v", d)
-	daemonSet, err := c.context.Clientset.AppsV1().DaemonSets(c.store.Namespace).Create(d)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("failed to create rgw daemonset %s: %+v", c.instanceName(), err)
-		}
-		logger.Infof("daemonset for rgw %s already exists. updating if needed", c.instanceName())
-		// There may be a *lot* of rgws, and they are stateless, so don't bother waiting until the
-		// entire daemonset is updated to move on.
-		// TODO: is the above statement safe to assume?
-		// TODO: Are there any steps for RGW that need to happen before the daemons upgrade?
-		daemonSet, err = c.context.Clientset.AppsV1().DaemonSets(c.store.Namespace).Update(d)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update rgw daemonset %s. %+v", c.instanceName(), err)
-		}
-	}
-	return daemonSet, nil
-}
-
-func (c *clusterConfig) makeRGWPodSpec() v1.PodTemplateSpec {
+func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{},
 		Containers: []v1.Container{
-			c.makeDaemonContainer(),
+			c.makeDaemonContainer(rgwConfig),
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: append(
-			opspec.DaemonVolumes(c.DataPathMap, c.instanceName()),
+			opspec.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolume(),
 		),
 		HostNetwork: c.hostNetwork,
@@ -154,7 +91,7 @@ func (c *clusterConfig) makeRGWPodSpec() v1.PodTemplateSpec {
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   c.instanceName(),
+			Name:   rgwConfig.ResourceName,
 			Labels: c.getLabels(),
 		},
 		Spec: podSpec,
@@ -164,7 +101,7 @@ func (c *clusterConfig) makeRGWPodSpec() v1.PodTemplateSpec {
 	return podTemplateSpec
 }
 
-func (c *clusterConfig) makeDaemonContainer() v1.Container {
+func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 
 	// start the rgw daemon in the foreground
 	container := v1.Container{
@@ -177,17 +114,26 @@ func (c *clusterConfig) makeDaemonContainer() v1.Container {
 			append(
 				opspec.DaemonFlags(c.clusterInfo, c.store.Name),
 				"--foreground",
-				"--name=client.radosgw.gateway",
+				cephconfig.NewFlag("name", generateCephXUser(rgwConfig.ResourceName)),
 				cephconfig.NewFlag("host", opspec.ContainerEnvVarReference("POD_NAME")),
 				cephconfig.NewFlag("rgw-mime-types-file", mimeTypesMountPath()),
 			), c.defaultSettings().GlobalFlags()..., // use default settings as flags until mon kv store supported
 		),
 		VolumeMounts: append(
-			opspec.DaemonVolumeMounts(c.DataPathMap, c.instanceName()),
+			opspec.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolumeMount(),
 		),
 		Env:       opspec.DaemonEnvVars(c.cephVersion.Image),
 		Resources: c.store.Spec.Gateway.Resources,
+		LivenessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path: "/",
+					Port: intstr.FromInt(int(c.store.Spec.Gateway.Port)),
+				},
+			},
+			InitialDelaySeconds: 10,
+		},
 	}
 
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
@@ -211,7 +157,7 @@ func (c *clusterConfig) startService() (string, error) {
 			Selector: labels,
 		},
 	}
-	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &svc.ObjectMeta, c.ownerRefs)
+	k8sutil.SetOwnerRefs(&svc.ObjectMeta, c.ownerRefs)
 	if c.hostNetwork {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}

@@ -62,8 +62,8 @@ func NewCephManifests(version string) CephManifests {
 	switch version {
 	case VersionMaster:
 		return &CephManifestsMaster{imageTag: VersionMaster}
-	case Version0_9:
-		return &CephManifestsV0_9{imageTag: Version0_9}
+	case Version1_0:
+		return &CephManifestsV1_0{imageTag: Version1_0}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", version))
 }
@@ -620,6 +620,9 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
 
 ---
 kind: ClusterRoleBinding
@@ -674,15 +677,9 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "create", "update"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshots"]
     verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "create", "delete"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotcontents"]
     verbs: ["create", "get", "list", "watch", "update", "delete"]
@@ -711,6 +708,33 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: rbd-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: ` + namespace + `
+  name: rbd-external-provisioner-cfg
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-provisioner-role-cfg
+  namespace: ` + namespace + `
+subjects:
+  - kind: ServiceAccount
+    name: rbd-csi-provisioner
+    namespace: ` + namespace + `
+roleRef:
+  kind: Role
+  name: rbd-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
@@ -805,8 +829,11 @@ rules:
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "create", "delete"]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
 
 ---
 kind: ClusterRoleBinding
@@ -820,6 +847,33 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: cephfs-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: ` + namespace + `
+  name: cephfs-external-provisioner-cfg
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-provisioner-role-cfg
+  namespace: ` + namespace + `
+subjects:
+  - kind: ServiceAccount
+    name: cephfs-csi-provisioner
+    namespace: ` + namespace + `
+roleRef:
+  kind: Role
+  name: cephfs-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
@@ -869,20 +923,18 @@ spec:
         # CSI enablement
         - name: ROOK_CSI_ENABLE_CEPHFS
           value: "true"
-        - name: ROOK_CSI_CEPHFS_IMAGE
-          value: "quay.io/cephcsi/cephfsplugin:v1.0.0"
+        - name: ROOK_CSI_CEPH_IMAGE
+          value: "quay.io/cephcsi/cephcsi:canary"
         - name: ROOK_CSI_ENABLE_RBD
           value: "true"
-        - name: ROOK_CSI_RBD_IMAGE
-          value: "quay.io/cephcsi/rbdplugin:v1.0.0"
         - name: ROOK_CSI_REGISTRAR_IMAGE
-          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.0.2"
+          value: "quay.io/k8scsi/csi-node-driver-registrar:v1.1.0"
         - name: ROOK_CSI_PROVISIONER_IMAGE
-          value: "quay.io/k8scsi/csi-provisioner:v1.0.1"
+          value: "quay.io/k8scsi/csi-provisioner:v1.2.0"
         - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-          value: "quay.io/k8scsi/csi-snapshotter:v1.0.1"
+          value: "quay.io/k8scsi/csi-snapshotter:v1.1.0"
         - name: ROOK_CSI_ATTACHER_IMAGE
-          value: "quay.io/k8scsi/csi-attacher:v1.0.1"
+          value: "quay.io/k8scsi/csi-attacher:v1.1.1"
         volumeMounts:
         - mountPath: /etc/ceph-csi/rbd
           name: csi-rbd-config
@@ -910,6 +962,12 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-mgr
+  namespace: ` + namespace + `
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cmd-reporter
   namespace: ` + namespace + `
 ---
 kind: Role
@@ -955,6 +1013,25 @@ rules:
   - "*"
   verbs:
   - "*"
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
@@ -1015,6 +1092,21 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
   namespace: ` + namespace + `
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cmd-reporter
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cmd-reporter
+  namespace: ` + namespace + `
+---
 `
 }
 

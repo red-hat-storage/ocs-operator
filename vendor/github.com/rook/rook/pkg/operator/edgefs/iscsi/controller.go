@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/google/go-cmp/cmp"
 	opkit "github.com/rook/operator-kit"
 	edgefsv1beta1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -53,6 +54,7 @@ var ISCSIResource = opkit.CustomResource{
 // ISCSIController represents a controller object for iscsi custom resources
 type ISCSIController struct {
 	context         *clusterd.Context
+	namespace       string
 	rookImage       string
 	hostNetwork     bool
 	dataDirHostPath string
@@ -66,7 +68,9 @@ type ISCSIController struct {
 
 // NewISCSIController create controller for watching ISCSI custom resources created
 func NewISCSIController(
-	context *clusterd.Context, rookImage string,
+	context *clusterd.Context,
+	namespace string,
+	rookImage string,
 	hostNetwork bool,
 	dataDirHostPath string,
 	dataVolumeSize resource.Quantity,
@@ -77,6 +81,7 @@ func NewISCSIController(
 ) *ISCSIController {
 	return &ISCSIController{
 		context:         context,
+		namespace:       namespace,
 		rookImage:       rookImage,
 		hostNetwork:     hostNetwork,
 		dataDirHostPath: dataDirHostPath,
@@ -89,7 +94,7 @@ func NewISCSIController(
 }
 
 // StartWatch watches for instances of ISCSI custom resources and acts on them
-func (c *ISCSIController) StartWatch(namespace string, stopCh chan struct{}) error {
+func (c *ISCSIController) StartWatch(stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -97,8 +102,8 @@ func (c *ISCSIController) StartWatch(namespace string, stopCh chan struct{}) err
 		DeleteFunc: c.onDelete,
 	}
 
-	logger.Infof("start watching iscsi resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ISCSIResource, namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
+	logger.Infof("start watching iscsi resources in namespace %s", c.namespace)
+	watcher := opkit.NewWatcher(ISCSIResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.EdgefsV1beta1().RESTClient())
 	go watcher.Watch(&edgefsv1beta1.ISCSI{}, stopCh)
 
 	return nil
@@ -159,7 +164,52 @@ func (c *ISCSIController) serviceOwners(service *edgefsv1beta1.ISCSI) []metav1.O
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
+func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1beta1.ClusterSpec) {
+	if c.rookImage == cluster.EdgefsImageName {
+		logger.Infof("No need to update the iscsi service, the same images present")
+		return
+	}
+
+	// update controller options by updated cluster spec
+	c.rookImage = cluster.EdgefsImageName
+
+	iscsis, err := c.context.RookClientset.EdgefsV1beta1().ISCSIs(c.namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve NFSes to update the Edgefs version. %+v", err)
+		return
+	}
+	for _, iscsi := range iscsis.Items {
+		logger.Infof("updating the Edgefs version for iscsi %s to %s", iscsi.Name, cluster.EdgefsImageName)
+		err := c.UpdateService(iscsi, nil)
+		if err != nil {
+			logger.Errorf("failed to update iscsi service %s. %+v", iscsi.Name, err)
+		} else {
+			logger.Infof("updated iscsi service %s to Edgefs version %s", iscsi.Name, cluster.EdgefsImageName)
+		}
+	}
+}
+
 func serviceChanged(oldService, newService edgefsv1beta1.ISCSISpec) bool {
+	var diff string
+	if !reflect.DeepEqual(oldService, newService) {
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					logger.Warningf("Encountered an issue getting ISCSI service change differences: %v", err)
+				}
+			}()
+
+			// resource.Quantity has non-exportable fields, so we use its comparator method
+			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
+			diff = cmp.Diff(oldService, newService, resourceQtyComparer)
+			logger.Infof("The ISCSI Service has changed. diff=%s", diff)
+		}()
+	}
+
+	if len(diff) > 0 {
+		return true
+	}
+
 	return false
 }
 
@@ -170,6 +220,5 @@ func getISCSIObject(obj interface{}) (iscsi *edgefsv1beta1.ISCSI, err error) {
 		// the iscsi object is of the latest type, simply return it
 		return iscsi.DeepCopy(), nil
 	}
-
 	return nil, fmt.Errorf("not a known iscsi object: %+v", obj)
 }

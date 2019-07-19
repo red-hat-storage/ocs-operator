@@ -65,6 +65,44 @@ type OSDDump struct {
 	} `json:"osds"`
 }
 
+type SafeToDestroyStatus struct {
+	SafeToDestroy []int `json:"safe_to_destroy"`
+}
+
+// OsdTree represents the CRUSH hierarchy
+type OsdTree struct {
+	Nodes []struct {
+		ID          int    `json:"id"`
+		Name        string `json:"name"`
+		Type        string `json:"type"`
+		TypeID      int    `json:"type_id"`
+		Children    []int  `json:"children,omitempty"`
+		PoolWeights struct {
+		} `json:"pool_weights,omitempty"`
+		CrushWeight     float64 `json:"crush_weight,omitempty"`
+		Depth           int     `json:"depth,omitempty"`
+		Exists          int     `json:"exists,omitempty"`
+		Status          string  `json:"status,omitempty"`
+		Reweight        float64 `json:"reweight,omitempty"`
+		PrimaryAffinity float64 `json:"primary_affinity,omitempty"`
+	} `json:"nodes"`
+	Stray []struct {
+		ID              int     `json:"id"`
+		Name            string  `json:"name"`
+		Type            string  `json:"type"`
+		TypeID          int     `json:"type_id"`
+		CrushWeight     float64 `json:"crush_weight"`
+		Depth           int     `json:"depth"`
+		Exists          int     `json:"exists"`
+		Status          string  `json:"status"`
+		Reweight        float64 `json:"reweight"`
+		PrimaryAffinity float64 `json:"primary_affinity"`
+	} `json:"stray"`
+}
+
+// OsdList returns the list of OSD by their IDs
+type OsdList []int
+
 // StatusByID returns status and inCluster states for given OSD id
 func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 	for _, d := range dump.OSDs {
@@ -93,7 +131,7 @@ func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 
 func GetOSDUsage(context *clusterd.Context, clusterName string) (*OSDUsage, error) {
 	args := []string{"osd", "df"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osd df: %+v", err)
 	}
@@ -108,7 +146,7 @@ func GetOSDUsage(context *clusterd.Context, clusterName string) (*OSDUsage, erro
 
 func GetOSDPerfStats(context *clusterd.Context, clusterName string) (*OSDPerfStats, error) {
 	args := []string{"osd", "perf"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osd perf: %+v", err)
 	}
@@ -123,7 +161,9 @@ func GetOSDPerfStats(context *clusterd.Context, clusterName string) (*OSDPerfSta
 
 func GetOSDDump(context *clusterd.Context, clusterName string) (*OSDDump, error) {
 	args := []string{"osd", "dump"}
-	buf, err := executeCephCommandWithOutputFile(context, clusterName, true, args)
+	cmd := NewCephCommand(context, clusterName, args)
+	cmd.Debug = true
+	buf, err := cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osd dump: %+v", err)
 	}
@@ -138,14 +178,32 @@ func GetOSDDump(context *clusterd.Context, clusterName string) (*OSDDump, error)
 
 func OSDOut(context *clusterd.Context, clusterName string, osdID int) (string, error) {
 	args := []string{"osd", "out", strconv.Itoa(osdID)}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	return string(buf), err
 }
 
 func OSDRemove(context *clusterd.Context, clusterName string, osdID int) (string, error) {
 	args := []string{"osd", "rm", strconv.Itoa(osdID)}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := NewCephCommand(context, clusterName, args).Run()
 	return string(buf), err
+}
+
+func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int) (bool, error) {
+	args := []string{"osd", "safe-to-destroy", strconv.Itoa(osdID)}
+	cmd := NewCephCommand(context, clusterName, args)
+	buf, err := cmd.Run()
+	if err != nil {
+		return false, fmt.Errorf("failed to get safe-to-destroy status: %+v", err)
+	}
+
+	var output SafeToDestroyStatus
+	if err := json.Unmarshal(buf, &output); err != nil {
+		return false, fmt.Errorf("failed to unmarshal safe-to-destroy response: %+v", err)
+	}
+	if len(output.SafeToDestroy) != 0 && output.SafeToDestroy[0] == osdID {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {
@@ -156,4 +214,40 @@ func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {
 	}
 
 	return nil
+}
+
+// HostTree returns the osd tree
+func HostTree(context *clusterd.Context, clusterName string) (OsdTree, error) {
+	var output OsdTree
+
+	args := []string{"osd", "tree"}
+	buf, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return output, fmt.Errorf("failed to get osd tree: %+v", err)
+	}
+
+	err = json.Unmarshal(buf, &output)
+	if err != nil {
+		return output, fmt.Errorf("failed to unmarshal 'osd tree' response: %+v", err)
+	}
+
+	return output, nil
+}
+
+// OsdListNum returns the list of OSDs
+func OsdListNum(context *clusterd.Context, clusterName string) (OsdList, error) {
+	var output OsdList
+
+	args := []string{"osd", "ls"}
+	buf, err := NewCephCommand(context, clusterName, args).Run()
+	if err != nil {
+		return output, fmt.Errorf("failed to get osd list: %+v", err)
+	}
+
+	err = json.Unmarshal(buf, &output)
+	if err != nil {
+		return output, fmt.Errorf("failed to unmarshal 'osd ls' response: %+v", err)
+	}
+
+	return output, nil
 }

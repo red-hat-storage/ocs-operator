@@ -19,6 +19,9 @@ package k8sutil
 
 import (
 	"fmt"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/api/core/v1"
@@ -28,13 +31,15 @@ import (
 	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
 
-// ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
-// (3) is ready. False otherwise.
-func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
-	if !GetNodeSchedulable(node) {
-		return false, nil
-	}
+var validTopologyLabelKeys = []string{
+	"failure-domain.beta.kubernetes.io",
+	"failure-domain.kubernetes.io",
+}
 
+// ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
+// and (2) is ready. Unlike ValidNode, this method will ignore the
+// Node.Spec.Unschedulable flag. False otherwise.
+func ValidNodeNoSched(node v1.Node, placement rookalpha.Placement) (bool, error) {
 	p, err := NodeMeetsPlacementTerms(node, placement, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if node meets Rook placement terms. %+v", err)
@@ -50,10 +55,20 @@ func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
 	return true, nil
 }
 
+// ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
+// (3) is ready. False otherwise.
+func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
+	if !GetNodeSchedulable(node) {
+		return false, nil
+	}
+
+	return ValidNodeNoSched(node, placement)
+}
+
 // GetValidNodes returns all nodes that (1) are not cordoned, (2) meet Rook's placement terms, and
 // (3) are ready.
-func GetValidNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface, placement rookalpha.Placement) []rookalpha.Node {
-	matchingK8sNodes, err := GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
+func GetValidNodes(rookStorage rookalpha.StorageScopeSpec, clientset kubernetes.Interface, placement rookalpha.Placement) []rookalpha.Node {
+	matchingK8sNodes, err := GetKubernetesNodesMatchingRookNodes(rookStorage.Nodes, clientset)
 	if err != nil {
 		// cannot list nodes, return empty nodes
 		logger.Errorf("failed to list nodes: %+v", err)
@@ -70,7 +85,7 @@ func GetValidNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface, p
 		}
 	}
 
-	return RookNodesMatchingKubernetesNodes(rookNodes, validK8sNodes)
+	return RookNodesMatchingKubernetesNodes(rookStorage, validK8sNodes)
 }
 
 // GetNodeNameFromHostname returns the name of the node resource looked up by the hostname label
@@ -224,17 +239,44 @@ func GetKubernetesNodesMatchingRookNodes(rookNodes []rookalpha.Node, clientset k
 
 // RookNodesMatchingKubernetesNodes returns only the given Rook nodes which have a corresponding
 // match in the list of Kubernetes nodes.
-func RookNodesMatchingKubernetesNodes(rookNodes []rookalpha.Node, kubernetesNodes []v1.Node) []rookalpha.Node {
+func RookNodesMatchingKubernetesNodes(rookStorage rookalpha.StorageScopeSpec, kubernetesNodes []v1.Node) []rookalpha.Node {
 	nodes := []rookalpha.Node{}
 	for _, kn := range kubernetesNodes {
-		for _, rn := range rookNodes {
+		for _, rn := range rookStorage.Nodes {
 			if rookNodeMatchesKubernetesNode(rn, kn) {
 				rn.Name = normalizeHostname(kn)
+
+				// modify the node Location if topology awareness enabled
+				if rookStorage.TopologyAware == true {
+					rn.Location = nodeTopologyLocation(kn, rn.Location)
+				}
+
 				nodes = append(nodes, rn)
 			}
 		}
 	}
 	return nodes
+}
+
+func nodeTopologyLocation(kubeNode v1.Node, location string) string {
+	nodeLabels := kubeNode.ObjectMeta.Labels
+	locations := []string{location}
+
+	// We're looking for node labels that match the following format:
+	// <validTopologyLabelKey>/<key>: <value>
+	// Where validTopologyLabelKey is an entry in the
+	// validTopologyLabelKeys list, key is a topology element (e.g. region,
+	// zone), and value is the name of the element (e.g. region1, zone2)
+	for label := range nodeLabels {
+		for _, key := range validTopologyLabelKeys {
+			if strings.Contains(label, key) {
+				keys := strings.Split(label, "/")
+				locations = append(locations, fmt.Sprintf("%s=%s", keys[1], nodeLabels[label]))
+			}
+		}
+	}
+
+	return strings.Join(locations, " ")
 }
 
 // NodeIsInRookNodeList will return true if the target node is found in a given list of Rook nodes.
@@ -245,4 +287,64 @@ func NodeIsInRookNodeList(targetNodeName string, rookNodes []rookalpha.Node) boo
 		}
 	}
 	return false
+}
+
+// AddNodeAffinity will return v1.NodeAffinity or error
+func AddNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
+	newNodeAffinity := &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{},
+			},
+		},
+	}
+	nodeLabels := strings.Split(nodeAffinity, ";")
+	// For each label in 'nodeLabels', retrieve (key,value) pair and create nodeAffinity
+	// '=' separates key from values
+	// ',' separates values
+	for _, nodeLabel := range nodeLabels {
+		// If tmpNodeLabel is an array of length > 1
+		// [0] is Key and [1] is comma separated values
+		tmpNodeLabel := strings.Split(nodeLabel, "=")
+		if len(tmpNodeLabel) > 1 {
+			nodeLabelKey := strings.Trim(tmpNodeLabel[0], " ")
+			tmpNodeLabelValue := tmpNodeLabel[1]
+			nodeLabelValues := strings.Split(tmpNodeLabelValue, ",")
+			if nodeLabelKey != "" && len(nodeLabelValues) > 0 {
+				err := validation.IsQualifiedName(nodeLabelKey)
+				if err != nil {
+					return nil, fmt.Errorf("invalid label key: %s err: %v", nodeLabelKey, err)
+				}
+				for _, nodeLabelValue := range nodeLabelValues {
+					nodeLabelValue = strings.Trim(nodeLabelValue, " ")
+					err := validation.IsValidLabelValue(nodeLabelValue)
+					if err != nil {
+						return nil, fmt.Errorf("invalid label value: %s err: %v", nodeLabelValue, err)
+					}
+				}
+				matchExpression := v1.NodeSelectorRequirement{
+					Key:      nodeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   nodeLabelValues,
+				}
+				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions =
+					append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
+			}
+		} else {
+			nodeLabelKey := strings.Trim(tmpNodeLabel[0], " ")
+			if nodeLabelKey != "" {
+				err := validation.IsQualifiedName(nodeLabelKey)
+				if err != nil {
+					return nil, fmt.Errorf("invalid label key: %s err: %v", nodeLabelKey, err)
+				}
+				matchExpression := v1.NodeSelectorRequirement{
+					Key:      nodeLabelKey,
+					Operator: v1.NodeSelectorOpExists,
+				}
+				newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions =
+					append(newNodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, matchExpression)
+			}
+		}
+	}
+	return newNodeAffinity, nil
 }

@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"strconv"
@@ -69,9 +70,7 @@ func NewFlexvolumeServer(context *clusterd.Context, controller *Controller) *Fle
 
 // Start configures the flexvolume driver on the host and starts the unix domain socket server to communicate with the driver
 func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
-	// first install the flexvolume driver
-	// /usr/local/bin/rookflex
-	driverFile := path.Join(usrBinDir, flexvolumeDriverFileName)
+	driverFile := path.Join(getRookFlexBinaryPath(), flexvolumeDriverFileName)
 	// /flexmnt/rook.io~rook-system
 	flexVolumeDriverDir := fmt.Sprintf(flexMountPath, driverVendor, driverName)
 
@@ -150,6 +149,8 @@ func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, 
 		Status: flexvolume.StatusSuccess,
 		Capabilities: &flexvolume.DriverCapabilities{
 			Attach: false,
+			// Required for metrics
+			SupportsMetrics: true,
 			// Required for any mount performed on a host running selinux
 			SELinuxRelabel: enableSELinuxRelabeling,
 			FSGroup:        enableFSGroup,
@@ -282,4 +283,13 @@ func getFlexDriverInfo(flexDriverPath string) (vendor, driver string, err error)
 	}
 
 	return "", "", fmt.Errorf("failed to find flex driver info from path %s", flexDriverPath)
+}
+
+// getRookFlexBinaryPath returns the path of rook flex volume driver
+func getRookFlexBinaryPath() string {
+	p, err := exec.LookPath(flexvolumeDriverFileName)
+	if err != nil {
+		return usrBinDir
+	}
+	return path.Dir(p)
 }

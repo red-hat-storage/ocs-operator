@@ -26,9 +26,9 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephbeta "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -49,12 +50,13 @@ import (
 )
 
 const (
-	crushConfigMapName    = "rook-crush-config"
-	crushmapCreatedKey    = "initialCrushMapCreated"
-	clusterCreateInterval = 6 * time.Second
-	clusterCreateTimeout  = 60 * time.Minute
-	updateClusterInterval = 30 * time.Second
-	updateClusterTimeout  = 1 * time.Hour
+	crushConfigMapName       = "rook-crush-config"
+	crushmapCreatedKey       = "initialCrushMapCreated"
+	clusterCreateInterval    = 6 * time.Second
+	clusterCreateTimeout     = 60 * time.Minute
+	updateClusterInterval    = 30 * time.Second
+	updateClusterTimeout     = 1 * time.Hour
+	detectCephVersionTimeout = 15 * time.Minute
 )
 
 const (
@@ -66,9 +68,8 @@ const (
 )
 
 var (
-	logger                  = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
-	finalizerName           = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
-	finalizerNameRookLegacy = fmt.Sprintf("%s.%s", ClusterResourceRookLegacy.Name, ClusterResourceRookLegacy.Group)
+	logger        = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	finalizerName = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
 )
 
 var ClusterResource = opkit.CustomResource{
@@ -80,31 +81,24 @@ var ClusterResource = opkit.CustomResource{
 	Kind:    reflect.TypeOf(cephv1.CephCluster{}).Name(),
 }
 
-var ClusterResourceRookLegacy = opkit.CustomResource{
-	Name:    "cluster",
-	Plural:  "clusters",
-	Group:   cephbeta.CustomResourceGroup,
-	Version: cephbeta.Version,
-	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephbeta.Cluster{}).Name(),
-}
-
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context          *clusterd.Context
-	volumeAttachment attachment.Attachment
-	devicesInUse     bool
-	rookImage        string
-	clusterMap       map[string]*cluster
+	context            *clusterd.Context
+	volumeAttachment   attachment.Attachment
+	devicesInUse       bool
+	rookImage          string
+	clusterMap         map[string]*cluster
+	addClusterCallback func() error
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment, addClusterCallback func() error) *ClusterController {
 	return &ClusterController{
-		context:          context,
-		volumeAttachment: volumeAttachment,
-		rookImage:        rookImage,
-		clusterMap:       make(map[string]*cluster),
+		context:            context,
+		volumeAttachment:   volumeAttachment,
+		rookImage:          rookImage,
+		clusterMap:         make(map[string]*cluster),
+		addClusterCallback: addClusterCallback,
 	}
 }
 
@@ -167,9 +161,6 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		logger.Infof("Disabling hotplug orchestration via %s", disableHotplugEnv)
 	}
 
-	// watch for events on all legacy types too
-	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
-
 	return nil
 }
 
@@ -223,20 +214,16 @@ func (c *ClusterController) onK8sNodeAdd(obj interface{}) {
 }
 
 func (c *ClusterController) onAdd(obj interface{}) {
-	clusterObj, migrationNeeded, err := getClusterObject(obj)
-	if err != nil {
-		logger.Errorf("failed to get cluster object: %+v", err)
-		return
+	// notify the callback that a cluster crd is being added
+	if c.addClusterCallback != nil {
+		if err := c.addClusterCallback(); err != nil {
+			logger.Errorf("%+v", err)
+		}
 	}
 
-	if migrationNeeded {
-		err = c.migrateClusterObject(clusterObj, obj)
-		if err != nil {
-			logger.Errorf("failed to migrate legacy cluster %s in namespace %s: %+v", clusterObj.Name, clusterObj.Namespace, err)
-		}
-
-		// no matter the outcome of the migration, bail out now. if it was successful, then we'll be getting
-		// another event for the migrated object and we'll just handle it there.
+	clusterObj, err := getClusterObject(obj)
+	if err != nil {
+		logger.Errorf("failed to get cluster object: %+v", err)
 		return
 	}
 
@@ -271,10 +258,20 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
+	// Try to load clusterInfo early so we can compare the running version with the one from the spec image
+	cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
+	if err == nil {
+		// Let's write connection info (ceph config file and keyring) to the operator for health checks
+		err = mon.WriteConnectionConfig(cluster.context, cluster.Info)
+		if err != nil {
+			return
+		}
+	}
+
 	// Start the Rook cluster components. Retry several times in case of failure.
 	validOrchestration := true
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		cephVersion, err := cluster.detectCephVersion(cluster.Spec.CephVersion.Image, 15*time.Minute)
+		cephVersion, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return false, nil
@@ -287,6 +284,45 @@ func (c *ClusterController) onAdd(obj interface{}) {
 				validOrchestration = false
 				// it may seem strange to log error and exit true but we don't want to retry if the version is not supported
 				return true, nil
+			}
+		}
+
+		// This tries to determine if the operator was restarted and we loss the state
+		// If the cluster was unhealthy and someone injected a new image version, an upgrade was triggered but failed because the cluster is not healthy
+		// Then after this, if the operator gets restarted we are not able to fail if the cluster is not healthy, the following tries to determine the
+		// state we are in and if we should upgrade or not
+		//
+		// If not initialized, this is likely a new cluster so there is nothing to do
+		if cluster.Info.IsInitialized() {
+			imageVersion := *cephVersion
+
+			// Get cluster running versions
+			versions, err := client.GetAllCephDaemonVersions(c.context, cluster.Namespace)
+			if err != nil {
+				logger.Errorf("failed to get ceph daemons versions. %+v", err)
+				return false, err
+			}
+
+			runningVersions := *versions
+			updateOrNot, err := diffImageSpecAndClusterRunningVersion(imageVersion, runningVersions)
+			if err != nil {
+				logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
+				// we shouldn't block the orchestration if we can't determine the version of the image spec, we proceed anyway in best effort
+				// we won't be able to check if there is an update or not and what to do, so we don't check the cluster status either
+				// will happen if someone uses ceph/daemon:latest-master for instance
+				validOrchestration = false
+				return true, nil
+			}
+
+			if updateOrNot {
+				// If the image version changed let's make sure we can safely upgrade
+				// check ceph's status, if not healthy we fail
+				cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
+				if !cephStatus {
+					logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+					validOrchestration = false
+					return true, nil
+				}
 			}
 		}
 
@@ -341,7 +377,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	fileController.StartWatch(cluster.stopCh)
 
 	// Start nfs ganesha CRD watcher
-	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	ganeshaController := nfs.NewCephNFSController(cluster.Info, c.context, cluster.Spec.DataDirHostPath, cluster.Namespace, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	ganeshaController.StartWatch(cluster.stopCh)
 
 	cluster.childControllers = []childController{
@@ -424,33 +460,14 @@ func (c *ClusterController) onK8sNodeUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
-	oldClust, _, err := getClusterObject(oldObj)
+	oldClust, err := getClusterObject(oldObj)
 	if err != nil {
 		logger.Errorf("failed to get old cluster object: %+v", err)
 		return
 	}
-	newClust, migrationNeeded, err := getClusterObject(newObj)
+	newClust, err := getClusterObject(newObj)
 	if err != nil {
 		logger.Errorf("failed to get new cluster object: %+v", err)
-		return
-	}
-
-	if migrationNeeded {
-		logger.Infof("update event for legacy cluster %s", newClust.Namespace)
-
-		if isLegacyClusterObjectDeleted(newObj) {
-			// the legacy cluster object has been requested to be deleted but the finalizer is preventing
-			// that.  Let's remove the finalizer and allow the deletion of the legacy object to proceed.
-			c.removeFinalizer(newObj)
-			return
-		}
-
-		if err = c.migrateClusterObject(newClust, newObj); err != nil {
-			logger.Errorf("failed to migrate legacy cluster %s in namespace %s: %+v", newClust.Name, newClust.Namespace, err)
-		}
-
-		// no matter the outcome of the migration, bail out now. if it was successful, then we'll be getting
-		// another event for the migrated object and we'll just handle it there.
 		return
 	}
 
@@ -485,22 +502,74 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
 
 	// if the image changed, we need to detect the new image version
+	versionChanged := false
 	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
 		logger.Infof("the ceph version changed. detecting the new image version...")
-		version, err := cluster.detectCephVersion(newClust.Spec.CephVersion.Image, 15*time.Minute)
+		version, err := cluster.detectCephVersion(c.rookImage, newClust.Spec.CephVersion.Image, detectCephVersionTimeout)
+		versionChanged = true
 		if err != nil {
 			logger.Errorf("unknown ceph major version. %+v", err)
 			return
 		}
 		cluster.Info.CephVersion = *version
 	} else {
-		logger.Infof("ceph version is still %s on image %s", &cluster.Info.CephVersion, cluster.Spec.CephVersion.Image)
+		// At this point, clusterInfo might not be initialized
+		// If we have deployed a new operator and failed on allowUnsupported
+		// there is no way we can continue, even we set allowUnsupported to true clusterInfo is gone
+		// So we have to re-populate it
+		if !cluster.Info.IsInitialized() {
+			logger.Infof("cluster information are not initialized, populating them.")
+
+			cluster.Info, _, _, err = mon.LoadClusterInfo(c.context, cluster.Namespace)
+			if err != nil {
+				logger.Errorf("failed to load clusterInfo %+v", err)
+			}
+
+			// Re-setting cluster version too since LoadClusterInfo does not load it
+			version, err := cluster.detectCephVersion(c.rookImage, newClust.Spec.CephVersion.Image, detectCephVersionTimeout)
+			if err != nil {
+				logger.Errorf("unknown ceph major version. %+v", err)
+				return
+			}
+			cluster.Info.CephVersion = *version
+
+			logger.Infof("ceph version is still %s on image %s", &cluster.Info.CephVersion, cluster.Spec.CephVersion.Image)
+		}
 	}
 
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
 	logger.Debugf("new cluster: %+v", newClust.Spec)
 
 	cluster.Spec = &newClust.Spec
+
+	// Get cluster running versions
+	versions, err := client.GetAllCephDaemonVersions(c.context, cluster.Namespace)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		return
+	}
+	runningVersions := *versions
+
+	// If the image version changed let's make sure we can safely upgrade
+	if versionChanged {
+		updateOrNot, err := diffImageSpecAndClusterRunningVersion(cluster.Info.CephVersion, runningVersions)
+		if err != nil {
+			logger.Errorf("failed to determine if we should upgrade or not. %+v", err)
+			return
+		}
+
+		if updateOrNot {
+			// If the image version changed let's make sure we can safely upgrade
+			// check ceph's status, if not healthy we fail
+			cephStatus := client.IsCephHealthy(c.context, cluster.Namespace)
+			if !cephStatus {
+				logger.Errorf("ceph status in namespace %s is not healthy, refusing to upgrade. fix the cluster and re-edit the cluster CR to trigger a new orchestation update", cluster.Namespace)
+				return
+			}
+		}
+	} else {
+		logger.Infof("ceph daemons running versions are: %+v", runningVersions)
+	}
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
@@ -519,6 +588,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
 		}
 		return
+	}
+
+	// Display success after upgrade
+	if versionChanged {
+		printOverallCephVersion(c.context, cluster.Namespace)
 	}
 }
 
@@ -598,16 +672,9 @@ func (c *ClusterController) onDeviceCMUpdate(oldObj, newObj interface{}) {
 // Delete event functions
 // ************************************************************************************************
 func (c *ClusterController) onDelete(obj interface{}) {
-	clust, migrationNeeded, err := getClusterObject(obj)
+	clust, err := getClusterObject(obj)
 	if err != nil {
 		logger.Errorf("failed to get cluster object: %+v", err)
-		return
-	}
-
-	if migrationNeeded {
-		// ignore deletion of a legacy cluster as it should have been migrated to an object of the current type
-		// and tracked now with that object.
-		logger.Infof("ignoring deletion of legacy cluster %s in namespace %s", clust.Name, clust.Namespace)
 		return
 	}
 
@@ -672,17 +739,6 @@ func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInter
 	return nil
 }
 
-func isLegacyClusterObjectDeleted(obj interface{}) bool {
-	// if the object is a legacy cluster type and the deletion timestamp on the legacy cluster object is set,
-	// it has been requested to be deleted
-	if clusterLegacy, ok := obj.(*cephbeta.Cluster); ok {
-		return clusterLegacy.DeletionTimestamp != nil
-	}
-
-	// not a legacy type
-	return false
-}
-
 // ************************************************************************************************
 // Finalizer functions
 // ************************************************************************************************
@@ -723,9 +779,6 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 	if cl, ok := obj.(*cephv1.CephCluster); ok {
 		fname = finalizerName
 		objectMeta = &cl.ObjectMeta
-	} else if cl, ok := obj.(*cephbeta.Cluster); ok {
-		fname = finalizerNameRookLegacy
-		objectMeta = &cl.ObjectMeta
 	} else {
 		logger.Warningf("cannot remove finalizer from object that is not a cluster: %+v", obj)
 		return
@@ -752,9 +805,6 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 		var err error
 		if cluster, ok := obj.(*cephv1.CephCluster); ok {
 			_, err = c.context.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
-		} else {
-			clusterLegacy := obj.(*cephbeta.Cluster)
-			_, err = c.context.RookClientset.CephV1beta1().Clusters(clusterLegacy.Namespace).Update(clusterLegacy)
 		}
 
 		if err != nil {
@@ -793,10 +843,33 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ce
 func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
-		APIVersion:         ClusterResource.Version,
+		APIVersion:         fmt.Sprintf("%s/%s", ClusterResource.Group, ClusterResource.Version),
 		Kind:               ClusterResource.Kind,
 		Name:               namespace,
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
+	}
+}
+
+func printOverallCephVersion(context *clusterd.Context, namespace string) {
+	versions, err := client.GetAllCephDaemonVersions(context, namespace)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %+v", err)
+		return
+	}
+
+	if len(versions.Overall) == 1 {
+		for v := range versions.Overall {
+			version, err := cephver.ExtractCephVersion(v)
+			if err != nil {
+				logger.Errorf("failed to extract ceph version. %+v", err)
+				return
+			}
+			vv := *version
+			logger.Infof("successfully upgraded cluster to version: %s", vv.String())
+		}
+	} else {
+		// This shouldn't happen, but let's log just in case
+		logger.Warningf("upgrade orchestration completed but somehow we still have more than one Ceph version running. %+v:", versions.Overall)
 	}
 }
