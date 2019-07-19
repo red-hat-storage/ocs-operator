@@ -99,6 +99,10 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 			Network: rook.NetworkSpec{
 				HostNetwork: false,
 			},
+			Monitoring: rookCephv1.MonitoringSpec{
+				Enabled:        true,
+				RulesNamespace: "openshift-storage",
+			},
 		},
 	}
 }
