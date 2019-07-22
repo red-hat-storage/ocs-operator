@@ -62,6 +62,9 @@ const (
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
 
+	// configuration map for csi
+	csiConfigKey = "csi-cluster-config-json"
+
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
@@ -216,12 +219,12 @@ func (c *Cluster) startMons(targetCount int) error {
 
 	// Enable Ceph messenger 2 protocol on Nautilus
 	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
-		v, err := client.GetCephMonVersion(c.context)
+		v, err := client.GetCephMonVersion(c.context, c.clusterInfo.Name)
 		if err != nil {
 			return fmt.Errorf("failed to get ceph mon version. %+v", err)
 		}
 		if v.IsAtLeastNautilus() {
-			versions, err := client.GetCephVersions(c.context)
+			versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
 			if err != nil {
 				return fmt.Errorf("failed to get ceph daemons versions. %+v", err)
 			}
@@ -269,7 +272,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 	}
 
 	// make sure we have the connection info generated so connections can happen
-	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return err
 	}
 
@@ -285,13 +288,13 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 // If a new cluster, create new keys.
 func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	var err error
+
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
-	c.clusterInfo.CephVersion = cephVersion
-
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
+	c.clusterInfo.CephVersion = cephVersion
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
@@ -377,37 +380,129 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) assignMons(mons []*monConfig) error {
-	// schedule the mons on different nodes if we have enough nodes to be unique
-	availableNodes, err := c.getMonNodes()
-	if err != nil {
-		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
+// find a suitable node for this monitor. first look for a fault zone that has
+// no monitors. only after the nodes with zone labels are considered are the
+// unlabeled nodes considered. reasonsing: without more information, _at worst_
+// the unlabled nodes are actually in the set of labeled zones, and at best,
+// they are in distinct zones.
+func scheduleMonitor(mon *monConfig, nodeZones [][]NodeUsage) *NodeUsage {
+	// the node choice for this monitor
+	var nodeChoice *NodeUsage
+
+	// for each zone, in order of preference. unlabeled nodes are last, by
+	// construction; see Cluster.getNodeMonusage().
+	for zi := range nodeZones {
+		// number of monitors in the zone
+		zoneMonCount := 0
+
+		// preferential node choice from this zone for a new mon
+		var zoneNodeChoice *NodeUsage
+
+		// for each node in this zone
+		for ni := range nodeZones[zi] {
+			nodeUsage := &nodeZones[zi][ni]
+
+			// skip invalid nodes. but update the mon count first since
+			// invalid nodes could still have an assigned mon pod.
+			zoneMonCount += nodeUsage.MonCount
+			if !nodeUsage.MonValid {
+				logger.Infof("schedmon: skip invalid node %s for mon scheduling",
+					nodeUsage.Node.Name)
+				continue
+			}
+
+			// make a "best" choice from this zone. in this case that is the
+			// node with the least amount of monitors.
+			if zoneNodeChoice == nil || nodeUsage.MonCount < zoneNodeChoice.MonCount {
+				logger.Infof("schedmon: considering node %s with mon count %d",
+					nodeUsage.Node.Name, nodeUsage.MonCount)
+				zoneNodeChoice = nodeUsage
+			}
+		}
+
+		// We identified _a_ valid node in the zone. should we choose it?
+		if zoneNodeChoice != nil {
+			if zoneMonCount == 0 {
+				// this zone has no monitors, which implies that
+				// zoneNodeChoice will be a node without any monitors
+				// currently assigned. choose this node.
+				logger.Infof("schedmon: considering node %s from empty zone",
+					zoneNodeChoice.Node.Name)
+				nodeChoice = zoneNodeChoice
+				break
+			} else {
+				// this zone already has a monitor in it. but keep the
+				// choice as a backup; we may find that all zones already
+				// have a monitor and still need to make an assignment.
+				if nodeChoice == nil || zoneNodeChoice.MonCount < nodeChoice.MonCount {
+					logger.Infof("schedmon: considering node %s with mon count %d",
+						zoneNodeChoice.Node.Name, zoneNodeChoice.MonCount)
+					nodeChoice = zoneNodeChoice
+				}
+			}
+		}
 	}
 
-	nodeIndex := 0
-	for _, m := range mons {
-		if _, ok := c.mapping.Node[m.DaemonName]; ok {
-			logger.Debugf("mon %s already assigned to a node, no need to assign", m.DaemonName)
+	if nodeChoice != nil {
+		logger.Infof("schedmon: scheduling mon %s on node %s",
+			mon.DaemonName, nodeChoice.Node.Name)
+	} else {
+		logger.Infof("schedmon: no suitable node found for mon %s",
+			mon.DaemonName)
+	}
+
+	return nodeChoice
+}
+
+func (c *Cluster) assignMons(mons []*monConfig) error {
+
+	// retrieve the set of cluster nodes and their monitor usage info
+	nodeZones, err := c.getNodeMonUsage()
+	if err != nil {
+		return fmt.Errorf("failed to get node monitor usage. %+v", err)
+	}
+
+	// ensure all monitors have a node assignment. note that this isn't
+	// necessarily optimal: it does not try to move existing monitors which is
+	// handled by the periodic monitor health checks.
+	for _, mon := range mons {
+
+		// monitor is already assigned to a node. nothing to do
+		if _, ok := c.mapping.Node[mon.DaemonName]; ok {
+			logger.Infof("assignmon: mon %s already assigned to a node", mon.DaemonName)
 			continue
 		}
 
-		// if we need to place a new mon and don't have any more nodes available, we fail to add the mon
-		if len(availableNodes) == 0 {
-			return fmt.Errorf("no nodes available for mon placement")
+		nodeChoice := scheduleMonitor(mon, nodeZones)
+
+		if nodeChoice == nil {
+			return fmt.Errorf("assignmon: no valid nodes available for mon placement")
 		}
 
-		// pick one of the available nodes where the mon will be assigned
-		node := availableNodes[nodeIndex%len(availableNodes)]
-		logger.Debugf("mon %s assigned to node %s", m.DaemonName, node.Name)
-		nodeInfo, err := getNodeInfoFromNode(node)
-		if err != nil {
-			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
+		// note that we do not need to worry about a false negative here (i.e. a
+		// node exists that _would_ pass this check) due to the search landing in a
+		// local minima because if a node had existed with a mon count of zero,
+		// scheduleMonitor would have chosen it over any node with a positive
+		// mon count.
+		if nodeChoice.MonCount > 0 && !c.spec.Mon.AllowMultiplePerNode {
+			return fmt.Errorf("assignmon: no empty nodes available for mon placement")
 		}
-		c.mapping.Node[m.DaemonName] = nodeInfo
-		nodeIndex++
+
+		// make this decision visible when scheduling the next monitor
+		nodeChoice.MonCount++
+
+		logger.Infof("assignmon: mon %s assigned to node %s", mon.DaemonName, nodeChoice.Node.Name)
+
+		nodeInfo, err := getNodeInfoFromNode(*nodeChoice.Node)
+		if err != nil {
+			return fmt.Errorf("couldn't get node info from node %s. %+v",
+				nodeChoice.Node.Name, err)
+		}
+
+		c.mapping.Node[mon.DaemonName] = nodeInfo
 	}
 
-	logger.Debug("mons have been assigned to nodes")
+	logger.Debug("assignmons: mons have been assigned to nodes")
 	return nil
 }
 
@@ -423,9 +518,28 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 		if err != nil {
 			return fmt.Errorf("failed to create mon %s. %+v", mons[i].DaemonName, err)
 		}
+		// For the initial deployment (first creation) it's expected to not have all the monitors in quorum
+		// However, in an event of an update, it's crucial to proceed monitors by monitors
+		// At the end of the method we perform one last check where all the monitors must be in quorum
+		requireAllInQuorum := false
+		err = c.waitForMonsToJoin(mons, requireAllInQuorum)
+		if err != nil {
+			return fmt.Errorf("failed to check mon quorum %s. %+v", mons[i].DaemonName, err)
+		}
 	}
 
 	logger.Infof("mons created: %d", len(mons))
+	// Final verification that **all** mons are in quorum
+	// Do not proceed if one monitor is still syncing
+	// Only do this when monitors versions are different so we don't block the orchestration if a mon is down.
+	versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
+	if err != nil {
+		logger.Warningf("failed to get ceph daemons versions; this likely means there is no cluster yet. %+v", err)
+	} else {
+		if len(versions.Mon) != 1 {
+			requireAllInQuorum = true
+		}
+	}
 	return c.waitForMonsToJoin(mons, requireAllInQuorum)
 }
 
@@ -456,17 +570,24 @@ func (c *Cluster) saveMonConfig() error {
 			Namespace: c.Namespace,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
 
 	monMapping, err := json.Marshal(c.mapping)
 	if err != nil {
 		return fmt.Errorf("failed to marshal mon mapping. %+v", err)
 	}
 
+	csiConfigValue, err := FormatCsiClusterConfig(
+		c.Namespace, c.clusterInfo.Monitors)
+	if err != nil {
+		return fmt.Errorf("failed to format csi config: %+v", err)
+	}
+
 	configMap.Data = map[string]string{
 		EndpointDataKey: FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
+		csiConfigKey:    csiConfigValue,
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
@@ -487,16 +608,17 @@ func (c *Cluster) saveMonConfig() error {
 	config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.clusterInfo)
 
 	// write the latest config to the config dir
-	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
 	return nil
 }
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var updateDeploymentAndWait = UpdateCephDeploymentAndWait
 
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
+
 	d := c.makeDeployment(m, hostname)
 	logger.Debugf("Starting mon: %+v", d.Name)
 	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(d)
@@ -505,7 +627,20 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 			return fmt.Errorf("failed to create mon deployment %s. %+v", m.ResourceName, err)
 		}
 		logger.Infof("deployment for mon %s already exists. updating if needed", m.ResourceName)
-		if _, err := updateDeploymentAndWait(c.context, d, c.Namespace); err != nil {
+
+		// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+		daemonType := string(config.MonType)
+		var cephVersionToUse cephver.CephVersion
+		currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemonType)
+		if err != nil {
+			logger.Warningf("failed to retrieve current ceph %s version. %+v", daemonType, err)
+			logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+			cephVersionToUse = c.clusterInfo.CephVersion
+		} else {
+			logger.Debugf("current cluster version for monitors before upgrading is: %+v", currentCephVersion)
+			cephVersionToUse = currentCephVersion
+		}
+		if err := updateDeploymentAndWait(c.context, d, c.Namespace, daemonType, m.DaemonName, cephVersionToUse); err != nil {
 			return fmt.Errorf("failed to update mon deployment %s. %+v", m.ResourceName, err)
 		}
 	}
@@ -518,7 +653,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 
 	// wait for monitors to establish quorum
 	retryCount := 0
-	retryMax := 20
+	retryMax := 30
 	for {
 		retryCount++
 		if retryCount > retryMax {

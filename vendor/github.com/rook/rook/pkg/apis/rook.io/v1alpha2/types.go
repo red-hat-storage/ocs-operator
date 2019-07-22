@@ -27,11 +27,12 @@ import (
 // ************************************************************************************
 
 type StorageScopeSpec struct {
-	Nodes       []Node            `json:"nodes,omitempty"`
-	UseAllNodes bool              `json:"useAllNodes,omitempty"`
-	NodeCount   int               `json:"nodeCount,omitempty"`
-	Location    string            `json:"location,omitempty"`
-	Config      map[string]string `json:"config"`
+	Nodes         []Node            `json:"nodes,omitempty"`
+	UseAllNodes   bool              `json:"useAllNodes,omitempty"`
+	TopologyAware bool              `json:"topologyAware,omitempty"`
+	NodeCount     int               `json:"nodeCount,omitempty"`
+	Location      string            `json:"location,omitempty"`
+	Config        map[string]string `json:"config"`
 	Selection
 }
 
@@ -45,7 +46,7 @@ type Node struct {
 
 type Device struct {
 	Name     string            `json:"name,omitempty"`
-	FullPath string            // TODO: FullPath to be supported for devices
+	FullPath string            `json:"fullpath,omitempty"`
 	Config   map[string]string `json:"config"`
 }
 

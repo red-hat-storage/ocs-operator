@@ -102,6 +102,11 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1beta1.SWIFT, update bool, own
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment already exists", appName)
+
+		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(deployment); err != nil {
+			return fmt.Errorf("failed to update %s deployment. %+v", appName, err)
+		}
+		logger.Infof("%s deployment updated", appName)
 	} else {
 		logger.Infof("%s deployment started", appName)
 	}
@@ -139,7 +144,7 @@ func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swif
 		},
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -226,7 +231,7 @@ func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArg
 			Replicas: &swiftSpec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	return d
 }
 

@@ -25,6 +25,7 @@ import (
 	"regexp"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
 )
 
@@ -41,7 +42,9 @@ type CephBlockImage struct {
 
 func ListImages(context *clusterd.Context, clusterName, poolName string) ([]CephBlockImage, error) {
 	args := []string{"ls", "-l", poolName}
-	buf, err := ExecuteRBDCommand(context, clusterName, args)
+	cmd := NewRBDCommand(context, clusterName, args)
+	cmd.JsonOutput = true
+	buf, err := cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list images for pool %s: %+v", poolName, err)
 	}
@@ -66,6 +69,9 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 
 // CreateImage creates a block storage image.
 // If dataPoolName is not empty, the image will use poolName as the metadata pool and the dataPoolname for data.
+// If size is zero an empty image will be created. Otherwise, an image will be
+// created with a size rounded up to the nearest Mi. The adjusted image size is
+// placed in return value CephBlockImage.Size.
 func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoolName string, size uint64) (*CephBlockImage, error) {
 	if size > 0 && size < ImageMinSize {
 		// rbd tool uses MB as the smallest unit for size input.  0 is OK but anything else smaller
@@ -86,7 +92,7 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 		args = append(args, fmt.Sprintf("--data-pool=%s", dataPoolName))
 	}
 
-	buf, err := ExecuteRBDCommandNoFormat(context, clusterName, args)
+	buf, err := NewRBDCommand(context, clusterName, args).Run()
 	if err != nil {
 		cmdErr, ok := err.(*exec.CommandError)
 		if ok && cmdErr.ExitStatus() == int(syscall.EEXIST) {
@@ -98,13 +104,21 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 		}
 	}
 
-	return &CephBlockImage{Name: name, Size: size}, nil
+	// report the adjusted size which will always be >= to the requested size
+	var newSizeBytes uint64
+	if sizeMB > 0 {
+		newSizeBytes = display.MbTob(uint64(sizeMB))
+	} else {
+		newSizeBytes = 0
+	}
+
+	return &CephBlockImage{Name: name, Size: newSizeBytes}, nil
 }
 
 func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) error {
 	imageSpec := getImageSpec(name, poolName)
 	args := []string{"rm", imageSpec}
-	buf, err := ExecuteRBDCommandNoFormat(context, clusterName, args)
+	buf, err := NewRBDCommand(context, clusterName, args).Run()
 	if err != nil {
 		return fmt.Errorf("failed to delete image %s in pool %s: %+v. output: %s",
 			name, poolName, err, string(buf))

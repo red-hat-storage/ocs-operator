@@ -32,6 +32,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
@@ -80,6 +81,13 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	}
 
 	replicas := int32(1)
+	if len(c.annotations) == 0 {
+		prometheusAnnotations := map[string]string{
+			"prometheus.io/scrape": "true",
+			"prometheus.io/port":   strconv.Itoa(metricsPort),
+		}
+		podSpec.ObjectMeta.Annotations = prometheusAnnotations
+	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mgrConfig.ResourceName,
@@ -98,16 +106,8 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
-	if len(c.annotations) == 0 {
-		prometheusAnnotations := map[string]string{
-			"prometheus.io/scrape": "true",
-			"prometheus.io/port":   strconv.Itoa(metricsPort),
-		}
-		podSpec.ObjectMeta.Annotations = prometheusAnnotations
-		d.ObjectMeta.Annotations = prometheusAnnotations
-	}
 	opspec.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	return d
 }
 
@@ -265,6 +265,15 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			c.cephMgrOrchestratorModuleEnvs()...,
 		),
 		Resources: c.resources,
+		LivenessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path: "/",
+					Port: intstr.FromInt(metricsPort),
+				},
+			},
+			InitialDelaySeconds: 60,
+		},
 	}
 	return container
 }
@@ -290,7 +299,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 		},
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -314,7 +323,7 @@ func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 

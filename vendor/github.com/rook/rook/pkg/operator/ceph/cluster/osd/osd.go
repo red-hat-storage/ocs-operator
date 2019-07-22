@@ -28,8 +28,11 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	apps "k8s.io/api/apps/v1"
@@ -39,7 +42,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+var (
+	logger                  = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+	updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
+)
 
 const (
 	appName                             = "rook-ceph-osd"
@@ -157,7 +163,7 @@ func (c *Cluster) Start() error {
 		logger.Debugf("storage nodes: %+v", c.DesiredStorage.Nodes)
 	}
 	// generally speaking, this finds nodes which are capable of running new osds
-	validNodes := k8sutil.GetValidNodes(c.DesiredStorage.Nodes, c.context.Clientset, c.placement)
+	validNodes := k8sutil.GetValidNodes(c.DesiredStorage, c.context.Clientset, c.placement)
 
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
@@ -185,6 +191,33 @@ func (c *Cluster) Start() error {
 	if len(config.errorMessages) > 0 {
 		return fmt.Errorf("%d failures encountered while running osds in namespace %s: %+v",
 			len(config.errorMessages), c.Namespace, strings.Join(config.errorMessages, "\n"))
+	}
+
+	// The following block is used to apply any command(s) required by an upgrade
+	// The block below handles the upgrade from Mimic to Nautilus.
+	if c.clusterInfo.CephVersion.IsAtLeastNautilus() {
+		versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo.Name)
+		if err != nil {
+			logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %+v", err)
+		} else {
+			// If length is one, this clearly indicates that all the osds are running the same version
+			// If this is the first time we are creating a cluster length will be 0
+			// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
+			// Basically, this task is happening too quickly and OSD pods are not running yet.
+			// That's not an issue since it's an initial bootstrap and not an update.
+			if len(versions.Osd) == 1 {
+				for v := range versions.Osd {
+					osdVersion, err := cephver.ExtractCephVersion(v)
+					if err != nil {
+						return fmt.Errorf("failed to extract ceph version. %+v", err)
+					}
+					// if the version of these OSDs is Nautilus then we run the command
+					if osdVersion.IsAtLeastNautilus() {
+						client.EnableNautilusOSD(c.context)
+					}
+				}
+			}
+		}
 	}
 
 	logger.Infof("completed running osds in namespace %s", c.Namespace)
@@ -290,11 +323,22 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 				continue
 			}
 			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
-			if _, err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
+			// Always invoke ceph version before an upgrade so we are sure to be up-to-date
+			daemon := string(opconfig.OsdType)
+			var cephVersionToUse cephver.CephVersion
+			currentCephVersion, err := client.LeastUptodateDaemonVersion(c.context, c.clusterInfo.Name, daemon)
+			if err != nil {
+				logger.Warningf("failed to retrieve current ceph %s version. %+v", daemon, err)
+				logger.Debug("could not detect ceph version during update, this is likely an initial bootstrap, proceeding with c.clusterInfo.CephVersion")
+				cephVersionToUse = c.clusterInfo.CephVersion
+			} else {
+				logger.Debugf("current cluster version for osds before upgrading is: %+v", currentCephVersion)
+				cephVersionToUse = currentCephVersion
+			}
+			if err = updateDeploymentAndWait(c.context, dp, c.Namespace, daemon, strconv.Itoa(osd.ID), cephVersionToUse); err != nil {
 				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
 			}
 		}
-
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
 	}
 }

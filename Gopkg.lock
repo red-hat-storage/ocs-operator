@@ -348,7 +348,8 @@
   version = "v0.0.2"
 
 [[projects]]
-  digest = "1:850c4b3bdb0b3310908ed54b7ee4885920b335f5b9d26d83229dfeb2e5978193"
+  branch = "master"
+  digest = "1:6c32582ed3fca71034a8497f3c800bbe6633fa1826a47f53d7ce88b1ac2b472a"
   name = "github.com/rook/rook"
   packages = [
     "pkg/apis/ceph.rook.io",
@@ -358,8 +359,7 @@
     "pkg/daemon/ceph/model",
   ]
   pruneopts = "NT"
-  revision = "2d73d024d4d11341dc2cbb3996825ccdd3ac4090"
-  version = "v1.0.2"
+  revision = "6ce053276883940b92257680bbad072f61b0cf45"
 
 [[projects]]
   digest = "1:9d8420bbf131d1618bde6530af37c3799340d3762cc47210c1d9532a4c3a2779"
@@ -817,6 +817,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/go-logr/logr",
     "github.com/go-openapi/spec",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",
     "github.com/operator-framework/operator-sdk/pkg/leader",

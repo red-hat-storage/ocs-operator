@@ -22,16 +22,17 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +42,8 @@ const (
 	discoverDaemonsetName             = "rook-discover"
 	discoverDaemonsetTolerationEnv    = "DISCOVER_TOLERATION"
 	discoverDaemonsetTolerationKeyEnv = "DISCOVER_TOLERATION_KEY"
+	discoverDaemonsetTolerationsEnv   = "DISCOVER_TOLERATIONS"
+	discoverDaemonSetNodeAffinityEnv  = "DISCOVER_AGENT_NODE_AFFINITY"
 	deviceInUseCMName                 = "local-device-in-use-cluster-%s-node-%s"
 	deviceInUseAppName                = "rook-claimed-devices"
 	deviceInUseClusterAttr            = "rook.io/cluster"
@@ -170,7 +173,27 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 		}
 	}
 
-	_, err := d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
+	tolerationsRaw := os.Getenv(discoverDaemonsetTolerationsEnv)
+	tolerations, err := k8sutil.YamlToTolerations(tolerationsRaw)
+	if err != nil {
+		logger.Warningf("failed to parse %s. %+v", tolerationsRaw, err)
+	}
+	ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, tolerations...)
+
+	// Add NodeAffinity if any
+	nodeAffinity := os.Getenv(discoverDaemonSetNodeAffinityEnv)
+	if nodeAffinity != "" {
+		v1NodeAffinity, err := k8sutil.AddNodeAffinity(nodeAffinity)
+		if err != nil {
+			logger.Errorf("failed to create NodeAffinity. %+v", err)
+		} else {
+			ds.Spec.Template.Spec.Affinity = &v1.Affinity{
+				NodeAffinity: v1NodeAffinity,
+			}
+		}
+	}
+
+	_, err = d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-discover daemon set. %+v", err)
@@ -298,6 +321,16 @@ func ListDevicesInUse(context *clusterd.Context, namespace, nodeName string) ([]
 	return devices, nil
 }
 
+func matchDeviceFullPath(devLinks, fullpath string) bool {
+	dlsArr := strings.Split(devLinks, " ")
+	for i := range dlsArr {
+		if dlsArr[i] == fullpath {
+			return true
+		}
+	}
+	return false
+}
+
 // GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
 func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string, devices []rookalpha.Device, filter string, useAllDevices bool) ([]rookalpha.Device, error) {
 	results := []rookalpha.Device{}
@@ -337,7 +370,13 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 	if len(devices) > 0 {
 		for i := range devices {
 			for j := range nodeDevices {
-				if devices[i].Name == nodeDevices[j].Name {
+				if devices[i].FullPath != "" && matchDeviceFullPath(nodeDevices[j].DevLinks, devices[i].FullPath) {
+					if devices[i].Name == "" {
+						devices[i].Name = nodeDevices[j].Name
+					}
+					results = append(results, devices[i])
+					claimedDevices = append(claimedDevices, nodeDevices[j])
+				} else if devices[i].Name == nodeDevices[j].Name {
 					results = append(results, devices[i])
 					claimedDevices = append(claimedDevices, nodeDevices[j])
 				}

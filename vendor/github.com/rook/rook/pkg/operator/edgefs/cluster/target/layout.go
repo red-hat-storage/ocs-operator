@@ -30,21 +30,9 @@ import (
 )
 
 const (
+	// DefaultContainerMaxCapacity - max allowed container disks capacity, if exeeded then new new container will be added
 	DefaultContainerMaxCapacity = "132Ti"
 )
-
-func ByteCountBinary(b uint64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := uint64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
-}
 
 // CreateQualifiedHeadlessServiceName creates a qualified name of the headless service for a given replica id and namespace,
 // e.g., edgefs-0.edgefs.rook-edgefs
@@ -52,11 +40,13 @@ func CreateQualifiedHeadlessServiceName(replicaNum int, namespace string) string
 	return fmt.Sprintf("%s-%d.%s.%s", appName, replicaNum, appName, namespace)
 }
 
+// EdgeFS RT-RD driver needs SCSI-3, ATA, NVMe by-id link
 func getIdDevLinkName(dls string) (dl string) {
 	dlsArr := strings.Split(dls, " ")
 	for i := range dlsArr {
 		s := strings.Replace(dlsArr[i], "/dev/disk/by-id/", "", 1)
-		if strings.Contains(s, "/") || strings.Contains(s, "wwn-") {
+		// if result contains "/" then it is not by-id, so skip it
+		if strings.Contains(s, "/") || strings.Contains(s, "wwn-") || strings.Contains(s, "nvme-nvme.") || strings.Contains(s, "nvme-eui.") {
 			continue
 		}
 		dl = s
@@ -105,16 +95,9 @@ func GetContainers(maxContainerCapacity int64, devices []sys.LocalDisk, storeCon
 
 	// maps for already selected devices
 	selectedSsdsDevices := make([]bool, len(ssds))
-	for _, ssd := range ssds {
-		logger.Infof("Type: SSD, Name: %s, Size: %s", ssd.Name, ByteCountBinary(ssd.Size))
-	}
 	selectedHddsDevices := make([]bool, len(hdds))
-	for _, hdd := range hdds {
-		logger.Infof("Type: HDD, Name: %s, Size: %s", hdd.Name, ByteCountBinary(hdd.Size))
-	}
 
-	logger.Infof("MaxContainerCapacity: %s", ByteCountBinary(maxCap))
-	logger.Infof("TotalCapacity: %s", ByteCountBinary(totalCapacity))
+	logger.Infof("MaxContainerCapacity: %s, TotalCapacity: %s", edgefsv1beta1.ByteCountBinary(maxCap), edgefsv1beta1.ByteCountBinary(totalCapacity))
 
 	if totalCapacity == 0 {
 		return nil, fmt.Errorf("No available disks for container")
@@ -179,7 +162,6 @@ func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDis
 		return rtDevices, nil
 	}
 
-	logger.Infof("[%s] available devices:", nodeName)
 	containers, err := GetContainers(maxContainerCapacity, nodeDisks, storeConfig)
 	if err != nil {
 		return nil, err
@@ -192,10 +174,6 @@ func GetContainersRTDevices(nodeName string, maxContainerCapacity int64, nodeDis
 			return nil, err
 		}
 
-		// Just for debugging
-		for _, rt := range rtDevices {
-			logger.Infof("[%s] Container[%d] Device: %s, Name: %s, Journal: %s", nodeName, i, rt.Device, rt.Name, rt.Journal)
-		}
 		containersRtDevices[i].Devices = rtDevices
 	}
 	return containersRtDevices, nil

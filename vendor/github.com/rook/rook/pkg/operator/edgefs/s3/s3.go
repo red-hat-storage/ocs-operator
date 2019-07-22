@@ -114,6 +114,10 @@ func (c *S3Controller) CreateOrUpdate(s edgefsv1beta1.S3, update bool, ownerRefs
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment already exists", appName)
+		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(deployment); err != nil {
+			return fmt.Errorf("failed to update %s deployment. %+v", appName, err)
+		}
+		logger.Infof("%s deployment updated", appName)
 	} else {
 		logger.Infof("%s deployment started", appName)
 	}
@@ -151,7 +155,7 @@ func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edg
 		},
 	}
 
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
 	return svc
 }
 
@@ -239,7 +243,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 			Replicas: &s3Spec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 	s3Spec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }

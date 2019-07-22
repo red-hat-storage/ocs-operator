@@ -36,7 +36,7 @@ const (
 	ganeshaRadosGraceCmd = "ganesha-rados-grace"
 )
 
-var updateDeploymentAndWait = k8sutil.UpdateDeploymentAndWait
+var updateDeploymentAndWait = opmon.UpdateCephDeploymentAndWait
 
 // Create the ganesha server
 func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
@@ -68,7 +68,8 @@ func (c *CephNFSController) upCephNFS(n cephv1.CephNFS, oldActive int) error {
 				return fmt.Errorf("failed to create ganesha deployment. %+v", err)
 			}
 			logger.Infof("ganesha deployment %s already exists. updating if needed", deployment.Name)
-			if _, err := updateDeploymentAndWait(c.context, deployment, n.Namespace); err != nil {
+			// We don't invoke ceph versions here since nfs do not show up in the service map (yet?)
+			if err := updateDeploymentAndWait(c.context, deployment, n.Namespace, "nfs", name, c.clusterInfo.CephVersion); err != nil {
 				return fmt.Errorf("failed to update ganesha deployment %s. %+v", deployment.Name, err)
 			}
 		} else {
@@ -170,7 +171,7 @@ func (c *CephNFSController) runGaneshaRadosGraceJob(n cephv1.CephNFS, name, acti
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, n.Namespace, &job.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
 
 	// run the job to detect the version
 	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {

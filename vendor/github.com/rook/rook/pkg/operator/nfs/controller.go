@@ -108,7 +108,7 @@ func newNfsServer(c *nfsv1alpha1.NFSServer, context *clusterd.Context) *nfsServe
 func nfsOwnerRef(namespace, nfsServerID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
-		APIVersion:         NFSResource.Version,
+		APIVersion:         fmt.Sprintf("%s/%s", NFSResource.Group, NFSResource.Version),
 		Kind:               NFSResource.Kind,
 		Name:               namespace,
 		UID:                types.UID(nfsServerID),
@@ -436,7 +436,11 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *Controller) onDelete(obj interface{}) {
-	cluster := obj.(*nfsv1alpha1.NFSServer).DeepCopy()
+	cluster, ok := obj.(*nfsv1alpha1.NFSServer)
+	if !ok {
+		return
+	}
+	cluster = cluster.DeepCopy()
 	logger.Infof("cluster %s deleted from namespace %s", cluster.Name, cluster.Namespace)
 }
 
