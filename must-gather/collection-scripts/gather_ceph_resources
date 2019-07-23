@@ -1,0 +1,63 @@
+#!/bin/bash
+# Expect base collection path as an argument
+BASE_COLLECTION_PATH=$1
+
+# Use PWD as base path if no argument is passed
+if [[ ${BASE_COLLECTION_PATH} == "" ]]; then
+    BASE_COLLECTION_PATH=$(pwd)
+fi
+
+CEPH_COLLLECTION_PATH="${BASE_COLLECTION_PATH}/ceph"
+
+# Ceph resources
+ceph_resources=()
+ceph_resources+=(cephblockpools)
+ceph_resources+=(cephclusters)
+ceph_resources+=(cephfilesystems)
+ceph_resources+=(cephnfses)
+ceph_resources+=(cephobjectstores)
+ceph_resources+=(cephobjectstoreusers)
+
+# Ceph commands
+ceph_commands=()
+ceph_commands+=("ceph status")
+ceph_commands+=("ceph health detail")
+ceph_commands+=("ceph osd tree")
+ceph_commands+=("ceph osd stat")
+ceph_commands+=("ceph osd dump")
+ceph_commands+=("ceph mon stat")
+ceph_commands+=("ceph mon dump")
+ceph_commands+=("ceph df")
+ceph_commands+=("ceph report")
+ceph_commands+=("ceph osd df tree")
+ceph_commands+=("ceph fs dump --format json-pretty")
+ceph_commands+=("ceph fs ls")
+ceph_commands+=("ceph pg dump")
+ceph_commands+=("ceph health detail --format json-pretty")
+ceph_commands+=("ceph osd crush show-tunables")
+ceph_commands+=("ceph osd crush dump")
+ceph_commands+=("ceph mgr dump")
+ceph_commands+=("ceph mds stat")
+ceph_commands+=("ceph versions")
+
+
+# Inspecting ceph related custom resources for all namespaces 
+for resource in ${ceph_resources[@]}; do
+    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+done
+
+# Inspecting the namespace where ceph-cluster is installed
+for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
+    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
+
+    # Running ceph commands in the rook operator pods
+    operator_pod_name=`oc get po -n ${ns} -l app=rook-ceph-operator -o jsonpath='{.items[*].metadata.name}'`
+    if [ ! -z ${operator_pod_name} ]; then
+        COMMAND_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands
+        mkdir -p ${COMMAND_OUTPUT_DIR}
+        for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
+            oc -n ${ns} exec -it ${operator_pod_name} -- ${ceph_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
+        done
+    fi
+done

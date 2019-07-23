@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Expect base collection path as an argument
+BASE_COLLECTION_PATH=$1
+
+# Use PWD as base path if no argument is passed
+if [[ ${BASE_COLLECTION_PATH} == "" ]]; then
+    BASE_COLLECTION_PATH=$(pwd)
+fi
+
+NOOBAA_COLLLECTION_PATH="${BASE_COLLECTION_PATH}/noobaa"
+
+noobaa_resources=()
+
+noobaa_resources+=(noobaasystem)
+noobaa_resources+=(noobaabackingstore)
+noobaa_resources+=(noobaabucketclass)
+
+# Run the Collection of NooBaa Resources using must-gather
+for resource in ${noobaa_resources[@]}; do
+    /usr/bin/openshift-must-gather inspect ${resource} --all-namespaces
+done
+
+# Collect logs for all noobaa pods using oc logs
+# get all namespaces that contain any noobaa pod
+NOOBAA_PODS_LABEL='app in (rook-noobaa-operator, noobaa)'
+for ns in $(oc get pod --all-namespaces -l "${NOOBAA_PODS_LABEL}" | grep -v NAMESPACE | awk '{print $1}' | uniq)
+do
+    #get logs for all pods with label app=noobaa
+    for pod in $(oc -n ${ns} get pod -l "${NOOBAA_PODS_LABEL}" | grep -v NAME | awk '{print $1}'); do
+        LOG_DIR=${NOOBAA_COLLLECTION_PATH}/logs/${ns}
+        mkdir -p ${LOG_DIR}
+        oc -n ${ns} logs --all-containers ${pod} &> ${LOG_DIR}/${pod}.log
+    done
+done
