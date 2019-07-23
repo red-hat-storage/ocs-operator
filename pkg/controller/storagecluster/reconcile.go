@@ -2,7 +2,9 @@ package storagecluster
 
 import (
 	"context"
+	"reflect"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,8 +22,8 @@ import (
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	r.reqLogger.Info("Reconciling StorageCluster")
+	reqLogger := r.reqLogger.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger.Info("Reconciling StorageCluster")
 
 	// Fetch the StorageCluster instance
 	instance := &ocsv1alpha1.StorageCluster{}
@@ -36,40 +38,48 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+
+	for _, f := range []func(*ocsv1alpha1.StorageCluster, logr.Logger) error{
+		// Add support for additional resources here
+		r.ensureCephCluster,
+	} {
+		err = f(instance, reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	return reconcile.Result{}, nil
+}
+
+// ensureCephCluster ensures that a CephCluster resource exists with its Spec in
+// the desired state.
+func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageCluster, reqLogger logr.Logger) error {
 	// Define a new CephCluster object
-	cephCluster := newCephCluster(instance)
+	cephCluster := newCephCluster(sc)
 
 	// Set StorageCluster instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, cephCluster, r.scheme); err != nil {
-		return reconcile.Result{}, err
+	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
+		return err
 	}
 
 	// Check if this CephCluster already exists
 	found := &rookCephv1.CephCluster{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 
 	if err != nil && errors.IsNotFound(err) {
-		// Create the CephCluster if it doesn't exist
-		err = r.createCephCluster(cephCluster)
+		reqLogger.Info("Creating CephCluster")
+		err = r.client.Create(context.TODO(), cephCluster)
 
 	} else if err == nil {
-		// Update the CephCluster if it exists
-		err = r.updateCephCluster(found)
-
+		// Update the CephCluster if it is not in the desired state
+		if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
+			reqLogger.Info("Updating spec for CephCluster")
+			found.Spec = cephCluster.Spec
+			err = r.client.Update(context.TODO(), found)
+		}
 	}
-
-	return reconcile.Result{}, err
-}
-
-func (r *ReconcileStorageCluster) updateCephCluster(cephCluster *rookCephv1.CephCluster) error {
-	r.reqLogger.Info("Updating the existing CephCluster", "CephCluster.Namespace", cephCluster.Namespace, "CephCluster.Name", cephCluster.Name)
-	// TODO: handle updates here by modifying the object here
-	return r.client.Update(context.TODO(), cephCluster)
-}
-
-func (r *ReconcileStorageCluster) createCephCluster(cephCluster *rookCephv1.CephCluster) error {
-	r.reqLogger.Info("Creating the CephCluster", "CephCluster.Namespace", cephCluster.Namespace, "CephCluster.Name", cephCluster.Name)
-	return r.client.Create(context.TODO(), cephCluster)
+	return err
 }
 
 // newCephCluster returns a Cephcluster object that doesn't point at any backing storage.
