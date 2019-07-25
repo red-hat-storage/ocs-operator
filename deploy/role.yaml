@@ -17,6 +17,12 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - '*'
+- apiGroups:
   - ""
   resources:
   - namespaces
@@ -44,5 +50,11 @@ rules:
   - '*'
   - storagedevicesets
   - storageclusters
+  verbs:
+  - '*'
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - '*'
   verbs:
   - '*'

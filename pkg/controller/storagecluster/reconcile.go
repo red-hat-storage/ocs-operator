@@ -23,11 +23,17 @@ import (
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := r.reqLogger.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+
+	// Trigger initialization job
+	err := r.Initialize(request)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	reqLogger.Info("Reconciling StorageCluster")
 
 	// Fetch the StorageCluster instance
 	instance := &ocsv1alpha1.StorageCluster{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err = r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
