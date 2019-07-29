@@ -1,8 +1,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   creationTimestamp: null
   name: ocs-operator
+  namespaces: rook-ceph
 rules:
 - apiGroups:
   - ""
@@ -14,12 +15,19 @@ rules:
   - events
   - configmaps
   - secrets
+  - storageclass
   verbs:
   - '*'
 - apiGroups:
   - batch
   resources:
   - jobs
+  verbs:
+  - '*'
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
   verbs:
   - '*'
 - apiGroups:
