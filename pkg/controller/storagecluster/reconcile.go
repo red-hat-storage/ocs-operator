@@ -113,16 +113,21 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 				Enabled:        true,
 				RulesNamespace: "openshift-storage",
 			},
-			Storage: rook.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc.StorageDeviceSet),
-				// XXX: Depending on how rook-ceph is going to use
-				// StorageClassDeviceSets we would be setting other required parameters
-				// for CephCluster.Storage
-			},
+			// TODO: Enable once StorageClassDeviceSet is merged into Rook
+			/*
+				Storage: rook.StorageScopeSpec{
+					StorageClassDeviceSets: newStorageClassDeviceSets(sc.StorageDeviceSet),
+					// XXX: Depending on how rook-ceph is going to use
+					// StorageClassDeviceSets we would be setting other required parameters
+					// for CephCluster.Storage
+				},
+			*/
 		},
 	}
 }
 
+// TODO: Enable once StorageClassDeviceSet is merged into Rook
+/*
 func newStorageClassDeviceSets(dss []ocsv1alpha1.StorageDeviceSet) []rookCephv1.StorageClassDeviceSet {
 	var scds []rookCephv1.StorageClassDeviceSet
 
@@ -146,3 +151,4 @@ func newStorageClassDeviceSet(ds *ocsv1alpha1.StorageDeviceSet) rookCephv1.Stora
 		VolumeClaimTemplates: ds.VolumeClaimTemplates,
 	}
 }
+*/
