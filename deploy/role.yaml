@@ -44,5 +44,6 @@ rules:
   - '*'
   - storagedevicesets
   - storageclusters
+  - ocsinitialization
   verbs:
   - '*'

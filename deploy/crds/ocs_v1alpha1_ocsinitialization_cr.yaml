@@ -1,0 +1,5 @@
+apiVersion: ocs.openshift.io/v1alpha1
+kind: OCSInitialization
+metadata:
+  name: example-ocsinitialization
+spec: {}
