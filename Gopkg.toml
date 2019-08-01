@@ -21,9 +21,19 @@ required = [
   revision = "b503174bad5991eb66f18247f52e41c3258f6348"
 
 [[override]]
+  name = "k8s.io/kubernetes"
+  # revision for tag "kubernetes-1.12.3"
+  revision = "fb1fd1cce012acb0ee0a248a15f086807c174299"
+
+[[override]]
   name = "k8s.io/apiextensions-apiserver"
   # revision for tag "kubernetes-1.12.3"
   revision = "0cd23ebeb6882bd1cdc2cb15fc7b2d72e8a86a5b"
+
+[[override]]
+  name = "k8s.io/apiserver"
+  # revision for tag "kubernetes-1.12.3"
+  revision = "92fdef3a232a23afb9644f6151119b5961b9feab"
 
 [[override]]
   name = "k8s.io/apimachinery"

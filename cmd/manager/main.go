@@ -8,11 +8,16 @@ import (
 	"runtime"
 
 	"github.com/openshift/ocs-operator/pkg/apis"
+	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	"github.com/openshift/ocs-operator/pkg/controller"
+	"github.com/openshift/ocs-operator/pkg/controller/ocsinitialization"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -85,9 +90,33 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := storagev1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "Failed adding storage/v1 to scheme")
+		os.Exit(1)
+	}
+
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
 		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Create CR if it's not there
+	ocsNamespacedName := ocsinitialization.InitNamespacedName()
+	client := mgr.GetClient()
+	err = client.Create(context.TODO(), &ocsv1alpha1.OCSInitialization{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ocsNamespacedName.Name,
+			Namespace: ocsNamespacedName.Namespace,
+		},
+	})
+	switch {
+	case err == nil:
+		log.Info("Created OCSInitialization resource")
+	case errors.IsAlreadyExists(err):
+		log.Info("OCSInitialization resource already exists")
+	default:
+		log.Error(err, "Failed to create OCSInitialization custom resource")
 		os.Exit(1)
 	}
 
