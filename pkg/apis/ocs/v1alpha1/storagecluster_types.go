@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -10,9 +12,25 @@ import (
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	ManageNodes  bool   `json:"manageNodes,omitempty"`
-	InstanceType string `json:"instanceType,omitempty"`
+	ManageNodes       bool               `json:"manageNodes,omitempty"`
+	InstanceType      string             `json:"instanceType,omitempty"`
+	StorageDeviceSets []StorageDeviceSet `json:"storageDeviceSets"`
 }
+
+// StorageDeviceSet defines a set of storage devices.
+// It is derived from and mapped to StorageClassDeviceSet in Rook.
+type StorageDeviceSet struct {
+	Name            string                       `json:"name"`
+	Count           int                          `json:"count"`
+	Resources       corev1.ResourceRequirements  `json:"resources"`
+	Placement       rookalpha.Placement          `json:"placement"`
+	Config          StorageDeviceSetConfig       `json:"config,omitempty"`
+	DataPVCTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
+}
+
+// StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
+// TODO: Fill in the members when the actual configurable options are defined in rook-ceph
+type StorageDeviceSetConfig struct{}
 
 // StorageClusterStatus defines the observed state of StorageCluster
 type StorageClusterStatus struct {
