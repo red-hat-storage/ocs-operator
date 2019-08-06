@@ -14,7 +14,7 @@ type StorageClusterSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	ManageNodes       bool               `json:"manageNodes,omitempty"`
 	InstanceType      string             `json:"instanceType,omitempty"`
-	StorageDeviceSets []StorageDeviceSet `json:"storageDeviceSets"`
+	StorageDeviceSets []StorageDeviceSet `json:"storageDeviceSets,omitempty"`
 }
 
 // StorageDeviceSet defines a set of storage devices.
@@ -25,7 +25,7 @@ type StorageDeviceSet struct {
 	Resources       corev1.ResourceRequirements  `json:"resources"`
 	Placement       rookalpha.Placement          `json:"placement"`
 	Config          StorageDeviceSetConfig       `json:"config,omitempty"`
-	DataPVCTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
+	DataPVCTemplate corev1.PersistentVolumeClaim `json:"dataPVCTemplate"`
 }
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet

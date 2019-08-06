@@ -33,6 +33,8 @@ spec:
                   count:
                     format: int64
                     type: integer
+                  dataPVCTemplate:
+                    type: object
                   name:
                     type: string
                   placement:
@@ -50,18 +52,14 @@ spec:
                     type: object
                   resources:
                     type: object
-                  volumeClaimTemplates:
-                    type: object
                 required:
                 - name
                 - count
                 - resources
                 - placement
-                - volumeClaimTemplates
+                - dataPVCTemplate
                 type: object
               type: array
-          required:
-          - storageDeviceSets
           type: object
         status:
           type: object
