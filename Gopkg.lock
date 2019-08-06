@@ -268,6 +268,14 @@
   version = "1.0.1"
 
 [[projects]]
+  digest = "1:adf87f508cefa7051e280668c566e845f73b9792aaca454d030108784f4cc88a"
+  name = "github.com/noobaa/noobaa-operator"
+  packages = ["pkg/apis/noobaa/v1alpha1"]
+  pruneopts = "NT"
+  revision = "e97aff3759afc0d08f20f42484ac475570e9cd4d"
+  version = "v1.0.2"
+
+[[projects]]
   branch = "master"
   digest = "1:012313f500c99d2da1ea43bc3f296920a21c9e6faddd7e9254793445c5db8620"
   name = "github.com/operator-framework/operator-sdk"
@@ -819,6 +827,7 @@
   input-imports = [
     "github.com/go-logr/logr",
     "github.com/go-openapi/spec",
+    "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",
     "github.com/operator-framework/operator-sdk/pkg/leader",
     "github.com/operator-framework/operator-sdk/pkg/ready",
