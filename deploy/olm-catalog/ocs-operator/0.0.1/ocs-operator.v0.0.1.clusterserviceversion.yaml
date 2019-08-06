@@ -1,0 +1,653 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |
+      [
+          {
+              "apiVersion": "ocs.openshift.io/v1alpha1",
+              "kind": "StorageCluster",
+              "metadata": {
+                  "name": "example-storagecluster",
+                  "namespace": "openshift-storage"
+              },
+              "spec": {
+                  "manageNodes": false
+              }
+          },
+          {
+              "apiVersion": "ceph.rook.io/v1",
+              "kind": "CephCluster",
+              "metadata": {
+                  "name": "my-rook-ceph",
+                  "namespace": "my-rook-ceph"
+              },
+              "spec": {
+                  "cephVersion": {
+                      "image": "ceph/ceph:v14.2.1-20190430"
+                  },
+                  "dataDirHostPath": "/var/lib/rook",
+                  "mon": {
+                      "count": 3
+                  },
+                  "dashboard": {
+                      "enabled": true
+                  },
+                  "network": {
+                      "hostNetwork": false
+                  },
+                  "rbdMirroring": {
+                      "workers": 0
+                  },
+                  "storage": {
+                      "useAllNodes": true,
+                      "useAllDevices": true
+                  }
+              }
+          },
+          {
+              "apiVersion": "ceph.rook.io/v1",
+              "kind": "CephBlockPool",
+              "metadata": {
+                  "name": "replicapool",
+                  "namespace": "my-rook-ceph"
+              },
+              "spec": {
+                  "failureDomain": "host",
+                  "replicated": {
+                      "size": 3
+                  },
+                  "annotations": null
+              }
+          },
+          {
+              "apiVersion": "ceph.rook.io/v1",
+              "kind": "CephObjectStore",
+              "metadata": {
+                  "name": "my-store",
+                  "namespace": "my-rook-ceph"
+              },
+              "spec": {
+                  "metadataPool": {
+                      "failureDomain": "host",
+                      "replicated": {
+                          "size": 3
+                      }
+                  },
+                  "dataPool": {
+                      "failureDomain": "host",
+                      "replicated": {
+                          "size": 3
+                      }
+                  },
+                  "gateway": {
+                      "type": "s3",
+                      "sslCertificateRef": null,
+                      "port": 8080,
+                      "securePort": null,
+                      "instances": 1,
+                      "allNodes": false,
+                      "placement": null,
+                      "annotations": null,
+                      "resources": null
+                  }
+              }
+          },
+          {
+              "apiVersion": "ceph.rook.io/v1",
+              "kind": "CephObjectStoreUser",
+              "metadata": {
+                  "name": "my-user",
+                  "namespace": "my-rook-ceph"
+              },
+              "spec": {
+                  "store": "my-store",
+                  "displayName": "my display name"
+              }
+          }
+      ]
+    capabilities: Full Lifecycle
+    categories: Storage
+  name: ocs-operator.v0.0.1
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+      # OCS CRDs
+    - kind: StorageCluster
+      name: storageclusters.ocs.openshift.io
+      version: v1alpha1
+      displayName: Storage Cluster
+      description: Storage Cluster represents a Rook Ceph storage cluster including all the storage and compute resources required.
+    - kind: OCSInitialization
+      name: ocsinitializations.ocs.openshift.io
+      version: v1alpha1
+      displayName: OCS Initialization
+      description: OCS Initialization represents the initial data to be created when the OCS operator is installed
+      # Rook-Ceph CRDs
+    - description: Represents a Ceph cluster.
+      displayName: Ceph Cluster
+      kind: CephCluster
+      name: cephclusters.ceph.rook.io
+      version: v1
+    - description: Represents a Ceph Block Pool.
+      displayName: Ceph Block Pool
+      kind: CephBlockPool
+      name: cephblockpools.ceph.rook.io
+      version: v1
+    - description: Represents a Ceph Object Store.
+      displayName: Ceph Object Store
+      kind: CephObjectStore
+      name: cephobjectstores.ceph.rook.io
+      version: v1
+    - description: Represents a Ceph Object Store User.
+      displayName: Ceph Object Store User
+      kind: CephObjectStoreUser
+      name: cephobjectstoreusers.ceph.rook.io
+      version: v1
+      # NooBaa CRDs
+    - kind: NooBaa
+      name: noobaas.noobaa.io
+      version: v1alpha1
+      displayName: NooBaa
+      description: NooBaa provides a flexible S3 data service backed by any storage resource for hybrid and multi-cloud environments
+      resources:
+        - kind: Service
+          version: v1
+        - kind: StatefulSet
+          version: v1
+        - kind: Secret
+          version: v1
+    - kind: BackingStore
+      name: backingstores.noobaa.io
+      version: v1alpha1
+      displayName: Backing Store
+      description: Add backing stores to customize the data placement locations.
+    - kind: BucketClass
+      name: bucketclasses.noobaa.io
+      version: v1alpha1
+      displayName: Bucket Class
+      description: Add bucket classes to customize the data placement locations.
+  description: |
+    Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
+
+    The OCS operator is the primary operator for Red Hat OpenShift Container Storage (OCS). It serves to facilitate the other operators in OCS by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
+  displayName: Openshift Container Storage Operator
+  install:
+    strategy: deployment
+    spec:
+      deployments:
+        # OCS-operator deployment
+      - name: ocs-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: ocs-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                name: ocs-operator
+            spec:
+              containers:
+              - command:
+                - ocs-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: ocs-operator
+                image: quay.io/ocs-dev/ocs-operator:latest
+                imagePullPolicy: Always
+                name: ocs-operator
+                ports:
+                - containerPort: 60000
+                  name: metrics
+                readinessProbe:
+                  exec:
+                    command:
+                    - stat
+                    - /tmp/operator-sdk-ready
+                  failureThreshold: 1
+                  initialDelaySeconds: 4
+                  periodSeconds: 10
+                resources: {}
+              serviceAccountName: ocs-operator
+
+      # Rook-ceph deployment
+      - name: rook-ceph-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: rook-ceph-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                app: rook-ceph-operator
+            spec:
+              containers:
+              - args:
+                - ceph
+                - operator
+                env:
+                - name: ROOK_CURRENT_NAMESPACE_ONLY
+                  value: "true"
+                - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
+                  value: "false"
+                - name: ROOK_LOG_LEVEL
+                  value: INFO
+                - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
+                  value: 60s
+                - name: ROOK_MON_HEALTHCHECK_INTERVAL
+                  value: 45s
+                - name: ROOK_MON_OUT_TIMEOUT
+                  value: 600s
+                - name: ROOK_DISCOVER_DEVICES_INTERVAL
+                  value: 60m
+                - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+                  value: "false"
+                - name: ROOK_ENABLE_SELINUX_RELABELING
+                  value: "true"
+                - name: ROOK_ENABLE_FSGROUP
+                  value: "true"
+                - name: ROOK_DISABLE_DEVICE_HOTPLUG
+                  value: "false"
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                image: rook/ceph:v1.0.1
+                name: rook-ceph-operator
+                resources: {}
+                volumeMounts:
+                - mountPath: /var/lib/rook
+                  name: rook-config
+                - mountPath: /etc/ceph
+                  name: default-config-dir
+              serviceAccountName: rook-ceph-system
+              volumes:
+              - emptyDir: {}
+                name: rook-config
+              - emptyDir: {}
+                name: default-config-dir
+
+        # NooBaa operator deployment
+      - name: noobaa-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              noobaa-operator: deployment
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                app: noobaa
+                noobaa-operator: deployment
+            spec:
+              containers:
+              - env:
+                - name: OPERATOR_NAME
+                  value: noobaa-operator
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                image: noobaa/noobaa-operator:1.0.2
+                imagePullPolicy: IfNotPresent
+                name: noobaa-operator
+                resources:
+                  limits:
+                    cpu: 250m
+                    memory: 256Mi
+              serviceAccountName: noobaa-operator
+
+      permissions:
+        # OCS operator permissions
+      - serviceAccountName: ocs-operator
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - get
+          - create
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - '*'
+          - storageclusters
+          - ocsinitializations
+          verbs:
+          - '*'
+
+        # Rook-Ceph permissions
+      - serviceAccountName: rook-ceph-system
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - configmaps
+          - services
+          verbs:
+          - get
+          - list
+          - watch
+          - patch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          - statefulsets
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+      - serviceAccountName: rook-ceph-osd
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+      - serviceAccountName: rook-ceph-mgr
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - batch
+          resources:
+          - jobs
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
+
+        # NooBaa permissions
+      - serviceAccountName: noobaa-operator
+        rules:
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - get
+          - create
+        - apiGroups:
+          - apps
+          resourceNames:
+          - noobaa-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+
+      clusterPermissions:
+        # Rook-Ceph cluster permissions
+      - serviceAccountName: rook-ceph-cluster-mgmt
+        rules: []
+      - serviceAccountName: rook-ceph-system
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          - pods
+          - pods/log
+          - services
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - patch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+      - serviceAccountName: rook-ceph-global
+        rules: []
+      - serviceAccountName: rook-ceph-system
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - nodes
+          - nodes/proxy
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          - persistentvolumes
+          - persistentvolumeclaims
+          - endpoints
+          verbs:
+          - get
+          - list
+          - watch
+          - patch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - batch
+          resources:
+          - jobs
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
+        - apiGroups:
+          - rook.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
+      - serviceAccountName: rook-ceph-mgr-cluster
+        rules: []
+      - serviceAccountName: rook-ceph-mgr
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - nodes
+          - nodes/proxy
+          verbs:
+          - get
+          - list
+          - watch
+      - serviceAccountName: rook-ceph-mgr-system
+        rules: []
+      - serviceAccountName: rook-ceph-mgr
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+
+        # NooBaa operator cluster permissions
+      - serviceAccountName: noobaa-operator
+        rules:
+        - apiGroups:
+          - ""
+          resources:
+          - nodes
+          verbs:
+          - get
+          - list
+          - watch
+
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  maturity: alpha
+  version: 0.0.1
+  minKubeVersion: v1.13.0
+  provider:
+    name: Red Hat
+  maintainers:
+  - name: Jose Rivera
+    email: jarrpa@redhat.com
+  - name: Kaushal M
+    email: kaushal@redhat.com
+  links:
+  - name: Source Code
+    url: https://github.com/openshift/ocs-operator
+  keywords:
+  - storage
+  - rook
+  - ceph
+  - noobaa
+  - block storage
+  - shared filesystem
+  - object storage
