@@ -370,6 +370,16 @@ spec:
           - ocsinitializations
           verbs:
           - '*'
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephclusters
+          verbs:
+          - create
+          - get
+          - delete
+          - update
+          - list
 
         # Rook-Ceph permissions
       - serviceAccountName: rook-ceph-system
