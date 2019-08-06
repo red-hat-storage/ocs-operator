@@ -183,6 +183,14 @@ func (r *ReconcileOCSInitialization) ensureStorageClasses(initialdata *ocsv1alph
 // on first run.
 func (r *ReconcileOCSInitialization) newStorageClasses(initdata *ocsv1alpha1.OCSInitialization) ([]storagev1.StorageClass, error) {
 	// TODO add the real values OCS wants to ship with.
-	ret := []storagev1.StorageClass{}
+	ret := []storagev1.StorageClass{
+		// storage class for noobaa OB\OBC provisioner
+		storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "noobaa-obc-storage-class",
+			},
+			Provisioner: "noobaa.io/" + initdata.Namespace + ".bucket",
+		},
+	}
 	return ret, nil
 }

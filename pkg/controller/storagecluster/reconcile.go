@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	nbv1 "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -42,6 +43,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	for _, f := range []func(*ocsv1alpha1.StorageCluster, logr.Logger) error{
 		// Add support for additional resources here
 		r.ensureCephCluster,
+		r.ensureNoobaaSystem,
 	} {
 		err = f(instance, reqLogger)
 		if err != nil {
@@ -50,6 +52,50 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// ensureNoobaaSystem ensures that a NooBaa
+func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1alpha1.StorageCluster, reqLogger logr.Logger) error {
+
+	nb := r.newNooBaaSystem(sc)
+
+	// check if this noobaa instance aleady exists
+	found := &nbv1.NooBaa{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: sc.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating NooBaa system")
+		err = r.client.Create(context.TODO(), nb)
+
+	} else if err == nil {
+		// Update NooBaa CR if it is not in the desired state
+		if !reflect.DeepEqual(nb.Spec, found.Spec) {
+			reqLogger.Info("Updating spec for NooBaa")
+			found.Spec = nb.Spec
+			err = r.client.Update(context.TODO(), found)
+		}
+	}
+
+	return nil
+}
+
+func (r *ReconcileStorageCluster) newNooBaaSystem(sc *ocsv1alpha1.StorageCluster) *nbv1.NooBaa {
+
+	noobaaSystemName := "noobaa"
+
+	labels := map[string]string{
+		"app": sc.Name,
+	}
+
+	return &nbv1.NooBaa{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      noobaaSystemName,
+			Namespace: sc.Namespace,
+			Labels:    labels,
+		},
+		// TODO: create a more specific noobaa spec. currently using defaults
+		Spec: nbv1.NooBaaSpec{},
+	}
+
 }
 
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
