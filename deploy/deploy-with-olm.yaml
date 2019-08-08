@@ -1,0 +1,44 @@
+---
+## Add a custom CatalogSource for the ocs-operator CSV
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: ocs-catalogsource
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: quay.io/ocs-dev/ocs-registry:latest
+  displayName: Openshift Container Storage
+  publisher: Red Hat
+---
+## Create the openshift-storage namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-storage
+
+---
+## Create the ocs OperatorGroup to allow installation of the OCS CSV into the
+## openshift-storage namespace
+apiVersion: operators.coreos.com/v1alpha2
+kind: OperatorGroup
+metadata:
+  name: openshift-storage-operatorgroup
+  namespace: openshift-storage
+spec:
+  targetNamespaces:
+    - openshift-storage
+
+---
+## Create a Subscription for the OCS operator CSV in the openshift-storage namespace
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ocs-subscription
+  namespace: openshift-storage
+spec:
+  channel: alpha
+  name: ocs-operator
+  source: ocs-catalogsource
+  sourceNamespace: openshift-marketplace
+

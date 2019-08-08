@@ -29,9 +29,34 @@ _TODO: Add instructions to build the converged CSV and manifests_
 
 The OCS operator can be installed into an Openshift cluster using the OLM.
 
-To install using the OLM, we need to add a new Catalog source to the Openshift Cluster.
+For quick install using pre-built container images, deploy the [deploy-olm.yaml] manifest.
 
-First, build and upload the catalog registry image. Do this after generating the converged CSV.
+```console
+$ oc create -f ./deploy/deploy-with-olm.yaml
+```
+
+This will create a custom CatalogSource, a new openshift-storage Namespace, an
+OperatorGroup, and a Subcription to the OCS catalog in the openshift-storage
+namespace.
+
+Once this is done, a StorageCluster can be created.
+
+```console
+$ oc create -f ./deploy/crds/ocs_v1alpha1_storagecluster_cr.yaml
+```
+
+### Installation of development builds
+
+To install own development builds of OCS, first build and push the ocs-operator image to your own image repository.
+
+Once the ocs-operator image is pushed, edit the CSV to point to the new image.
+
+```
+$ OCS_OPERATOR_IMAGE="custom-ocs-operator-image:with-tag"
+$ sed -i "s|quay.io/ocs-dev/ocs-operator:latest|$OCS_OPERATOR_IMAGE" ./deploy/olm-catalog/ocs-operator/0.0.1/ocs-operator.v0.0.1.clusterserviceversion.yaml
+```
+
+Then build and upload the catalog registry image.
 
 ```console
 $ export REGISTRY_NAMESPACE=<quay-username>
