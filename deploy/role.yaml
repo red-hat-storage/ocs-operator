@@ -46,3 +46,14 @@ rules:
   - ocsinitialization
   verbs:
   - '*'
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephclusters
+  - ocsinitialization
+  verbs:
+  - create
+  - get
+  - delete
+  - update
+  - list
