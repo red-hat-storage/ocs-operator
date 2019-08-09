@@ -10,6 +10,14 @@ required = [
   "k8s.io/gengo/args",
 ]
 
+[[constraint]]
+  name = "github.com/RHsyseng/operator-utils"
+  revision = "232650febd728455482b3c780c79a9ac0be62b50"
+
+[[override]]
+    name = "github.com/go-openapi/spec"
+    branch = "master"
+
 [[override]]
   name = "k8s.io/code-generator"
   # revision for tag "kubernetes-1.12.3"
