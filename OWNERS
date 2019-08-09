@@ -3,7 +3,10 @@ approvers:
   - jarrpa
   - kshlm
   - mhrivnak
+  - obnoxxx
 # review == this code is good /lgtm
 reviewers:
   - jarrpa
   - kshlm
+  - mhrivnak
+  - obnoxxx
