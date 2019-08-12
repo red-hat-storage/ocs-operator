@@ -18,7 +18,7 @@ Once the SDK is installed, the operator can be built via:
 ```console
 $ dep ensure --vendor-only
 
-$ operator-sdk build quay.io/openshift/ocs-operator
+$ make ocs-operator
 ```
 
 ### Converged CSV
@@ -49,10 +49,17 @@ $ oc create -f ./deploy/crds/ocs_v1alpha1_storagecluster_cr.yaml
 
 To install own development builds of OCS, first build and push the ocs-operator image to your own image repository.
 
+```console
+$ export REGISTRY_NAMESPACE=<quay-username>
+$ export IMAGE_TAG=<some-tag>
+$ make ocs-operator
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG
+```
+
 Once the ocs-operator image is pushed, edit the CSV to point to the new image.
 
 ```
-$ OCS_OPERATOR_IMAGE="custom-ocs-operator-image:with-tag"
+$ OCS_OPERATOR_IMAGE="quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG"
 $ sed -i "s|quay.io/ocs-dev/ocs-operator:latest|$OCS_OPERATOR_IMAGE" ./deploy/olm-catalog/ocs-operator/0.0.1/ocs-operator.v0.0.1.clusterserviceversion.yaml
 ```
 
@@ -60,8 +67,9 @@ Then build and upload the catalog registry image.
 
 ```console
 $ export REGISTRY_NAMESPACE=<quay-username>
-$ export CONTAINER_TAG=<some-tag>
-$ ./hack/build-registry-bundle.sh
+$ export IMAGE_TAG=<some-tag>
+$ make ocs-registry
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-registry:$IMAGE_TAG
 ```
 
 Next create the namespace for OCS and create an OperatorGroup for OCS
@@ -87,7 +95,7 @@ metadata:
   namespace: openshift-marketplace
 spec:
   sourceType: grpc
-  image: quay.io/$REGISTRY_NAMESPACE/ocs-registry:$CONTAINER_TAG
+  image: quay.io/$REGISTRY_NAMESPACE/ocs-registry:$IMAGE_TAG
   displayName: Openshift Container Storage
   publisher: Red Hat
 EOF
