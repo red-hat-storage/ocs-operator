@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -113,23 +114,18 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 				Enabled:        true,
 				RulesNamespace: "openshift-storage",
 			},
-			// TODO: Enable once StorageClassDeviceSet is merged into Rook
-			/*
-				Storage: rook.StorageScopeSpec{
-					StorageClassDeviceSets: newStorageClassDeviceSets(sc.StorageDeviceSet),
-					// XXX: Depending on how rook-ceph is going to use
-					// StorageClassDeviceSets we would be setting other required parameters
-					// for CephCluster.Storage
-				},
-			*/
+			Storage: rook.StorageScopeSpec{
+				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets),
+				// XXX: Depending on how rook-ceph is going to use
+				// StorageClassDeviceSets we would be setting other required parameters
+				// for CephCluster.Storage
+			},
 		},
 	}
 }
 
-// TODO: Enable once StorageClassDeviceSet is merged into Rook
-/*
-func newStorageClassDeviceSets(dss []ocsv1alpha1.StorageDeviceSet) []rookCephv1.StorageClassDeviceSet {
-	var scds []rookCephv1.StorageClassDeviceSet
+func newStorageClassDeviceSets(dss []ocsv1alpha1.StorageDeviceSet) []rook.StorageClassDeviceSet {
+	var scds []rook.StorageClassDeviceSet
 
 	for _, ds := range dss {
 		scds = append(scds, newStorageClassDeviceSet(&ds))
@@ -138,8 +134,8 @@ func newStorageClassDeviceSets(dss []ocsv1alpha1.StorageDeviceSet) []rookCephv1.
 	return scds
 }
 
-func newStorageClassDeviceSet(ds *ocsv1alpha1.StorageDeviceSet) rookCephv1.StorageClassDeviceSet {
-	return rookCephv1.StorageClassDeviceSet{
+func newStorageClassDeviceSet(ds *ocsv1alpha1.StorageDeviceSet) rook.StorageClassDeviceSet {
+	return rook.StorageClassDeviceSet{
 		// XXX: We should possibly be generating and using a unique name here
 		Name:      ds.Name,
 		Count:     ds.Count,
@@ -147,8 +143,6 @@ func newStorageClassDeviceSet(ds *ocsv1alpha1.StorageDeviceSet) rookCephv1.Stora
 		Placement: ds.Placement,
 		// XXX: We should most likely be setting rook-ceph specific config options
 		// here, and not rely on user provided config. Just copying user provided config for now.
-		Config:               ds.Config,
-		VolumeClaimTemplates: ds.VolumeClaimTemplates,
+		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
 	}
 }
-*/
