@@ -205,7 +205,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: ocs-operator
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: quay.io/kshlm/ocs-operator:mon-test
                 imagePullPolicy: Always
                 name: ocs-operator
                 ports:
