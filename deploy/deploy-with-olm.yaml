@@ -7,7 +7,7 @@ metadata:
   namespace: openshift-marketplace
 spec:
   sourceType: grpc
-  image: quay.io/ocs-dev/ocs-registry:latest
+  image: quay.io/kshlm/ocs-registry:mon-test
   displayName: Openshift Container Storage
   publisher: Red Hat
 ---
