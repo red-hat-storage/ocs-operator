@@ -349,7 +349,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6c32582ed3fca71034a8497f3c800bbe6633fa1826a47f53d7ce88b1ac2b472a"
+  digest = "1:12f8674e278db9b49453147f4f70dc78f5c2298614ff9596e99902531af63d30"
   name = "github.com/rook/rook"
   packages = [
     "pkg/apis/ceph.rook.io",
@@ -359,7 +359,7 @@
     "pkg/daemon/ceph/model",
   ]
   pruneopts = "NT"
-  revision = "6ce053276883940b92257680bbad072f61b0cf45"
+  revision = "e6da8ab08fae51e1ba70698f428b1a3e02d92adb"
 
 [[projects]]
   digest = "1:9d8420bbf131d1618bde6530af37c3799340d3762cc47210c1d9532a4c3a2779"
