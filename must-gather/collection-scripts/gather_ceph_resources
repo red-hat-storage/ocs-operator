@@ -30,15 +30,14 @@ ceph_commands+=("ceph mon dump")
 ceph_commands+=("ceph df")
 ceph_commands+=("ceph report")
 ceph_commands+=("ceph osd df tree")
-ceph_commands+=("ceph fs dump --format json-pretty")
 ceph_commands+=("ceph fs ls")
 ceph_commands+=("ceph pg dump")
-ceph_commands+=("ceph health detail --format json-pretty")
 ceph_commands+=("ceph osd crush show-tunables")
 ceph_commands+=("ceph osd crush dump")
 ceph_commands+=("ceph mgr dump")
 ceph_commands+=("ceph mds stat")
 ceph_commands+=("ceph versions")
+ceph_commands+=("ceph fs dump")
 
 
 # Inspecting ceph related custom resources for all namespaces 
@@ -54,10 +53,14 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
     operator_pod_name=`oc get po -n ${ns} -l app=rook-ceph-operator -o jsonpath='{.items[*].metadata.name}'`
     if [ ! -z ${operator_pod_name} ]; then
         COMMAND_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands
+        COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
         mkdir -p ${COMMAND_OUTPUT_DIR}
+        mkdir -p ${COMMAND_JSON_OUTPUT_DIR}
         for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
             oc -n ${ns} exec -it ${operator_pod_name} -- ${ceph_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
+            JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
+            oc -n ${ns} exec -it ${operator_pod_name} -- ${ceph_commands[$i]} --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
         done
     fi
 done
