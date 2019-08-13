@@ -103,7 +103,9 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 				Count:                3,
 				AllowMultiplePerNode: false,
 			},
-			DataDirHostPath: "/var/lib/rook",
+			// TODO: THIS MUST NOT BE USED EVER.
+			// Only setting this to verify that we can start Mons.
+			DataDirHostPath: "/etc/var/lib/rook",
 			RBDMirroring: rookCephv1.RBDMirroringSpec{
 				Workers: 0,
 			},
