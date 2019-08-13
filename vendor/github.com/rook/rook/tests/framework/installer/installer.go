@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -33,6 +33,12 @@ const (
 	VersionMaster = "master"
 	// Version tag for Rook v0.9
 	Version1_0 = "v1.0.1"
+	// test suite names
+	CassandraTestSuite   = "cassandra"
+	CephTestSuite        = "ceph"
+	CockroachDBTestSuite = "cockroachdb"
+	EdgeFSTestSuite      = "edgefs"
+	NFSTestSuite         = "nfs"
 )
 
 var (
@@ -51,6 +57,22 @@ var (
 type TestSuite interface {
 	Setup()
 	Teardown()
+}
+
+func SkipTestSuite(name string) bool {
+	testsToRun := os.Getenv("STORAGE_PROVIDER_TESTS")
+	// jenkins passes "null" if the env var is not set.
+	if testsToRun == "" || testsToRun == "null" {
+		// run all test suites
+		return false
+	}
+	if strings.EqualFold(testsToRun, name) {
+		// this suite was requested
+		return false
+	}
+
+	logger.Infof("skipping test suite since only %s should be tested rather than %s", testsToRun, name)
+	return true
 }
 
 func init() {
@@ -81,12 +103,4 @@ func concatYaml(first, second string) string {
 	return first + `
 ---
 ` + second
-}
-
-// GatherCRDObjectDebuggingInfo gathers all the descriptions for pods, pvs and pvcs
-func GatherCRDObjectDebuggingInfo(k8shelper *utils.K8sHelper, namespace string) {
-	k8shelper.PrintPodDescribeForNamespace(namespace)
-	k8shelper.PrintPVs(true /*detailed*/)
-	k8shelper.PrintPVCs(namespace, true /*detailed*/)
-	k8shelper.PrintStorageClasses(true /*detailed*/)
 }
