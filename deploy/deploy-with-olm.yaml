@@ -84,10 +84,10 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph:rook-ceph-system
-  - system:serviceaccount:rook-ceph:default
-  - system:serviceaccount:rook-ceph:rook-ceph-mgr
-  - system:serviceaccount:rook-ceph:rook-ceph-osd
+  - system:serviceaccount:openshift-storage:rook-ceph-system
+  - system:serviceaccount:openshift-storage:default
+  - system:serviceaccount:openshift-storage:rook-ceph-mgr
+  - system:serviceaccount:openshift-storage:rook-ceph-osd
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
@@ -121,8 +121,8 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-attacher-sa
-  - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
-  - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
+  - system:serviceaccount:openshift-storage:rook-csi-rbd-plugin-sa
+  - system:serviceaccount:openshift-storage:rook-csi-rbd-provisioner-sa
+  - system:serviceaccount:openshift-storage:rook-csi-rbd-attacher-sa
+  - system:serviceaccount:openshift-storage:rook-csi-cephfs-plugin-sa
+  - system:serviceaccount:openshift-storage:rook-csi-cephfs-provisioner-sa
