@@ -15,3 +15,7 @@ func newStorageClassDeviceSets(devicesets []ocsv1alpha1.StorageDeviceSet) []rook
 
 	return scds
 }
+
+func strptr(s string) *string {
+	return &s
+}
