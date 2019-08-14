@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -102,6 +103,16 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 			Mon: rookCephv1.MonSpec{
 				Count:                3,
 				AllowMultiplePerNode: false,
+				VolumeClaimTemplate: &corev1.PersistentVolumeClaim{
+					Spec: corev1.PersistentVolumeClaimSpec{
+						StorageClassName: strptr("gp2"),
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: resource.MustParse("10Gi"),
+							},
+						},
+					},
+				},
 			},
 			// TODO: THIS MUST NOT BE USED EVER.
 			// Only setting this to verify that we can start Mons.
@@ -147,4 +158,8 @@ func newStorageClassDeviceSet(ds *ocsv1alpha1.StorageDeviceSet) rook.StorageClas
 		// here, and not rely on user provided config. Just copying user provided config for now.
 		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
 	}
+}
+
+func strptr(s string) *string {
+	return &s
 }
