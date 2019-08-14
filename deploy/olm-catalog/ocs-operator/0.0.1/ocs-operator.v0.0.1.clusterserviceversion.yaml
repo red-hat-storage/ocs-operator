@@ -255,11 +255,13 @@ spec:
                 - name: ROOK_DISCOVER_DEVICES_INTERVAL
                   value: 60m
                 - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-                  value: "false"
+                  value: "true"
                 - name: ROOK_ENABLE_SELINUX_RELABELING
                   value: "true"
                 - name: ROOK_ENABLE_FSGROUP
                   value: "true"
+                - name: ROOK_ENABLE_FLEX_DRIVER
+                  value: "false"
                 - name: ROOK_DISABLE_DEVICE_HOTPLUG
                   value: "false"
                 - name: NODE_NAME
