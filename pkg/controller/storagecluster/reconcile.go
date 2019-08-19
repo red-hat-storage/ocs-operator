@@ -82,7 +82,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageClust
 	return err
 }
 
-// newCephCluster returns a Cephcluster object that doesn't point at any backing storage.
+// newCephCluster returns a Cephcluster object.
 func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
