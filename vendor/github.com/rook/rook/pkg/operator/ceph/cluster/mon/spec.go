@@ -19,6 +19,7 @@ package mon
 import (
 	"fmt"
 	"os"
+	"path"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -29,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -82,6 +84,52 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *apps.De
 	return d
 }
 
+func (c *Cluster) makeDeploymentPVC(m *monConfig) (*v1.PersistentVolumeClaim, error) {
+	template := c.spec.Mon.VolumeClaimTemplate
+	volumeMode := v1.PersistentVolumeFilesystem
+	pvc := &v1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      m.ResourceName,
+			Namespace: c.Namespace,
+			Labels:    c.getLabels(m.DaemonName),
+		},
+		Spec: v1.PersistentVolumeClaimSpec{
+			AccessModes: []v1.PersistentVolumeAccessMode{
+				v1.ReadWriteOnce,
+			},
+			Resources:        template.Spec.Resources,
+			StorageClassName: template.Spec.StorageClassName,
+			VolumeMode:       &volumeMode,
+		},
+	}
+	k8sutil.AddRookVersionLabelToObjectMeta(&pvc.ObjectMeta)
+	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pvc.ObjectMeta)
+	opspec.AddCephVersionLabelToObjectMeta(c.clusterInfo.CephVersion, &pvc.ObjectMeta)
+	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.ownerRef)
+
+	// k8s uses limit as the resource request fallback
+	if _, ok := pvc.Spec.Resources.Limits[v1.ResourceStorage]; ok {
+		return pvc, nil
+	}
+
+	// specific request in the crd
+	if _, ok := pvc.Spec.Resources.Requests[v1.ResourceStorage]; ok {
+		return pvc, nil
+	}
+
+	req, err := resource.ParseQuantity(cephMonDefaultStorageRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if pvc.Spec.Resources.Requests == nil {
+		pvc.Spec.Resources.Requests = v1.ResourceList{}
+	}
+	pvc.Spec.Resources.Requests[v1.ResourceStorage] = req
+
+	return pvc, nil
+}
+
 /*
  * Pod spec
  */
@@ -90,6 +138,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 	logger.Debug("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
+			c.makeChownInitContainer(monConfig),
 			c.makeMonFSInitContainer(monConfig),
 		},
 		Containers: []v1.Container{
@@ -97,7 +146,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		NodeSelector:  map[string]string{v1.LabelHostname: hostname},
-		Volumes:       opspec.DaemonVolumes(monConfig.DataPathMap, keyringStoreName),
+		Volumes:       opspec.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:   c.HostNetwork,
 	}
 	if c.HostNetwork {
@@ -129,12 +178,43 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
  */
 
 // Init and daemon containers require the same context, so we call it 'pod' context
-func podSecurityContext() *v1.SecurityContext {
+
+// PodSecurityContext detects if the pod needs privileges to run
+func PodSecurityContext() *v1.SecurityContext {
 	privileged := false
 	if os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
 		privileged = true
 	}
-	return &v1.SecurityContext{Privileged: &privileged}
+
+	return &v1.SecurityContext{
+		Privileged: &privileged,
+	}
+}
+
+func (c *Cluster) makeChownInitContainer(monConfig *monConfig) v1.Container {
+	// Before makeMonFSInitContainer starts we must apply the right ownership to the mon data dir
+	// so the mkfs can succeed, otherwise it'll fail since it's owned by root
+	// Unfortunately, we can't use:
+	// Lifecycle: &v1.Lifecycle{PostStart: &v1.Handler{Exec: &v1.ExecAction{
+	// On an InitContainer :-(
+	container := v1.Container{
+		Name: "chown-container-data-dir",
+		Command: []string{
+			"chown",
+		},
+		Args: []string{
+			"--verbose",
+			"--recursive",
+			"ceph:ceph",
+			monConfig.DataPathMap.ContainerDataDir,
+			config.VarLogCephDir,
+		},
+		Image:           c.spec.CephVersion.Image,
+		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		Resources:       cephv1.GetMonResources(c.spec.Resources),
+		SecurityContext: PodSecurityContext(),
+	}
+	return container
 }
 
 func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
@@ -152,7 +232,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 		),
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		SecurityContext: podSecurityContext(),
+		SecurityContext: PodSecurityContext(),
 		// filesystem creation does not require ports to be exposed
 		Env:       opspec.DaemonEnvVars(c.spec.CephVersion.Image),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
@@ -182,10 +262,17 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
 			config.NewFlag("public-addr", publicAddr),
+			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
+			// For existing data store owned by root, the daemon will continue to run as root
+			//
+			// We use 'store.db' here because during an upgrade the init container will set 'ceph:ceph' to monConfig.DataPathMap.ContainerDataDir
+			// but inside the permissions will be 'root:root' AND we don't want to chown recursively on the mon data directory
+			// We want to avoid potential startup time issue if the store is big
+			config.NewFlag("setuser-match-path", path.Join(monConfig.DataPathMap.ContainerDataDir, "store.db")),
 		),
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    opspec.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		SecurityContext: podSecurityContext(),
+		SecurityContext: PodSecurityContext(),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "client",
@@ -198,6 +285,9 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
+		//Chown is performed in the init container
+		//See discussion here: https://github.com/rook/rook/pull/3594
+		//Lifecycle: opspec.PodLifeCycle("")
 	}
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr

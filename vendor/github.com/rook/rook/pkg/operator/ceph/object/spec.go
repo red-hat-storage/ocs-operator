@@ -19,6 +19,7 @@ package object
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -102,7 +103,6 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 }
 
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
-
 	// start the rgw daemon in the foreground
 	container := v1.Container{
 		Name:  "rgw",
@@ -134,6 +134,8 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			},
 			InitialDelaySeconds: 10,
 		},
+		Lifecycle:       opspec.PodLifeCycle(""),
+		SecurityContext: mon.PodSecurityContext(),
 	}
 
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {

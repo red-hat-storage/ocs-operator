@@ -62,3 +62,26 @@ type StorageClusterList struct {
 func init() {
 	SchemeBuilder.Register(&StorageCluster{}, &StorageClusterList{})
 }
+
+// ToStorageClassDeviceSet converts a StorageDeviceSet object to a Rook
+// StorageClassDeviceSet object
+func (ds *StorageDeviceSet) ToStorageClassDeviceSet() rookalpha.StorageClassDeviceSet {
+	return rookalpha.StorageClassDeviceSet{
+		Name:                 ds.Name,
+		Count:                ds.Count,
+		Resources:            ds.Resources,
+		Placement:            ds.Placement,
+		Config:               ds.Config.ToMap(),
+		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
+	}
+}
+
+// ToMap converts a StorageDeviceSetConfig object to a map[string]string that
+// can be set in a Rook StorageClassDeviceSet object
+// This functions just returns `nil` right now as the StorageDeviceSetConfig
+// struct itself is empty. It will be updated to perform actual conversion and
+// return a proper map when the StorageDeviceSetConfig struct is updated.
+// TODO: Do actual conversion to map when StorageDeviceSetConfig has defined members
+func (c *StorageDeviceSetConfig) ToMap() map[string]string {
+	return nil
+}
