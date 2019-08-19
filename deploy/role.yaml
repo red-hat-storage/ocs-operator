@@ -50,7 +50,6 @@ rules:
   - ceph.rook.io
   resources:
   - cephclusters
-  - ocsinitialization
   verbs:
   - create
   - get
