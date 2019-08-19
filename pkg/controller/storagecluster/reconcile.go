@@ -1,21 +1,27 @@
 package storagecluster
 
 import (
+	"fmt"
 	"context"
 	"reflect"
 
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/operator-framework/operator-sdk/pkg/ready"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/tools/reference"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
@@ -32,6 +38,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			reqLogger.Info("No StorageCluster resource")
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -41,17 +48,90 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
+	// Add conditions if there are none
+	if instance.Status.Conditions == nil {
+		reason :=  ocsv1alpha1.ReconcileInit
+		message := "Initializing StorageCluster"
+		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
+
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			reqLogger.Error(err, "Failed to add conditions to status")
+			return reconcile.Result{}, err
+		}
+	}
+
+	// in-memory conditions should start off empty. It will only ever hold
+	// negative conditions (!Available, Degraded, Progressing)
+	r.conditions = nil
+
 	for _, f := range []func(*ocsv1alpha1.StorageCluster, logr.Logger) error{
 		// Add support for additional resources here
 		r.ensureCephCluster,
 	} {
 		err = f(instance, reqLogger)
 		if err != nil {
+			reason := ocsv1alpha1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
 			return reconcile.Result{}, err
 		}
 	}
 
-	return reconcile.Result{}, nil
+	// All component operators are in a happy state.
+	if r.conditions == nil {
+		reqLogger.Info("No component operator reported negatively")
+		reason := ocsv1alpha1.ReconcileCompleted
+		message := ocsv1alpha1.ReconcileCompletedMessage
+		statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
+
+		// If no operator whose conditions we are watching reports an error, then it is safe
+		// to set readiness.
+		r := ready.NewFileReady()
+		err = r.Set()
+		if err != nil {
+			reqLogger.Error(err, "Failed to mark operator ready")
+			return reconcile.Result{}, err
+		}
+	} else {
+		// If any component operator reports negatively we want to write that to
+		// the instance while preserving it's lastTransitionTime.
+		// For example, consider the resource has the Available condition
+		// type with type "False". When reconciling the resource we would
+		// add it to the in-memory representation of OCS's conditions (r.conditions)
+		// and here we are simply writing it back to the server.
+		// One shortcoming is that only one failure of a particular condition can be
+		// captured at one time (ie. if resource1 and resource2 are both reporting !Available,
+		// you will only see resource2q as it updates last).
+		for _, condition := range r.conditions {
+			conditionsv1.SetStatusCondition(&instance.Status.Conditions, condition)
+		}
+		reason := ocsv1alpha1.ReconcileCompleted
+		message := ocsv1alpha1.ReconcileCompletedMessage
+		conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
+			Type:    ocsv1alpha1.ConditionReconcileComplete,
+			Status:  corev1.ConditionTrue,
+			Reason:  reason,
+			Message: message,
+		})
+
+		// If for any reason we marked ourselves !upgradeable...then unset readiness
+		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
+			r := ready.NewFileReady()
+			err = r.Unset()
+			if err != nil {
+				reqLogger.Error(err, "Failed to mark operator unready")
+				return reconcile.Result{}, err
+			}
+		}
+	}
+	return reconcile.Result{}, r.client.Status().Update(context.TODO(), instance)
 }
 
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
@@ -68,20 +148,40 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageClust
 	// Check if this CephCluster already exists
 	found := &rookCephv1.CephCluster{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
-
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating CephCluster")
-		err = r.client.Create(context.TODO(), cephCluster)
-
-	} else if err == nil {
-		// Update the CephCluster if it is not in the desired state
-		if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
-			reqLogger.Info("Updating spec for CephCluster")
-			found.Spec = cephCluster.Spec
-			err = r.client.Update(context.TODO(), found)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating CephCluster")
+			return r.client.Create(context.TODO(), cephCluster)
 		}
+		return err
 	}
-	return err
+
+	// Update the CephCluster if it is not in the desired state
+	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
+		reqLogger.Info("Updating spec for CephCluster")
+		found.Spec = cephCluster.Spec
+		return r.client.Update(context.TODO(), found)
+	}
+
+	// Add it to the list of RelatedObjects if found
+	objectRef, err := reference.GetReference(r.scheme, found)
+	if err != nil {
+		return err
+	}
+	objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
+
+	// Handle CephCluster resource status
+	if found.Status.State == "" {
+		reqLogger.Info("CephCluster resource is not reporting status.")
+		// What does this mean to OCS status? Assuming progress.
+		reason := "CephClusterStatus"
+		message := "CephCluster resource is not reporting status"
+		statusutil.MapCephClusterNoConditions(&r.conditions, reason, message)
+	} else {
+		// Interpret CephCluster status and set any negative conditions
+		statusutil.MapCephClusterNegativeConditions(&r.conditions, found)
+	}
+	return nil
 }
 
 // newCephCluster returns a CephCluster object.

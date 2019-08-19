@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -102,7 +103,6 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 			}
 			return reconcile.Result{}, err
 		}
-		instance.Status.ErrorMessage = wrongNamespacedName
 
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
@@ -136,11 +136,34 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, nil
 	}
 
-	err = r.ensureStorageClasses(instance, reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
+	if instance.Status.Conditions == nil {
+		reason := ocsv1alpha1.ReconcileInit
+		message := "Initializing OCSInitialization resource"
+		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
+
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			reqLogger.Error(err, "Failed to add conditions to status")
+			return reconcile.Result{}, err
+		}
 	}
 
+	err = r.ensureStorageClasses(instance, reqLogger)
+	if err != nil {
+		reason := ocsv1alpha1.ReconcileFailed
+		message := fmt.Sprintf("Error while reconciling: %v", err)
+		statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+		// don't want to overwrite the actual reconcile failure
+		uErr := r.client.Status().Update(context.TODO(), instance)
+		if uErr != nil {
+			reqLogger.Error(uErr, "Failed to update conditions")
+		}
+		return reconcile.Result{}, err
+	}
+	reason := ocsv1alpha1.ReconcileCompleted
+	message := ocsv1alpha1.ReconcileCompletedMessage
+	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 	instance.Status.StorageClassesCreated = true
 	err = r.client.Status().Update(context.TODO(), instance)
 
@@ -186,3 +209,4 @@ func (r *ReconcileOCSInitialization) newStorageClasses(initdata *ocsv1alpha1.OCS
 	ret := []storagev1.StorageClass{}
 	return ret, nil
 }
+

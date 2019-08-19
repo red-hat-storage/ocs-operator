@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"github.com/go-logr/logr"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -71,4 +72,5 @@ type ReconcileStorageCluster struct {
 	client    client.Client
 	scheme    *runtime.Scheme
 	reqLogger logr.Logger
+	conditions []conditionsv1.Condition
 }
