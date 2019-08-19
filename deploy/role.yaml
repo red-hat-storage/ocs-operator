@@ -44,6 +44,7 @@ rules:
   - '*'
   - storageclusters
   - ocsinitialization
+  - storageclusterinitializations
   verbs:
   - '*'
 - apiGroups:
