@@ -5,7 +5,9 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -82,12 +84,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageClust
 	return err
 }
 
-// newCephCluster returns a Cephcluster object.
+// newCephCluster returns a CephCluster object.
 func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
-	return &rookCephv1.CephCluster{
+	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sc.Name,
 			Namespace: sc.Namespace,
@@ -118,4 +120,23 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 			},
 		},
 	}
+
+	// If StorageDeviceSets have been provided, use the StorageClass of the
+	// DataPVCTemplate from the first StorageDeviceSet for providing the Mon PVs
+	// TODO: Provide a more proper way to configure PVs for Mons
+	if len(sc.Spec.StorageDeviceSets) > 0 {
+		ds := sc.Spec.StorageDeviceSets[0]
+		cephCluster.Spec.Mon.VolumeClaimTemplate = &corev1.PersistentVolumeClaim{
+			Spec: corev1.PersistentVolumeClaimSpec{
+				StorageClassName: ds.DataPVCTemplate.Spec.StorageClassName,
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("10Gi"),
+					},
+				},
+			},
+		}
+	}
+
+	return cephCluster
 }
