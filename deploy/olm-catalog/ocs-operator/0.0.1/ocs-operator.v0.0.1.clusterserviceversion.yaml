@@ -178,10 +178,6 @@ spec:
                   value: "true"
                 - name: ROOK_ENABLE_FLEX_DRIVER
                   value: "false"
-                - name: ROOK_ENABLE_DISCOVERY_DAEMON
-                  value: "false"
-                - name: ROOK_DISABLE_DEVICE_HOTPLUG
-                  value: "true"
                 - name: NODE_NAME
                   valueFrom:
                     fieldRef:
