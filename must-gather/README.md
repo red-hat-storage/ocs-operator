@@ -6,7 +6,7 @@ that expands its capabilities to gather Openshift Container Storage 4 informatio
 
 ### Usage
 ```sh
-oc adm must-gather --image=ashishranjan738/ocs-must-gather
+oc adm must-gather --image=quay.io/ocs-dev/ocs-must-gather
 ```
 
 The command above will create a local directory with a dump of the ocs state.
@@ -29,10 +29,10 @@ You will get a dump of:
     ceph df
     ceph report
     ceph osd df tree
-    ceph fs dump --format json-pretty
+    ceph fs dump
     ceph fs ls
     ceph pg dump
-    ceph health detail --format json-pretty
+    ceph health detail
     ceph osd crush show-tunables
     ceph osd crush dump
     ceph mgr dump
