@@ -1,3 +1,32 @@
+## Create the local-storage namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: local-storage
+
+---
+apiVersion: operators.coreos.com/v1alpha2
+kind: OperatorGroup
+metadata:
+  name: local-operator-group
+  namespace: local-storage
+  spec:
+    targetNamespaces:
+    - openshift-storage
+
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: local-storage-manifests
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: quay.io/gnufied/local-registry:v4.2.0
+  displayName: Local Storage Operator
+  publisher: Red Hat
+  description: An operator to manage local volumes
+
 ---
 ## Add a custom CatalogSource for the ocs-operator CSV
 apiVersion: operators.coreos.com/v1alpha1
@@ -10,6 +39,7 @@ spec:
   image: quay.io/ocs-dev/ocs-registry:latest
   displayName: Openshift Container Storage
   publisher: Red Hat
+
 ---
 ## Create the openshift-storage namespace
 apiVersion: v1
