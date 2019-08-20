@@ -95,7 +95,7 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 		},
 		Spec: rookCephv1.ClusterSpec{
 			CephVersion: rookCephv1.CephVersionSpec{
-				Image:            "ceph/ceph:v14.2.1-20190430",
+				Image:            "ceph/ceph:v14.2.2-20190722",
 				AllowUnsupported: false,
 			},
 			Mon: rookCephv1.MonSpec{
