@@ -6,6 +6,9 @@ all: ocs-operator ocs-must-gather ocs-registry
 
 .PHONY: clean ocs-operator ocs-must-gather ocs-registry
 
+deps-update:
+	GO111MODULE=on go mod tidy && GO111MODULE=on go mod vendor
+
 ocs-operator:
 	@echo "Building the ocs-operator image"
 	operator-sdk build --image-builder=$(IMAGE_BUILD_CMD) quay.io/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
