@@ -79,56 +79,6 @@ spec:
       displayName: StorageCluster Initialization
       description: StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters.
 
-      # Rook-Ceph CRDs
-    - description: Represents a Ceph cluster.
-      displayName: Ceph Cluster
-      kind: CephCluster
-      name: cephclusters.ceph.rook.io
-      version: v1
-    - description: Represents a Ceph Block Pool.
-      displayName: Ceph Block Pool
-      kind: CephBlockPool
-      name: cephblockpools.ceph.rook.io
-      version: v1
-    - description: Represents a Ceph Object Store.
-      displayName: Ceph Object Store
-      kind: CephObjectStore
-      name: cephobjectstores.ceph.rook.io
-      version: v1
-    - description: Represents a Ceph Object Store User.
-      displayName: Ceph Object Store User
-      kind: CephObjectStoreUser
-      name: cephobjectstoreusers.ceph.rook.io
-      version: v1
-    - description: Represents a Ceph Filesystem
-      displayName: Ceph Filesystem
-      kind: CephFilesystem
-      name: cephfilesystems.ceph.rook.io
-      version: v1
-
-      # NooBaa CRDs
-    - kind: NooBaa
-      name: noobaas.noobaa.io
-      version: v1alpha1
-      displayName: NooBaa
-      description: NooBaa provides a flexible S3 data service backed by any storage resource for hybrid and multi-cloud environments
-      resources:
-        - kind: Service
-          version: v1
-        - kind: StatefulSet
-          version: v1
-        - kind: Secret
-          version: v1
-    - kind: BackingStore
-      name: backingstores.noobaa.io
-      version: v1alpha1
-      displayName: Backing Store
-      description: Add backing stores to customize the data placement locations.
-    - kind: BucketClass
-      name: bucketclasses.noobaa.io
-      version: v1alpha1
-      displayName: Bucket Class
-      description: Add bucket classes to customize the data placement locations.
   description: |
     Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
 
