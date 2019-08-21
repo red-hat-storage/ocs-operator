@@ -12,9 +12,47 @@ metadata:
                   "namespace": "openshift-storage"
               },
               "spec": {
-                  "manageNodes": false
+                  "manageNodes": false,
+                  "storageDeviceSets": [
+                      {
+                          "count": 3,
+                          "dataPVCTemplate": {
+                              "spec": {
+                                  "accessModes": [
+                                      "ReadWriteOnce"
+                                  ],
+                                  "resources": {
+                                      "requests": {
+                                          "storage": "1Ti"
+                                      }
+                                  },
+                                  "storageClassName": "gp2",
+                                  "volumeMode": "Block"
+                              }
+                          },
+                          "name": "example-deviceset",
+                          "placement": {},
+                          "resources": {}
+                      }
+                  ]
               }
           },
+          {
+              "apiVersion": "ocs.openshift.io/v1alpha1",
+              "kind": "OCSInitialization",
+              "metadata": {
+                  "name": "example-ocsinitialization"
+              },
+              "spec": {}
+          },
+          {
+              "apiVersion": "ocs.openshift.io/v1alpha1",
+              "kind": "StorageClusterInitialization",
+              "metadata": {
+                  "name": "example-storageclusterinitialization"
+              },
+              "spec": {}
+          }
       ]
     capabilities: Full Lifecycle
     categories: Storage
