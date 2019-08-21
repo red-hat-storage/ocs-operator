@@ -83,7 +83,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			return reconcile.Result{}, err
 		}
 	}
-
 	// All component operators are in a happy state.
 	if r.conditions == nil {
 		reqLogger.Info("No component operator reported negatively")
