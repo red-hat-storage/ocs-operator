@@ -35,6 +35,12 @@ spec:
       version: v1alpha1
       displayName: OCS Initialization
       description: OCS Initialization represents the initial data to be created when the OCS operator is installed
+    - kind: StorageClusterInitialization
+      name: storageclusterinitializations.ocs.openshift.io
+      version: v1alpha1
+      displayName: StorageCluster Initialization
+      description: StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters.
+
       # Rook-Ceph CRDs
     - description: Represents a Ceph cluster.
       displayName: Ceph Cluster
