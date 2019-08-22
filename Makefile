@@ -4,8 +4,8 @@ IMAGE_TAG ?= "latest"
 OPERATOR_SDK_VERSION="v0.10.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
-OUTPUT_DIR="_build/_output"
-TOOLS_DIR="build/_output/tools"
+OUTPUT_DIR="build/_output"
+TOOLS_DIR="$(OUTPUT_DIR)/tools"
 
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
