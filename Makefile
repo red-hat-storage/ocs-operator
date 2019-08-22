@@ -2,12 +2,15 @@ IMAGE_BUILD_CMD ?= "docker"
 REGISTRY_NAMESPACE ?= "ocs-dev"
 IMAGE_TAG ?= "latest"
 
+# Export GO111MODULE=on to enable project to be built from within GOPATH/src
+export GO111MODULE=on
+
 all: ocs-operator ocs-must-gather ocs-registry
 
 .PHONY: clean ocs-operator ocs-must-gather ocs-registry
 
 deps-update:
-	GO111MODULE=on go mod tidy && GO111MODULE=on go mod vendor
+	go mod tidy && go mod vendor
 
 ocs-operator:
 	@echo "Building the ocs-operator image"
