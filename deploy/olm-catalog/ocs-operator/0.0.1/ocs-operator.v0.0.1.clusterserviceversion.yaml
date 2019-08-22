@@ -129,6 +129,13 @@ spec:
       version: v1alpha1
       displayName: Bucket Class
       description: Add bucket classes to customize the data placement locations.
+    required:
+      # Local-Storage-Operator CRD
+    - name: localvolumes.local.storage.openshift.io
+      version: v1
+      kind: LocalVolume
+      displayName: Local Volume
+      description: Local Storage Operator
   description: |
     Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
 
