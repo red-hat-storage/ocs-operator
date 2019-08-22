@@ -46,6 +46,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: openshift-storage
+  labels:
+    openshift.io/cluster-monitoring: "true"
 
 ---
 ## Create the ocs OperatorGroup to allow installation of the OCS CSV into the
