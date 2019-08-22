@@ -1,6 +1,11 @@
 IMAGE_BUILD_CMD ?= "docker"
 REGISTRY_NAMESPACE ?= "ocs-dev"
 IMAGE_TAG ?= "latest"
+OPERATOR_SDK_VERSION="v0.10.0"
+OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
+OPERATOR_SDK="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
+OUTPUT_DIR="_build/_output"
+TOOLS_DIR="build/_output/tools"
 
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
@@ -12,9 +17,19 @@ all: ocs-operator ocs-must-gather ocs-registry
 deps-update:
 	go mod tidy && go mod vendor
 
-ocs-operator:
+operator-sdk:
+	@if [ ! -x "$(TOOLS_DIR)/$(OPERATOR_SDK)" ]; then\
+		echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION)";\
+		mkdir -p $(TOOLS_DIR);\
+		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/$(OPERATOR_SDK) -o $(TOOLS_DIR)/$(OPERATOR_SDK);\
+		chmod +x $(TOOLS_DIR)/$(OPERATOR_SDK);\
+	else\
+		echo "Using operator-sdk cached at $(TOOLS_DIR)/$(OPERATOR_SDK)";\
+	fi
+
+ocs-operator: operator-sdk
 	@echo "Building the ocs-operator image"
-	operator-sdk build --image-builder=$(IMAGE_BUILD_CMD) quay.io/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
+	$(TOOLS_DIR)/$(OPERATOR_SDK) build --go-build-args="-mod=vendor" --image-builder=$(IMAGE_BUILD_CMD) quay.io/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
 
 ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
@@ -26,4 +41,4 @@ ocs-registry:
 
 clean:
 	@echo "cleaning previous outputs"
-	rm -rf build/_output
+	rm -rf $(OUTPUT_DIR)
