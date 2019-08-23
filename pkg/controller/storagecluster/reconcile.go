@@ -220,10 +220,12 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 		},
 	}
 
-	// If StorageDeviceSets have been provided, use the StorageClass of the
-	// DataPVCTemplate from the first StorageDeviceSet for providing the Mon PVs
-	// TODO: Provide a more proper way to configure PVs for Mons
-	if len(sc.Spec.StorageDeviceSets) > 0 {
+	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
+	// have been provided, use the StorageClass of the DataPVCTemplate from the
+	// first StorageDeviceSet for providing the Mon PVs
+	if sc.Spec.MonPVCTemplate != nil {
+		cephCluster.Spec.Mon.VolumeClaimTemplate = sc.Spec.MonPVCTemplate
+	} else if len(sc.Spec.StorageDeviceSets) > 0 {
 		ds := sc.Spec.StorageDeviceSets[0]
 		cephCluster.Spec.Mon.VolumeClaimTemplate = &corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
