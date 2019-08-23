@@ -57,3 +57,4 @@ rules:
   - delete
   - update
   - list
+  - watch
