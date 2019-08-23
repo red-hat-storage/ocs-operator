@@ -233,6 +233,19 @@ spec:
                   value: "false"
                 - name: ROOK_DISABLE_DEVICE_HOTPLUG
                   value: "true"
+                # Placement Configurations
+                - name: AGENT_TOLERATION
+                  value: "NoSchedule"
+                - name: AGENT_TOLERATION_KEY
+                  value: "node.ocs.openshift.io/storage=true"
+                - name: AGENT_NODE_AFFINITY
+                  value: "cluster.ocs.openshift.io/openshift-storage="
+                - name: DISCOVER_TOLERATION
+                  value: "NoSchedule"
+                - name: DISCOVER_TOLERATION_KEY
+                  value: "node.ocs.openshift.io/storage=true"
+                - name: DISCOVER_AGENT_NODE_AFFINITY
+                  value: "cluster.ocs.openshift.io/openshift-storage="
                 - name: NODE_NAME
                   valueFrom:
                     fieldRef:
