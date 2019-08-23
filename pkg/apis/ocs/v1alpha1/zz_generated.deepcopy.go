@@ -279,6 +279,11 @@ func (in *StorageClusterSpec) DeepCopyInto(out *StorageClusterSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.MonPVCTemplate != nil {
+		in, out := &in.MonPVCTemplate, &out.MonPVCTemplate
+		*out = new(corev1.PersistentVolumeClaim)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
