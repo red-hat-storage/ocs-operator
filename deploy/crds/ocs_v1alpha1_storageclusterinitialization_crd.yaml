@@ -10,7 +10,6 @@ spec:
     plural: storageclusterinitializations
     singular: storageclusterinitialization
   scope: Namespaced
-  version: v1alpha1
   subresources:
     status: {}
   validation:
@@ -34,8 +33,6 @@ spec:
           properties:
             errorMessage:
               type: string
-            storageClassesCreated:
-              type: boolean
           type: object
   version: v1alpha1
   versions:
