@@ -33,6 +33,8 @@ spec:
               type: string
             manageNodes:
               type: boolean
+            monPVCTemplate:
+              type: object
             storageDeviceSets:
               items:
                 properties:
