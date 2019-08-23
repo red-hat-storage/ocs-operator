@@ -66,6 +66,16 @@ spec:
               type: array
             storageClassesCreated:
               type: boolean
+            cephBlockPoolsCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            errorMessage:
+              type: string
           type: object
   version: v1alpha1
   versions:

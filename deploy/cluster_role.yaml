@@ -1,9 +1,16 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   creationTimestamp: null
   name: ocs-operator
 rules:
+- apiGroups: 
+    - "storage.k8s.io"
+  resources: 
+    - "storageclasses"
+  verbs: 
+    - get
+    - create
 - apiGroups:
   - ""
   resources:
@@ -51,10 +58,12 @@ rules:
   - ceph.rook.io
   resources:
   - cephclusters
+  - cephblockpools
+  - cephfilesystems
+  - cephobjectstore
+  - cephobjectstoreusers
   verbs:
-  - create
   - get
-  - delete
-  - update
+  - create
   - list
   - watch
