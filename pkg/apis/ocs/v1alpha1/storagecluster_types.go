@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,10 +9,10 @@ import (
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	ManageNodes       bool               `json:"manageNodes,omitempty"`
 	InstanceType      string             `json:"instanceType,omitempty"`
 	StorageDeviceSets []StorageDeviceSet `json:"storageDeviceSets,omitempty"`
@@ -33,15 +34,36 @@ type StorageDeviceSet struct {
 type StorageDeviceSetConfig struct{}
 
 // StorageClusterStatus defines the observed state of StorageCluster
+// +k8s:openapi-gen=true
 type StorageClusterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	// Conditions describes the state of the StorageCluster resource.
+	// +optional
+	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`
+
+	// RelatedObjects is a list of objects created and maintained by this
+	// operator. Object references will be added to this list after they have
+	// been created AND found in the cluster.
+	// +optional
+	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
 }
+
+// ConditionReconcileComplete communicates the status of the StorageCluster resource's
+// reconcile functionality. Basically, is the Reconcile function running to completion.
+const ConditionReconcileComplete conditionsv1.ConditionType = "ReconcileComplete"
+
+// List of constants to show different different reconciliation messages and statuses.
+const (
+	ReconcileFailed           = "ReconcileFailed"
+	ReconcileInit             = "Init"
+	ReconcileCompleted        = "ReconcileCompleted"
+	ReconcileCompletedMessage = "Reconcile completed successfully"
+)
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // StorageCluster is the Schema for the storageclusters API
 // +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 type StorageCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
