@@ -11,11 +11,14 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.OCSInitialization":       schema_pkg_apis_ocs_v1alpha1_OCSInitialization(ref),
-		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.OCSInitializationSpec":   schema_pkg_apis_ocs_v1alpha1_OCSInitializationSpec(ref),
-		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.OCSInitializationStatus": schema_pkg_apis_ocs_v1alpha1_OCSInitializationStatus(ref),
-		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageCluster":          schema_pkg_apis_ocs_v1alpha1_StorageCluster(ref),
-		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterStatus":    schema_pkg_apis_ocs_v1alpha1_StorageClusterStatus(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.OCSInitialization":                  schema_pkg_apis_ocs_v1alpha1_OCSInitialization(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.OCSInitializationSpec":              schema_pkg_apis_ocs_v1alpha1_OCSInitializationSpec(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.OCSInitializationStatus":            schema_pkg_apis_ocs_v1alpha1_OCSInitializationStatus(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageCluster":                     schema_pkg_apis_ocs_v1alpha1_StorageCluster(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterInitialization":       schema_pkg_apis_ocs_v1alpha1_StorageClusterInitialization(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterInitializationSpec":   schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationSpec(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterInitializationStatus": schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationStatus(ref),
+		"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterStatus":               schema_pkg_apis_ocs_v1alpha1_StorageClusterStatus(ref),
 	}
 }
 
@@ -160,6 +163,80 @@ func schema_pkg_apis_ocs_v1alpha1_StorageCluster(ref common.ReferenceCallback) c
 		},
 		Dependencies: []string{
 			"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterSpec", "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitialization(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "StorageClusterInitialization is the Schema for the storageclusterinitializations API",
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterInitializationSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterInitializationStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterInitializationSpec", "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1.StorageClusterInitializationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "StorageClusterInitializationSpec defines the desired state of StorageClusterInitialization",
+				Properties:  map[string]spec.Schema{},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
+func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization",
+				Properties: map[string]spec.Schema{
+					"errorMessage": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{},
 	}
 }
 
