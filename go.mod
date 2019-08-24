@@ -5,6 +5,8 @@ go 1.12
 require (
 	cloud.google.com/go v0.40.0 // indirect
 	github.com/NYTimes/gziphandler v1.0.1 // indirect
+	github.com/RHsyseng/operator-utils v0.0.0-20190807020041-5344a0f594b8
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.2
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
@@ -12,6 +14,7 @@ require (
 	github.com/operator-framework/operator-sdk v0.10.0
 	github.com/prometheus/client_golang v0.9.4 // indirect
 	github.com/rook/rook v0.0.0-20190813054048-e6da8ab08fae
+	github.com/stretchr/testify v1.3.0
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/zap v1.10.0 // indirect
 	google.golang.org/appengine v1.6.1 // indirect
