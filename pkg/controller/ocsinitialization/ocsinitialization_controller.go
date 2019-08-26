@@ -9,6 +9,7 @@ import (
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,9 @@ var log = logf.Log.WithName("controller_ocsinitialization")
 var watchNamespace string
 
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
+
+var nodeAffinityKey = "cluster.ocs.openshift.io/openshift-storage"
+var nodeTolerationKey = "node.ocs.openshift.io/storage"
 
 // InitNamespacedName returns a NamespacedName for the singleton instance that
 // should exist.
@@ -395,6 +399,45 @@ func (r *ReconcileOCSInitialization) newCephObjectStoreInstances(initData *ocsv1
 				Gateway: cephv1.GatewaySpec{
 					Port:      80,
 					Instances: 1,
+					Placement: rook.Placement{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									corev1.NodeSelectorTerm{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											corev1.NodeSelectorRequirement{
+												Key:      nodeAffinityKey,
+												Operator: corev1.NodeSelectorOpExists,
+											},
+										},
+									},
+								},
+							},
+						},
+						Tolerations: []corev1.Toleration{
+							corev1.Toleration{
+								Key:      nodeTolerationKey,
+								Operator: corev1.TolerationOpEqual,
+								Value:    "true",
+								Effect:   corev1.TaintEffectNoSchedule,
+							},
+						},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								corev1.PodAffinityTerm{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											metav1.LabelSelectorRequirement{
+												Key:      "app",
+												Operator: metav1.LabelSelectorOpIn,
+												Values:   []string{"rook-ceph-rgw"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -562,6 +605,46 @@ func (r *ReconcileOCSInitialization) newCephFilesystemInstances(initData *ocsv1a
 				MetadataServer: cephv1.MetadataServerSpec{
 					ActiveCount:   1,
 					ActiveStandby: true,
+					Placement: rook.Placement{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									corev1.NodeSelectorTerm{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											corev1.NodeSelectorRequirement{
+												Key:      nodeAffinityKey,
+												Operator: corev1.NodeSelectorOpExists,
+											},
+										},
+									},
+								},
+							},
+						},
+						Tolerations: []corev1.Toleration{
+							corev1.Toleration{
+								Key:      nodeTolerationKey,
+								Operator: corev1.TolerationOpEqual,
+								Value:    "true",
+								Effect:   corev1.TaintEffectNoSchedule,
+							},
+						},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								corev1.PodAffinityTerm{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											metav1.LabelSelectorRequirement{
+												Key:      "app",
+												Operator: metav1.LabelSelectorOpIn,
+												Values:   []string{"rook-ceph-mds"},
+											},
+										},
+									},
+									TopologyKey: "kubernetes.io/hostname",
+								},
+							},
+						},
+					},
 				},
 			},
 		},
