@@ -50,14 +50,15 @@ var (
 	noobaaCSVStr       = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
 
-	rookContainerImage      = flag.String("rook-container-image", "", "rook operator container image")
+	rookContainerImage      = flag.String("rook-image", "", "rook operator container image")
+	cephContainerImage      = flag.String("ceph-image", "", "ceph daemon container image")
 	rookCsiCephImage        = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiRegistrarImage   = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiProvisionerImage = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiSnapshotterImage = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiAttacherImage    = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	noobaaContainerImage    = flag.String("noobaa-container-image", "", "noobaa operator container image")
-	ocsContainerImage       = flag.String("ocs-container-image", "", "ocs operator container image")
+	noobaaContainerImage    = flag.String("noobaa-image", "", "noobaa operator container image")
+	ocsContainerImage       = flag.String("ocs-image", "", "ocs operator container image")
 
 	inputCrdsDir = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 
@@ -134,15 +135,18 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 		panic(err)
 	}
 
-	if strings.Contains(csv.Name, "noobaa") {
-		// TODO remove this once issue https://github.com/noobaa/noobaa-operator/issues/35
-		// is resolved.
-		// Until then, noobaa's CSV isn't actually a template, which means we have
-		// to explicitly inject the noobaa container image into the deployment spec.
-		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
-	} else if strings.Contains(csv.Name, "rook") || strings.Contains(csv.Name, "ceph") {
-		// Inject our custom rook deployment env vars overrides.
+	// inject custom ENV VARS.
+	if strings.Contains(csv.Name, "ocs") {
+		vars := []corev1.EnvVar{
+			{
+				Name:  "CEPH_IMAGE",
+				Value: *cephContainerImage,
+			},
+		}
+		// append to env var list.
+		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = append(templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env, vars...)
 
+	} else if strings.Contains(csv.Name, "rook") || strings.Contains(csv.Name, "ceph") {
 		vars := []corev1.EnvVar{
 			{
 				Name:  "ROOK_CURRENT_NAMESPACE_ONLY",
@@ -253,7 +257,13 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 			})
 		}
 
+		// override the rook env var list.
 		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = vars
+	} else if strings.Contains(csv.Name, "noobaa") {
+		// TODO remove this if statement once issue
+		// https://github.com/noobaa/noobaa-operator/issues/35 is resolved
+		// this image should be set by the templator logic
+		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
 	}
 
 	return templateStrategySpec
@@ -562,11 +572,13 @@ func main() {
 	} else if *ocsCSVStr == "" {
 		log.Fatal("--ocs-csv-filepath is required")
 	} else if *rookContainerImage == "" {
-		log.Fatal("--rook-container-image is required")
+		log.Fatal("--rook-image is required")
+	} else if *cephContainerImage == "" {
+		log.Fatal("--ceph-image is required")
 	} else if *noobaaContainerImage == "" {
-		log.Fatal("--noobaa-container-image is required")
+		log.Fatal("--noobaa-image is required")
 	} else if *ocsContainerImage == "" {
-		log.Fatal("--ocs-container-image is required")
+		log.Fatal("--ocs-image is required")
 	} else if *inputCrdsDir == "" {
 		log.Fatal("--crds-directory is required")
 	} else if *outputDir == "" {

@@ -13,6 +13,7 @@ function help_txt() {
 	echo "    OCS_IMAGE:            (required) The ocs operator container image to integrate with"
 	echo "    NOOBAA_IMAGE:         (required) The noobaa operator container image to integrate with"
 	echo "    ROOK_IMAGE:           (required) The rook operator container image to integrate with"
+	echo "    CEPH_IMAGE:           (required) The ceph daemon container image to be deployed with storage clusters"
 	echo "    CSV_VERSION:          (required) The ocs-operator csv version that will be generated"
 	echo "    REPLACES_CSV_VERSION       (optional) The ocs-operator csv version this new csv will be updating"
 	echo "    ROOK_CSI_CEPH_IMAGE        (optional) Sets custom image env var on the rook deployment spec"
@@ -26,7 +27,7 @@ function help_txt() {
 }
 
 # check required env vars
-if [ -z $NOOBAA_IMAGE ] || [ -z $ROOK_IMAGE ] || [ -z $CSV_VERSION ] || [ -z $OCS_IMAGE ]; then
+if [ -z $NOOBAA_IMAGE ] || [ -z $ROOK_IMAGE ] || [ -z $CSV_VERSION ] || [ -z $OCS_IMAGE ] || [ -z $CEPH_IMAGE ]; then
 	help_txt
 	echo ""
 	echo "ERROR: Missing required environment variables"
@@ -45,14 +46,15 @@ $CSV_MERGER \
 	--rook-csv-filepath=$ROOK_CSV \
 	--noobaa-csv-filepath=$NOOBAA_CSV \
 	--ocs-csv-filepath=$OCS_CSV \
-	--rook-container-image=$ROOK_IMAGE \
+	--rook-image=$ROOK_IMAGE \
+	--ceph-image=$CEPH_IMAGE \
 	--rook-csi-ceph-image=$ROOK_CSI_CEPH_IMAGE \
 	--rook-csi-registrar-image=$ROOK_CSI_REGISTRAR_IMAGE \
 	--rook-csi-provisioner-image=$ROOK_CSI_PROVISIONER_IMAGE \
 	--rook-csi-snapshotter-image=$ROOK_CSI_SNAPSHOTTER_IMAGE \
 	--rook-csi-attacher-image=$ROOK_CSI_ATTACHER_IMAGE \
-	--noobaa-container-image=$NOOBAA_IMAGE \
-	--ocs-container-image=$OCS_IMAGE \
+	--noobaa-image=$NOOBAA_IMAGE \
+	--ocs-image=$OCS_IMAGE \
 	--crds-directory=$OUTDIR_CRDS \
 	--olm-bundle-directory=$OCS_FINAL_DIR
 

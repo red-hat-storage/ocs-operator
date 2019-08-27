@@ -733,6 +733,8 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: ocs-operator
+                - name: CEPH_IMAGE
+                  value: ceph/ceph:v14.2.2-20190722
                 image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: Always
                 name: ocs-operator
