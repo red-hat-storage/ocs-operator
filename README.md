@@ -62,7 +62,13 @@ $ export REPLACES_CSV_VERSION=0.0.1
 $ export ROOK_IMAGE=<add rook image url here>
 $ export NOOBAA_IMAGE=<add noobaa image url here>
 $ export OCS_IMAGE=<add ocs operator image url here>
-make gen-csv
+$ export ROOK_CSI_CEPH_IMAGE=<add image here>
+$ export ROOK_CSI_REGISTRAR_IMAGE=<add image here>
+$ export ROOK_CSI_PROVISIONER_IMAGE=<add image here>
+$ export ROOK_CSI_SNAPSHOTTER_IMAGE=<add image here>
+$ export ROOK_CSI_ATTACHER_IMAGE=<add image here>
+
+$ make gen-csv
 ```
 
 This example results in both a unified CSV along with all the corresponding CRDs being placed in `deploy/olm-catalog/ocs-operator/0.0.2/` for release.

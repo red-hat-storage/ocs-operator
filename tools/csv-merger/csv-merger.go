@@ -44,14 +44,20 @@ type csvStrategySpec struct {
 }
 
 var (
-	csvVersion           = flag.String("csv-version", "", "the unified CSV version")
-	replacesCsvVersion   = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
-	rookCSVStr           = flag.String("rook-csv-filepath", "", "path to rook csv yaml file")
-	noobaaCSVStr         = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
-	ocsCSVStr            = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
-	rookContainerImage   = flag.String("rook-container-image", "", "rook operator container image")
-	noobaaContainerImage = flag.String("noobaa-container-image", "", "noobaa operator container image")
-	ocsContainerImage    = flag.String("ocs-container-image", "", "ocs operator container image")
+	csvVersion         = flag.String("csv-version", "", "the unified CSV version")
+	replacesCsvVersion = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
+	rookCSVStr         = flag.String("rook-csv-filepath", "", "path to rook csv yaml file")
+	noobaaCSVStr       = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
+	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
+
+	rookContainerImage      = flag.String("rook-container-image", "", "rook operator container image")
+	rookCsiCephImage        = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiRegistrarImage   = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiProvisionerImage = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiSnapshotterImage = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiAttacherImage    = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	noobaaContainerImage    = flag.String("noobaa-container-image", "", "noobaa operator container image")
+	ocsContainerImage       = flag.String("ocs-container-image", "", "ocs operator container image")
 
 	inputCrdsDir = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 
@@ -136,7 +142,8 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
 	} else if strings.Contains(csv.Name, "rook") || strings.Contains(csv.Name, "ceph") {
 		// Inject our custom rook deployment env vars overrides.
-		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
+
+		vars := []corev1.EnvVar{
 			{
 				Name:  "ROOK_CURRENT_NAMESPACE_ONLY",
 				Value: "true",
@@ -214,6 +221,39 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 				},
 			},
 		}
+
+		if *rookCsiCephImage != "" {
+			vars = append(vars, corev1.EnvVar{
+				Name:  "ROOK_CSI_CEPH_IMAGE",
+				Value: *rookCsiCephImage,
+			})
+		}
+		if *rookCsiRegistrarImage != "" {
+			vars = append(vars, corev1.EnvVar{
+				Name:  "ROOK_CSI_REGISTRAR_IMAGE",
+				Value: *rookCsiRegistrarImage,
+			})
+		}
+		if *rookCsiProvisionerImage != "" {
+			vars = append(vars, corev1.EnvVar{
+				Name:  "ROOK_CSI_PROVISIONER_IMAGE",
+				Value: *rookCsiProvisionerImage,
+			})
+		}
+		if *rookCsiSnapshotterImage != "" {
+			vars = append(vars, corev1.EnvVar{
+				Name:  "ROOK_CSI_SNAPSHOTTER_IMAGE",
+				Value: *rookCsiSnapshotterImage,
+			})
+		}
+		if *rookCsiAttacherImage != "" {
+			vars = append(vars, corev1.EnvVar{
+				Name:  "ROOK_CSI_ATTACHER_IMAGE",
+				Value: *rookCsiAttacherImage,
+			})
+		}
+
+		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = vars
 	}
 
 	return templateStrategySpec
