@@ -23,7 +23,51 @@ $ make ocs-operator
 
 ### Converged CSV
 
-_TODO: Add instructions to build the converged CSV and manifests_
+The converged CSV is created by sourcing manifests from each component-level
+operator to create a single unified CSV capable of deploying the component-level
+operators as well as the ocs-operator.
+
+Building the unifed CSV is broken into two steps which are supported by the
+`make source-manifests` and `make gen-csv` make targets.
+
+**Step 1:** Source in the component-level manifests from the component-level operator
+container images.
+
+Set environment variables referencing the ROOK and NOOBAA container images
+to source the CSV/CRD data from. Then execute `make source-manifests`
+
+```
+$ export ROOK_IMAGE=<add rook image url here>
+$ export NOOBAA_IMAGE=<add noobaa image url here>
+$ make source-manifests
+```
+
+The above example will source manifests in from the supplied container images
+and store those manifests in `build/_outdir/csv-templates/`
+
+**Step 2:** Generate the unified CSV by merging together all the manifests
+sourced in from step 1.
+
+Set environment variables related to CSV versioning.
+
+Also, set environment variables representing the container images that should be
+used in the deployments.
+
+
+**NOTE: Floating tags like 'master' and 'latest' should never be used in an official release.**
+
+```
+$ export CSV_VERSION=0.0.2
+$ export REPLACES_CSV_VERSION=0.0.1
+$ export ROOK_IMAGE=<add rook image url here>
+$ export NOOBAA_IMAGE=<add noobaa image url here>
+$ export OCS_IMAGE=<add ocs operator image url here>
+make gen-csv
+```
+
+This example results in both a unified CSV along with all the corresponding CRDs being placed in `deploy/olm-catalog/ocs-operator/0.0.2/` for release.
+
+Run `make ocs-registry` to generate the registry bundle container image.
 
 ## Install
 
