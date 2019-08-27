@@ -188,7 +188,6 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
-
 	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sc.Name,
@@ -217,86 +216,6 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 			},
 			Storage: rook.StorageScopeSpec{
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets),
-			},
-			Placement: rook.PlacementSpec{
-				"all": rook.Placement{
-					NodeAffinity: &corev1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-							NodeSelectorTerms: []corev1.NodeSelectorTerm{
-								corev1.NodeSelectorTerm{
-									MatchExpressions: []corev1.NodeSelectorRequirement{
-										corev1.NodeSelectorRequirement{
-											Key:      "cluster.ocs.openshift.io/openshift-storage=",
-											Operator: corev1.NodeSelectorOpExists,
-										},
-									},
-								},
-							},
-						},
-					},
-					Tolerations: []corev1.Toleration{
-						corev1.Toleration{
-							Key:      "node.ocs.openshift.io/storage",
-							Operator: corev1.TolerationOpEqual,
-							Value:    "true",
-							Effect:   corev1.TaintEffectNoSchedule,
-						},
-					},
-				},
-				"mon": rook.Placement{
-					PodAntiAffinity: &corev1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-							corev1.PodAffinityTerm{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										metav1.LabelSelectorRequirement{
-											Key:      "app",
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"rook-ceph-mon"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				"mgr": rook.Placement{
-					PodAntiAffinity: &corev1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-							corev1.PodAffinityTerm{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										metav1.LabelSelectorRequirement{
-											Key:      "app",
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"rook-ceph-mgr"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				"osd": rook.Placement{
-					PodAntiAffinity: &corev1.PodAntiAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-							corev1.WeightedPodAffinityTerm{
-								Weight: 100,
-								PodAffinityTerm: corev1.PodAffinityTerm{
-									LabelSelector: &metav1.LabelSelector{
-										MatchExpressions: []metav1.LabelSelectorRequirement{
-											metav1.LabelSelectorRequirement{
-												Key:      "app",
-												Operator: metav1.LabelSelectorOpIn,
-												Values:   []string{"rook-ceph-osd"},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 		},
 	}
