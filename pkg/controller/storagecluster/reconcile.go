@@ -1,17 +1,17 @@
 package storagecluster
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/tools/reference"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -50,7 +50,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 	// Add conditions if there are none
 	if instance.Status.Conditions == nil {
-		reason :=  ocsv1alpha1.ReconcileInit
+		reason := ocsv1alpha1.ReconcileInit
 		message := "Initializing StorageCluster"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 

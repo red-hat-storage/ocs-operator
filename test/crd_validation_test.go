@@ -15,14 +15,14 @@ import (
 )
 
 const (
-	pathResources = "/spec/storageDeviceSets/resources/"
-	pathNodeAffinity = "/spec/storageDeviceSets/placement/nodeAffinity/"
-	pathPodAffinity = "/spec/storageDeviceSets/placement/podAffinity/"
-	pathPodAntiAffinity = "/spec/storageDeviceSets/placement/podAntiAffinity/"
-	pathTolerations = "/spec/storageDeviceSets/placement/tolerations/"
-	pathDataPVCTemplate = "/spec/storageDeviceSets/dataPVCTemplate/"
-	pathStatusConditions = "/status/conditions/"
-	pathStatusRelatedObjs = "/status/relatedObjects/"
+	pathResources          = "/spec/storageDeviceSets/resources/"
+	pathNodeAffinity       = "/spec/storageDeviceSets/placement/nodeAffinity/"
+	pathPodAffinity        = "/spec/storageDeviceSets/placement/podAffinity/"
+	pathPodAntiAffinity    = "/spec/storageDeviceSets/placement/podAntiAffinity/"
+	pathTolerations        = "/spec/storageDeviceSets/placement/tolerations/"
+	pathDataPVCTemplate    = "/spec/storageDeviceSets/dataPVCTemplate/"
+	pathStatusConditions   = "/status/conditions/"
+	pathStatusRelatedObjs  = "/status/relatedObjects/"
 	pathSpecMonPVCTemplate = "/spec/monPVCTemplate/"
 )
 
@@ -30,7 +30,7 @@ func TestSampleCustomResources(t *testing.T) {
 	root := "./../deploy/crds"
 	crdCrMap := map[string]string{
 		"ocs_v1alpha1_ocsinitialization_crd.yaml": "ocs_v1alpha1_ocsinitialization_cr",
-		"ocs_v1alpha1_storagecluster_crd.yaml": "ocs_v1alpha1_storagecluster_cr",
+		"ocs_v1alpha1_storagecluster_crd.yaml":    "ocs_v1alpha1_storagecluster_cr",
 	}
 	for crd, prefix := range crdCrMap {
 		validateCustomResources(t, root, crd, prefix)
@@ -62,7 +62,7 @@ func TestCompleteCRD(t *testing.T) {
 	root := "./../deploy/crds"
 	crdStructMap := map[string]interface{}{
 		"ocs_v1alpha1_ocsinitialization_crd.yaml": &v1alpha1.OCSInitialization{},
-		"ocs_v1alpha1_storagecluster_crd.yaml": &v1alpha1.StorageCluster{},
+		"ocs_v1alpha1_storagecluster_crd.yaml":    &v1alpha1.StorageCluster{},
 	}
 	for crd, obj := range crdStructMap {
 		schema := getSchema(t, fmt.Sprintf("%s/%s", root, crd))
