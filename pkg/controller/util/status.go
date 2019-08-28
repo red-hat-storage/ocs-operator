@@ -46,7 +46,7 @@ func SetProgressingCondition(conditions *[]conditionsv1.Condition, reason string
 }
 
 // SetErrorCondition sets the ConditionReconcileComplete to False in case of any errors
-// during the reconcilation process.
+// during the reconciliation process.
 func SetErrorCondition(conditions *[]conditionsv1.Condition, reason string, message string) {
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
 		Type:    ocsv1alpha1.ConditionReconcileComplete,
@@ -97,65 +97,65 @@ func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, foun
 	switch found.Status.State {
 	case rookCephv1.ClusterStateCreating:
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type: conditionsv1.ConditionProgressing,
-			Status: corev1.ConditionTrue,
-			Reason: "ClusterStateCreating",
+			Type:    conditionsv1.ConditionProgressing,
+			Status:  corev1.ConditionTrue,
+			Reason:  "ClusterStateCreating",
 			Message: fmt.Sprintf("CephCluster is creating: %v", string(found.Status.Message)),
 		})
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type: conditionsv1.ConditionUpgradeable,
-			Status: corev1.ConditionFalse,
-			Reason: "ClusterStateCreating",
+			Type:    conditionsv1.ConditionUpgradeable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "ClusterStateCreating",
 			Message: fmt.Sprintf("CephCluster is creating: %v", string(found.Status.Message)),
 		})
 	case rookCephv1.ClusterStateUpdating:
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type: conditionsv1.ConditionProgressing,
-			Status: corev1.ConditionTrue,
-			Reason: "ClusterStateUpdating",
+			Type:    conditionsv1.ConditionProgressing,
+			Status:  corev1.ConditionTrue,
+			Reason:  "ClusterStateUpdating",
 			Message: fmt.Sprintf("CephCluster is updating: %v", string(found.Status.Message)),
 		})
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type: conditionsv1.ConditionUpgradeable,
-			Status: corev1.ConditionFalse,
-			Reason: "ClusterStateUpdating",
+			Type:    conditionsv1.ConditionUpgradeable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "ClusterStateUpdating",
 			Message: fmt.Sprintf("CephCluster is updating: %v", string(found.Status.Message)),
 		})
 	case rookCephv1.ClusterStateError:
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type: conditionsv1.ConditionAvailable,
-			Status: corev1.ConditionFalse,
-			Reason: "ClusterStateError",
+			Type:    conditionsv1.ConditionAvailable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "ClusterStateError",
 			Message: fmt.Sprintf("CephCluster error: %v", string(found.Status.Message)),
 		})
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type: conditionsv1.ConditionDegraded,
-			Status: corev1.ConditionTrue,
-			Reason: "ClusterStateError",
+			Type:    conditionsv1.ConditionDegraded,
+			Status:  corev1.ConditionTrue,
+			Reason:  "ClusterStateError",
 			Message: fmt.Sprintf("CephCluster error: %v", string(found.Status.Message)),
 		})
 	}
 }
 
-// MapCephClusterNoConditions sets status conditions to progressing. Used when component operator isn't 
+// MapCephClusterNoConditions sets status conditions to progressing. Used when component operator isn't
 // reporting any status, and we have to assume progress.
 func MapCephClusterNoConditions(conditions *[]conditionsv1.Condition, reason string, message string) {
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-		Type: conditionsv1.ConditionAvailable,
-		Status: corev1.ConditionFalse,
-		Reason: reason,
+		Type:    conditionsv1.ConditionAvailable,
+		Status:  corev1.ConditionFalse,
+		Reason:  reason,
 		Message: message,
 	})
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-		Type: conditionsv1.ConditionProgressing,
-		Status: corev1.ConditionTrue,
-		Reason: reason,
+		Type:    conditionsv1.ConditionProgressing,
+		Status:  corev1.ConditionTrue,
+		Reason:  reason,
 		Message: message,
 	})
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-		Type: conditionsv1.ConditionUpgradeable,
-		Status: corev1.ConditionFalse,
-		Reason: reason,
+		Type:    conditionsv1.ConditionUpgradeable,
+		Status:  corev1.ConditionFalse,
+		Reason:  reason,
 		Message: message,
 	})
 }

@@ -19,7 +19,7 @@ type OCSInitializationSpec struct {
 // OCSInitializationStatus defines the observed state of OCSInitialization
 // +k8s:openapi-gen=true
 type OCSInitializationStatus struct {
-	StorageClassesCreated bool   `json:"storageClassesCreated,omitempty"`
+	StorageClassesCreated bool `json:"storageClassesCreated,omitempty"`
 	// Conditions describes the state of the OCSInitialization resource.
 	// +optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`

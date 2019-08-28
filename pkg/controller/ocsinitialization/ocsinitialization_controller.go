@@ -209,4 +209,3 @@ func (r *ReconcileOCSInitialization) newStorageClasses(initdata *ocsv1alpha1.OCS
 	ret := []storagev1.StorageClass{}
 	return ret, nil
 }
-
