@@ -1,10 +1,13 @@
 package storagecluster
 
 import (
+	"fmt"
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"os"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -30,10 +33,19 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+
+	cephImage := os.Getenv("CEPH_IMAGE")
+	if cephImage == "" {
+		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
+		log.Error(err, "missing required environment variable for ocs initialization")
+		panic(err)
+	}
+
 	return &ReconcileStorageCluster{
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
 		reqLogger: log,
+		cephImage: cephImage,
 	}
 }
 
@@ -69,8 +81,9 @@ var _ reconcile.Reconciler = &ReconcileStorageCluster{}
 type ReconcileStorageCluster struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client    client.Client
-	scheme    *runtime.Scheme
-	reqLogger logr.Logger
+	client     client.Client
+	scheme     *runtime.Scheme
+	reqLogger  logr.Logger
 	conditions []conditionsv1.Condition
+	cephImage  string
 }

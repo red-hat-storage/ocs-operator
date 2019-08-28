@@ -1,17 +1,17 @@
 package storagecluster
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/tools/reference"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -50,7 +50,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 	// Add conditions if there are none
 	if instance.Status.Conditions == nil {
-		reason :=  ocsv1alpha1.ReconcileInit
+		reason := ocsv1alpha1.ReconcileInit
 		message := "Initializing StorageCluster"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
@@ -137,7 +137,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageCluster, reqLogger logr.Logger) error {
 	// Define a new CephCluster object
-	cephCluster := newCephCluster(sc)
+	cephCluster := newCephCluster(sc, r.cephImage)
 
 	// Set StorageCluster instance as the owner and controller
 	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
@@ -184,7 +184,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageClust
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
+func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -196,7 +196,7 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster) *rookCephv1.CephCluster {
 		},
 		Spec: rookCephv1.ClusterSpec{
 			CephVersion: rookCephv1.CephVersionSpec{
-				Image:            "ceph/ceph:v14.2.2-20190722",
+				Image:            cephImage,
 				AllowUnsupported: false,
 			},
 			Mon: rookCephv1.MonSpec{
