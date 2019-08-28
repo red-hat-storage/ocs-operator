@@ -46,7 +46,7 @@ func SetProgressingCondition(conditions *[]conditionsv1.Condition, reason string
 }
 
 // SetErrorCondition sets the ConditionReconcileComplete to False in case of any errors
-// during the reconcilation process.
+// during the reconciliation process.
 func SetErrorCondition(conditions *[]conditionsv1.Condition, reason string, message string) {
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
 		Type:    ocsv1alpha1.ConditionReconcileComplete,
