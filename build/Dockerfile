@@ -1,6 +1,4 @@
-FROM alpine:3.8
-
-RUN apk upgrade --update --no-cache
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 
 USER nobody
 
