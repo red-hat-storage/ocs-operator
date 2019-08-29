@@ -9,4 +9,4 @@ rules:
   resources:
   - '*'
   verbs:
-- '*'
+  - '*'
