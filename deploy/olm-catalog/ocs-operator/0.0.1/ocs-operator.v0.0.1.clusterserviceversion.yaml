@@ -899,7 +899,7 @@ spec:
           - delete
           - update
           - create
-        serviceAccountName: rbd-csi-provisioner-sa
+        serviceAccountName: rook-csi-rbd-provisioner-sa
       - rules:
         - apiGroups:
           - ""
