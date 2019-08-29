@@ -463,6 +463,19 @@ The OCS operator is the primary operator for Red Hat OpenShift Container Storage
         },
         "spec": {
             "manageNodes": false,
+            "monPVCTemplate": {
+                "spec": {
+                    "accessModes": [
+                        "ReadWriteOnce"
+                    ],
+                    "resources": {
+                        "requests": {
+                            "storage": "10Gi"
+                        }
+                    },
+                    "storageClassName": "gp2"
+                }
+            },
             "storageDeviceSets": [
                 {
                     "count": 3,
@@ -482,6 +495,7 @@ The OCS operator is the primary operator for Red Hat OpenShift Container Storage
                     },
                     "name": "example-deviceset",
                     "placement": {},
+                    "portable": true,
                     "resources": {}
                 }
             ]
