@@ -22,6 +22,7 @@ const (
 	pathTolerations        = "/spec/storageDeviceSets/placement/tolerations/"
 	pathDataPVCTemplate    = "/spec/storageDeviceSets/dataPVCTemplate/"
 	pathStatusConditions   = "/status/conditions/"
+	pathStatusNoobaaSystem = "/status/noobaaSystemCreated"
 	pathStatusRelatedObjs  = "/status/relatedObjects/"
 	pathSpecMonPVCTemplate = "/spec/monPVCTemplate/"
 )
@@ -29,8 +30,9 @@ const (
 func TestSampleCustomResources(t *testing.T) {
 	root := "./../deploy/crds"
 	crdCrMap := map[string]string{
-		"ocs_v1alpha1_ocsinitialization_crd.yaml": "ocs_v1alpha1_ocsinitialization_cr",
-		"ocs_v1alpha1_storagecluster_crd.yaml":    "ocs_v1alpha1_storagecluster_cr",
+		"ocs_v1alpha1_ocsinitialization_crd.yaml":            "ocs_v1alpha1_ocsinitialization_cr",
+		"ocs_v1alpha1_storagecluster_crd.yaml":               "ocs_v1alpha1_storagecluster_cr",
+		"ocs_v1alpha1_storageclusterinitialization_crd.yaml": "ocs_v1alpha1_storageclusterinitialization_cr",
 	}
 	for crd, prefix := range crdCrMap {
 		validateCustomResources(t, root, crd, prefix)
@@ -61,8 +63,9 @@ func validateCustomResources(t *testing.T, root string, crd string, prefix strin
 func TestCompleteCRD(t *testing.T) {
 	root := "./../deploy/crds"
 	crdStructMap := map[string]interface{}{
-		"ocs_v1alpha1_ocsinitialization_crd.yaml": &v1alpha1.OCSInitialization{},
-		"ocs_v1alpha1_storagecluster_crd.yaml":    &v1alpha1.StorageCluster{},
+		"ocs_v1alpha1_ocsinitialization_crd.yaml":            &v1alpha1.OCSInitialization{},
+		"ocs_v1alpha1_storagecluster_crd.yaml":               &v1alpha1.StorageCluster{},
+		"ocs_v1alpha1_storageclusterinitialization_crd.yaml": &v1alpha1.StorageClusterInitialization{},
 	}
 	for crd, obj := range crdStructMap {
 		schema := getSchema(t, fmt.Sprintf("%s/%s", root, crd))
@@ -76,6 +79,7 @@ func TestCompleteCRD(t *testing.T) {
 			pathTolerations,
 			pathDataPVCTemplate,
 			pathStatusConditions,
+			pathStatusNoobaaSystem,
 			pathStatusRelatedObjs,
 			pathSpecMonPVCTemplate,
 		}
