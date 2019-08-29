@@ -32,14 +32,6 @@ spec:
           type: object
         status:
           properties:
-            cephBlockPoolsCreated:
-              type: boolean
-            cephFilesystemsCreated:
-              type: boolean
-            cephObjectStoreUsersCreated:
-              type: boolean
-            cephObjectStoresCreated:
-              type: boolean
             conditions:
               description: Conditions describes the state of the OCSInitialization
                 resource.
