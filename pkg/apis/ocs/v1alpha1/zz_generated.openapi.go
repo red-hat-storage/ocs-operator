@@ -227,6 +227,19 @@ func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationStatus(ref common.
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization",
 				Properties: map[string]spec.Schema{
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions describes the state of the OCSInitialization resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/openshift/custom-resource-status/conditions/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
 					"errorMessage": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -236,7 +249,8 @@ func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationStatus(ref common.
 				},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"github.com/openshift/custom-resource-status/conditions/v1.Condition"},
 	}
 }
 

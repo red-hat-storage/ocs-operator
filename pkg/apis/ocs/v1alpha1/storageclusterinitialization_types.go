@@ -2,6 +2,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -15,6 +17,10 @@ type StorageClusterInitializationSpec struct {
 // StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization
 // +k8s:openapi-gen=true
 type StorageClusterInitializationStatus struct {
+	// Conditions describes the state of the OCSInitialization resource.
+	// +optional
+	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`
+
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 

@@ -31,6 +31,32 @@ spec:
           type: object
         status:
           properties:
+            conditions:
+              description: Conditions describes the state of the OCSInitialization
+                resource.
+              items:
+                properties:
+                  lastHeartbeatTime:
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - lastHeartbeatTime
+                - lastTransitionTime
+                type: object
+              type: array
             errorMessage:
               type: string
           type: object

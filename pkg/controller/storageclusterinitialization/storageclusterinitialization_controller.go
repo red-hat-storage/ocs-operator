@@ -4,6 +4,7 @@ import (
 	"context"
 
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -126,6 +127,23 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+
+	if instance.Status.Conditions == nil {
+		reason := ocsv1alpha1.ReconcileInit
+		message := "Initializing StorageClusterInitialization resource"
+		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
+
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			reqLogger.Error(err, "Failed to add conditions to status")
+			return reconcile.Result{}, err
+		}
+	}
+
+	reason := ocsv1alpha1.ReconcileCompleted
+	message := ocsv1alpha1.ReconcileCompletedMessage
+	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
+	err = r.client.Status().Update(context.TODO(), instance)
 
 	return reconcile.Result{}, err
 }
