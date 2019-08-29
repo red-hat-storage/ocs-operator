@@ -708,10 +708,7 @@ spec:
           - cephobjectstore
           - cephobjectstoreusers
           verbs:
-          - get
-          - create
-          - list
-          - watch
+          - '*'
         serviceAccountName: ocs-operator
       deployments:
       - name: rook-ceph-operator
