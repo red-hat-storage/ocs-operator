@@ -207,7 +207,7 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *rookCephv
 			RBDMirroring: rookCephv1.RBDMirroringSpec{
 				Workers: 0,
 			},
-			Network: rook.NetworkSpec{
+			Network: rookCephv1.NetworkSpec{
 				HostNetwork: false,
 			},
 			Monitoring: rookCephv1.MonitoringSpec{
