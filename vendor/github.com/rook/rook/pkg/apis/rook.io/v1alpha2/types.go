@@ -81,19 +81,15 @@ type Placement struct {
 
 type ResourceSpec map[string]v1.ResourceRequirements
 
+// NetworkSpec represents cluster network settings
 type NetworkSpec struct {
-	metav1.TypeMeta `json:",inline"`
+	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	Provider string `json:"provider"`
 
-	// HostNetwork to enable host network
-	HostNetwork bool `json:"hostNetwork"`
-
-	// Set of named ports that can be configured for this resource
-	Ports []PortSpec `json:"ports,omitempty"`
-}
-
-type PortSpec struct {
-	Name string `json:"name,omitempty"`
-	Port int32  `json:"port,omitempty"`
+	// Selectors string values describe what networks will be used to connect the cluster.
+	// Meanwhile the keys describe each network respective responsibilities or any metadata
+	// storage provider decide.
+	Selectors map[string]string `json:"selectors"`
 }
 
 // +genclient
@@ -132,11 +128,12 @@ type Annotations map[string]string
 
 type StorageClassDeviceSet struct {
 	Name                 string                     `json:"name,omitempty"`                 // A unique identifier for the set
-	Count                int                        `json:"count,omitemity"`                // Number of devices in this set
+	Count                int                        `json:"count,omitempty"`                // Number of devices in this set
 	Resources            v1.ResourceRequirements    `json:"resources,omitempty"`            // Requests/limits for the devices
 	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the devices
 	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
+	Portable             bool                       `json:"portable,omitempty"`             // OSD portablity across the hosts
 }
 
 type VolumeSource struct {
@@ -145,4 +142,5 @@ type VolumeSource struct {
 	Resources                   v1.ResourceRequirements              `json:"resources,omitempty"`
 	Placement                   Placement                            `json:"placement,omitempty"`
 	Config                      map[string]string                    `json:"config,omitempty"`
+	Portable                    bool                                 `json:"portable,omitempty"` // OSD portablity across the hosts
 }

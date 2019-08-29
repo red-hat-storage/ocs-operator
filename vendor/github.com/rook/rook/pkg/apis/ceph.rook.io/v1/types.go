@@ -61,7 +61,7 @@ type ClusterSpec struct {
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 
 	// Network related configuration
-	Network rook.NetworkSpec `json:"network,omitempty"`
+	Network NetworkSpec `json:"network,omitempty"`
 
 	// Resources set resource requests and limits
 	Resources rook.ResourceSpec `json:"resources,omitempty"`
@@ -70,7 +70,7 @@ type ClusterSpec struct {
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
 	// A spec for mon related options
-	Mon MonSpec `json:"mon"`
+	Mon MonSpec `json:"mon,omitempty"`
 
 	// A spec for rbd mirroring
 	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
@@ -80,11 +80,15 @@ type ClusterSpec struct {
 
 	// Prometheus based Monitoring settings
 	Monitoring MonitoringSpec `json:"monitoring,omitempty"`
+
+	// Whether the Ceph Cluster is running external to this Kubernetes cluster
+	// mon, mgr, osd, mds, and discover daemons will not be created for external clusters.
+	External ExternalSpec `json:"external"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v12.2.7 or ceph/ceph:v13.2.1
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v13.2.6 or ceph/ceph:v14.2.2
 	Image string `json:"image,omitempty"`
 
 	// Whether to allow unsupported versions (do not set to true in production)
@@ -136,17 +140,23 @@ type CephHealthMessage struct {
 type ClusterState string
 
 const (
-	ClusterStateCreating ClusterState = "Creating"
-	ClusterStateCreated  ClusterState = "Created"
-	ClusterStateUpdating ClusterState = "Updating"
-	ClusterStateError    ClusterState = "Error"
+	ClusterStateCreating   ClusterState = "Creating"
+	ClusterStateCreated    ClusterState = "Created"
+	ClusterStateUpdating   ClusterState = "Updating"
+	ClusterStateConnecting ClusterState = "Connecting"
+	ClusterStateConnected  ClusterState = "Connected"
+	ClusterStateError      ClusterState = "Error"
 )
 
 type MonSpec struct {
-	Count                int                       `json:"count"`
-	PreferredCount       int                       `json:"preferredCount"`
-	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode"`
+	Count                int                       `json:"count,omitempty"`
+	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+// ExternalSpec represents the options supported by an external cluster
+type ExternalSpec struct {
+	Enable bool `json:"enable"`
 }
 
 type RBDMirroringSpec struct {
@@ -382,4 +392,12 @@ type GaneshaServerSpec struct {
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// NetworkSpec for Ceph includes backward compatibility code
+type NetworkSpec struct {
+	rook.NetworkSpec `json:",inline"`
+
+	// HostNetwork to enable host network
+	HostNetwork bool `json:"hostNetwork"`
 }
