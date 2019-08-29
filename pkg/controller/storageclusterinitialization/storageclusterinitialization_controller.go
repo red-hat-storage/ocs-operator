@@ -47,7 +47,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// set the watchNamespace so we know where to create the OCSInitialization resource
+	// set the watchNamespace so we know where to create the StorageClusterInitialization resource
 	ns, err := k8sutil.GetWatchNamespace()
 	if err != nil {
 		return err
@@ -108,7 +108,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 
-	// Fetch the OCSInitialization instance
+	// Fetch the StorageClusterInitialization instance
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
