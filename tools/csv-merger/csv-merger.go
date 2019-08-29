@@ -60,7 +60,8 @@ var (
 	noobaaContainerImage    = flag.String("noobaa-image", "", "noobaa operator container image")
 	ocsContainerImage       = flag.String("ocs-image", "", "ocs operator container image")
 
-	inputCrdsDir = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
+	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
+	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
 
 	outputDir = flag.String("olm-bundle-directory", "", "The directory to output the unified CSV and CRDs to")
 )
@@ -560,6 +561,24 @@ func copyCrds() {
 	}
 }
 
+func copyManifests() {
+	manifests, err := ioutil.ReadDir(*inputManifestsDir)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, manifest := range manifests {
+		// only copy yaml files
+		if !strings.Contains(manifest.Name(), ".yaml") {
+			continue
+		}
+
+		inputPath := filepath.Join(*inputManifestsDir, manifest.Name())
+		outputPath := filepath.Join(*outputDir, manifest.Name())
+		copyFile(inputPath, outputPath)
+	}
+}
+
 func main() {
 	flag.Parse()
 
@@ -594,4 +613,5 @@ func main() {
 
 	generateUnifiedCSV()
 	copyCrds()
+	copyManifests()
 }

@@ -33,7 +33,7 @@ fi
 # always start fresh and remove any previous artifacts that may exist.
 rm -rf $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_TEMPLATES
-mkdir -p $OUTDIR_CRDS
+mkdir -p $OUTDIR_CRDS $OUTDIR_BUNDLEMANIFESTS
 mkdir -p $OUTDIR_TOOLS
 
 if [ ! -x $OPERATOR_SDK ]; then
@@ -65,7 +65,7 @@ rm -f $crd_list
 # This is the base CSV everything else gets merged into later on.
 TMP_CSV_VERSION=9999.9999.9999
 gen_args="olm-catalog gen-csv --csv-version=$TMP_CSV_VERSION"
-if [ -n $CSV_REPLACES_VERSION ]; then
+if [ -n "$CSV_REPLACES_VERSION" ]; then
 	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
 fi
 $OPERATOR_SDK $gen_args 2>/dev/null
@@ -75,5 +75,8 @@ mv $OCS_TMP_CSV $OCS_CSV
 sed -i "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
 sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
 cp deploy/crds/* $OUTDIR_CRDS/
+cp deploy/bundlemanifests/*.yaml $OUTDIR_BUNDLEMANIFESTS/
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
+
+rm -rf $(dirname $OCS_TMP_CSV)
