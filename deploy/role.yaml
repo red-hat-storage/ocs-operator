@@ -63,7 +63,4 @@ rules:
   - cephobjectstore
   - cephobjectstoreusers
   verbs:
-  - get
-  - create
-  - list
-  - watch
+  - '*'
