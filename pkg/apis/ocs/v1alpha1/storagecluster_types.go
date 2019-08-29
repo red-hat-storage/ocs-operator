@@ -29,6 +29,7 @@ type StorageDeviceSet struct {
 	Placement       rookalpha.Placement          `json:"placement"`
 	Config          StorageDeviceSetConfig       `json:"config,omitempty"`
 	DataPVCTemplate corev1.PersistentVolumeClaim `json:"dataPVCTemplate"`
+	Portable        bool                         `json:"portable"`
 }
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
@@ -97,6 +98,7 @@ func (ds *StorageDeviceSet) ToStorageClassDeviceSet() rookalpha.StorageClassDevi
 		Placement:            ds.Placement,
 		Config:               ds.Config.ToMap(),
 		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
+		Portable:             ds.Portable,
 	}
 }
 

@@ -60,6 +60,8 @@ spec:
                           type: object
                         type: array
                     type: object
+                  portable:
+                    type: boolean
                   resources:
                     type: object
                 required:
@@ -68,6 +70,7 @@ spec:
                 - resources
                 - placement
                 - dataPVCTemplate
+                - portable
                 type: object
               type: array
           type: object
