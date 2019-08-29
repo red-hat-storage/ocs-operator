@@ -32,6 +32,14 @@ spec:
           type: object
         status:
           properties:
+            cephBlockPoolsCreated:
+              type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
             conditions:
               description: Conditions describes the state of the OCSInitialization
                 resource.
@@ -58,6 +66,8 @@ spec:
                 - lastTransitionTime
                 type: object
               type: array
+            errorMessage:
+              type: string
             relatedObjects:
               description: RelatedObjects is a list of objects created and maintained
                 by this operator. Object references will be added to this list after
