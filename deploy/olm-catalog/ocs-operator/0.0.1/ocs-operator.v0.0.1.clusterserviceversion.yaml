@@ -47,6 +47,7 @@ metadata:
                           },
                           "name": "example-deviceset",
                           "placement": {},
+                          "portable": true,
                           "resources": {}
                       }
                   ]
