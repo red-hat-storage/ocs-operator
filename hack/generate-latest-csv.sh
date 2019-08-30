@@ -8,7 +8,7 @@ CSV_CHECKSUM="tools/csv-checksum/csv-checksum"
 (cd tools/csv-checksum/ && go build)
 
 NOOBAA_VERSION="1.1.0"
-ROOK_VERSION="v1.0.0-526.g3ece503"
+ROOK_VERSION="v1.0.0-586.g8abcf37.dirty "
 
 export CSV_CHECKSUM_OUTFILE="hack/latest-csv-checksum.md5"
 
@@ -32,14 +32,6 @@ if [ -z "${CSV_CHECKSUM_ONLY}" ]; then
 	hack/source-manifests.sh
 fi
 
-# TODO remove this once we update rook/ceph image
-# This addresses an issue that is already fixed in rook upstream
-# One of the ServiceAccounts we're sourcing from a specific rook
-# build is incorrect.
-if [ -z "${CSV_CHECKSUM_ONLY}" ] && [ "$ROOK_VERSION" = "v1.0.0-526.g3ece503" ]; then
-    sed -i "s/serviceAccountName: rbd-csi-provisioner-sa/serviceAccountName: rook-csi-rbd-provisioner-sa/g" $OUTDIR_TEMPLATES/rook-csv.yaml.in
-fi
-
 if [ -z "${CSV_CHECKSUM_ONLY}" ]; then
 	hack/generate-unified-csv.sh
 fi
@@ -58,4 +50,3 @@ $CSV_CHECKSUM \
 	--noobaa-image=$NOOBAA_IMAGE \
 	--ocs-image=$OCS_IMAGE \
 	--checksum-outfile=$CSV_CHECKSUM_OUTFILE
-

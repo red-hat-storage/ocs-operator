@@ -43,6 +43,15 @@ spec:
                   type: boolean
                 image:
                   type: string
+            configOverrides:
+              items:
+                properties:
+                  option:
+                    type: string
+                  value:
+                    type: string
+                  who:
+                    type: string
             dashboard:
               properties:
                 enabled:
@@ -63,10 +72,6 @@ spec:
                 allowMultiplePerNode:
                   type: boolean
                 count:
-                  maximum: 9
-                  minimum: 0
-                  type: integer
-                preferredCount:
                   maximum: 9
                   minimum: 0
                   type: integer
@@ -145,6 +150,4 @@ spec:
                   type: boolean
                 useAllNodes:
                   type: boolean
-          required:
-          - mon
   version: v1
