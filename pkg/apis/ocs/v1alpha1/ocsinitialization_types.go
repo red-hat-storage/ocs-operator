@@ -27,13 +27,9 @@ type OCSInitializationStatus struct {
 	// operator. Object references will be added to this list after they have
 	// been created AND found in the cluster.
 	// +optional
-	RelatedObjects              []corev1.ObjectReference `json:"relatedObjects,omitempty"`
-	StorageClassesCreated       bool                     `json:"storageClassesCreated,omitempty"`
-	CephObjectStoresCreated     bool                     `json:"cephObjectStoresCreated,omitempty"`
-	CephBlockPoolsCreated       bool                     `json:"cephBlockPoolsCreated,omitempty"`
-	CephObjectStoreUsersCreated bool                     `json:"cephObjectStoreUsersCreated,omitempty"`
-	CephFilesystemsCreated      bool                     `json:"cephFilesystemsCreated,omitempty"`
-	ErrorMessage                string                   `json:"errorMessage,omitempty"`
+	RelatedObjects        []corev1.ObjectReference `json:"relatedObjects,omitempty"`
+	StorageClassesCreated bool                     `json:"storageClassesCreated,omitempty"`
+	ErrorMessage          string                   `json:"errorMessage,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

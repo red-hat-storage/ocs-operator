@@ -83,12 +83,6 @@ func schema_pkg_apis_ocs_v1alpha1_OCSInitializationStatus(ref common.ReferenceCa
 			SchemaProps: spec.SchemaProps{
 				Description: "OCSInitializationStatus defines the observed state of OCSInitialization",
 				Properties: map[string]spec.Schema{
-					"storageClassesCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Conditions describes the state of the OCSInitialization resource.",
@@ -113,6 +107,18 @@ func schema_pkg_apis_ocs_v1alpha1_OCSInitializationStatus(ref common.ReferenceCa
 									},
 								},
 							},
+						},
+					},
+					"storageClassesCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"errorMessage": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
@@ -227,6 +233,62 @@ func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationStatus(ref common.
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization",
 				Properties: map[string]spec.Schema{
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions describes the state of the OCSInitialization resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/openshift/custom-resource-status/conditions/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"relatedObjects": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RelatedObjects is a list of objects created and maintained by this operator. Object references will be added to this list after they have been created AND found in the cluster.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.ObjectReference"),
+									},
+								},
+							},
+						},
+					},
+					"storageClassesCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephObjectStoresCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephBlockPoolsCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephObjectStoreUsersCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephFilesystemsCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 					"errorMessage": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -236,7 +298,8 @@ func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationStatus(ref common.
 				},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
 	}
 }
 

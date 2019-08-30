@@ -57,6 +57,8 @@ spec:
                 - lastTransitionTime
                 type: object
               type: array
+            errorMessage:
+              type: string
             relatedObjects:
               description: RelatedObjects is a list of objects created and maintained
                 by this operator. Object references will be added to this list after
@@ -66,16 +68,6 @@ spec:
               type: array
             storageClassesCreated:
               type: boolean
-            cephBlockPoolsCreated:
-              type: boolean
-            cephObjectStoresCreated:
-              type: boolean
-            cephFilesystemsCreated:
-              type: boolean
-            cephObjectStoreUsersCreated:
-              type: boolean
-            errorMessage:
-              type: string
           type: object
   version: v1alpha1
   versions:

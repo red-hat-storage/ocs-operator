@@ -31,8 +31,51 @@ spec:
           type: object
         status:
           properties:
+            cephBlockPoolsCreated:
+              type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
+            conditions:
+              description: Conditions describes the state of the OCSInitialization
+                resource.
+              items:
+                properties:
+                  lastHeartbeatTime:
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - lastHeartbeatTime
+                - lastTransitionTime
+                type: object
+              type: array
             errorMessage:
               type: string
+            relatedObjects:
+              description: RelatedObjects is a list of objects created and maintained
+                by this operator. Object references will be added to this list after
+                they have been created AND found in the cluster.
+              items:
+                type: object
+              type: array
+            storageClassesCreated:
+              type: boolean
           type: object
   version: v1alpha1
   versions:

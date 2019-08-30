@@ -2,9 +2,16 @@ package storageclusterinitialization
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/go-logr/logr"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,6 +31,9 @@ var log = logf.Log.WithName("controller_storageclusterinitialization")
 var watchNamespace string
 
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
+
+var nodeAffinityKey = "cluster.ocs.openshift.io/openshift-storage"
+var nodeTolerationKey = "node.ocs.openshift.io/storage"
 
 // InitNamespacedName returns a NamespacedName for the singleton instance that
 // should exist.
@@ -47,7 +57,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// set the watchNamespace so we know where to create the OCSInitialization resource
+	// set the watchNamespace so we know where to create the StorageClusterInitialization resource
 	ns, err := k8sutil.GetWatchNamespace()
 	if err != nil {
 		return err
@@ -108,7 +118,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 
-	// Fetch the OCSInitialization instance
+	// Fetch the StorageClusterInitialization instance
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -127,5 +137,518 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 
+	if instance.Status.Conditions == nil {
+		reason := ocsv1alpha1.ReconcileInit
+		message := "Initializing StorageClusterInitialization resource"
+		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
+
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			reqLogger.Error(err, "Failed to add conditions to status")
+			return reconcile.Result{}, err
+		}
+	}
+
+	if instance.Status.StorageClassesCreated != true {
+		// we only create the data once and then allow changes or even deletion
+		err = r.ensureStorageClasses(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1alpha1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+		}
+
+		instance.Status.StorageClassesCreated = true
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	if instance.Status.CephObjectStoresCreated != true {
+		// we only create the data once and then allow changes or even deletion
+		err = r.ensureCephObjectStores(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1alpha1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+		}
+
+		instance.Status.CephObjectStoresCreated = true
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	if instance.Status.CephObjectStoreUsersCreated != true {
+		// we only create the data once and then allow changes or even deletion
+		err = r.ensureCephObjectStoreUsers(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1alpha1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+		}
+
+		instance.Status.CephObjectStoreUsersCreated = true
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	if instance.Status.CephBlockPoolsCreated != true {
+		// we only create the data once and then allow changes or even deletion
+		err = r.ensureCephBlockPools(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1alpha1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+		}
+
+		instance.Status.CephBlockPoolsCreated = true
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	if instance.Status.CephFilesystemsCreated != true {
+		// we only create the data once and then allow changes or even deletion
+		err = r.ensureCephFilesystems(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1alpha1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+
+		}
+
+		instance.Status.CephFilesystemsCreated = true
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	reason := ocsv1alpha1.ReconcileCompleted
+	message := ocsv1alpha1.ReconcileCompletedMessage
+	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
+	instance.Status.StorageClassesCreated = true
+	err = r.client.Status().Update(context.TODO(), instance)
+
 	return reconcile.Result{}, err
+}
+
+// ensureStorageClasses ensures that StorageClass resources exist in the desired
+// state.
+func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+	scs, err := r.newStorageClasses(initialData)
+	if err != nil {
+		return err
+	}
+	for _, sc := range scs {
+		existing := storagev1.StorageClass{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
+
+		switch {
+		case err == nil:
+			reqLogger.Info(fmt.Sprintf("Restoring original StorageClass %s", sc.Name))
+			sc.DeepCopyInto(&existing)
+			err = r.client.Update(context.TODO(), &existing)
+			if err != nil {
+				return err
+			}
+		case errors.IsNotFound(err):
+			reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+			err = r.client.Create(context.TODO(), &sc)
+			if err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+	return nil
+}
+
+// newStorageClasses returns the StorageClass instances that should be created
+// on first run.
+func (r *ReconcileStorageClusterInitialization) newStorageClasses(initData *ocsv1alpha1.StorageClusterInitialization) ([]storagev1.StorageClass, error) {
+	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
+	ret := []storagev1.StorageClass{
+		storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: generateNameForCephFilesystemSC(initData),
+			},
+			Provisioner:   fmt.Sprintf("%s.cephfs.csi.ceph.com", initData.Namespace),
+			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			Parameters: map[string]string{
+				"clusterID": initData.Namespace,
+				"fsName":    fmt.Sprintf("%s-cephfilesystem", initData.Name),
+				"pool":      generateNameForCephBlockPool(initData),
+				"csi.storage.k8s.io/provisioner-secret-name":      "rook-ceph-csi",
+				"csi.storage.k8s.io/provisioner-secret-namespace": initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":       "rook-ceph-csi",
+				"csi.storage.k8s.io/node-stage-secret-namespace":  initData.Namespace,
+			},
+		},
+		storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: generateNameForCephBlockPoolSC(initData),
+			},
+			Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
+			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			Parameters: map[string]string{
+				"clusterID":                 initData.Namespace,
+				"pool":                      generateNameForCephBlockPool(initData),
+				"imageFeatures":             "layering",
+				"csi.storage.k8s.io/fstype": "xfs",
+				"imageFormat":               "2",
+				"csi.storage.k8s.io/provisioner-secret-name":      "rook-ceph-csi",
+				"csi.storage.k8s.io/provisioner-secret-namespace": initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":       "rook-ceph-csi",
+				"csi.storage.k8s.io/node-stage-secret-namespace":  initData.Namespace,
+			},
+		},
+	}
+	return ret, nil
+}
+
+// ensureCephObjectStores ensures that CephObjectStore resources exist in the desired
+// state.
+func (r *ReconcileStorageClusterInitialization) ensureCephObjectStores(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+	cephObjectStores, err := r.newCephObjectStoreInstances(initialData)
+	if err != nil {
+		return err
+	}
+	for _, cephObjectStore := range cephObjectStores {
+		existing := cephv1.CephObjectStore{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
+
+		switch {
+		case err == nil:
+			reqLogger.Info(fmt.Sprintf("Restoring original cephObjectStore %s", cephObjectStore.Name))
+			cephObjectStore.DeepCopyInto(&existing)
+			err = r.client.Update(context.TODO(), &existing)
+			if err != nil {
+				return err
+			}
+		case errors.IsNotFound(err):
+			reqLogger.Info(fmt.Sprintf("Creating CephObjectStore %s", cephObjectStore.Name))
+			err = r.client.Create(context.TODO(), &cephObjectStore)
+			if err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+	return nil
+}
+
+// newCephObjectStoreInstances returns the cephObjectStore instances that should be created
+// on first run.
+func (r *ReconcileStorageClusterInitialization) newCephObjectStoreInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephObjectStore, error) {
+	ret := []cephv1.CephObjectStore{
+		cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      generateNameForCephObjectStore(initData),
+				Namespace: initData.Namespace,
+			},
+			Spec: cephv1.ObjectStoreSpec{
+				MetadataPool: cephv1.PoolSpec{
+					FailureDomain: "host",
+					Replicated: cephv1.ReplicatedSpec{
+						Size: 3,
+					},
+				},
+				Gateway: cephv1.GatewaySpec{
+					Port:      80,
+					Instances: 1,
+					Placement: rook.Placement{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									corev1.NodeSelectorTerm{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											corev1.NodeSelectorRequirement{
+												Key:      nodeAffinityKey,
+												Operator: corev1.NodeSelectorOpExists,
+											},
+										},
+									},
+								},
+							},
+						},
+						Tolerations: []corev1.Toleration{
+							corev1.Toleration{
+								Key:      nodeTolerationKey,
+								Operator: corev1.TolerationOpEqual,
+								Value:    "true",
+								Effect:   corev1.TaintEffectNoSchedule,
+							},
+						},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								corev1.PodAffinityTerm{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											metav1.LabelSelectorRequirement{
+												Key:      "app",
+												Operator: metav1.LabelSelectorOpIn,
+												Values:   []string{"rook-ceph-rgw"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return ret, nil
+}
+
+// ensureCephBlockPools ensures that cephBlockPool resources exist in the desired
+// state.
+func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+	cephBlockPools, err := r.newCephBlockPoolInstances(initialData)
+	if err != nil {
+		return err
+	}
+	for _, cephBlockPool := range cephBlockPools {
+		existing := cephv1.CephBlockPool{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: cephBlockPool.Namespace}, &existing)
+
+		switch {
+		case err == nil:
+			reqLogger.Info(fmt.Sprintf("Restoring original cephBlockPool %s", cephBlockPool.Name))
+			cephBlockPool.DeepCopyInto(&existing)
+			err = r.client.Update(context.TODO(), &existing)
+			if err != nil {
+				return err
+			}
+		case errors.IsNotFound(err):
+			reqLogger.Info(fmt.Sprintf("Creating cephBlockPool %s", cephBlockPool.Name))
+			err = r.client.Create(context.TODO(), &cephBlockPool)
+			if err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+	return nil
+}
+
+// newCephBlockPoolInstances returns the cephBlockPool instances that should be created
+// on first run.
+func (r *ReconcileStorageClusterInitialization) newCephBlockPoolInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephBlockPool, error) {
+	ret := []cephv1.CephBlockPool{
+		cephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      generateNameForCephBlockPool(initData),
+				Namespace: initData.Namespace,
+			},
+			Spec: cephv1.PoolSpec{
+				FailureDomain: "host",
+				Replicated: cephv1.ReplicatedSpec{
+					Size: 3,
+				},
+			},
+		},
+	}
+	return ret, nil
+}
+
+// ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
+// state.
+func (r *ReconcileStorageClusterInitialization) ensureCephObjectStoreUsers(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(initialData)
+	if err != nil {
+		return err
+	}
+	for _, cephObjectStoreUser := range cephObjectStoreUsers {
+		existing := cephv1.CephObjectStoreUser{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
+
+		switch {
+		case err == nil:
+			reqLogger.Info(fmt.Sprintf("Restoring original cephObjectStoreUser %s", cephObjectStoreUser.Name))
+			cephObjectStoreUser.DeepCopyInto(&existing)
+			err = r.client.Update(context.TODO(), &existing)
+			if err != nil {
+				return err
+			}
+		case errors.IsNotFound(err):
+			reqLogger.Info(fmt.Sprintf("Creating cephObjectStoreUser %s", cephObjectStoreUser.Name))
+			err = r.client.Create(context.TODO(), &cephObjectStoreUser)
+			if err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+	return nil
+}
+
+// newCephObjectStoreUserInstances returns the cephObjectStoreUser instances that should be created
+// on first run.
+func (r *ReconcileStorageClusterInitialization) newCephObjectStoreUserInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephObjectStoreUser, error) {
+	ret := []cephv1.CephObjectStoreUser{
+		cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      generateNameForCephObjectStoreUser(initData),
+				Namespace: initData.Namespace,
+			},
+			Spec: cephv1.ObjectStoreUserSpec{
+				DisplayName: initData.Name,
+				Store:       initData.Name,
+			},
+		},
+	}
+	return ret, nil
+}
+
+// ensureCephFilesystems ensures that cephFilesystem resources exist in the desired
+// state.
+func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+	cephFilesystems, err := r.newCephFilesystemInstances(initialData)
+	if err != nil {
+		return err
+	}
+	for _, cephFilesystem := range cephFilesystems {
+		existing := cephv1.CephFilesystem{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
+
+		switch {
+		case err == nil:
+			reqLogger.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
+			cephFilesystem.DeepCopyInto(&existing)
+			err = r.client.Update(context.TODO(), &existing)
+			if err != nil {
+				return err
+			}
+		case errors.IsNotFound(err):
+			reqLogger.Info(fmt.Sprintf("Creating cephFilesystem %s", cephFilesystem.Name))
+			err = r.client.Create(context.TODO(), &cephFilesystem)
+			if err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+	return nil
+}
+
+// newCephFilesystemInstances returns the cephFilesystem instances that should be created
+// on first run.
+func (r *ReconcileStorageClusterInitialization) newCephFilesystemInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephFilesystem, error) {
+	ret := []cephv1.CephFilesystem{
+		cephv1.CephFilesystem{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      generateNameForCephFilesystem(initData),
+				Namespace: initData.Namespace,
+			},
+			Spec: cephv1.FilesystemSpec{
+				MetadataPool: cephv1.PoolSpec{
+					Replicated: cephv1.ReplicatedSpec{
+						Size: 3,
+					},
+				},
+				DataPools: []cephv1.PoolSpec{
+					cephv1.PoolSpec{
+						Replicated: cephv1.ReplicatedSpec{
+							Size: 3,
+						},
+						FailureDomain: "host",
+					},
+				},
+				MetadataServer: cephv1.MetadataServerSpec{
+					ActiveCount:   1,
+					ActiveStandby: true,
+					Placement: rook.Placement{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									corev1.NodeSelectorTerm{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											corev1.NodeSelectorRequirement{
+												Key:      nodeAffinityKey,
+												Operator: corev1.NodeSelectorOpExists,
+											},
+										},
+									},
+								},
+							},
+						},
+						Tolerations: []corev1.Toleration{
+							corev1.Toleration{
+								Key:      nodeTolerationKey,
+								Operator: corev1.TolerationOpEqual,
+								Value:    "true",
+								Effect:   corev1.TaintEffectNoSchedule,
+							},
+						},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								corev1.PodAffinityTerm{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											metav1.LabelSelectorRequirement{
+												Key:      "app",
+												Operator: metav1.LabelSelectorOpIn,
+												Values:   []string{"rook-ceph-mds"},
+											},
+										},
+									},
+									TopologyKey: "kubernetes.io/hostname",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return ret, nil
 }
