@@ -4,8 +4,13 @@ set -e
 
 source hack/common.sh
 
+CSV_CHECKSUM="tools/csv-checksum/csv-checksum"
+(cd tools/csv-checksum/ && go build)
+
 NOOBAA_VERSION="1.1.0"
 ROOK_VERSION="v1.0.0-526.g3ece503"
+
+export CSV_CHECKSUM_OUTFILE="hack/latest-csv-checksum.md5"
 
 # Current DEV version of the CSV
 export CSV_VERSION=0.0.1
@@ -23,7 +28,9 @@ echo -e "\tNOOBAA_IMAGE=$NOOBAA_IMAGE"
 echo -e "\tCEPH_IMAGE=$CEPH_IMAGE"
 echo -e "\tOCS_IMAGE=$OCS_IMAGE"
 
-hack/source-manifests.sh
+if [ -z "${CSV_CHECKSUM_ONLY}" ]; then
+	hack/source-manifests.sh
+fi
 
 # TODO remove this once we update rook/ceph image
 # This addresses an issue that is already fixed in rook upstream
@@ -33,4 +40,22 @@ if [ "$ROOK_VERSION" = "v1.0.0-526.g3ece503" ]; then
     sed -i "s/serviceAccountName: rbd-csi-provisioner-sa/serviceAccountName: rook-csi-rbd-provisioner-sa/g" $OUTDIR_TEMPLATES/rook-csv.yaml.in
 fi
 
-hack/generate-unified-csv.sh
+if [ -z "${CSV_CHECKSUM_ONLY}" ]; then
+	hack/generate-unified-csv.sh
+fi
+
+echo "Generating MD5 Checksum for CSV with version $CSV_VERSION"
+$CSV_CHECKSUM \
+	--csv-version=$CSV_VERSION \
+	--replaces-csv-version=$REPLACES_CSV_VERSION \
+	--rook-image=$ROOK_IMAGE \
+	--ceph-image=$CEPH_IMAGE \
+	--rook-csi-ceph-image=$ROOK_CSI_CEPH_IMAGE \
+	--rook-csi-registrar-image=$ROOK_CSI_REGISTRAR_IMAGE \
+	--rook-csi-provisioner-image=$ROOK_CSI_PROVISIONER_IMAGE \
+	--rook-csi-snapshotter-image=$ROOK_CSI_SNAPSHOTTER_IMAGE \
+	--rook-csi-attacher-image=$ROOK_CSI_ATTACHER_IMAGE \
+	--noobaa-image=$NOOBAA_IMAGE \
+	--ocs-image=$OCS_IMAGE \
+	--checksum-outfile=$CSV_CHECKSUM_OUTFILE
+
