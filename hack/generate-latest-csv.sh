@@ -16,6 +16,10 @@ export NOOBAA_IMAGE=noobaa/noobaa-operator:$NOOBAA_VERSION
 export CEPH_IMAGE=ceph/ceph:v14.2.2-20190828
 export OCS_IMAGE=quay.io/ocs-dev/ocs-operator:latest
 
+# Temporary CSI image until https://github.com/rook/rook/pull/3716 is available in a Rook image
+# Built with https://github.com/ceph/ceph-csi/pull/566 reverted
+export ROOK_CSI_CEPH_IMAGE=madhupr001/cephcsi:canary
+
 echo "=== Generating DEV CSV with the following vars ==="
 echo -e "\tCSV_VERSION=$CSV_VERSION"
 echo -e "\tROOK_IMAGE=$ROOK_IMAGE"
