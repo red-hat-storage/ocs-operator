@@ -766,7 +766,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: rook/ceph@sha256:addf210104fd4e222b11529f139fb4e12c44707c7b7d46920cdf46e25a3f6a42
+                image: rook/ceph:v1.0.0-526.g3ece503
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
@@ -805,7 +805,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator@sha256:d6bfdf02d72e763211a89a692f19a8c25bcc26e0d0cd04bda186333bb47894dd
+                image: noobaa/noobaa-operator:1.1.0
                 imagePullPolicy: IfNotPresent
                 name: noobaa-operator
                 resources:
