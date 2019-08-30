@@ -12,8 +12,7 @@ export GO111MODULE=on
 
 all: ocs-operator ocs-must-gather ocs-registry
 
-.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-csv source-manifests
-
+.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests
 deps-update:
 	go mod tidy && go mod vendor
 
@@ -39,7 +38,11 @@ source-manifests:
 	@echo "Sourcing CSV and CRD manifests from component-level operators"
 	hack/source-manifests.sh
 
-gen-csv:
+gen-latest-csv:
+	@echo "Generating latest development CSV version using predefined ENV VARs."
+	hack/generate-latest-csv.sh
+
+gen-release-csv:
 	@echo "Generating unified CSV from sourced component-level operators"
 	hack/generate-unified-csv.sh
 

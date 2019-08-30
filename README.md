@@ -28,7 +28,7 @@ operator to create a single unified CSV capable of deploying the component-level
 operators as well as the ocs-operator.
 
 Building the unifed CSV is broken into two steps which are supported by the
-`make source-manifests` and `make gen-csv` make targets.
+`make source-manifests` and `make gen-release-csv` make targets.
 
 **Step 1:** Source in the component-level manifests from the component-level operator
 container images.
@@ -68,7 +68,7 @@ $ export ROOK_CSI_PROVISIONER_IMAGE=<add image here>
 $ export ROOK_CSI_SNAPSHOTTER_IMAGE=<add image here>
 $ export ROOK_CSI_ATTACHER_IMAGE=<add image here>
 
-$ make gen-csv
+$ make gen-release-csv
 ```
 
 This example results in both a unified CSV along with all the corresponding CRDs being placed in `deploy/olm-catalog/ocs-operator/0.0.2/` for release.
