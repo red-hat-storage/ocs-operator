@@ -245,23 +245,6 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *rookCephv
 						},
 					},
 				},
-				"mgr": rook.Placement{
-					PodAntiAffinity: &corev1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-							corev1.PodAffinityTerm{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										metav1.LabelSelectorRequirement{
-											Key:      "app",
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"rook-ceph-mgr"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 		},
 	}
