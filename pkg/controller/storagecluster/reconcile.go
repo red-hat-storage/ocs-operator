@@ -258,6 +258,7 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *rookCephv
 										},
 									},
 								},
+								TopologyKey: "kubernetes.io/hostname",
 							},
 						},
 					},

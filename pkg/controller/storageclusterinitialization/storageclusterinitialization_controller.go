@@ -435,6 +435,7 @@ func (r *ReconcileStorageClusterInitialization) newCephObjectStoreInstances(init
 											},
 										},
 									},
+									TopologyKey: "kubernetes.io/hostname",
 								},
 							},
 						},
