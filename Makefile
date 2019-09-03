@@ -9,6 +9,8 @@ TOOLS_DIR="$(OUTPUT_DIR)/tools"
 
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
+# Enable GOPROXY. This speeds up a lot of vendoring operations.
+export GOPROXY=https://proxy.golang.org
 
 all: ocs-operator ocs-must-gather ocs-registry
 
