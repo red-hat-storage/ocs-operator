@@ -36,7 +36,7 @@ fi
 # This addresses an issue that is already fixed in rook upstream
 # One of the ServiceAccounts we're sourcing from a specific rook
 # build is incorrect.
-if [ "$ROOK_VERSION" = "v1.0.0-526.g3ece503" ]; then
+if [ -z "${CSV_CHECKSUM_ONLY}" ] && [ "$ROOK_VERSION" = "v1.0.0-526.g3ece503" ]; then
     sed -i "s/serviceAccountName: rbd-csi-provisioner-sa/serviceAccountName: rook-csi-rbd-provisioner-sa/g" $OUTDIR_TEMPLATES/rook-csv.yaml.in
 fi
 

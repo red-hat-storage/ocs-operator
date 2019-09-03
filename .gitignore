@@ -50,3 +50,4 @@ tags
 _output
 
 tools/csv-merger/csv-merger
+tools/csv-checksum/csv-checksum
