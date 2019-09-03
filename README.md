@@ -75,6 +75,16 @@ This example results in both a unified CSV along with all the corresponding CRDs
 
 Run `make ocs-registry` to generate the registry bundle container image.
 
+## Prerequisites
+
++ OCS Operator will install its components only on nodes marked for OCS (i.e. nodes with label `cluster.ocs.openshift.io/openshift-storage=''`)
+
+  To label the nodes from CLI,
+
+  ```console
+  $ oc label nodes <NodeNames> cluster.ocs.openshift.io/openshift-storage=''
+  ```
+
 ## Install
 
 The OCS operator can be installed into an OpenShift cluster using the OLM.
@@ -101,7 +111,17 @@ NAME                  DISPLAY                                VERSION   REPLACES 
 ocs-operator.v0.0.1   Openshift Container Storage Operator   0.0.1                Succeeded
 ```
 This can take a few minutes. Once PHASE says `Succeeded` you can create
-a StorageCluster by following command:
+a StorageCluster.
+
++ Nodes marked for OCS usage will be tainted (with taint `node.ocs.openshift.io/storage=true:NoSchedule`) and pods that do not tolerate it will be unscheduleable on these nodes.
+
+  To taint the nodes from CLI,
+
+  ```console
+  $ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
+  ```
+
+Create StorageCluster CR
 
 ```console
 $ oc create -f ./deploy/crds/ocs_v1alpha1_storagecluster_cr.yaml
