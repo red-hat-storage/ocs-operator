@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	cloud.google.com/go v0.40.0 // indirect
+	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/RHsyseng/operator-utils v0.0.0-20190807020041-5344a0f594b8
 	github.com/coreos/go-semver v0.2.0
 	github.com/ghodss/yaml v1.0.0
