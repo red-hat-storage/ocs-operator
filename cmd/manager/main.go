@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 
+	nbapis "github.com/noobaa/noobaa-operator/pkg/apis"
 	"github.com/openshift/ocs-operator/pkg/apis"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	"github.com/openshift/ocs-operator/pkg/controller"
@@ -92,6 +93,11 @@ func main() {
 
 	if err := storagev1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "Failed adding storage/v1 to scheme")
+		os.Exit(1)
+	}
+
+	if err := nbapis.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "Failed adding noobaa apis to scheme")
 		os.Exit(1)
 	}
 
