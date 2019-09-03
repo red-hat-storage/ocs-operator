@@ -766,7 +766,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: rook/ceph:v1.0.0-526.g3ece503
+                image: rook/ceph:v1.0.0-586.g8abcf37.dirty
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
