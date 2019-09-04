@@ -15,7 +15,7 @@ export GOPROXY=https://proxy.golang.org
 
 all: ocs-operator ocs-must-gather ocs-registry
 
-.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests cluster-deploy cluster-clean
+.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests cluster-deploy cluster-clean ocs-operator-openshift-ci-build
 deps-update:
 	go mod tidy && go mod vendor
 
@@ -64,3 +64,11 @@ cluster-deploy: cluster-clean
 cluster-clean:
 	@echo "Removing ocs install from cluster"
 	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/cluster-clean.sh
+
+# This is used by the openshift-ci prow job.
+# It just makes the ocs-binary without invoking docker to build the container image.
+ocs-operator-openshift-ci-build:
+	@echo "Building ocs-operator binary for openshift-ci job"
+	mkdir -p build/_output/bin
+	go build -mod=vendor -o build/_output/bin/ocs-operator cmd/manager/main.go
+
