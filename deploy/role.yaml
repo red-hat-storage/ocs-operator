@@ -4,12 +4,14 @@ metadata:
   creationTimestamp: null
   name: ocs-operator
 rules:
-- apiGroups: 
-    - "storage.k8s.io"
-  resources: 
-    - "storageclasses"
-  verbs: 
+- apiGroups:
+    - storage.k8s.io
+  resources:
+    - storageclasses
+  verbs:
     - get
+    - list
+    - watch
     - create
 - apiGroups:
   - ""
@@ -60,7 +62,17 @@ rules:
   - cephclusters
   - cephblockpools
   - cephfilesystems
-  - cephobjectstore
+  - cephobjectstores
   - cephobjectstoreusers
   verbs:
   - '*'
+- apiGroups:
+  - noobaa.io
+  resources:
+  - noobaas
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
