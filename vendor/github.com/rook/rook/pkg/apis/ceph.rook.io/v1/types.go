@@ -16,6 +16,8 @@ limitations under the License.
 package v1
 
 import (
+	"time"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -68,6 +70,12 @@ type ClusterSpec struct {
 
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
+
+	// Ceph config overrides to apply.
+	ConfigOverrides ConfigOverridesSpec `json:"configOverrides,omitempty"`
+
+	// A spec for configuring disruption management.
+	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 
 	// A spec for mon related options
 	Mon MonSpec `json:"mon,omitempty"`
@@ -146,7 +154,21 @@ const (
 	ClusterStateConnecting ClusterState = "Connecting"
 	ClusterStateConnected  ClusterState = "Connected"
 	ClusterStateError      ClusterState = "Error"
+	// DefaultFailureDomain for PoolSpec
+	DefaultFailureDomain = "host"
 )
+
+// ConfigOverridesSpec defines how Ceph configurations can be overridden by Rook.
+type ConfigOverridesSpec []ConfigOverride
+
+// ConfigOverride defines the syntax for overriding a Ceph config. This translates to a
+// `ceph config set <who> <option> <value>` (or similar) command.
+// See Ceph docs: https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
+type ConfigOverride struct {
+	Who    string `json:"who"`
+	Option string `json:"option"`
+	Value  string `json:"value"`
+}
 
 type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
@@ -181,9 +203,9 @@ type CephBlockPoolList struct {
 	Items           []CephBlockPool `json:"items"`
 }
 
-// CephBlockPoolSpec represent the spec of a pool
+// PoolSpec represents the spec of ceph pool
 type PoolSpec struct {
-	// The failure domain: osd or host (technically also any type in the crush map)
+	// The failure domain: osd/host/(region or zone if topologyAware) - technically also any type in the crush map
 	FailureDomain string `json:"failureDomain"`
 
 	// The root of the crush hierarchy utilized by the pool
@@ -400,4 +422,16 @@ type NetworkSpec struct {
 
 	// HostNetwork to enable host network
 	HostNetwork bool `json:"hostNetwork"`
+}
+
+// DisruptionManagementSpec configures mangement of daemon disruptions
+type DisruptionManagementSpec struct {
+
+	// This enables management of poddisruptionbudgets
+	ManagePodBudgets bool `json:"managePodBudgets,omitempty"`
+
+	// OSDMaintenenceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
+	// it only works if managePodBudgetss is true.
+	// the default is 30 minutes
+	OSDMaintenenceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
 }
