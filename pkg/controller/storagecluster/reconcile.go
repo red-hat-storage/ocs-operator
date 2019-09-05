@@ -61,6 +61,35 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		}
 	}
 
+	// Check for StorageClusterInitialization
+	scinit := &ocsv1alpha1.StorageClusterInitialization{}
+	err = r.client.Get(context.TODO(), request.NamespacedName, scinit)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating StorageClusterInitialization resource")
+
+			scinit.Name = request.Name
+			scinit.Namespace = request.Namespace
+			// Set StorageCluster instance as the owner and controller
+			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			err = r.client.Create(context.TODO(), scinit)
+			switch {
+			case err == nil:
+				log.Info("Created StorageClusterInitialization resource")
+			case errors.IsAlreadyExists(err):
+				log.Info("StorageClusterInitialization resource already exists")
+			default:
+				log.Error(err, "Failed to create StorageClusterInitialization resource")
+				return reconcile.Result{}, err
+			}
+		}
+		// Error reading the object - requeue the request.
+		return reconcile.Result{}, err
+	}
+
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
