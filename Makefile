@@ -1,4 +1,5 @@
 IMAGE_BUILD_CMD ?= "docker"
+IMAGE_REGISTRY ?= "quay.io"
 REGISTRY_NAMESPACE ?= "ocs-dev"
 IMAGE_TAG ?= "latest"
 OPERATOR_SDK_VERSION="v0.10.0"
@@ -14,7 +15,7 @@ export GOPROXY=https://proxy.golang.org
 
 all: ocs-operator ocs-must-gather ocs-registry
 
-.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests
+.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests cluster-deploy cluster-clean ocs-operator-openshift-ci-build functest
 deps-update:
 	go mod tidy && go mod vendor
 
@@ -34,7 +35,7 @@ ocs-operator: operator-sdk
 
 ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
-	$(IMAGE_BUILD_CMD) build -f must-gather/Dockerfile -t quay.io/$(REGISTRY_NAMESPACE)/ocs-must-gather:$(IMAGE_TAG) must-gather/
+	$(IMAGE_BUILD_CMD) build -f must-gather/Dockerfile -t $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/ocs-must-gather:$(IMAGE_TAG) must-gather/
 
 source-manifests:
 	@echo "Sourcing CSV and CRD manifests from component-level operators"
@@ -50,8 +51,28 @@ gen-release-csv:
 
 ocs-registry:
 	@echo "Building the ocs-registry image"
-	IMAGE_BUILD_CMD=$(IMAGE_BUILD_CMD) REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) ./hack/build-registry-bundle.sh
+	IMAGE_BUILD_CMD=$(IMAGE_BUILD_CMD) REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/build-registry-bundle.sh
 
 clean:
 	@echo "cleaning previous outputs"
 	rm -rf $(OUTPUT_DIR)
+
+cluster-deploy: cluster-clean
+	@echo "Deploying ocs to cluster"
+	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/cluster-deploy.sh
+
+cluster-clean:
+	@echo "Removing ocs install from cluster"
+	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/cluster-clean.sh
+
+functest:
+	@echo "Running functional test suite"
+	hack/functest.sh
+
+# This is used by the openshift-ci prow job.
+# It just makes the ocs-binary without invoking docker to build the container image.
+ocs-operator-openshift-ci-build:
+	@echo "Building ocs-operator binary for openshift-ci job"
+	mkdir -p build/_output/bin
+	go build -mod=vendor -o build/_output/bin/ocs-operator cmd/manager/main.go
+

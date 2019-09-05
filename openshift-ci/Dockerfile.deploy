@@ -1,0 +1,9 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+LABEL com.redhat.delivery.appregistry=true
+
+ENV LANG=en_US.utf8
+
+COPY ocs-operator /usr/local/bin/ocs-operator
+USER 1001
+
+ENTRYPOINT [ "/usr/local/bin/ocs-operator" ]
