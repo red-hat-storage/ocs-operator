@@ -235,7 +235,8 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *cephv1.Ce
 				Count:                3,
 				AllowMultiplePerNode: false,
 			},
-			DataDirHostPath: "/var/lib/rook",
+			DataDirHostPath:      "/var/lib/rook",
+			DisruptionManagement: cephv1.DisruptionManagementSpec{ManagePodBudgets: true},
 			RBDMirroring: cephv1.RBDMirroringSpec{
 				Workers: 0,
 			},
@@ -248,6 +249,7 @@ func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *cephv1.Ce
 			},
 			Storage: rook.StorageScopeSpec{
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets),
+				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
 				"all": rook.Placement{
