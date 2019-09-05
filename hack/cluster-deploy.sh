@@ -38,7 +38,12 @@ for i in ${deployments[@]}; do
 		sleep $sample
 		current_time=$((current_time + sample))
 		if [[ $current_time -gt $timeout ]]; then
-			echo "Timed out waiting for deployment ${i} to be created"
+			# On failure, dump debug info about the ocs-catalogsource
+			echo "----------- dumping all pods for debug ----------------"
+			oc get pods --all-namespaces
+			echo "----------- dumping all pods for debug ----------------"
+			echo ""
+			echo "ERROR: Timed out waiting for deployment ${i} to be created"
 			exit 1
 		fi
 	done
