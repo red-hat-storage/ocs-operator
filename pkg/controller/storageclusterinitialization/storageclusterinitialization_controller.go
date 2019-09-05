@@ -112,16 +112,11 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			reqLogger.Info("No StorageClusterInitialization resource")
 			// Request object not found, could have been deleted after reconcile request.
-			// Recreating since we depend on this to exist. A user may delete it to
-			// induce a reset of all initial data.
-			reqLogger.Info("recreating StorageClusterInitialization resource")
-			return reconcile.Result{}, r.client.Create(context.TODO(), &ocsv1alpha1.StorageClusterInitialization{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      request.Name,
-					Namespace: request.Namespace,
-				},
-			})
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
