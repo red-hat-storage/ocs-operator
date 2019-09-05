@@ -32,13 +32,18 @@ deployments=(ocs-operator rook-ceph-operator noobaa-operator)
 for i in ${deployments[@]}; do
 	current_time=0
 	sample=10
-	timeout=600
+	timeout=1200
 	while [ -z "$(oc get deployments -n openshift-storage | grep "${i} ")" ]; do
 		echo "Waiting for deployment ${i} to be created..."
 		sleep $sample
 		current_time=$((current_time + sample))
 		if [[ $current_time -gt $timeout ]]; then
-			echo "Timed out waiting for deployment ${i} to be created"
+			# On failure, dump debug info about the ocs-catalogsource
+			echo "----------- dumping all pods for debug ----------------"
+			oc get pods --all-namespaces
+			echo "----------- dumping all pods for debug ----------------"
+			echo ""
+			echo "ERROR: Timed out waiting for deployment ${i} to be created"
 			exit 1
 		fi
 	done
