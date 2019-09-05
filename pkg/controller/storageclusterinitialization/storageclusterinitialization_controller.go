@@ -35,15 +35,6 @@ const wrongNamespacedName = "Ignoring this resource. Only one should exist, and 
 var nodeAffinityKey = "cluster.ocs.openshift.io/openshift-storage"
 var nodeTolerationKey = "node.ocs.openshift.io/storage"
 
-// InitNamespacedName returns a NamespacedName for the singleton instance that
-// should exist.
-func InitNamespacedName() types.NamespacedName {
-	return types.NamespacedName{
-		Name:      "ocsinit",
-		Namespace: watchNamespace,
-	}
-}
-
 // Add creates a new StorageClusterInitialization Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -96,10 +87,9 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling StorageClusterInitialization")
 
-	initNamespacedName := InitNamespacedName()
 	instance := &ocsv1alpha1.StorageClusterInitialization{}
-	if initNamespacedName.Name != request.Name || initNamespacedName.Namespace != request.Namespace {
-		// Ignoring this resource because it has the wrong name or namespace
+	if watchNamespace != request.Namespace {
+		// Ignoring this resource because it has the wrong namespace
 		reqLogger.Info(wrongNamespacedName)
 		err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 		if err != nil {
@@ -128,8 +118,8 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 			reqLogger.Info("recreating StorageClusterInitialization resource")
 			return reconcile.Result{}, r.client.Create(context.TODO(), &ocsv1alpha1.StorageClusterInitialization{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      initNamespacedName.Name,
-					Namespace: initNamespacedName.Namespace,
+					Name:      request.Name,
+					Namespace: request.Namespace,
 				},
 			})
 		}
