@@ -19,7 +19,7 @@ import (
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -174,7 +174,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageClust
 	}
 
 	// Check if this CephCluster already exists
-	found := &rookCephv1.CephCluster{}
+	found := &cephv1.CephCluster{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -213,36 +213,36 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageClust
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *rookCephv1.CephCluster {
+func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
 	nodeAffinityKey := "cluster.ocs.openshift.io/openshift-storage"
 	nodeTolerationKey := "node.ocs.openshift.io/storage"
 
-	cephCluster := &rookCephv1.CephCluster{
+	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sc.Name,
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
-		Spec: rookCephv1.ClusterSpec{
-			CephVersion: rookCephv1.CephVersionSpec{
+		Spec: cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
 				Image:            cephImage,
 				AllowUnsupported: false,
 			},
-			Mon: rookCephv1.MonSpec{
+			Mon: cephv1.MonSpec{
 				Count:                3,
 				AllowMultiplePerNode: false,
 			},
 			DataDirHostPath: "/var/lib/rook",
-			RBDMirroring: rookCephv1.RBDMirroringSpec{
+			RBDMirroring: cephv1.RBDMirroringSpec{
 				Workers: 0,
 			},
-			Network: rookCephv1.NetworkSpec{
+			Network: cephv1.NetworkSpec{
 				HostNetwork: false,
 			},
-			Monitoring: rookCephv1.MonitoringSpec{
+			Monitoring: cephv1.MonitoringSpec{
 				Enabled:        true,
 				RulesNamespace: "openshift-storage",
 			},

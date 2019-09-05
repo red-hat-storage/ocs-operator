@@ -25,7 +25,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 var log = logf.Log.WithName("cmd")
@@ -80,23 +80,25 @@ func main() {
 
 	log.Info("Registering Components.")
 
-	// Setup Scheme for all resources
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+	// Setup Scheme for all api resources
+	mgrScheme := mgr.GetScheme()
+
+	if err := apis.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
 
-	if err := rookCephv1.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Error(err, "Failed adding rookCephv1 to scheme")
+	if err := cephv1.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding cephv1 to scheme")
 		os.Exit(1)
 	}
 
-	if err := storagev1.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := storagev1.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding storage/v1 to scheme")
 		os.Exit(1)
 	}
 
-	if err := nbapis.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := nbapis.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding noobaa apis to scheme")
 		os.Exit(1)
 	}

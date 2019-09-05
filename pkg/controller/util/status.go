@@ -5,7 +5,7 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -93,9 +93,9 @@ func SetCompleteCondition(conditions *[]conditionsv1.Condition, reason string, m
 
 // MapCephClusterNegativeConditions maps the status states from CephCluster resource into ocs status conditions.
 // This will only look for negative conditions: !Available, Degraded, Progressing
-func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, found *rookCephv1.CephCluster) {
+func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, found *cephv1.CephCluster) {
 	switch found.Status.State {
-	case rookCephv1.ClusterStateCreating:
+	case cephv1.ClusterStateCreating:
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
 			Type:    conditionsv1.ConditionProgressing,
 			Status:  corev1.ConditionTrue,
@@ -108,7 +108,7 @@ func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, foun
 			Reason:  "ClusterStateCreating",
 			Message: fmt.Sprintf("CephCluster is creating: %v", string(found.Status.Message)),
 		})
-	case rookCephv1.ClusterStateUpdating:
+	case cephv1.ClusterStateUpdating:
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
 			Type:    conditionsv1.ConditionProgressing,
 			Status:  corev1.ConditionTrue,
@@ -121,7 +121,7 @@ func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, foun
 			Reason:  "ClusterStateUpdating",
 			Message: fmt.Sprintf("CephCluster is updating: %v", string(found.Status.Message)),
 		})
-	case rookCephv1.ClusterStateError:
+	case cephv1.ClusterStateError:
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
 			Type:    conditionsv1.ConditionAvailable,
 			Status:  corev1.ConditionFalse,
