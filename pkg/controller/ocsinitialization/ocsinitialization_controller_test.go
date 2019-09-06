@@ -6,6 +6,7 @@ import (
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -66,6 +67,7 @@ func TestSCCsAlreadyExist(t *testing.T) {
 	ocs, request, reconciler := getTestParams(false, t)
 
 	ocs.Status.SCCsCreated = true
+
 	err := reconciler.client.Update(nil, &ocs)
 	assert.NoError(t, err)
 
@@ -91,6 +93,38 @@ func TestSCCsEnsured(t *testing.T) {
 	err = reconciler.client.Get(nil, request.NamespacedName, &obj)
 	assert.NoError(t, err)
 	assert.True(t, obj.Status.SCCsCreated)
+}
+
+func TestRBACAlreadyExist(t *testing.T) {
+	ocs, request, reconciler := getTestParams(false, t)
+
+	ocs.Status.RBACCreated = true
+
+	err := reconciler.client.Update(nil, &ocs)
+	assert.NoError(t, err)
+
+	_, err = reconciler.Reconcile(request)
+	obj := v1.OCSInitialization{}
+	err = reconciler.client.Get(nil, request.NamespacedName, &obj)
+	for cType, status := range successfulReconcileConditions {
+		found := assertCondition(obj, cType, status)
+		if !found {
+			assert.Fail(t, "expected status condition not found")
+		}
+	}
+
+}
+
+func TestRBACEnsured(t *testing.T) {
+	_, request, reconciler := getTestParams(false, t)
+
+	_, err := reconciler.Reconcile(request)
+	assert.NoError(t, err)
+
+	obj := v1.OCSInitialization{}
+	err = reconciler.client.Get(nil, request.NamespacedName, &obj)
+	assert.NoError(t, err)
+	assert.True(t, obj.Status.RBACCreated)
 }
 
 func TestReconcileCompleteConditions(t *testing.T) {
@@ -151,6 +185,11 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileOCSInitializat
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
 	}
+
+	if err := rbacv1.AddToScheme(scheme); err != nil {
+		assert.Fail(t, "failed to add rbac/v1 api to scheme")
+	}
+
 	client := fake.NewFakeClientWithScheme(scheme, objs...)
 	secClient := &fakeSecClient.FakeSecurityV1{Fake: &testingClient.Fake{}}
 
