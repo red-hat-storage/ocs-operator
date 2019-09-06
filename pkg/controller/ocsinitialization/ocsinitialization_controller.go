@@ -81,9 +81,6 @@ type ReconcileOCSInitialization struct {
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
 // and what is in the OCSInitialization.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
-// Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (reconcile.Result, error) {
@@ -142,73 +139,10 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		}
 	}
 
-	if instance.Status.StorageClassesCreated != true {
-		// we only create the data once and then allow changes or even deletion
-		err = r.ensureStorageClasses(instance, reqLogger)
-		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
-			message := fmt.Sprintf("Error while reconciling: %v", err)
-			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
-
-			// don't want to overwrite the actual reconcile failure
-			uErr := r.client.Status().Update(context.TODO(), instance)
-			if uErr != nil {
-				reqLogger.Error(uErr, "Failed to update conditions")
-			}
-			return reconcile.Result{}, err
-		}
-
-		instance.Status.StorageClassesCreated = true
-		err = r.client.Status().Update(context.TODO(), instance)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-
 	reason := ocsv1alpha1.ReconcileCompleted
 	message := ocsv1alpha1.ReconcileCompletedMessage
 	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
-	instance.Status.StorageClassesCreated = true
 	err = r.client.Status().Update(context.TODO(), instance)
 
 	return reconcile.Result{}, err
-}
-
-// ensureStorageClasses ensures that StorageClass resources exist in the desired
-// state.
-func (r *ReconcileOCSInitialization) ensureStorageClasses(initialData *ocsv1alpha1.OCSInitialization, reqLogger logr.Logger) error {
-	scs, err := r.newStorageClasses(initialData)
-	if err != nil {
-		return err
-	}
-	for _, sc := range scs {
-		existing := storagev1.StorageClass{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
-
-		switch {
-		case err == nil:
-			reqLogger.Info(fmt.Sprintf("Restoring original StorageClass %s", sc.Name))
-			sc.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
-			if err != nil {
-				return err
-			}
-		case errors.IsNotFound(err):
-			reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
-			err = r.client.Create(context.TODO(), &sc)
-			if err != nil {
-				return err
-			}
-		default:
-			return err
-		}
-	}
-	return nil
-}
-
-// newStorageClasses returns the StorageClass instances that should be created
-// on first run.
-func (r *ReconcileOCSInitialization) newStorageClasses(initData *ocsv1alpha1.OCSInitialization) ([]storagev1.StorageClass, error) {
-	ret := []storagev1.StorageClass{}
-	return ret, nil
 }
