@@ -157,8 +157,30 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 			}
 			return reconcile.Result{}, err
 		}
-		instance.Status.SCCsCreated = true
 
+		instance.Status.SCCsCreated = true
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	if instance.Status.RBACCreated != true {
+		err = r.ensureRBAC(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+		}
+
+		instance.Status.RBACCreated = true
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			return reconcile.Result{}, err

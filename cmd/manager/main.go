@@ -16,6 +16,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
+	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,6 +101,11 @@ func main() {
 
 	if err := nbapis.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding noobaa apis to scheme")
+		os.Exit(1)
+	}
+
+	if err := rbacv1.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding rbac/v1 apis to scheme")
 		os.Exit(1)
 	}
 
