@@ -11,6 +11,8 @@ require (
 	github.com/go-openapi/spec v0.19.2
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/noobaa/noobaa-operator v1.1.0
+	github.com/openshift/api v3.9.1-0.20190904155310-a25bb2adc83e+incompatible
+	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 	github.com/operator-framework/operator-sdk v0.10.0
