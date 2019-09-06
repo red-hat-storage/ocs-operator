@@ -77,13 +77,29 @@ Run `make ocs-registry` to generate the registry bundle container image.
 
 ## Prerequisites
 
-+ OCS Operator will install its components only on nodes marked for OCS (i.e. nodes with label `cluster.ocs.openshift.io/openshift-storage=''`)
+OCS Operator will install its components only on nodes labelled for OCS with the key `cluster.ocs.openshift.io/openshift-storage=''`.
+To label the nodes from CLI,
 
-  To label the nodes from CLI,
+```console
+$ oc label nodes <NodeName> cluster.ocs.openshift.io/openshift-storage=''
+```
 
-  ```console
-  $ oc label nodes <NodeNames> cluster.ocs.openshift.io/openshift-storage=''
-  ```
+OCS requires at least 3 nodes labelled this way.
+
+When creating StorageCluster from the UI, the create wizard takes care of labelling the selected nodes.
+
+### Dedicated nodes
+
+In case dedicated storage nodes are available, these can also be tainted to allow only OCS components to be scheduled on them.
+Nodes need to be tainted with `node.ocs.openshift.io/storage=true:NoSchedule` which can done from the CLI as follows,
+
+```console
+$ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
+```
+
+> Note: The dedicated/tainted nodes will only run OCS components. The nodes will not run any apps. Therefore, if you taint, you need to have additional worker nodes that are untainted. If you don't, you will be unable to run any other apps in you Openshift cluster.
+
+> Note: Currently not all OCS components have the right tolerations set. So if you taint nodes and do not have additional untainted nodes, OCS will fail to deploy.
 
 ## Install
 
@@ -112,17 +128,6 @@ ocs-operator.v0.0.1   Openshift Container Storage Operator   0.0.1              
 ```
 This can take a few minutes. Once PHASE says `Succeeded` you can create
 a StorageCluster.
-
-Nodes marked for OCS usage need to be tainted (with taint `node.ocs.openshift.io/storage=true:NoSchedule`) and pods that do not tolerate it will be unscheduleable on these nodes.
-When creating a StorageCluster from the UI Console, taints are automatically added to selected nodes. To taint the nodes from CLI,
-
-```console
-$ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
-```
-
-> Note: Not all OCS created resources have their tolerations set currently. When working with a minimum sized cluster with 3 worker nodes, tainting all 3 nodes will cause failure of OCS to fully deploy.
-> As a workaround, an extra worker node which is not tainted with the above taint can be created. Or if you'd want to create the StorageCluster from CLI only, then do not taint any nodes.
-
 
 A StorageCluster resource can now be created from the console, using the StorageCluster creation wizard.
 From the CLI, a StorageCluster resource can be created using the example CR as follows,
