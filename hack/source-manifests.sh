@@ -75,7 +75,7 @@ mv $OCS_TMP_CSV $OCS_CSV
 sed -i "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
 sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
 cp deploy/crds/* $OUTDIR_CRDS/
-cp deploy/bundlemanifests/*.yaml $OUTDIR_BUNDLEMANIFESTS/
+find deploy/bundlemanifests -name '*.yaml' -exec cp {} $OUTDIR_BUNDLEMANIFESTS/ \;
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
