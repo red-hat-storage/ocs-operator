@@ -121,6 +121,12 @@ func schema_pkg_apis_ocs_v1_OCSInitializationStatus(ref common.ReferenceCallback
 							Format: "",
 						},
 					},
+					"rBACCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
