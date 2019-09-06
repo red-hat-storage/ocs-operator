@@ -2,3 +2,4 @@ packageName: ocs-operator
 channels:
 - name: alpha
   currentCSV: ocs-operator.v0.0.1
+defaultChannel: "alpha"
