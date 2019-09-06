@@ -66,7 +66,7 @@ spec:
               items:
                 type: object
               type: array
-            storageClassesCreated:
+            sCCsCreated:
               type: boolean
           type: object
   version: v1alpha1

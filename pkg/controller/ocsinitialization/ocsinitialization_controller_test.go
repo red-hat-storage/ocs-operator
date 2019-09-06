@@ -1,6 +1,7 @@
 package ocsinitialization
 
 import (
+	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -8,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	testingClient "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"testing"
@@ -60,10 +62,10 @@ func TestResourceNotFoundCreated(t *testing.T) {
 	assert.Equal(t, obj.Namespace, request.Namespace)
 }
 
-func TestStorageClassesAlreadyExist(t *testing.T) {
+func TestSCCsAlreadyExist(t *testing.T) {
 	ocs, request, reconciler := getTestParams(false, t)
 
-	ocs.Status.StorageClassesCreated = true
+	ocs.Status.SCCsCreated = true
 	err := reconciler.client.Update(nil, &ocs)
 	assert.NoError(t, err)
 
@@ -79,7 +81,7 @@ func TestStorageClassesAlreadyExist(t *testing.T) {
 
 }
 
-func TestStorageClassesEnsured(t *testing.T) {
+func TestSCCsEnsured(t *testing.T) {
 	_, request, reconciler := getTestParams(false, t)
 
 	_, err := reconciler.Reconcile(request)
@@ -88,7 +90,7 @@ func TestStorageClassesEnsured(t *testing.T) {
 	obj := v1.OCSInitialization{}
 	err = reconciler.client.Get(nil, request.NamespacedName, &obj)
 	assert.NoError(t, err)
-	assert.True(t, obj.Status.StorageClassesCreated)
+	assert.True(t, obj.Status.SCCsCreated)
 }
 
 func TestReconcileCompleteConditions(t *testing.T) {
@@ -150,9 +152,11 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileOCSInitializat
 		assert.Fail(t, "unable to build scheme")
 	}
 	client := fake.NewFakeClientWithScheme(scheme, objs...)
+	secClient := &fakeSecClient.FakeSecurityV1{Fake: &testingClient.Fake{}}
 
 	return ReconcileOCSInitialization{
-		scheme: scheme,
-		client: client,
+		scheme:    scheme,
+		client:    client,
+		secClient: secClient,
 	}
 }

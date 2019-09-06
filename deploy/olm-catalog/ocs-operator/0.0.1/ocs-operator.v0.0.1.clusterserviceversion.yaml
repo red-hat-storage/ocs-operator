@@ -729,6 +729,24 @@ spec:
           - watch
           - create
           - update
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
         serviceAccountName: ocs-operator
       deployments:
       - name: rook-ceph-operator

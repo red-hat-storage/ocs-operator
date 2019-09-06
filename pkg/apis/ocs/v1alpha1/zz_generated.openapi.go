@@ -109,15 +109,15 @@ func schema_pkg_apis_ocs_v1alpha1_OCSInitializationStatus(ref common.ReferenceCa
 							},
 						},
 					},
-					"storageClassesCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
 					"errorMessage": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"sCCsCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
 							Format: "",
 						},
 					},
@@ -284,6 +284,12 @@ func schema_pkg_apis_ocs_v1alpha1_StorageClusterInitializationStatus(ref common.
 						},
 					},
 					"cephFilesystemsCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"noobaaSystemCreated": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
