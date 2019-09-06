@@ -68,6 +68,8 @@ spec:
               type: array
             errorMessage:
               type: string
+            noobaaSystemCreated:
+              type: boolean
             relatedObjects:
               description: RelatedObjects is a list of objects created and maintained
                 by this operator. Object references will be added to this list after
