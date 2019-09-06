@@ -31,7 +31,7 @@ operator-sdk:
 
 ocs-operator: operator-sdk
 	@echo "Building the ocs-operator image"
-	$(TOOLS_DIR)/$(OPERATOR_SDK) build --go-build-args="-mod=vendor" --image-builder=$(IMAGE_BUILD_CMD) quay.io/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
+	$(TOOLS_DIR)/$(OPERATOR_SDK) build --go-build-args="-mod=vendor" --image-builder=$(IMAGE_BUILD_CMD) ${IMAGE_REGISTRY}/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
 
 ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
