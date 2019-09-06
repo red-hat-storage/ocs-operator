@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
+	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,7 +45,11 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileOCSInitialization{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileOCSInitialization{
+		client:    mgr.GetClient(),
+		secClient: secv1client.NewForConfigOrDie(mgr.GetConfig()),
+		scheme:    mgr.GetScheme(),
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -75,8 +78,9 @@ var _ reconcile.Reconciler = &ReconcileOCSInitialization{}
 type ReconcileOCSInitialization struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
+	client    client.Client
+	secClient secv1client.SecurityV1Interface
+	scheme    *runtime.Scheme
 }
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
@@ -135,6 +139,28 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			reqLogger.Error(err, "Failed to add conditions to status")
+			return reconcile.Result{}, err
+		}
+	}
+
+	if instance.Status.SCCsCreated != true {
+		err = r.ensureSCCs(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1alpha1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+		}
+		instance.Status.SCCsCreated = true
+
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 	}
