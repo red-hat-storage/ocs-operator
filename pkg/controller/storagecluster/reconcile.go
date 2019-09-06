@@ -17,7 +17,7 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -34,7 +34,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	reqLogger.Info("Reconciling StorageCluster")
 
 	// Fetch the StorageCluster instance
-	instance := &ocsv1alpha1.StorageCluster{}
+	instance := &ocsv1.StorageCluster{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -50,7 +50,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 	// Add conditions if there are none
 	if instance.Status.Conditions == nil {
-		reason := ocsv1alpha1.ReconcileInit
+		reason := ocsv1.ReconcileInit
 		message := "Initializing StorageCluster"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
@@ -62,7 +62,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	}
 
 	// Check for StorageClusterInitialization
-	scinit := &ocsv1alpha1.StorageClusterInitialization{}
+	scinit := &ocsv1.StorageClusterInitialization{}
 	err = r.client.Get(context.TODO(), request.NamespacedName, scinit)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -94,13 +94,13 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
 
-	for _, f := range []func(*ocsv1alpha1.StorageCluster, logr.Logger) error{
+	for _, f := range []func(*ocsv1.StorageCluster, logr.Logger) error{
 		// Add support for additional resources here
 		r.ensureCephCluster,
 	} {
 		err = f(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -115,8 +115,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	// All component operators are in a happy state.
 	if r.conditions == nil {
 		reqLogger.Info("No component operator reported negatively")
-		reason := ocsv1alpha1.ReconcileCompleted
-		message := ocsv1alpha1.ReconcileCompletedMessage
+		reason := ocsv1.ReconcileCompleted
+		message := ocsv1.ReconcileCompletedMessage
 		statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 
 		// If no operator whose conditions we are watching reports an error, then it is safe
@@ -140,10 +140,10 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		for _, condition := range r.conditions {
 			conditionsv1.SetStatusCondition(&instance.Status.Conditions, condition)
 		}
-		reason := ocsv1alpha1.ReconcileCompleted
-		message := ocsv1alpha1.ReconcileCompletedMessage
+		reason := ocsv1.ReconcileCompleted
+		message := ocsv1.ReconcileCompletedMessage
 		conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
-			Type:    ocsv1alpha1.ConditionReconcileComplete,
+			Type:    ocsv1.ConditionReconcileComplete,
 			Status:  corev1.ConditionTrue,
 			Reason:  reason,
 			Message: message,
@@ -164,7 +164,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
-func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageCluster, reqLogger logr.Logger) error {
+func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	// Define a new CephCluster object
 	cephCluster := newCephCluster(sc, r.cephImage)
 
@@ -213,7 +213,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1alpha1.StorageClust
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1alpha1.StorageCluster, cephImage string) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}

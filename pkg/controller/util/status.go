@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -14,7 +14,7 @@ import (
 // conditions.
 func SetProgressingCondition(conditions *[]conditionsv1.Condition, reason string, message string) {
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-		Type:    ocsv1alpha1.ConditionReconcileComplete,
+		Type:    ocsv1.ConditionReconcileComplete,
 		Status:  corev1.ConditionUnknown,
 		Reason:  reason,
 		Message: message,
@@ -49,7 +49,7 @@ func SetProgressingCondition(conditions *[]conditionsv1.Condition, reason string
 // during the reconciliation process.
 func SetErrorCondition(conditions *[]conditionsv1.Condition, reason string, message string) {
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-		Type:    ocsv1alpha1.ConditionReconcileComplete,
+		Type:    ocsv1.ConditionReconcileComplete,
 		Status:  corev1.ConditionFalse,
 		Reason:  reason,
 		Message: message,
@@ -60,7 +60,7 @@ func SetErrorCondition(conditions *[]conditionsv1.Condition, reason string, mess
 // to indicate that the reconciliation process has completed successfully.
 func SetCompleteCondition(conditions *[]conditionsv1.Condition, reason string, message string) {
 	conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-		Type:    ocsv1alpha1.ConditionReconcileComplete,
+		Type:    ocsv1.ConditionReconcileComplete,
 		Status:  corev1.ConditionTrue,
 		Reason:  reason,
 		Message: message,

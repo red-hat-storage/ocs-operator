@@ -3,7 +3,7 @@ package ocsinitialization
 import (
 	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

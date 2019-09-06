@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -68,7 +68,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource OCSInitialization
-	return c.Watch(&source.Kind{Type: &ocsv1alpha1.OCSInitialization{}}, &handler.EnqueueRequestForObject{})
+	return c.Watch(&source.Kind{Type: &ocsv1.OCSInitialization{}}, &handler.EnqueueRequestForObject{})
 }
 
 // blank assignment to verify that ReconcileOCSInitialization implements reconcile.Reconciler
@@ -92,7 +92,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 	reqLogger.Info("Reconciling OCSInitialization")
 
 	initNamespacedName := InitNamespacedName()
-	instance := &ocsv1alpha1.OCSInitialization{}
+	instance := &ocsv1.OCSInitialization{}
 	if initNamespacedName.Name != request.Name || initNamespacedName.Namespace != request.Namespace {
 		// Ignoring this resource because it has the wrong name or namespace
 		reqLogger.Info(wrongNamespacedName)
@@ -120,7 +120,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 			// Recreating since we depend on this to exist. A user may delete it to
 			// induce a reset of all initial data.
 			reqLogger.Info("recreating OCSInitialization resource")
-			return reconcile.Result{}, r.client.Create(context.TODO(), &ocsv1alpha1.OCSInitialization{
+			return reconcile.Result{}, r.client.Create(context.TODO(), &ocsv1.OCSInitialization{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      initNamespacedName.Name,
 					Namespace: initNamespacedName.Namespace,
@@ -132,7 +132,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 	}
 
 	if instance.Status.Conditions == nil {
-		reason := ocsv1alpha1.ReconcileInit
+		reason := ocsv1.ReconcileInit
 		message := "Initializing OCSInitialization resource"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
@@ -146,7 +146,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 	if instance.Status.SCCsCreated != true {
 		err = r.ensureSCCs(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -165,8 +165,8 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		}
 	}
 
-	reason := ocsv1alpha1.ReconcileCompleted
-	message := ocsv1alpha1.ReconcileCompletedMessage
+	reason := ocsv1.ReconcileCompleted
+	message := ocsv1.ReconcileCompletedMessage
 	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 	err = r.client.Status().Update(context.TODO(), instance)
 

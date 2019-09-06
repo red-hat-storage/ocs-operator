@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -62,7 +62,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource StorageClusterInitialization
-	return c.Watch(&source.Kind{Type: &ocsv1alpha1.StorageClusterInitialization{}}, &handler.EnqueueRequestForObject{})
+	return c.Watch(&source.Kind{Type: &ocsv1.StorageClusterInitialization{}}, &handler.EnqueueRequestForObject{})
 }
 
 // blank assignment to verify that ReconcileStorageClusterInitialization implements reconcile.Reconciler
@@ -87,7 +87,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling StorageClusterInitialization")
 
-	instance := &ocsv1alpha1.StorageClusterInitialization{}
+	instance := &ocsv1.StorageClusterInitialization{}
 	if watchNamespace != request.Namespace {
 		// Ignoring this resource because it has the wrong namespace
 		reqLogger.Info(wrongNamespacedName)
@@ -123,7 +123,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 	}
 
 	if instance.Status.Conditions == nil {
-		reason := ocsv1alpha1.ReconcileInit
+		reason := ocsv1.ReconcileInit
 		message := "Initializing StorageClusterInitialization resource"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
@@ -138,7 +138,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		// we only create the data once and then allow changes or even deletion
 		err = r.ensureStorageClasses(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -161,7 +161,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		// we only create the data once and then allow changes or even deletion
 		err = r.ensureCephObjectStores(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -184,7 +184,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		// we only create the data once and then allow changes or even deletion
 		err = r.ensureCephObjectStoreUsers(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -207,7 +207,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		// we only create the data once and then allow changes or even deletion
 		err = r.ensureCephBlockPools(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -230,7 +230,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		// we only create the data once and then allow changes or even deletion
 		err = r.ensureCephFilesystems(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -254,7 +254,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		// we only create the data once and then allow changes or even deletion
 		err = r.ensureNoobaaSystem(instance, reqLogger)
 		if err != nil {
-			reason := ocsv1alpha1.ReconcileFailed
+			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
@@ -274,8 +274,8 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		}
 	}
 
-	reason := ocsv1alpha1.ReconcileCompleted
-	message := ocsv1alpha1.ReconcileCompletedMessage
+	reason := ocsv1.ReconcileCompleted
+	message := ocsv1.ReconcileCompletedMessage
 	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 	instance.Status.StorageClassesCreated = true
 	err = r.client.Status().Update(context.TODO(), instance)
@@ -285,7 +285,7 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 
 // ensureStorageClasses ensures that StorageClass resources exist in the desired
 // state.
-func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
 	scs, err := r.newStorageClasses(initialData)
 	if err != nil {
 		return err
@@ -317,7 +317,7 @@ func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData
 
 // newStorageClasses returns the StorageClass instances that should be created
 // on first run.
-func (r *ReconcileStorageClusterInitialization) newStorageClasses(initData *ocsv1alpha1.StorageClusterInitialization) ([]storagev1.StorageClass, error) {
+func (r *ReconcileStorageClusterInitialization) newStorageClasses(initData *ocsv1.StorageClusterInitialization) ([]storagev1.StorageClass, error) {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	ret := []storagev1.StorageClass{
 		storagev1.StorageClass{
@@ -360,7 +360,7 @@ func (r *ReconcileStorageClusterInitialization) newStorageClasses(initData *ocsv
 
 // ensureCephObjectStores ensures that CephObjectStore resources exist in the desired
 // state.
-func (r *ReconcileStorageClusterInitialization) ensureCephObjectStores(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileStorageClusterInitialization) ensureCephObjectStores(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
 	cephObjectStores, err := r.newCephObjectStoreInstances(initialData)
 	if err != nil {
 		return err
@@ -392,7 +392,7 @@ func (r *ReconcileStorageClusterInitialization) ensureCephObjectStores(initialDa
 
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
-func (r *ReconcileStorageClusterInitialization) newCephObjectStoreInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephObjectStore, error) {
+func (r *ReconcileStorageClusterInitialization) newCephObjectStoreInstances(initData *ocsv1.StorageClusterInitialization) ([]cephv1.CephObjectStore, error) {
 	ret := []cephv1.CephObjectStore{
 		cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{
@@ -458,7 +458,7 @@ func (r *ReconcileStorageClusterInitialization) newCephObjectStoreInstances(init
 
 // ensureCephBlockPools ensures that cephBlockPool resources exist in the desired
 // state.
-func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
 	cephBlockPools, err := r.newCephBlockPoolInstances(initialData)
 	if err != nil {
 		return err
@@ -490,7 +490,7 @@ func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData
 
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
 // on first run.
-func (r *ReconcileStorageClusterInitialization) newCephBlockPoolInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephBlockPool, error) {
+func (r *ReconcileStorageClusterInitialization) newCephBlockPoolInstances(initData *ocsv1.StorageClusterInitialization) ([]cephv1.CephBlockPool, error) {
 	ret := []cephv1.CephBlockPool{
 		cephv1.CephBlockPool{
 			ObjectMeta: metav1.ObjectMeta{
@@ -510,7 +510,7 @@ func (r *ReconcileStorageClusterInitialization) newCephBlockPoolInstances(initDa
 
 // ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
 // state.
-func (r *ReconcileStorageClusterInitialization) ensureCephObjectStoreUsers(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileStorageClusterInitialization) ensureCephObjectStoreUsers(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
 	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(initialData)
 	if err != nil {
 		return err
@@ -542,7 +542,7 @@ func (r *ReconcileStorageClusterInitialization) ensureCephObjectStoreUsers(initi
 
 // newCephObjectStoreUserInstances returns the cephObjectStoreUser instances that should be created
 // on first run.
-func (r *ReconcileStorageClusterInitialization) newCephObjectStoreUserInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephObjectStoreUser, error) {
+func (r *ReconcileStorageClusterInitialization) newCephObjectStoreUserInstances(initData *ocsv1.StorageClusterInitialization) ([]cephv1.CephObjectStoreUser, error) {
 	ret := []cephv1.CephObjectStoreUser{
 		cephv1.CephObjectStoreUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -560,7 +560,7 @@ func (r *ReconcileStorageClusterInitialization) newCephObjectStoreUserInstances(
 
 // ensureCephFilesystems ensures that cephFilesystem resources exist in the desired
 // state.
-func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
 	cephFilesystems, err := r.newCephFilesystemInstances(initialData)
 	if err != nil {
 		return err
@@ -592,7 +592,7 @@ func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialDat
 
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
 // on first run.
-func (r *ReconcileStorageClusterInitialization) newCephFilesystemInstances(initData *ocsv1alpha1.StorageClusterInitialization) ([]cephv1.CephFilesystem, error) {
+func (r *ReconcileStorageClusterInitialization) newCephFilesystemInstances(initData *ocsv1.StorageClusterInitialization) ([]cephv1.CephFilesystem, error) {
 	ret := []cephv1.CephFilesystem{
 		cephv1.CephFilesystem{
 			ObjectMeta: metav1.ObjectMeta{
