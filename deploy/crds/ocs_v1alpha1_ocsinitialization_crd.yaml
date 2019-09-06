@@ -66,6 +66,8 @@ spec:
               items:
                 type: object
               type: array
+            sCCsCreated:
+              type: boolean
           type: object
   version: v1alpha1
   versions:

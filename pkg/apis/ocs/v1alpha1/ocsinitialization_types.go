@@ -29,6 +29,7 @@ type OCSInitializationStatus struct {
 	// +optional
 	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
 	ErrorMessage   string                   `json:"errorMessage,omitempty"`
+	SCCsCreated    bool                     `json:"sCCsCreated,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

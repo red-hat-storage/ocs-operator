@@ -115,6 +115,12 @@ func schema_pkg_apis_ocs_v1alpha1_OCSInitializationStatus(ref common.ReferenceCa
 							Format: "",
 						},
 					},
+					"sCCsCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
