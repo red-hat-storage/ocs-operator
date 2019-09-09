@@ -10,9 +10,9 @@ kind: OperatorGroup
 metadata:
   name: local-operator-group
   namespace: local-storage
-  spec:
-    targetNamespaces:
-    - openshift-storage
+spec:
+  targetNamespaces:
+  - openshift-storage
 
 ---
 apiVersion: operators.coreos.com/v1alpha1
@@ -59,7 +59,7 @@ metadata:
   namespace: openshift-storage
 spec:
   targetNamespaces:
-    - openshift-storage
+  - openshift-storage
 
 ---
 ## Create a Subscription for the OCS operator CSV in the openshift-storage namespace
