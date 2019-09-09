@@ -6,8 +6,8 @@ metadata:
 spec:
   additionalPrinterColumns:
   - JSONPath: .spec.metadataServer.activeCount
-    description: Number of MDSs
-    name: MdsCount
+    description: Number of desired active MDS daemons
+    name: ActiveMDS
     type: string
   - JSONPath: .metadata.creationTimestamp
     name: Age

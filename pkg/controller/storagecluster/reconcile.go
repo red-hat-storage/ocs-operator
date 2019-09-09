@@ -235,8 +235,12 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				Count:                3,
 				AllowMultiplePerNode: false,
 			},
-			DataDirHostPath:      "/var/lib/rook",
-			DisruptionManagement: cephv1.DisruptionManagementSpec{ManagePodBudgets: true},
+			DataDirHostPath: "/var/lib/rook",
+			DisruptionManagement: cephv1.DisruptionManagementSpec{
+				ManagePodBudgets:                 true,
+				ManageMachineDisruptionBudgets:   true,
+				MachineDisruptionBudgetNamespace: "openshift-machine-api",
+			},
 			RBDMirroring: cephv1.RBDMirroringSpec{
 				Workers: 0,
 			},

@@ -43,15 +43,6 @@ spec:
                   type: boolean
                 image:
                   type: string
-            configOverrides:
-              items:
-                properties:
-                  option:
-                    type: string
-                  value:
-                    type: string
-                  who:
-                    type: string
             dashboard:
               properties:
                 enabled:
@@ -67,6 +58,15 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            mgr:
+              properties:
+                modules:
+                  items:
+                    properties:
+                      enabled:
+                        type: boolean
+                      name:
+                        type: string
             mon:
               properties:
                 allowMultiplePerNode:
@@ -101,6 +101,14 @@ spec:
                       path:
                         type: string
                   type: array
+                disruptionManagement:
+                  properties:
+                    manageMachineDisruptionBudgets:
+                      type: boolean
+                    managePodBudgets:
+                      type: boolean
+                    osdMaintenanceTimeout:
+                      type: integer
                 location: {}
                 nodes:
                   items:

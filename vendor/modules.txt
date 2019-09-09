@@ -137,7 +137,7 @@ github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 # github.com/prometheus/procfs v0.0.2
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
-# github.com/rook/rook v1.1.0-beta.0
+# github.com/rook/rook v1.1.0-beta.1
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 github.com/rook/rook/pkg/apis/rook.io/v1alpha2
 github.com/rook/rook/pkg/apis/ceph.rook.io
