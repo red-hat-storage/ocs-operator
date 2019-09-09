@@ -8,13 +8,13 @@ import (
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
 
 	nb := r.newNooBaaSystem(initialData, reqLogger)
 
@@ -37,7 +37,7 @@ func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *
 	return nil
 }
 
-func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocsv1alpha1.StorageClusterInitialization, reqLogger logr.Logger) *nbv1.NooBaa {
+func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) *nbv1.NooBaa {
 
 	storageClassName := generateNameForCephBlockPoolSC(initialData)
 	nb := &nbv1.NooBaa{

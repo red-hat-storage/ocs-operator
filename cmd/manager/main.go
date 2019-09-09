@@ -9,7 +9,7 @@ import (
 
 	nbapis "github.com/noobaa/noobaa-operator/pkg/apis"
 	"github.com/openshift/ocs-operator/pkg/apis"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller"
 	"github.com/openshift/ocs-operator/pkg/controller/ocsinitialization"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
@@ -112,7 +112,7 @@ func main() {
 	// Create CR if it's not there
 	ocsNamespacedName := ocsinitialization.InitNamespacedName()
 	client := mgr.GetClient()
-	err = client.Create(context.TODO(), &ocsv1alpha1.OCSInitialization{
+	err = client.Create(context.TODO(), &ocsv1.OCSInitialization{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ocsNamespacedName.Name,
 			Namespace: ocsNamespacedName.Namespace,

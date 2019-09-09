@@ -5,13 +5,13 @@ import (
 
 	"github.com/go-logr/logr"
 	secv1 "github.com/openshift/api/security/v1"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *ReconcileOCSInitialization) ensureSCCs(initialData *ocsv1alpha1.OCSInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileOCSInitialization) ensureSCCs(initialData *ocsv1.OCSInitialization, reqLogger logr.Logger) error {
 	sccs := getAllSCCs(initialData.Namespace)
 	for _, scc := range sccs {
 		_, err := r.secClient.SecurityContextConstraints().Get(scc.Name, metav1.GetOptions{})

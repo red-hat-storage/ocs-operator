@@ -1,14 +1,14 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: ocsinitializations.ocs.openshift.io
+  name: storageclusterinitializations.ocs.openshift.io
 spec:
   group: ocs.openshift.io
   names:
-    kind: OCSInitialization
-    listKind: OCSInitializationList
-    plural: ocsinitializations
-    singular: ocsinitialization
+    kind: StorageClusterInitialization
+    listKind: StorageClusterInitializationList
+    plural: storageclusterinitializations
+    singular: storageclusterinitialization
   scope: Namespaced
   subresources:
     status: {}
@@ -31,6 +31,14 @@ spec:
           type: object
         status:
           properties:
+            cephBlockPoolsCreated:
+              type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
             conditions:
               description: Conditions describes the state of the OCSInitialization
                 resource.
@@ -59,6 +67,8 @@ spec:
               type: array
             errorMessage:
               type: string
+            noobaaSystemCreated:
+              type: boolean
             relatedObjects:
               description: RelatedObjects is a list of objects created and maintained
                 by this operator. Object references will be added to this list after
@@ -66,11 +76,11 @@ spec:
               items:
                 type: object
               type: array
-            sCCsCreated:
+            storageClassesCreated:
               type: boolean
           type: object
-  version: v1alpha1
+  version: v1
   versions:
-  - name: v1alpha1
+  - name: v1
     served: true
     storage: true

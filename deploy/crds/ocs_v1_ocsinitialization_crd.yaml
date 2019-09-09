@@ -1,14 +1,14 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: storageclusters.ocs.openshift.io
+  name: ocsinitializations.ocs.openshift.io
 spec:
   group: ocs.openshift.io
   names:
-    kind: StorageCluster
-    listKind: StorageClusterList
-    plural: storageclusters
-    singular: storagecluster
+    kind: OCSInitialization
+    listKind: OCSInitializationList
+    plural: ocsinitializations
+    singular: ocsinitialization
   scope: Namespaced
   subresources:
     status: {}
@@ -28,56 +28,12 @@ spec:
         metadata:
           type: object
         spec:
-          properties:
-            instanceType:
-              type: string
-            manageNodes:
-              type: boolean
-            monPVCTemplate:
-              type: object
-            storageDeviceSets:
-              items:
-                properties:
-                  config:
-                    type: object
-                  count:
-                    format: int64
-                    type: integer
-                  dataPVCTemplate:
-                    type: object
-                  name:
-                    type: string
-                  placement:
-                    properties:
-                      nodeAffinity:
-                        type: object
-                      podAffinity:
-                        type: object
-                      podAntiAffinity:
-                        type: object
-                      tolerations:
-                        items:
-                          type: object
-                        type: array
-                    type: object
-                  portable:
-                    type: boolean
-                  resources:
-                    type: object
-                required:
-                - name
-                - count
-                - resources
-                - placement
-                - dataPVCTemplate
-                - portable
-                type: object
-              type: array
           type: object
         status:
           properties:
             conditions:
-              description: Conditions describes the state of the StorageCluster resource.
+              description: Conditions describes the state of the OCSInitialization
+                resource.
               items:
                 properties:
                   lastHeartbeatTime:
@@ -101,6 +57,8 @@ spec:
                 - lastTransitionTime
                 type: object
               type: array
+            errorMessage:
+              type: string
             relatedObjects:
               description: RelatedObjects is a list of objects created and maintained
                 by this operator. Object references will be added to this list after
@@ -108,9 +66,11 @@ spec:
               items:
                 type: object
               type: array
+            sCCsCreated:
+              type: boolean
           type: object
-  version: v1alpha1
+  version: v1
   versions:
-  - name: v1alpha1
+  - name: v1
     served: true
     storage: true

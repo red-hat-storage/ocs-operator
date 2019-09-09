@@ -1,4 +1,4 @@
-package v1alpha1
+package v1
 
 import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"

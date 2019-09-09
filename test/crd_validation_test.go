@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/RHsyseng/operator-utils/pkg/validation"
 	"github.com/ghodss/yaml"
-	"github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	"github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -30,9 +30,9 @@ const (
 func TestSampleCustomResources(t *testing.T) {
 	root := "./../deploy/crds"
 	crdCrMap := map[string]string{
-		"ocs_v1alpha1_ocsinitialization_crd.yaml":            "ocs_v1alpha1_ocsinitialization_cr",
-		"ocs_v1alpha1_storagecluster_crd.yaml":               "ocs_v1alpha1_storagecluster_cr",
-		"ocs_v1alpha1_storageclusterinitialization_crd.yaml": "ocs_v1alpha1_storageclusterinitialization_cr",
+		"ocs_v1_ocsinitialization_crd.yaml":            "ocs_v1_ocsinitialization_cr",
+		"ocs_v1_storagecluster_crd.yaml":               "ocs_v1_storagecluster_cr",
+		"ocs_v1_storageclusterinitialization_crd.yaml": "ocs_v1_storageclusterinitialization_cr",
 	}
 	for crd, prefix := range crdCrMap {
 		validateCustomResources(t, root, crd, prefix)
@@ -63,9 +63,9 @@ func validateCustomResources(t *testing.T, root string, crd string, prefix strin
 func TestCompleteCRD(t *testing.T) {
 	root := "./../deploy/crds"
 	crdStructMap := map[string]interface{}{
-		"ocs_v1alpha1_ocsinitialization_crd.yaml":            &v1alpha1.OCSInitialization{},
-		"ocs_v1alpha1_storagecluster_crd.yaml":               &v1alpha1.StorageCluster{},
-		"ocs_v1alpha1_storageclusterinitialization_crd.yaml": &v1alpha1.StorageClusterInitialization{},
+		"ocs_v1_ocsinitialization_crd.yaml":            &v1.OCSInitialization{},
+		"ocs_v1_storagecluster_crd.yaml":               &v1.StorageCluster{},
+		"ocs_v1_storageclusterinitialization_crd.yaml": &v1.StorageClusterInitialization{},
 	}
 	for crd, obj := range crdStructMap {
 		schema := getSchema(t, fmt.Sprintf("%s/%s", root, crd))

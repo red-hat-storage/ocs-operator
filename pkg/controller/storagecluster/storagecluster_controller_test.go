@@ -2,7 +2,7 @@ package storagecluster
 
 import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/stretchr/testify/assert"
@@ -249,7 +249,7 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 			Namespace: "storage-test-ns",
 		},
 		Spec: api.StorageClusterSpec{
-			StorageDeviceSets: [] api.StorageDeviceSet{
+			StorageDeviceSets: []api.StorageDeviceSet{
 				{
 					Name:      "mock-sds",
 					Count:     2,

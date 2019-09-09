@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	ocsv1alpha1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,16 +59,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource StorageCluster
-	err = c.Watch(&source.Kind{Type: &ocsv1alpha1.StorageCluster{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &ocsv1.StorageCluster{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to secondary resource Pods and requeue the owner StorageCluster
 
-	err = c.Watch(&source.Kind{Type: &ocsv1alpha1.StorageClusterInitialization{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &ocsv1.StorageClusterInitialization{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &ocsv1alpha1.StorageCluster{},
+		OwnerType:    &ocsv1.StorageCluster{},
 	})
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	err = c.Watch(&source.Kind{Type: &cephv1.CephCluster{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &ocsv1alpha1.StorageCluster{},
+		OwnerType:    &ocsv1.StorageCluster{},
 	})
 	if err != nil {
 		return err
