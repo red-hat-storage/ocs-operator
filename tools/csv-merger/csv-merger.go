@@ -341,6 +341,7 @@ func generateUnifiedCSV() {
 	}
 
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
+	ocsCSV.Spec.CustomResourceDefinitions.Owned = nil
 
 	templateStrategySpec := csvStrategySpec{
 		Deployments:        []csvDeployments{},
