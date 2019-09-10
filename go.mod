@@ -20,7 +20,7 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 	github.com/operator-framework/operator-sdk v0.10.0
 	github.com/prometheus/client_golang v0.9.4 // indirect
-	github.com/rook/rook v1.1.0-beta.1
+	github.com/rook/rook v1.1.0-beta.0
 	github.com/stretchr/testify v1.3.0
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/zap v1.10.0 // indirect

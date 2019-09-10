@@ -8,7 +8,7 @@ CSV_CHECKSUM="tools/csv-checksum/csv-checksum"
 (cd tools/csv-checksum/ && go build)
 
 NOOBAA_VERSION="1.1.0"
-ROOK_VERSION="v1.1.0-beta.1"
+ROOK_VERSION="v1.1.0-beta.0"
 
 export CSV_CHECKSUM_OUTFILE="hack/latest-csv-checksum.md5"
 

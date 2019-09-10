@@ -277,28 +277,6 @@ spec:
           - deployments
           verbs:
           - '*'
-        - apiGroups:
-          - healthchecking.openshift.io
-          resources:
-          - machinedisruptionbudgets
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - machine.openshift.io
-          resources:
-          - machines
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
         serviceAccountName: rook-ceph-system
       - rules: []
         serviceAccountName: rook-ceph-mgr-cluster
@@ -347,15 +325,6 @@ spec:
           verbs:
           - '*'
         serviceAccountName: rook-ceph-system
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - nodes
-          verbs:
-          - get
-          - list
-        serviceAccountName: rook-ceph-osd
       - rules: []
         serviceAccountName: rook-ceph-mgr-system
       - rules:
@@ -821,8 +790,6 @@ spec:
                   value: "false"
                 - name: ROOK_ENABLE_DISCOVERY_DAEMON
                   value: "false"
-                - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
-                  value: "true"
                 - name: ROOK_DISABLE_DEVICE_HOTPLUG
                   value: "true"
                 - name: NODE_NAME
@@ -837,7 +804,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: rook/ceph:v1.1.0-beta.1
+                image: rook/ceph:v1.1.0-beta.0
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
