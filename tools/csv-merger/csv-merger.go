@@ -460,7 +460,7 @@ The OCS operator is the primary operator for Red Hat OpenShift Container Storage
 	ocsCSV.Annotations["alm-examples"] = `
 [
     {
-        "apiVersion": "ocs.openshift.io/v1alpha1",
+        "apiVersion": "ocs.openshift.io/v1",
         "kind": "StorageCluster",
         "metadata": {
             "name": "example-storagecluster",
@@ -507,7 +507,7 @@ The OCS operator is the primary operator for Red Hat OpenShift Container Storage
         }
     },
     {
-        "apiVersion": "ocs.openshift.io/v1alpha1",
+        "apiVersion": "ocs.openshift.io/v1",
         "kind": "OCSInitialization",
         "metadata": {
             "name": "example-ocsinitialization"
@@ -515,7 +515,7 @@ The OCS operator is the primary operator for Red Hat OpenShift Container Storage
         "spec": {}
     },
     {
-        "apiVersion": "ocs.openshift.io/v1alpha1",
+        "apiVersion": "ocs.openshift.io/v1",
         "kind": "StorageClusterInitialization",
         "metadata": {
             "name": "example-storageclusterinitialization"
