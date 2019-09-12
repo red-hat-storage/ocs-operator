@@ -18,7 +18,12 @@ type StorageClusterInitializationSpec struct {
 // StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization
 // +k8s:openapi-gen=true
 type StorageClusterInitializationStatus struct {
-	// Conditions describes the state of the OCSInitialization resource.
+	// Phase describes the Phase of StorageClusterInitialization
+	// This is used by OLM UI to provide status information
+	// to the user
+	Phase string `json:"phase,omitempty"`
+
+	// Conditions describes the state of the StorageClusterInitialization resource.
 	// +optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`
 

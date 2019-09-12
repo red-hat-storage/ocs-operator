@@ -41,7 +41,7 @@ spec:
             cephObjectStoresCreated:
               type: boolean
             conditions:
-              description: Conditions describes the state of the OCSInitialization
+              description: Conditions describes the state of the StorageClusterInitialization
                 resource.
               items:
                 properties:
@@ -70,6 +70,10 @@ spec:
               type: string
             noobaaSystemCreated:
               type: boolean
+            phase:
+              description: Phase describes the Phase of StorageClusterInitialization
+                This is used by OLM UI to provide status information to the user
+              type: string
             relatedObjects:
               description: RelatedObjects is a list of objects created and maintained
                 by this operator. Object references will be added to this list after
