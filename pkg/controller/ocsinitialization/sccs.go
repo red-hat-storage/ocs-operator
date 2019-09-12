@@ -14,7 +14,7 @@ import (
 func (r *ReconcileOCSInitialization) ensureSCCs(initialData *ocsv1.OCSInitialization, reqLogger logr.Logger) error {
 	sccs := getAllSCCs(initialData.Namespace)
 	for _, scc := range sccs {
-		_, err := r.secClient.SecurityContextConstraints().Get(scc.Name, metav1.GetOptions{})
+		found, err := r.secClient.SecurityContextConstraints().Get(scc.Name, metav1.GetOptions{})
 
 		if err != nil && errors.IsNotFound(err) {
 			reqLogger.Info(fmt.Sprintf("Creating %s SecurityContextConstraint", scc.Name))
@@ -23,6 +23,7 @@ func (r *ReconcileOCSInitialization) ensureSCCs(initialData *ocsv1.OCSInitializa
 				return fmt.Errorf("unable to create SCC %+v: %v", scc, err)
 			}
 		} else if err == nil {
+			scc.ObjectMeta = found.ObjectMeta
 			reqLogger.Info(fmt.Sprintf("Updating %s SecurityContextConstraint", scc.Name))
 			_, err := r.secClient.SecurityContextConstraints().Update(scc)
 			if err != nil {
