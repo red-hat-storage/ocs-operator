@@ -24,6 +24,56 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	nodeAffinityKey   = "cluster.ocs.openshift.io/openshift-storage"
+	nodeTolerationKey = "node.ocs.openshift.io/storage"
+)
+
+var (
+	defaultOSDPlacement = rook.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					corev1.NodeSelectorTerm{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							corev1.NodeSelectorRequirement{
+								Key:      nodeAffinityKey,
+								Operator: corev1.NodeSelectorOpExists,
+							},
+						},
+					},
+				},
+			},
+		},
+		Tolerations: []corev1.Toleration{
+			corev1.Toleration{
+				Key:      nodeTolerationKey,
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			},
+		},
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				corev1.WeightedPodAffinityTerm{
+					Weight: 100,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								metav1.LabelSelectorRequirement{
+									Key:      "app",
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{"rook-ceph-osd"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+)
+
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
 // Note:
@@ -240,8 +290,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 	labels := map[string]string{
 		"app": sc.Name,
 	}
-	nodeAffinityKey := "cluster.ocs.openshift.io/openshift-storage"
-	nodeTolerationKey := "node.ocs.openshift.io/storage"
 
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -313,49 +361,14 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 	}
 	// Applying Placement Configurations to each StorageClassDeviceSets
 	// rook.Placement.All may not apply to StorageClassDeviceSet
-	for _, scds := range cephCluster.Spec.Storage.StorageClassDeviceSets {
-		scds.Placement = rook.Placement{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						corev1.NodeSelectorTerm{
-							MatchExpressions: []corev1.NodeSelectorRequirement{
-								corev1.NodeSelectorRequirement{
-									Key:      nodeAffinityKey,
-									Operator: corev1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
-			Tolerations: []corev1.Toleration{
-				corev1.Toleration{
-					Key:      nodeTolerationKey,
-					Operator: corev1.TolerationOpEqual,
-					Value:    "true",
-					Effect:   corev1.TaintEffectNoSchedule,
-				},
-			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					corev1.WeightedPodAffinityTerm{
-						Weight: 100,
-						PodAffinityTerm: corev1.PodAffinityTerm{
-							LabelSelector: &metav1.LabelSelector{
-								MatchExpressions: []metav1.LabelSelectorRequirement{
-									metav1.LabelSelectorRequirement{
-										Key:      "app",
-										Operator: metav1.LabelSelectorOpIn,
-										Values:   []string{"rook-ceph-osd"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
+	for i := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+		// Storage.StorageClassDeviceSets is a slice of actual objects. No
+		// pointers. So range would return copy of each object in
+		// Storage.StorageClassDeviceSets. Modifying this copy, will not affect the
+		// object in the slice.
+		// Hence, we instead get a pointer to actual object using the index and
+		// modify it.
+		cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaultOSDPlacement
 	}
 
 	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
