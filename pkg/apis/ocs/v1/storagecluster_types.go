@@ -23,7 +23,8 @@ type StorageClusterSpec struct {
 // StorageDeviceSet defines a set of storage devices.
 // It is derived from and mapped to StorageClassDeviceSet in Rook.
 type StorageDeviceSet struct {
-	Name            string                       `json:"name"`
+	Name string `json:"name"`
+	// +kubebuilder:validation:Minimum=1
 	Count           int                          `json:"count"`
 	Resources       corev1.ResourceRequirements  `json:"resources"`
 	Placement       rookalpha.Placement          `json:"placement"`
