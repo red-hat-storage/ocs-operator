@@ -65,7 +65,11 @@ cluster-clean:
 	@echo "Removing ocs install from cluster"
 	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/cluster-clean.sh
 
-functest:
+build-functest:
+	@echo "Building functional tests"
+	hack/build-functest.sh
+
+functest: build-functest
 	@echo "Running functional test suite"
 	hack/functest.sh
 

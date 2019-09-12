@@ -3,6 +3,7 @@
 IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-docker run --rm -it}"
 
 OUTDIR="build/_output"
+OUTDIR_BIN="build/_output/bin"
 OUTDIR_TEMPLATES="$OUTDIR/csv-templates"
 OUTDIR_CRDS="$OUTDIR_TEMPLATES/crds"
 OUTDIR_BUNDLEMANIFESTS="$OUTDIR_TEMPLATES/bundlemanifests"

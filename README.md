@@ -224,3 +224,60 @@ You may modify or delete any of the operator's initial data. To reset and
 restore that data to its initial state, delete the OCSInitialization resource. It
 will be recreated, and all associated resources will be either recreated or
 restored to their original state.
+
+## Functional Tests
+
+Our functional test suite uses the [ginkgo](https://onsi.github.io/ginkgo/) testing framework.
+
+**Prerequisites for running Functional Tests**
+- ocs must already be installed
+- KUBECONFIG env var must be set
+
+**Running functional test**
+
+```make functest```
+
+Below is some sample output of what to expect.
+
+```
+Building functional tests
+hack/build-functest.sh
+GINKO binary found at /home/dvossel/go/bin/ginkgo
+Compiling functests...
+    compiled functests.test
+Running functional test suite
+hack/functest.sh
+Running Functional Test Suite
+Running Suite: Tests Suite
+==========================
+Random Seed: 1568299067
+Will run 1 of 1 specs
+
+•
+Ran 1 of 1 Specs in 7.961 seconds
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 0 Skipped
+PASS
+```
+
+**Developing Functional Tests**
+
+All the functional test code lives in the ```functests/``` directory. For an
+example of how a functional test is structured, look at the ```functests/pvc_creation_test.go```
+file.
+
+The tests themselves should invoke simple to understand steps. Put any complex
+logic into separate helper files in the functests/ directory so test flows are
+easy to follow.
+
+**Running a single test**
+When developing a test, it's common to just want to run a single functional test
+rather than the whole suite. This can be done using ginkgo's "focus" feature.
+
+All you have to do is put a ```F``` in front of the tests declaration to force
+only that test to run. So, if you have an iteration like ```It("some test")```
+defined, you just need to set that to ```FIt("some test")``` to force the test
+suite to only execute that single test.
+
+Make sure to remove the focus from your test before creating the pull request.
+Otherwise the test suite will fail in CI.
+
