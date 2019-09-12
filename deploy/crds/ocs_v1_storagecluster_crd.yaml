@@ -42,6 +42,7 @@ spec:
                     type: object
                   count:
                     format: int64
+                    minimum: 1
                     type: integer
                   dataPVCTemplate:
                     type: object
