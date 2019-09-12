@@ -828,6 +828,11 @@ spec:
                 - mountPath: /etc/ceph
                   name: default-config-dir
               serviceAccountName: rook-ceph-system
+              tolerations:
+              - effect: NoSchedule
+                key: node.ocs.openshift.io/storage
+                operator: Equal
+                value: "true"
               volumes:
               - emptyDir: {}
                 name: rook-config
@@ -866,6 +871,11 @@ spec:
                     cpu: 250m
                     memory: 256Mi
               serviceAccountName: noobaa-operator
+              tolerations:
+              - effect: NoSchedule
+                key: node.ocs.openshift.io/storage
+                operator: Equal
+                value: "true"
       - name: ocs-operator
         spec:
           replicas: 1
@@ -910,6 +920,11 @@ spec:
                   periodSeconds: 10
                 resources: {}
               serviceAccountName: ocs-operator
+              tolerations:
+              - effect: NoSchedule
+                key: node.ocs.openshift.io/storage
+                operator: Equal
+                value: "true"
       permissions:
       - rules:
         - apiGroups:
