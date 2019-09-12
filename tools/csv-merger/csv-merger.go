@@ -392,6 +392,20 @@ func generateUnifiedCSV() {
 		Description: "Local Storage Operator",
 	})
 
+	// Add tolerations to deployments
+	for i := range templateStrategySpec.Deployments {
+		d := &templateStrategySpec.Deployments[i]
+		d.Spec.Template.Spec.Tolerations = []corev1.Toleration{
+			{
+				Key:      "node.ocs.openshift.io/storage",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			},
+		}
+	}
+	fmt.Println(templateStrategySpec.Deployments)
+
 	// Re-serialize deployments and permissions into csv strategy.
 	updatedStrat, err := json.Marshal(templateStrategySpec)
 	if err != nil {
