@@ -83,6 +83,13 @@ func schema_pkg_apis_ocs_v1_OCSInitializationStatus(ref common.ReferenceCallback
 			SchemaProps: spec.SchemaProps{
 				Description: "OCSInitializationStatus defines the observed state of OCSInitialization",
 				Properties: map[string]spec.Schema{
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase describes the Phase of OCSInitialization This is used by OLM UI to provide status information to the user",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Conditions describes the state of the OCSInitialization resource.",
@@ -233,9 +240,16 @@ func schema_pkg_apis_ocs_v1_StorageClusterInitializationStatus(ref common.Refere
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization",
 				Properties: map[string]spec.Schema{
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase describes the Phase of StorageClusterInitialization This is used by OLM UI to provide status information to the user",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Conditions describes the state of the OCSInitialization resource.",
+							Description: "Conditions describes the state of the StorageClusterInitialization resource.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -315,6 +329,13 @@ func schema_pkg_apis_ocs_v1_StorageClusterStatus(ref common.ReferenceCallback) c
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageClusterStatus defines the observed state of StorageCluster",
 				Properties: map[string]spec.Schema{
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase describes the Phase of StorageCluster This is used by OLM UI to provide status information to the user",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"conditions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Conditions describes the state of the StorageCluster resource.",

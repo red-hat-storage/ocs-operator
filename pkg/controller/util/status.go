@@ -9,6 +9,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// These constants represent the overall Phase as used by .Status.Phase
+const (
+	// PhaseIgnored is used when a resource is ignored
+	PhaseIgnored string = "Ignored"
+	// PhaseProgressing is used when SetProgressingCondition is called
+	PhaseProgressing string = "Progressing"
+	// PhaseError is used when SetErrorCondition is called
+	PhaseError string = "Error"
+	// PhaseReady is used when SetCompleteCondition is called
+	PhaseReady string = "Ready"
+	// PhaseNotReady is used when we explicitly mark system as NotReady
+	PhaseNotReady string = "Not Ready"
+	// PhaseClusterExpanding is used when cluster is expanding capacity
+	PhaseClusterExpanding string = "Expanding Capacity"
+)
+
 // SetProgressingCondition sets the ProgressingCondition to True and other conditions to
 // false or Unknown. Used when we are just starting to reconcile, and there are no existing
 // conditions.

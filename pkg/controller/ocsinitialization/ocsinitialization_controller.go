@@ -105,6 +105,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 			return reconcile.Result{}, err
 		}
 
+		instance.Status.Phase = statusutil.PhaseIgnored
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			reqLogger.Error(err, "failed to update ignored resource")
@@ -136,6 +137,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		message := "Initializing OCSInitialization resource"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
+		instance.Status.Phase = statusutil.PhaseProgressing
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			reqLogger.Error(err, "Failed to add conditions to status")
@@ -150,6 +152,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
+			instance.Status.Phase = statusutil.PhaseError
 			// don't want to overwrite the actual reconcile failure
 			uErr := r.client.Status().Update(context.TODO(), instance)
 			if uErr != nil {
@@ -168,6 +171,8 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 	reason := ocsv1.ReconcileCompleted
 	message := ocsv1.ReconcileCompletedMessage
 	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
+
+	instance.Status.Phase = statusutil.PhaseReady
 	err = r.client.Status().Update(context.TODO(), instance)
 
 	return reconcile.Result{}, err

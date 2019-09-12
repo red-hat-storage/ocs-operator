@@ -54,6 +54,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		message := "Initializing StorageCluster"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
+		instance.Status.Phase = statusutil.PhaseProgressing
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			reqLogger.Error(err, "Failed to add conditions to status")
@@ -104,6 +105,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
+			instance.Status.Phase = statusutil.PhaseError
 			// don't want to overwrite the actual reconcile failure
 			uErr := r.client.Status().Update(context.TODO(), instance)
 			if uErr != nil {
@@ -123,6 +125,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		// to set readiness.
 		r := ready.NewFileReady()
 		err = r.Set()
+		instance.Status.Phase = statusutil.PhaseReady
 		if err != nil {
 			reqLogger.Error(err, "Failed to mark operator ready")
 			return reconcile.Result{}, err
@@ -148,11 +151,17 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			Reason:  reason,
 			Message: message,
 		})
+		instance.Status.Phase = statusutil.PhaseReady
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
 			r := ready.NewFileReady()
 			err = r.Unset()
+			// Mark as Not Ready only when Phase is Ready or Empty
+			// When in any other Phase, Not Ready is implied
+			if instance.Status.Phase == statusutil.PhaseReady || instance.Status.Phase == "" {
+				instance.Status.Phase = statusutil.PhaseNotReady
+			}
 			if err != nil {
 				reqLogger.Error(err, "Failed to mark operator unready")
 				return reconcile.Result{}, err
@@ -187,6 +196,20 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	// Update the CephCluster if it is not in the desired state
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
 		reqLogger.Info("Updating spec for CephCluster")
+		// Check if Cluster is Expanding
+		for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
+			expanding := false
+			for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+				if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
+					expanding = true
+					sc.Status.Phase = statusutil.PhaseClusterExpanding
+					break
+				}
+			}
+			if expanding {
+				break
+			}
+		}
 		found.Spec = cephCluster.Spec
 		return r.client.Update(context.TODO(), found)
 	}

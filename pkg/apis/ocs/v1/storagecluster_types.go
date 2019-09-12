@@ -39,6 +39,11 @@ type StorageDeviceSetConfig struct{}
 // StorageClusterStatus defines the observed state of StorageCluster
 // +k8s:openapi-gen=true
 type StorageClusterStatus struct {
+	// Phase describes the Phase of StorageCluster
+	// This is used by OLM UI to provide status information
+	// to the user
+	Phase string `json:"phase,omitempty"`
+
 	// Conditions describes the state of the StorageCluster resource.
 	// +optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`
