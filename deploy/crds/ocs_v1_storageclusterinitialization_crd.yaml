@@ -82,6 +82,8 @@ spec:
               type: array
             storageClassesCreated:
               type: boolean
+            cephToolboxCreated:
+              type: boolean
           type: object
   version: v1
   versions:

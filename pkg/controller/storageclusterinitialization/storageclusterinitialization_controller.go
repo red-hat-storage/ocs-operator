@@ -10,6 +10,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -257,6 +258,30 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		}
 	}
 
+	if instance.Status.CephToolboxCreated != true {
+		// we only create the data once and then allow changes or even deletion
+		err = r.ensureToolboxDeployment(instance, reqLogger)
+		if err != nil {
+			reason := ocsv1.ReconcileFailed
+			message := fmt.Sprintf("Error while reconciling: %v", err)
+			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+
+			// don't want to overwrite the actual reconcile failure
+			uErr := r.client.Status().Update(context.TODO(), instance)
+			if uErr != nil {
+				reqLogger.Error(uErr, "Failed to update conditions")
+			}
+			return reconcile.Result{}, err
+
+		}
+
+		instance.Status.CephToolboxCreated = true
+		err = r.client.Status().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	if instance.Status.NoobaaSystemCreated != true {
 		// we only create the data once and then allow changes or even deletion
 		err = r.ensureNoobaaSystem(instance, reqLogger)
@@ -317,11 +342,9 @@ func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData
 			if err != nil {
 				return err
 			}
-		default:
-			return err
 		}
 	}
-	return nil
+	return err
 }
 
 // newStorageClasses returns the StorageClass instances that should be created
@@ -392,11 +415,9 @@ func (r *ReconcileStorageClusterInitialization) ensureCephObjectStores(initialDa
 			if err != nil {
 				return err
 			}
-		default:
-			return err
 		}
 	}
-	return nil
+	return err
 }
 
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
@@ -490,11 +511,9 @@ func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData
 			if err != nil {
 				return err
 			}
-		default:
-			return err
 		}
 	}
-	return nil
+	return err
 }
 
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
@@ -542,11 +561,9 @@ func (r *ReconcileStorageClusterInitialization) ensureCephObjectStoreUsers(initi
 			if err != nil {
 				return err
 			}
-		default:
-			return err
 		}
 	}
-	return nil
+	return err
 }
 
 // newCephObjectStoreUserInstances returns the cephObjectStoreUser instances that should be created
@@ -592,11 +609,9 @@ func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialDat
 			if err != nil {
 				return err
 			}
-		default:
-			return err
 		}
 	}
-	return nil
+	return err
 }
 
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
@@ -662,6 +677,110 @@ func (r *ReconcileStorageClusterInitialization) newCephFilesystemInstances(initD
 									},
 									TopologyKey: "kubernetes.io/hostname",
 								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return ret, nil
+}
+
+// ensureToolboxDeployment ensures that ceph toolbox exist in the desired
+// state.
+func (r *ReconcileStorageClusterInitialization) ensureToolboxDeployment(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
+	toolboxInstances, err := r.newToolboxDeploymentInstance(initialData)
+	if err != nil {
+		return err
+	}
+	for _, toolboxInstance := range toolboxInstances {
+		existing := appsv1.Deployment{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: toolboxInstance.Name, Namespace: toolboxInstance.Namespace}, &existing)
+
+		switch {
+		case err == nil:
+			reqLogger.Info(fmt.Sprintf("Restoring original toolboxInstance %s", toolboxInstance.Name))
+			toolboxInstance.DeepCopyInto(&existing)
+			err = r.client.Update(context.TODO(), &existing)
+			if err != nil {
+				return err
+			}
+		case errors.IsNotFound(err):
+			reqLogger.Info(fmt.Sprintf("Creating toolboxInstance %s", toolboxInstance.Name))
+			err = r.client.Create(context.TODO(), &toolboxInstance)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+// newToolboxDeploymentInstance returns the toolboxDeployment instances that should be created
+// on first run.
+func (r *ReconcileStorageClusterInitialization) newToolboxDeploymentInstance(initData *ocsv1.StorageClusterInitialization) ([]appsv1.Deployment, error) {
+	privilegedContainer := true
+	ret := []appsv1.Deployment{
+		appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-tools",
+				Namespace: initData.Namespace,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "rook-ceph-tools",
+					},
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": "rook-ceph-tools",
+						},
+					},
+					Spec: corev1.PodSpec{
+						DNSPolicy: corev1.DNSClusterFirstWithHostNet,
+						Containers: []corev1.Container{
+							corev1.Container{
+								Name:    "rook-ceph-tools",
+								Image:   "rook/ceph:master",
+								Command: []string{"/tini"},
+								Args:    []string{"-g", "--", "/usr/local/bin/toolbox.sh"},
+								Env: []corev1.EnvVar{
+									corev1.EnvVar{
+										Name: "ROOK_ADMIN_SECRET",
+										ValueFrom: &corev1.EnvVarSource{
+											SecretKeyRef: &corev1.SecretKeySelector{
+												LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+												Key:                  "admin-secret",
+											},
+										},
+									},
+								},
+								SecurityContext: &corev1.SecurityContext{
+									Privileged: &privilegedContainer,
+								},
+								VolumeMounts: []corev1.VolumeMount{
+									corev1.VolumeMount{Name: "dev", MountPath: "/dev"},
+									corev1.VolumeMount{Name: "sysbus", MountPath: "/sys/bus"},
+									corev1.VolumeMount{Name: "libmodules", MountPath: "/lib/modules"},
+									corev1.VolumeMount{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
+								},
+							},
+						},
+						HostNetwork: false,
+						Volumes: []corev1.Volume{
+							corev1.Volume{Name: "dev", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/dev"}}},
+							corev1.Volume{Name: "sysbus", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/sys/bus"}}},
+							corev1.Volume{Name: "libmodules", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/lib/modules"}}},
+							corev1.Volume{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
+									Items: []corev1.KeyToPath{
+										corev1.KeyToPath{Key: "data", Path: "mon-endpoints"},
+									},
+								},
+							},
 							},
 						},
 					},
