@@ -313,7 +313,15 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 	}
 	// Applying Placement Configurations to each StorageClassDeviceSets
 	// rook.Placement.All may not apply to StorageClassDeviceSet
-	for _, scds := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+	for i := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+		// Storage.StorageClassDeviceSets is a slice of actual objects. No
+		// pointers. So range would return copy of each object in
+		// Storage.StorageClassDeviceSets. Modifying this copy, will not affect the
+		// object in the slice.
+		// Hence, we instead get a pointer to actual object using the index and
+		// modify it.
+		scds := &cephCluster.Spec.Storage.StorageClassDeviceSets[i]
+
 		scds.Placement = rook.Placement{
 			NodeAffinity: &corev1.NodeAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
