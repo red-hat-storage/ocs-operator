@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-quay.io}"
 REGISTRY_NAMESPACE="${REGISTRY_NAMESPACE:-}"
 IMAGE_NAME="ocs-registry"
