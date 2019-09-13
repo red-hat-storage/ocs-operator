@@ -53,24 +53,6 @@ var (
 				Effect:   corev1.TaintEffectNoSchedule,
 			},
 		},
-		PodAntiAffinity: &corev1.PodAntiAffinity{
-			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-				corev1.WeightedPodAffinityTerm{
-					Weight: 100,
-					PodAffinityTerm: corev1.PodAffinityTerm{
-						LabelSelector: &metav1.LabelSelector{
-							MatchExpressions: []metav1.LabelSelectorRequirement{
-								metav1.LabelSelectorRequirement{
-									Key:      "app",
-									Operator: metav1.LabelSelectorOpIn,
-									Values:   []string{"rook-ceph-osd"},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
 	}
 )
 
