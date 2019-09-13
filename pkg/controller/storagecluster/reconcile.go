@@ -67,6 +67,7 @@ var (
 								},
 							},
 						},
+						TopologyKey: "kubernetes.io/hostname",
 					},
 				},
 			},
