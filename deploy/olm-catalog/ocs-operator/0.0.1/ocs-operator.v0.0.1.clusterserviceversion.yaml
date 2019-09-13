@@ -679,6 +679,7 @@ spec:
           - list
           - watch
           - create
+          - update
         - apiGroups:
           - ""
           resources:
