@@ -18,6 +18,8 @@ export CSV_VERSION=0.0.1
 # Current dependency images our DEV CSV are pinned to
 export ROOK_IMAGE=rook/ceph:v1.1.0
 export NOOBAA_IMAGE=noobaa/noobaa-operator:1.1.1
+export NOOBAA_CORE_IMAGE=noobaa/noobaa-core:5
+export NOOBAA_MONGODB_IMAGE=centos/mongodb-36-centos7
 export CEPH_IMAGE=ceph/ceph:v14.2.3-20190904
 export OCS_IMAGE=quay.io/ocs-dev/ocs-operator:latest
 
@@ -25,6 +27,8 @@ echo "=== Generating DEV CSV with the following vars ==="
 echo -e "\tCSV_VERSION=$CSV_VERSION"
 echo -e "\tROOK_IMAGE=$ROOK_IMAGE"
 echo -e "\tNOOBAA_IMAGE=$NOOBAA_IMAGE"
+echo -e "\tNOOBAA_CORE_IMAGE=$NOOBAA_CORE_IMAGE"
+echo -e "\tNOOBAA_MONGODB_IMAGE=$NOOBAA_MONGODB_IMAGE"
 echo -e "\tCEPH_IMAGE=$CEPH_IMAGE"
 echo -e "\tOCS_IMAGE=$OCS_IMAGE"
 
@@ -48,5 +52,7 @@ $CSV_CHECKSUM \
 	--rook-csi-snapshotter-image=$ROOK_CSI_SNAPSHOTTER_IMAGE \
 	--rook-csi-attacher-image=$ROOK_CSI_ATTACHER_IMAGE \
 	--noobaa-image=$NOOBAA_IMAGE \
+	--noobaa-core-image=$NOOBAA_CORE_IMAGE \
+	--noobaa-mongodb-image=$NOOBAA_MONGODB_IMAGE \
 	--ocs-image=$OCS_IMAGE \
 	--checksum-outfile=$CSV_CHECKSUM_OUTFILE
