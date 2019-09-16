@@ -1,9 +1,12 @@
 package storageclusterinitialization
 
 import (
+	"testing"
+
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -11,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"testing"
 )
 
 var logt = logf.Log.WithName("controller_storageclusterinitialization_test")
@@ -65,7 +67,7 @@ func TestInitStorageClusterWithOutResources(t *testing.T) {
 	}
 	reconciler := createFakeStorageClusterInitReconciler(t, cr)
 	result, err := reconciler.Reconcile(request)
-	assert.Error(t, err)
+	assert.Equal(t, nil, err)
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
@@ -111,7 +113,12 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 			Name: "ocsinit-cos-not-found",
 		},
 	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd)
+	tbd := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-ceph-tools",
+		},
+	}
+	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd, tbd)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -159,7 +166,12 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 			Name: "ocsinit-cephobjectstore",
 		},
 	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd)
+	tbd := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-ceph-tools",
+		},
+	}
+	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd, tbd)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
