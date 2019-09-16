@@ -581,8 +581,8 @@ func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialDat
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
-			cephFilesystem.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
+			cephFilesystem.ObjectMeta = existing.ObjectMeta
+			err = r.client.Update(context.TODO(), &cephFilesystem)
 			if err != nil {
 				return err
 			}
