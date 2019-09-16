@@ -7,21 +7,18 @@ source hack/common.sh
 CSV_CHECKSUM="tools/csv-checksum/csv-checksum"
 (cd tools/csv-checksum/ && go build)
 
-NOOBAA_VERSION="1.1.0"
-ROOK_VERSION="v1.1.0"
-
 export CSV_CHECKSUM_OUTFILE="hack/latest-csv-checksum.md5"
 
 # Current DEV version of the CSV
 export CSV_VERSION=0.0.1
 
 # Current dependency images our DEV CSV are pinned to
-export ROOK_IMAGE=rook/ceph:v1.1.0
-export NOOBAA_IMAGE=noobaa/noobaa-operator:1.1.1
-export NOOBAA_CORE_IMAGE=noobaa/noobaa-core:5
-export NOOBAA_MONGODB_IMAGE=centos/mongodb-36-centos7
-export CEPH_IMAGE=ceph/ceph:v14.2.3-20190904
-export OCS_IMAGE=quay.io/ocs-dev/ocs-operator:latest
+export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:v1.1.0"}
+export NOOBAA_IMAGE=${NOOBAA_IMAGE:-"noobaa/noobaa-operator:1.1.1"}
+export NOOBAA_CORE_IMAGE=${NOOBAA_CORE_IMAGE:-"noobaa/noobaa-core:5"}
+export NOOBAA_MONGODB_IMAGE=${NOOBAA_MONGODB_IMAGE:-"centos/mongodb-36-centos7"}
+export CEPH_IMAGE=${CEPH_IMAGE:-"ceph/ceph:v14.2.3-20190904"}
+export OCS_IMAGE=${OCS_IMAGE:-"quay.io/ocs-dev/ocs-operator:latest"}
 
 echo "=== Generating DEV CSV with the following vars ==="
 echo -e "\tCSV_VERSION=$CSV_VERSION"
