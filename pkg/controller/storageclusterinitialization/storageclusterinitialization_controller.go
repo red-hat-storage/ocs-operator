@@ -550,8 +550,8 @@ func (r *ReconcileStorageClusterInitialization) ensureCephObjectStoreUsers(initi
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original cephObjectStoreUser %s", cephObjectStoreUser.Name))
-			cephObjectStoreUser.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
+			cephObjectStoreUser.ObjectMeta = existing.ObjectMeta
+			err = r.client.Update(context.TODO(), &cephObjectStoreUser)
 			if err != nil {
 				return err
 			}
