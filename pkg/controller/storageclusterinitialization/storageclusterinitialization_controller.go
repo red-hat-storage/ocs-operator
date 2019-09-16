@@ -306,8 +306,8 @@ func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original StorageClass %s", sc.Name))
-			sc.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
+			sc.ObjectMeta = existing.ObjectMeta
+			err = r.client.Update(context.TODO(), &sc)
 			if err != nil {
 				return err
 			}
