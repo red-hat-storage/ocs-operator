@@ -479,8 +479,8 @@ func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original cephBlockPool %s", cephBlockPool.Name))
-			cephBlockPool.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
+			cephBlockPool.ObjectMeta = existing.ObjectMeta
+			err = r.client.Update(context.TODO(), &cephBlockPool)
 			if err != nil {
 				return err
 			}
