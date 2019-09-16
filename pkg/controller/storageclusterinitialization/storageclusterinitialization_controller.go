@@ -331,8 +331,8 @@ func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original StorageClass %s", sc.Name))
-			sc.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
+			sc.ObjectMeta = existing.ObjectMeta
+			err = r.client.Update(context.TODO(), &sc)
 			if err != nil {
 				return err
 			}
@@ -500,8 +500,8 @@ func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original cephBlockPool %s", cephBlockPool.Name))
-			cephBlockPool.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
+			cephBlockPool.ObjectMeta = existing.ObjectMeta
+			err = r.client.Update(context.TODO(), &cephBlockPool)
 			if err != nil {
 				return err
 			}
@@ -598,8 +598,8 @@ func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialDat
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
-			cephFilesystem.DeepCopyInto(&existing)
-			err = r.client.Update(context.TODO(), &existing)
+			cephFilesystem.ObjectMeta = existing.ObjectMeta
+			err = r.client.Update(context.TODO(), &cephFilesystem)
 			if err != nil {
 				return err
 			}
