@@ -905,6 +905,10 @@ spec:
                   value: ocs-operator
                 - name: CEPH_IMAGE
                   value: ceph/ceph:v14.2.3-20190904
+                - name: NOOBAA_CORE_IMAGE
+                  value: noobaa/noobaa-core:5
+                - name: NOOBAA_MONGODB_IMAGE
+                  value: centos/mongodb-36-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: Always
                 name: ocs-operator
