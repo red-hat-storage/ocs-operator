@@ -14,7 +14,6 @@ ceph_resources=()
 ceph_resources+=(cephblockpools)
 ceph_resources+=(cephclusters)
 ceph_resources+=(cephfilesystems)
-ceph_resources+=(cephnfses)
 ceph_resources+=(cephobjectstores)
 ceph_resources+=(cephobjectstoreusers)
 
