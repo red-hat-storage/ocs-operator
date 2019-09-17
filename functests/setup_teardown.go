@@ -48,7 +48,7 @@ func testStorageCluster() *ocsv1.StorageCluster {
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
 					Name:     "example-deviceset",
-					Count:    3,
+					Count:    MinOSDsCount,
 					Portable: true,
 					DataPVCTemplate: k8sv1.PersistentVolumeClaim{
 						Spec: k8sv1.PersistentVolumeClaimSpec{
@@ -200,11 +200,28 @@ func (t *TestClient) waitOnStorageCluster() {
 func (t *TestClient) labelWorkerNodes() {
 	nodes, err := t.k8sClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	labeledCount := MinOSDsCount
+	azs := make(map[string]string)
+
 	for _, node := range nodes.Items {
 		old, err := json.Marshal(node)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		new := node.DeepCopy()
 		new.Labels["cluster.ocs.openshift.io/openshift-storage"] = ""
+
+		az, ok := node.Labels["failure-domain.beta.kubernetes.io/zone"]
+		if !ok {
+			continue
+		}
+
+		// ensure we only label one node in each AZ
+		_, exists := azs[az]
+		if exists {
+			continue
+		}
+
+		azs[az] = node.Name
 
 		newJSON, err := json.Marshal(new)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
@@ -214,7 +231,14 @@ func (t *TestClient) labelWorkerNodes() {
 
 		_, err = t.k8sClient.CoreV1().Nodes().Patch(node.Name, types.StrategicMergePatchType, patch)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+		labeledCount--
+		if labeledCount == 0 {
+			break
+		}
 	}
+
+	gomega.Expect(labeledCount).To(gomega.Equal(0))
 }
 
 func (t *TestClient) startStorageCluster() {
