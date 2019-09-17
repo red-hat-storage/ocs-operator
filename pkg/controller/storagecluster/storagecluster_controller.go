@@ -95,5 +95,6 @@ type ReconcileStorageCluster struct {
 	scheme     *runtime.Scheme
 	reqLogger  logr.Logger
 	conditions []conditionsv1.Condition
+	phase      string
 	cephImage  string
 }
