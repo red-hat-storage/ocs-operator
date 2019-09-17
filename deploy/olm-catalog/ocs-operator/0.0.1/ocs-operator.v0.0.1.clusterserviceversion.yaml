@@ -883,7 +883,8 @@ spec:
           selector:
             matchLabels:
               name: ocs-operator
-          strategy: {}
+          strategy:
+            type: Recreate
           template:
             metadata:
               labels:
