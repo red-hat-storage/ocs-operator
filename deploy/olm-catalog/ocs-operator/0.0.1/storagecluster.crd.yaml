@@ -30,6 +30,8 @@ spec:
           type: object
         spec:
           properties:
+            hostNetwork:
+              type: boolean
             instanceType:
               type: string
             manageNodes:
