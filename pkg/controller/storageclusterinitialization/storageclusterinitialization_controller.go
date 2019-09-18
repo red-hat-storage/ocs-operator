@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -325,8 +326,12 @@ func (r *ReconcileStorageClusterInitialization) ensureStorageClasses(initialData
 		return err
 	}
 	for _, sc := range scs {
+		err := controllerutil.SetControllerReference(initialData, &sc, r.scheme)
+		if err != nil {
+			return err
+		}
 		existing := storagev1.StorageClass{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
 
 		switch {
 		case err == nil:
@@ -398,8 +403,12 @@ func (r *ReconcileStorageClusterInitialization) ensureCephObjectStores(initialDa
 		return err
 	}
 	for _, cephObjectStore := range cephObjectStores {
+		err := controllerutil.SetControllerReference(initialData, &cephObjectStore, r.scheme)
+		if err != nil {
+			return err
+		}
 		existing := cephv1.CephObjectStore{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
 
 		switch {
 		case err == nil:
@@ -494,8 +503,12 @@ func (r *ReconcileStorageClusterInitialization) ensureCephBlockPools(initialData
 		return err
 	}
 	for _, cephBlockPool := range cephBlockPools {
+		err := controllerutil.SetControllerReference(initialData, &cephBlockPool, r.scheme)
+		if err != nil {
+			return err
+		}
 		existing := cephv1.CephBlockPool{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: cephBlockPool.Namespace}, &existing)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: cephBlockPool.Namespace}, &existing)
 
 		switch {
 		case err == nil:
@@ -544,8 +557,12 @@ func (r *ReconcileStorageClusterInitialization) ensureCephObjectStoreUsers(initi
 		return err
 	}
 	for _, cephObjectStoreUser := range cephObjectStoreUsers {
+		err := controllerutil.SetControllerReference(initialData, &cephObjectStoreUser, r.scheme)
+		if err != nil {
+			return err
+		}
 		existing := cephv1.CephObjectStoreUser{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
 
 		switch {
 		case err == nil:
@@ -592,9 +609,12 @@ func (r *ReconcileStorageClusterInitialization) ensureCephFilesystems(initialDat
 		return err
 	}
 	for _, cephFilesystem := range cephFilesystems {
+		err := controllerutil.SetControllerReference(initialData, &cephFilesystem, r.scheme)
+		if err != nil {
+			return err
+		}
 		existing := cephv1.CephFilesystem{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
-
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
 		switch {
 		case err == nil:
 			reqLogger.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
@@ -695,8 +715,12 @@ func (r *ReconcileStorageClusterInitialization) ensureToolboxDeployment(initialD
 		return err
 	}
 	for _, toolboxInstance := range toolboxInstances {
+		err := controllerutil.SetControllerReference(initialData, &toolboxInstance, r.scheme)
+		if err != nil {
+			return err
+		}
 		existing := appsv1.Deployment{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: toolboxInstance.Name, Namespace: toolboxInstance.Namespace}, &existing)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: toolboxInstance.Name, Namespace: toolboxInstance.Namespace}, &existing)
 
 		switch {
 		case err == nil:
