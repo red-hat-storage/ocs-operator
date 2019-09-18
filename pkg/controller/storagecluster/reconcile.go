@@ -322,7 +322,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				Workers: 0,
 			},
 			Network: cephv1.NetworkSpec{
-				HostNetwork: false,
+				HostNetwork: sc.Spec.HostNetwork,
 			},
 			Monitoring: cephv1.MonitoringSpec{
 				Enabled:        true,
