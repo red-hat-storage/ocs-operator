@@ -16,6 +16,7 @@ import (
 type StorageClusterSpec struct {
 	ManageNodes       bool                          `json:"manageNodes,omitempty"`
 	InstanceType      string                        `json:"instanceType,omitempty"`
+	HostNetwork       bool                          `json:"hostNetwork,omitempty"`
 	StorageDeviceSets []StorageDeviceSet            `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate    *corev1.PersistentVolumeClaim `json:"monPVCTemplate,omitempty"`
 }
