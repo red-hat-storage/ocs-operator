@@ -29,6 +29,9 @@ spec:
           type: object
         spec:
           properties:
+            hostNetwork:
+              description: HostNetwork defaults to false
+              type: boolean
             instanceType:
               type: string
             manageNodes:

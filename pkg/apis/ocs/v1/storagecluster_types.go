@@ -14,8 +14,10 @@ import (
 
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
-	ManageNodes       bool                          `json:"manageNodes,omitempty"`
-	InstanceType      string                        `json:"instanceType,omitempty"`
+	ManageNodes  bool   `json:"manageNodes,omitempty"`
+	InstanceType string `json:"instanceType,omitempty"`
+	// HostNetwork defaults to false
+	HostNetwork       bool                          `json:"hostNetwork,omitempty"`
 	StorageDeviceSets []StorageDeviceSet            `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate    *corev1.PersistentVolumeClaim `json:"monPVCTemplate,omitempty"`
 }
