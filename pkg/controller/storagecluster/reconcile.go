@@ -3,7 +3,9 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
@@ -28,6 +30,26 @@ const (
 	nodeAffinityKey   = "cluster.ocs.openshift.io/openshift-storage"
 	nodeTolerationKey = "node.ocs.openshift.io/storage"
 )
+
+var defaultMonCount int = 3
+var monCount = defaultMonCount
+
+func init() {
+	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
+	if monCountStr == "" {
+		return
+	}
+
+	count, err := strconv.Atoi(monCountStr)
+	if err != nil {
+		panic(err)
+	}
+
+	if count > 0 {
+		monCount = count
+		log.Info("Using MON_COUNT_OVERRIDE value %d", monCount)
+	}
+}
 
 var (
 	defaultOSDPlacement = rook.Placement{
@@ -304,7 +326,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				AllowUnsupported: false,
 			},
 			Mon: cephv1.MonSpec{
-				Count:                3,
+				Count:                monCount,
 				AllowMultiplePerNode: false,
 			},
 			Mgr: cephv1.MgrSpec{

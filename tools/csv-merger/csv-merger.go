@@ -153,6 +153,10 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 				Name:  "NOOBAA_MONGODB_IMAGE",
 				Value: *noobaaMongoDBContainerImage,
 			},
+			{
+				Name:  "MON_COUNT_OVERRIDE",
+				Value: "3",
+			},
 		}
 
 		// append to env var list.
