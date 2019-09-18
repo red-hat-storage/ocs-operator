@@ -259,7 +259,38 @@ SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 0 Skipped
 PASS
 ```
 
-**Developing Functional Tests**
+**Functional test phases**
+
+There are 3 phases to the functional tests to be aware of.
+
+1. **BeforeSuite**: At this step, the StorageCluster object is created and the test
+blocks waiting for the StorageCluster to come online.
+
+2. **Test Execution**: Every written test can assume at this point that a
+StorageCluster is online and PVC actions should succeed.
+
+3. **AfterSuite**: This is where test artifact cleanup occurs. Right now all tests
+should execute in the `ocs-test` namespace in order for artifacts to be cleaned
+up properly.
+
+NOTE: The StorageCluster created in the BeforeSuite phase is not cleaned up.
+If you run the functional testsuite multiple times, BeforeSuite will simply
+fast succeed by detecting the StorageCluster already exists.
+
+**Replica 2 Workaround**
+
+Due to issue [#113](https://github.com/openshift/ocs-operator/issues/131) the functional test suite
+runs in replica 2 mode instead of replica 3. Once the underlying issue with
+rook is resolved, the test suite needs to return back to using replica 3. This
+will involve making two changes.
+
+1. Setting `MinOSDsCount = 3` in `functests/config.go`
+2. Removing the `Override mon count` RUN entry in the
+`openshift-ci/Dockerfile.registry.build file.
+
+Once these two changes are made, the functional test should run using replica 3
+
+### Developing Functional Tests
 
 All the functional test code lives in the ```functests/``` directory. For an
 example of how a functional test is structured, look at the ```functests/pvc_creation_test.go```
@@ -280,4 +311,31 @@ suite to only execute that single test.
 
 Make sure to remove the focus from your test before creating the pull request.
 Otherwise the test suite will fail in CI.
+
+### Debugging Functional Test Failures
+
+If an e2e test fails, you have access to two sets of data to help debug why the
+error occurred.
+
+**Functional test stdout log**
+
+This will tell you what test failed and it also outputs some debug information
+pertaining to the test cluster's state after the test suite exits. In prow you
+can find this log by clicking on the `details` link to the right of the
+`ci/prow/ocs-operator-e2e-aws` test entry on your PR. From there you can click
+the `Raw build-log.txt` link to view the full log.
+
+**PROW artifacts**
+
+In addition to the raw test stdout, each e2e test result has a set of artifacts
+associated with it that you can view using prow. These artifacts let you
+retroactively view information about the test cluster even after the e2e job
+has completed.
+
+To browse through the e2e test cluster artifacts, click on the `details` link
+to the right of the `ci/prow/ocs-operator-e2e-aws` test entry on your PR. From
+there look at the top right hand corner for the `artifacts` link. That will
+bring you to a directory tree. Follow the `artifacts/` directory to the
+`ocs-operator-e2e-aws/` directory. There you can find logs and information
+pertaining to ever object in the cluster.
 
