@@ -421,6 +421,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 					},
 				},
 			},
+			Resources: sc.Spec.Resources,
 		},
 	}
 	// Applying Placement Configurations to each StorageClassDeviceSets
