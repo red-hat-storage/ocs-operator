@@ -2,36 +2,44 @@ IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
 REGISTRY_NAMESPACE ?= "ocs-dev"
 IMAGE_TAG ?= "latest"
+
+OUTPUT_DIR="build/_output"
+CACHE_DIR="_cache"
+TOOLS_DIR="$(CACHE_DIR)/tools"
+
 OPERATOR_SDK_VERSION="v0.10.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
-OPERATOR_SDK="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
-OUTPUT_DIR="build/_output"
-TOOLS_DIR="$(OUTPUT_DIR)/tools"
+OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
+OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 # Enable GOPROXY. This speeds up a lot of vendoring operations.
 export GOPROXY=https://proxy.golang.org
+# Export GOROOT. Required for OPERATOR_SDK to work correctly for generate commands.
+export GOROOT=$(shell go env GOROOT)
 
 all: ocs-operator ocs-must-gather ocs-registry
 
-.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests cluster-deploy cluster-clean ocs-operator-openshift-ci-build functest
+.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests \
+	cluster-deploy cluster-clean ocs-operator-openshift-ci-build functest update-generated
+
 deps-update:
 	go mod tidy && go mod vendor
 
 operator-sdk:
-	@if [ ! -x "$(TOOLS_DIR)/$(OPERATOR_SDK)" ]; then\
+	@if [ ! -x "$(OPERATOR_SDK)" ]; then\
 		echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION)";\
 		mkdir -p $(TOOLS_DIR);\
-		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/$(OPERATOR_SDK) -o $(TOOLS_DIR)/$(OPERATOR_SDK);\
-		chmod +x $(TOOLS_DIR)/$(OPERATOR_SDK);\
+		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/$(OPERATOR_SDK_BIN) -o $(OPERATOR_SDK);\
+		chmod +x $(OPERATOR_SDK);\
 	else\
-		echo "Using operator-sdk cached at $(TOOLS_DIR)/$(OPERATOR_SDK)";\
+		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
 	fi
 
 ocs-operator: operator-sdk
 	@echo "Building the ocs-operator image"
-	$(TOOLS_DIR)/$(OPERATOR_SDK) build --go-build-args="-mod=vendor" --image-builder=$(IMAGE_BUILD_CMD) ${IMAGE_REGISTRY}/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
+	$(OPERATOR_SDK) build --go-build-args="-mod=vendor" --image-builder=$(IMAGE_BUILD_CMD) ${IMAGE_REGISTRY}/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
 
 ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
@@ -80,3 +88,9 @@ ocs-operator-openshift-ci-build:
 	mkdir -p build/_output/bin
 	go build -mod=vendor -o build/_output/bin/ocs-operator cmd/manager/main.go
 
+update-generated: operator-sdk
+	@echo Updating generated files
+	@echo
+	@$(OPERATOR_SDK) generate k8s
+	@echo
+	@$(OPERATOR_SDK) generate openapi
