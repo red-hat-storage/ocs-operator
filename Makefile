@@ -21,8 +21,26 @@ export GOROOT=$(shell go env GOROOT)
 
 all: ocs-operator ocs-must-gather ocs-registry
 
-.PHONY: clean ocs-operator ocs-must-gather ocs-registry gen-release-csv gen-latest-csv source-manifests \
-	cluster-deploy cluster-clean ocs-operator-openshift-ci-build functest update-generated
+.PHONY: \
+	build \
+	clean \
+	ocs-operator \
+	ocs-must-gather \
+	ocs-registry \
+	gen-release-csv \
+	gen-latest-csv \
+	verify-latest-csv \
+	source-manifests \
+	cluster-deploy \
+	cluster-clean \
+	ocs-operator-openshift-ci-build \
+	functest \
+	gofmt \
+	golint \
+	govet \
+	update-generated \
+	ocs-operator-ci \
+	unit-test
 
 deps-update:
 	go mod tidy && go mod vendor
@@ -37,9 +55,16 @@ operator-sdk:
 		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
 	fi
 
-ocs-operator: operator-sdk
+ocs-operator-openshift-ci-build: build
+
+build:
+	@echo "Building the ocs-operator binary"
+	mkdir -p build/_output/bin
+	go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/ocs-operator ./cmd/manager
+
+ocs-operator: build
 	@echo "Building the ocs-operator image"
-	$(OPERATOR_SDK) build --go-build-args="-mod=vendor" --image-builder=$(IMAGE_BUILD_CMD) ${IMAGE_REGISTRY}/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG)
+	$(IMAGE_BUILD_CMD) build -f build/Dockerfile -t $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG) build/
 
 ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
@@ -56,6 +81,10 @@ gen-latest-csv:
 gen-release-csv:
 	@echo "Generating unified CSV from sourced component-level operators"
 	hack/generate-unified-csv.sh
+
+verify-latest-csv:
+	@echo "Verifying latest csv checksum"
+	hack/verify-latest-csv.sh
 
 ocs-registry:
 	@echo "Building the ocs-registry image"
@@ -80,13 +109,23 @@ build-functest:
 functest: build-functest
 	@echo "Running functional test suite"
 	hack/functest.sh
+gofmt:
+	@echo "Running gofmt"
+	gofmt -s -l `find . -path ./vendor -prune -o -type f -name '*.go' -print`
 
-# This is used by the openshift-ci prow job.
-# It just makes the ocs-binary without invoking docker to build the container image.
-ocs-operator-openshift-ci-build:
-	@echo "Building ocs-operator binary for openshift-ci job"
-	mkdir -p build/_output/bin
-	go build -mod=vendor -o build/_output/bin/ocs-operator cmd/manager/main.go
+golint:
+	@echo "Running go lint"
+	hack/lint.sh
+
+govet:
+	@echo "Running go vet"
+	go vet ./...
+
+# ignoring the functest dir since it requires an active cluster
+# use 'make functest' to run just the functional tests
+unit-test:
+	@echo "Executing unit tests"
+	go test -v `go list ./... | grep -v "functest"`
 
 update-generated: operator-sdk
 	@echo Updating generated files
@@ -94,3 +133,10 @@ update-generated: operator-sdk
 	@$(OPERATOR_SDK) generate k8s
 	@echo
 	@$(OPERATOR_SDK) generate openapi
+
+verify-generated: update-generated
+	@echo "Verifying generated code"
+	hack/verify-generated.sh
+
+ocs-operator-ci: gofmt golint govet unit-test build verify-latest-csv verify-generated
+
