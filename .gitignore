@@ -48,6 +48,7 @@ tags
 
 # End of https://www.gitignore.io/api/go,vim,visualstudiocode
 _output
+_cache
 
 tools/csv-merger/csv-merger
 tools/csv-checksum/csv-checksum

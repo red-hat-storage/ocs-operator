@@ -39,6 +39,8 @@ spec:
               type: boolean
             cephObjectStoresCreated:
               type: boolean
+            cephToolboxCreated:
+              type: boolean
             conditions:
               description: Conditions describes the state of the StorageClusterInitialization
                 resource.
@@ -81,8 +83,6 @@ spec:
                 type: object
               type: array
             storageClassesCreated:
-              type: boolean
-            cephToolboxCreated:
               type: boolean
           type: object
   version: v1
