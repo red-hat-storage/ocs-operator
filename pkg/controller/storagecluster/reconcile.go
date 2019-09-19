@@ -384,14 +384,18 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 	}
 	// Applying Placement Configurations to each StorageClassDeviceSets
 	// rook.Placement.All may not apply to StorageClassDeviceSet
-	for i := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+	for i, storageClassDeviceSet := range cephCluster.Spec.Storage.StorageClassDeviceSets {
 		// Storage.StorageClassDeviceSets is a slice of actual objects. No
 		// pointers. So range would return copy of each object in
 		// Storage.StorageClassDeviceSets. Modifying this copy, will not affect the
 		// object in the slice.
 		// Hence, we instead get a pointer to actual object using the index and
 		// modify it.
-		cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaultOSDPlacement
+
+		if storageClassDeviceSet.Placement.NodeAffinity == nil && storageClassDeviceSet.Placement.PodAffinity == nil && storageClassDeviceSet.Placement.PodAntiAffinity == nil {
+			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaultOSDPlacement
+		}
+		return cephCluster
 	}
 
 	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
