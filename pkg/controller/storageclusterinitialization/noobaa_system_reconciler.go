@@ -12,15 +12,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
 
 	nb := r.newNooBaaSystem(initialData, reqLogger)
+	err := controllerutil.SetControllerReference(initialData, nb, r.scheme)
+	if err != nil {
+		return err
+	}
 
 	// check if this noobaa instance aleady exists
 	found := &nbv1.NooBaa{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: initialData.Namespace}, found)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: initialData.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating NooBaa system")
 		err = r.client.Create(context.TODO(), nb)
