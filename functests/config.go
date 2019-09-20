@@ -29,7 +29,7 @@ const TestStorageCluster = "test-storagecluster"
 const StorageClassRBD = TestStorageCluster + "-ceph-rbd"
 
 // MinOSDsCount represents the minimum number of OSDs required for this testsuite to run.
-const MinOSDsCount = 2
+const MinOSDsCount = 3
 
 var namespaces = []string{InstallNamespace, TestNamespace}
 

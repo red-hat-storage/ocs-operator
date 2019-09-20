@@ -4,12 +4,15 @@ go 1.12
 
 require (
 	cloud.google.com/go v0.40.0 // indirect
+	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/RHsyseng/operator-utils v0.0.0-20190807020041-5344a0f594b8
 	github.com/coreos/go-semver v0.2.0
 	github.com/coreos/prometheus-operator v0.29.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.2
+	github.com/gobuffalo/envy v1.6.15 // indirect
+	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/noobaa/noobaa-operator v1.1.0
 	github.com/onsi/ginkgo v1.7.0
