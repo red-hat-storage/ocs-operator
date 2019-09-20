@@ -315,6 +315,12 @@ func schema_pkg_apis_ocs_v1_StorageClusterInitializationStatus(ref common.Refere
 							Format: "",
 						},
 					},
+					"noobaaServiceMonitorCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 					"errorMessage": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
