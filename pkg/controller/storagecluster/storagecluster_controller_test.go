@@ -1,6 +1,8 @@
 package storagecluster
 
 import (
+	"testing"
+
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -13,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"testing"
 )
 
 func TestReconcilerImplInterface(t *testing.T) {

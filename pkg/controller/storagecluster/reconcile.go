@@ -120,14 +120,20 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+	if instance.Status.Phase != statusutil.PhaseReady &&
+		instance.Status.Phase != statusutil.PhaseClusterExpanding {
+		instance.Status.Phase = statusutil.PhaseProgressing
+		phaseErr := r.client.Status().Update(context.TODO(), instance)
+		if phaseErr != nil {
+			reqLogger.Error(phaseErr, "Failed to set PhaseProgressing")
+		}
+	}
 
 	// Add conditions if there are none
 	if instance.Status.Conditions == nil {
 		reason := ocsv1.ReconcileInit
 		message := "Initializing StorageCluster"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
-
-		instance.Status.Phase = statusutil.PhaseProgressing
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			reqLogger.Error(err, "Failed to add conditions to status")
@@ -167,22 +173,38 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
+	// Start with empty r.phase
+	r.phase = ""
 
 	for _, f := range []func(*ocsv1.StorageCluster, logr.Logger) error{
 		// Add support for additional resources here
 		r.ensureCephCluster,
 	} {
 		err = f(instance, reqLogger)
+		if r.phase == statusutil.PhaseClusterExpanding {
+			instance.Status.Phase = statusutil.PhaseClusterExpanding
+			phaseErr := r.client.Status().Update(context.TODO(), instance)
+			if phaseErr != nil {
+				reqLogger.Error(phaseErr, "Failed to set PhaseClusterExpanding")
+			}
+		} else {
+			if instance.Status.Phase != statusutil.PhaseReady {
+				instance.Status.Phase = statusutil.PhaseProgressing
+				phaseErr := r.client.Status().Update(context.TODO(), instance)
+				if phaseErr != nil {
+					reqLogger.Error(phaseErr, "Failed to set PhaseProgressing")
+				}
+			}
+		}
 		if err != nil {
 			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", err)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
-
 			instance.Status.Phase = statusutil.PhaseError
 			// don't want to overwrite the actual reconcile failure
 			uErr := r.client.Status().Update(context.TODO(), instance)
 			if uErr != nil {
-				reqLogger.Error(uErr, "Failed to update conditions")
+				reqLogger.Error(uErr, "Failed to update status")
 			}
 			return reconcile.Result{}, err
 		}
@@ -198,10 +220,12 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		// to set readiness.
 		r := ready.NewFileReady()
 		err = r.Set()
-		instance.Status.Phase = statusutil.PhaseReady
 		if err != nil {
 			reqLogger.Error(err, "Failed to mark operator ready")
 			return reconcile.Result{}, err
+		}
+		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
+			instance.Status.Phase = statusutil.PhaseReady
 		}
 	} else {
 		// If any component operator reports negatively we want to write that to
@@ -224,24 +248,31 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			Reason:  reason,
 			Message: message,
 		})
-		instance.Status.Phase = statusutil.PhaseReady
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
 			r := ready.NewFileReady()
 			err = r.Unset()
-			// Mark as Not Ready only when Phase is Ready or Empty
-			// When in any other Phase, Not Ready is implied
-			if instance.Status.Phase == statusutil.PhaseReady || instance.Status.Phase == "" {
-				instance.Status.Phase = statusutil.PhaseNotReady
-			}
 			if err != nil {
 				reqLogger.Error(err, "Failed to mark operator unready")
 				return reconcile.Result{}, err
 			}
 		}
+		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
+			if conditionsv1.IsStatusConditionTrue(instance.Status.Conditions, conditionsv1.ConditionProgressing) {
+				instance.Status.Phase = statusutil.PhaseProgressing
+			} else if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
+				instance.Status.Phase = statusutil.PhaseNotReady
+			} else {
+				instance.Status.Phase = statusutil.PhaseError
+			}
+		}
 	}
-	return reconcile.Result{}, r.client.Status().Update(context.TODO(), instance)
+	phaseErr := r.client.Status().Update(context.TODO(), instance)
+	if phaseErr != nil {
+		reqLogger.Error(phaseErr, "Failed to update status")
+	}
+	return reconcile.Result{}, phaseErr
 }
 
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
@@ -270,17 +301,19 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
 		reqLogger.Info("Updating spec for CephCluster")
 		// Check if Cluster is Expanding
-		for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
-			expanding := false
-			for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
-				if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
-					expanding = true
-					sc.Status.Phase = statusutil.PhaseClusterExpanding
+		if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
+			r.phase = statusutil.PhaseClusterExpanding
+		} else if len(found.Spec.Storage.StorageClassDeviceSets) == len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
+			for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
+				for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+					if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
+						r.phase = statusutil.PhaseClusterExpanding
+						break
+					}
+				}
+				if r.phase == statusutil.PhaseClusterExpanding {
 					break
 				}
-			}
-			if expanding {
-				break
 			}
 		}
 		found.Spec = cephCluster.Spec
@@ -304,6 +337,14 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	} else {
 		// Interpret CephCluster status and set any negative conditions
 		statusutil.MapCephClusterNegativeConditions(&r.conditions, found)
+	}
+
+	// When phase is expanding, wait for CephCluster state to be updating
+	// this means expansion is in progress and overall system is progressing
+	// else expansion is not yet triggered
+	if sc.Status.Phase == statusutil.PhaseClusterExpanding &&
+		found.Status.State != cephv1.ClusterStateUpdating {
+		r.phase = statusutil.PhaseClusterExpanding
 	}
 	return nil
 }

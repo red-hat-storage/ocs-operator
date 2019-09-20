@@ -10,7 +10,7 @@ import (
 )
 
 // These constants represent the overall Phase as used by .Status.Phase
-const (
+var (
 	// PhaseIgnored is used when a resource is ignored
 	PhaseIgnored string = "Ignored"
 	// PhaseProgressing is used when SetProgressingCondition is called
@@ -19,7 +19,8 @@ const (
 	PhaseError string = "Error"
 	// PhaseReady is used when SetCompleteCondition is called
 	PhaseReady string = "Ready"
-	// PhaseNotReady is used when we explicitly mark system as NotReady
+	// PhaseNotReady is used when waiting for system to be ready
+	// after reconcile is successful
 	PhaseNotReady string = "Not Ready"
 	// PhaseClusterExpanding is used when cluster is expanding capacity
 	PhaseClusterExpanding string = "Expanding Capacity"
