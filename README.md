@@ -339,3 +339,32 @@ bring you to a directory tree. Follow the `artifacts/` directory to the
 `ocs-operator-e2e-aws/` directory. There you can find logs and information
 pertaining to ever object in the cluster.
 
+## Downstream ocs-ci tests
+
+In addition to the `functest/*` in the ocs-operator source tree we also have
+the ability to run the tests developed in the [red-hat-storage/ocs-ci](https://github.com/red-hat-storage/ocs-ci) repo.
+
+NOTE: Running this test suite requires python3.
+
+To execute the ocs-ci test suite against an already installed ocs-operator, run
+`make red-hat-storage-ocs-ci`. This will download the ocs-ci repo and execute
+a subset of tests against the ocs-operator deployment.
+
+In order to update either the ocs-ci version or subset of tests executed from
+ocs-ci, you'll need to modify the environment variables in hack/common.sh with
+the `REDHAT_OCS_CI` prefix.
+
+## Ginkgo tests vs ocs-ci tests
+
+We currently have two functional test suites. The ginkgo `functests` test suite
+lives in this repo, and there is also an external one called `ocs-ci`.
+
+The ginkgo `functests` test suite in this repo is for developers. As new
+functionality is introduced into the ocs-operator, this repo allows developers
+to prove their functionality works by including tests within their PR. This is
+the test suite where we exercise ocs-operator deployment/update/uninstall as
+well as some basic workload functionality like creating PVCs.
+
+The external `ocs-ci` test suite is maintained by Red Hat QE. We execute this
+test suite against our PRs as another layer of verification in order to catch
+rook/ceph regressions as early as possible.

@@ -2,8 +2,7 @@
 
 source hack/common.sh
 
-echo "Running Functional Test Suite"
-$OUTDIR_BIN/functests
+$OUTDIR_BIN/functests $@
 if [ $? -ne 0 ]; then
 	echo "dumping debug information"
 	echo "--- PODS ----"
