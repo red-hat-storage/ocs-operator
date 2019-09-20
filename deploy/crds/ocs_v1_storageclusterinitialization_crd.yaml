@@ -69,6 +69,8 @@ spec:
               type: array
             errorMessage:
               type: string
+            noobaaServiceMonitorCreated:
+              type: boolean
             noobaaSystemCreated:
               type: boolean
             phase:
