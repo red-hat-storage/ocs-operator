@@ -30,11 +30,19 @@ spec:
           type: object
         spec:
           properties:
+            hostNetwork:
+              description: HostNetwork defaults to false
+              type: boolean
             instanceType:
               type: string
             manageNodes:
               type: boolean
             monPVCTemplate:
+              type: object
+            resources:
+              additionalProperties:
+                type: object
+              description: Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
               type: object
             storageDeviceSets:
               items:

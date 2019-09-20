@@ -14,10 +14,14 @@ import (
 
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
-	ManageNodes       bool                          `json:"manageNodes,omitempty"`
-	InstanceType      string                        `json:"instanceType,omitempty"`
-	StorageDeviceSets []StorageDeviceSet            `json:"storageDeviceSets,omitempty"`
-	MonPVCTemplate    *corev1.PersistentVolumeClaim `json:"monPVCTemplate,omitempty"`
+	ManageNodes  bool   `json:"manageNodes,omitempty"`
+	InstanceType string `json:"instanceType,omitempty"`
+	// HostNetwork defaults to false
+	HostNetwork bool `json:"hostNetwork,omitempty"`
+	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
+	Resources         map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
+	StorageDeviceSets []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
+	MonPVCTemplate    *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
 }
 
 // StorageDeviceSet defines a set of storage devices.
