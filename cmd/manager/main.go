@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	nbapis "github.com/noobaa/noobaa-operator/pkg/apis"
 	"github.com/openshift/ocs-operator/pkg/apis"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -100,6 +101,11 @@ func main() {
 
 	if err := nbapis.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding noobaa apis to scheme")
+		os.Exit(1)
+	}
+
+	if err := monitoringv1.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding monitoring/v1 apis to scheme")
 		os.Exit(1)
 	}
 
