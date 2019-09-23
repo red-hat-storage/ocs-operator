@@ -437,7 +437,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 		if storageClassDeviceSet.Placement.NodeAffinity == nil && storageClassDeviceSet.Placement.PodAffinity == nil && storageClassDeviceSet.Placement.PodAntiAffinity == nil {
 			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaultOSDPlacement
 		}
-		return cephCluster
 	}
 
 	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
