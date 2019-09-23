@@ -202,26 +202,12 @@ func (t *TestClient) labelWorkerNodes() {
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	labeledCount := MinOSDsCount
-	azs := make(map[string]string)
 
 	for _, node := range nodes.Items {
 		old, err := json.Marshal(node)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		new := node.DeepCopy()
 		new.Labels["cluster.ocs.openshift.io/openshift-storage"] = ""
-
-		az, ok := node.Labels["failure-domain.beta.kubernetes.io/zone"]
-		if !ok {
-			continue
-		}
-
-		// ensure we only label one node in each AZ
-		_, exists := azs[az]
-		if exists {
-			continue
-		}
-
-		azs[az] = node.Name
 
 		newJSON, err := json.Marshal(new)
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
@@ -266,9 +252,6 @@ func (t *TestClient) createNamespaces() {
 
 // BeforeTestSuiteSetup is the function called to initialize the test environment
 func BeforeTestSuiteSetup() {
-	if !shouldExecute() {
-		return
-	}
 	t := NewTestClient()
 
 	// create the namespaces we'll work with
@@ -286,9 +269,6 @@ func BeforeTestSuiteSetup() {
 
 // AfterTestSuiteCleanup is the function called to tear down the test environment
 func AfterTestSuiteCleanup() {
-	if !shouldExecute() {
-		return
-	}
 	t := NewTestClient()
 
 	// delete the namespace we used to test PVCs and workloads.

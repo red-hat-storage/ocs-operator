@@ -91,6 +91,8 @@ spec:
                 workers:
                   type: integer
             resources: {}
+            skipUpgradeChecks:
+              type: boolean
             storage:
               properties:
                 config: {}

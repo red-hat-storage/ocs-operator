@@ -16,7 +16,6 @@ var _ = Describe("PVC Creation", func() {
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
-		tests.ShouldSkip()
 	})
 
 	Describe("rbd", func() {
