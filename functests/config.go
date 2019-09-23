@@ -3,7 +3,6 @@ package functests
 import (
 	"os"
 
-	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -35,26 +34,6 @@ var namespaces = []string{InstallNamespace, TestNamespace}
 
 func init() {
 	ocsv1.SchemeBuilder.AddToScheme(scheme.Scheme)
-}
-
-// ShouldSkip will skip the functional test if the suite isn't invoked by our make target
-// This prevents the unit tests from failing when `go test -v ./...` is invoked
-func ShouldSkip() {
-	defer ginkgo.GinkgoRecover()
-	if !shouldExecute() {
-		ginkgo.Skip("Only executed as part of 'make functest'")
-	}
-}
-
-func shouldExecute() bool {
-	// We use this to keep the functional tests from failing
-	// when the unit tests are being called.
-	shouldExecute := os.Getenv("OCS_EXECUTE_FUNC_TESTS")
-	if shouldExecute == "" {
-		return false
-	}
-	return true
-
 }
 
 // GetK8sClient is the function used to retrieve the kubernetes client

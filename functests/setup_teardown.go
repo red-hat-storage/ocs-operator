@@ -252,9 +252,6 @@ func (t *TestClient) createNamespaces() {
 
 // BeforeTestSuiteSetup is the function called to initialize the test environment
 func BeforeTestSuiteSetup() {
-	if !shouldExecute() {
-		return
-	}
 	t := NewTestClient()
 
 	// create the namespaces we'll work with
@@ -272,9 +269,6 @@ func BeforeTestSuiteSetup() {
 
 // AfterTestSuiteCleanup is the function called to tear down the test environment
 func AfterTestSuiteCleanup() {
-	if !shouldExecute() {
-		return
-	}
 	t := NewTestClient()
 
 	// delete the namespace we used to test PVCs and workloads.
