@@ -389,7 +389,6 @@ func (r *ReconcileStorageClusterInitialization) newStorageClasses(initData *ocsv
 			Parameters: map[string]string{
 				"clusterID": initData.Namespace,
 				"fsName":    fmt.Sprintf("%s-cephfilesystem", initData.Name),
-				"pool":      generateNameForCephBlockPool(initData),
 				"csi.storage.k8s.io/provisioner-secret-name":      "rook-ceph-csi",
 				"csi.storage.k8s.io/provisioner-secret-namespace": initData.Namespace,
 				"csi.storage.k8s.io/node-stage-secret-name":       "rook-ceph-csi",
