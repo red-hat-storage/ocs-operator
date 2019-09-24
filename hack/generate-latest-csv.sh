@@ -17,7 +17,7 @@ export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:v1.1.1"}
 export NOOBAA_IMAGE=${NOOBAA_IMAGE:-"noobaa/noobaa-operator:1.1.1"}
 export NOOBAA_CORE_IMAGE=${NOOBAA_CORE_IMAGE:-"noobaa/noobaa-core:5"}
 export NOOBAA_MONGODB_IMAGE=${NOOBAA_MONGODB_IMAGE:-"centos/mongodb-36-centos7"}
-export CEPH_IMAGE=${CEPH_IMAGE:-"ceph/ceph:v14.2.3-20190904"}
+export CEPH_IMAGE=${CEPH_IMAGE:-"ceph/ceph:v14.2.4-20190917"}
 export OCS_IMAGE=${OCS_IMAGE:-"quay.io/ocs-dev/ocs-operator:latest"}
 
 echo "=== Generating DEV CSV with the following vars ==="
