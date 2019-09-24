@@ -406,7 +406,7 @@ func (r *ReconcileStorageClusterInitialization) newStorageClasses(initData *ocsv
 				"clusterID":                 initData.Namespace,
 				"pool":                      generateNameForCephBlockPool(initData),
 				"imageFeatures":             "layering",
-				"csi.storage.k8s.io/fstype": "xfs",
+				"csi.storage.k8s.io/fstype": "ext4",
 				"imageFormat":               "2",
 				"csi.storage.k8s.io/provisioner-secret-name":      "rook-ceph-csi",
 				"csi.storage.k8s.io/provisioner-secret-namespace": initData.Namespace,
