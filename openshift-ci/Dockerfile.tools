@@ -1,0 +1,29 @@
+FROM fedora:30 as build-tools
+ENV GOPATH /go
+ARG GO_PACKAGE_PATH=github.com/openshift/ocs-operator
+
+# rpms required for building and running test suites
+RUN dnf -y install \
+    golang \
+    make \
+    tar \
+    findutils \
+    python3 \
+    && dnf clean all
+
+# get required golang tools and OC client
+RUN go get github.com/onsi/ginkgo/ginkgo && \
+    go get github.com/onsi/gomega/... && \
+    go get -u golang.org/x/lint/golint && \
+    export latest_oc_client_version=$(curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/ 2>/dev/null | grep -o \"openshift-client-linux-4.*tar.gz\" | tr -d \") && \
+    curl -JL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/${latest_oc_client_version} -o oc.tar.gz && \
+    tar -xzvf oc.tar.gz && \
+    mv oc /usr/bin/oc
+
+ENV PATH=$PATH:$GOPATH/bin
+
+RUN mkdir -p ${GOPATH}/src/${GO_PACKAGE_PATH}/
+
+WORKDIR ${GOPATH}/src/${GO_PACKAGE_PATH}
+
+ENTRYPOINT [ "/bin/bash" ]
