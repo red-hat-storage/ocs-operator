@@ -15,7 +15,7 @@ elif ! [ "$(cat ocs-ci/git-hash)" = "$REDHAT_OCS_CI_HASH" ]; then
 	DOWNLOAD_SRC="true"
 fi
 
-if [ -n ${DOWNLOAD_SRC} ]; then
+if [ -n "${DOWNLOAD_SRC}" ]; then
 	echo "Cloning code from $REDHAT_OCS_CI_REPO using hash $REDHAT_OCS_CI_HASH"
 	curl -L ${REDHAT_OCS_CI_REPO}/archive/${REDHAT_OCS_CI_HASH}/ocs-ci.tar.gz | tar xz ocs-ci-${REDHAT_OCS_CI_HASH}
 	mv ocs-ci-${REDHAT_OCS_CI_HASH} ocs-ci
