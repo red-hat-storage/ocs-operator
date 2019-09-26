@@ -12,6 +12,9 @@ OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
+TARGET_GOOS=linux
+TARGET_GOARCH=amd64
+
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 # Enable GOPROXY. This speeds up a lot of vendoring operations.
@@ -61,7 +64,7 @@ ocs-operator-openshift-ci-build: build
 build:
 	@echo "Building the ocs-operator binary"
 	mkdir -p build/_output/bin
-	go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/ocs-operator ./cmd/manager
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/ocs-operator ./cmd/manager
 
 ocs-operator: build
 	@echo "Building the ocs-operator image"
