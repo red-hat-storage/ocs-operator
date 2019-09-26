@@ -6,6 +6,7 @@ import (
 
 	tests "github.com/openshift/ocs-operator/functests"
 
+	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,14 +14,17 @@ import (
 )
 
 var _ = Describe("PVC Creation", func() {
+	var k8sClient *kubernetes.Clientset
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
+
+		deployManager, err := deploymanager.NewDeployManager()
+		Expect(err).To(BeNil())
+		k8sClient = deployManager.GetK8sClient()
 	})
 
 	Describe("rbd", func() {
-		var testClient *tests.TestClient
-		var k8sClient *kubernetes.Clientset
 		var pvc *k8sv1.PersistentVolumeClaim
 		var namespace string
 
@@ -28,8 +32,6 @@ var _ = Describe("PVC Creation", func() {
 			namespace = tests.TestNamespace
 			pvc = tests.GetRandomPVC(tests.StorageClassRBD, "1Gi")
 
-			testClient = tests.NewTestClient()
-			k8sClient = testClient.GetK8sClient()
 		})
 
 		AfterEach(func() {
@@ -46,7 +48,7 @@ var _ = Describe("PVC Creation", func() {
 				Expect(err).To(BeNil())
 
 				By("Verifying PVC reaches BOUND phase")
-				testClient.WaitForPVCBound(pvc.Name, namespace)
+				tests.WaitForPVCBound(k8sClient, pvc.Name, namespace)
 
 				By("Deleting PVC")
 				err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})

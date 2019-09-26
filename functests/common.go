@@ -10,12 +10,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/kubernetes"
 )
 
 // WaitForPVCBound waits for a pvc with a given name and namespace to reach BOUND phase
-func (t *TestClient) WaitForPVCBound(pvcName string, pvcNamespace string) {
+func WaitForPVCBound(k8sClient *kubernetes.Clientset, pvcName string, pvcNamespace string) {
 	gomega.Eventually(func() error {
-		pvc, err := t.k8sClient.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(pvcName, metav1.GetOptions{})
+		pvc, err := k8sClient.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(pvcName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
