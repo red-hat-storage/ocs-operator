@@ -718,6 +718,8 @@ spec:
           - servicemonitors
           verbs:
           - get
+          - list
+          - watch
           - create
         - apiGroups:
           - ocs.openshift.io
