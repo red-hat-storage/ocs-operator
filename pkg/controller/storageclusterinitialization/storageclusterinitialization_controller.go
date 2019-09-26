@@ -3,7 +3,6 @@ package storageclusterinitialization
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -46,18 +45,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	cephImage := os.Getenv("CEPH_IMAGE")
-	if cephImage == "" {
-		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
-		log.Error(err, "missing required environment variable for ocs initialization")
-		panic(err)
-	}
-
-	return &ReconcileStorageClusterInitialization{
-		client:    mgr.GetClient(),
-		scheme:    mgr.GetScheme(),
-		cephImage: cephImage,
-	}
+	return &ReconcileStorageClusterInitialization{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -86,9 +74,8 @@ var _ reconcile.Reconciler = &ReconcileStorageClusterInitialization{}
 type ReconcileStorageClusterInitialization struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client    client.Client
-	scheme    *runtime.Scheme
-	cephImage string
+	client client.Client
+	scheme *runtime.Scheme
 }
 
 // Reconcile reads that state of the cluster for a StorageClusterInitialization object and makes changes based on the state read
@@ -809,7 +796,7 @@ func (r *ReconcileStorageClusterInitialization) newToolboxDeploymentInstance(ini
 						Containers: []corev1.Container{
 							corev1.Container{
 								Name:    "rook-ceph-tools",
-								Image:   r.cephImage,
+								Image:   "rook/ceph:master",
 								Command: []string{"/tini"},
 								Args:    []string{"-g", "--", "/usr/local/bin/toolbox.sh"},
 								Env: []corev1.EnvVar{
