@@ -9,8 +9,13 @@ source hack/common.sh
 # For consistency, we're locking into a specific
 # operator-sdk cli build for generating the initial
 # ocs-operator csv that we build upon
+OS_TYPE=$(uname)
 OPERATOR_SDK_URL="https://github.com/operator-framework/operator-sdk/releases/download/v0.8.2/operator-sdk-v0.8.2-x86_64-linux-gnu"
 OPERATOR_SDK_VERSION="operator-sdk-v0.8.2-x86_64-linux-gnu"
+if [ $OS_TYPE=="Darwin" ]; then
+	OPERATOR_SDK_URL="https://github.com/operator-framework/operator-sdk/releases/download/v0.8.2/operator-sdk-v0.8.2-x86_64-apple-darwin"
+	OPERATOR_SDK_VERSION="operator-sdk-v0.8.2-x86_64-apple-darwin"
+fi
 OPERATOR_SDK="$OUTDIR_TOOLS/$OPERATOR_SDK_VERSION"
 
 function help_txt() {
@@ -72,8 +77,13 @@ $OPERATOR_SDK $gen_args 2>/dev/null
 OCS_TMP_CSV="deploy/olm-catalog/ocs-operator/${TMP_CSV_VERSION}/ocs-operator.v${TMP_CSV_VERSION}.clusterserviceversion.yaml"
 mv $OCS_TMP_CSV $OCS_CSV
 # Make variables templated for csv-merger tool
-sed -i "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
-sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
+if [ $OS_TYPE=="Darwin" ]; then
+	sed -i '' "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
+	sed -i '' "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
+else 
+	sed -i "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
+	sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
+fi
 cp deploy/crds/* $OUTDIR_CRDS/
 cp deploy/bundlemanifests/*.yaml $OUTDIR_BUNDLEMANIFESTS/
 
