@@ -5,6 +5,7 @@ import (
 	"os"
 
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	olmclient "github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
@@ -31,6 +32,7 @@ func init() {
 
 // DeployManager is a util tool used by the functional tests
 type DeployManager struct {
+	olmClient      *olmclient.Clientset
 	k8sClient      *kubernetes.Clientset
 	ocsClient      *rest.RESTClient
 	parameterCodec runtime.ParameterCodec
@@ -81,7 +83,21 @@ func NewDeployManager() (*DeployManager, error) {
 		return nil, err
 	}
 
+	// olm client
+	olmConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	olmConfig.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	olmConfig.APIPath = "/apis"
+	olmConfig.ContentType = runtime.ContentTypeJSON
+	olmClient, err := olmclient.NewForConfig(olmConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	return &DeployManager{
+		olmClient:      olmClient,
 		k8sClient:      k8sClient,
 		ocsClient:      ocsClient,
 		parameterCodec: parameterCodec,

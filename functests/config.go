@@ -1,6 +1,8 @@
 package functests
 
 import (
+	"flag"
+
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 )
 
@@ -12,3 +14,11 @@ const TestStorageCluster = deploymanager.DefaultStorageCluster
 
 // StorageClassRBD is the name of the ceph rbd storage class the test suite installs
 const StorageClassRBD = deploymanager.DefaultStorageClassRBD
+
+var ocsRegistryImage string
+var localStorageRegistryImage string
+
+func init() {
+	flag.StringVar(&ocsRegistryImage, "ocs-registry-image", "", "The ocs-registry container image to use in the deployment")
+	flag.StringVar(&localStorageRegistryImage, "local-storage-registry-image", "", "The local storage registry image to use in the deployment")
+}
