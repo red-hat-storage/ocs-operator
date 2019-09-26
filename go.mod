@@ -5,25 +5,26 @@ go 1.12
 require (
 	cloud.google.com/go v0.40.0 // indirect
 	github.com/RHsyseng/operator-utils v0.0.0-20190807020041-5344a0f594b8
-	github.com/coreos/go-semver v0.2.0
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/coreos/prometheus-operator v0.29.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.2
+	github.com/go-openapi/validate v0.18.0 // indirect
+	github.com/gobuffalo/envy v1.6.15 // indirect
+	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/noobaa/noobaa-operator v1.1.0
-	github.com/onsi/ginkgo v1.7.0
-	github.com/onsi/gomega v1.4.3
+	github.com/onsi/ginkgo v1.8.0
+	github.com/onsi/gomega v1.5.0
 	github.com/openshift/api v3.9.1-0.20190904155310-a25bb2adc83e+incompatible
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
-	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
+	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190605231540-b8a4faf68e36
 	github.com/operator-framework/operator-sdk v0.10.0
 	github.com/prometheus/client_golang v0.9.4 // indirect
 	github.com/rook/rook v1.1.0-beta.1
 	github.com/stretchr/testify v1.3.0
-	go.uber.org/atomic v1.4.0 // indirect
-	go.uber.org/zap v1.10.0 // indirect
 	google.golang.org/appengine v1.6.1 // indirect
 	k8s.io/api v0.0.0-20190820101039-d651a1528133
 	k8s.io/apiextensions-apiserver v0.0.0-20190820104113-47893d27d7f7
