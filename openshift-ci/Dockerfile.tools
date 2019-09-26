@@ -1,5 +1,7 @@
 FROM fedora:30 as build-tools
 ENV GOPATH /go
+ENV GOBIN /go/bin
+ENV GOCACHE /go/.cache
 ARG GO_PACKAGE_PATH=github.com/openshift/ocs-operator
 
 # rpms required for building and running test suites
@@ -22,7 +24,14 @@ RUN go get github.com/onsi/ginkgo/ginkgo && \
 
 ENV PATH=$PATH:$GOPATH/bin
 
-RUN mkdir -p ${GOPATH}/src/${GO_PACKAGE_PATH}/
+RUN export TMP_BIN=$(mktemp -d) && \
+    mv $GOBIN/* $TMP_BIN/ && \
+    rm -rf ${GOPATH} ${GOCACHE} && \
+    mkdir -p ${GOPATH}/src/${GO_PACKAGE_PATH}/ && \
+    mkdir -p ${GOBIN} && \
+    chmod -R 757 ${GOPATH} && \
+    mv $TMP_BIN/* ${GOBIN} && \
+    rm -rf $TMP_BIN
 
 WORKDIR ${GOPATH}/src/${GO_PACKAGE_PATH}
 
