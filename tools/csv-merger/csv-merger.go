@@ -389,6 +389,18 @@ func generateUnifiedCSV() {
 		case "storageclusters.ocs.openshift.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Storage Cluster"
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a Rook Ceph storage cluster including all the storage and compute resources required."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Resources = []csvv1.APIResourceReference{
+				csvv1.APIResourceReference{
+					Name:    "",
+					Kind:    "CephCluster",
+					Version: "v1",
+				},
+				csvv1.APIResourceReference{
+					Name:    "",
+					Kind:    "NooBaa",
+					Version: "v1alpha1",
+				},
+			}
 		case "ocsinitializations.ocs.openshift.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "OCS Initialization"
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "OCS Initialization represents the initial data to be created when the OCS operator is installed"
