@@ -28,7 +28,8 @@ type StorageClusterSpec struct {
 // It is derived from and mapped to StorageClassDeviceSet in Rook.
 type StorageDeviceSet struct {
 	Name string `json:"name"`
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=3
+	// +kubebuilder:validation:MultipleOf=3
 	Count           int                          `json:"count"`
 	Resources       corev1.ResourceRequirements  `json:"resources"`
 	Placement       rookalpha.Placement          `json:"placement"`

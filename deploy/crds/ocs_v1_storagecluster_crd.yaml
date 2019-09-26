@@ -50,7 +50,8 @@ spec:
                     type: object
                   count:
                     format: int64
-                    minimum: 1
+                    minimum: 3
+                    multipleOf: 3
                     type: integer
                   dataPVCTemplate:
                     type: object
