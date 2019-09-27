@@ -273,7 +273,8 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	assert.Equal(t, expected.Namespace, actual.Namespace)
 	assert.Equal(t, expected.Spec.StorageDeviceSets[0].Name, actual.Spec.Storage.StorageClassDeviceSets[0].Name)
 	assert.Equal(t, expected.Spec.StorageDeviceSets[0].Count, actual.Spec.Storage.StorageClassDeviceSets[0].Count)
-	assert.Equal(t, expected.Spec.StorageDeviceSets[0].Resources, actual.Spec.Storage.StorageClassDeviceSets[0].Resources)
+	// StorageCluster controller sets a default ResourceRequirements when missing for StorageClassDeviceSets
+	assert.Equal(t, defaultDaemonResources["osd"], actual.Spec.Storage.StorageClassDeviceSets[0].Resources)
 	assert.Equal(t, expected.Spec.StorageDeviceSets[0].DataPVCTemplate.Spec, actual.Spec.Storage.StorageClassDeviceSets[0].VolumeClaimTemplates[0].Spec)
 	// StorageCluster controller adds a default placement config for OSD StorageClassDeviceSets
 	assert.Equal(t, defaultOSDPlacement, actual.Spec.Storage.StorageClassDeviceSets[0].Placement)
