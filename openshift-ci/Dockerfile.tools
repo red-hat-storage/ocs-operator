@@ -29,7 +29,7 @@ RUN export TMP_BIN=$(mktemp -d) && \
     rm -rf ${GOPATH} ${GOCACHE} && \
     mkdir -p ${GOPATH}/src/${GO_PACKAGE_PATH}/ && \
     mkdir -p ${GOBIN} && \
-    chmod -R 757 ${GOPATH} && \
+    chmod -R 775 ${GOPATH} && \
     mv $TMP_BIN/* ${GOBIN} && \
     rm -rf $TMP_BIN
 
