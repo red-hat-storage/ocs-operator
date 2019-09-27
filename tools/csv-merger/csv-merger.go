@@ -391,12 +391,12 @@ func generateUnifiedCSV() {
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a Rook Ceph storage cluster including all the storage and compute resources required."
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Resources = []csvv1.APIResourceReference{
 				csvv1.APIResourceReference{
-					Name:    "",
+					Name:    "cephclusters.ceph.rook.io",
 					Kind:    "CephCluster",
 					Version: "v1",
 				},
 				csvv1.APIResourceReference{
-					Name:    "",
+					Name:    "noobaas.noobaa.io",
 					Kind:    "NooBaa",
 					Version: "v1alpha1",
 				},
