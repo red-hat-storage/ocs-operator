@@ -145,10 +145,10 @@ spec:
       name: storageclusters.ocs.openshift.io
       resources:
       - kind: CephCluster
-        name: ""
+        name: cephclusters.ceph.rook.io
         version: v1
       - kind: NooBaa
-        name: ""
+        name: noobaas.noobaa.io
         version: v1alpha1
       version: v1
     - description: StorageCluster Initialization represents a set of tasks the OCS
