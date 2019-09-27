@@ -214,7 +214,7 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 			},
 			{
 				Name:  "ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET",
-				Value: "true",
+				Value: "false",
 			},
 			{
 				Name:  "ROOK_DISABLE_DEVICE_HOTPLUG",

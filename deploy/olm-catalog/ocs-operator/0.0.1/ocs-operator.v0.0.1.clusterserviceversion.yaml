@@ -819,7 +819,7 @@ spec:
                 - name: ROOK_ENABLE_DISCOVERY_DAEMON
                   value: "false"
                 - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
-                  value: "true"
+                  value: "false"
                 - name: ROOK_DISABLE_DEVICE_HOTPLUG
                   value: "true"
                 - name: NODE_NAME
