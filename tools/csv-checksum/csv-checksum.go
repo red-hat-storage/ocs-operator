@@ -98,6 +98,8 @@ func main() {
 				continue
 			} else if !strings.Contains(file.Name(), ".yaml") {
 				continue
+			} else if strings.Contains(file.Name(), "deploy-with-olm.yaml") {
+				continue
 			} else if strings.HasPrefix(file.Name(), ".") {
 				continue
 			}

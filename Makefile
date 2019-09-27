@@ -32,6 +32,8 @@ all: ocs-operator ocs-must-gather ocs-registry
 	ocs-registry \
 	gen-release-csv \
 	gen-latest-csv \
+	gen-latest-deploy-yaml \
+	verify-latest-deploy-yaml \
 	verify-latest-csv \
 	source-manifests \
 	cluster-deploy \
@@ -81,6 +83,14 @@ source-manifests:
 gen-latest-csv:
 	@echo "Generating latest development CSV version using predefined ENV VARs."
 	hack/generate-latest-csv.sh
+
+gen-latest-deploy-yaml:
+	@echo "Generating latest deployment yaml file"
+	hack/gen-deployment-yaml.sh
+
+verify-latest-deploy-yaml:
+	@echo "Verifying deployment yaml changes"
+	hack/verify-latest-deploy-yaml.sh
 
 gen-release-csv:
 	@echo "Generating unified CSV from sourced component-level operators"
@@ -142,7 +152,7 @@ verify-generated: update-generated
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
 
-ocs-operator-ci: gofmt golint govet unit-test build verify-latest-csv verify-generated
+ocs-operator-ci: gofmt golint govet unit-test build verify-latest-csv verify-generated verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci: build-functest
 	@echo "Running red-hat-storage ocs-ci test suite"

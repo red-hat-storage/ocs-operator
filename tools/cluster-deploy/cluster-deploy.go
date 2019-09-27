@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"log"
+	"os"
 
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 )
@@ -10,6 +12,7 @@ import (
 var (
 	ocsRegistryImage          = flag.String("ocs-registry-image", "", "The ocs-registry container image to use in the deployment")
 	localStorageRegistryImage = flag.String("local-storage-registry-image", "", "The local storage registry image to use in the deployment")
+	yamlOutputPath            = flag.String("yaml-output-path", "", "Just generate the yaml for the OCS olm deployment and dump it to a file")
 )
 
 func main() {
@@ -22,6 +25,15 @@ func main() {
 	}
 
 	t, err := deploymanager.NewDeployManager()
+
+	if *yamlOutputPath != "" {
+		yaml := t.DumpYAML(*ocsRegistryImage, *localStorageRegistryImage)
+		err = ioutil.WriteFile(*yamlOutputPath, []byte(yaml), 0644)
+		if err != nil {
+			panic(err)
+		}
+		os.Exit(0)
+	}
 
 	log.Printf("Deploying ocs image %s", *ocsRegistryImage)
 	err = t.DeployOCSWithOLM(*ocsRegistryImage, *localStorageRegistryImage)

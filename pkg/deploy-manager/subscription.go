@@ -1,15 +1,20 @@
 package deploymanager
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
+	yaml "github.com/ghodss/yaml"
 	v1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1"
 	v1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 )
@@ -20,7 +25,7 @@ const defaultLocalStorageRegistryImage = "quay.io/gnufied/local-registry:v4.2.0"
 const defaultOcsRegistryImage = "quay.io/ocs-dev/ocs-registry:latest"
 
 type clusterObjects struct {
-	namespaces     []string
+	namespaces     []k8sv1.Namespace
 	operatorGroups []v1.OperatorGroup
 	catalogSources []v1alpha1.CatalogSource
 	subscriptions  []v1alpha1.Subscription
@@ -29,7 +34,7 @@ type clusterObjects struct {
 func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 
 	for _, namespace := range co.namespaces {
-		err := t.CreateNamespace(namespace)
+		err := t.CreateNamespace(namespace.Name)
 		if err != nil {
 			return err
 		}
@@ -65,8 +70,24 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localSto
 	co := &clusterObjects{}
 
 	// Namespaces
-	co.namespaces = append(co.namespaces, InstallNamespace)
-	co.namespaces = append(co.namespaces, localStorageNamespace)
+	co.namespaces = append(co.namespaces, k8sv1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: InstallNamespace,
+		},
+	})
+	co.namespaces = append(co.namespaces, k8sv1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: localStorageNamespace,
+		},
+	})
 
 	// Operator Groups
 	ocsOG := v1.OperatorGroup{
@@ -145,6 +166,75 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localSto
 	co.subscriptions = append(co.subscriptions, ocsSubscription)
 
 	return co
+}
+
+func marshallObject(obj interface{}, writer io.Writer) error {
+	jsonBytes, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	var r unstructured.Unstructured
+	if err := json.Unmarshal(jsonBytes, &r.Object); err != nil {
+		return err
+	}
+
+	unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
+	unstructured.RemoveNestedField(r.Object, "status")
+
+	jsonBytes, err = json.Marshal(r.Object)
+	if err != nil {
+		return err
+	}
+
+	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+	if err != nil {
+		return err
+	}
+
+	// fix double quoted strings by removing unneeded single quotes...
+	s := string(yamlBytes)
+	s = strings.Replace(s, " '\"", " \"", -1)
+	s = strings.Replace(s, "\"'\n", "\"\n", -1)
+
+	yamlBytes = []byte(s)
+
+	_, err = writer.Write([]byte("---\n"))
+	if err != nil {
+		return err
+	}
+
+	_, err = writer.Write(yamlBytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DumpYAML dumps ocs deployment yaml
+func (t *DeployManager) DumpYAML(ocsRegistryImage string, localStorageRegistryImage string) string {
+	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage)
+
+	writer := strings.Builder{}
+
+	for _, namespace := range co.namespaces {
+		marshallObject(namespace, &writer)
+	}
+
+	for _, operatorGroup := range co.operatorGroups {
+		marshallObject(operatorGroup, &writer)
+	}
+
+	for _, catalogSource := range co.catalogSources {
+		marshallObject(catalogSource, &writer)
+	}
+
+	for _, subscription := range co.subscriptions {
+		marshallObject(subscription, &writer)
+	}
+
+	return writer.String()
 }
 
 // DeployOCSWithOLM deploys ocs operator via an olm subscription
