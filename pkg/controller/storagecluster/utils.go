@@ -10,7 +10,17 @@ func newStorageClassDeviceSets(devicesets []ocsv1.StorageDeviceSet) []rook.Stora
 	var scds []rook.StorageClassDeviceSet
 
 	for _, ds := range devicesets {
-		scds = append(scds, ds.ToStorageClassDeviceSet())
+		var s rook.StorageClassDeviceSet
+		s = ds.ToStorageClassDeviceSet()
+		//
+		// Disable OSD portability, as it is creating problems with the
+		// default and currently only setting of failureDomain=host.
+		//
+		// TODO: make it dynamic when we take advantage of zones
+		//
+		s.Portable = false
+
+		scds = append(scds, s)
 	}
 
 	return scds
