@@ -303,12 +303,6 @@ func schema_pkg_apis_ocs_v1_StorageClusterInitializationStatus(ref common.Refere
 							Format: "",
 						},
 					},
-					"cephToolboxCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
 					"noobaaSystemCreated": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},

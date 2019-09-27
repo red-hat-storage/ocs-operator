@@ -113,12 +113,7 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 			Name: "ocsinit-cos-not-found",
 		},
 	}
-	tbd := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "rook-ceph-tools",
-		},
-	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd, tbd)
+	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)

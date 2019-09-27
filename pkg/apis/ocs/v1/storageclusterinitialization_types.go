@@ -37,7 +37,6 @@ type StorageClusterInitializationStatus struct {
 	CephBlockPoolsCreated       bool                     `json:"cephBlockPoolsCreated,omitempty"`
 	CephObjectStoreUsersCreated bool                     `json:"cephObjectStoreUsersCreated,omitempty"`
 	CephFilesystemsCreated      bool                     `json:"cephFilesystemsCreated,omitempty"`
-	CephToolboxCreated          bool                     `json:"cephToolboxCreated,omitempty"`
 	NoobaaSystemCreated         bool                     `json:"noobaaSystemCreated,omitempty"`
 	NoobaaServiceMonitorCreated bool                     `json:"noobaaServiceMonitorCreated,omitempty"`
 	ErrorMessage                string                   `json:"errorMessage,omitempty"`
