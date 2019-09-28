@@ -108,7 +108,9 @@ func (ds *StorageDeviceSet) ToStorageClassDeviceSet() rookalpha.StorageClassDevi
 		Placement:            ds.Placement,
 		Config:               ds.Config.ToMap(),
 		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
-		Portable:             ds.Portable,
+		// TODO: Setting this to false as a temporary workaround,
+		// remove later
+		Portable: false,
 	}
 }
 
