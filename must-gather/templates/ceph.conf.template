@@ -1,0 +1,4 @@
+[global]
+mon_host = REPLACE_WITH_MON_ENDPOINTS
+[client.admin]
+keyring = REPLACE_WITH_KEYRING_PATH
