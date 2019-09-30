@@ -33,6 +33,11 @@ RUN export TMP_BIN=$(mktemp -d) && \
     mv $TMP_BIN/* ${GOBIN} && \
     rm -rf $TMP_BIN
 
+# openshift ci runs with a randomized uid. We need the ability
+# to create a /etc/passwd entry for this random user in order
+# to execute the ocs-ci python testsuite successfully
+RUN chmod g+rw /etc/passwd
+
 WORKDIR ${GOPATH}/src/${GO_PACKAGE_PATH}
 
 ENTRYPOINT [ "/bin/bash" ]
