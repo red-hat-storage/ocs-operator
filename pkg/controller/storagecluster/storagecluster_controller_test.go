@@ -5,6 +5,7 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/stretchr/testify/assert"
@@ -274,10 +275,10 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	assert.Equal(t, expected.Spec.StorageDeviceSets[0].Name, actual.Spec.Storage.StorageClassDeviceSets[0].Name)
 	assert.Equal(t, expected.Spec.StorageDeviceSets[0].Count, actual.Spec.Storage.StorageClassDeviceSets[0].Count)
 	// StorageCluster controller sets a default ResourceRequirements when missing for StorageClassDeviceSets
-	assert.Equal(t, defaultDaemonResources["osd"], actual.Spec.Storage.StorageClassDeviceSets[0].Resources)
+	assert.Equal(t, defaults.DaemonResources["osd"], actual.Spec.Storage.StorageClassDeviceSets[0].Resources)
 	assert.Equal(t, expected.Spec.StorageDeviceSets[0].DataPVCTemplate.Spec, actual.Spec.Storage.StorageClassDeviceSets[0].VolumeClaimTemplates[0].Spec)
 	// StorageCluster controller adds a default placement config for OSD StorageClassDeviceSets
-	assert.Equal(t, defaultOSDPlacement, actual.Spec.Storage.StorageClassDeviceSets[0].Placement)
+	assert.Equal(t, defaults.DaemonPlacements["osd"], actual.Spec.Storage.StorageClassDeviceSets[0].Placement)
 }
 
 func TestStorageClusterInitConditions(t *testing.T) {

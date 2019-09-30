@@ -20,18 +20,14 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	nodeAffinityKey   = "cluster.ocs.openshift.io/openshift-storage"
-	nodeTolerationKey = "node.ocs.openshift.io/storage"
-)
-
-var monCount = defaultMonCount
+var monCount = defaults.MonCount
 
 func init() {
 	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
@@ -352,30 +348,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
-				"all": rook.Placement{
-					NodeAffinity: &corev1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-							NodeSelectorTerms: []corev1.NodeSelectorTerm{
-								corev1.NodeSelectorTerm{
-									MatchExpressions: []corev1.NodeSelectorRequirement{
-										corev1.NodeSelectorRequirement{
-											Key:      nodeAffinityKey,
-											Operator: corev1.NodeSelectorOpExists,
-										},
-									},
-								},
-							},
-						},
-					},
-					Tolerations: []corev1.Toleration{
-						corev1.Toleration{
-							Key:      nodeTolerationKey,
-							Operator: corev1.TolerationOpEqual,
-							Value:    "true",
-							Effect:   corev1.TaintEffectNoSchedule,
-						},
-					},
-				},
+				"all": defaults.DaemonPlacements["all"],
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 		},
@@ -392,11 +365,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 		// modify it.
 
 		if storageClassDeviceSet.Placement.NodeAffinity == nil && storageClassDeviceSet.Placement.PodAffinity == nil && storageClassDeviceSet.Placement.PodAntiAffinity == nil {
-			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaultOSDPlacement
+			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaults.DaemonPlacements["osd"]
 		}
 
 		if storageClassDeviceSet.Resources.Requests == nil && storageClassDeviceSet.Resources.Limits == nil {
-			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Resources = defaultDaemonResources["osd"]
+			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Resources = defaults.DaemonResources["osd"]
 		}
 	}
 
@@ -424,8 +397,8 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 
 func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[string]corev1.ResourceRequirements {
 	resources := map[string]corev1.ResourceRequirements{
-		"mon": defaultDaemonResources["mon"],
-		"mgr": defaultDaemonResources["mgr"],
+		"mon": defaults.GetDaemonResources("mon", custom),
+		"mgr": defaults.GetDaemonResources("mgr", custom),
 	}
 
 	for k := range resources {
