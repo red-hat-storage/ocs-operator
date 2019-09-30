@@ -12,9 +12,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/coreos/go-semver/semver"
+	"github.com/blang/semver"
 	yaml "github.com/ghodss/yaml"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -441,8 +442,12 @@ func generateUnifiedCSV() {
 	ocsCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
 
 	// Set correct csv versions and name
-	semverVersion := semver.New(*csvVersion)
-	ocsCSV.Spec.Version = *semverVersion
+	semverVersion, err := semver.New(*csvVersion)
+	if err != nil {
+		panic(err)
+	}
+	v := version.OperatorVersion{Version: *semverVersion}
+	ocsCSV.Spec.Version = v
 	ocsCSV.Name = "ocs-operator.v" + *csvVersion
 	if *replacesCsvVersion != "" {
 		ocsCSV.Spec.Replaces = "ocs-operator.v" + *replacesCsvVersion
