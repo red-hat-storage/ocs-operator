@@ -13,10 +13,11 @@ OUTDIR_CLUSTER_DEPLOY_MANIFESTS="$OUTDIR/cluster-deploy-manifests"
 
 DEPLOY_YAML_PATH="deploy/deploy-with-olm.yaml"
 
-REDHAT_OCS_CI_REPO="https://github.com/red-hat-storage/ocs-ci"
-REDHAT_OCS_CI_HASH="e84e06c42cbf3121137fbd94476e2c88aa62d520"
-REDHAT_OCS_CI_TEST_EXPRESSION="TestOSCBasics or TestPvCreation or TestRawBlockPV or TestReclaimPolicy or TestCreateSCSameName or TestBasicPVCOperations or TestVerifyAllFieldsInScYamlWithOcDescribe"
-REDHAT_OCS_CI_PYTHON_BINARY="python3.7"
+REDHAT_OCS_CI_DEFAULT_TEST_EXPRESSION="TestOSCBasics or TestPvCreation or TestRawBlockPV or TestReclaimPolicy or TestCreateSCSameName or TestBasicPVCOperations or TestVerifyAllFieldsInScYamlWithOcDescribe"
+REDHAT_OCS_CI_REPO="${REDHAT_OCS_CI_REPO:-https://github.com/red-hat-storage/ocs-ci}"
+REDHAT_OCS_CI_HASH="${REDHAT_OCS_CI_HASH:-e84e06c42cbf3121137fbd94476e2c88aa62d520}"
+REDHAT_OCS_CI_TEST_EXPRESSION="${REDHAT_OCS_CI_TEST_EXPRESSION:-$REDHAT_OCS_CI_DEFAULT_TEST_EXPRESSION}"
+REDHAT_OCS_CI_PYTHON_BINARY="${REDHAT_OCS_CI_PYTHON_BINARY:-python3.7}"
 
 NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
