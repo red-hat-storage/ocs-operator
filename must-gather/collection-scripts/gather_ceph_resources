@@ -8,6 +8,34 @@ if [[ ${BASE_COLLECTION_PATH} == "" ]]; then
 fi
 
 CEPH_COLLLECTION_PATH="${BASE_COLLECTION_PATH}/ceph"
+CEPH_MON_SECRET_NAME="rook-ceph-mon"
+CEPH_MON_CONFIGMAP_NAME="rook-ceph-mon-endpoints"
+KEYRING_FILE="/etc/ceph/keyring"
+CEPH_CONFIG_FILE="/etc/ceph/ceph.conf"
+CEPH_CONFIG_TEMPLATE="/templates/ceph.conf.template"
+CEPH_KEYRING_TEMPLATE="/templates/keyring.template"
+
+generate_config() {
+    namespace=$1
+    # Check if the mon secrets exists
+    secretName=`oc get secrets -n $namespace $CEPH_MON_SECRET_NAME -o jsonpath="{.metadata.name}"`
+    if [ -z ${secretName} ]; then 
+        echo 1
+    fi 
+    adminKey=`oc get secrets -n $namespace $CEPH_MON_SECRET_NAME -o jsonpath="{.data.admin-secret}" | base64 --decode`
+    configMapName=`oc get configmap -n $namespace $CEPH_MON_CONFIGMAP_NAME -o jsonpath="{.metadata.name}"`
+    if [ -z ${configMapName} ]; then
+        echo 1
+    fi
+    monEndPoints=`oc get configmap -n $namespace $CEPH_MON_CONFIGMAP_NAME -o jsonpath="{.data.data}"`
+    monEndPoints=`echo ${monEndPoints} | sed "s/[a-z]\+=//g" | sed "s/rook-ceph-mon[0-9]\+=//g"`
+
+    # creating admin keyring
+    cat ${CEPH_KEYRING_TEMPLATE} | sed "s/REPLACE_WITH_KEYRING/${adminKey}/g" > ${KEYRING_FILE}
+    cat ${CEPH_CONFIG_TEMPLATE} | sed "s/REPLACE_WITH_MON_ENDPOINTS/${monEndPoints}/g" | sed "s/REPLACE_WITH_KEYRING_PATH/${KEYRING_FILE//\//\\/}/g" > ${CEPH_CONFIG_FILE}
+    
+    echo 0
+}
 
 # Ceph resources
 ceph_resources=()
@@ -50,29 +78,30 @@ done
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
     openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
-
-    # Running ceph commands in the toolbox
-    toolbox_pod_name=`oc get po -n ${ns} -l app=rook-ceph-tools -o jsonpath='{.items[*].metadata.name}'`
-    if [ ! -z ${toolbox_pod_name} ]; then
-        toolbox_pod_status=`oc get po -n ${ns} -l app=rook-ceph-tools -o jsonpath='{.items[*].status.phase}'`
-        if [ "$toolbox_pod_status" != "Running" ]; then
-            exit 0;
-        fi
-        COMMAND_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands
-        COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
-        mkdir -p ${COMMAND_OUTPUT_DIR}
-        mkdir -p ${COMMAND_JSON_OUTPUT_DIR}
-        for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
-            printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
-            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
-            oc -n ${ns} exec ${toolbox_pod_name} -- ${ceph_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
-            JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
-            oc -n ${ns} exec ${toolbox_pod_name} -- ${ceph_commands[$i]} --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
-        done
-        for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
-            printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}"
-            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
-            oc -n ${ns} exec ${toolbox_pod_name} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
-        done
+    if [ $(generate_config ${ns}) -eq 1 ]; then 
+        continue
     fi
+    COMMAND_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands
+    COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
+    mkdir -p ${COMMAND_OUTPUT_DIR}
+    mkdir -p ${COMMAND_JSON_OUTPUT_DIR}
+    for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
+        printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
+        COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
+        ${ceph_commands[$i]} --connect-timeout=15 >> ${COMMAND_OUTPUT_FILE}
+        JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
+        ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
+    done
+
+    for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
+        printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}"
+        for osdPod in $(oc get pods -n ${ns} -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
+            pod_status=`oc get po ${osdPod} -n ${ns} -o jsonpath='{.status.phase}'`
+            if [ "${pod_status}" != "Running" ]; then
+                continue
+            fi
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
+            oc -n ${ns} exec ${osdPod} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
+        done
+    done
 done
