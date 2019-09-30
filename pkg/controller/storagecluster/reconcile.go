@@ -108,6 +108,9 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 				return reconcile.Result{}, err
 			}
 
+			// Copy the customized Resources into scinit
+			scinit.Spec.Resources = instance.Spec.Resources
+
 			err = r.client.Create(context.TODO(), scinit)
 			switch {
 			case err == nil:
