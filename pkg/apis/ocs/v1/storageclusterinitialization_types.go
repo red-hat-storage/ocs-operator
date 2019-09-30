@@ -13,6 +13,10 @@ import (
 // StorageClusterInitializationSpec defines the desired state of StorageClusterInitialization
 // +k8s:openapi-gen=true
 type StorageClusterInitializationSpec struct {
+	// Resources is set by the StorageCluster controller when it creates the
+	// StorageClusterInitialization resource, and is set to the
+	// StorageCluster.Spec.Resources
+	Resources map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization
