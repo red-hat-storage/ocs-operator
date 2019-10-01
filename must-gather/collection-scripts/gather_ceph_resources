@@ -17,6 +17,7 @@ CEPH_KEYRING_TEMPLATE="/templates/keyring.template"
 
 generate_config() {
     namespace=$1
+    rm -rf ${CEPH_CONFIG_FILE} ${KEYRING_FILE}
     # Check if the mon secrets exists
     secretName=`oc get secrets -n $namespace $CEPH_MON_SECRET_NAME -o jsonpath="{.metadata.name}"`
     if [ -z ${secretName} ]; then 
@@ -72,12 +73,12 @@ ceph_volume_commands+=("ceph-volume lvm list")
 
 # Inspecting ceph related custom resources for all namespaces 
 for resource in ${ceph_resources[@]}; do
-    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
-    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
+    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
     if [ $(generate_config ${ns}) -eq 1 ]; then 
         continue
     fi
@@ -104,4 +105,5 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
             oc -n ${ns} exec ${osdPod} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
         done
     done
+
 done

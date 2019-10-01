@@ -18,7 +18,7 @@ noobaa_resources+=(bucketclass)
 
 # Run the Collection of NooBaa Resources using must-gather
 for resource in ${noobaa_resources[@]}; do
-    /usr/bin/openshift-must-gather inspect ${resource} --all-namespaces
+    oc adm --dest-dir=${NOOBAA_COLLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Collect logs for all noobaa pods using oc logs
