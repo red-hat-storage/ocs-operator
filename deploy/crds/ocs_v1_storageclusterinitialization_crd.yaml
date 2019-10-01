@@ -28,6 +28,14 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            resources:
+              additionalProperties:
+                type: object
+              description: Resources is set by the StorageCluster controller when
+                it creates the StorageClusterInitialization resource, and is set to
+                the StorageCluster.Spec.Resources
+              type: object
           type: object
         status:
           properties:

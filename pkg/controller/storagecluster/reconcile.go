@@ -20,19 +20,14 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	nodeAffinityKey   = "cluster.ocs.openshift.io/openshift-storage"
-	nodeTolerationKey = "node.ocs.openshift.io/storage"
-)
-
-var defaultMonCount int = 3
-var monCount = defaultMonCount
+var monCount = defaults.MonCount
 
 func init() {
 	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
@@ -50,52 +45,6 @@ func init() {
 		log.Info("Using MON_COUNT_OVERRIDE value %d", monCount)
 	}
 }
-
-var (
-	defaultOSDPlacement = rook.Placement{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					corev1.NodeSelectorTerm{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							corev1.NodeSelectorRequirement{
-								Key:      nodeAffinityKey,
-								Operator: corev1.NodeSelectorOpExists,
-							},
-						},
-					},
-				},
-			},
-		},
-		Tolerations: []corev1.Toleration{
-			corev1.Toleration{
-				Key:      nodeTolerationKey,
-				Operator: corev1.TolerationOpEqual,
-				Value:    "true",
-				Effect:   corev1.TaintEffectNoSchedule,
-			},
-		},
-		PodAntiAffinity: &corev1.PodAntiAffinity{
-			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-				corev1.WeightedPodAffinityTerm{
-					Weight: 100,
-					PodAffinityTerm: corev1.PodAffinityTerm{
-						LabelSelector: &metav1.LabelSelector{
-							MatchExpressions: []metav1.LabelSelectorRequirement{
-								metav1.LabelSelectorRequirement{
-									Key:      "app",
-									Operator: metav1.LabelSelectorOpIn,
-									Values:   []string{"rook-ceph-osd"},
-								},
-							},
-						},
-						TopologyKey: "kubernetes.io/hostname",
-					},
-				},
-			},
-		},
-	}
-)
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -154,6 +103,9 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
 				return reconcile.Result{}, err
 			}
+
+			// Copy the customized Resources into scinit
+			scinit.Spec.Resources = instance.Spec.Resources
 
 			err = r.client.Create(context.TODO(), scinit)
 			switch {
@@ -396,36 +348,14 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
-				"all": rook.Placement{
-					NodeAffinity: &corev1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-							NodeSelectorTerms: []corev1.NodeSelectorTerm{
-								corev1.NodeSelectorTerm{
-									MatchExpressions: []corev1.NodeSelectorRequirement{
-										corev1.NodeSelectorRequirement{
-											Key:      nodeAffinityKey,
-											Operator: corev1.NodeSelectorOpExists,
-										},
-									},
-								},
-							},
-						},
-					},
-					Tolerations: []corev1.Toleration{
-						corev1.Toleration{
-							Key:      nodeTolerationKey,
-							Operator: corev1.TolerationOpEqual,
-							Value:    "true",
-							Effect:   corev1.TaintEffectNoSchedule,
-						},
-					},
-				},
+				"all": defaults.DaemonPlacements["all"],
 			},
-			Resources: sc.Spec.Resources,
+			Resources: newCephDaemonResources(sc.Spec.Resources),
 		},
 	}
-	// Applying Placement Configurations to each StorageClassDeviceSets
-	// rook.Placement.All may not apply to StorageClassDeviceSet
+	// Applying Placement and ResourceRequirements configurations to each
+	// StorageClassDeviceSets rook.Placement.All  and rook.Resources["osd"] may not apply to
+	// StorageClassDeviceSet
 	for i, storageClassDeviceSet := range cephCluster.Spec.Storage.StorageClassDeviceSets {
 		// Storage.StorageClassDeviceSets is a slice of actual objects. No
 		// pointers. So range would return copy of each object in
@@ -435,7 +365,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 		// modify it.
 
 		if storageClassDeviceSet.Placement.NodeAffinity == nil && storageClassDeviceSet.Placement.PodAffinity == nil && storageClassDeviceSet.Placement.PodAntiAffinity == nil {
-			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaultOSDPlacement
+			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaults.DaemonPlacements["osd"]
+		}
+
+		if storageClassDeviceSet.Resources.Requests == nil && storageClassDeviceSet.Resources.Limits == nil {
+			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Resources = defaults.DaemonResources["osd"]
 		}
 	}
 
@@ -459,4 +393,19 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 	}
 
 	return cephCluster
+}
+
+func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[string]corev1.ResourceRequirements {
+	resources := map[string]corev1.ResourceRequirements{
+		"mon": defaults.GetDaemonResources("mon", custom),
+		"mgr": defaults.GetDaemonResources("mgr", custom),
+	}
+
+	for k := range resources {
+		if r, ok := custom[k]; ok {
+			resources[k] = r
+		}
+	}
+
+	return resources
 }

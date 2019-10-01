@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -45,6 +46,7 @@ func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *
 func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) *nbv1.NooBaa {
 
 	storageClassName := generateNameForCephBlockPoolSC(initialData)
+	coreResources := defaults.GetDaemonResources("noobaa", initialData.Spec.Resources)
 	nb := &nbv1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "noobaa",
@@ -56,6 +58,7 @@ func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocs
 
 		Spec: nbv1.NooBaaSpec{
 			StorageClassName: &storageClassName,
+			CoreResources:    &coreResources,
 		},
 	}
 

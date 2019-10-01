@@ -227,10 +227,25 @@ func schema_pkg_apis_ocs_v1_StorageClusterInitializationSpec(ref common.Referenc
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageClusterInitializationSpec defines the desired state of StorageClusterInitialization",
-				Properties:  map[string]spec.Schema{},
+				Properties: map[string]spec.Schema{
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is set by the StorageCluster controller when it creates the StorageClusterInitialization resource, and is set to the StorageCluster.Spec.Resources",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.ResourceRequirements"),
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.ResourceRequirements"},
 	}
 }
 
