@@ -4,6 +4,8 @@ set -e
 
 source hack/common.sh 
 
+ORIG_DIR=$(pwd)
+
 mkdir -p $OUTDIR_OCS_CI
 cd $OUTDIR_OCS_CI
 
@@ -69,5 +71,14 @@ ENV_DATA:
   skip_ocs_deployment: true
 EOF
 
+# we want to handle errors explicilty at this point in order to dump debug info
+set +e
+
 echo "Running ocs-ci testsuite using -k $REDHAT_OCS_CI_TEST_EXPRESSION"
 run-ci -k "$REDHAT_OCS_CI_TEST_EXPRESSION" --cluster-path "$(pwd)/fakecluster/" --ocsci-conf my-config.yaml
+
+if [ $? -ne 0 ]; then
+	${ORIG_DIR}/hack/dump-debug-info.sh
+	echo "ERROR: red-hat-storage/ocs-ci test suite failed."
+	exit 1
+fi
