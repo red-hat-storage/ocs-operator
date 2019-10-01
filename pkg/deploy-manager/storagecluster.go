@@ -7,6 +7,7 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -76,11 +77,39 @@ func defaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					},
 				},
 			},
+			// Setting empty ResourceLists to prevent ocs-operator from setting the
+			// default resource requirements
+			Resources: map[string]corev1.ResourceRequirements{
+				"mon": corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+				"mds": corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+				"rgw": corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+				"mgr": corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+				"noobaa": corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+			},
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
 					Name:     "example-deviceset",
 					Count:    MinOSDsCount,
 					Portable: true,
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{},
+						Limits:   corev1.ResourceList{},
+					},
 					DataPVCTemplate: k8sv1.PersistentVolumeClaim{
 						Spec: k8sv1.PersistentVolumeClaimSpec{
 							StorageClassName: &storageClassName,
