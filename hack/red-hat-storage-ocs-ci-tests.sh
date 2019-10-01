@@ -4,6 +4,8 @@ set -e
 
 source hack/common.sh 
 
+ORIG_DIR=$(pwd)
+
 mkdir -p $OUTDIR_OCS_CI
 cd $OUTDIR_OCS_CI
 
@@ -24,6 +26,17 @@ else
 fi
 
 cd ocs-ci
+
+# install the rook/ceph tools pod if required
+if [ "$REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL" = "true" ]; then
+	echo "Installing the rook/ceph tools pod"
+	rook_image=$(oc get deployment -n openshift-storage rook-ceph-operator -o yaml | grep "image\:" | awk -F' ' '{ print $2 }')
+	cp ocs_ci/templates/ocs-deployment/toolbox_pod.yaml custom_toolbox_pod.yaml
+	sed -i "s|image\: .*$|image\: $rook_image|g" custom_toolbox_pod.yaml
+
+	oc apply -f custom_toolbox_pod.yaml
+	oc wait --for=condition=available --timeout=200s deployment/rook-ceph-tools -n openshift-storage
+fi
 
 # record the hash in a file so we don't redownload the source if nothing changed.
 echo "$REDHAT_OCS_CI_HASH" > git-hash
@@ -69,5 +82,14 @@ ENV_DATA:
   skip_ocs_deployment: true
 EOF
 
+# we want to handle errors explicilty at this point in order to dump debug info
+set +e
+
 echo "Running ocs-ci testsuite using -k $REDHAT_OCS_CI_TEST_EXPRESSION"
 run-ci -k "$REDHAT_OCS_CI_TEST_EXPRESSION" --cluster-path "$(pwd)/fakecluster/" --ocsci-conf my-config.yaml
+
+if [ $? -ne 0 ]; then
+	${ORIG_DIR}/hack/dump-debug-info.sh
+	echo "ERROR: red-hat-storage/ocs-ci test suite failed."
+	exit 1
+fi

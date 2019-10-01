@@ -154,9 +154,6 @@ verify-generated: update-generated
 
 ocs-operator-ci: gofmt golint govet unit-test build verify-latest-csv verify-generated verify-latest-deploy-yaml
 
-red-hat-storage-ocs-ci: build-functest
+red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"
-	# Using ginko functional tests just to setup StorageClass environment.
-	hack/functest.sh --ginkgo.focus "no-op"
-	# Running red-hat-storage/ocs-ci tests.
 	hack/red-hat-storage-ocs-ci-tests.sh
