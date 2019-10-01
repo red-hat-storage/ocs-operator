@@ -86,6 +86,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
     COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
     mkdir -p ${COMMAND_OUTPUT_DIR}
     mkdir -p ${COMMAND_JSON_OUTPUT_DIR}
+    # Collecting output of ceph commands
     for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
         printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
         COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
@@ -94,6 +95,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
         ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
     done
 
+    # Collecting output of ceph volume commands
     for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
         printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}"
         for osdPod in $(oc get pods -n ${ns} -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
@@ -105,5 +107,11 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
             oc -n ${ns} exec ${osdPod} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
         done
     done
-
+    
+    # Collecting ceph prepare volume logs
+    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '{print $1}'); do
+        NODE_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
+        mkdir -p ${NODE_OUTPUT_DIR}
+        oc debug nodes/${node} -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > ${NODE_OUTPUT_DIR}/ceph-volume.log
+    done
 done
