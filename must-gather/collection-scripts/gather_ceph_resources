@@ -17,6 +17,7 @@ CEPH_KEYRING_TEMPLATE="/templates/keyring.template"
 
 generate_config() {
     namespace=$1
+    rm -rf ${CEPH_CONFIG_FILE} ${KEYRING_FILE}
     # Check if the mon secrets exists
     secretName=`oc get secrets -n $namespace $CEPH_MON_SECRET_NAME -o jsonpath="{.metadata.name}"`
     if [ -z ${secretName} ]; then 
@@ -72,12 +73,12 @@ ceph_volume_commands+=("ceph-volume lvm list")
 
 # Inspecting ceph related custom resources for all namespaces 
 for resource in ${ceph_resources[@]}; do
-    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
-    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
+    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
     if [ $(generate_config ${ns}) -eq 1 ]; then 
         continue
     fi
@@ -85,6 +86,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
     COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
     mkdir -p ${COMMAND_OUTPUT_DIR}
     mkdir -p ${COMMAND_JSON_OUTPUT_DIR}
+    # Collecting output of ceph commands
     for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
         printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
         COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
@@ -93,6 +95,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
         ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
     done
 
+    # Collecting output of ceph volume commands
     for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
         printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}"
         for osdPod in $(oc get pods -n ${ns} -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
@@ -103,5 +106,12 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
             oc -n ${ns} exec ${osdPod} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
         done
+    done
+    
+    # Collecting ceph prepare volume logs
+    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '{print $1}'); do
+        NODE_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
+        mkdir -p ${NODE_OUTPUT_DIR}
+        oc debug nodes/${node} -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > ${NODE_OUTPUT_DIR}/ceph-volume.log
     done
 done
