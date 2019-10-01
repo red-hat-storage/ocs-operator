@@ -13,7 +13,7 @@ must_gather_output_dir="$GOPATH/src/github.com/openshift/ocs-operator/must-gathe
 # Cleaning all existing dump
 rm -rf "${must_gather_output_dir}"
 echo "Triggering ocs-must-gather"
-oc adm must-gather --image="${MUST_GATHER_FULL_IMAGE_NAME}" --dest-dir="${must_gather_output_dir}"
+${OCS_OC_PATH} adm must-gather --image="${MUST_GATHER_FULL_IMAGE_NAME}" --dest-dir="${must_gather_output_dir}"
 "$GOPATH"/src/github.com/openshift/ocs-operator/must-gather/functests/integration/command_output_test.sh "${must_gather_output_dir}"
 
 echo "All OCS-must-gather tests passed successfully"

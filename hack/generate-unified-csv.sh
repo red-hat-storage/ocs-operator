@@ -38,10 +38,7 @@ if [ -z "$NOOBAA_IMAGE" ] || [ -z "$NOOBAA_CORE_IMAGE" ] || [ -z "$NOOBAA_DB_IMA
 	exit 1
 fi
 
-if [ ! -d "$OUTDIR_TEMPLATES" ]; then
-	echo "ERROR: no manifests found."
-	echo "Run 'make source-manifests' in order to source component-level manifests"
-fi
+hack/source-manifests.sh
 
 # Merge component-level operators into ocs CSV
 $CSV_MERGER \

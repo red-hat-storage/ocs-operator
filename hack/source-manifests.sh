@@ -5,18 +5,7 @@
 set -e
 
 source hack/common.sh
-
-# For consistency, we're locking into a specific
-# operator-sdk cli build for generating the initial
-# ocs-operator csv that we build upon
-OS_TYPE=$(uname)
-OPERATOR_SDK_URL="https://github.com/operator-framework/operator-sdk/releases/download/v0.8.2/operator-sdk-v0.8.2-x86_64-linux-gnu"
-OPERATOR_SDK_VERSION="operator-sdk-v0.8.2-x86_64-linux-gnu"
-if [ "$OS_TYPE" == "Darwin" ]; then
-	OPERATOR_SDK_URL="https://github.com/operator-framework/operator-sdk/releases/download/v0.8.2/operator-sdk-v0.8.2-x86_64-apple-darwin"
-	OPERATOR_SDK_VERSION="operator-sdk-v0.8.2-x86_64-apple-darwin"
-fi
-OPERATOR_SDK="$OUTDIR_TOOLS/$OPERATOR_SDK_VERSION"
+source hack/operator-sdk-common.sh
 
 function help_txt() {
 	echo "Environment Variables"
@@ -40,11 +29,6 @@ rm -rf $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_CRDS $OUTDIR_BUNDLEMANIFESTS
 mkdir -p $OUTDIR_TOOLS
-
-if [ ! -x $OPERATOR_SDK ]; then
-        curl -JL $OPERATOR_SDK_URL -o $OPERATOR_SDK
-        chmod 0755 $OPERATOR_SDK
-fi
 
 # ==== DUMP NOOBAA YAMLS ====
 noobaa_dump_crds_cmd="crd yaml"
@@ -80,7 +64,7 @@ gen_args="olm-catalog gen-csv --csv-version=$TMP_CSV_VERSION"
 if [ -n "$CSV_REPLACES_VERSION" ]; then
 	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
 fi
-$OPERATOR_SDK $gen_args 2>/dev/null
+$OPERATOR_SDK $gen_args
 OCS_TMP_CSV="deploy/olm-catalog/ocs-operator/${TMP_CSV_VERSION}/ocs-operator.v${TMP_CSV_VERSION}.clusterserviceversion.yaml"
 mv $OCS_TMP_CSV $OCS_CSV
 # Make variables templated for csv-merger tool

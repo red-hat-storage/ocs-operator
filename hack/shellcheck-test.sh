@@ -36,8 +36,7 @@ if [[ -z "${SHELLCHECK}" ]]; then
 fi
 
 cd "${BASE_DIR}" || exit 2
-SCRIPTS=$(find "$GOPATH"/src/github.com/openshift/ocs-operator \( -path "*/vendor/*" -o -path "*/build/*" \) -prune -o -name "*~" -prune -o -type f -exec grep -l -e '^#!/bin/bash$' {} \;)
-
+SCRIPTS=$(find "$GOPATH"/src/github.com/openshift/ocs-operator \( -path "*/vendor/*" -o -path "*/build/*" -o -path "*/_cache/*" \) -prune -o -name "*~" -prune -o -type f -exec grep -l -e '^#!/bin/bash$' {} \;)
 
 failed=0
 for script in ${SCRIPTS}; do
