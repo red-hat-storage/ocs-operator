@@ -3,8 +3,8 @@
 package defaults
 
 const (
-	nodeAffinityKey   = "cluster.ocs.openshift.io/openshift-storage"
-	nodeTolerationKey = "node.ocs.openshift.io/storage"
+	NodeAffinityKey   = "cluster.ocs.openshift.io/openshift-storage"
+	NodeTolerationKey = "node.ocs.openshift.io/storage"
 )
 
 var (
