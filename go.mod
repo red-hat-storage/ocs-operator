@@ -11,7 +11,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.2
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/noobaa/noobaa-operator v1.1.0
+	github.com/noobaa/noobaa-operator/v2 v2.0.1
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
 	github.com/openshift/api v3.9.1-0.20190904155310-a25bb2adc83e+incompatible
@@ -25,9 +25,9 @@ require (
 	google.golang.org/appengine v1.6.1 // indirect
 	k8s.io/api v0.0.0-20190820101039-d651a1528133
 	k8s.io/apiextensions-apiserver v0.0.0-20190820104113-47893d27d7f7
-	k8s.io/apimachinery v0.0.0-20190820100751-ac02f8882ef6
+	k8s.io/apimachinery v0.0.0-20190826114657-e31a5531b558
 	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/kube-openapi v0.0.0-20190709113604-33be087ad058
+	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
 	sigs.k8s.io/controller-runtime v0.1.12
 )
 

@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	nbv1 "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,7 +46,9 @@ func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *
 func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) *nbv1.NooBaa {
 
 	storageClassName := generateNameForCephBlockPoolSC(initialData)
-	coreResources := defaults.GetDaemonResources("noobaa", initialData.Spec.Resources)
+	coreResources := defaults.GetDaemonResources("noobaa-core", initialData.Spec.Resources)
+	dbResources := defaults.GetDaemonResources("noobaa-db", initialData.Spec.Resources)
+	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", initialData.Spec.Resources)
 	nb := &nbv1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "noobaa",
@@ -57,8 +59,12 @@ func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocs
 		},
 
 		Spec: nbv1.NooBaaSpec{
-			StorageClassName: &storageClassName,
-			CoreResources:    &coreResources,
+			DBStorageClass:            &storageClassName,
+			PVPoolDefaultStorageClass: &storageClassName,
+			CoreResources:             &coreResources,
+			DBResources:               &dbResources,
+			Tolerations:               defaults.DaemonPlacements["noobaa-core"].Tolerations,
+			DBVolumeResources:         &dBVolumeResources,
 		},
 	}
 
@@ -68,10 +74,10 @@ func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocs
 		nb.Spec.Image = &noobaaCoreImage
 	}
 
-	noobaaMongoImage := os.Getenv("NOOBAA_MONGODB_IMAGE")
-	if noobaaMongoImage != "" {
-		reqLogger.Info(fmt.Sprintf("setting noobaa mongodb image to %s", noobaaMongoImage))
-		nb.Spec.MongoImage = &noobaaMongoImage
+	noobaaDBImage := os.Getenv("NOOBAA_DB_IMAGE")
+	if noobaaDBImage != "" {
+		reqLogger.Info(fmt.Sprintf("setting noobaa db image to %s", noobaaDBImage))
+		nb.Spec.DBImage = &noobaaDBImage
 	}
 	return nb
 }
