@@ -18,6 +18,23 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
+var mockStorageClusterRequest = reconcile.Request{
+	NamespacedName: types.NamespacedName{
+		Name:      "storage-test",
+		Namespace: "storage-test-ns",
+	},
+}
+
+var mockStorageCluster = &api.StorageCluster{
+	TypeMeta: metav1.TypeMeta{
+		Kind: "StorageCluster",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "storage-test",
+		Namespace: "storage-test-ns",
+	},
+}
+
 func TestReconcilerImplInterface(t *testing.T) {
 	reconciler := ReconcileStorageCluster{}
 	var i interface{} = &reconciler
@@ -26,46 +43,26 @@ func TestReconcilerImplInterface(t *testing.T) {
 }
 
 func TestNonWatchedResourceNameNotFound(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "doesn't exist",
 			Namespace: "storage-test-ns",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, cr)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
 func TestNonWatchedResourceNamespaceNotFound(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "storage-test",
 			Namespace: "doesn't exist",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, cr)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -79,42 +76,20 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		},
 	}
 
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
 	reconciler := createFakeStorageClusterReconciler(t, cr)
-	result, err := reconciler.Reconcile(request)
+	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-	reconciler := createFakeStorageClusterReconciler(t, cr, &rookCephv1.CephCluster{})
-	result, err := reconciler.Reconcile(request)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, &rookCephv1.CephCluster{})
+	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
 	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, request.NamespacedName, actual)
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
 	assert.Len(t, actual.Status.Conditions, 5)
@@ -122,34 +97,19 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 }
 
 func TestEnsureCephClusterCreate(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
 	cephMock := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "doesn't exist",
 			Namespace: "storage-test-ns",
 		},
 	}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-	reconciler := createFakeStorageClusterReconciler(t, cr, cephMock)
-	err := reconciler.ensureCephCluster(cr, reconciler.reqLogger)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cephMock)
+	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 	assert.NoError(t, err)
 
-	expected := newCephCluster(cr, "")
-	actual := newCephCluster(cr, "")
-	err = reconciler.client.Get(nil, request.NamespacedName, actual)
+	expected := newCephCluster(mockStorageCluster, "")
+	actual := newCephCluster(mockStorageCluster, "")
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 	assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
@@ -157,34 +117,19 @@ func TestEnsureCephClusterCreate(t *testing.T) {
 }
 
 func TestEnsureCephClusterUpdate(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
 	cephMock := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "storage-test",
 			Namespace: "storage-test-ns",
 		},
 	}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
 	reconciler := createFakeStorageClusterReconciler(t, cephMock)
-	err := reconciler.ensureCephCluster(cr, reconciler.reqLogger)
+	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 	assert.NoError(t, err)
 
-	expected := newCephCluster(cr, "")
-	actual := newCephCluster(cr, "")
-	err = reconciler.client.Get(nil, request.NamespacedName, actual)
+	expected := newCephCluster(mockStorageCluster, "")
+	actual := newCephCluster(mockStorageCluster, "")
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 	assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
@@ -192,19 +137,10 @@ func TestEnsureCephClusterUpdate(t *testing.T) {
 }
 
 func TestEnsureCephClusterNoConditions(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-	cc := newCephCluster(cr, "")
+	cc := newCephCluster(mockStorageCluster, "")
 	cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key" //for test purpose
 	reconciler := createFakeStorageClusterReconciler(t, cc)
-	err := reconciler.ensureCephCluster(cr, reconciler.reqLogger)
+	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, reconciler.conditions)
 	assert.Len(t, reconciler.conditions, 3)
@@ -221,20 +157,11 @@ func TestEnsureCephClusterNoConditions(t *testing.T) {
 }
 
 func TestEnsureCephClusterNegativeConditions(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-	cc := newCephCluster(cr, "")
+	cc := newCephCluster(mockStorageCluster, "")
 	cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 	cc.Status.State = rookCephv1.ClusterStateCreated
 	reconciler := createFakeStorageClusterReconciler(t, cc)
-	err := reconciler.ensureCephCluster(cr, reconciler.reqLogger)
+	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 	assert.NoError(t, err)
 	assert.Empty(t, reconciler.conditions)
 }
@@ -282,35 +209,19 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 }
 
 func TestStorageClusterInitConditions(t *testing.T) {
-	cr := &api.StorageCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageCluster",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
-
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
-		},
-	}
 	cephMock := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "storage-test",
 			Namespace: "storage-test-ns",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, cr, cephMock)
-	result, err := reconciler.Reconcile(request)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cephMock)
+	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
 	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, request.NamespacedName, actual)
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
 	assert.Len(t, actual.Status.Conditions, 5)
