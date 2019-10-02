@@ -782,6 +782,7 @@ spec:
           - events
           - configmaps
           - secrets
+          - nodes
           verbs:
           - '*'
         - apiGroups:

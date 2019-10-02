@@ -6,14 +6,17 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/reference"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -24,10 +27,14 @@ import (
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	corev1 "k8s.io/api/core/v1"
 )
 
 var monCount = defaults.MonCount
+
+var validTopologyLabelKeys = []string{
+	"failure-domain.beta.kubernetes.io",
+	"failure-domain.kubernetes.io",
+}
 
 func init() {
 	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
@@ -90,6 +97,13 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		}
 	}
 
+	// Get storage node topology labels
+	err = r.reconcileNodeTopologyMap(instance, reqLogger)
+	if err != nil {
+		reqLogger.Error(err, "Failed to set node topology map")
+		return reconcile.Result{}, err
+	}
+
 	// Check for StorageClusterInitialization
 	scinit := &ocsv1.StorageClusterInitialization{}
 	err = r.client.Get(context.TODO(), request.NamespacedName, scinit)
@@ -99,6 +113,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 			scinit.Name = request.Name
 			scinit.Namespace = request.Namespace
+			scinit.Spec.FailureDomain = determineFailureDomain(instance.Status.NodeTopologies)
 			// Set StorageCluster instance as the owner and controller
 			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
 				return reconcile.Result{}, err
@@ -227,6 +242,51 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	return reconcile.Result{}, phaseErr
 }
 
+// reconcileNodeTopologyMap builds the map of all topology labels on all nodes
+// in the storage cluster
+func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	nodes := &corev1.NodeList{}
+	nodeListOptions := client.ListOptions{}
+	nodeListOptions.SetLabelSelector(defaults.NodeAffinityKey)
+
+	err := r.client.List(context.TODO(), &nodeListOptions, nodes)
+	if err != nil {
+		return err
+	}
+
+	if sc.Status.NodeTopologies == nil {
+		sc.Status.NodeTopologies = ocsv1.NewNodeTopologyMap()
+	}
+	topologyMap := sc.Status.NodeTopologies
+	updated := false
+
+	for _, node := range nodes.Items {
+		labels := node.Labels
+		for label, value := range labels {
+			for _, key := range validTopologyLabelKeys {
+				if strings.Contains(label, key) {
+					if !topologyMap.Contains(label, value) {
+						reqLogger.Info("Adding topology label from node", "Node", node.Name, "Label", label, "Value", value)
+						topologyMap.Add(label, value)
+						updated = true
+					}
+				}
+			}
+		}
+
+	}
+
+	if updated {
+		reqLogger.Info("Updating node topology map for StorageCluster")
+		err = r.client.Status().Update(context.TODO(), sc)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
@@ -301,6 +361,22 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	return nil
 }
 
+// determineFailureDomain determines the appropriate Ceph failure domain based
+// on the storage cluster's topology map
+func determineFailureDomain(topologyMap *ocsv1.NodeTopologyMap) string {
+	failureDomain := "host"
+
+	for label, labelValues := range topologyMap.Labels {
+		if strings.Contains(label, "zone") {
+			if len(labelValues) >= 3 {
+				failureDomain = "zone"
+			}
+		}
+	}
+
+	return failureDomain
+}
+
 // newCephCluster returns a CephCluster object.
 func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
 	labels := map[string]string{
@@ -344,7 +420,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				RulesNamespace: "openshift-storage",
 			},
 			Storage: rook.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets),
+				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets, sc.Status.NodeTopologies),
 				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
@@ -352,25 +428,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 		},
-	}
-	// Applying Placement and ResourceRequirements configurations to each
-	// StorageClassDeviceSets rook.Placement.All  and rook.Resources["osd"] may not apply to
-	// StorageClassDeviceSet
-	for i, storageClassDeviceSet := range cephCluster.Spec.Storage.StorageClassDeviceSets {
-		// Storage.StorageClassDeviceSets is a slice of actual objects. No
-		// pointers. So range would return copy of each object in
-		// Storage.StorageClassDeviceSets. Modifying this copy, will not affect the
-		// object in the slice.
-		// Hence, we instead get a pointer to actual object using the index and
-		// modify it.
-
-		if storageClassDeviceSet.Placement.NodeAffinity == nil && storageClassDeviceSet.Placement.PodAffinity == nil && storageClassDeviceSet.Placement.PodAntiAffinity == nil {
-			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Placement = defaults.DaemonPlacements["osd"]
-		}
-
-		if storageClassDeviceSet.Resources.Requests == nil && storageClassDeviceSet.Resources.Limits == nil {
-			cephCluster.Spec.Storage.StorageClassDeviceSets[i].Resources = defaults.DaemonResources["osd"]
-		}
 	}
 
 	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
@@ -408,4 +465,88 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 	}
 
 	return resources
+}
+
+// newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
+func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topologyMap *ocsv1.NodeTopologyMap) []rook.StorageClassDeviceSet {
+	var storageClassDeviceSets []rook.StorageClassDeviceSet
+
+	for _, ds := range storageDeviceSets {
+		resources := ds.Resources
+		if resources.Requests == nil && resources.Limits == nil {
+			resources = defaults.DaemonResources["osd"]
+		}
+
+		topologyKey := ds.TopologyKey
+		topologyKeyValues := []string{}
+		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil
+
+		if noPlacement {
+			if topologyKey == "" {
+				topologyKey = "zone"
+			}
+			if topologyMap != nil {
+				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
+			}
+		}
+
+		count := ds.Count
+		replica := ds.Replica
+		if replica == 0 {
+			replica = defaults.DeviceSetReplica
+
+			// This is a temporary hack in place due to limitations
+			// in the current implementation of the OCP console.
+			// The console is hardcoded to create a StorageCluster
+			// with a Count of 3, as made sense for the previous
+			// behavior, but it cannot be updated until the next
+			// z-stream release of OCP 4.2. This workaround is to
+			// enable the new behavior while the console is waiting
+			// to be updated.
+			// TODO: Remove this behavior when OCP console is updated
+			count = count / 3
+		}
+
+		for i := 0; i < replica; i++ {
+			placement := rook.Placement{}
+			portable := ds.Portable
+
+			if noPlacement {
+				in := defaults.DaemonPlacements["osd"]
+				(&in).DeepCopyInto(&placement)
+
+				if len(topologyKeyValues) >= replica {
+					portable = true
+					podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+					podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
+
+					topologyIndex := i % len(topologyKeyValues)
+					nodeZoneSelector := corev1.NodeSelectorRequirement{
+						Key:      topologyKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{topologyKeyValues[topologyIndex]},
+					}
+					nodeSelectorTerms := placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+					nodeSelectorTerms[0].MatchExpressions = append(nodeSelectorTerms[0].MatchExpressions, nodeZoneSelector)
+				} else {
+					portable = false
+				}
+			} else {
+				placement = ds.Placement
+			}
+
+			set := rook.StorageClassDeviceSet{
+				Name:                 fmt.Sprintf("%s-%d", ds.Name, i),
+				Count:                count,
+				Resources:            resources,
+				Placement:            placement,
+				Config:               ds.Config.ToMap(),
+				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
+				Portable:             portable,
+			}
+			storageClassDeviceSets = append(storageClassDeviceSets, set)
+		}
+	}
+
+	return storageClassDeviceSets
 }

@@ -411,7 +411,7 @@ func (r *ReconcileStorageClusterInitialization) newCephObjectStoreInstances(init
 			},
 			Spec: cephv1.ObjectStoreSpec{
 				MetadataPool: cephv1.PoolSpec{
-					FailureDomain: "host",
+					FailureDomain: initData.Spec.FailureDomain,
 					Replicated: cephv1.ReplicatedSpec{
 						Size: 3,
 					},
@@ -472,7 +472,7 @@ func (r *ReconcileStorageClusterInitialization) newCephBlockPoolInstances(initDa
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.PoolSpec{
-				FailureDomain: "host",
+				FailureDomain: initData.Spec.FailureDomain,
 				Replicated: cephv1.ReplicatedSpec{
 					Size: 3,
 				},
@@ -587,7 +587,7 @@ func (r *ReconcileStorageClusterInitialization) newCephFilesystemInstances(initD
 						Replicated: cephv1.ReplicatedSpec{
 							Size: 3,
 						},
-						FailureDomain: "host",
+						FailureDomain: initData.Spec.FailureDomain,
 					},
 				},
 				MetadataServer: cephv1.MetadataServerSpec{

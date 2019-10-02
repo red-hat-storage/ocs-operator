@@ -170,7 +170,7 @@ var (
 		"noobaa-core": rook.Placement{
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
-					Key:      nodeTolerationKey,
+					Key:      NodeTolerationKey,
 					Operator: corev1.TolerationOpEqual,
 					Value:    "true",
 					Effect:   corev1.TaintEffectNoSchedule,
