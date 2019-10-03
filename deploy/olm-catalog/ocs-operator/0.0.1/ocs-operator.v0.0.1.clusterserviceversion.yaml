@@ -902,6 +902,20 @@ spec:
                   value: "false"
                 - name: ROOK_DISABLE_DEVICE_HOTPLUG
                   value: "true"
+                - name: CSI_PROVISIONER_TOLERATIONS
+                  value: |2-
+
+                    - key: node.ocs.openshift.io/storage
+                      operator: Equal
+                      value: "true"
+                      effect: NoSchedule
+                - name: CSI_PLUGIN_TOLERATIONS
+                  value: |2-
+
+                    - key: node.ocs.openshift.io/storage
+                      operator: Equal
+                      value: "true"
+                      effect: NoSchedule
                 - name: NODE_NAME
                   valueFrom:
                     fieldRef:

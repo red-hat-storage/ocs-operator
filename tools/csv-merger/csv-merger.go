@@ -222,6 +222,22 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 				Value: "true",
 			},
 			{
+				Name: "CSI_PROVISIONER_TOLERATIONS",
+				Value: `
+- key: node.ocs.openshift.io/storage
+  operator: Equal
+  value: "true"
+  effect: NoSchedule`,
+			},
+			{
+				Name: "CSI_PLUGIN_TOLERATIONS",
+				Value: `
+- key: node.ocs.openshift.io/storage
+  operator: Equal
+  value: "true"
+  effect: NoSchedule`,
+			},
+			{
 				Name: "NODE_NAME",
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{
