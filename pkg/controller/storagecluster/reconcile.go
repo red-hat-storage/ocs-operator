@@ -76,6 +76,30 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+
+	// Check for active StorageCluster only if Create request is made
+	// and ignore it if there's another active StorageCluster
+	// If Update request is made and StorageCluster is PhaseIgnored, no need to
+	// proceed further
+	if instance.Status.Phase == "" {
+		isActive, err := r.isActiveStorageCluster(instance)
+		if err != nil {
+			reqLogger.Error(err, "StorageCluster could not be reconciled. Retrying")
+			return reconcile.Result{}, err
+		}
+		if !isActive {
+			instance.Status.Phase = statusutil.PhaseIgnored
+			phaseErr := r.client.Status().Update(context.TODO(), instance)
+			if phaseErr != nil {
+				reqLogger.Error(phaseErr, "Failed to set PhaseIgnored")
+				return reconcile.Result{}, phaseErr
+			}
+			return reconcile.Result{}, nil
+		}
+	} else if instance.Status.Phase == statusutil.PhaseIgnored {
+		return reconcile.Result{}, nil
+	}
+
 	if instance.Status.Phase != statusutil.PhaseReady &&
 		instance.Status.Phase != statusutil.PhaseClusterExpanding {
 		instance.Status.Phase = statusutil.PhaseProgressing
@@ -549,4 +573,54 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 	}
 
 	return storageClassDeviceSets
+}
+
+func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {
+	storageClusterList := ocsv1.StorageClusterList{}
+	opts := &client.ListOptions{
+		Namespace: instance.Namespace,
+		Raw: &metav1.ListOptions{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       instance.Kind,
+				APIVersion: instance.APIVersion,
+			},
+		},
+	}
+	// instance is already marked for deletion
+	// do not mark it as active
+	if !instance.GetDeletionTimestamp().IsZero() {
+		return false, nil
+	}
+
+	err := r.client.List(context.TODO(), opts, &storageClusterList)
+	if err != nil {
+		return false, fmt.Errorf("Error fetching StorageClusterList. %+v", err)
+	}
+
+	// There is only one StorageCluster i.e. instance
+	if len(storageClusterList.Items) == 1 {
+		return true, nil
+	}
+
+	// There are many StorageClusters. Check if this is Active
+	for n, storageCluster := range storageClusterList.Items {
+		if storageCluster.Status.Phase != statusutil.PhaseIgnored &&
+			storageCluster.ObjectMeta.Name != instance.ObjectMeta.Name {
+			// Both StorageClusters are in creation phase
+			// Tiebreak using CreationTimestamp and Alphanumeric ordering
+			if storageCluster.Status.Phase == "" {
+				if storageCluster.CreationTimestamp.Before(&instance.CreationTimestamp) {
+					return false, nil
+				} else if storageCluster.CreationTimestamp.Equal(&instance.CreationTimestamp) && storageCluster.Name < instance.Name {
+					return false, nil
+				}
+				if n == len(storageClusterList.Items)-1 {
+					return true, nil
+				}
+				continue
+			}
+			return false, nil
+		}
+	}
+	return true, nil
 }
