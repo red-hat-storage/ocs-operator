@@ -103,34 +103,61 @@ spec:
       kind: CephNFS
       name: cephnfses.ceph.rook.io
       version: v1
-    - description: NooBaa provides a flexible S3 data service backed by any storage
-        resource for hybrid and multi-cloud environments
+    - description: A NooBaa system - Create this to start
       displayName: NooBaa
       kind: NooBaa
       name: noobaas.noobaa.io
       resources:
       - kind: Service
-        name: ""
-        version: v1
-      - kind: StatefulSet
-        name: ""
+        name: services
         version: v1
       - kind: Secret
-        name: ""
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: Add BackingStores to customize the data placement locations. You
-        will need to create a matching secret to provide the credentials to the BackingStore
-        and reference that secret from the BackingStore spec.
-      displayName: Backing Store
+    - description: Storage target spec such as aws-s3, s3-compatible, PV's and more.
+        Used in BacketClass to construct data placement policies.
+      displayName: BackingStore
       kind: BackingStore
       name: backingstores.noobaa.io
+      resources:
+      - kind: Service
+        name: services
+        version: v1
+      - kind: Secret
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
+        version: v1
       version: v1alpha1
-    - description: Create ObjectBucketClaim in the application namespace to claim
-        a bucket just like claiming a PV.
-      displayName: Object Bucket Claim
-      kind: ObjectBucketClaim
-      name: objectbucketclaims.objectbucket.io
+    - description: Storage policy spec  tiering, mirroring, spreading. Combines BackingStores.
+        Referenced by ObjectBucketClaims.
+      displayName: BucketClass
+      kind: BucketClass
+      name: bucketclasses.noobaa.io
+      resources:
+      - kind: Service
+        name: services
+        version: v1
+      - kind: Secret
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
+        version: v1
       version: v1alpha1
     - description: OCS Initialization represents the initial data to be created when
         the OCS operator is installed
@@ -158,6 +185,45 @@ spec:
       name: storageclusterinitializations.ocs.openshift.io
       version: v1
     required:
+    - description: Claim a bucket just like claiming a PV. Automate you app bucket
+        provisioning by creating OBC with your app deployment. A secret and configmap
+        (name=claim) will be created with access details for the app pods.
+      displayName: ObjectBucketClaim
+      kind: ObjectBucketClaim
+      name: objectbucketclaims.objectbucket.io
+      resources:
+      - kind: Service
+        name: services
+        version: v1
+      - kind: Secret
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
+        version: v1
+      version: v1alpha1
+    - description: Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning
+        information.
+      displayName: ObjectBucket
+      kind: ObjectBucket
+      name: objectbuckets.objectbucket.io
+      resources:
+      - kind: Service
+        name: services
+        version: v1
+      - kind: Secret
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
+        version: v1
+      version: v1alpha1
     - description: Local Storage Operator
       displayName: Local Volume
       kind: LocalVolume
@@ -646,13 +712,23 @@ spec:
         serviceAccountName: rook-ceph-system
       - rules:
         - apiGroups:
-          - ""
+          - noobaa.io
           resources:
-          - nodes
+          - '*'
+          - noobaas
+          - backingstores
+          - bucketclasses
+          - noobaas/finalizers
+          - backingstores/finalizers
+          - bucketclasses/finalizers
           verbs:
-          - get
-          - list
-          - watch
+          - '*'
+        - apiGroups:
+          - objectbucket.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
         - apiGroups:
           - ""
           resources:
@@ -674,13 +750,17 @@ spec:
           - get
           - list
           - watch
+          - create
+          - update
         - apiGroups:
-          - objectbucket.io
+          - ""
           resources:
-          - '*'
+          - nodes
           verbs:
-          - '*'
-        serviceAccountName: noobaa-operator
+          - get
+          - list
+          - watch
+        serviceAccountName: noobaa
       - rules:
         - apiGroups:
           - storage.k8s.io
@@ -878,14 +958,14 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:1.1.1
+                image: noobaa/noobaa-operator:2.0.1
                 imagePullPolicy: IfNotPresent
                 name: noobaa-operator
                 resources:
                   limits:
                     cpu: 250m
                     memory: 256Mi
-              serviceAccountName: noobaa-operator
+              serviceAccountName: noobaa
               tolerations:
               - effect: NoSchedule
                 key: node.ocs.openshift.io/storage
@@ -922,7 +1002,7 @@ spec:
                   value: ceph/ceph:v14.2.4-20190917
                 - name: NOOBAA_CORE_IMAGE
                   value: noobaa/noobaa-core:5
-                - name: NOOBAA_MONGODB_IMAGE
+                - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
                 - name: MON_COUNT_OVERRIDE
                   value: "3"
@@ -1118,6 +1198,9 @@ spec:
           - noobaas
           - backingstores
           - bucketclasses
+          - noobaas/finalizers
+          - backingstores/finalizers
+          - bucketclasses/finalizers
           verbs:
           - '*'
         - apiGroups:
@@ -1151,6 +1234,13 @@ spec:
           - create
           - update
           - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - services/finalizers
+          verbs:
+          - update
         - apiGroups:
           - apps
           resourceNames:
@@ -1159,7 +1249,17 @@ spec:
           - deployments/finalizers
           verbs:
           - update
-        serviceAccountName: noobaa-operator
+        - apiGroups:
+          - cloudcredential.openshift.io
+          resources:
+          - credentialsrequests
+          verbs:
+          - get
+          - create
+          - update
+          - list
+          - watch
+        serviceAccountName: noobaa
     strategy: deployment
   installModes:
   - supported: true

@@ -3,22 +3,23 @@ package storageclusterinitialization
 import (
 	"context"
 	"fmt"
-	"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1"
-	"github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"os"
+	"testing"
+
+	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"testing"
 )
 
 const (
 	coreEnvVar          = "NOOBAA_CORE_IMAGE"
-	mongoEnvVar         = "NOOBAA_MONGODB_IMAGE"
+	dbEnvVar            = "NOOBAA_DB_IMAGE"
 	defaultStorageClass = "noobaa-ceph-rbd"
 )
 
@@ -73,7 +74,8 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 					Namespace: namespacedName.Namespace,
 				},
 				Spec: v1alpha1.NooBaaSpec{
-					StorageClassName: &addressableStorageClass,
+					DBStorageClass:            &addressableStorageClass,
+					PVPoolDefaultStorageClass: &addressableStorageClass,
 				},
 			},
 		},
@@ -97,7 +99,8 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		assert.Equal(t, noobaa.Name, namespacedName.Name)
 		assert.Equal(t, noobaa.Namespace, namespacedName.Namespace)
 		if !c.isCreate {
-			assert.Equal(t, *noobaa.Spec.StorageClassName, defaultStorageClass)
+			assert.Equal(t, *noobaa.Spec.DBStorageClass, defaultStorageClass)
+			assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, defaultStorageClass)
 		}
 	}
 }
@@ -111,22 +114,22 @@ func TestNewNooBaaSystem(t *testing.T) {
 	cases := []struct {
 		label       string
 		envCore     string
-		envMongo    string
+		envDB       string
 		initialData v1.StorageClusterInitialization
 	}{
 		{
 			label:       "case 1", // both envVars carry through to created NooBaaSystem
 			envCore:     "FOO",
-			envMongo:    "BAR",
+			envDB:       "BAR",
 			initialData: defaultInput,
 		},
 		{
 			label:       "case 2", // missing core envVar causes no issue
-			envMongo:    "BAR",
+			envDB:       "BAR",
 			initialData: defaultInput,
 		},
 		{
-			label:       "case 3", // missing mongo envVar causes no issue
+			label:       "case 3", // missing db envVar causes no issue
 			envCore:     "FOO",
 			initialData: defaultInput,
 		},
@@ -148,10 +151,10 @@ func TestNewNooBaaSystem(t *testing.T) {
 				assert.Failf(t, "[%s] unable to set env_var %s", c.label, coreEnvVar)
 			}
 		}
-		if c.envMongo != "" {
-			err := os.Setenv(mongoEnvVar, c.envMongo)
+		if c.envDB != "" {
+			err := os.Setenv(dbEnvVar, c.envDB)
 			if err != nil {
-				assert.Failf(t, "[%s] unable to set env_var %s", c.label, mongoEnvVar)
+				assert.Failf(t, "[%s] unable to set env_var %s", c.label, dbEnvVar)
 			}
 		}
 		reconciler := ReconcileStorageClusterInitialization{}
@@ -161,13 +164,14 @@ func TestNewNooBaaSystem(t *testing.T) {
 		assert.NotEmptyf(t, nooBaa.Labels, "[%s] expected noobaa Labels not found", c.label)
 		assert.Equalf(t, nooBaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
 		assert.Equalf(t, nooBaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		assert.Equal(t, *nooBaa.Spec.StorageClassName, fmt.Sprintf("%s-ceph-rbd", c.initialData.Name))
+		assert.Equal(t, *nooBaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.initialData.Name))
+		assert.Equal(t, *nooBaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.initialData.Name))
 		assert.Equalf(t, nooBaa.Namespace, c.initialData.Namespace, "[%s] namespace mismatch", c.label)
 		if c.envCore != "" {
 			assert.Equalf(t, *nooBaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)
 		}
-		if c.envMongo != "" {
-			assert.Equalf(t, *nooBaa.Spec.MongoImage, c.envMongo, "[%s] core envVar not applied to noobaa spec", c.label)
+		if c.envDB != "" {
+			assert.Equalf(t, *nooBaa.Spec.DBImage, c.envDB, "[%s] core envVar not applied to noobaa spec", c.label)
 		}
 	}
 }

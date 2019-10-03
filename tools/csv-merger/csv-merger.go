@@ -51,17 +51,17 @@ var (
 	noobaaCSVStr       = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
 
-	rookContainerImage          = flag.String("rook-image", "", "rook operator container image")
-	cephContainerImage          = flag.String("ceph-image", "", "ceph daemon container image")
-	rookCsiCephImage            = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiRegistrarImage       = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiProvisionerImage     = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiSnapshotterImage     = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiAttacherImage        = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	noobaaContainerImage        = flag.String("noobaa-image", "", "noobaa operator container image")
-	noobaaCoreContainerImage    = flag.String("noobaa-core-image", "", "noobaa core container image")
-	noobaaMongoDBContainerImage = flag.String("noobaa-mongodb-image", "", "mongodb container image for noobaa")
-	ocsContainerImage           = flag.String("ocs-image", "", "ocs operator container image")
+	rookContainerImage       = flag.String("rook-image", "", "rook operator container image")
+	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
+	rookCsiCephImage         = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiRegistrarImage    = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiProvisionerImage  = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiSnapshotterImage  = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiAttacherImage     = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	noobaaContainerImage     = flag.String("noobaa-image", "", "noobaa operator container image")
+	noobaaCoreContainerImage = flag.String("noobaa-core-image", "", "noobaa core container image")
+	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
+	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -151,8 +151,8 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 				Value: *noobaaCoreContainerImage,
 			},
 			{
-				Name:  "NOOBAA_MONGODB_IMAGE",
-				Value: *noobaaMongoDBContainerImage,
+				Name:  "NOOBAA_DB_IMAGE",
+				Value: *noobaaDBContainerImage,
 			},
 			{
 				Name:  "MON_COUNT_OVERRIDE",
@@ -663,8 +663,8 @@ func main() {
 		log.Fatal("--noobaa-image is required")
 	} else if *noobaaCoreContainerImage == "" {
 		log.Fatal("--noobaa-core-image is required")
-	} else if *noobaaMongoDBContainerImage == "" {
-		log.Fatal("--noobaa-mongodb-image is required")
+	} else if *noobaaDBContainerImage == "" {
+		log.Fatal("--noobaa-db-image is required")
 	} else if *ocsContainerImage == "" {
 		log.Fatal("--ocs-image is required")
 	} else if *inputCrdsDir == "" {

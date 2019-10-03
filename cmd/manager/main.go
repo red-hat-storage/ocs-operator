@@ -8,7 +8,7 @@ import (
 	"runtime"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	nbapis "github.com/noobaa/noobaa-operator/pkg/apis"
+	nbapis "github.com/noobaa/noobaa-operator/v2/pkg/apis"
 	"github.com/openshift/ocs-operator/pkg/apis"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller"

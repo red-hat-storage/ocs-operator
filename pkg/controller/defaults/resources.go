@@ -59,14 +59,29 @@ var (
 				corev1.ResourceMemory: resource.MustParse("3Gi"),
 			},
 		},
-		"noobaa": corev1.ResourceRequirements{
+		"noobaa-core": corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("4"),
-				corev1.ResourceMemory: resource.MustParse("8Gi"),
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("4"),
-				corev1.ResourceMemory: resource.MustParse("8Gi"),
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+		},
+		"noobaa-db": corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+		},
+		"noobaa-db-vol": corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("50Gi"),
 			},
 		},
 	}

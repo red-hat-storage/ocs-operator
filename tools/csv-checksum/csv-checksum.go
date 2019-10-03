@@ -18,17 +18,17 @@ var (
 	csvVersion         = flag.String("csv-version", "", "the unified CSV version")
 	replacesCsvVersion = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
 
-	rookContainerImage          = flag.String("rook-image", "", "rook operator container image")
-	cephContainerImage          = flag.String("ceph-image", "", "ceph daemon container image")
-	rookCsiCephImage            = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiRegistrarImage       = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiProvisionerImage     = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiSnapshotterImage     = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiAttacherImage        = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	noobaaContainerImage        = flag.String("noobaa-image", "", "noobaa operator container image")
-	noobaaCoreContainerImage    = flag.String("noobaa-core-image", "", "noobaa core container image")
-	noobaaMongoDBContainerImage = flag.String("noobaa-mongodb-image", "", "mongodb container image for noobaa")
-	ocsContainerImage           = flag.String("ocs-image", "", "ocs operator container image")
+	rookContainerImage       = flag.String("rook-image", "", "rook operator container image")
+	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
+	rookCsiCephImage         = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiRegistrarImage    = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiProvisionerImage  = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiSnapshotterImage  = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiAttacherImage     = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	noobaaContainerImage     = flag.String("noobaa-image", "", "noobaa operator container image")
+	noobaaCoreContainerImage = flag.String("noobaa-core-image", "", "noobaa core container image")
+	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
+	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
 
 	outFile = flag.String("checksum-outfile", "", "the file to write the checksum to")
 )
@@ -65,8 +65,8 @@ func main() {
 		log.Fatal("--noobaa-image is required")
 	} else if *noobaaCoreContainerImage == "" {
 		log.Fatal("--noobaa-core-image is required")
-	} else if *noobaaMongoDBContainerImage == "" {
-		log.Fatal("--noobaa-mongodb-image is required")
+	} else if *noobaaDBContainerImage == "" {
+		log.Fatal("--noobaa-db-image is required")
 	} else if *ocsContainerImage == "" {
 		log.Fatal("--ocs-image is required")
 	} else if *outFile == "" {
@@ -119,7 +119,7 @@ func main() {
 	md5Hash = addArgToHash("--rook-csi-attacher-image", *rookCsiAttacherImage, md5Hash)
 	md5Hash = addArgToHash("--noobaa-image", *noobaaContainerImage, md5Hash)
 	md5Hash = addArgToHash("--noobaa-core-image", *noobaaCoreContainerImage, md5Hash)
-	md5Hash = addArgToHash("--noobaa-mongodb-image", *noobaaMongoDBContainerImage, md5Hash)
+	md5Hash = addArgToHash("--noobaa-db-image", *noobaaDBContainerImage, md5Hash)
 	md5Hash = addArgToHash("--ocs-image", *ocsContainerImage, md5Hash)
 
 	hashInBytes := md5Hash.Sum(nil)

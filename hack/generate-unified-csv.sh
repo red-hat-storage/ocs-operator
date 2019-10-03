@@ -13,7 +13,7 @@ function help_txt() {
 	echo "    OCS_IMAGE:            (required) The ocs operator container image to integrate with"
 	echo "    NOOBAA_IMAGE:         (required) The noobaa operator container image to integrate with"
 	echo "    NOOBAA_CORE_IMAGE:    (required) The noobaa core container image to integrate with"
-	echo "    NOOBAA_MONGODB_IMAGE: (required) MongoDB container image that is used by noobaa"
+	echo "    NOOBAA_DB_IMAGE: 		(required) DB container image that is used by noobaa"
 	echo "    ROOK_IMAGE:           (required) The rook operator container image to integrate with"
 	echo "    CEPH_IMAGE:           (required) The ceph daemon container image to be deployed with storage clusters"
 	echo "    CSV_VERSION:          (required) The ocs-operator csv version that will be generated"
@@ -29,7 +29,7 @@ function help_txt() {
 }
 
 # check required env vars
-if [ -z $NOOBAA_IMAGE ] || [ -z $NOOBAA_CORE_IMAGE ] || [ -z $NOOBAA_MONGODB_IMAGE ] || \
+if [ -z $NOOBAA_IMAGE ] || [ -z $NOOBAA_CORE_IMAGE ] || [ -z $NOOBAA_DB_IMAGE ] || \
    [ -z $ROOK_IMAGE ] || [ -z $CSV_VERSION ] || [ -z $OCS_IMAGE ] || [ -z $CEPH_IMAGE ]; then
 	help_txt
 	echo ""
@@ -58,7 +58,7 @@ $CSV_MERGER \
 	--rook-csi-attacher-image=$ROOK_CSI_ATTACHER_IMAGE \
 	--noobaa-image=$NOOBAA_IMAGE \
 	--noobaa-core-image=$NOOBAA_CORE_IMAGE \
-	--noobaa-mongodb-image=$NOOBAA_MONGODB_IMAGE \
+	--noobaa-db-image=$NOOBAA_DB_IMAGE \
 	--ocs-image=$OCS_IMAGE \
 	--crds-directory=$OUTDIR_CRDS \
 	--manifests-directory=$OUTDIR_BUNDLEMANIFESTS \
