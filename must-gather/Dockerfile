@@ -36,4 +36,5 @@ COPY collection-scripts/* /usr/bin/
 RUN mkdir /templates
 COPY templates /templates
 
+ENV INSPECT_CLIENT=oc
 ENTRYPOINT /usr/bin/gather

@@ -3,8 +3,13 @@
 BASE_COLLECTION_PATH=$1
 
 # Use PWD as base path if no argument is passed
-if [[ ${BASE_COLLECTION_PATH} == "" ]]; then
+if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
+fi
+
+INSPECT_CLI="oc adm --dest-dir"
+if [ "${INSPECT_CLIENT}" = "openshift-must-gather" ];then
+    INSPECT_CLI="openshift-must-gather --base-dir"
 fi
 
 CEPH_COLLLECTION_PATH="${BASE_COLLECTION_PATH}/ceph"
@@ -70,15 +75,17 @@ ceph_commands+=("ceph fs dump")
 # Ceph volume commands
 ceph_volume_commands+=()
 ceph_volume_commands+=("ceph-volume lvm list")
+ 
+ mkdir =p ${CEPH_COLLLECTION_PATH}
 
 # Inspecting ceph related custom resources for all namespaces 
 for resource in ${ceph_resources[@]}; do
-    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+    ${INSPECT_CLI}=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
-    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
+    ${INSPECT_CLI}=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
     if [ $(generate_config ${ns}) -eq 1 ]; then 
         continue
     fi

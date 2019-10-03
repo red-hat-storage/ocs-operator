@@ -1,5 +1,12 @@
 #!/bin/bash
+
 BASE_COLLECTION_PATH="/must-gather"
+INSPECT_CLI="oc adm --dest-dir"
+if [ "${INSPECT_CLIENT}" = "openshift-must-gather" ];then
+    INSPECT_CLI="openshift-must-gather --base-dir"
+fi
+
+
 
 # TODO: Resources commnon to both noobaa and ceph can be collected here
 
@@ -14,7 +21,7 @@ resources+=(objectbuckets)
 
 # Run the Collection of Resources using must-gather
 for resource in ${resources[@]}; do
-    oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
+    ${INSPECT_CLI}=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Call other gather scripts
