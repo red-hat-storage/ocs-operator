@@ -68,6 +68,9 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localStorageRegistryImage string) *clusterObjects {
 
 	co := &clusterObjects{}
+	label := make(map[string]string)
+	// Label required for monitoring this namespace
+	label["openshift.io/cluster-monitoring"] = "true"
 
 	// Namespaces
 	co.namespaces = append(co.namespaces, k8sv1.Namespace{
@@ -76,7 +79,8 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localSto
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: InstallNamespace,
+			Name:   InstallNamespace,
+			Labels: label,
 		},
 	})
 	co.namespaces = append(co.namespaces, k8sv1.Namespace{

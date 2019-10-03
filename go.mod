@@ -10,6 +10,9 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.2
+	github.com/go-openapi/validate v0.18.0 // indirect
+	github.com/gobuffalo/envy v1.6.15 // indirect
+	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/noobaa/noobaa-operator v1.1.0
 	github.com/onsi/ginkgo v1.8.0
