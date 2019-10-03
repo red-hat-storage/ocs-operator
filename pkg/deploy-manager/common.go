@@ -11,9 +11,13 @@ import (
 
 // CreateNamespace creates a namespace in the cluster, ignoring if it already exists
 func (t *DeployManager) CreateNamespace(namespace string) error {
+	label := make(map[string]string)
+	// Label required for monitoring this namespace
+	label["openshift.io/cluster-monitoring"] = "true"
 	ns := &k8sv1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name:   namespace,
+			Labels: label,
 		},
 	}
 	_, err := t.k8sClient.CoreV1().Namespaces().Create(ns)
