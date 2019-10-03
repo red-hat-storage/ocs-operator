@@ -10,7 +10,7 @@ import (
 const TestNamespace = "ocs-functest"
 
 // TestStorageCluster is the name of the storage cluster the test suite installs
-const TestStorageCluster = deploymanager.DefaultStorageCluster
+const TestStorageCluster = deploymanager.DefaultStorageClusterName
 
 // StorageClassRBD is the name of the ceph rbd storage class the test suite installs
 const StorageClassRBD = deploymanager.DefaultStorageClassRBD
