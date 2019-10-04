@@ -323,7 +323,7 @@ func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRe
 func (t *DeployManager) waitForOCSOperator() error {
 	deployments := []string{"ocs-operator", "rook-ceph-operator", "noobaa-operator"}
 
-	timeout := 300 * time.Second
+	timeout := 1000 * time.Second
 	interval := 10 * time.Second
 
 	lastReason := ""
