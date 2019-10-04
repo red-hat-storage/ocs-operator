@@ -17,11 +17,11 @@ import (
 // InstallNamespace is the namespace ocs is installed into
 const InstallNamespace = "openshift-storage"
 
-// DefaultStorageCluster is the name of the storage cluster the test suite installs
-const DefaultStorageCluster = "test-storagecluster"
+// DefaultStorageClusterName is the name of the storage cluster the test suite installs
+const DefaultStorageClusterName = "test-storagecluster"
 
 // DefaultStorageClassRBD is the name of the ceph rbd storage class the test suite installs
-const DefaultStorageClassRBD = DefaultStorageCluster + "-ceph-rbd"
+const DefaultStorageClassRBD = DefaultStorageClusterName + "-ceph-rbd"
 
 // MinOSDsCount represents the minimum number of OSDs required for this testsuite to run.
 const MinOSDsCount = 3
@@ -41,6 +41,16 @@ type DeployManager struct {
 // GetK8sClient is the function used to retrieve the kubernetes client
 func (t *DeployManager) GetK8sClient() *kubernetes.Clientset {
 	return t.k8sClient
+}
+
+// GetOcsClient is the function used to retrieve the ocs client
+func (t *DeployManager) GetOcsClient() *rest.RESTClient {
+	return t.ocsClient
+}
+
+// GetParameterCodec is the function used to retrieve the parameterCodec
+func (t *DeployManager) GetParameterCodec() runtime.ParameterCodec {
+	return t.parameterCodec
 }
 
 // NewDeployManager is the way to create a DeployManager struct
