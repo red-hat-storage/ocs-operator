@@ -20,9 +20,6 @@ func BeforeTestSuiteSetup() {
 	err = t.DeployOCSWithOLM(ocsRegistryImage, localStorageRegistryImage)
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = t.WaitForOCSOperator()
-	gomega.Expect(err).To(gomega.BeNil())
-
 	err = t.StartDefaultStorageCluster()
 	gomega.Expect(err).To(gomega.BeNil())
 

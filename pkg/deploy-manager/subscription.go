@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 )
@@ -53,15 +54,27 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
-
 	}
+
+	// Wait for catalog source before posting subscription
+	err := t.waitForOCSCatalogSource()
+	if err != nil {
+		return err
+	}
+
 	for _, subscription := range co.subscriptions {
 		_, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Create(&subscription)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
-
 	}
+
+	// Wait on ocs-operator, rook-ceph-operator and noobaa-operator to come online.
+	err = t.waitForOCSOperator()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -241,6 +254,56 @@ func (t *DeployManager) DumpYAML(ocsRegistryImage string, localStorageRegistryIm
 	return writer.String()
 }
 
+func (t *DeployManager) waitForOCSCatalogSource() error {
+	timeout := 300 * time.Second
+	interval := 10 * time.Second
+
+	lastReason := ""
+
+	labelSelector, err := labels.Parse("olm.catalogSource in (ocs-catalogsource)")
+	if err != nil {
+		return err
+	}
+
+	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+		pods, err := t.k8sClient.CoreV1().Pods(marketplaceNamespace).List(metav1.ListOptions{
+			LabelSelector: labelSelector.String(),
+		})
+		if err != nil {
+			lastReason = fmt.Sprintf("error talking to k8s apiserver: %v", err)
+			return false, nil
+		}
+
+		if len(pods.Items) == 0 {
+			lastReason = "waiting on ocs catalog source pod to be created"
+			return false, nil
+		}
+		isReady := false
+		for _, pod := range pods.Items {
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == k8sv1.PodReady && condition.Status == k8sv1.ConditionTrue {
+					isReady = true
+					break
+				}
+			}
+		}
+
+		if !isReady {
+			lastReason = "waiting on ocs catalog source pod to reach ready state"
+			return false, nil
+		}
+
+		// if we get here, then all deployments are created and available
+		return true, nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, lastReason)
+	}
+
+	return nil
+}
+
 // DeployOCSWithOLM deploys ocs operator via an olm subscription
 func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRegistryImage string) error {
 
@@ -257,13 +320,10 @@ func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRe
 	return nil
 }
 
-// WaitForOCSOperator waits for the ocs-operator to come online
-func (t *DeployManager) WaitForOCSOperator() error {
+func (t *DeployManager) waitForOCSOperator() error {
 	deployments := []string{"ocs-operator", "rook-ceph-operator", "noobaa-operator"}
 
-	timeout := 1200 * time.Second
-	// NOTE the long timeout above. It can take quite a bit of time for the
-	// ocs operator deployments to roll out
+	timeout := 300 * time.Second
 	interval := 10 * time.Second
 
 	lastReason := ""
