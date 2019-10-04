@@ -4,11 +4,12 @@
 BASE_COLLECTION_PATH=$1
 
 # Use PWD as base path if no argument is passed
-if [[ ${BASE_COLLECTION_PATH} == "" ]]; then
+if [ "${BASE_COLLECTION_PATH}" = "" ]]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
 
 NOOBAA_COLLLECTION_PATH="${BASE_COLLECTION_PATH}/noobaa"
+mkdir -p ${NOOBAA_COLLLECTION_PATH}
 
 noobaa_resources=()
 
@@ -18,7 +19,7 @@ noobaa_resources+=(bucketclass)
 
 # Run the Collection of NooBaa Resources using must-gather
 for resource in ${noobaa_resources[@]}; do
-    oc adm --dest-dir=${NOOBAA_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+    openshift-must-gather --base-dir=${NOOBAA_COLLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Collect logs for all noobaa pods using oc logs
