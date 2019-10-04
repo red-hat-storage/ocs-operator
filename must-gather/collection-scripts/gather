@@ -1,5 +1,6 @@
 #!/bin/bash
 BASE_COLLECTION_PATH="/must-gather"
+mkdir -p ${BASE_COLLECTION_PATH}
 
 # TODO: Resources commnon to both noobaa and ceph can be collected here
 
@@ -14,7 +15,7 @@ resources+=(objectbuckets)
 
 # Run the Collection of Resources using must-gather
 for resource in ${resources[@]}; do
-    oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
+    openshift-must-gather --base-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Call other gather scripts
