@@ -27,16 +27,30 @@ func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *
 	// check if this noobaa instance aleady exists
 	found := &nbv1.NooBaa{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: initialData.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating NooBaa system")
-		err = r.client.Create(context.TODO(), nb)
-
-	} else if err == nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// noobaa system not found - create one
+			reqLogger.Info("Creating NooBaa system")
+			err := r.client.Create(context.TODO(), nb)
+			if err != nil {
+				reqLogger.Error(err, "Failed to create NooBaa system")
+				return err
+			}
+		} else {
+			// other error. fail reconcile
+			reqLogger.Error(err, "Failed to get NooBaa system")
+			return err
+		}
+	} else {
 		// Update NooBaa CR if it is not in the desired state
 		if !reflect.DeepEqual(nb.Spec, found.Spec) {
 			reqLogger.Info("Updating spec for NooBaa")
 			found.Spec = nb.Spec
-			err = r.client.Update(context.TODO(), found)
+			err := r.client.Update(context.TODO(), found)
+			if err != nil {
+				reqLogger.Error(err, "Failed to update NooBaa system")
+				return err
+			}
 		}
 	}
 
