@@ -41,12 +41,6 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("Waiting for ocs-operator to come online")
-	err = t.WaitForOCSOperator()
-	if err != nil {
-		panic(err)
-	}
-
 	log.Printf("Starting default storage cluster")
 	err = t.StartDefaultStorageCluster()
 	if err != nil {

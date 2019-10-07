@@ -20,11 +20,13 @@ REDHAT_OCS_CI_TEST_EXPRESSION="${REDHAT_OCS_CI_TEST_EXPRESSION:-$REDHAT_OCS_CI_D
 REDHAT_OCS_CI_PYTHON_BINARY="${REDHAT_OCS_CI_PYTHON_BINARY:-python3.7}"
 REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL="${REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL:-false}"
 
+# This env var allows developers to point to a custom oc tool that isn't in $PATH
+# defaults to just using the 'oc' binary provided in $PATH
+OCS_OC_PATH="${OCS_OC_PATH:-oc}"
 
 NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
-
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
