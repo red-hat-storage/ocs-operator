@@ -72,7 +72,7 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 			Name: "ocsinit",
 		},
 		Status: api.StorageClusterStatus{
-			FailureDomain: "host",
+			FailureDomain: "rack",
 		},
 	}
 	request := reconcile.Request{
@@ -97,7 +97,7 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 			Name: "ocsinit",
 		},
 		Status: api.StorageClusterStatus{
-			FailureDomain: "host",
+			FailureDomain: "rack",
 		},
 	}
 	request := reconcile.Request{

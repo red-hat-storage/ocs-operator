@@ -2,9 +2,11 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -34,6 +37,7 @@ var monCount = defaults.MonCount
 var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
+	"topology.rook.io",
 }
 
 func init() {
@@ -298,6 +302,7 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	}
 	topologyMap := sc.Status.NodeTopologies
 	updated := false
+	nodeRacks := ocsv1.NewNodeTopologyMap()
 
 	for _, node := range nodes.Items {
 		labels := node.Labels
@@ -310,9 +315,28 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 						updated = true
 					}
 				}
+				if strings.Contains(label, "rack") {
+					if !nodeRacks.Contains(value, node.Name) {
+						nodeRacks.Add(value, node.Name)
+					}
+				}
 			}
 		}
 
+	}
+
+	if determineFailureDomain(topologyMap) == "rack" {
+		minRacks := defaults.DeviceSetReplica
+		for _, deviceSet := range sc.Spec.StorageDeviceSets {
+			if deviceSet.Replica > minRacks {
+				minRacks = deviceSet.Replica
+			}
+		}
+
+		err = r.ensureNodeRacks(nodes, minRacks, nodeRacks, topologyMap, reqLogger)
+		if err != nil {
+			return err
+		}
 	}
 
 	if updated {
@@ -324,6 +348,148 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	}
 
 	return nil
+}
+
+// ensureNodeRacks iterates through the list of storage nodes and ensures
+// all nodes have a rack topology label.
+func (r *ReconcileStorageCluster) ensureNodeRacks(nodes *corev1.NodeList, minRacks int, nodeRacks, topologyMap *ocsv1.NodeTopologyMap, reqLogger logr.Logger) error {
+
+	for _, node := range nodes.Items {
+		hasRack := false
+
+		for _, nodeNames := range nodeRacks.Labels {
+			for _, nodeName := range nodeNames {
+				if nodeName == node.Name {
+					hasRack = true
+					break
+				}
+			}
+			if hasRack {
+				break
+			}
+		}
+
+		if !hasRack {
+			rack := determinePlacementRack(nodes, node, minRacks, nodeRacks)
+			nodeRacks.Add(rack, node.Name)
+			if !topologyMap.Contains(defaults.RackTopologyKey, rack) {
+				reqLogger.Info("Adding topology label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+				topologyMap.Add(defaults.RackTopologyKey, rack)
+			}
+
+			reqLogger.Info("Labeling node with rack label", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+			newNode := node.DeepCopy()
+			newNode.Labels[defaults.RackTopologyKey] = rack
+			patch, err := generateStrategicPatch(node, newNode)
+			if err != nil {
+				return err
+			}
+			err = r.client.Patch(context.TODO(), &node, patch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func generateStrategicPatch(oldObj, newObj interface{}) (client.Patch, error) {
+	oldJSON, err := json.Marshal(oldObj)
+	if err != nil {
+		return nil, err
+	}
+
+	newJSON, err := json.Marshal(newObj)
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, oldObj)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.ConstantPatch(types.StrategicMergePatchType, patch), nil
+}
+
+// determinePlacementRack sorts the list of known racks in alphabetical order,
+// counts the number of Nodes in each rack, then returns the first rack with
+// the fewest number of Nodes. If there are fewer than three racks, define new
+// racks so that there are at least three. It also ensures that only racks with
+// either no nodes or nodes in the same AZ are considered valid racks.
+func determinePlacementRack(nodes *corev1.NodeList, node corev1.Node, minRacks int, nodeRacks *ocsv1.NodeTopologyMap) string {
+	rackList := []string{}
+
+	if len(nodeRacks.Labels) < minRacks {
+		for i := len(nodeRacks.Labels); i < minRacks; i++ {
+			for j := 0; j <= i; j++ {
+				newRack := fmt.Sprintf("rack%d", j)
+				if _, ok := nodeRacks.Labels[newRack]; !ok {
+					nodeRacks.Labels[newRack] = ocsv1.TopologyLabelValues{}
+					break
+				}
+			}
+		}
+	}
+
+	targetAZ := ""
+	for label, value := range node.Labels {
+		for _, key := range validTopologyLabelKeys {
+			if strings.Contains(label, key) && strings.Contains(label, "zone") {
+				targetAZ = value
+				break
+			}
+		}
+		if targetAZ != "" {
+			break
+		}
+	}
+
+	for rack := range nodeRacks.Labels {
+		nodeNames := nodeRacks.Labels[rack]
+		if len(nodeNames) == 0 {
+			rackList = append(rackList, rack)
+			continue
+		}
+
+		validRack := false
+		for _, nodeName := range nodeNames {
+			for _, n := range nodes.Items {
+				if n.Name == nodeName {
+					for label, value := range n.Labels {
+						for _, key := range validTopologyLabelKeys {
+							if strings.Contains(label, key) && strings.Contains(label, "zone") && value == targetAZ {
+								validRack = true
+								break
+							}
+						}
+						if validRack {
+							break
+						}
+					}
+					break
+				}
+			}
+			if validRack {
+				break
+			}
+		}
+		if validRack {
+			rackList = append(rackList, rack)
+		}
+	}
+
+	sort.Strings(rackList)
+	rack := rackList[0]
+
+	for _, r := range rackList {
+		if len(nodeRacks.Labels[r]) < len(nodeRacks.Labels[rack]) {
+			rack = r
+		}
+	}
+
+	return rack
 }
 
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
@@ -403,12 +569,13 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 // determineFailureDomain determines the appropriate Ceph failure domain based
 // on the storage cluster's topology map
 func determineFailureDomain(topologyMap *ocsv1.NodeTopologyMap) string {
-	failureDomain := "host"
+	failureDomain := "rack"
 
 	for label, labelValues := range topologyMap.Labels {
 		if strings.Contains(label, "zone") {
 			if len(labelValues) >= 3 {
 				failureDomain = "zone"
+				break
 			}
 		}
 	}
@@ -522,7 +689,7 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 
 		if noPlacement {
 			if topologyKey == "" {
-				topologyKey = "zone"
+				topologyKey = determineFailureDomain(topologyMap)
 			}
 			if topologyMap != nil {
 				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
