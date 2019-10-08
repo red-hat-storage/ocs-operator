@@ -9,6 +9,15 @@ ORIG_DIR=$(pwd)
 mkdir -p $OUTDIR_OCS_CI
 cd $OUTDIR_OCS_CI
 
+
+# detect latest master hash of ocs-ci if we're not pinned to a specific commit hash
+if [ -z "$REDHAT_OCS_CI_HASH" ]; then
+	echo "Using latest ocs-ci master branch commit"
+	REDHAT_OCS_CI_HASH=$(git ls-remote $REDHAT_OCS_CI_REPO | grep refs/heads/master | cut -f 1)
+fi
+
+echo "ocs-ci commit hash: $REDHAT_OCS_CI_HASH at repo: $REDHAT_OCS_CI_REPO"
+
 DOWNLOAD_SRC=""
 if ! [ -d "ocs-ci" ]; then
 	DOWNLOAD_SRC="true"
