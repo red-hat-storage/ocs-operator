@@ -38,6 +38,8 @@ spec:
                   replicated:
                     properties:
                       size:
+                        maximum: 10
+                        minimum: 1
                         type: integer
               type: array
             metadataPool:
@@ -53,10 +55,14 @@ spec:
                 replicated:
                   properties:
                     size:
+                      maximum: 10
+                      minimum: 1
                       type: integer
             metadataServer:
               properties:
                 activeCount:
+                  maximum: 10
+                  minimum: 1
                   type: integer
                 activeStandby:
                   type: boolean
