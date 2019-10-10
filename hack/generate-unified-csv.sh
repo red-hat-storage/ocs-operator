@@ -18,6 +18,7 @@ function help_txt() {
 	echo "    CEPH_IMAGE:           (required) The ceph daemon container image to be deployed with storage clusters"
 	echo "    CSV_VERSION:          (required) The ocs-operator csv version that will be generated"
 	echo "    REPLACES_CSV_VERSION       (optional) The ocs-operator csv version this new csv will be updating"
+	echo "    SKIP_RANGE                 (optional) The skip range value set for this csv"
 	echo "    ROOK_CSI_CEPH_IMAGE        (optional) Sets custom image env var on the rook deployment spec"
 	echo "    ROOK_CSI_REGISTRAR_IMAGE   (optional) Sets custom image env var on the rook deployment spec"
 	echo "    ROOK_CSI_PROVISIONER_IMAGE (optional) Sets custom image env var on the rook deployment spec"
@@ -46,6 +47,7 @@ fi
 $CSV_MERGER \
 	--csv-version=$CSV_VERSION \
 	--replaces-csv-version=$REPLACES_CSV_VERSION \
+	--skip-range="$SKIP_RANGE" \
 	--rook-csv-filepath=$ROOK_CSV \
 	--noobaa-csv-filepath=$NOOBAA_CSV \
 	--ocs-csv-filepath=$OCS_CSV \
