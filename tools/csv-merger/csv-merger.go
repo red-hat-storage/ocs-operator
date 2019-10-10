@@ -47,6 +47,7 @@ type csvStrategySpec struct {
 var (
 	csvVersion         = flag.String("csv-version", "", "the unified CSV version")
 	replacesCsvVersion = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
+	skipRange          = flag.String("skip-range", "", "the CSV version skip range")
 	rookCSVStr         = flag.String("rook-csv-filepath", "", "path to rook csv yaml file")
 	noobaaCSVStr       = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
@@ -516,7 +517,10 @@ The OCS operator is the primary operator for Red Hat OpenShift Container Storage
 
 	ocsCSV.Spec.DisplayName = "Openshift Container Storage Operator"
 
-	// Set Annotatoins
+	// Set Annotations
+	if *skipRange != "" {
+		ocsCSV.Annotations["olm.skipRange"] = *skipRange
+	}
 	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
 	ocsCSV.Annotations["categories"] = "Storage"
 	ocsCSV.Annotations["alm-examples"] = `
