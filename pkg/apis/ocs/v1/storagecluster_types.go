@@ -25,16 +25,34 @@ type StorageClusterSpec struct {
 }
 
 // StorageDeviceSet defines a set of storage devices.
-// It is derived from and mapped to StorageClassDeviceSet in Rook.
+// It configures the StorageClassDeviceSets field in Rook-Ceph.
 type StorageDeviceSet struct {
-	Name string `json:"name"`
+	// Count is the number of devices in each StorageClassDeviceSet
 	// +kubebuilder:validation:Minimum=1
-	Count           int                          `json:"count"`
-	Resources       corev1.ResourceRequirements  `json:"resources"`
-	Placement       rookalpha.Placement          `json:"placement"`
+	Count int `json:"count"`
+
+	// Replica is the number of StorageClassDeviceSets for this
+	// StorageDeviceSet
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Replica int `json:"replica,omitempty"`
+
+	// TopologyKey is the Kubernetes topology label that the
+	// StorageClassDeviceSets will be distributed across. Ignored if
+	// Placement is set
+	// +optional
+	TopologyKey string `json:"topologyKey,omitempty"`
+
+	// Portable says whether the OSDs in this device set can move between
+	// nodes. This is ignored if Placement is not set
+	// +optional
+	Portable bool `json:"portable,omitempty"`
+
+	Name            string                       `json:"name"`
+	Resources       corev1.ResourceRequirements  `json:"resources,omitempty"`
+	Placement       rookalpha.Placement          `json:"placement,omitempty"`
 	Config          StorageDeviceSetConfig       `json:"config,omitempty"`
 	DataPVCTemplate corev1.PersistentVolumeClaim `json:"dataPVCTemplate"`
-	Portable        bool                         `json:"portable"`
 }
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
@@ -58,6 +76,25 @@ type StorageClusterStatus struct {
 	// been created AND found in the cluster.
 	// +optional
 	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
+
+	// NodeTopologies is a list of topology labels on all nodes matching
+	// the StorageCluster's placement selector.
+	// +optional
+	NodeTopologies *NodeTopologyMap `json:"nodeTopologies,omitempty"`
+}
+
+// TopologyLabelValues is a list of values for a topology label
+type TopologyLabelValues []string
+
+// NodeTopologyMap represents the list of all values of all topology labels
+// across all nodes in the StorageCluster
+type NodeTopologyMap struct {
+	// Labels is a map of topology label keys
+	// (e.g. "failure-domain.kubernetes.io") to a set of values for those
+	// keys.
+	// +optional
+	// +nullable
+	Labels map[string]TopologyLabelValues `json:"labels,omitempty"`
 }
 
 // ConditionReconcileComplete communicates the status of the StorageCluster resource's
@@ -96,30 +133,4 @@ type StorageClusterList struct {
 
 func init() {
 	SchemeBuilder.Register(&StorageCluster{}, &StorageClusterList{})
-}
-
-// ToStorageClassDeviceSet converts a StorageDeviceSet object to a Rook
-// StorageClassDeviceSet object
-func (ds *StorageDeviceSet) ToStorageClassDeviceSet() rookalpha.StorageClassDeviceSet {
-	return rookalpha.StorageClassDeviceSet{
-		Name:                 ds.Name,
-		Count:                ds.Count,
-		Resources:            ds.Resources,
-		Placement:            ds.Placement,
-		Config:               ds.Config.ToMap(),
-		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
-		// TODO: Setting this to false as a temporary workaround,
-		// remove later
-		Portable: false,
-	}
-}
-
-// ToMap converts a StorageDeviceSetConfig object to a map[string]string that
-// can be set in a Rook StorageClassDeviceSet object
-// This functions just returns `nil` right now as the StorageDeviceSetConfig
-// struct itself is empty. It will be updated to perform actual conversion and
-// return a proper map when the StorageDeviceSetConfig struct is updated.
-// TODO: Do actual conversion to map when StorageDeviceSetConfig has defined members
-func (c *StorageDeviceSetConfig) ToMap() map[string]string {
-	return nil
 }

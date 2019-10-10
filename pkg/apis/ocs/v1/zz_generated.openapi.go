@@ -241,6 +241,13 @@ func schema_pkg_apis_ocs_v1_StorageClusterInitializationSpec(ref common.Referenc
 							},
 						},
 					},
+					"failureDomain": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailureDomain is the base CRUSH element Ceph will use to distribute its data replicas for the default CephBlockPool",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -377,10 +384,16 @@ func schema_pkg_apis_ocs_v1_StorageClusterStatus(ref common.ReferenceCallback) c
 							},
 						},
 					},
+					"nodeTopologies": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeTopologies is a list of topology labels on all nodes matching the StorageCluster's placement selector.",
+							Ref:         ref("github.com/openshift/ocs-operator/pkg/apis/ocs/v1.NodeTopologyMap"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
+			"github.com/openshift/custom-resource-status/conditions/v1.Condition", "github.com/openshift/ocs-operator/pkg/apis/ocs/v1.NodeTopologyMap", "k8s.io/api/core/v1.ObjectReference"},
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,6 +107,11 @@ func main() {
 
 	if err := monitoringv1.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding monitoring/v1 apis to scheme")
+		os.Exit(1)
+	}
+
+	if err := corev1.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding core/v1 to scheme")
 		os.Exit(1)
 	}
 

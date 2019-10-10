@@ -17,6 +17,10 @@ type StorageClusterInitializationSpec struct {
 	// StorageClusterInitialization resource, and is set to the
 	// StorageCluster.Spec.Resources
 	Resources map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
+	// FailureDomain is the base CRUSH element Ceph will use to distribute
+	// its data replicas for the default CephBlockPool
+	// +optional
+	FailureDomain string `json:"failureDomain,omitempty"`
 }
 
 // StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization

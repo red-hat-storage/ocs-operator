@@ -17,7 +17,7 @@ var (
 						corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								corev1.NodeSelectorRequirement{
-									Key:      nodeAffinityKey,
+									Key:      NodeAffinityKey,
 									Operator: corev1.NodeSelectorOpExists,
 								},
 							},
@@ -27,7 +27,7 @@ var (
 			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
-					Key:      nodeTolerationKey,
+					Key:      NodeTolerationKey,
 					Operator: corev1.TolerationOpEqual,
 					Value:    "true",
 					Effect:   corev1.TaintEffectNoSchedule,
@@ -42,7 +42,7 @@ var (
 						corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								corev1.NodeSelectorRequirement{
-									Key:      nodeAffinityKey,
+									Key:      NodeAffinityKey,
 									Operator: corev1.NodeSelectorOpExists,
 								},
 							},
@@ -52,7 +52,7 @@ var (
 			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
-					Key:      nodeTolerationKey,
+					Key:      NodeTolerationKey,
 					Operator: corev1.TolerationOpEqual,
 					Value:    "true",
 					Effect:   corev1.TaintEffectNoSchedule,
@@ -86,7 +86,7 @@ var (
 						corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								corev1.NodeSelectorRequirement{
-									Key:      nodeAffinityKey,
+									Key:      NodeAffinityKey,
 									Operator: corev1.NodeSelectorOpExists,
 								},
 							},
@@ -96,7 +96,7 @@ var (
 			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
-					Key:      nodeTolerationKey,
+					Key:      NodeTolerationKey,
 					Operator: corev1.TolerationOpEqual,
 					Value:    "true",
 					Effect:   corev1.TaintEffectNoSchedule,
@@ -130,7 +130,7 @@ var (
 						corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								corev1.NodeSelectorRequirement{
-									Key:      nodeAffinityKey,
+									Key:      NodeAffinityKey,
 									Operator: corev1.NodeSelectorOpExists,
 								},
 							},
@@ -140,7 +140,7 @@ var (
 			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
-					Key:      nodeTolerationKey,
+					Key:      NodeTolerationKey,
 					Operator: corev1.TolerationOpEqual,
 					Value:    "true",
 					Effect:   corev1.TaintEffectNoSchedule,
@@ -170,7 +170,7 @@ var (
 		"noobaa-core": rook.Placement{
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
-					Key:      nodeTolerationKey,
+					Key:      NodeTolerationKey,
 					Operator: corev1.TolerationOpEqual,
 					Value:    "true",
 					Effect:   corev1.TaintEffectNoSchedule,

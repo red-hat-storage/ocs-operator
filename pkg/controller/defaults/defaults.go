@@ -3,11 +3,17 @@
 package defaults
 
 const (
-	nodeAffinityKey   = "cluster.ocs.openshift.io/openshift-storage"
-	nodeTolerationKey = "node.ocs.openshift.io/storage"
+	// NodeAffinityKey is the node label to determine which nodes belong
+	// to a storage cluster
+	NodeAffinityKey = "cluster.ocs.openshift.io/openshift-storage"
+	// NodeTolerationKey is the taint all OCS Pods should tolerate
+	NodeTolerationKey = "node.ocs.openshift.io/storage"
 )
 
 var (
-	//MonCount is the default number of monitors to be configured for the CephCluster
+	// MonCount is the default number of monitors to be configured for the CephCluster
 	MonCount = 3
+	// DeviceSetReplica is the default number of Rook-Ceph
+	// StorageClassDeviceSets per StorageCluster StorageDeviceSet
+	DeviceSetReplica = 3
 )

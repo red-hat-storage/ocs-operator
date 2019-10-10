@@ -30,6 +30,10 @@ spec:
           type: object
         spec:
           properties:
+            failureDomain:
+              description: FailureDomain is the base CRUSH element Ceph will use to
+                distribute its data replicas for the default CephBlockPool
+              type: string
             resources:
               additionalProperties:
                 type: object

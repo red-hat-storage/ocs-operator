@@ -15,16 +15,17 @@ import (
 )
 
 const (
-	pathResources          = "/spec/storageDeviceSets/resources/"
-	pathNodeAffinity       = "/spec/storageDeviceSets/placement/nodeAffinity/"
-	pathPodAffinity        = "/spec/storageDeviceSets/placement/podAffinity/"
-	pathPodAntiAffinity    = "/spec/storageDeviceSets/placement/podAntiAffinity/"
-	pathTolerations        = "/spec/storageDeviceSets/placement/tolerations/"
-	pathDataPVCTemplate    = "/spec/storageDeviceSets/dataPVCTemplate/"
-	pathStatusConditions   = "/status/conditions/"
-	pathStatusNoobaaSystem = "/status/noobaaSystemCreated"
-	pathStatusRelatedObjs  = "/status/relatedObjects/"
-	pathSpecMonPVCTemplate = "/spec/monPVCTemplate/"
+	pathResources            = "/spec/storageDeviceSets/resources/"
+	pathNodeAffinity         = "/spec/storageDeviceSets/placement/nodeAffinity/"
+	pathPodAffinity          = "/spec/storageDeviceSets/placement/podAffinity/"
+	pathPodAntiAffinity      = "/spec/storageDeviceSets/placement/podAntiAffinity/"
+	pathTolerations          = "/spec/storageDeviceSets/placement/tolerations/"
+	pathDataPVCTemplate      = "/spec/storageDeviceSets/dataPVCTemplate/"
+	pathStatusConditions     = "/status/conditions/"
+	pathStatusNoobaaSystem   = "/status/noobaaSystemCreated"
+	pathStatusRelatedObjs    = "/status/relatedObjects/"
+	pathStatusNodeTopologies = "/status/nodeTopologies/"
+	pathSpecMonPVCTemplate   = "/spec/monPVCTemplate/"
 )
 
 func TestSampleCustomResources(t *testing.T) {
@@ -82,6 +83,7 @@ func TestCompleteCRD(t *testing.T) {
 			pathStatusNoobaaSystem,
 			pathStatusRelatedObjs,
 			pathSpecMonPVCTemplate,
+			pathStatusNodeTopologies,
 		}
 		for _, missing := range missingEntries {
 			skipAsOmission := false

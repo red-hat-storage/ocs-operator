@@ -76,6 +76,9 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit",
 		},
+		Spec: api.StorageClusterInitializationSpec{
+			FailureDomain: "zone",
+		},
 	}
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -123,6 +126,9 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 	cr := &api.StorageClusterInitialization{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit",
+		},
+		Spec: api.StorageClusterInitializationSpec{
+			FailureDomain: "zone",
 		},
 	}
 	request := reconcile.Request{
