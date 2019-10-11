@@ -1021,7 +1021,7 @@ spec:
                   value: centos/mongodb-36-centos7
                 - name: MON_COUNT_OVERRIDE
                   value: "3"
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: quay.io/ocs-dev/ocs-operator:4.2.0
                 imagePullPolicy: Always
                 name: ocs-operator
                 ports:
