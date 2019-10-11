@@ -14,6 +14,11 @@ import (
 // OCSInitializationSpec defines the desired state of OCSInitialization
 // +k8s:openapi-gen=true
 type OCSInitializationSpec struct {
+	// EnableCephTools toggles on whether or not the ceph tools pod
+	// should be deployed.
+	// Defaults to false
+	// +optional
+	EnableCephTools bool `json:"enableCephTools,omitempty"`
 }
 
 // OCSInitializationStatus defines the observed state of OCSInitialization

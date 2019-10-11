@@ -1013,6 +1013,8 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: ocs-operator
+                - name: ROOK_CEPH_IMAGE
+                  value: rook/ceph:master
                 - name: CEPH_IMAGE
                   value: ceph/ceph:v14.2
                 - name: NOOBAA_CORE_IMAGE

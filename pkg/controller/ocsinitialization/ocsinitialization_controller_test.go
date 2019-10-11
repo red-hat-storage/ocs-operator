@@ -1,10 +1,13 @@
 package ocsinitialization
 
 import (
+	"fmt"
+
 	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -70,12 +73,15 @@ func TestSCCsAlreadyExist(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = reconciler.Reconcile(request)
+	if err != nil {
+		assert.Fail(t, fmt.Sprintf("Reconcile error encountered: %v", err))
+	}
 	obj := v1.OCSInitialization{}
 	err = reconciler.client.Get(nil, request.NamespacedName, &obj)
 	for cType, status := range successfulReconcileConditions {
 		found := assertCondition(obj, cType, status)
 		if !found {
-			assert.Fail(t, "expected status condition not found")
+			assert.Fail(t, fmt.Sprintf("Expected status condition %s %s not found", cType, status))
 		}
 	}
 
@@ -143,7 +149,7 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 }
 
 func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileOCSInitialization {
-	registerObjs := []runtime.Object{&v1.OCSInitialization{}}
+	registerObjs := []runtime.Object{&v1.OCSInitialization{}, &appsv1.Deployment{}}
 	registerObjs = append(registerObjs)
 	v1.SchemeBuilder.Register(registerObjs...)
 
