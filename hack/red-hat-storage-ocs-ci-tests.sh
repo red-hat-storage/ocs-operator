@@ -36,16 +36,8 @@ fi
 
 cd ocs-ci
 
-# install the rook/ceph tools pod if required
-if [ "$REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL" = "true" ]; then
-	echo "Installing the rook/ceph tools pod"
-	rook_image=$(oc get deployment -n openshift-storage rook-ceph-operator -o yaml | grep "image\:" | awk -F' ' '{ print $2 }')
-	cp ocs_ci/templates/ocs-deployment/toolbox_pod.yaml custom_toolbox_pod.yaml
-	sed -i "s|image\: .*$|image\: $rook_image|g" custom_toolbox_pod.yaml
-
-	oc apply -f custom_toolbox_pod.yaml
-	oc wait --for=condition=available --timeout=200s deployment/rook-ceph-tools -n openshift-storage
-fi
+oc patch ocsinitialization ocsinit -n openshift-storage --type json --patch  '[{ "op": "replace", "path": "/spec/enableCephTools", "value": true }]'
+sleep 10
 
 # record the hash in a file so we don't redownload the source if nothing changed.
 echo "$REDHAT_OCS_CI_HASH" > git-hash
