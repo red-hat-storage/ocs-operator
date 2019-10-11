@@ -36,6 +36,8 @@ var validTopologyLabelKeys = []string{
 	"failure-domain.kubernetes.io",
 }
 
+var storageClusterFinalizer string = "storagecluster.ocs.openshift.io"
+
 func init() {
 	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
 	if monCountStr == "" {
@@ -95,6 +97,28 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			reqLogger.Error(err, "Failed to add conditions to status")
 			return reconcile.Result{}, err
 		}
+	}
+
+	// Check if deletion is triggered and add/remove finalizer
+	if instance.GetDeletionTimestamp().IsZero() {
+		if !containsString(instance.GetFinalizers(), storageClusterFinalizer) {
+			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	} else {
+		if containsString(instance.GetFinalizers(), storageClusterFinalizer) {
+			// finalizer is set. Delete resources such as CephCluster
+			if err := r.deleteResources(instance); err != nil {
+				return reconcile.Result{}, err
+			}
+			instance.ObjectMeta.Finalizers = removeString(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// Get storage node topology labels
@@ -549,4 +573,29 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 	}
 
 	return storageClassDeviceSets
+}
+
+func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster) error {
+	// TODO: Remove resources such as CephCluster, NooBaa
+	return nil
+}
+
+// Helper functions to check and remove string from a slice of strings.
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }
