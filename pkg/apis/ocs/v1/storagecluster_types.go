@@ -109,6 +109,8 @@ const (
 	ReconcileCompletedMessage = "Reconcile completed successfully"
 )
 
+// +genclient
+// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // StorageCluster is the Schema for the storageclusters API
