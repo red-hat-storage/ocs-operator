@@ -97,7 +97,11 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
-				"noobaa": corev1.ResourceRequirements{
+				"noobaa-core": corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+				"noobaa-db": corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
@@ -266,6 +270,51 @@ func (t *DeployManager) waitOnStorageCluster() error {
 
 		if osdsOnline < MinOSDsCount {
 			lastReason = fmt.Sprintf("%d/%d expected OSDs are online", osdsOnline, MinOSDsCount)
+		}
+
+		// We expect a canary pod for each worker node to be online
+		// Label selector "app=rook-ceph-drain-canary" expect one for each worker node we labeled to have Phase = RUNNING
+		pods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-drain-canary"})
+		if err != nil {
+			lastReason = fmt.Sprintf("%v", err)
+			return false, nil
+		}
+
+		nodes, err := t.k8sClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "cluster.ocs.openshift.io/openshift-storage"})
+		if err != nil {
+			lastReason = fmt.Sprintf("%v", err)
+			return false, nil
+		}
+		storageNodes := len(nodes.Items)
+
+		canaryOnline := 0
+		for _, pod := range pods.Items {
+			if pod.Status.Phase == k8sv1.PodRunning {
+				canaryOnline++
+			}
+		}
+		if canaryOnline < storageNodes {
+			lastReason = fmt.Sprintf("Waiting on %d/%d canary pods to come online", canaryOnline, storageNodes)
+			return false, nil
+		}
+
+		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running
+		pods, err = t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "noobaa-core=noobaa"})
+		if err != nil {
+			lastReason = fmt.Sprintf("%v", err)
+			return false, nil
+		}
+
+		noobaaCoreOnline := 0
+		for _, pod := range pods.Items {
+			if pod.Status.Phase == k8sv1.PodRunning {
+				noobaaCoreOnline++
+			}
+		}
+
+		if noobaaCoreOnline == 0 {
+			lastReason = "Waiting on noobaa-core pod to come online"
+			return false, nil
 		}
 
 		return true, nil
