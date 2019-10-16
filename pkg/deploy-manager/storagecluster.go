@@ -272,20 +272,12 @@ func (t *DeployManager) waitOnStorageCluster() error {
 			lastReason = fmt.Sprintf("%d/%d expected OSDs are online", osdsOnline, MinOSDsCount)
 		}
 
-		// We expect a canary pod for each worker node to be online
-		// Label selector "app=rook-ceph-drain-canary" expect one for each worker node we labeled to have Phase = RUNNING
+		// We expect a canary pod for each osd deployment
 		pods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-drain-canary"})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
 		}
-
-		nodes, err := t.k8sClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "cluster.ocs.openshift.io/openshift-storage"})
-		if err != nil {
-			lastReason = fmt.Sprintf("%v", err)
-			return false, nil
-		}
-		storageNodes := len(nodes.Items)
 
 		canaryOnline := 0
 		for _, pod := range pods.Items {
@@ -293,8 +285,8 @@ func (t *DeployManager) waitOnStorageCluster() error {
 				canaryOnline++
 			}
 		}
-		if canaryOnline < storageNodes {
-			lastReason = fmt.Sprintf("Waiting on %d/%d canary pods to come online", canaryOnline, storageNodes)
+		if canaryOnline < MinOSDsCount {
+			lastReason = fmt.Sprintf("Waiting on %d/%d canary pods to come online", canaryOnline, MinOSDsCount)
 			return false, nil
 		}
 
