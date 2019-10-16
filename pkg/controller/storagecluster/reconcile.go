@@ -286,10 +286,9 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 // in the storage cluster
 func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	nodes := &corev1.NodeList{}
-	nodeListOptions := client.ListOptions{}
-	nodeListOptions.SetLabelSelector(defaults.NodeAffinityKey)
 
-	err := r.client.List(context.TODO(), &nodeListOptions, nodes)
+	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
+	err := r.client.List(context.TODO(), nodes, client.MatchingLabels(nodeMatchLabel))
 	if err != nil {
 		return err
 	}
@@ -593,22 +592,14 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 
 func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {
 	storageClusterList := ocsv1.StorageClusterList{}
-	opts := &client.ListOptions{
-		Namespace: instance.Namespace,
-		Raw: &metav1.ListOptions{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       instance.Kind,
-				APIVersion: instance.APIVersion,
-			},
-		},
-	}
+
 	// instance is already marked for deletion
 	// do not mark it as active
 	if !instance.GetDeletionTimestamp().IsZero() {
 		return false, nil
 	}
 
-	err := r.client.List(context.TODO(), opts, &storageClusterList)
+	err := r.client.List(context.TODO(), &storageClusterList, client.InNamespace(instance.Namespace))
 	if err != nil {
 		return false, fmt.Errorf("Error fetching StorageClusterList. %+v", err)
 	}
