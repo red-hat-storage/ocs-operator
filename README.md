@@ -277,19 +277,6 @@ NOTE: The StorageCluster created in the BeforeSuite phase is not cleaned up.
 If you run the functional testsuite multiple times, BeforeSuite will simply
 fast succeed by detecting the StorageCluster already exists.
 
-**Replica 2 Workaround**
-
-Due to issue [#113](https://github.com/openshift/ocs-operator/issues/131) the functional test suite
-runs in replica 2 mode instead of replica 3. Once the underlying issue with
-rook is resolved, the test suite needs to return back to using replica 3. This
-will involve making two changes.
-
-1. Setting `MinOSDsCount = 3` in `functests/config.go`
-2. Removing the `Override mon count` RUN entry in the
-`openshift-ci/Dockerfile.registry.build file.
-
-Once these two changes are made, the functional test should run using replica 3
-
 ### Developing Functional Tests
 
 All the functional test code lives in the ```functests/``` directory. For an
