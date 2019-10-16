@@ -183,6 +183,13 @@ func TestNodeTopologyMapNoNodes(t *testing.T) {
 	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.Equal(t, nodeTopologyMap, actual.Status.NodeTopologies)
+
+	// Test with malformed NodeTopologies
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Status.NodeTopologies = &api.NodeTopologyMap{}
+	err = reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
 }
 
 func TestNodeTopologyMapTwoAZ(t *testing.T) {

@@ -254,7 +254,7 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 		return err
 	}
 
-	if sc.Status.NodeTopologies == nil {
+	if sc.Status.NodeTopologies == nil || sc.Status.NodeTopologies.Labels == nil {
 		sc.Status.NodeTopologies = ocsv1.NewNodeTopologyMap()
 	}
 	topologyMap := sc.Status.NodeTopologies
