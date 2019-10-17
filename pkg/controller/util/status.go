@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -175,4 +176,58 @@ func MapCephClusterNoConditions(conditions *[]conditionsv1.Condition, reason str
 		Reason:  reason,
 		Message: message,
 	})
+}
+
+// won't override a status condition of the same type and status
+func setStatusConditionIfNotPresent(conditions *[]conditionsv1.Condition, condition conditionsv1.Condition) {
+
+	foundCondition := conditionsv1.FindStatusCondition(*conditions, condition.Type)
+	if foundCondition != nil && foundCondition.Status == condition.Status {
+		// already exists
+		return
+	}
+
+	conditionsv1.SetStatusCondition(conditions, condition)
+}
+
+// MapNoobaaNegativeConditions records noobaa related conditions
+// This will only look for negative conditions: !Available, Degraded, Progressing
+func MapNoobaaNegativeConditions(conditions *[]conditionsv1.Condition, found *nbv1.NooBaa) {
+
+	if found == nil {
+		setStatusConditionIfNotPresent(conditions, conditionsv1.Condition{
+			Type:    conditionsv1.ConditionDegraded,
+			Status:  corev1.ConditionTrue,
+			Reason:  "NoobaaNotFound",
+			Message: fmt.Sprintf("Waiting on Nooba instance creation"),
+		})
+		return
+	}
+
+	switch found.Status.Phase {
+	case nbv1.SystemPhaseRejected:
+		setStatusConditionIfNotPresent(conditions, conditionsv1.Condition{
+			Type:    conditionsv1.ConditionDegraded,
+			Status:  corev1.ConditionTrue,
+			Reason:  "NoobaaSpecRejected",
+			Message: fmt.Sprintf("Noobaa object's configuration is rejected by the noobaa operator"),
+		})
+	case "", nbv1.SystemPhaseVerifying, nbv1.SystemPhaseCreating, nbv1.SystemPhaseConnecting, nbv1.SystemPhaseConfiguring:
+		setStatusConditionIfNotPresent(conditions, conditionsv1.Condition{
+			Type:    conditionsv1.ConditionProgressing,
+			Status:  corev1.ConditionTrue,
+			Reason:  "NoobaaInitializing",
+			Message: fmt.Sprintf("Waiting on Nooba instance to finish initialization"),
+		})
+	case nbv1.SystemPhaseReady:
+		// no-op. Ready isn't a negative case
+	default:
+		setStatusConditionIfNotPresent(conditions, conditionsv1.Condition{
+			Type:    conditionsv1.ConditionDegraded,
+			Status:  corev1.ConditionTrue,
+			Reason:  "NoobaaPhaseUnknown",
+			Message: fmt.Sprintf("Noobaa phase %s is unknown", found.Status.Phase),
+		})
+	}
+
 }

@@ -10,6 +10,7 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	scinit "github.com/openshift/ocs-operator/pkg/controller/storageclusterinitialization"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -61,6 +62,8 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 		}
 		objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
 	}
+
+	statusutil.MapNoobaaNegativeConditions(&r.conditions, found)
 
 	return nil
 }
