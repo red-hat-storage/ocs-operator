@@ -79,8 +79,6 @@ spec:
               type: array
             errorMessage:
               type: string
-            noobaaSystemCreated:
-              type: boolean
             phase:
               description: Phase describes the Phase of StorageClusterInitialization
                 This is used by OLM UI to provide status information to the user

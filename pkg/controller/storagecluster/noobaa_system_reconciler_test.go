@@ -1,4 +1,4 @@
-package storageclusterinitialization
+package storagecluster
 
 import (
 	"context"
@@ -30,7 +30,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		Name:      "noobaa",
 		Namespace: "test_ns",
 	}
-	sci := v1.StorageClusterInitialization{
+	sc := v1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespacedName.Name,
 			Namespace: namespacedName.Namespace,
@@ -40,6 +40,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespacedName.Name,
 			Namespace: namespacedName.Namespace,
+			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
 	addressableStorageClass := defaultStorageClass
@@ -47,31 +48,32 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	cases := []struct {
 		label          string
 		namespacedName types.NamespacedName
-		sci            v1.StorageClusterInitialization
+		sc             v1.StorageCluster
 		noobaa         v1alpha1.NooBaa
 		isCreate       bool
 	}{
 		{
 			label:          "case 1", //ensure create logic
 			namespacedName: namespacedName,
-			sci:            sci,
+			sc:             sc,
 			noobaa:         noobaa,
 			isCreate:       true,
 		},
 		{
 			label:          "case 2", //ensure update logic
 			namespacedName: namespacedName,
-			sci:            sci,
+			sc:             sc,
 			noobaa:         noobaa,
 		},
 		{
 			label:          "case 3", //equal, no update
 			namespacedName: namespacedName,
-			sci:            sci,
+			sc:             sc,
 			noobaa: v1alpha1.NooBaa{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      namespacedName.Name,
 					Namespace: namespacedName.Namespace,
+					SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 				},
 				Spec: v1alpha1.NooBaaSpec{
 					DBStorageClass:            &addressableStorageClass,
@@ -91,7 +93,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			err := reconciler.client.Create(context.TODO(), &c.noobaa)
 			assert.NoError(t, err)
 		}
-		err := reconciler.ensureNoobaaSystem(&sci, nooBaaReconcileTestLogger)
+		err := reconciler.ensureNoobaaSystem(&sc, nooBaaReconcileTestLogger)
 		assert.NoError(t, err)
 
 		noobaa = v1alpha1.NooBaa{}
@@ -106,78 +108,76 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 }
 
 func TestNewNooBaaSystem(t *testing.T) {
-	defaultInput := v1.StorageClusterInitialization{
+	defaultInput := v1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test_name",
 		},
 	}
 	cases := []struct {
-		label       string
-		envCore     string
-		envDB       string
-		initialData v1.StorageClusterInitialization
+		label   string
+		envCore string
+		envDB   string
+		sc      v1.StorageCluster
 	}{
 		{
-			label:       "case 1", // both envVars carry through to created NooBaaSystem
-			envCore:     "FOO",
-			envDB:       "BAR",
-			initialData: defaultInput,
+			label:   "case 1", // both envVars carry through to created NooBaaSystem
+			envCore: "FOO",
+			envDB:   "BAR",
+			sc:      defaultInput,
 		},
 		{
-			label:       "case 2", // missing core envVar causes no issue
-			envDB:       "BAR",
-			initialData: defaultInput,
+			label: "case 2", // missing core envVar causes no issue
+			envDB: "BAR",
+			sc:    defaultInput,
 		},
 		{
-			label:       "case 3", // missing db envVar causes no issue
-			envCore:     "FOO",
-			initialData: defaultInput,
+			label:   "case 3", // missing db envVar causes no issue
+			envCore: "FOO",
+			sc:      defaultInput,
 		},
 		{
-			label:       "case 4", // neither envVar set, no issues occur
-			initialData: defaultInput,
+			label: "case 4", // neither envVar set, no issues occur
+			sc:    defaultInput,
 		},
 		{
-			label:       "case 5", // missing initData namespace does not cause error
-			initialData: v1.StorageClusterInitialization{},
+			label: "case 5", // missing initData namespace does not cause error
+			sc:    v1.StorageCluster{},
 		},
 	}
 
 	for _, c := range cases {
 
-		if c.envCore != "" {
-			err := os.Setenv(coreEnvVar, c.envCore)
-			if err != nil {
-				assert.Failf(t, "[%s] unable to set env_var %s", c.label, coreEnvVar)
-			}
+		err := os.Setenv(coreEnvVar, c.envCore)
+		if err != nil {
+			assert.Failf(t, "[%s] unable to set env_var %s", c.label, coreEnvVar)
 		}
-		if c.envDB != "" {
-			err := os.Setenv(dbEnvVar, c.envDB)
-			if err != nil {
-				assert.Failf(t, "[%s] unable to set env_var %s", c.label, dbEnvVar)
-			}
+		err = os.Setenv(dbEnvVar, c.envDB)
+		if err != nil {
+			assert.Failf(t, "[%s] unable to set env_var %s", c.label, dbEnvVar)
 		}
-		reconciler := ReconcileStorageClusterInitialization{}
-		nooBaa := reconciler.newNooBaaSystem(&c.initialData, nooBaaReconcileTestLogger)
+
+		reconciler := ReconcileStorageCluster{}
+		reconciler.initializeImageVars()
+		nooBaa := reconciler.newNooBaaSystem(&c.sc, nooBaaReconcileTestLogger)
 
 		assert.Equalf(t, nooBaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
 		assert.NotEmptyf(t, nooBaa.Labels, "[%s] expected noobaa Labels not found", c.label)
 		assert.Equalf(t, nooBaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
 		assert.Equalf(t, nooBaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		assert.Equal(t, *nooBaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.initialData.Name))
-		assert.Equal(t, *nooBaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.initialData.Name))
-		assert.Equalf(t, nooBaa.Namespace, c.initialData.Namespace, "[%s] namespace mismatch", c.label)
+		assert.Equal(t, *nooBaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+		assert.Equal(t, *nooBaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+		assert.Equalf(t, nooBaa.Namespace, c.sc.Namespace, "[%s] namespace mismatch", c.label)
 		if c.envCore != "" {
 			assert.Equalf(t, *nooBaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)
 		}
 		if c.envDB != "" {
-			assert.Equalf(t, *nooBaa.Spec.DBImage, c.envDB, "[%s] core envVar not applied to noobaa spec", c.label)
+			assert.Equalf(t, *nooBaa.Spec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
 		}
 	}
 }
 
-func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageClusterInitialization {
-	registerObjs := []runtime.Object{&v1.StorageClusterInitialization{}}
+func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster {
+	registerObjs := []runtime.Object{&v1.StorageCluster{}}
 	registerObjs = append(registerObjs, objs...)
 	v1.SchemeBuilder.Register(registerObjs...)
 
@@ -187,7 +187,7 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster
 	}
 	client := fake.NewFakeClientWithScheme(scheme, registerObjs...)
 
-	return ReconcileStorageClusterInitialization{
+	return ReconcileStorageCluster{
 		scheme: scheme,
 		client: client,
 	}

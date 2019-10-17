@@ -29,3 +29,8 @@ func generateNameForCephFilesystemSC(initData *ocsv1.StorageClusterInitializatio
 func generateNameForCephBlockPoolSC(initData *ocsv1.StorageClusterInitialization) string {
 	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
 }
+
+// GenerateNameForCephBlockPoolSCByName generates a storage cluster's rbd storageclass name
+func GenerateNameForCephBlockPoolSCByName(storageClusterName string) string {
+	return fmt.Sprintf("%s-ceph-rbd", storageClusterName)
+}

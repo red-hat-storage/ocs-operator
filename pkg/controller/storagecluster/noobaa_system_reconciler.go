@@ -1,32 +1,34 @@
-package storageclusterinitialization
+package storagecluster
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"reflect"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	scinit "github.com/openshift/ocs-operator/pkg/controller/storageclusterinitialization"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) error {
+func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
-	nb := r.newNooBaaSystem(initialData, reqLogger)
-	err := controllerutil.SetControllerReference(initialData, nb, r.scheme)
+	nb := r.newNooBaaSystem(sc, reqLogger)
+
+	err := controllerutil.SetControllerReference(sc, nb, r.scheme)
 	if err != nil {
 		return err
 	}
 
 	// check if this noobaa instance aleady exists
 	found := &nbv1.NooBaa{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: initialData.Namespace}, found)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: sc.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// noobaa system not found - create one
@@ -52,21 +54,26 @@ func (r *ReconcileStorageClusterInitialization) ensureNoobaaSystem(initialData *
 				return err
 			}
 		}
+
+		objectRef, err := reference.GetReference(r.scheme, found)
+		if err != nil {
+			return err
+		}
+		objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
 	}
 
 	return nil
 }
 
-func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocsv1.StorageClusterInitialization, reqLogger logr.Logger) *nbv1.NooBaa {
-
-	storageClassName := generateNameForCephBlockPoolSC(initialData)
-	coreResources := defaults.GetDaemonResources("noobaa-core", initialData.Spec.Resources)
-	dbResources := defaults.GetDaemonResources("noobaa-db", initialData.Spec.Resources)
-	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", initialData.Spec.Resources)
+func (r *ReconcileStorageCluster) newNooBaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) *nbv1.NooBaa {
+	storageClassName := scinit.GenerateNameForCephBlockPoolSCByName(sc.Name)
+	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
+	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
+	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", sc.Spec.Resources)
 	nb := &nbv1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "noobaa",
-			Namespace: initialData.Namespace,
+			Namespace: sc.Namespace,
 			Labels: map[string]string{
 				"app": "noobaa",
 			},
@@ -82,16 +89,8 @@ func (r *ReconcileStorageClusterInitialization) newNooBaaSystem(initialData *ocs
 		},
 	}
 
-	noobaaCoreImage := os.Getenv("NOOBAA_CORE_IMAGE")
-	if noobaaCoreImage != "" {
-		reqLogger.Info(fmt.Sprintf("setting noobaa system image to %s", noobaaCoreImage))
-		nb.Spec.Image = &noobaaCoreImage
-	}
+	nb.Spec.Image = &r.noobaaCoreImage
+	nb.Spec.DBImage = &r.noobaaDBImage
 
-	noobaaDBImage := os.Getenv("NOOBAA_DB_IMAGE")
-	if noobaaDBImage != "" {
-		reqLogger.Info(fmt.Sprintf("setting noobaa db image to %s", noobaaDBImage))
-		nb.Spec.DBImage = &noobaaDBImage
-	}
 	return nb
 }

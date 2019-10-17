@@ -32,22 +32,42 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
 
+func (r *ReconcileStorageCluster) initializeImageVars() error {
+	r.cephImage = os.Getenv("CEPH_IMAGE")
+	r.noobaaCoreImage = os.Getenv("NOOBAA_CORE_IMAGE")
+	r.noobaaDBImage = os.Getenv("NOOBAA_DB_IMAGE")
+
+	if r.cephImage == "" {
+		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
+		log.Error(err, "missing required environment variable for ocs initialization")
+		return err
+	} else if r.noobaaCoreImage == "" {
+		err := fmt.Errorf("NOOBAA_CORE_IMAGE environment variable not found")
+		log.Error(err, "missing required environment variable for ocs initialization")
+		return err
+	} else if r.noobaaDBImage == "" {
+		err := fmt.Errorf("NOOBAA_DB_IMAGE environment variable not found")
+		log.Error(err, "missing required environment variable for ocs initialization")
+		return err
+	}
+	return nil
+}
+
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
-	cephImage := os.Getenv("CEPH_IMAGE")
-	if cephImage == "" {
-		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
-		log.Error(err, "missing required environment variable for ocs initialization")
-		panic(err)
-	}
-
-	return &ReconcileStorageCluster{
+	r := &ReconcileStorageCluster{
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
 		reqLogger: log,
-		cephImage: cephImage,
 	}
+
+	err := r.initializeImageVars()
+	if err != nil {
+		panic(err)
+	}
+
+	return r
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -91,10 +111,12 @@ var _ reconcile.Reconciler = &ReconcileStorageCluster{}
 type ReconcileStorageCluster struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client     client.Client
-	scheme     *runtime.Scheme
-	reqLogger  logr.Logger
-	conditions []conditionsv1.Condition
-	phase      string
-	cephImage  string
+	client          client.Client
+	scheme          *runtime.Scheme
+	reqLogger       logr.Logger
+	conditions      []conditionsv1.Condition
+	phase           string
+	cephImage       string
+	noobaaDBImage   string
+	noobaaCoreImage string
 }
