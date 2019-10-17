@@ -170,6 +170,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	for _, f := range []func(*ocsv1.StorageCluster, logr.Logger) error{
 		// Add support for additional resources here
 		r.ensureCephCluster,
+		r.ensureNoobaaSystem,
 	} {
 		err = f(instance, reqLogger)
 		if r.phase == statusutil.PhaseClusterExpanding {

@@ -255,31 +255,6 @@ func (r *ReconcileStorageClusterInitialization) Reconcile(request reconcile.Requ
 		}
 	}
 
-	if instance.Status.NoobaaSystemCreated != true {
-		// we only create the data once and then allow changes or even deletion
-		err = r.ensureNoobaaSystem(instance, reqLogger)
-		if err != nil {
-			reason := ocsv1.ReconcileFailed
-			message := fmt.Sprintf("Error while reconciling: %v", err)
-			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
-
-			instance.Status.Phase = statusutil.PhaseError
-			// don't want to overwrite the actual reconcile failure
-			uErr := r.client.Status().Update(context.TODO(), instance)
-			if uErr != nil {
-				reqLogger.Error(uErr, "Failed to update conditions")
-			}
-			return reconcile.Result{}, err
-
-		}
-
-		instance.Status.NoobaaSystemCreated = true
-		err = r.client.Status().Update(context.TODO(), instance)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-
 	reason := ocsv1.ReconcileCompleted
 	message := ocsv1.ReconcileCompletedMessage
 	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
