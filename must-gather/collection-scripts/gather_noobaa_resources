@@ -4,7 +4,7 @@
 BASE_COLLECTION_PATH=$1
 
 # Use PWD as base path if no argument is passed
-if [ "${BASE_COLLECTION_PATH}" = "" ]]; then
+if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
 
