@@ -55,7 +55,7 @@ echo "Deleting all remaining pods"
 $OCS_OC_PATH -n openshift-storage delete pods --all
 
 echo "Deleting all PVCs and PVs"
-$OCS_OC_PATH -n openshift-storage delete pvc,pv --all
+$OCS_OC_PATH -n openshift-storage delete pvc --all
 
 # clean up any remaining objects installed in the deploy manifests such as
 # namespaces, operator groups, and resources outside of the openshift-storage namespace.
