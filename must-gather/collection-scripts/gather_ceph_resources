@@ -79,7 +79,7 @@ done
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
     openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
-    if [ $(generate_config ${ns}) -eq 1 ]; then 
+    if [ $(generate_config ${ns}) -eq 1 ]; then
         continue
     fi
     COMMAND_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/must_gather_commands

@@ -2,10 +2,10 @@
 BASE_COLLECTION_PATH="/must-gather"
 mkdir -p ${BASE_COLLECTION_PATH}
 
-# TODO: Resources commnon to both noobaa and ceph can be collected here
-
 # Resource List
 resources=()
+# collect storagecluster resources
+resources+=(storageclusters)
 
 # collect OB/OBC resoureces
 resources+=(objectbucketclaims)
