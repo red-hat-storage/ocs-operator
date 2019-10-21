@@ -2,10 +2,20 @@
 BASE_COLLECTION_PATH="/must-gather"
 mkdir -p ${BASE_COLLECTION_PATH}
 
-# TODO: Resources commnon to both noobaa and ceph can be collected here
-
+echo "Collecting operator pod logs"
+operatorPodLogCollectionPath="${BASE_COLLECTION_PATH}/namespaces"
+operatorPodLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name}  --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}.log;{end}"
+operatorPodPreviousLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name} -p --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}-previous.log;{end}"
+oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh
+oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh
+oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh
+oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh
+chmod +x collector.sh
+./collector.sh
 # Resource List
 resources=()
+# collect storagecluster resources
+resources+=(storageclusters)
 
 # collect OB/OBC resoureces
 resources+=(objectbucketclaims)
