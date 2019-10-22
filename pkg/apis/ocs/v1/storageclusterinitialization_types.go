@@ -1,10 +1,7 @@
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -13,39 +10,11 @@ import (
 // StorageClusterInitializationSpec defines the desired state of StorageClusterInitialization
 // +k8s:openapi-gen=true
 type StorageClusterInitializationSpec struct {
-	// Resources is set by the StorageCluster controller when it creates the
-	// StorageClusterInitialization resource, and is set to the
-	// StorageCluster.Spec.Resources
-	Resources map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
-	// FailureDomain is the base CRUSH element Ceph will use to distribute
-	// its data replicas for the default CephBlockPool
-	// +optional
-	FailureDomain string `json:"failureDomain,omitempty"`
 }
 
 // StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization
 // +k8s:openapi-gen=true
 type StorageClusterInitializationStatus struct {
-	// Phase describes the Phase of StorageClusterInitialization
-	// This is used by OLM UI to provide status information
-	// to the user
-	Phase string `json:"phase,omitempty"`
-
-	// Conditions describes the state of the StorageClusterInitialization resource.
-	// +optional
-	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`
-
-	// RelatedObjects is a list of objects created and maintained by this
-	// operator. Object references will be added to this list after they have
-	// been created AND found in the cluster.
-	// +optional
-	RelatedObjects              []corev1.ObjectReference `json:"relatedObjects,omitempty"`
-	StorageClassesCreated       bool                     `json:"storageClassesCreated,omitempty"`
-	CephObjectStoresCreated     bool                     `json:"cephObjectStoresCreated,omitempty"`
-	CephBlockPoolsCreated       bool                     `json:"cephBlockPoolsCreated,omitempty"`
-	CephObjectStoreUsersCreated bool                     `json:"cephObjectStoreUsersCreated,omitempty"`
-	CephFilesystemsCreated      bool                     `json:"cephFilesystemsCreated,omitempty"`
-	ErrorMessage                string                   `json:"errorMessage,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

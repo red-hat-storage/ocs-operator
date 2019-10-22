@@ -9,7 +9,6 @@ import (
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
-	scinit "github.com/openshift/ocs-operator/pkg/controller/storageclusterinitialization"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,7 +68,7 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 }
 
 func (r *ReconcileStorageCluster) newNooBaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) *nbv1.NooBaa {
-	storageClassName := scinit.GenerateNameForCephBlockPoolSCByName(sc.Name)
+	storageClassName := generateNameForCephBlockPoolSC(sc)
 	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
 	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
 	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", sc.Spec.Resources)

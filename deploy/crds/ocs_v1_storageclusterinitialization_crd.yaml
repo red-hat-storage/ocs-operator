@@ -28,70 +28,8 @@ spec:
         metadata:
           type: object
         spec:
-          properties:
-            failureDomain:
-              description: FailureDomain is the base CRUSH element Ceph will use to
-                distribute its data replicas for the default CephBlockPool
-              type: string
-            resources:
-              additionalProperties:
-                type: object
-              description: Resources is set by the StorageCluster controller when
-                it creates the StorageClusterInitialization resource, and is set to
-                the StorageCluster.Spec.Resources
-              type: object
           type: object
         status:
-          properties:
-            cephBlockPoolsCreated:
-              type: boolean
-            cephFilesystemsCreated:
-              type: boolean
-            cephObjectStoreUsersCreated:
-              type: boolean
-            cephObjectStoresCreated:
-              type: boolean
-            conditions:
-              description: Conditions describes the state of the StorageClusterInitialization
-                resource.
-              items:
-                properties:
-                  lastHeartbeatTime:
-                    format: date-time
-                    type: string
-                  lastTransitionTime:
-                    format: date-time
-                    type: string
-                  message:
-                    type: string
-                  reason:
-                    type: string
-                  status:
-                    type: string
-                  type:
-                    type: string
-                required:
-                - type
-                - status
-                - lastHeartbeatTime
-                - lastTransitionTime
-                type: object
-              type: array
-            errorMessage:
-              type: string
-            phase:
-              description: Phase describes the Phase of StorageClusterInitialization
-                This is used by OLM UI to provide status information to the user
-              type: string
-            relatedObjects:
-              description: RelatedObjects is a list of objects created and maintained
-                by this operator. Object references will be added to this list after
-                they have been created AND found in the cluster.
-              items:
-                type: object
-              type: array
-            storageClassesCreated:
-              type: boolean
           type: object
   version: v1
   versions:
