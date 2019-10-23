@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // InstallNamespace is the namespace ocs is installed into
@@ -35,7 +36,13 @@ type DeployManager struct {
 	olmClient      *olmclient.Clientset
 	k8sClient      *kubernetes.Clientset
 	ocsClient      *rest.RESTClient
+	crClient       crclient.Client
 	parameterCodec runtime.ParameterCodec
+}
+
+// GetCrClient is the function used to retrieve the controller-runtime client
+func (t *DeployManager) GetCrClient() crclient.Client {
+	return t.crClient
 }
 
 // GetK8sClient is the function used to retrieve the kubernetes client
@@ -93,6 +100,9 @@ func NewDeployManager() (*DeployManager, error) {
 		return nil, err
 	}
 
+	// controller-runtime client
+	crClient, err := crclient.New(config, crclient.Options{Scheme: scheme.Scheme})
+
 	// olm client
 	olmConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -110,6 +120,7 @@ func NewDeployManager() (*DeployManager, error) {
 		olmClient:      olmClient,
 		k8sClient:      k8sClient,
 		ocsClient:      ocsClient,
+		crClient:       crClient,
 		parameterCodec: parameterCodec,
 	}, nil
 }

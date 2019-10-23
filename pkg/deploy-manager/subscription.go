@@ -1,6 +1,7 @@
 package deploymanager
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	yaml "github.com/ghodss/yaml"
 	v1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1"
 	v1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -18,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const localStorageNamespace = "local-storage"
@@ -356,6 +359,112 @@ func (t *DeployManager) waitForOCSOperator() error {
 
 	if err != nil {
 		return fmt.Errorf("%v: %s", err, lastReason)
+	}
+
+	return nil
+}
+
+// UninstallOCS uninstalls ocs operator and storage clusters
+func (t *DeployManager) UninstallOCS(ocsRegistryImage string, localStorageRegistryImage string) error {
+	// Delete storage cluster and wait for it to be deleted
+	scs := &ocsv1.StorageClusterList{}
+	err := t.GetCrClient().List(context.TODO(), scs, client.InNamespace(InstallNamespace))
+	if err != nil {
+		return err
+	}
+
+	for _, sc := range scs.Items {
+		err = t.GetCrClient().Delete(context.TODO(), &sc)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	lastReason := ""
+	timeout := 200 * time.Second
+	interval := 10 * time.Second
+	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+		err = t.GetCrClient().List(context.TODO(), scs, client.InNamespace(InstallNamespace))
+
+		if err != nil {
+			lastReason = fmt.Sprintf("Error talking to k8s apiserver: %v", err)
+			return false, nil
+		}
+
+		if len(scs.Items) > 0 {
+			lastReason = "Waiting on storagecluster to be deleted"
+			return false, nil
+		}
+
+		return true, nil
+	})
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, lastReason)
+	}
+
+	// Delete remaining operator manifests
+	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage)
+	err = t.deleteClusterObjects(co)
+	if err != nil {
+		return err
+	}
+
+	// Delete all remaining deployments in the namespace
+	err = t.GetCrClient().DeleteAllOf(context.TODO(), &appsv1.Deployment{}, client.InNamespace(InstallNamespace))
+	if err != nil && client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	// Delete all remaining daemonsets in the namespace
+	err = t.GetCrClient().DeleteAllOf(context.TODO(), &appsv1.DaemonSet{}, client.InNamespace(InstallNamespace))
+	if err != nil && client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	// Delete all remaining pods in the namespace
+	err = t.GetCrClient().DeleteAllOf(context.TODO(), &k8sv1.Pod{}, client.InNamespace(InstallNamespace))
+	if err != nil && client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	// Delete all PVCs in the namespace
+	err = t.GetCrClient().DeleteAllOf(context.TODO(), &k8sv1.PersistentVolumeClaim{}, client.InNamespace(InstallNamespace))
+	if err != nil && client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	for _, namespace := range co.namespaces {
+		err := t.DeleteNamespaceAndWait(namespace.Name)
+		if err != nil {
+		    return err
+		}
+	}
+
+	return nil
+}
+
+func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
+
+	for _, operatorGroup := range co.operatorGroups {
+		err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Delete(operatorGroup.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+		    return err
+		}
+
+	}
+
+	for _, catalogSource := range co.catalogSources {
+		err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Delete(catalogSource.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+		    return err
+		}
+	}
+
+	for _, subscription := range co.subscriptions {
+		err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Delete(subscription.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+		    return err
+		}
 	}
 
 	return nil
