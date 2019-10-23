@@ -40,6 +40,23 @@ var mockStorageCluster = &api.StorageCluster{
 		Name:      "storage-test",
 		Namespace: "storage-test-ns",
 	},
+
+	Status: api.StorageClusterStatus{
+		StorageClassesCreated:       true,
+		CephObjectStoresCreated:     true,
+		CephObjectStoreUsersCreated: true,
+		CephBlockPoolsCreated:       true,
+		CephFilesystemsCreated:      true,
+	},
+}
+var mockStorageClusterInit = &api.StorageClusterInitialization{
+	TypeMeta: metav1.TypeMeta{
+		Kind: "StorageClusterInitialization",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "storage-test",
+		Namespace: "storage-test-ns",
+	},
 }
 
 var storageClassName = "gp2"
@@ -158,7 +175,7 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, &rookCephv1.CephCluster{})
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, &rookCephv1.CephCluster{})
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -168,6 +185,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
 	assert.Len(t, actual.Status.Conditions, 5)
+
 	assertExpectedCondition(t, actual.Status.Conditions)
 }
 
@@ -394,7 +412,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 			Namespace: "storage-test-ns",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cephMock)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cephMock)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -410,7 +428,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 
 func assertExpectedCondition(t *testing.T, conditions []conditionsv1.Condition) {
 	expectedConditions := map[conditionsv1.ConditionType]corev1.ConditionStatus{
-		api.ConditionReconcileComplete:    corev1.ConditionUnknown,
+		api.ConditionReconcileComplete:    corev1.ConditionTrue,
 		conditionsv1.ConditionAvailable:   corev1.ConditionFalse,
 		conditionsv1.ConditionProgressing: corev1.ConditionTrue,
 		conditionsv1.ConditionDegraded:    corev1.ConditionFalse,
