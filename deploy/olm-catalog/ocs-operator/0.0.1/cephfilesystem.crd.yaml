@@ -69,4 +69,6 @@ spec:
                 annotations: {}
                 placement: {}
                 resources: {}
+            preservePoolsOnDelete:
+              type: boolean
   version: v1
