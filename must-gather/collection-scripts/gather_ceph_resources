@@ -15,6 +15,10 @@ CEPH_CONFIG_FILE="/etc/ceph/ceph.conf"
 CEPH_CONFIG_TEMPLATE="/templates/ceph.conf.template"
 CEPH_KEYRING_TEMPLATE="/templates/keyring.template"
 
+safe_replace () {
+    sed "s/${1//\//\\\/}/${2//\//\\\/}/g"
+}
+
 generate_config() {
     namespace=$1
     rm -rf ${CEPH_CONFIG_FILE} ${KEYRING_FILE}
@@ -32,9 +36,9 @@ generate_config() {
     monEndPoints=`echo ${monEndPoints} | sed "s/[a-z]\+=//g" | sed "s/rook-ceph-mon[0-9]\+=//g"`
 
     # creating admin keyring
-    cat ${CEPH_KEYRING_TEMPLATE} | sed "s/REPLACE_WITH_KEYRING/${adminKey}/g" > ${KEYRING_FILE}
-    cat ${CEPH_CONFIG_TEMPLATE} | sed "s/REPLACE_WITH_MON_ENDPOINTS/${monEndPoints}/g" | sed "s/REPLACE_WITH_KEYRING_PATH/${KEYRING_FILE//\//\\/}/g" > ${CEPH_CONFIG_FILE}
-    
+    cat ${CEPH_KEYRING_TEMPLATE} | safe_replace "REPLACE_WITH_KEYRING" ${adminKey} > ${KEYRING_FILE}
+    cat ${CEPH_CONFIG_TEMPLATE} | safe_replace "REPLACE_WITH_MON_ENDPOINTS" ${monEndPoints} | safe_replace "REPLACE_WITH_KEYRING_PATH" ${KEYRING_FILE} > ${CEPH_CONFIG_FILE}
+
     echo 0
 }
 
