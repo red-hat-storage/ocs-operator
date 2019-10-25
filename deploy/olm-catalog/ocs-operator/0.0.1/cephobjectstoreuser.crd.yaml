@@ -9,6 +9,9 @@ spec:
     kind: CephObjectStoreUser
     listKind: CephObjectStoreUserList
     plural: cephobjectstoreusers
+    shortNames:
+    - rcou
+    - objectuser
     singular: cephobjectstoreuser
   scope: Namespaced
   version: v1

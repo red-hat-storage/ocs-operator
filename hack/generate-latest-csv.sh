@@ -13,11 +13,11 @@ export CSV_CHECKSUM_OUTFILE="hack/latest-csv-checksum.md5"
 export CSV_VERSION=0.0.1
 
 # Current dependency images our DEV CSV are pinned to
-export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:v1.1.2"}
+export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:master"}
 export NOOBAA_IMAGE=${NOOBAA_IMAGE:-"noobaa/noobaa-operator:2.0.3"}
 export NOOBAA_CORE_IMAGE=${NOOBAA_CORE_IMAGE:-"noobaa/noobaa-core:5"}
 export NOOBAA_DB_IMAGE=${NOOBAA_DB_IMAGE:-"centos/mongodb-36-centos7"}
-export CEPH_IMAGE=${CEPH_IMAGE:-"ceph/ceph:v14.2.4-20190917"}
+export CEPH_IMAGE=${CEPH_IMAGE:-"ceph/ceph:v14.2"}
 export OCS_IMAGE=${OCS_IMAGE:-"quay.io/ocs-dev/ocs-operator:latest"}
 
 echo "=== Generating DEV CSV with the following vars ==="

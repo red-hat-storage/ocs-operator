@@ -57,4 +57,6 @@ spec:
                   properties:
                     size:
                       type: integer
+            preservePoolsOnDelete:
+              type: boolean
   version: v1
