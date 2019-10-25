@@ -111,7 +111,7 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					Name:     "example-deviceset",
 					Count:    MinOSDsCount,
 					Portable: true,
-					Resources: corev1.ResourceRequirements{
+					Resources: &corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{},
 						Limits:   corev1.ResourceList{},
 					},

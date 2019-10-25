@@ -83,6 +83,9 @@ spec:
                     minimum: 1
                     type: integer
                   resources:
+                    description: Resources is the set of resourde requests for the
+                      resulting OSD Pods. Making this a pointer allows us to accept
+                      empty resouce values
                     type: object
                   topologyKey:
                     description: TopologyKey is the Kubernetes topology label that
