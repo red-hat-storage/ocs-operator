@@ -497,8 +497,9 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 
 	for _, ds := range storageDeviceSets {
 		resources := ds.Resources
-		if resources.Requests == nil && resources.Limits == nil {
-			resources = defaults.DaemonResources["osd"]
+		if resources == nil || (resources.Requests == nil && resources.Limits == nil) {
+			defaultResources := defaults.DaemonResources["osd"]
+			resources = &defaultResources
 		}
 
 		topologyKey := ds.TopologyKey
@@ -562,7 +563,7 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 			set := rook.StorageClassDeviceSet{
 				Name:                 fmt.Sprintf("%s-%d", ds.Name, i),
 				Count:                count,
-				Resources:            resources,
+				Resources:            *resources,
 				Placement:            placement,
 				Config:               ds.Config.ToMap(),
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},

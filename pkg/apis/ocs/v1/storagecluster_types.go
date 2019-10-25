@@ -48,8 +48,11 @@ type StorageDeviceSet struct {
 	// +optional
 	Portable bool `json:"portable,omitempty"`
 
+	// Resources is the set of resource requests for the resulting OSD
+	// Pods. Making this a pointer allows us to accept empty resouce values
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
 	Name            string                       `json:"name"`
-	Resources       corev1.ResourceRequirements  `json:"resources,omitempty"`
 	Placement       rookalpha.Placement          `json:"placement,omitempty"`
 	Config          StorageDeviceSetConfig       `json:"config,omitempty"`
 	DataPVCTemplate corev1.PersistentVolumeClaim `json:"dataPVCTemplate"`
