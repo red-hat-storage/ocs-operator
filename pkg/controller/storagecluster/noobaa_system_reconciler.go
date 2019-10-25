@@ -10,6 +10,7 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,9 +22,26 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 
 	nb := r.newNooBaaSystem(sc, reqLogger)
 
+	cephClusterCreated := false
+
 	err := controllerutil.SetControllerReference(sc, nb, r.scheme)
 	if err != nil {
+		return nil
+	}
+
+	// find cephCluster
+	foundCeph := &cephv1.CephCluster{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, foundCeph)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Waiting on ceph cluster to be created before starting noobaa")
+			return nil
+		}
 		return err
+	}
+
+	if foundCeph.Status.State == cephv1.ClusterStateCreated {
+		cephClusterCreated = true
 	}
 
 	// check if this noobaa instance aleady exists
@@ -31,12 +49,18 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: sc.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// noobaa system not found - create one
-			reqLogger.Info("Creating NooBaa system")
-			err := r.client.Create(context.TODO(), nb)
-			if err != nil {
-				reqLogger.Error(err, "Failed to create NooBaa system")
-				return err
+
+			if cephClusterCreated {
+				// noobaa system not found - create one
+				reqLogger.Info("Creating NooBaa system")
+				err := r.client.Create(context.TODO(), nb)
+				if err != nil {
+					reqLogger.Error(err, "Failed to create NooBaa system")
+					return err
+				}
+			} else {
+				reqLogger.Info("Waiting on ceph cluster to initialize before starting noobaa")
+				return nil
 			}
 		} else {
 			// other error. fail reconcile
