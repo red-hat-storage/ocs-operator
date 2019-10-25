@@ -21,6 +21,7 @@ require (
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190605231540-b8a4faf68e36
 	github.com/operator-framework/operator-sdk v0.10.0
+	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/rook/rook v1.1.3
 	github.com/stretchr/testify v1.3.0
 	go.uber.org/multierr v1.2.0 // indirect
