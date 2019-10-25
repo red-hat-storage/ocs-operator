@@ -279,15 +279,29 @@ func (t *DeployManager) waitOnStorageCluster() error {
 			return false, nil
 		}
 
-		canaryOnline := 0
-		for _, pod := range pods.Items {
-			if pod.Status.Phase == k8sv1.PodRunning {
-				canaryOnline++
-			}
-		}
-		if canaryOnline < MinOSDsCount {
-			lastReason = fmt.Sprintf("Waiting on %d/%d canary pods to come online", canaryOnline, MinOSDsCount)
+		osdPods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
+		if err != nil {
+			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
+		}
+
+		// ensure we have a canary pod for every node an OSD runs on
+		for _, osdPod := range osdPods.Items {
+			if osdPod.Status.Phase != k8sv1.PodRunning {
+				continue
+			}
+			nodeName := osdPod.Spec.NodeName
+			canaryOnline := false
+			for _, pod := range pods.Items {
+				if pod.Status.Phase == k8sv1.PodRunning && pod.Spec.NodeName == nodeName {
+					canaryOnline = true
+					break
+				}
+			}
+			if !canaryOnline {
+				lastReason = fmt.Sprintf("Waiting on canary pod for node %s", nodeName)
+				return false, nil
+			}
 		}
 
 		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running
