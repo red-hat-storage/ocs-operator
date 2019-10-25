@@ -175,7 +175,14 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, &rookCephv1.CephCluster{})
+	cephMock := &rookCephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "storage-test",
+			Namespace: "storage-test-ns",
+		},
+	}
+	cephMock.Status.State = rookCephv1.ClusterStateCreated
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cephMock)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -412,6 +419,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 			Namespace: "storage-test-ns",
 		},
 	}
+	cephMock.Status.State = rookCephv1.ClusterStateCreated
 	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cephMock)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)

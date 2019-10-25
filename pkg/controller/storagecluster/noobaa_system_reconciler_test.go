@@ -8,6 +8,7 @@ import (
 
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,15 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
+
+	cephCluster := cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespacedName.Name,
+			Namespace: namespacedName.Namespace,
+		},
+	}
+	cephCluster.Status.State = cephv1.ClusterStateCreated
+
 	addressableStorageClass := defaultStorageClass
 
 	cases := []struct {
@@ -85,6 +95,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 
 	for _, c := range cases {
 		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
+		reconciler.client.Create(context.TODO(), &cephCluster)
 
 		if c.isCreate {
 			err := reconciler.client.Get(context.TODO(), namespacedName, &c.noobaa)
@@ -184,6 +195,10 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster
 	scheme, err := v1.SchemeBuilder.Build()
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
+	}
+	err = cephv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add rookCephv1 scheme")
 	}
 	client := fake.NewFakeClientWithScheme(scheme, registerObjs...)
 
