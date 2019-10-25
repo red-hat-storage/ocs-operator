@@ -15,8 +15,9 @@ CEPH_CONFIG_FILE="/etc/ceph/ceph.conf"
 CEPH_CONFIG_TEMPLATE="/templates/ceph.conf.template"
 CEPH_KEYRING_TEMPLATE="/templates/keyring.template"
 
+SED_DELIMITER=$(echo -en "\001");
 safe_replace () {
-    sed "s/${1//\//\\\/}/${2//\//\\\/}/g"
+    sed "s${SED_DELIMITER}${1}${SED_DELIMITER}${2}${SED_DELIMITER}g"
 }
 
 generate_config() {
