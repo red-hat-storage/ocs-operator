@@ -62,7 +62,7 @@ spec:
   icon:
     base64data: ""
     mediatype: ""
-  image: quay.io/ocs-dev/ocs-registry:latest
+  image: quay.io/ocs-dev/ocs-registry:4.2.0
   publisher: Red Hat
   sourceType: grpc
 ---

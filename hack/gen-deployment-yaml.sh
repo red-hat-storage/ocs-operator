@@ -5,7 +5,7 @@ set -e
 source hack/common.sh
 
 # use the default image name when generating deploy-with-olm.yaml
-DEPLOY_YAML_IMAGE_NAME="${DEFAULT_IMAGE_REGISTRY}/${DEFAULT_REGISTRY_NAMESPACE}/${IMAGE_NAME}:${DEFAULT_IMAGE_TAG}"
+DEPLOY_YAML_IMAGE_NAME="${DEFAULT_IMAGE_REGISTRY}/${DEFAULT_REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 (cd tools/cluster-deploy/ && go build)
 
