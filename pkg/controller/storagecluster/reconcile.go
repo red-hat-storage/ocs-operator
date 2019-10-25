@@ -444,7 +444,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				RulesNamespace: "openshift-storage",
 			},
 			Storage: rook.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets, sc.Status.NodeTopologies),
+				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets, sc.Status.NodeTopologies, defaults.GetDaemonResources("osd", sc.Spec.Resources)),
 				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
@@ -492,13 +492,13 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 }
 
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
-func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topologyMap *ocsv1.NodeTopologyMap) []rook.StorageClassDeviceSet {
+func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topologyMap *ocsv1.NodeTopologyMap, defaultResourceRequirements corev1.ResourceRequirements) []rook.StorageClassDeviceSet {
 	var storageClassDeviceSets []rook.StorageClassDeviceSet
 
 	for _, ds := range storageDeviceSets {
 		resources := ds.Resources
 		if resources.Requests == nil && resources.Limits == nil {
-			resources = defaults.DaemonResources["osd"]
+			resources = defaultResourceRequirements
 		}
 
 		topologyKey := ds.TopologyKey

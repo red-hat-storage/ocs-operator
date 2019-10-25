@@ -81,6 +81,10 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			// Setting empty ResourceLists to prevent ocs-operator from setting the
 			// default resource requirements
 			Resources: map[string]corev1.ResourceRequirements{
+				"osd": corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
 				"mon": corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},

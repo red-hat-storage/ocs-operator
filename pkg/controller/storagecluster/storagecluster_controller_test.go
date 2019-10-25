@@ -343,6 +343,17 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 func TestStorageClassDeviceSetCreation(t *testing.T) {
 	deviceSet := mockDeviceSets[0]
 
+	defaultResourceRequirement := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("4Gi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("4Gi"),
+		},
+	}
+
 	nodeTopologyMap := &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{
 			zoneTopologyLabel: []string{
@@ -352,7 +363,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		},
 	}
 
-	actual := newStorageClassDeviceSets(mockDeviceSets, nodeTopologyMap)
+	actual := newStorageClassDeviceSets(mockDeviceSets, nodeTopologyMap, defaultResourceRequirement)
 	assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 
 	for i, scds := range actual {
@@ -367,7 +378,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 	nodeTopologyMap.Labels[zoneTopologyLabel] = append(nodeTopologyMap.Labels[zoneTopologyLabel], "zone3")
 
-	actual = newStorageClassDeviceSets(mockDeviceSets, nodeTopologyMap)
+	actual = newStorageClassDeviceSets(mockDeviceSets, nodeTopologyMap, defaultResourceRequirement)
 	assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 
 	for i, scds := range actual {
