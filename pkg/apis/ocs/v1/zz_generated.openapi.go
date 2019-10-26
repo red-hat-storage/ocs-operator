@@ -70,7 +70,15 @@ func schema_pkg_apis_ocs_v1_OCSInitializationSpec(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "OCSInitializationSpec defines the desired state of OCSInitialization",
-				Properties:  map[string]spec.Schema{},
+				Properties: map[string]spec.Schema{
+					"enableCephTools": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableCephTools toggles on whether or not the ceph tools pod should be deployed. Defaults to false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 		Dependencies: []string{},

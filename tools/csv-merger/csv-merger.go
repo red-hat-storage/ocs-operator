@@ -144,6 +144,10 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 	if strings.Contains(csv.Name, "ocs") {
 		vars := []corev1.EnvVar{
 			{
+				Name:  "ROOK_CEPH_IMAGE",
+				Value: *rookContainerImage,
+			},
+			{
 				Name:  "CEPH_IMAGE",
 				Value: *cephContainerImage,
 			},

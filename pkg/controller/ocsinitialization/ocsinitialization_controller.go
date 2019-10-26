@@ -3,11 +3,15 @@ package ocsinitialization
 import (
 	"context"
 	"fmt"
+	"os"
+	"reflect"
 
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +32,8 @@ var watchNamespace string
 
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
 
+const rookCephToolDeploymentName = "rook-ceph-tools"
+
 // InitNamespacedName returns a NamespacedName for the singleton instance that
 // should exist.
 func InitNamespacedName() types.NamespacedName {
@@ -45,10 +51,16 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+	rookImage := os.Getenv("ROOK_CEPH_IMAGE")
+	if rookImage == "" {
+		panic(fmt.Errorf("No ROOK_CEPH_IMAGE environment variable set"))
+	}
+
 	return &ReconcileOCSInitialization{
 		client:    mgr.GetClient(),
 		secClient: secv1client.NewForConfigOrDie(mgr.GetConfig()),
 		scheme:    mgr.GetScheme(),
+		rookImage: rookImage,
 	}
 }
 
@@ -67,6 +79,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &ocsv1.StorageCluster{},
+	})
+
+	if err != nil {
+		return err
+	}
+
 	// Watch for changes to primary resource OCSInitialization
 	return c.Watch(&source.Kind{Type: &ocsv1.OCSInitialization{}}, &handler.EnqueueRequestForObject{})
 }
@@ -81,6 +102,119 @@ type ReconcileOCSInitialization struct {
 	client    client.Client
 	secClient secv1client.SecurityV1Interface
 	scheme    *runtime.Scheme
+	rookImage string
+}
+
+func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
+
+	name := rookCephToolDeploymentName
+	var replicaOne int32 = 1
+
+	privilegedContainer := true
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicaOne,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "rook-ceph-tools",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "rook-ceph-tools",
+					},
+				},
+				Spec: corev1.PodSpec{
+					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
+					Containers: []corev1.Container{
+						corev1.Container{
+							Name:    name,
+							Image:   rookImage,
+							Command: []string{"/tini"},
+							Args:    []string{"-g", "--", "/usr/local/bin/toolbox.sh"},
+							Env: []corev1.EnvVar{
+								corev1.EnvVar{
+									Name: "ROOK_ADMIN_SECRET",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+											Key:                  "admin-secret",
+										},
+									},
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: &privilegedContainer,
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								corev1.VolumeMount{Name: "dev", MountPath: "/dev"},
+								corev1.VolumeMount{Name: "sysbus", MountPath: "/sys/bus"},
+								corev1.VolumeMount{Name: "libmodules", MountPath: "/lib/modules"},
+								corev1.VolumeMount{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
+							},
+						},
+					},
+					// if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
+					HostNetwork: true,
+					Volumes: []corev1.Volume{
+						corev1.Volume{Name: "dev", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/dev"}}},
+						corev1.Volume{Name: "sysbus", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/sys/bus"}}},
+						corev1.Volume{Name: "libmodules", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/lib/modules"}}},
+						corev1.Volume{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
+								Items: []corev1.KeyToPath{
+									corev1.KeyToPath{Key: "data", Path: "mon-endpoints"},
+								},
+							},
+						},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (r *ReconcileOCSInitialization) ensureToolsDeployment(initialData *ocsv1.OCSInitialization) error {
+
+	var isFound bool
+	namespace := initialData.Namespace
+
+	toolsDeployment := newToolsDeployment(namespace, r.rookImage)
+	foundToolsDeployment := &appsv1.Deployment{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
+
+	if err == nil {
+		isFound = true
+	} else if errors.IsNotFound(err) {
+		isFound = false
+	} else {
+		return err
+	}
+
+	if initialData.Spec.EnableCephTools {
+		// Create or Update if ceph tools is enabled.
+
+		if !isFound {
+			return r.client.Create(context.TODO(), toolsDeployment)
+		} else if reflect.DeepEqual(foundToolsDeployment.Spec, toolsDeployment.Spec) {
+
+			updateDeployment := foundToolsDeployment.DeepCopy()
+			updateDeployment.Spec = *toolsDeployment.Spec.DeepCopy()
+
+			return r.client.Update(context.TODO(), updateDeployment)
+		}
+	} else if isFound {
+		// delete if ceph tools exists and is disabled
+		return r.client.Delete(context.TODO(), foundToolsDeployment)
+	}
+
+	return nil
 }
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
@@ -166,6 +300,12 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+	}
+
+	err = r.ensureToolsDeployment(instance)
+	if err != nil {
+		reqLogger.Error(err, "Failed to process ceph tools deployment")
+		return reconcile.Result{}, err
 	}
 
 	reason := ocsv1.ReconcileCompleted
