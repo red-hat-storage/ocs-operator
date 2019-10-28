@@ -112,9 +112,11 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					Count:    MinOSDsCount,
 					Portable: true,
 					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{},
-						Limits:   corev1.ResourceList{},
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+						},
 					},
+
 					DataPVCTemplate: k8sv1.PersistentVolumeClaim{
 						Spec: k8sv1.PersistentVolumeClaimSpec{
 							StorageClassName: &storageClassName,
