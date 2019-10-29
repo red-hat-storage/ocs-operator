@@ -477,6 +477,26 @@ func generateUnifiedCSV() {
 	// Set api maturity
 	ocsCSV.Spec.Maturity = "alpha"
 
+	//set Install Modes
+	ocsCSV.Spec.InstallModes = []csvv1.InstallMode{
+		csvv1.InstallMode{
+			Type:      csvv1.InstallModeTypeOwnNamespace,
+			Supported: true,
+		},
+		csvv1.InstallMode{
+			Type:      csvv1.InstallModeTypeSingleNamespace,
+			Supported: true,
+		},
+		csvv1.InstallMode{
+			Type:      csvv1.InstallModeTypeMultiNamespace,
+			Supported: false,
+		},
+		csvv1.InstallMode{
+			Type:      csvv1.InstallModeTypeAllNamespaces,
+			Supported: false,
+		},
+	}
+
 	// Set maintainers
 	ocsCSV.Spec.Maintainers = []csvv1.Maintainer{
 		{
