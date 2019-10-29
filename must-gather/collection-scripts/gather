@@ -25,7 +25,7 @@ resources+=(objectbuckets)
 
 # Run the Collection of Resources using must-gather
 for resource in ${resources[@]}; do
-    openshift-must-gather --base-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
+    oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Call other gather scripts
