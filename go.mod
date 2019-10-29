@@ -13,7 +13,7 @@ require (
 	github.com/go-openapi/validate v0.18.0 // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/noobaa/noobaa-operator/v2 v2.0.3
+	github.com/noobaa/noobaa-operator/v2 v2.0.4
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
 	github.com/openshift/api v3.9.1-0.20190904155310-a25bb2adc83e+incompatible
