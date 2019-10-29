@@ -81,6 +81,17 @@ type StorageClusterStatus struct {
 	// the StorageCluster's placement selector.
 	// +optional
 	NodeTopologies *NodeTopologyMap `json:"nodeTopologies,omitempty"`
+
+	// FailureDomain is the base CRUSH element Ceph will use to distribute
+	// its data replicas for the default CephBlockPool
+	// +optional
+	FailureDomain string `json:"failureDomain,omitempty"`
+
+	StorageClassesCreated       bool `json:"storageClassesCreated,omitempty"`
+	CephObjectStoresCreated     bool `json:"cephObjectStoresCreated,omitempty"`
+	CephBlockPoolsCreated       bool `json:"cephBlockPoolsCreated,omitempty"`
+	CephObjectStoreUsersCreated bool `json:"cephObjectStoreUsersCreated,omitempty"`
+	CephFilesystemsCreated      bool `json:"cephFilesystemsCreated,omitempty"`
 }
 
 // TopologyLabelValues is a list of values for a topology label
