@@ -97,6 +97,14 @@ spec:
           type: object
         status:
           properties:
+            cephBlockPoolsCreated:
+              type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
             conditions:
               description: Conditions describes the state of the StorageCluster resource.
               items:
@@ -122,6 +130,10 @@ spec:
                 - lastTransitionTime
                 type: object
               type: array
+            failureDomain:
+              description: FailureDomain is the base CRUSH element Ceph will use to
+                distribute its data replicas for the default CephBlockPool
+              type: string
             nodeTopologies:
               description: NodeTopologies is a list of topology labels on all nodes
                 matching the StorageCluster's placement selector.
@@ -146,6 +158,8 @@ spec:
               items:
                 type: object
               type: array
+            storageClassesCreated:
+              type: boolean
           type: object
   version: v1
   versions:

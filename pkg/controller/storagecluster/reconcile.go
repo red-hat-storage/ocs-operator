@@ -135,16 +135,24 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating StorageClusterInitialization resource")
 
-			scinit.Name = request.Name
-			scinit.Namespace = request.Namespace
-			scinit.Spec.FailureDomain = determineFailureDomain(instance.Status.NodeTopologies)
-			// Set StorageCluster instance as the owner and controller
-			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
+			// if the StorageClusterInitialization object doesn't exist
+			// ensure we re-reconcile on all initialization resources
+			instance.Status.StorageClassesCreated = false
+			instance.Status.CephObjectStoresCreated = false
+			instance.Status.CephBlockPoolsCreated = false
+			instance.Status.CephObjectStoreUsersCreated = false
+			instance.Status.CephFilesystemsCreated = false
+			instance.Status.FailureDomain = determineFailureDomain(instance.Status.NodeTopologies)
+			err = r.client.Status().Update(context.TODO(), instance)
+			if err != nil {
 				return reconcile.Result{}, err
 			}
 
-			// Copy the customized Resources into scinit
-			scinit.Spec.Resources = instance.Spec.Resources
+			scinit.Name = request.Name
+			scinit.Namespace = request.Namespace
+			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
+				return reconcile.Result{}, err
+			}
 
 			err = r.client.Create(context.TODO(), scinit)
 			switch {
@@ -156,9 +164,10 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 				log.Error(err, "Failed to create StorageClusterInitialization resource")
 				return reconcile.Result{}, err
 			}
+		} else {
+			// Error reading the object - requeue the request.
+			return reconcile.Result{}, err
 		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
 	}
 
 	// in-memory conditions should start off empty. It will only ever hold
@@ -169,7 +178,14 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 	for _, f := range []func(*ocsv1.StorageCluster, logr.Logger) error{
 		// Add support for additional resources here
+		r.ensureStorageClasses,
+		r.ensureCephObjectStores,
+		r.ensureCephObjectStoreUsers,
+		r.ensureCephBlockPools,
+		r.ensureCephFilesystems,
+
 		r.ensureCephCluster,
+		r.ensureNoobaaSystem,
 	} {
 		err = f(instance, reqLogger)
 		if r.phase == statusutil.PhaseClusterExpanding {

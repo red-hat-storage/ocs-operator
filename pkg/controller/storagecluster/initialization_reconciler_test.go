@@ -1,12 +1,14 @@
-package storageclusterinitialization
+package storagecluster
 
 import (
 	"testing"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,13 +20,6 @@ import (
 
 var logt = logf.Log.WithName("controller_storageclusterinitialization_test")
 
-func TestReconcilerImplInterface(t *testing.T) {
-	reconciler := ReconcileStorageClusterInitialization{}
-	var i interface{} = &reconciler
-	_, ok := i.(reconcile.Reconciler)
-	assert.True(t, ok)
-}
-
 func TestRecreatingStorageClusterInitialization(t *testing.T) {
 	cr := &api.StorageClusterInitialization{}
 	request := reconcile.Request{
@@ -33,7 +28,7 @@ func TestRecreatingStorageClusterInitialization(t *testing.T) {
 			Namespace: "",
 		},
 	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr)
+	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -47,7 +42,7 @@ func TestStorageClusterInitializationWithUnExpectedNamespace(t *testing.T) {
 			Namespace: "ocsinit-test-not-found",
 		},
 	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr)
+	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -65,19 +60,19 @@ func TestInitStorageClusterWithOutResources(t *testing.T) {
 			Namespace: "",
 		},
 	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr)
+	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
 	result, err := reconciler.Reconcile(request)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
 func TestInitStorageClusterResourcesCreation(t *testing.T) {
-	cr := &api.StorageClusterInitialization{
+	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit",
 		},
-		Spec: api.StorageClusterInitializationSpec{
-			FailureDomain: "zone",
+		Status: api.StorageClusterStatus{
+			FailureDomain: "host",
 		},
 	}
 	request := reconcile.Request{
@@ -86,49 +81,23 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 			Namespace: "",
 		},
 	}
-	csfs := &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-sc-not-found",
-		},
-	}
-	csrbd := &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-scbd-not-found",
-		},
-	}
-	cfs := &cephv1.CephFilesystem{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-cfs-not-found",
-		},
-	}
-	cosu := &cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-cosu-not-found",
-		},
-	}
-	cbp := &cephv1.CephBlockPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-cbp-not-found",
-		},
-	}
-	cos := &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-cos-not-found",
-		},
-	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd)
+
+	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
+	err := reconciler.client.Create(nil, cr)
+
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
+	assertExpectedResources(t, reconciler, cr, request)
 }
 
 func TestInitStorageClusterResourcesUpdate(t *testing.T) {
-	cr := &api.StorageClusterInitialization{
+	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit",
 		},
-		Spec: api.StorageClusterInitializationSpec{
-			FailureDomain: "zone",
+		Status: api.StorageClusterStatus{
+			FailureDomain: "host",
 		},
 	}
 	request := reconcile.Request{
@@ -172,7 +141,17 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 			Name: "rook-ceph-tools",
 		},
 	}
-	reconciler := createFakeStorageClusterInitReconciler(t, cr, cfs, cosu, cbp, cos, csfs, csrbd, tbd)
+	noobaa := &nbv1.NooBaa{}
+	reconciler := createFakeInitializationStorageClusterReconciler(t, tbd, noobaa)
+
+	err := reconciler.client.Create(nil, cr)
+	err = reconciler.client.Create(nil, cfs)
+	err = reconciler.client.Create(nil, cosu)
+	err = reconciler.client.Create(nil, cbp)
+	err = reconciler.client.Create(nil, cos)
+	err = reconciler.client.Create(nil, csfs)
+	err = reconciler.client.Create(nil, csrbd)
+
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -180,17 +159,9 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 	assertExpectedResources(t, reconciler, cr, request)
 }
 
-func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClusterInitialization, cr *api.StorageClusterInitialization, request reconcile.Request) {
-	actualSc1 := &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-cephfs",
-		},
-	}
-	actualSc2 := &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-ceph-rbd",
-		},
-	}
+func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
+	actualSc1 := &storagev1.StorageClass{}
+	actualSc2 := &storagev1.StorageClass{}
 	request.Name = "ocsinit-cephfs"
 	err := reconciler.client.Get(nil, request.NamespacedName, actualSc1)
 	assert.NoError(t, err)
@@ -212,7 +183,6 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	assert.Equal(t, expected[1].ReclaimPolicy, actualSc2.ReclaimPolicy)
 	assert.Equal(t, expected[1].Parameters, actualSc2.Parameters)
 
-	//
 	actualFs := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfilesystem",
@@ -277,23 +247,36 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
 }
 
-func createFakeStorageClusterInitReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageClusterInitialization {
-	scheme := createFakeScheme(t, obj...)
+func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageCluster {
+	scheme := createFakeInitializationScheme(t, obj...)
 	client := fake.NewFakeClientWithScheme(scheme, obj...)
 
-	return ReconcileStorageClusterInitialization{
-		client: client,
-		scheme: scheme,
+	return ReconcileStorageCluster{
+		client:    client,
+		scheme:    scheme,
+		reqLogger: logf.Log.WithName("controller_storagecluster_test"),
 	}
 }
 
-func createFakeScheme(t *testing.T, obj ...runtime.Object) *runtime.Scheme {
+func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtime.Scheme {
 	registerObjs := obj
 	registerObjs = append(registerObjs)
 	api.SchemeBuilder.Register(registerObjs...)
 	scheme, err := api.SchemeBuilder.Build()
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
+	}
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add corev1 scheme")
+	}
+	err = cephv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add cephv1 scheme")
+	}
+	err = storagev1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add cephv1 scheme")
 	}
 	return scheme
 }
