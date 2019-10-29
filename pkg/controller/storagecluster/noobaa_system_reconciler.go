@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"reflect"
+	"time"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
@@ -51,6 +52,10 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 		if errors.IsNotFound(err) {
 
 			if cephClusterCreated {
+				// Arbitrary sleep to hopefully allow the
+				// CephCluster time to quiesce.
+				// TODO: Remove this
+				time.Sleep(5 * time.Second)
 				// noobaa system not found - create one
 				reqLogger.Info("Creating NooBaa system")
 				err := r.client.Create(context.TODO(), nb)
