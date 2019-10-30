@@ -1,4 +1,4 @@
-FROM quay.io/openshift/origin-must-gather:4.2.0
+FROM quay.io/openshift/origin-must-gather:latest
 
 RUN sed -i 's/enabled=1/enabled=0/g' /etc/yum/pluginconf.d/subscription-manager.conf \
     && cat /etc/yum/pluginconf.d/subscription-manager.conf \

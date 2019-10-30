@@ -78,12 +78,12 @@ ceph_volume_commands+=("ceph-volume lvm list")
 
 # Inspecting ceph related custom resources for all namespaces 
 for resource in ${ceph_resources[@]}; do
-    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
-    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
+    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
     if [ $(generate_config ${ns}) -eq 1 ]; then
         continue
     fi
