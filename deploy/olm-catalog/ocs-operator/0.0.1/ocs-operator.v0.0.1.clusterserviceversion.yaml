@@ -92,6 +92,97 @@ spec:
       displayName: Ceph Object Store
       kind: CephObjectStore
       name: cephobjectstores.ceph.rook.io
+      specDescriptors:
+          - description: Coding Chunks
+            displayName: Coding Chunks
+            path: dataPool.erasureCoded.codingChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Data Chunks
+            displayName: Data Chunks
+            path: dataPool.erasureCoded.dataChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: failureDomain
+            displayName: failureDomain
+            path: dataPool.failureDomain
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: Size
+            displayName: Size
+            path: dataPool.replicated.size
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Annotations
+            displayName: Annotations
+            path: gateway.annotations
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:annotations'
+          - description: Instances
+            displayName: Instances
+            path: gateway.instances
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Resources
+            displayName: Resources
+            path: gateway.resources
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:com.tectonic.ui:resourceRequirements'
+          - description: placement
+            displayName: placement
+            path: gateway.placement
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:placement'
+          - description: securePort
+            displayName: securePort
+            path: gateway.securePort
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:securePort'
+          - description: sslCertificateRef
+            displayName: sslCertificateRef
+            path: gateway.sslCertificateRef
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:io.kubernetes:sslCertificateRef'
+          - description: Type
+            displayName: Type
+            path: gateway.type
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: Coding Chunks
+            displayName: Coding Chunks
+            path: metadataPool.erasureCoded.codingChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Data Chunks
+            displayName: Data Chunks
+            path: metadataPool.erasureCoded.dataChunks
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: failureDomain
+            displayName: failureDomain
+            path: metadataPool.failureDomain
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: Size
+            displayName: Size
+            path: metadataPool.replicated.size
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
       version: v1
     - description: Represents a Ceph Object Store User.
       displayName: Ceph Object Store User
@@ -126,6 +217,115 @@ spec:
       displayName: BackingStore
       kind: BackingStore
       name: backingstores.noobaa.io
+      specDescriptors:
+          - description: Region is the AWS region.
+            displayName: Region
+            path: awsS3.region
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: >-
+              Secret refers to a secret that provides the credentials. The
+              secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+            displayName: Secret
+            path: awsS3.secret
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:awsS3'
+              - 'urn:alm:descriptor:com.tectonic.ui:k8s:secret'
+          - description: SSLDisabled allows to disable SSL and use plain http.
+            displayName: SSL Disabled
+            path: awsS3.sslDisabled
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3'
+              - 'urn:alm:descriptor:com.tectonic.ui:booleanSwitch'
+          - description: TargetBucket is the name of the target S3 bucket.
+            displayName: Target Bucket
+            path: awsS3.targetBucket
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: >-
+              Secret refers to a secret that provides the credentials. The
+              secret should define AccountName and AccountKey as provided\nby
+              Azure Blob.
+            displayName: Secret
+            path: azureBlob.secret
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:azureBlob'
+              - 'urn:alm:descriptor:com.tectonic.ui:k8s:secret'
+          - description: >-
+              TargetBlobContainer is the name of the target Azure Blob
+              container.
+            displayName: Target Blob Container
+            path: azureBlob.targetBlobContainer
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:azureBlob'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: >-
+              Secret refers to a secret that provides the credentials\nThe
+              secret should define GoogleServiceAccountPrivateKeyJson
+              containing\nthe entire json string as provided by Google.
+            displayName: Secret
+            path: googleCloudStorage.secret
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:googleCloudStorage'
+              - 'urn:alm:descriptor:com.tectonic.ui:k8s:secret'
+          - description: TargetBucket is the name of the target S3 bucket.
+            displayName: Target Bucket
+            path: googleCloudStorage.targetBucket
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:googleCloudStorage'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: NumVolumes is the number of volumes to allocate.
+            displayName: Num Volumes
+            path: pvPool.numVolumes
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:pvPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: >-
+              VolumeResources represents the minimum resources each volume
+              should have.
+            displayName: Resources
+            path: pvPool.resources
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:pvPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: >-
+              StorageClass is the name of the storage class to use\nfor the
+              PV's.
+            displayName: Storage Class
+            path: pvPool.storageClass
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:pvPool'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: 'Endpoint is the S3 compatible endpoint: http(s)://host:port.'
+            displayName: End Point
+            path: s3Compatible.endpoint
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: >-
+              Secret refers to a secret that provides the credentials\nThe
+              secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+            displayName: Secret
+            path: s3Compatible.secret
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible'
+              - 'urn:alm:descriptor:com.tectonic.ui:k8s:secret'
+          - description: >-
+              SignatureVersion specifies the client signature version\nto use
+              when signing requests.
+            displayName: Signature Version
+            path: s3Compatible.signatureVersion
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible'
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: TargetBucket is the name of the target S3 bucket.
+            displayName: Target Bucket
+            path: s3Compatible.targetBucket
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
       resources:
       - kind: Service
         name: services
@@ -145,6 +345,23 @@ spec:
       displayName: BucketClass
       kind: BucketClass
       name: bucketclasses.noobaa.io
+      specDescriptors:
+          - description: >-
+              BackingStores is an unordered list of backing store names. The
+              meaning of the list depends on the placement.
+            displayName: Backing Stores
+            path: 'placementPolicy.tiers[0].backingStores[0]'
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:placementPolicy'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+          - description: >-
+              Placement specifies the type of placement for the tier If empty it
+              should have a single backing store.
+            displayName: Placement
+            path: 'placementPolicy.tiers[0].placement'
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:placementPolicy'
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
       resources:
       - kind: Service
         name: services
