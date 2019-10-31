@@ -12,10 +12,12 @@ import (
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/reference"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -124,4 +126,55 @@ func (r *ReconcileStorageCluster) newNooBaaSystem(sc *ocsv1.StorageCluster, reqL
 	nb.Spec.DBImage = &r.noobaaDBImage
 
 	return nb
+}
+
+// Delete noobaa system in the namespace
+func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (bool, error) {
+	noobaa := &nbv1.NooBaa{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			pvcs := &corev1.PersistentVolumeClaimList{}
+			opts := []client.ListOption {
+				client.InNamespace(sc.Namespace),
+				client.MatchingLabels(map[string]string{"noobaa-core": "noobaa"}),
+			}
+			err = r.client.List(context.TODO(), pvcs, opts...)
+			if err != nil {
+				return false, err
+			}
+			if len(pvcs.Items) > 0 {
+				reqLogger.Info("Waiting on NooBaa system and PVCs to be deleted")
+				return false, nil
+			}
+			reqLogger.Info("NooBaa and noobaa-core PVC not found.")
+			return true, nil
+		}
+		reqLogger.Error(err, "Failed to retrieve NooBaa system")
+		return false, err
+	}
+
+	isOwned := false
+	for _, ref := range  noobaa.GetOwnerReferences() {
+		if ref.Name == sc.Name && ref.Kind == sc.Kind {
+			isOwned = true
+			break
+		}
+	}
+	if !isOwned {
+		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
+		reqLogger.Info("NooBaa object found, but ownerReference not set to storagecluster. Skipping")
+		return true, nil
+	}
+
+	if noobaa.GetDeletionTimestamp().IsZero() {
+		reqLogger.Info("Deleting NooBaa system")
+		err = r.client.Delete(context.TODO(), noobaa)
+		if err != nil {
+			reqLogger.Error(err, "Failed to delete NooBaa system")
+			return false, err
+		}
+	}
+	reqLogger.Info("Waiting on NooBaa system to be deleted")
+	return false, nil
 }

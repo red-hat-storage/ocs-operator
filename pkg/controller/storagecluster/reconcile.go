@@ -34,6 +34,8 @@ import (
 
 var monCount = defaults.MonCount
 
+var storageClusterFinalizer string = "storagecluster.ocs.openshift.io"
+
 var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
@@ -123,6 +125,41 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			reqLogger.Error(err, "Failed to add conditions to status")
 			return reconcile.Result{}, err
 		}
+	}
+
+	// Check GetDeletionTimestamp to determine if the object is under deletion
+	if instance.GetDeletionTimestamp().IsZero() {
+		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
+			reqLogger.Info("Finalizer not found for storagecluster. Adding finalizer")
+			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				reqLogger.Error(err, "Failed to update storagecluster with finalizer")
+				return reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is marked for deletion
+		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
+			isDeleted, err := r.deleteResources(instance, reqLogger)
+			if err != nil {
+				// If the dependencies failed to delete because of errors, retry again
+				return reconcile.Result{}, err
+			}
+			if isDeleted {
+				reqLogger.Info("Removing finalizer")
+				// Once all finalizers have been removed, the object will be deleted
+				instance.ObjectMeta.Finalizers = remove(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
+				if err := r.client.Update(context.TODO(), instance); err != nil {
+					reqLogger.Error(err, "Failed to remove finalizer from storagecluster")
+					return reconcile.Result{}, err
+				}
+			} else {
+				// Watch resources and events and reconcile.
+				return reconcile.Result{}, nil
+			}
+		}
+		reqLogger.Info("Object is terminated, skipping reconciliation")
+		return reconcile.Result{}, nil
 	}
 
 	// Get storage node topology labels
@@ -797,4 +834,31 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 		}
 	}
 	return true, nil
+}
+
+func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (bool, error) {
+	// NoobaaSystem is dependent upon ceph for volume provisioning.
+	// We want to make sure we delete noobaasystem before we delete cephcluster, to get a clean uninstall.
+	return r.deleteNoobaaSystems(sc, reqLogger)
+}
+
+// Checks whether a string is contained within a slice
+func contains(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// Removes a given string from a slice and returns the new slice
+func remove(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }
