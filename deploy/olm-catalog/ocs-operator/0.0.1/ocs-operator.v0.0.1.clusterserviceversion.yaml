@@ -904,6 +904,8 @@ spec:
                   value: "false"
                 - name: ROOK_DISABLE_DEVICE_HOTPLUG
                   value: "true"
+                - name: CSI_PROVISIONER_NODE_AFFINITY
+                  value: cluster.ocs.openshift.io/openshift-storage=
                 - name: CSI_PROVISIONER_TOLERATIONS
                   value: |2-
 
