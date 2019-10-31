@@ -173,6 +173,9 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	expected, err := reconciler.newStorageClasses(cr)
 	assert.NoError(t, err)
 
+	assert.Equal(t, len(expected[0].OwnerReferences), 1)
+	assert.Equal(t, len(expected[1].OwnerReferences), 1)
+
 	assert.Equal(t, expected[0].ObjectMeta, actualSc1.ObjectMeta)
 	assert.Equal(t, expected[0].Provisioner, actualSc1.Provisioner)
 	assert.Equal(t, expected[0].ReclaimPolicy, actualSc1.ReclaimPolicy)
@@ -195,6 +198,8 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	expectedAf, err := reconciler.newCephFilesystemInstances(cr)
 	assert.NoError(t, err)
 
+	assert.Equal(t, len(expectedAf[0].OwnerReferences), 1)
+
 	assert.Equal(t, expectedAf[0].ObjectMeta, actualFs.ObjectMeta)
 	assert.Equal(t, expectedAf[0].Spec, actualFs.Spec)
 
@@ -210,6 +215,8 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 
 	expectedCosu, err := reconciler.newCephObjectStoreUserInstances(cr)
 	assert.NoError(t, err)
+
+	assert.Equal(t, len(expectedCosu[0].OwnerReferences), 1)
 
 	assert.Equal(t, expectedCosu[0].ObjectMeta, actualCosu.ObjectMeta)
 	assert.Equal(t, expectedCosu[0].Spec, actualCosu.Spec)
@@ -227,6 +234,8 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	expectedCbp, err := reconciler.newCephBlockPoolInstances(cr)
 	assert.NoError(t, err)
 
+	assert.Equal(t, len(expectedCbp[0].OwnerReferences), 1)
+
 	assert.Equal(t, expectedCbp[0].ObjectMeta, actualCbp.ObjectMeta)
 	assert.Equal(t, expectedCbp[0].Spec, actualCbp.Spec)
 
@@ -242,6 +251,8 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 
 	expectedCos, err := reconciler.newCephObjectStoreInstances(cr)
 	assert.NoError(t, err)
+
+	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
 
 	assert.Equal(t, expectedCos[0].ObjectMeta, actualCos.ObjectMeta)
 	assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)

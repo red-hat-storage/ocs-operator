@@ -43,13 +43,13 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 			existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
 			sc.ObjectMeta = existing.ObjectMeta
 
-			err = r.client.Update(context.TODO(), &sc)
+			err = r.client.Update(context.TODO(), sc)
 			if err != nil {
 				return err
 			}
 		case errors.IsNotFound(err):
 			reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
-			err = r.client.Create(context.TODO(), &sc)
+			err = r.client.Create(context.TODO(), sc)
 			if err != nil {
 				return err
 			}
@@ -63,10 +63,10 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 
 // newStorageClasses returns the StorageClass instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]storagev1.StorageClass, error) {
+func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
-	ret := []storagev1.StorageClass{
-		storagev1.StorageClass{
+	ret := []*storagev1.StorageClass{
+		&storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: generateNameForCephFilesystemSC(initData),
 			},
@@ -81,7 +81,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 				"csi.storage.k8s.io/node-stage-secret-namespace":  initData.Namespace,
 			},
 		},
-		storagev1.StorageClass{
+		&storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: generateNameForCephBlockPoolSC(initData),
 			},
@@ -102,7 +102,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 	}
 
 	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, &obj, r.scheme)
+		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -136,13 +136,13 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 			reqLogger.Info(fmt.Sprintf("Restoring original cephObjectStore %s", cephObjectStore.Name))
 			existing.ObjectMeta.OwnerReferences = cephObjectStore.ObjectMeta.OwnerReferences
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
-			err = r.client.Update(context.TODO(), &cephObjectStore)
+			err = r.client.Update(context.TODO(), cephObjectStore)
 			if err != nil {
 				return err
 			}
 		case errors.IsNotFound(err):
 			reqLogger.Info(fmt.Sprintf("Creating CephObjectStore %s", cephObjectStore.Name))
-			err = r.client.Create(context.TODO(), &cephObjectStore)
+			err = r.client.Create(context.TODO(), cephObjectStore)
 			if err != nil {
 				return err
 			}
@@ -156,9 +156,9 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.StorageCluster) ([]cephv1.CephObjectStore, error) {
-	ret := []cephv1.CephObjectStore{
-		cephv1.CephObjectStore{
+func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephObjectStore, error) {
+	ret := []*cephv1.CephObjectStore{
+		&cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephObjectStore(initData),
 				Namespace: initData.Namespace,
@@ -186,7 +186,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 		},
 	}
 	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, &obj, r.scheme)
+		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -220,13 +220,13 @@ func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCl
 			reqLogger.Info(fmt.Sprintf("Restoring original cephBlockPool %s", cephBlockPool.Name))
 			existing.ObjectMeta.OwnerReferences = cephBlockPool.ObjectMeta.OwnerReferences
 			cephBlockPool.ObjectMeta = existing.ObjectMeta
-			err = r.client.Update(context.TODO(), &cephBlockPool)
+			err = r.client.Update(context.TODO(), cephBlockPool)
 			if err != nil {
 				return err
 			}
 		case errors.IsNotFound(err):
 			reqLogger.Info(fmt.Sprintf("Creating cephBlockPool %s", cephBlockPool.Name))
-			err = r.client.Create(context.TODO(), &cephBlockPool)
+			err = r.client.Create(context.TODO(), cephBlockPool)
 			if err != nil {
 				return err
 			}
@@ -240,9 +240,9 @@ func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCl
 
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]cephv1.CephBlockPool, error) {
-	ret := []cephv1.CephBlockPool{
-		cephv1.CephBlockPool{
+func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
+	ret := []*cephv1.CephBlockPool{
+		&cephv1.CephBlockPool{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephBlockPool(initData),
 				Namespace: initData.Namespace,
@@ -256,7 +256,7 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 		},
 	}
 	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, &obj, r.scheme)
+		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -290,13 +290,13 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 			reqLogger.Info(fmt.Sprintf("Restoring original cephObjectStoreUser %s", cephObjectStoreUser.Name))
 			existing.ObjectMeta.OwnerReferences = cephObjectStoreUser.ObjectMeta.OwnerReferences
 			cephObjectStoreUser.ObjectMeta = existing.ObjectMeta
-			err = r.client.Update(context.TODO(), &cephObjectStoreUser)
+			err = r.client.Update(context.TODO(), cephObjectStoreUser)
 			if err != nil {
 				return err
 			}
 		case errors.IsNotFound(err):
 			reqLogger.Info(fmt.Sprintf("Creating cephObjectStoreUser %s", cephObjectStoreUser.Name))
-			err = r.client.Create(context.TODO(), &cephObjectStoreUser)
+			err = r.client.Create(context.TODO(), cephObjectStoreUser)
 			if err != nil {
 				return err
 			}
@@ -310,9 +310,9 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 
 // newCephObjectStoreUserInstances returns the cephObjectStoreUser instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv1.StorageCluster) ([]cephv1.CephObjectStoreUser, error) {
-	ret := []cephv1.CephObjectStoreUser{
-		cephv1.CephObjectStoreUser{
+func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephObjectStoreUser, error) {
+	ret := []*cephv1.CephObjectStoreUser{
+		&cephv1.CephObjectStoreUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephObjectStoreUser(initData),
 				Namespace: initData.Namespace,
@@ -324,7 +324,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv
 		},
 	}
 	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, &obj, r.scheme)
+		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -357,13 +357,13 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 			reqLogger.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
 			existing.ObjectMeta.OwnerReferences = cephFilesystem.ObjectMeta.OwnerReferences
 			cephFilesystem.ObjectMeta = existing.ObjectMeta
-			err = r.client.Update(context.TODO(), &cephFilesystem)
+			err = r.client.Update(context.TODO(), cephFilesystem)
 			if err != nil {
 				return err
 			}
 		case errors.IsNotFound(err):
 			reqLogger.Info(fmt.Sprintf("Creating cephFilesystem %s", cephFilesystem.Name))
-			err = r.client.Create(context.TODO(), &cephFilesystem)
+			err = r.client.Create(context.TODO(), cephFilesystem)
 			if err != nil {
 				return err
 			}
@@ -377,9 +377,9 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]cephv1.CephFilesystem, error) {
-	ret := []cephv1.CephFilesystem{
-		cephv1.CephFilesystem{
+func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
+	ret := []*cephv1.CephFilesystem{
+		&cephv1.CephFilesystem{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephFilesystem(initData),
 				Namespace: initData.Namespace,
@@ -408,7 +408,7 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 		},
 	}
 	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, &obj, r.scheme)
+		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
 		if err != nil {
 			return nil, err
 		}
