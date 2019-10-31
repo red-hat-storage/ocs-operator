@@ -319,7 +319,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv
 			},
 			Spec: cephv1.ObjectStoreUserSpec{
 				DisplayName: initData.Name,
-				Store:       initData.Name,
+				Store:       generateNameForCephObjectStore(initData),
 			},
 		},
 	}
