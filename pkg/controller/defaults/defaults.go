@@ -8,6 +8,9 @@ const (
 	NodeAffinityKey = "cluster.ocs.openshift.io/openshift-storage"
 	// NodeTolerationKey is the taint all OCS Pods should tolerate
 	NodeTolerationKey = "node.ocs.openshift.io/storage"
+	// RackTopologyKey is the node label used to distribute storage nodes
+	// when there are not enough AZs presnet across the nodes
+	RackTopologyKey = "topology.rook.io/rack"
 )
 
 var (
