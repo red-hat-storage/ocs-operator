@@ -222,6 +222,10 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 				Name:  "ROOK_DISABLE_DEVICE_HOTPLUG",
 				Value: "true",
 			},
+		    {
+				Name: "CSI_PROVISIONER_NODE_AFFINITY",
+				Value: "cluster.ocs.openshift.io/openshift-storage=",
+			},
 			{
 				Name: "CSI_PROVISIONER_TOLERATIONS",
 				Value: `
