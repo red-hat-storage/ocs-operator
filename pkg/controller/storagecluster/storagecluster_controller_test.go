@@ -211,6 +211,8 @@ func TestNodeTopologyMapNoNodes(t *testing.T) {
 }
 
 func TestNodeTopologyMapTwoAZ(t *testing.T) {
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
 	nodeList.Items[2].Labels[zoneTopologyLabel] = "zone2"
@@ -224,9 +226,13 @@ func TestNodeTopologyMapTwoAZ(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, nodeList)
-	err := reconciler.reconcileNodeTopologyMap(mockStorageCluster, reconciler.reqLogger)
+	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
+	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
 	assert.NoError(t, err)
+
+	nodeTopologyMap.Add(defaults.RackTopologyKey, "rack0")
+	nodeTopologyMap.Add(defaults.RackTopologyKey, "rack1")
+	nodeTopologyMap.Add(defaults.RackTopologyKey, "rack2")
 
 	actual := &api.StorageCluster{}
 	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
@@ -235,6 +241,8 @@ func TestNodeTopologyMapTwoAZ(t *testing.T) {
 }
 
 func TestNodeTopologyMapThreeAZ(t *testing.T) {
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
 
@@ -248,8 +256,8 @@ func TestNodeTopologyMapThreeAZ(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, nodeList)
-	err := reconciler.reconcileNodeTopologyMap(mockStorageCluster, reconciler.reqLogger)
+	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
+	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
 	assert.NoError(t, err)
 
 	actual := &api.StorageCluster{}
@@ -264,7 +272,7 @@ func TestFailureDomain(t *testing.T) {
 	}
 
 	failureDomain := determineFailureDomain(nodeTopologyMap)
-	assert.Equal(t, "host", failureDomain)
+	assert.Equal(t, "rack", failureDomain)
 
 	nodeTopologyMap.Labels[zoneTopologyLabel] = []string{
 		"zone1",
