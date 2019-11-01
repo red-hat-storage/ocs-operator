@@ -389,6 +389,7 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 					Replicated: cephv1.ReplicatedSpec{
 						Size: 3,
 					},
+					FailureDomain: initData.Status.FailureDomain,
 				},
 				DataPools: []cephv1.PoolSpec{
 					cephv1.PoolSpec{
