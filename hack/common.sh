@@ -33,7 +33,7 @@ DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
 DEFAULT_IMAGE_TAG="latest"
 
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-${DEFAULT_IMAGE_REGISTRY}}"
-REGISTRY_NAMESPACE="${REGISTRY_NAMESPACE:-}"
+REGISTRY_NAMESPACE="${REGISTRY_NAMESPACE:-${DEFAULT_REGISTRY_NAMESPACE}}"
 IMAGE_NAME="ocs-registry"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 FULL_IMAGE_NAME="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
@@ -42,9 +42,12 @@ default_local_storage_image="quay.io/gnufied/local-registry:v4.2.0"
 LOCAL_STORAGE_IMAGE_NAME="${LOCAL_STORAGE_IMAGE:-$default_local_storage_image}"
 
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-true}"
+MUST_GATHER_IMAGE_NAME="ocs-must-gather"
+MUST_GATHER_FULL_IMAGE_NAME="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUST_GATHER_IMAGE_NAME}:${IMAGE_TAG}"
 
 # Override the image name when this is invoked from openshift ci
 if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-registry"
 	echo "Openshift CI detected, deploying using image $FULL_IMAGE_NAME"
+	MUST_GATHER_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-must-gather-quay"
 fi

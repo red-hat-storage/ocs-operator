@@ -9,3 +9,4 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+must-gather/functests/functests.sh
