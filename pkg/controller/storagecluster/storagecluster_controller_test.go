@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -442,6 +444,64 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	assertExpectedCondition(t, actual.Status.Conditions)
 }
 
+func TestStorageClusterFinalizer(t *testing.T) {
+	namespacedName := types.NamespacedName{
+		Name:      "noobaa",
+		Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
+	}
+	noobaaMock := &v1alpha1.NooBaa{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespacedName.Name,
+			Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
+			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
+		},
+	}
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, noobaaMock)
+
+	result, err := reconciler.Reconcile(mockStorageClusterRequest)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+
+	// Ensure finalizer exists in the beginning
+	sc := &api.StorageCluster{}
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, sc)
+	assert.NoError(t, err)
+	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 1)
+
+	noobaa := &v1alpha1.NooBaa{}
+	err = reconciler.client.Get(nil, namespacedName, noobaa)
+	assert.NoError(t, err)
+	assert.Equal(t, noobaa.Name,  noobaaMock.Name)
+
+	// Issue a delete
+	now := metav1.Now()
+	sc.SetDeletionTimestamp(&now)
+	err = reconciler.client.Update(nil, sc)
+	assert.NoError(t, err)
+
+	sc = &api.StorageCluster{}
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, sc)
+	assert.NoError(t, err)
+	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 1)
+
+	err = reconciler.client.Delete(nil, noobaa)
+	assert.NoError(t, err)
+
+	result, err = reconciler.Reconcile(mockStorageClusterRequest)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+
+	// Finalizer is removed
+	sc = &api.StorageCluster{}
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, sc)
+	assert.NoError(t, err)
+	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 0)
+
+	noobaa = &v1alpha1.NooBaa{}
+	err = reconciler.client.Get(nil, namespacedName, noobaa)
+	assert.True(t, errors.IsNotFound(err))
+}
+
 func assertExpectedCondition(t *testing.T, conditions []conditionsv1.Condition) {
 	expectedConditions := map[conditionsv1.ConditionType]corev1.ConditionStatus{
 		api.ConditionReconcileComplete:    corev1.ConditionTrue,
@@ -493,3 +553,4 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	}
 	return scheme
 }
+
