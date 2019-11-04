@@ -35,6 +35,8 @@ func AfterTestSuiteCleanup() {
 	err = t.DeleteNamespaceAndWait(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = t.UninstallOCS(ocsRegistryImage, localStorageRegistryImage)
-	gomega.Expect(err).To(gomega.BeNil())
+	if ocsClusterUninstall {
+		err = t.UninstallOCS(ocsRegistryImage, localStorageRegistryImage)
+		gomega.Expect(err).To(gomega.BeNil())
+	}
 }
