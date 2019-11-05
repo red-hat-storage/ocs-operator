@@ -35,8 +35,8 @@ func AfterTestSuiteCleanup() {
 	err = t.DeleteNamespaceAndWait(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
-	// TODO uninstall storage cluster.
-	// Right now uninstall doesn't work. Once uninstall functions
-	// properly, we'll want to uninstall the storage cluster after
-	// the testsuite completes
+	if ocsClusterUninstall {
+		err = t.UninstallOCS(ocsRegistryImage, localStorageRegistryImage)
+		gomega.Expect(err).To(gomega.BeNil())
+	}
 }
