@@ -40,7 +40,7 @@ osd_memory_target_cgroup_limit_ratio=0.5`
 
 var monCount = defaults.MonCount
 
-var storageClusterFinalizer string = "storagecluster.ocs.openshift.io"
+var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
 var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
@@ -540,10 +540,10 @@ func determinePlacementRack(nodes *corev1.NodeList, node corev1.Node, minRacks i
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	ownerRef := metav1.OwnerReference{
-		UID:                sc.UID,
-		APIVersion:         sc.APIVersion,
-		Kind:               sc.Kind,
-		Name:               sc.Name,
+		UID:        sc.UID,
+		APIVersion: sc.APIVersion,
+		Kind:       sc.Kind,
+		Name:       sc.Name,
 	}
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -561,7 +561,8 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating Ceph ConfigMap")
-			err = r.client.Create(context.TODO(), cm); if err != nil {
+			err = r.client.Create(context.TODO(), cm)
+			if err != nil {
 				return err
 			}
 		}
