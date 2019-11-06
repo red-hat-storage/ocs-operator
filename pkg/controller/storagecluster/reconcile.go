@@ -34,8 +34,9 @@ import (
 
 const (
 	rookConfigMapName = "rook-config-override"
-	rookConfigData = `[global]
-osd_memory_target_cgroup_limit_ratio=0.5`
+	rookConfigData    = `[osd]
+osd_memory_target_cgroup_limit_ratio = 0.5
+`
 )
 
 var monCount = defaults.MonCount
