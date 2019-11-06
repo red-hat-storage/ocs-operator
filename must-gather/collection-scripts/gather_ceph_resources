@@ -84,6 +84,7 @@ done
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
     oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
+    oc adm --dest-dir=${CEPH_COLLLECTION_PATH} inspect csv -n ${ns}
     if [ $(generate_config ${ns}) -eq 1 ]; then
         continue
     fi
