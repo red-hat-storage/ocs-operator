@@ -16,7 +16,7 @@ var (
 			},
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
-				corev1.ResourceMemory: resource.MustParse("4Gi"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 		},
 		"mon": corev1.ResourceRequirements{
