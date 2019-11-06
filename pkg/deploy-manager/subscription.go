@@ -9,6 +9,7 @@ import (
 	"time"
 
 	yaml "github.com/ghodss/yaml"
+	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install"
 	v1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1"
 	v1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -71,7 +72,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	}
 
 	// Wait on ocs-operator, rook-ceph-operator and noobaa-operator to come online.
-	err = t.waitForOCSOperator()
+	err = t.WaitForOCSOperator()
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	return nil
 }
 
-func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localStorageRegistryImage string) *clusterObjects {
+func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) *clusterObjects {
 
 	co := &clusterObjects{}
 	label := make(map[string]string)
@@ -134,7 +135,7 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localSto
 			Namespace: InstallNamespace,
 		},
 		Spec: &v1alpha1.SubscriptionSpec{
-			Channel:                "alpha",
+			Channel:                subscriptionChannel,
 			Package:                "ocs-operator",
 			CatalogSource:          "ocs-catalogsource",
 			CatalogSourceNamespace: marketplaceNamespace,
@@ -192,8 +193,8 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 }
 
 // DumpYAML dumps ocs deployment yaml
-func (t *DeployManager) DumpYAML(ocsRegistryImage string, localStorageRegistryImage string) string {
-	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage)
+func (t *DeployManager) DumpYAML(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) string {
+	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
 
 	writer := strings.Builder{}
 
@@ -267,13 +268,13 @@ func (t *DeployManager) waitForOCSCatalogSource() error {
 }
 
 // DeployOCSWithOLM deploys ocs operator via an olm subscription
-func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRegistryImage string) error {
+func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) error {
 
 	if ocsRegistryImage == "" || localStorageRegistryImage == "" {
 		return fmt.Errorf("catalog registry images not supplied")
 	}
 
-	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage)
+	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
 	err := t.deployClusterObjects(co)
 	if err != nil {
 		return err
@@ -282,7 +283,24 @@ func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRe
 	return nil
 }
 
-func (t *DeployManager) waitForOCSOperator() error {
+// UpgradeOCSWithOLM upgrades ocs operator via an olm subscription
+func (t *DeployManager) UpgradeOCSWithOLM(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) error {
+
+	if ocsRegistryImage == "" || localStorageRegistryImage == "" {
+		return fmt.Errorf("catalog registry images not supplied")
+	}
+
+	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
+	err := t.updateClusterObjects(co)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WaitForOCSOperator waits for the ocs-operator to come online
+func (t *DeployManager) WaitForOCSOperator() error {
 	deployments := []string{"ocs-operator", "rook-ceph-operator", "noobaa-operator"}
 
 	timeout := 1000 * time.Second
@@ -324,7 +342,7 @@ func (t *DeployManager) waitForOCSOperator() error {
 }
 
 // UninstallOCS uninstalls ocs operator and storage clusters
-func (t *DeployManager) UninstallOCS(ocsRegistryImage string, localStorageRegistryImage string) error {
+func (t *DeployManager) UninstallOCS(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) error {
 	// Delete storage cluster and wait for it to be deleted
 	scs := &ocsv1.StorageClusterList{}
 	err := t.GetCrClient().List(context.TODO(), scs, client.InNamespace(InstallNamespace))
@@ -362,7 +380,7 @@ func (t *DeployManager) UninstallOCS(ocsRegistryImage string, localStorageRegist
 	}
 
 	// Delete remaining operator manifests
-	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage)
+	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
 	err = t.deleteClusterObjects(co)
 	if err != nil {
 		return err
@@ -426,5 +444,115 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 		}
 	}
 
+	return nil
+}
+
+func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
+	for _, catalogSource := range co.catalogSources {
+		cs, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Get(catalogSource.Name, metav1.GetOptions{})
+		cs.Spec.Image = catalogSource.Spec.Image
+		_, err = t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Update(cs)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	// TODO: Verify this is a new catalog source. But does it have to be a new catalogsource?
+	// Can we upgrade to a new subscription channel?
+	// Wait for catalog source before updating subscription
+	err := t.waitForOCSCatalogSource()
+	if err != nil {
+		return err
+	}
+
+	for _, subscription := range co.subscriptions {
+		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Get(subscription.Name, metav1.GetOptions{})
+		sub.Spec.Channel = subscription.Spec.Channel
+		_, err = t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Update(sub)
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+// WaitForCsvUpgrade waits for the catalogsource to come online after an upgrade
+func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel string) error {
+	timeout := 1200 * time.Second
+	// NOTE the long timeout above. It can take quite a bit of time for the
+	// ocs operator deployments to roll out
+	interval := 10 * time.Second
+
+	subscription := "ocs-subscription"
+	operatorName := "ocs-operator"
+
+	lastReason := ""
+	waitErr := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(InstallNamespace).Get(subscription, metav1.GetOptions{})
+		if sub.Spec.Channel != subscriptionChannel {
+			lastReason = fmt.Sprintf("waiting on subscription channel to be updated to %s ", subscriptionChannel)
+			return false, nil
+		}
+		csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(metav1.ListOptions{})
+		for _, csv := range csvs.Items {
+			// If the csvName doesn't match, it means a new csv has appeared
+			if csv.Name != csvName && strings.Contains(csv.Name, operatorName) {
+				// New csv found and phase is succeeeded
+				if csv.Status.Phase == "Succeeded" {
+					return true, nil
+				}
+			}
+		}
+		lastReason = fmt.Sprintf("waiting on csv to be created and installed")
+		return false, nil
+	})
+
+	if waitErr != nil {
+		return fmt.Errorf("%v: %s", waitErr, lastReason)
+	}
+
+	return nil
+}
+
+// GetCsv retrieves the csv named ocs-operator
+func (t *DeployManager) GetCsv() (v1alpha1.ClusterServiceVersion, error){
+	csvName := "ocs-operator"
+	csv := v1alpha1.ClusterServiceVersion{}
+	csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(metav1.ListOptions{})
+	for _, csv := range csvs.Items {
+		if strings.Contains(csv.Name, csvName) {
+			return csv, err
+		}
+	}
+	return csv, err
+}
+
+// VerifyComponentOperators makes sure that deployment images matches the ones specified in the csv deployment specs
+func (t *DeployManager) VerifyComponentOperators() error {
+	csv, err := t.GetCsv()
+	if err != nil {
+		return err
+	}
+
+	//resolver := install.StrategyResolver{}
+	var resolver *install.StrategyResolver
+	strategy, err := resolver.UnmarshalStrategy(csv.Spec.InstallStrategy)
+	if err != nil {
+		return err
+	}
+
+	strategyDetailsDeployment, _ := strategy.(*install.StrategyDetailsDeployment)
+	for _, deployment := range strategyDetailsDeployment.DeploymentSpecs {
+		image := deployment.Spec.Template.Spec.Containers[0].Image
+		foundImage, err := t.GetDeploymentImage(deployment.Name)
+		if err != nil {
+			return err
+		}
+		if image != foundImage {
+			return fmt.Errorf("Deployment: %s Expected image: %s Found image  %s", deployment.Name, image, foundImage)
+		}
+	}
 	return nil
 }

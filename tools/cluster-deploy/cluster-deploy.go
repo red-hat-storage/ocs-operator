@@ -12,6 +12,7 @@ import (
 var (
 	ocsRegistryImage          = flag.String("ocs-registry-image", "", "The ocs-registry container image to use in the deployment")
 	localStorageRegistryImage = flag.String("local-storage-registry-image", "", "The local storage registry image to use in the deployment")
+	ocsSubscriptionChannel    = flag.String("ocs-subscription-channel", "", "The subscription channel to receive upgades from in the deployment")
 	yamlOutputPath            = flag.String("yaml-output-path", "", "Just generate the yaml for the OCS olm deployment and dump it to a file")
 )
 
@@ -22,12 +23,13 @@ func main() {
 		log.Fatal("--ocs-registry-image is required")
 	} else if *localStorageRegistryImage == "" {
 		log.Fatal("--local-storage-registry-image is required")
+	} else if *ocsSubscriptionChannel == "" {
+		log.Fatal("--ocs-subscription-channel is required")
 	}
 
 	t, err := deploymanager.NewDeployManager()
-
 	if *yamlOutputPath != "" {
-		yaml := t.DumpYAML(*ocsRegistryImage, *localStorageRegistryImage)
+		yaml := t.DumpYAML(*ocsRegistryImage, *localStorageRegistryImage, *ocsSubscriptionChannel)
 		err = ioutil.WriteFile(*yamlOutputPath, []byte(yaml), 0644)
 		if err != nil {
 			panic(err)
@@ -36,7 +38,7 @@ func main() {
 	}
 
 	log.Printf("Deploying ocs image %s", *ocsRegistryImage)
-	err = t.DeployOCSWithOLM(*ocsRegistryImage, *localStorageRegistryImage)
+	err = t.DeployOCSWithOLM(*ocsRegistryImage, *localStorageRegistryImage, *ocsSubscriptionChannel)
 	if err != nil {
 		panic(err)
 	}
