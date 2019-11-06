@@ -32,6 +32,12 @@ import (
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
 
+const (
+	rookConfigMapName = "rook-config-override"
+	rookConfigData = `[global]
+osd_memory_target_cgroup_limit_ratio=0.5`
+)
+
 var monCount = defaults.MonCount
 
 var storageClusterFinalizer string = "storagecluster.ocs.openshift.io"
@@ -225,6 +231,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		r.ensureCephBlockPools,
 		r.ensureCephFilesystems,
 
+		r.ensureCephConfig,
 		r.ensureCephCluster,
 		r.ensureNoobaaSystem,
 	} {
@@ -527,6 +534,52 @@ func determinePlacementRack(nodes *corev1.NodeList, node corev1.Node, minRacks i
 	}
 
 	return rack
+}
+
+// ensureCephConfig ensures that a ConfigMap resource exists with its Spec in
+// the desired state.
+func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	ownerRef := metav1.OwnerReference{
+		UID:                sc.UID,
+		APIVersion:         sc.APIVersion,
+		Kind:               sc.Kind,
+		Name:               sc.Name,
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            rookConfigMapName,
+			Namespace:       sc.Namespace,
+			OwnerReferences: []metav1.OwnerReference{ownerRef},
+		},
+		Data: map[string]string{
+			"config": rookConfigData,
+		},
+	}
+
+	found := &corev1.ConfigMap{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating Ceph ConfigMap")
+			err = r.client.Create(context.TODO(), cm); if err != nil {
+				return err
+			}
+		}
+		return err
+	}
+
+	ownerRefFound := false
+	for _, ownerRef := range found.OwnerReferences {
+		if ownerRef.UID == sc.UID {
+			ownerRefFound = true
+		}
+	}
+	val, ok := found.Data["config"]
+	if ok != true || val != rookConfigData || ownerRefFound != true {
+		reqLogger.Info("Updating Ceph ConfigMap")
+		return r.client.Update(context.TODO(), cm)
+	}
+	return nil
 }
 
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
