@@ -23,9 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const localStorageNamespace = "local-storage"
 const marketplaceNamespace = "openshift-marketplace"
-const defaultLocalStorageRegistryImage = "quay.io/gnufied/local-registry:v4.2.0"
 const defaultOcsRegistryImage = "quay.io/ocs-dev/ocs-registry:latest"
 
 type clusterObjects struct {
@@ -99,15 +97,6 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localSto
 			Labels: label,
 		},
 	})
-	co.namespaces = append(co.namespaces, k8sv1.Namespace{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Namespace",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: localStorageNamespace,
-		},
-	})
 
 	// Operator Groups
 	ocsOG := v1.OperatorGroup{
@@ -121,36 +110,7 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localSto
 	}
 	ocsOG.SetGroupVersionKind(schema.GroupVersionKind{Group: v1.SchemeGroupVersion.Group, Kind: "OperatorGroup", Version: v1.SchemeGroupVersion.Version})
 
-	localStorageOG := v1.OperatorGroup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "local-operator-group",
-			Namespace: localStorageNamespace,
-		},
-		Spec: v1.OperatorGroupSpec{
-			TargetNamespaces: []string{InstallNamespace},
-		},
-	}
-	localStorageOG.SetGroupVersionKind(schema.GroupVersionKind{Group: v1.SchemeGroupVersion.Group, Kind: "OperatorGroup", Version: v1.SchemeGroupVersion.Version})
-
 	co.operatorGroups = append(co.operatorGroups, ocsOG)
-	co.operatorGroups = append(co.operatorGroups, localStorageOG)
-
-	// CatalogSources
-	localStorageCatalog := v1alpha1.CatalogSource{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "local-storage-manifests",
-			Namespace: marketplaceNamespace,
-		},
-		Spec: v1alpha1.CatalogSourceSpec{
-			SourceType:  v1alpha1.SourceTypeGrpc,
-			Image:       localStorageRegistryImage,
-			DisplayName: "Local Storage Operator",
-			Publisher:   "Red Hat",
-			Description: "An operator to manage local volumes",
-		},
-	}
-	localStorageCatalog.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "CatalogSource", Version: v1alpha1.SchemeGroupVersion.Version})
-
 	ocsCatalog := v1alpha1.CatalogSource{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ocs-catalogsource",
@@ -165,7 +125,6 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localSto
 	}
 	ocsCatalog.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "CatalogSource", Version: v1alpha1.SchemeGroupVersion.Version})
 
-	co.catalogSources = append(co.catalogSources, localStorageCatalog)
 	co.catalogSources = append(co.catalogSources, ocsCatalog)
 
 	// Subscriptions
