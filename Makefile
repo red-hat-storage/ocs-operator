@@ -8,6 +8,7 @@ CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
 
 OPERATOR_SDK_VERSION="v0.10.0"
+# use x86_64-apple-darwin to compile on top of Darwin
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
