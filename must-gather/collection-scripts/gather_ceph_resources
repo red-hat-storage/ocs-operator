@@ -71,6 +71,7 @@ ceph_commands+=("ceph mgr dump")
 ceph_commands+=("ceph mds stat")
 ceph_commands+=("ceph versions")
 ceph_commands+=("ceph fs dump")
+ceph_commands+=("ceph auth list")
 
 # Ceph volume commands
 ceph_volume_commands+=()
