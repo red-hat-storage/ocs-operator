@@ -168,6 +168,20 @@ var (
 		},
 
 		"noobaa-core": rook.Placement{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								corev1.NodeSelectorRequirement{
+									Key:      NodeAffinityKey,
+									Operator: corev1.NodeSelectorOpExists,
+								},
+							},
+						},
+					},
+				},
+			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
 					Key:      NodeTolerationKey,
