@@ -304,7 +304,7 @@ func TestEnsureCephClusterCreate(t *testing.T) {
 
 	expected := newCephCluster(mockStorageCluster, "")
 	actual := newCephCluster(mockStorageCluster, "")
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
+	err = reconciler.client.Get(nil, types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 	assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
@@ -324,7 +324,7 @@ func TestEnsureCephClusterUpdate(t *testing.T) {
 
 	expected := newCephCluster(mockStorageCluster, "")
 	actual := newCephCluster(mockStorageCluster, "")
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
+	err = reconciler.client.Get(nil, types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 	assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
@@ -367,7 +367,7 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	sc.Spec.StorageDeviceSets = mockDeviceSets
 
 	actual := newCephCluster(sc, "")
-	assert.Equal(t, sc.Name, actual.Name)
+	assert.Equal(t, sc.Name+"-rook-ceph", actual.Name)
 	assert.Equal(t, sc.Namespace, actual.Namespace)
 	pvcSpec := actual.Spec.Mon.VolumeClaimTemplate.Spec
 	assert.Equal(t, mockDeviceSets[0].DataPVCTemplate.Spec.StorageClassName, pvcSpec.StorageClassName)
