@@ -71,6 +71,7 @@ ceph_commands+=("ceph mgr dump")
 ceph_commands+=("ceph mds stat")
 ceph_commands+=("ceph versions")
 ceph_commands+=("ceph fs dump")
+ceph_commands+=("ceph auth list")
 
 # Ceph volume commands
 ceph_volume_commands+=()
@@ -84,6 +85,7 @@ done
 # Inspecting the namespace where ceph-cluster is installed
 for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
     openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect ns/${ns}
+    openshift-must-gather --base-dir=${CEPH_COLLLECTION_PATH} inspect csv -n ${ns}
     if [ $(generate_config ${ns}) -eq 1 ]; then
         continue
     fi
@@ -114,7 +116,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
     done
     
     # Collecting ceph prepare volume logs
-    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '{print $1}'); do
+    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | grep -w 'Ready' | awk '{print $1}'); do
         printf "collecting prepare volume logs from node %s \n"  "${node}"
         NODE_OUTPUT_DIR=${CEPH_COLLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
         mkdir -p ${NODE_OUTPUT_DIR}
