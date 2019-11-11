@@ -118,6 +118,7 @@ func (r *ReconcileStorageCluster) newNooBaaSystem(sc *ocsv1.StorageCluster, reqL
 			CoreResources:             &coreResources,
 			DBResources:               &dbResources,
 			Tolerations:               defaults.DaemonPlacements["noobaa-core"].Tolerations,
+			Affinity:                  &corev1.Affinity{NodeAffinity: defaults.DaemonPlacements["noobaa-core"].NodeAffinity},
 			DBVolumeResources:         &dBVolumeResources,
 		},
 	}
@@ -135,7 +136,7 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 	if err != nil {
 		if errors.IsNotFound(err) {
 			pvcs := &corev1.PersistentVolumeClaimList{}
-			opts := []client.ListOption {
+			opts := []client.ListOption{
 				client.InNamespace(sc.Namespace),
 				client.MatchingLabels(map[string]string{"noobaa-core": "noobaa"}),
 			}
@@ -155,7 +156,7 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 	}
 
 	isOwned := false
-	for _, ref := range  noobaa.GetOwnerReferences() {
+	for _, ref := range noobaa.GetOwnerReferences() {
 		if ref.Name == sc.Name && ref.Kind == sc.Kind {
 			isOwned = true
 			break
