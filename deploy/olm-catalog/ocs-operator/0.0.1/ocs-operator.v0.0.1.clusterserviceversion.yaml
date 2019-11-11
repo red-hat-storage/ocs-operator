@@ -52,22 +52,6 @@ metadata:
                       }
                   ]
               }
-          },
-          {
-              "apiVersion": "ocs.openshift.io/v1",
-              "kind": "OCSInitialization",
-              "metadata": {
-                  "name": "example-ocsinitialization"
-              },
-              "spec": {}
-          },
-          {
-              "apiVersion": "ocs.openshift.io/v1",
-              "kind": "StorageClusterInitialization",
-              "metadata": {
-                  "name": "example-storageclusterinitialization"
-              },
-              "spec": {}
           }
       ]
     capabilities: Full Lifecycle
@@ -78,49 +62,19 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Represents a Ceph cluster.
-      displayName: Ceph Cluster
-      kind: CephCluster
-      name: cephclusters.ceph.rook.io
-      version: v1
-    - description: Represents a Ceph Block Pool.
-      displayName: Ceph Block Pool
-      kind: CephBlockPool
-      name: cephblockpools.ceph.rook.io
-      version: v1
-    - description: Represents a Ceph Object Store.
-      displayName: Ceph Object Store
-      kind: CephObjectStore
-      name: cephobjectstores.ceph.rook.io
-      version: v1
-    - description: Represents a Ceph Object Store User.
-      displayName: Ceph Object Store User
-      kind: CephObjectStoreUser
-      name: cephobjectstoreusers.ceph.rook.io
-      version: v1
-    - description: Represents a cluster of Ceph NFS ganesha gateways.
-      displayName: Ceph NFS
-      kind: CephNFS
-      name: cephnfses.ceph.rook.io
-      version: v1
-    - description: A NooBaa system - Create this to start
-      displayName: NooBaa
-      kind: NooBaa
-      name: noobaas.noobaa.io
+    - description: Storage Cluster represents a Rook Ceph storage cluster including
+        all the storage and compute resources required.
+      displayName: Storage Cluster
+      kind: StorageCluster
+      name: storageclusters.ocs.openshift.io
       resources:
-      - kind: Service
-        name: services
+      - kind: CephCluster
+        name: cephclusters.ceph.rook.io
         version: v1
-      - kind: Secret
-        name: secrets
-        version: v1
-      - kind: ConfigMap
-        name: configmaps
-        version: v1
-      - kind: StatefulSet
-        name: statefulsets.apps
-        version: v1
-      version: v1alpha1
+      - kind: NooBaa
+        name: noobaas.noobaa.io
+        version: v1alpha1
+      version: v1
     - description: Storage target spec such as aws-s3, s3-compatible, PV's and more.
         Used in BacketClass to construct data placement policies.
       displayName: BackingStore
@@ -159,31 +113,6 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: OCS Initialization represents the initial data to be created when
-        the OCS operator is installed
-      displayName: OCS Initialization
-      kind: OCSInitialization
-      name: ocsinitializations.ocs.openshift.io
-      version: v1
-    - description: Storage Cluster represents a Rook Ceph storage cluster including
-        all the storage and compute resources required.
-      displayName: Storage Cluster
-      kind: StorageCluster
-      name: storageclusters.ocs.openshift.io
-      resources:
-      - kind: CephCluster
-        name: cephclusters.ceph.rook.io
-        version: v1
-      - kind: NooBaa
-        name: noobaas.noobaa.io
-        version: v1alpha1
-      version: v1
-    - description: StorageCluster Initialization represents a set of tasks the OCS
-        operator wants to implement for every StorageCluster it encounters.
-      displayName: StorageCluster Initialization
-      kind: StorageClusterInitialization
-      name: storageclusterinitializations.ocs.openshift.io
-      version: v1
     required:
     - description: Claim a bucket just like claiming a PV. Automate you app bucket
         provisioning by creating OBC with your app deployment. A secret and configmap
@@ -238,6 +167,167 @@ spec:
   install:
     spec:
       clusterPermissions:
+      - rules:
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          - nodes
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - '*'
+          - storageclusters
+          - ocsinitialization
+          - storageclusterinitializations
+          verbs:
+          - '*'
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephclusters
+          - cephblockpools
+          - cephfilesystems
+          - cephobjectstores
+          - cephobjectstoreusers
+          verbs:
+          - '*'
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - noobaas
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
+        serviceAccountName: ocs-operator
+      - rules:
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - '*'
+          - noobaas
+          - backingstores
+          - bucketclasses
+          - noobaas/finalizers
+          - backingstores/finalizers
+          - bucketclasses/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - objectbucket.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - secrets
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+        - apiGroups:
+          - ""
+          resources:
+          - nodes
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        serviceAccountName: noobaa
       - rules: []
         serviceAccountName: rook-ceph-cluster-mgmt
       - rules:
@@ -710,168 +800,103 @@ spec:
           verbs:
           - use
         serviceAccountName: rook-ceph-system
-      - rules:
-        - apiGroups:
-          - noobaa.io
-          resources:
-          - '*'
-          - noobaas
-          - backingstores
-          - bucketclasses
-          - noobaas/finalizers
-          - backingstores/finalizers
-          - bucketclasses/finalizers
-          verbs:
-          - '*'
-        - apiGroups:
-          - objectbucket.io
-          resources:
-          - '*'
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - secrets
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - get
-        - apiGroups:
-          - storage.k8s.io
-          resources:
-          - storageclasses
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-        - apiGroups:
-          - ""
-          resources:
-          - nodes
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - authentication.k8s.io
-          resources:
-          - tokenreviews
-          verbs:
-          - create
-        - apiGroups:
-          - authorization.k8s.io
-          resources:
-          - subjectaccessreviews
-          verbs:
-          - create
-        serviceAccountName: noobaa
-      - rules:
-        - apiGroups:
-          - storage.k8s.io
-          resources:
-          - storageclasses
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          - services
-          - endpoints
-          - persistentvolumeclaims
-          - events
-          - configmaps
-          - secrets
-          - nodes
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - get
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          - daemonsets
-          - replicasets
-          - statefulsets
-          verbs:
-          - '*'
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
-          - '*'
-          - storageclusters
-          - ocsinitialization
-          - storageclusterinitializations
-          verbs:
-          - '*'
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephclusters
-          - cephblockpools
-          - cephfilesystems
-          - cephobjectstores
-          - cephobjectstoreusers
-          verbs:
-          - '*'
-        - apiGroups:
-          - noobaa.io
-          resources:
-          - noobaas
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - security.openshift.io
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - get
-          - create
-          - update
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - privileged
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - get
-          - create
-          - update
-        serviceAccountName: ocs-operator
       deployments:
+      - name: ocs-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: ocs-operator
+          strategy:
+            type: Recreate
+          template:
+            metadata:
+              labels:
+                name: ocs-operator
+            spec:
+              containers:
+              - command:
+                - ocs-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: ocs-operator
+                - name: ROOK_CEPH_IMAGE
+                  value: rook/ceph:v1.1.4-27.gf20c056
+                - name: CEPH_IMAGE
+                  value: ceph/ceph:v14.2
+                - name: NOOBAA_CORE_IMAGE
+                  value: noobaa/noobaa-core:5.2.7
+                - name: NOOBAA_DB_IMAGE
+                  value: centos/mongodb-36-centos7
+                - name: MON_COUNT_OVERRIDE
+                  value: "3"
+                image: quay.io/ocs-dev/ocs-operator:latest
+                imagePullPolicy: Always
+                name: ocs-operator
+                ports:
+                - containerPort: 60000
+                  name: metrics
+                readinessProbe:
+                  exec:
+                    command:
+                    - stat
+                    - /tmp/operator-sdk-ready
+                  failureThreshold: 1
+                  initialDelaySeconds: 4
+                  periodSeconds: 10
+                resources: {}
+              serviceAccountName: ocs-operator
+              tolerations:
+              - effect: NoSchedule
+                key: node.ocs.openshift.io/storage
+                operator: Equal
+                value: "true"
+      - name: noobaa-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              noobaa-operator: deployment
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                app: noobaa
+                noobaa-operator: deployment
+            spec:
+              containers:
+              - env:
+                - name: OPERATOR_NAME
+                  value: noobaa-operator
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                image: noobaa/noobaa-operator:2.0.6
+                imagePullPolicy: IfNotPresent
+                name: noobaa-operator
+                resources:
+                  limits:
+                    cpu: 250m
+                    memory: 256Mi
+              serviceAccountName: noobaa
+              tolerations:
+              - effect: NoSchedule
+                key: node.ocs.openshift.io/storage
+                operator: Equal
+                value: "true"
       - name: rook-ceph-operator
         spec:
           replicas: 1
@@ -964,103 +989,106 @@ spec:
                 name: rook-config
               - emptyDir: {}
                 name: default-config-dir
-      - name: noobaa-operator
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              noobaa-operator: deployment
-          strategy: {}
-          template:
-            metadata:
-              labels:
-                app: noobaa
-                noobaa-operator: deployment
-            spec:
-              containers:
-              - env:
-                - name: OPERATOR_NAME
-                  value: noobaa-operator
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:2.0.6
-                imagePullPolicy: IfNotPresent
-                name: noobaa-operator
-                resources:
-                  limits:
-                    cpu: 250m
-                    memory: 256Mi
-              serviceAccountName: noobaa
-              tolerations:
-              - effect: NoSchedule
-                key: node.ocs.openshift.io/storage
-                operator: Equal
-                value: "true"
-      - name: ocs-operator
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              name: ocs-operator
-          strategy:
-            type: Recreate
-          template:
-            metadata:
-              labels:
-                name: ocs-operator
-            spec:
-              containers:
-              - command:
-                - ocs-operator
-                env:
-                - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['olm.targetNamespaces']
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: OPERATOR_NAME
-                  value: ocs-operator
-                - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.1.4-27.gf20c056
-                - name: CEPH_IMAGE
-                  value: ceph/ceph:v14.2
-                - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.2.7
-                - name: NOOBAA_DB_IMAGE
-                  value: centos/mongodb-36-centos7
-                - name: MON_COUNT_OVERRIDE
-                  value: "3"
-                image: quay.io/ocs-dev/ocs-operator:latest
-                imagePullPolicy: Always
-                name: ocs-operator
-                ports:
-                - containerPort: 60000
-                  name: metrics
-                readinessProbe:
-                  exec:
-                    command:
-                    - stat
-                    - /tmp/operator-sdk-ready
-                  failureThreshold: 1
-                  initialDelaySeconds: 4
-                  periodSeconds: 10
-                resources: {}
-              serviceAccountName: ocs-operator
-              tolerations:
-              - effect: NoSchedule
-                key: node.ocs.openshift.io/storage
-                operator: Equal
-                value: "true"
       permissions:
+      - rules:
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - '*'
+          - noobaas
+          - backingstores
+          - bucketclasses
+          - noobaas/finalizers
+          - backingstores/finalizers
+          - bucketclasses/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          - serviceaccounts
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          - prometheusrules
+          verbs:
+          - get
+          - create
+          - update
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - services/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - apps
+          resourceNames:
+          - noobaa-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - cloudcredential.openshift.io
+          resources:
+          - credentialsrequests
+          verbs:
+          - get
+          - create
+          - update
+          - list
+          - watch
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephobjectstores
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephobjectstoreusers
+          verbs:
+          - get
+          - create
+          - update
+          - list
+          - watch
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
+          verbs:
+          - get
+          - create
+          - update
+          - list
+          - watch
+        serviceAccountName: noobaa
       - rules:
         - apiGroups:
           - ""
@@ -1223,105 +1251,6 @@ spec:
           - update
           - delete
         serviceAccountName: rook-ceph-cmd-reporter
-      - rules:
-        - apiGroups:
-          - noobaa.io
-          resources:
-          - '*'
-          - noobaas
-          - backingstores
-          - bucketclasses
-          - noobaas/finalizers
-          - backingstores/finalizers
-          - bucketclasses/finalizers
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          - services
-          - endpoints
-          - persistentvolumeclaims
-          - events
-          - configmaps
-          - secrets
-          - serviceaccounts
-          verbs:
-          - '*'
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          - daemonsets
-          - replicasets
-          - statefulsets
-          verbs:
-          - '*'
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          - prometheusrules
-          verbs:
-          - get
-          - create
-          - update
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - services/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - apps
-          resourceNames:
-          - noobaa-operator
-          resources:
-          - deployments/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - cloudcredential.openshift.io
-          resources:
-          - credentialsrequests
-          verbs:
-          - get
-          - create
-          - update
-          - list
-          - watch
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephobjectstores
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephobjectstoreusers
-          verbs:
-          - get
-          - create
-          - update
-          - list
-          - watch
-        - apiGroups:
-          - route.openshift.io
-          resources:
-          - routes
-          verbs:
-          - get
-          - create
-          - update
-          - list
-          - watch
-        serviceAccountName: noobaa
     strategy: deployment
   installModes:
   - supported: true

@@ -376,9 +376,9 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 func generateUnifiedCSV() {
 
 	csvs := []string{
-		*rookCSVStr,
-		*noobaaCSVStr,
 		*ocsCSVStr,
+		*noobaaCSVStr,
+		*rookCSVStr,
 	}
 
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
@@ -404,12 +404,16 @@ func generateUnifiedCSV() {
 			templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
-			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
+			if csvStr == *ocsCSVStr || csvStr == *noobaaCSVStr {
+				ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
+			}
 			ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, csvStruct.Spec.CustomResourceDefinitions.Required...)
 		}
 	}
 
-	// Inject deplay names and descriptions for our OCS crds
+	// Inject display names and descriptions for our OCS crds
+	// Remove unwanted APIs
+	var tempOwned []csvv1.CRDDescription
 	for i, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		switch definition.Name {
 		case "storageclusters.ocs.openshift.io":
@@ -427,14 +431,14 @@ func generateUnifiedCSV() {
 					Version: "v1alpha1",
 				},
 			}
-		case "ocsinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "OCS Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "OCS Initialization represents the initial data to be created when the OCS operator is installed"
-		case "storageclusterinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "StorageCluster Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
+			tempOwned = append(tempOwned, ocsCSV.Spec.CustomResourceDefinitions.Owned[i])
+		case "backingstores.noobaa.io":
+			tempOwned = append(tempOwned, ocsCSV.Spec.CustomResourceDefinitions.Owned[i])
+		case "bucketclasses.noobaa.io":
+			tempOwned = append(tempOwned, ocsCSV.Spec.CustomResourceDefinitions.Owned[i])
 		}
 	}
+	ocsCSV.Spec.CustomResourceDefinitions.Owned = tempOwned
 
 	// Add crd Requirements.
 	ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, csvv1.CRDDescription{
@@ -599,22 +603,6 @@ The OCS operator is the primary operator for Red Hat OpenShift Container Storage
                 }
             ]
         }
-    },
-    {
-        "apiVersion": "ocs.openshift.io/v1",
-        "kind": "OCSInitialization",
-        "metadata": {
-            "name": "example-ocsinitialization"
-        },
-        "spec": {}
-    },
-    {
-        "apiVersion": "ocs.openshift.io/v1",
-        "kind": "StorageClusterInitialization",
-        "metadata": {
-            "name": "example-storageclusterinitialization"
-        },
-        "spec": {}
     }
 ]`
 
