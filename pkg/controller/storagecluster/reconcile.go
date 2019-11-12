@@ -645,7 +645,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sc.Name,
+			Name:      sc.Name + "-rook-ceph",
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
