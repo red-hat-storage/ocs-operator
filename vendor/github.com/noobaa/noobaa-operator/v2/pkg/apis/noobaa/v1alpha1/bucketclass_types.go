@@ -65,8 +65,7 @@ type BucketClassSpec struct {
 // +k8s:openapi-gen=true
 type BucketClassStatus struct {
 	// Phase is a simple, high-level summary of where the System is in its lifecycle
-	// +optional
-	Phase BucketClassPhase `json:"phase,omitempty"`
+	Phase BucketClassPhase `json:"phase"`
 
 	// Conditions is a list of conditions related to operator reconciliation
 	// +patchMergeKey=type
@@ -75,7 +74,6 @@ type BucketClassStatus struct {
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"  patchStrategy:"merge" patchMergeKey:"type"`
 
 	// RelatedObjects is a list of objects related to this operator.
-	// +optional
 	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
 }
 
@@ -93,13 +91,10 @@ type Tier struct {
 
 	// Placement specifies the type of placement for the tier
 	// If empty it should have a single backing store.
-	// +optional
-	// +kubebuilder:validation:Enum=Spread,Mirror
 	Placement TierPlacement `json:"placement,omitempty"`
 
 	// BackingStores is an unordered list of backing store names.
 	// The meaning of the list depends on the placement.
-	// +optional
 	BackingStores []BackingStoreName `json:"backingStores,omitempty"`
 }
 
