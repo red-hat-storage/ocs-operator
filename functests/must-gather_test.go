@@ -19,7 +19,7 @@ var _ = Describe("Must Gather", func() {
 		Expect(gopath).NotTo(BeEmpty())
 		cmd := exec.Command("/bin/bash", gopath+"/src/github.com/openshift/ocs-operator/must-gather/functests/functests.sh")
 		output, err := cmd.CombinedOutput()
-		Expect(err).To(BeNil())
 		fmt.Printf("%s", output)
+		Expect(err).To(BeNil())
 	})
 })
