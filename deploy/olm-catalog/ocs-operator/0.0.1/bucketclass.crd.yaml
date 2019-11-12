@@ -63,9 +63,6 @@ spec:
                       placement:
                         description: Placement specifies the type of placement for
                           the tier If empty it should have a single backing store.
-                        enum:
-                        - Spread
-                        - Mirror
                         type: string
                     type: object
                   type: array
@@ -113,6 +110,8 @@ spec:
               items:
                 type: object
               type: array
+          required:
+          - phase
           type: object
   version: v1alpha1
   versions:

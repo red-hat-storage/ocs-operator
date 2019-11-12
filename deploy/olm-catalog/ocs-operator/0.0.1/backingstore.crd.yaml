@@ -179,6 +179,8 @@ spec:
               items:
                 type: object
               type: array
+          required:
+          - phase
           type: object
   version: v1alpha1
   versions:

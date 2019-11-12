@@ -167,6 +167,7 @@ func schema_pkg_apis_noobaa_v1alpha1_BackingStoreStatus(ref common.ReferenceCall
 						},
 					},
 				},
+				Required: []string{"phase"},
 			},
 		},
 		Dependencies: []string{
@@ -287,6 +288,7 @@ func schema_pkg_apis_noobaa_v1alpha1_BucketClassStatus(ref common.ReferenceCallb
 						},
 					},
 				},
+				Required: []string{"phase"},
 			},
 		},
 		Dependencies: []string{
@@ -405,12 +407,6 @@ func schema_pkg_apis_noobaa_v1alpha1_NooBaaSpec(ref common.ReferenceCallback) co
 							},
 						},
 					},
-					"affinity": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Affinity (optional) passed through to noobaa's pods",
-							Ref:         ref("k8s.io/api/core/v1.Affinity"),
-						},
-					},
 					"imagePullSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ImagePullSecret (optional) sets a pull secret for the system image",
@@ -421,7 +417,7 @@ func schema_pkg_apis_noobaa_v1alpha1_NooBaaSpec(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration"},
+			"k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -486,14 +482,12 @@ func schema_pkg_apis_noobaa_v1alpha1_NooBaaStatus(ref common.ReferenceCallback) 
 					},
 					"accounts": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Accounts reports accounts info for the admin account",
-							Ref:         ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.AccountsStatus"),
+							Ref: ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.AccountsStatus"),
 						},
 					},
 					"services": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Services reports addresses for the services",
-							Ref:         ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.ServicesStatus"),
+							Ref: ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.ServicesStatus"),
 						},
 					},
 					"readme": {
@@ -504,6 +498,7 @@ func schema_pkg_apis_noobaa_v1alpha1_NooBaaStatus(ref common.ReferenceCallback) 
 						},
 					},
 				},
+				Required: []string{"observedGeneration", "phase", "actualImage", "accounts", "services", "readme"},
 			},
 		},
 		Dependencies: []string{
