@@ -10,7 +10,6 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.2
-	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/noobaa/noobaa-operator/v2 v2.0.7
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
