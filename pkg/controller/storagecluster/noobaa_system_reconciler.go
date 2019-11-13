@@ -34,7 +34,7 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 
 	// find cephCluster
 	foundCeph := &cephv1.CephCluster{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, foundCeph)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Waiting on ceph cluster to be created before starting noobaa")
