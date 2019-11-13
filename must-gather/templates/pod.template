@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: MUST_GATHER-helper
+  namespace: NAMESPACE
+spec:
+  containers:
+  - args:
+    - -g
+    - --
+    - /usr/local/bin/toolbox.sh
+    command:
+    - /tini
+    env:
+    - name: ROOK_ADMIN_SECRET
+      valueFrom:
+        secretKeyRef:
+          key: admin-secret
+          name: rook-ceph-mon
+    image: IMAGE_NAME
+    imagePullPolicy: IfNotPresent
+    name: must-gather-helper
+    securityContext:
+      privileged: true
+    volumeMounts:
+      - mountPath: /dev
+        name: dev
+      - mountPath: /sys/bus
+        name: sysbus
+      - mountPath: /lib/modules
+        name: libmodules
+      - name: mon-endpoint-volume
+        mountPath: /etc/rook
+  volumes:
+    - name: dev
+      hostPath:
+        path: /dev
+    - name: sysbus
+      hostPath:
+        path: /sys/bus
+    - name: libmodules
+      hostPath:
+        path: /lib/modules
+    - name: mon-endpoint-volume
+      configMap:
+        name: rook-ceph-mon-endpoints
+        items:
+        - key: data
+          path: mon-endpoints
