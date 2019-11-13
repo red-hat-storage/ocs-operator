@@ -47,7 +47,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 
 	cephCluster := cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namespacedName.Name,
+			Name:      generateNameForCephClusterFromString(namespacedName.Name),
 			Namespace: namespacedName.Namespace,
 		},
 	}
