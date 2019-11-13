@@ -11,7 +11,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.2
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/noobaa/noobaa-operator/v2 v2.0.5
+	github.com/noobaa/noobaa-operator/v2 v2.0.7
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
 	github.com/openshift/api v3.9.1-0.20190904155310-a25bb2adc83e+incompatible
@@ -21,7 +21,6 @@ require (
 	github.com/operator-framework/operator-sdk v0.10.0
 	github.com/rook/rook v1.1.3
 	github.com/stretchr/testify v1.3.0
-	go.uber.org/multierr v1.2.0 // indirect
 	google.golang.org/appengine v1.6.1 // indirect
 	k8s.io/api v0.0.0-20191005115622-2e41325d9e4b
 	k8s.io/apiextensions-apiserver v0.0.0-20190820104113-47893d27d7f7

@@ -760,6 +760,18 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
         serviceAccountName: noobaa
       - rules:
         - apiGroups:
@@ -977,7 +989,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:2.0.5
+                image: noobaa/noobaa-operator:2.0.7
                 imagePullPolicy: IfNotPresent
                 name: noobaa-operator
                 resources:
@@ -1234,13 +1246,6 @@ spec:
           - events
           - configmaps
           - secrets
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resourceNames:
-          - noobaa
-          resources:
           - serviceaccounts
           verbs:
           - '*'
