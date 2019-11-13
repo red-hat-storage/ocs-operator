@@ -12,6 +12,7 @@ import (
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -116,6 +117,7 @@ func (r *ReconcileStorageCluster) newNooBaaSystem(sc *ocsv1.StorageCluster, reqL
 			CoreResources:             &coreResources,
 			DBResources:               &dbResources,
 			Tolerations:               defaults.DaemonPlacements["noobaa-core"].Tolerations,
+			Affinity:                  &corev1.Affinity{NodeAffinity: defaults.DaemonPlacements["noobaa-core"].NodeAffinity},
 			DBVolumeResources:         &dBVolumeResources,
 		},
 	}
