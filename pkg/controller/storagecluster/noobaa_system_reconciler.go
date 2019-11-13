@@ -34,7 +34,7 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 
 	// find cephCluster
 	foundCeph := &cephv1.CephCluster{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, foundCeph)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Waiting on ceph cluster to be created before starting noobaa")
@@ -135,7 +135,7 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 	if err != nil {
 		if errors.IsNotFound(err) {
 			pvcs := &corev1.PersistentVolumeClaimList{}
-			opts := []client.ListOption {
+			opts := []client.ListOption{
 				client.InNamespace(sc.Namespace),
 				client.MatchingLabels(map[string]string{"noobaa-core": "noobaa"}),
 			}
@@ -155,7 +155,7 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 	}
 
 	isOwned := false
-	for _, ref := range  noobaa.GetOwnerReferences() {
+	for _, ref := range noobaa.GetOwnerReferences() {
 		if ref.Name == sc.Name && ref.Kind == sc.Kind {
 			isOwned = true
 			break
