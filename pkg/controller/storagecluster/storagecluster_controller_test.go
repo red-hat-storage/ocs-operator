@@ -176,6 +176,8 @@ func TestNonWatchedResourceNamespaceNotFound(t *testing.T) {
 }
 
 func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
+	nodeList := &corev1.NodeList{}
+	mockNodeList.DeepCopyInto(nodeList)
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "storage-test",
@@ -183,18 +185,20 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeStorageClusterReconciler(t, cr)
+	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
+	nodeList := &corev1.NodeList{}
+	mockNodeList.DeepCopyInto(nodeList)
 	cc := &rookCephv1.CephCluster{}
 	mockCephCluster.DeepCopyInto(cc)
 	cc.Status.State = rookCephv1.ClusterStateCreated
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cc)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cc, nodeList)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -210,23 +214,10 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 
 func TestNodeTopologyMapNoNodes(t *testing.T) {
 	nodeList := &corev1.NodeList{}
-	var nodeTopologyMap *api.NodeTopologyMap
 
 	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, nodeList)
 	err := reconciler.reconcileNodeTopologyMap(mockStorageCluster, reconciler.reqLogger)
-	assert.NoError(t, err)
-
-	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, nodeTopologyMap, actual.Status.NodeTopologies)
-
-	// Test with malformed NodeTopologies
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	sc.Status.NodeTopologies = &api.NodeTopologyMap{}
-	err = reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
-	assert.NoError(t, err)
+	assert.Equal(t, err, fmt.Errorf("Not enough nodes found: Expected %d, found %d", defaults.DeviceSetReplica, len(nodeList.Items)))
 }
 
 func TestNodeTopologyMapTwoAZ(t *testing.T) {
@@ -427,9 +418,11 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 func TestStorageClusterInitConditions(t *testing.T) {
 	cc := &rookCephv1.CephCluster{}
 	mockCephCluster.DeepCopyInto(cc)
+	nodeList := &corev1.NodeList{}
+	mockNodeList.DeepCopyInto(nodeList)
 	cc.Status.State = rookCephv1.ClusterStateCreated
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cc)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cc, nodeList)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -444,6 +437,8 @@ func TestStorageClusterInitConditions(t *testing.T) {
 }
 
 func TestStorageClusterFinalizer(t *testing.T) {
+	nodeList := &corev1.NodeList{}
+	mockNodeList.DeepCopyInto(nodeList)
 	namespacedName := types.NamespacedName{
 		Name:      "noobaa",
 		Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
@@ -455,7 +450,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, noobaaMock)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, noobaaMock, nodeList)
 
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
