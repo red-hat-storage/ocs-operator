@@ -103,9 +103,9 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
         for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
             printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
-            oc -n ${ns} exec ${HOSTNAME}-helper -- ${ceph_commands[$i]} --connect-timeout=15 >> ${COMMAND_OUTPUT_FILE}
+            oc -n ${ns} exec --request-timeout=60 ${HOSTNAME}-helper -- ${ceph_commands[$i]} --connect-timeout=15 >> ${COMMAND_OUTPUT_FILE}
             JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
-            oc -n ${ns} exec ${HOSTNAME}-helper -- ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
+            oc -n ${ns} exec --request-timeout=60 ${HOSTNAME}-helper -- ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
         done
     fi
 
@@ -118,7 +118,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
                 continue
             fi
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
-            oc -n ${ns} exec ${osdPod} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
+            oc -n ${ns} exec --request-timeout=60 ${osdPod} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
         done
     done
     
