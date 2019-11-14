@@ -44,6 +44,14 @@ type csvStrategySpec struct {
 	Deployments        []csvDeployments        `json:"deployments"`
 }
 
+const (
+	internalCRDPrefix      = "[Internal] "
+	internalCRDDescription = `[This resource is not intended to be created or managed by users.]
+
+
+`
+)
+
 var (
 	csvVersion         = flag.String("csv-version", "", "the unified CSV version")
 	replacesCsvVersion = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
@@ -414,7 +422,7 @@ func generateUnifiedCSV() {
 		switch definition.Name {
 		case "storageclusters.ocs.openshift.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Storage Cluster"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a Rook Ceph storage cluster including all the storage and compute resources required."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a Openshift Container Storage Cluster including Ceph Cluster, NooBaa and all the storage and compute resources required."
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Resources = []csvv1.APIResourceReference{
 				csvv1.APIResourceReference{
 					Name:    "cephclusters.ceph.rook.io",
@@ -428,11 +436,15 @@ func generateUnifiedCSV() {
 				},
 			}
 		case "ocsinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "OCS Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "OCS Initialization represents the initial data to be created when the OCS operator is installed"
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + "OCS Initialization"
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + "OCS Initialization represents the initial data to be created when the OCS operator is installed."
 		case "storageclusterinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "StorageCluster Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + "StorageCluster Initialization"
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
+
+		default:
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description
 		}
 	}
 
