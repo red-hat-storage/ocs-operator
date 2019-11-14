@@ -17,7 +17,7 @@ safe_replace () {
 
 
 apply_helper_pod() {
-    cat ${POD_TEMPLATE} | safe_replace "NAMESPACE" $1 | safe_replace "IMAGE_NAME" $2 | safe_replace "MUST_GATHER" $HOSTNAME > pod_helper.yaml
+    < ${POD_TEMPLATE} safe_replace "NAMESPACE" "$1" | safe_replace "IMAGE_NAME" "$2" | safe_replace "MUST_GATHER" "$HOSTNAME" > pod_helper.yaml
     oc apply -f pod_helper.yaml
 }
 
@@ -57,7 +57,7 @@ ceph_volume_commands+=("ceph-volume lvm list")
 
 # Inspecting ceph related custom resources for all namespaces 
 for resource in "${ceph_resources[@]}"; do
-    oc adm --dest-dir=${CEPH_COLLECTION_PATH} inspect ${resource} --all-namespaces
+    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect "${resource}" --all-namespaces
 done
 
 # Inspecting the namespace where ceph-cluster is installed
@@ -66,18 +66,16 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
     if [ "${operatorImage}" = "" ]; then
         echo "Not able to find the rook's operator image. Skipping collection of ceph command output"  
     else
-        apply_helper_pod $ns $operatorImage
+        apply_helper_pod "$ns" "$operatorImage"
     fi
     
 
-    oc adm --dest-dir=${CEPH_COLLECTION_PATH} inspect ns/${ns}
-    oc adm --dest-dir=${CEPH_COLLECTION_PATH} inspect csv -n ${ns}
+    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect ns/"${ns}"
+    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect csv -n "${ns}"
     # collecting non running pods
-    for npod in $(oc get pods --field-selector=status.phase!=Running --no-headers -n ${ns} | awk '{print $1}'); do
-      oc get pods ${npod} -n ${ns} -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}" >> pod_collector.sh
-      oc get pods ${npod} -n ${ns} -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}" >> pod_collector.sh
-      oc get pods ${npod} -n ${ns} -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}" >> pod_collector.sh
-      oc get pods ${npod} -n ${ns} -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}" >> pod_collector.sh
+    for npod in $(oc get pods --field-selector=status.phase!=Running --no-headers -n "${ns}" | awk '{print $1}'); do
+      { oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}"; oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}"; } >> pod_collector.sh
+      { oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}"; oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}"; } >> pod_collector.sh
     done
     chmod +x pod_collector.sh
     ./pod_collector.sh
@@ -85,13 +83,13 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
    
     COMMAND_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands
     COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
-    mkdir -p ${COMMAND_OUTPUT_DIR}
-    mkdir -p ${COMMAND_JSON_OUTPUT_DIR}
+    mkdir -p "${COMMAND_OUTPUT_DIR}"
+    mkdir -p "${COMMAND_JSON_OUTPUT_DIR}"
 
     if [ "${operatorImage}" != "" ]; then
         for i in {1..50}
         do
-            if [ "$(oc get pods  ${HOSTNAME}-helper -n ${ns} -o jsonpath='{.status.phase}')" = "Running" ]; then
+            if [ "$(oc get pods  "${HOSTNAME}"-helper -n "${ns}" -o jsonpath='{.status.phase}')" = "Running" ]; then
                 echo "Helper pod got deployed successfully."
                 break
             fi
@@ -103,22 +101,22 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
         for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
             printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
-            oc -n ${ns} exec ${HOSTNAME}-helper -- ${ceph_commands[$i]} --connect-timeout=15 >> ${COMMAND_OUTPUT_FILE}
+            oc -n "${ns}" exec "${HOSTNAME}"-helper -- ${ceph_commands[$i]} --connect-timeout=15 >> "${COMMAND_OUTPUT_FILE}"
             JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
-            oc -n ${ns} exec ${HOSTNAME}-helper -- ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> ${JSON_COMMAND_OUTPUT_FILE}
+            oc -n "${ns}" exec "${HOSTNAME}"-helper -- ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> "${JSON_COMMAND_OUTPUT_FILE}"
         done
     fi
 
     # Collecting output of ceph volume commands
     for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
         printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}"
-        for osdPod in $(oc get pods -n ${ns} -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
-            pod_status=`oc get po ${osdPod} -n ${ns} -o jsonpath='{.status.phase}'`
+        for osdPod in $(oc get pods -n "${ns}" -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
+            pod_status=$(oc get po "${osdPod}" -n "${ns}" -o jsonpath='{.status.phase}')
             if [ "${pod_status}" != "Running" ]; then
                 continue
             fi
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
-            oc -n ${ns} exec ${osdPod} -- ${ceph_volume_commands[$i]} >> ${COMMAND_OUTPUT_FILE}
+            oc -n "${ns}" exec "${osdPod}" -- ${ceph_volume_commands[$i]} >> "${COMMAND_OUTPUT_FILE}"
         done
     done
     
@@ -126,8 +124,8 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
     for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | grep -w 'Ready' | awk '{print $1}'); do
         printf "collecting prepare volume logs from node %s \n"  "${node}"
         NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
-        mkdir -p ${NODE_OUTPUT_DIR}
-        oc debug nodes/${node} -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > ${NODE_OUTPUT_DIR}/ceph-volume.log
+        mkdir -p "${NODE_OUTPUT_DIR}"
+        oc debug  nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log
     done
     oc delete -f pod_helper.yaml
 done
