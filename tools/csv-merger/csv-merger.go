@@ -516,12 +516,8 @@ func generateUnifiedCSV() {
 	// Set maintainers
 	ocsCSV.Spec.Maintainers = []csvv1.Maintainer{
 		{
-			Name:  "Jose Rivera",
-			Email: "jarrpa@redhat.com",
-		},
-		{
-			Name:  "Kaushal M",
-			Email: "kaushal@redhat.com",
+			Name:  "Red Hat Support",
+			Email: "support@redhat.com",
 		},
 	}
 
