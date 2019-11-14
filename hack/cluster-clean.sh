@@ -6,6 +6,9 @@ source hack/common.sh
 
 set +e
 
+echo "Deleting noobaa objects"
+$OCS_OC_PATH -n openshift-storage delete noobaa --all
+
 # Remove finalizers from all cephclusters, to not block the cleanup
 echo "Removing cephcluster finalizers"
 $OCS_OC_PATH get cephcluster -n openshift-storage -o=custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace,FINALIZERS:.metadata.finalizers --no-headers | grep cephcluster.ceph.rook.io | while read p; do
@@ -15,36 +18,20 @@ $OCS_OC_PATH get cephcluster -n openshift-storage -o=custom-columns=NAME:.metada
     $OCS_OC_PATH patch cephcluster $name -n $namespace --type=json -p '[{ "op": "remove", "path": "/metadata/finalizers" }]'
 done
 
-echo "Delete all storageclusterinitializations"
-$OCS_OC_PATH -n openshift-storage delete storagecluster,storageclusterinitialization --cascade=false --all
-
-echo "Deleting noobaa objects"
-$OCS_OC_PATH -n openshift-storage delete noobaa --all
-
-echo "Deleting noobaa-core stateful set"
-$OCS_OC_PATH -n openshift-storage delete --ignore-not-found statefulset noobaa-core
-
-echo "Delete all noobaa-core related pods"
-$OCS_OC_PATH -n openshift-storage delete pods -l "noobaa-core"
-
-# delete ceph clusters and storage clusters
-echo "Deleting all storageclusters and cephclusters"
-$OCS_OC_PATH -n openshift-storage delete cephcluster --all
+# delete storage clusters.
+# StorageClusterInitialization and CephClusters are automatically deleted as a result
+# deleting the StorageCluster due to owner references.
+echo "Deleting all storageclusters"
+$OCS_OC_PATH -n openshift-storage delete storagecluster --all
 
 set -e
-
-echo "Deleting noobaa-operator"
-$OCS_OC_PATH -n openshift-storage delete --ignore-not-found deployment noobaa-operator
-
-echo "Deleting rook-operator"
-$OCS_OC_PATH -n openshift-storage delete --ignore-not-found deployment rook-operator
-
-echo "Deleting ocs-operator"
-$OCS_OC_PATH -n openshift-storage delete --ignore-not-found deployment ocs-operator
 
 echo "Deleting subscriptions"
 $OCS_OC_PATH -n openshift-storage delete subscription --all
 
+# Since the CephCluster's finalizer is cleared during deletion
+# We have to ensure all deployments, daemonsets, pods, and PVC/PVs
+# are explicitly deleted.
 echo "Deleting all remaining deployments"
 $OCS_OC_PATH -n openshift-storage delete deployments --all
 
