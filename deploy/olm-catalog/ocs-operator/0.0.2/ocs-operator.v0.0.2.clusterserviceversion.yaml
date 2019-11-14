@@ -1380,10 +1380,8 @@ spec:
   - name: Source Code
     url: https://github.com/openshift/ocs-operator
   maintainers:
-  - email: jarrpa@redhat.com
-    name: Jose Rivera
-  - email: kaushal@redhat.com
-    name: Kaushal M
+  - email: support@redhat.com
+    name: Red Hat Support
   maturity: alpha
   provider:
     name: Red Hat
