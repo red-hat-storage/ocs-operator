@@ -297,6 +297,13 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
 func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	minNodes := defaults.DeviceSetReplica
+	for _, deviceSet := range sc.Spec.StorageDeviceSets {
+		if deviceSet.Replica > minNodes {
+			minNodes = deviceSet.Replica
+		}
+	}
+
 	nodes := &corev1.NodeList{}
 
 	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
@@ -311,6 +318,10 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	topologyMap := sc.Status.NodeTopologies
 	updated := false
 	nodeRacks := ocsv1.NewNodeTopologyMap()
+
+	if len(nodes.Items) < minNodes {
+		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, len(nodes.Items))
+	}
 
 	for _, node := range nodes.Items {
 		labels := node.Labels
@@ -334,14 +345,7 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	}
 
 	if determineFailureDomain(topologyMap) == "rack" {
-		minRacks := defaults.DeviceSetReplica
-		for _, deviceSet := range sc.Spec.StorageDeviceSets {
-			if deviceSet.Replica > minRacks {
-				minRacks = deviceSet.Replica
-			}
-		}
-
-		err = r.ensureNodeRacks(nodes, minRacks, nodeRacks, topologyMap, reqLogger)
+		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap, reqLogger)
 		if err != nil {
 			return err
 		}
@@ -381,7 +385,7 @@ func (r *ReconcileStorageCluster) ensureNodeRacks(nodes *corev1.NodeList, minRac
 			rack := determinePlacementRack(nodes, node, minRacks, nodeRacks)
 			nodeRacks.Add(rack, node.Name)
 			if !topologyMap.Contains(defaults.RackTopologyKey, rack) {
-				reqLogger.Info("Adding topology label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+				reqLogger.Info("Adding rack label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
 				topologyMap.Add(defaults.RackTopologyKey, rack)
 			}
 

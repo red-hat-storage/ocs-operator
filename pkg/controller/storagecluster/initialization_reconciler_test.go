@@ -72,7 +72,7 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 			Name: "ocsinit",
 		},
 		Status: api.StorageClusterStatus{
-			FailureDomain: "rack",
+			FailureDomain: "zone",
 		},
 	}
 	request := reconcile.Request{
@@ -97,7 +97,7 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 			Name: "ocsinit",
 		},
 		Status: api.StorageClusterStatus{
-			FailureDomain: "rack",
+			FailureDomain: "zone",
 		},
 	}
 	request := reconcile.Request{
@@ -260,6 +260,7 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageCluster {
 	scheme := createFakeInitializationScheme(t, obj...)
+	obj = append(obj, mockNodeList)
 	client := fake.NewFakeClientWithScheme(scheme, obj...)
 
 	return ReconcileStorageCluster{
@@ -287,7 +288,7 @@ func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtim
 	}
 	err = storagev1.AddToScheme(scheme)
 	if err != nil {
-		assert.Fail(t, "failed to add cephv1 scheme")
+		assert.Fail(t, "failed to add storagev1 scheme")
 	}
 	return scheme
 }
