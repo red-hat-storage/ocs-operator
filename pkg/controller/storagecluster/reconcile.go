@@ -382,23 +382,24 @@ func (r *ReconcileStorageCluster) ensureNodeRacks(nodes *corev1.NodeList, minRac
 		}
 
 		if !hasRack {
-			rack := determinePlacementRack(nodes, node, minRacks, nodeRacks)
-			nodeRacks.Add(rack, node.Name)
-			if !topologyMap.Contains(defaults.RackTopologyKey, rack) {
-				reqLogger.Info("Adding rack label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
-				topologyMap.Add(defaults.RackTopologyKey, rack)
-			}
+			if rack := determinePlacementRack(nodes, node, minRacks, nodeRacks); rack != "" {
+				nodeRacks.Add(rack, node.Name)
+				if !topologyMap.Contains(defaults.RackTopologyKey, rack) {
+					reqLogger.Info("Adding rack label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+					topologyMap.Add(defaults.RackTopologyKey, rack)
+				}
 
-			reqLogger.Info("Labeling node with rack label", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
-			newNode := node.DeepCopy()
-			newNode.Labels[defaults.RackTopologyKey] = rack
-			patch, err := generateStrategicPatch(node, newNode)
-			if err != nil {
-				return err
-			}
-			err = r.client.Patch(context.TODO(), &node, patch)
-			if err != nil {
-				return err
+				reqLogger.Info("Labeling node with rack label", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+				newNode := node.DeepCopy()
+				newNode.Labels[defaults.RackTopologyKey] = rack
+				patch, err := generateStrategicPatch(node, newNode)
+				if err != nil {
+					return err
+				}
+				err = r.client.Patch(context.TODO(), &node, patch)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -493,11 +494,13 @@ func determinePlacementRack(nodes *corev1.NodeList, node corev1.Node, minRacks i
 	}
 
 	sort.Strings(rackList)
-	rack := rackList[0]
-
-	for _, r := range rackList {
-		if len(nodeRacks.Labels[r]) < len(nodeRacks.Labels[rack]) {
-			rack = r
+	rack := ""
+	if len(rackList) > 0 {
+		rack = rackList[0]
+		for _, r := range rackList {
+			if len(nodeRacks.Labels[r]) < len(nodeRacks.Labels[rack]) {
+				rack = r
+			}
 		}
 	}
 
@@ -508,10 +511,10 @@ func determinePlacementRack(nodes *corev1.NodeList, node corev1.Node, minRacks i
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	ownerRef := metav1.OwnerReference{
-		UID:                sc.UID,
-		APIVersion:         sc.APIVersion,
-		Kind:               sc.Kind,
-		Name:               sc.Name,
+		UID:        sc.UID,
+		APIVersion: sc.APIVersion,
+		Kind:       sc.Kind,
+		Name:       sc.Name,
 	}
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -529,7 +532,8 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating Ceph ConfigMap")
-			err = r.client.Create(context.TODO(), cm); if err != nil {
+			err = r.client.Create(context.TODO(), cm)
+			if err != nil {
 				return err
 			}
 		}
