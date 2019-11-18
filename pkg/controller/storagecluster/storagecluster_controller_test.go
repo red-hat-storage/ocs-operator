@@ -220,6 +220,38 @@ func TestNodeTopologyMapNoNodes(t *testing.T) {
 	assert.Equal(t, err, fmt.Errorf("Not enough nodes found: Expected %d, found %d", defaults.DeviceSetReplica, len(nodeList.Items)))
 }
 
+func TestNodeTopologyMapPreexistingRack(t *testing.T) {
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	nodeList := &corev1.NodeList{}
+	mockNodeList.DeepCopyInto(nodeList)
+	sc.Status.FailureDomain = "rack"
+
+	nodeTopologyMap := &api.NodeTopologyMap{
+		Labels: map[string]api.TopologyLabelValues{
+			zoneTopologyLabel: []string{
+				"zone1",
+				"zone2",
+				"zone3",
+			},
+			defaults.RackTopologyKey: []string{
+				"rack0",
+				"rack1",
+				"rack2",
+			},
+		},
+	}
+
+	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
+	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	actual := &api.StorageCluster{}
+	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, nodeTopologyMap, actual.Status.NodeTopologies)
+}
+
 func TestNodeTopologyMapTwoAZ(t *testing.T) {
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
@@ -277,11 +309,13 @@ func TestNodeTopologyMapThreeAZ(t *testing.T) {
 }
 
 func TestFailureDomain(t *testing.T) {
+	sc := &api.StorageCluster{}
 	nodeTopologyMap := &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{},
 	}
+	sc.Status.NodeTopologies = nodeTopologyMap
 
-	failureDomain := determineFailureDomain(nodeTopologyMap)
+	failureDomain := determineFailureDomain(sc)
 	assert.Equal(t, "rack", failureDomain)
 
 	nodeTopologyMap.Labels[zoneTopologyLabel] = []string{
@@ -290,7 +324,7 @@ func TestFailureDomain(t *testing.T) {
 		"zone3",
 	}
 
-	failureDomain = determineFailureDomain(nodeTopologyMap)
+	failureDomain = determineFailureDomain(sc)
 	assert.Equal(t, "zone", failureDomain)
 }
 
@@ -369,7 +403,8 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 }
 
 func TestStorageClassDeviceSetCreation(t *testing.T) {
-	deviceSet := mockDeviceSets[0]
+	sc := &api.StorageCluster{}
+	sc.Spec.StorageDeviceSets = mockDeviceSets
 
 	nodeTopologyMap := &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{
@@ -379,10 +414,12 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			},
 		},
 	}
+	sc.Status.NodeTopologies = nodeTopologyMap
 
-	actual := newStorageClassDeviceSets(mockDeviceSets, nodeTopologyMap)
+	actual := newStorageClassDeviceSets(sc)
 	assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 
+	deviceSet := sc.Spec.StorageDeviceSets[0]
 	for i, scds := range actual {
 		assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 		// TODO: Change this when OCP console is updated
@@ -395,7 +432,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 	nodeTopologyMap.Labels[zoneTopologyLabel] = append(nodeTopologyMap.Labels[zoneTopologyLabel], "zone3")
 
-	actual = newStorageClassDeviceSets(mockDeviceSets, nodeTopologyMap)
+	actual = newStorageClassDeviceSets(sc)
 	assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 
 	for i, scds := range actual {

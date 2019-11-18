@@ -190,7 +190,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			instance.Status.CephBlockPoolsCreated = false
 			instance.Status.CephObjectStoreUsersCreated = false
 			instance.Status.CephFilesystemsCreated = false
-			instance.Status.FailureDomain = determineFailureDomain(instance.Status.NodeTopologies)
+			instance.Status.FailureDomain = determineFailureDomain(instance)
 			err = r.client.Status().Update(context.TODO(), instance)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -371,17 +371,17 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 						updated = true
 					}
 				}
-				if strings.Contains(label, "rack") {
-					if !nodeRacks.Contains(value, node.Name) {
-						nodeRacks.Add(value, node.Name)
-					}
+			}
+			if strings.Contains(label, "rack") {
+				if !nodeRacks.Contains(value, node.Name) {
+					nodeRacks.Add(value, node.Name)
 				}
 			}
 		}
 
 	}
 
-	if determineFailureDomain(topologyMap) == "rack" {
+	if determineFailureDomain(sc) == "rack" {
 		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap, reqLogger)
 		if err != nil {
 			return err
@@ -664,18 +664,19 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 
 // determineFailureDomain determines the appropriate Ceph failure domain based
 // on the storage cluster's topology map
-func determineFailureDomain(topologyMap *ocsv1.NodeTopologyMap) string {
+func determineFailureDomain(sc *ocsv1.StorageCluster) string {
+	if sc.Status.FailureDomain != "" {
+		return sc.Status.FailureDomain
+	}
+	topologyMap := sc.Status.NodeTopologies
 	failureDomain := "rack"
-
 	for label, labelValues := range topologyMap.Labels {
 		if strings.Contains(label, "zone") {
 			if len(labelValues) >= 3 {
 				failureDomain = "zone"
-				break
 			}
 		}
 	}
-
 	return failureDomain
 }
 
@@ -722,7 +723,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				RulesNamespace: "openshift-storage",
 			},
 			Storage: rook.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets, sc.Status.NodeTopologies),
+				StorageClassDeviceSets: newStorageClassDeviceSets(sc),
 				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
@@ -770,7 +771,10 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 }
 
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
-func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topologyMap *ocsv1.NodeTopologyMap) []rook.StorageClassDeviceSet {
+func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDeviceSet {
+	storageDeviceSets := sc.Spec.StorageDeviceSets
+	topologyMap := sc.Status.NodeTopologies
+
 	var storageClassDeviceSets []rook.StorageClassDeviceSet
 
 	for _, ds := range storageDeviceSets {
@@ -785,7 +789,7 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 
 		if noPlacement {
 			if topologyKey == "" {
-				topologyKey = determineFailureDomain(topologyMap)
+				topologyKey = determineFailureDomain(sc)
 			}
 			if topologyMap != nil {
 				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
