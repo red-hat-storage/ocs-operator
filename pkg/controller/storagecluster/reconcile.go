@@ -495,36 +495,42 @@ func determinePlacementRack(nodes *corev1.NodeList, node corev1.Node, minRacks i
 		}
 	}
 
-	for rack := range nodeRacks.Labels {
-		nodeNames := nodeRacks.Labels[rack]
-		if len(nodeNames) == 0 {
-			rackList = append(rackList, rack)
-			continue
-		}
+	if len(targetAZ) > 0 {
+		for rack := range nodeRacks.Labels {
+			nodeNames := nodeRacks.Labels[rack]
+			if len(nodeNames) == 0 {
+				rackList = append(rackList, rack)
+				continue
+			}
 
-		validRack := false
-		for _, nodeName := range nodeNames {
-			for _, n := range nodes.Items {
-				if n.Name == nodeName {
-					for label, value := range n.Labels {
-						for _, key := range validTopologyLabelKeys {
-							if strings.Contains(label, key) && strings.Contains(label, "zone") && value == targetAZ {
-								validRack = true
+			validRack := false
+			for _, nodeName := range nodeNames {
+				for _, n := range nodes.Items {
+					if n.Name == nodeName {
+						for label, value := range n.Labels {
+							for _, key := range validTopologyLabelKeys {
+								if strings.Contains(label, key) && strings.Contains(label, "zone") && value == targetAZ {
+									validRack = true
+									break
+								}
+							}
+							if validRack {
 								break
 							}
 						}
-						if validRack {
-							break
-						}
+						break
 					}
+				}
+				if validRack {
 					break
 				}
 			}
 			if validRack {
-				break
+				rackList = append(rackList, rack)
 			}
 		}
-		if validRack {
+	} else {
+		for rack := range nodeRacks.Labels {
 			rackList = append(rackList, rack)
 		}
 	}
