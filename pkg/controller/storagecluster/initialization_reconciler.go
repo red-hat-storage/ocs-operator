@@ -101,13 +101,6 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 		},
 	}
 
-	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return ret, nil
 }
 
