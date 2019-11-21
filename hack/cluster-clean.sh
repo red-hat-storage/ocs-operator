@@ -53,7 +53,7 @@ echo "Waiting on namespaces to disappear"
 # We wait for the namespaces to disappear because that signals
 # to us that the delete is finalized. Otherwise a 'cluster-deploy'
 # might fail if all cluster artifacts haven't finished being removed.
-managed_namespaces=(openshift-storage local-storage)
+managed_namespaces=(openshift-storage)
 for i in ${managed_namespaces[@]}; do
 	if [ -n "$($OCS_OC_PATH get namespace | grep "${i} ")" ]; then
 		echo "Deleting namespace ${i}"

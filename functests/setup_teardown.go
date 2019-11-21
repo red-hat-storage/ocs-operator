@@ -17,7 +17,7 @@ func BeforeTestSuiteSetup() {
 	err = t.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = t.DeployOCSWithOLM(OcsRegistryImage, LocalStorageRegistryImage, OcsSubscriptionChannel)
+	err = t.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 
 	err = t.StartDefaultStorageCluster()
@@ -34,7 +34,7 @@ func AfterTestSuiteCleanup() {
 	gomega.Expect(err).To(gomega.BeNil())
 
 	if ocsClusterUninstall {
-		err = t.UninstallOCS(OcsRegistryImage, LocalStorageRegistryImage, OcsSubscriptionChannel)
+		err = t.UninstallOCS(OcsRegistryImage, OcsSubscriptionChannel)
 		gomega.Expect(err).To(gomega.BeNil())
 	}
 }
@@ -49,7 +49,7 @@ func AfterUpgradeTestSuiteCleanup() {
 	gomega.Expect(err).To(gomega.BeNil())
 
 	// Only called after upgrade failures, so the cluster has to be unnstalled.
-	err = t.UninstallOCS(OcsRegistryImage, LocalStorageRegistryImage, OcsSubscriptionChannel)
+	err = t.UninstallOCS(OcsRegistryImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 }
 
@@ -63,7 +63,7 @@ func BeforeUpgradeTestSuiteSetup() {
 	err = t.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = t.DeployOCSWithOLM(UpgradeFromOcsRegistryImage, UpgradeFromLocalStorageRegistryImage, UpgradeFromOcsSubscriptionChannel)
+	err = t.DeployOCSWithOLM(UpgradeFromOcsRegistryImage, UpgradeFromOcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 
 	err = t.StartDefaultStorageCluster()
