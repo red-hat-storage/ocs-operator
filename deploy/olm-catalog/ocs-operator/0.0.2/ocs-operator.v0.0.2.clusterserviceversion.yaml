@@ -1025,8 +1025,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:2.0.7
-                imagePullPolicy: IfNotPresent
+                image: noobaa/noobaa-operator:2.0.8
                 name: noobaa-operator
                 resources:
                   limits:
@@ -1070,7 +1069,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: ceph/ceph:v14.2
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.2.7
+                  value: noobaa/noobaa-core:5.2.10
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
                 - name: MON_COUNT_OVERRIDE
