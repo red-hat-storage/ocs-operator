@@ -80,7 +80,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	return nil
 }
 
-func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) *clusterObjects {
+func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, subscriptionChannel string) *clusterObjects {
 
 	co := &clusterObjects{}
 	label := make(map[string]string)
@@ -193,8 +193,8 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 }
 
 // DumpYAML dumps ocs deployment yaml
-func (t *DeployManager) DumpYAML(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) string {
-	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
+func (t *DeployManager) DumpYAML(ocsRegistryImage string, subscriptionChannel string) string {
+	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
 
 	writer := strings.Builder{}
 
@@ -268,13 +268,13 @@ func (t *DeployManager) waitForOCSCatalogSource() error {
 }
 
 // DeployOCSWithOLM deploys ocs operator via an olm subscription
-func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) error {
+func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, subscriptionChannel string) error {
 
-	if ocsRegistryImage == "" || localStorageRegistryImage == "" {
+	if ocsRegistryImage == "" {
 		return fmt.Errorf("catalog registry images not supplied")
 	}
 
-	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
+	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
 	err := t.deployClusterObjects(co)
 	if err != nil {
 		return err
@@ -284,13 +284,13 @@ func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, localStorageRe
 }
 
 // UpgradeOCSWithOLM upgrades ocs operator via an olm subscription
-func (t *DeployManager) UpgradeOCSWithOLM(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) error {
+func (t *DeployManager) UpgradeOCSWithOLM(ocsRegistryImage string, subscriptionChannel string) error {
 
-	if ocsRegistryImage == "" || localStorageRegistryImage == "" {
+	if ocsRegistryImage == "" {
 		return fmt.Errorf("catalog registry images not supplied")
 	}
 
-	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
+	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
 	err := t.updateClusterObjects(co)
 	if err != nil {
 		return err
@@ -342,7 +342,7 @@ func (t *DeployManager) WaitForOCSOperator() error {
 }
 
 // UninstallOCS uninstalls ocs operator and storage clusters
-func (t *DeployManager) UninstallOCS(ocsRegistryImage string, localStorageRegistryImage string, subscriptionChannel string) error {
+func (t *DeployManager) UninstallOCS(ocsRegistryImage string, subscriptionChannel string) error {
 	// Delete storage cluster and wait for it to be deleted
 	scs := &ocsv1.StorageClusterList{}
 	err := t.GetCrClient().List(context.TODO(), scs, client.InNamespace(InstallNamespace))
@@ -380,7 +380,7 @@ func (t *DeployManager) UninstallOCS(ocsRegistryImage string, localStorageRegist
 	}
 
 	// Delete remaining operator manifests
-	co := t.generateClusterObjects(ocsRegistryImage, localStorageRegistryImage, subscriptionChannel)
+	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
 	err = t.deleteClusterObjects(co)
 	if err != nil {
 		return err
