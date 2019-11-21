@@ -173,8 +173,13 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	expected, err := reconciler.newStorageClasses(cr)
 	assert.NoError(t, err)
 
-	assert.Equal(t, len(expected[0].OwnerReferences), 1)
-	assert.Equal(t, len(expected[1].OwnerReferences), 1)
+	// The created StorageClasses should not have any ownerReferences set. Any
+	// OwnerReference set will be a cross-namespace OwnerReference, which could
+	// lead to other child resources getting GCd.
+	// Ref: https://bugzilla.redhat.com/show_bug.cgi?id=1755623
+	// Ref: https://bugzilla.redhat.com/show_bug.cgi?id=1691546
+	assert.Equal(t, len(expected[0].OwnerReferences), 0)
+	assert.Equal(t, len(expected[1].OwnerReferences), 0)
 
 	assert.Equal(t, expected[0].ObjectMeta, actualSc1.ObjectMeta)
 	assert.Equal(t, expected[0].Provisioner, actualSc1.Provisioner)
