@@ -207,6 +207,7 @@ github.com/gogo/protobuf v1.2.1/go.mod h1:hp+jE20tsWTFYpLwKvXlhS1hjn+gTNwPg2I6zV
 github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d h1:3PaI8p3seN09VjbTYC/QWlUZdZ1qS1zGjy7LH2Wt07I=
 github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d/go.mod h1:SlYgWuQ5SjCEi6WLHjHCa1yvBfUnHcTbrrZtXPKa29o=
 github.com/golang/glog v0.0.0-20141105023935-44145f04b68c/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
+github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
 github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7/go.mod h1:cIg4eruTrX1D+g88fzRXU5OdNfaM+9IcxsU14FzY7Hc=
 github.com/golang/groupcache v0.0.0-20180924190550-6f2cf27854a4/go.mod h1:cIg4eruTrX1D+g88fzRXU5OdNfaM+9IcxsU14FzY7Hc=
@@ -398,9 +399,11 @@ github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5
 github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a/go.mod h1:vq6TTFvg6ti1Bn6ACsZneZTmjTsURgDD6tQtVDbEgsU=
 github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190605231540-b8a4faf68e36 h1:zQykXcFkA+wZm5//RKB7BEzEH7Q0Hwvp8+3HJrG5BD0=
 github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190605231540-b8a4faf68e36/go.mod h1:HKV3ZB9aOUxRyfM53shoBRtIMP4lg8QRmkW+dmZy+kI=
+github.com/operator-framework/operator-lifecycle-manager v3.11.0+incompatible h1:Po8C8RVLRWq7pNQ5pKonM9CXpC/osoBWbmsuf+HJnSI=
 github.com/operator-framework/operator-marketplace v0.0.0-20190216021216-57300a3ef3ba/go.mod h1:msZSL8pXwzQjB+hU+awVrZQw94IwJi3sNZVD3NoESIs=
 github.com/operator-framework/operator-registry v1.0.1/go.mod h1:1xEdZjjUg2hPEd52LG3YQ0jtwiwEGdm98S1TH5P4RAA=
 github.com/operator-framework/operator-registry v1.0.4/go.mod h1:hve6YwcjM2nGVlscLtNsp9sIIBkNZo6jlJgzWw7vP9s=
+github.com/operator-framework/operator-registry v1.1.1 h1:oDIevJvKXFsp7BEb7iJHuLvuhPZYBtIx5oZQ7iSISAs=
 github.com/operator-framework/operator-registry v1.1.1/go.mod h1:7D4WEwL+EKti5npUh4/u64DQhawCBRugp8Ql20duUb4=
 github.com/operator-framework/operator-sdk v0.10.0 h1:k2yovBNxaya06yIkJ1e6lNsqiWjhS32G+d2LUdjuu/E=
 github.com/operator-framework/operator-sdk v0.10.0/go.mod h1:7eW7ldXmvenehIMVdO2zCdERf/828Mrftq4u7GS0I68=
@@ -737,6 +740,7 @@ k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d h1:Jmdtdt1ZnoGfWWIIik61Z7
 k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d/go.mod h1:ccL7Eh7zubPUSh9A3USN90/OzHNSVN6zxzde07TDCL0=
 k8s.io/apiserver v0.0.0-20181026151315-13cfe3978170/go.mod h1:6bqaTSOSJavUIXUtfaR9Os9JtTCm8ZqH2SUl2S60C4w=
 k8s.io/apiserver v0.0.0-20181213151703-3ccfe8365421/go.mod h1:6bqaTSOSJavUIXUtfaR9Os9JtTCm8ZqH2SUl2S60C4w=
+k8s.io/apiserver v0.0.0-20190531031430-24fd0f18bc21 h1:obzUqRn9xOshrtfYUDp/xbrHllibaOOb0LVLpE/m9b8=
 k8s.io/apiserver v0.0.0-20190531031430-24fd0f18bc21/go.mod h1:6bqaTSOSJavUIXUtfaR9Os9JtTCm8ZqH2SUl2S60C4w=
 k8s.io/cli-runtime v0.0.0-20181213153952-835b10687cb6/go.mod h1:qWnH3/b8sp/l7EvlDh7ulDU3UWA4P4N1NFbEEP791tM=
 k8s.io/cli-runtime v0.0.0-20191005121332-4d28aef60981 h1:/o1WCRCwddWOUckroUAu1wdGRuQt6rqeC6Xf3wpxDEM=
@@ -766,6 +770,7 @@ k8s.io/klog v1.0.0 h1:Pt+yjF5aB1xDSVbau4VsWe+dQNzA0qv1LlXdC2dF6Q8=
 k8s.io/klog v1.0.0/go.mod h1:4Bi6QPql/J/LkTDqv7R/cd3hPo4k2DG6Ptcz060Ez5I=
 k8s.io/kube-aggregator v0.0.0-20181204002017-122bac39d429/go.mod h1:8sbzT4QQKDEmSCIbfqjV0sd97GpUT7A4W626sBiYJmU=
 k8s.io/kube-aggregator v0.0.0-20181213152105-1e8cd453c474/go.mod h1:8sbzT4QQKDEmSCIbfqjV0sd97GpUT7A4W626sBiYJmU=
+k8s.io/kube-aggregator v0.0.0-20190404125450-f5e124c822d6 h1:aIxyHR6zowZSXf0CxL25R2yTWa1nYo6dCjktY9MnYVc=
 k8s.io/kube-aggregator v0.0.0-20190404125450-f5e124c822d6/go.mod h1:8sbzT4QQKDEmSCIbfqjV0sd97GpUT7A4W626sBiYJmU=
 k8s.io/kube-openapi v0.0.0-20180731170545-e3762e86a74c/go.mod h1:BXM9ceUBTj2QnfH2MK1odQs778ajze1RxcmP6S8RVVc=
 k8s.io/kube-openapi v0.0.0-20181031203759-72693cb1fadd/go.mod h1:BXM9ceUBTj2QnfH2MK1odQs778ajze1RxcmP6S8RVVc=
@@ -781,6 +786,7 @@ k8s.io/kubectl v0.0.0-20191005122440-987b623dc1f7 h1:6cQq/ziwAH8r/jWz469wb4ETD0C
 k8s.io/kubectl v0.0.0-20191005122440-987b623dc1f7/go.mod h1:lfaNLPdf5nWt+aztiaIn77EGwRv89+fxWcuqYapz84c=
 k8s.io/kubernetes v1.11.7-beta.0.0.20181219023948-b875d52ea96d/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
 k8s.io/kubernetes v1.11.8-beta.0.0.20190124204751-3a10094374f2/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
+k8s.io/kubernetes v1.14.2 h1:Gdq2hPpttbaJBoClIanCE6WSu4IZReA54yhkZtvPUOo=
 k8s.io/kubernetes v1.14.2/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
 k8s.io/metrics v0.0.0-20191005121233-894d8cc77c5e/go.mod h1:mBxh6l7GiSPw5U4EtFEjsmM9QSVMgebthZ0IpQSt50A=
 k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7/go.mod h1:8k8uAuAQ0rXslZKaEWd0c3oVhZz7sSzSiPnVZayjIX0=

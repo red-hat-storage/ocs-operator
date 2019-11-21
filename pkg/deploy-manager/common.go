@@ -48,3 +48,12 @@ func (t *DeployManager) DeleteNamespaceAndWait(namespace string) error {
 
 	return err
 }
+
+// GetDeploymentImage returns the deployment image name for the deployment
+func (t *DeployManager) GetDeploymentImage(name string) (string, error) {
+	deployment, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return deployment.Spec.Template.Spec.Containers[0].Image, nil
+}
