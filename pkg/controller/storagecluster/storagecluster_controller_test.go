@@ -566,6 +566,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Rec
 		client:    client,
 		scheme:    scheme,
 		reqLogger: logf.Log.WithName("controller_storagecluster_test"),
+		platform:  &CloudPlatform{},
 	}
 }
 

@@ -272,6 +272,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		client:    client,
 		scheme:    scheme,
 		reqLogger: logf.Log.WithName("controller_storagecluster_test"),
+		platform:  &CloudPlatform{},
 	}
 }
 
