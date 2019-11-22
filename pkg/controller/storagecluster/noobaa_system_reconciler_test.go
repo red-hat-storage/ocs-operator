@@ -203,7 +203,8 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster
 	client := fake.NewFakeClientWithScheme(scheme, registerObjs...)
 
 	return ReconcileStorageCluster{
-		scheme: scheme,
-		client: client,
+		scheme:   scheme,
+		client:   client,
+		platform: &CloudPlatform{},
 	}
 }
