@@ -6,7 +6,7 @@ BASE_COLLECTION_PATH=$1
 if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
-
+  
 CEPH_COLLECTION_PATH="${BASE_COLLECTION_PATH}/ceph"
 POD_TEMPLATE="/templates/pod.template"
 
@@ -18,114 +18,63 @@ safe_replace () {
 
 apply_helper_pod() {
     < ${POD_TEMPLATE} safe_replace "NAMESPACE" "$1" | safe_replace "IMAGE_NAME" "$2" | safe_replace "MUST_GATHER" "$HOSTNAME" > pod_helper.yaml
-    oc apply -f pod_helper.yaml
+    timeout 120 oc apply -f pod_helper.yaml > /dev/null 2>&1
 }
 
-# Ceph resources
-ceph_resources=()
-ceph_resources+=(cephblockpools)
-ceph_resources+=(cephclusters)
-ceph_resources+=(cephfilesystems)
-ceph_resources+=(cephobjectstores)
-ceph_resources+=(cephobjectstoreusers)
-
-# Ceph commands
-ceph_commands=()
-ceph_commands+=("ceph status")
-ceph_commands+=("ceph health detail")
-ceph_commands+=("ceph osd tree")
-ceph_commands+=("ceph osd stat")
-ceph_commands+=("ceph osd dump")
-ceph_commands+=("ceph mon stat")
-ceph_commands+=("ceph mon dump")
-ceph_commands+=("ceph df")
-ceph_commands+=("ceph report")
-ceph_commands+=("ceph osd df tree")
-ceph_commands+=("ceph fs ls")
-ceph_commands+=("ceph pg dump")
-ceph_commands+=("ceph osd crush show-tunables")
-ceph_commands+=("ceph osd crush dump")
-ceph_commands+=("ceph mgr dump")
-ceph_commands+=("ceph mds stat")
-ceph_commands+=("ceph versions")
-ceph_commands+=("ceph fs dump")
-ceph_commands+=("ceph auth list")
-
-# Ceph volume commands
-ceph_volume_commands+=()
-ceph_volume_commands+=("ceph-volume lvm list")
-
-# Inspecting ceph related custom resources for all namespaces 
-for resource in "${ceph_resources[@]}"; do
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect "${resource}" --all-namespaces
-done
-
 # Inspecting the namespace where ceph-cluster is installed
-for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
-    operatorImage=$(oc get pods -l app=rook-ceph-operator -n openshift-storage -o jsonpath="{range .items[*]}{@.spec.containers[0].image}+{end}" | tr "+" "\n" | head -n1)
+for ns in $(timeout 120 oc get cephcluster --all-namespaces --no-headers | awk '{print $1}'); do
+    CEPH_NS_COLLECTION_PATH=${CEPH_COLLECTION_PATH}/namespaces/${ns}
+    echo " -> Fetching dump for ${ns} namespace"
+
+    operatorImage=$(timeout 120 oc get pods -l app=rook-ceph-operator -n openshift-storage -o jsonpath="{range .items[*]}{@.spec.containers[0].image}+{end}" | tr "+" "\n" | head -n1)
     if [ "${operatorImage}" = "" ]; then
         echo "Not able to find the rook's operator image. Skipping collection of ceph command output"  
     else
         apply_helper_pod "$ns" "$operatorImage"
     fi
-    
 
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect ns/"${ns}"
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect csv -n "${ns}"
-    # collecting non running pods
-    for npod in $(oc get pods --field-selector=status.phase!=Running --no-headers -n "${ns}" | awk '{print $1}'); do
-      { oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}"; oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}"; } >> pod_collector.sh
-      { oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}"; oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}"; } >> pod_collector.sh
-    done
-    chmod +x pod_collector.sh
-    ./pod_collector.sh
-    rm -rf pod_collector.sh
-   
-    COMMAND_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands
-    COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
-    mkdir -p "${COMMAND_OUTPUT_DIR}"
-    mkdir -p "${COMMAND_JSON_OUTPUT_DIR}"
+    # Registering ceph collection scripts for dump collection
+    cephblockpools.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    cephclusters.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    cephfilesystems.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    cephobjectstores.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    cephobjectstoreusers.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+
+    # Registering openshift collection scripts for dump collection
+    pods.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    configmaps.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    events.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    persistentvolumeclaims.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    secrets.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    services.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    replicationcontrollers.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    deploymentconfigs.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    daemonsets.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    replicasets.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    statefulsets.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    horizontalpodautoscalers.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    cronjobs.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    jobs.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    buildconfigs.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    builds.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    imagestreams.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    routes.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    deployments.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+    clusterserviceversion.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
 
     if [ "${operatorImage}" != "" ]; then
         for i in {1..50}
         do
-            if [ "$(oc get pods  "${HOSTNAME}"-helper -n "${ns}" -o jsonpath='{.status.phase}')" = "Running" ]; then
-                echo "Helper pod got deployed successfully."
+            if [ "$(timeout 120 oc get pods  "${HOSTNAME}"-helper -n "${ns}" -o jsonpath='{.status.phase}')" = "Running" ]; then
+                echo " -> Helper pod got deployed successfully for ${ns} namespace"
                 break
             fi
-            echo "Waiting for helper pod to come up in ${ns} namespace. Retrying ${i}"
+            echo " -> Waiting for helper pod to come up in ${ns} namespace. Retrying ${i}"
             sleep 5
         done
-
-        # Collecting output of ceph commands
-        for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
-            printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
-            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
-            oc -n "${ns}" exec --request-timeout=60 "${HOSTNAME}"-helper -- ${ceph_commands[$i]} --connect-timeout=15 >> "${COMMAND_OUTPUT_FILE}"
-            JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
-            oc -n "${ns}" exec --request-timeout=60 "${HOSTNAME}"-helper -- ${ceph_commands[$i]} --connect-timeout=15 --format json-pretty >> "${JSON_COMMAND_OUTPUT_FILE}"
-        done
-    fi
-
-    # Collecting output of ceph volume commands
-    for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
-        printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}"
-        for osdPod in $(oc get pods -n "${ns}" -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
-            pod_status=$(oc get po "${osdPod}" -n "${ns}" -o jsonpath='{.status.phase}')
-            if [ "${pod_status}" != "Running" ]; then
-                continue
-            fi
-            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
-            oc -n "${ns}" exec --request-timeout=60 "${osdPod}" -- ${ceph_volume_commands[$i]} >> "${COMMAND_OUTPUT_FILE}"
-        done
-    done
-    
-    # Collecting ceph prepare volume logs
-    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | grep -w 'Ready' | awk '{print $1}'); do
-        printf "collecting prepare volume logs from node %s \n"  "${node}"
-        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
-        mkdir -p "${NODE_OUTPUT_DIR}"
-        oc debug  nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log
-    done
-    oc delete -f pod_helper.yaml
+        ceph_commands.sh "${CEPH_NS_COLLECTION_PATH}" "${ns}"
+        echo " -> Deleting helper pod for ${ns} namespace"
+        timeout 120 oc delete -f pod_helper.yaml > /dev/null 2>&1
+    fi    
 done
+

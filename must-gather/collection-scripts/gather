@@ -2,14 +2,15 @@
 BASE_COLLECTION_PATH="/must-gather"
 mkdir -p ${BASE_COLLECTION_PATH}
 
-echo "Collecting operator pod logs"
+echo " -> Fetching operator pod logs"
 operatorPodLogCollectionPath="${BASE_COLLECTION_PATH}/namespaces"
-operatorPodLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name}  --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}.log;{end}"
-operatorPodPreviousLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name} -p --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}-previous.log;{end}"
-oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh
-oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh
-oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh
-oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh
+operatorPodLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};timeout 120 oc logs {@.metadata.name}  --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}.log;{end}"
+operatorPodPreviousLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};timeout 120 oc logs {@.metadata.name} -p --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}-previous.log;{end}"
+
+{ timeout 120 oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh; } > /dev/null 2>&1
+{ timeout 120 oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh; } > /dev/null 2>&1
+{ timeout 120 oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh; } > /dev/null 2>&1
+{ timeout 120 oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh; } > /dev/null 2>&1
 chmod +x collector.sh
 ./collector.sh
 # Resource List
@@ -24,8 +25,9 @@ resources+=(objectbuckets)
 # Add general resources to list if necessary 
 
 # Run the Collection of Resources using must-gather
-for resource in ${resources[@]}; do
-    oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
+for resource in "${resources[@]}"; do
+    echo " -> Fetching dump for ${resource}"
+    { timeout 120 oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces ;} > /dev/null 2>&1
 done
 
 # Call other gather scripts
