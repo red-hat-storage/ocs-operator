@@ -300,11 +300,6 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: Local Storage Operator
-      displayName: Local Volume
-      kind: LocalVolume
-      name: localvolumes.local.storage.openshift.io
-      version: v1
   description: |2-
 
     Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
