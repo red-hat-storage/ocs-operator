@@ -10,7 +10,7 @@ import (
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 )
 
-var _ = Describe("Cluster upgrade", func() {
+var _ = PDescribe("Cluster upgrade", func() {
 	flag.Parse()
 
 	BeforeEach(func() {
