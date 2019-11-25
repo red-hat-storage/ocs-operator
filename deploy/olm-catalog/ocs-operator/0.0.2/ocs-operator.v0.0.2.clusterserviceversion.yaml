@@ -144,6 +144,52 @@ spec:
       - kind: StatefulSet
         name: statefulsets.apps
         version: v1
+      specDescriptors:
+      - description: image
+        displayName: image
+        path: image
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: dbImage
+        displayName: dbImage
+        path: dbImage
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: coreResources
+        displayName: coreResources
+        path: coreResources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
+      - description: dbResources
+        displayName: dbResources
+        path: dbResources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
+      - description: dbVolumeResources
+        displayName: dbVolumeResources
+        path: dbVolumeResources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
+      - description: dbStorageClass
+        displayName: dbStorageClass
+        path: dbStorageClass
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: pvPoolDefaultStorageClass
+        displayName: pvPoolDefaultStorageClass
+        path: pvPoolDefaultStorageClass
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: tolerations
+        displayName: tolerations
+        path: tolerations
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Tolerations
+      - description: imagePullSecret
+        displayName: imagePullSecret
+        path: imagePullSecret
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
     - description: |-
         [This resource is not intended to be created or managed by users.]
@@ -260,11 +306,6 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: Local Storage Operator
-      displayName: Local Volume
-      kind: LocalVolume
-      name: localvolumes.local.storage.openshift.io
-      version: v1
   description: |2-
 
     Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
