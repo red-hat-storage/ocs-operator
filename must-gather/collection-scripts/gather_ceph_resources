@@ -73,7 +73,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
     oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect ns/"${ns}"
     oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect csv -n "${ns}"
     # collecting non running pods
-    for npod in $(oc get pods --field-selector=status.phase!=Running --no-headers -n "${ns}" | awk '{print $1}'); do
+    for npod in $(oc get pods --no-headers -n "${ns}" | grep -v -w 'Running' | awk '{print $1}'); do
       { oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}"; oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.initContainers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}"; } >> pod_collector.sh
       { oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/current.log;{end}"; oc get pods "${npod}" -n "${ns}" -o jsonpath="{range @.spec.containers[*]}mkdir -p ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs;oc logs -p ${npod} -n ${ns} -c {@.name} >> ${CEPH_COLLECTION_PATH}/namespaces/${ns}/pods/${npod}/{@.name}/{@.name}/logs/previous.log;{end}"; } >> pod_collector.sh
     done
