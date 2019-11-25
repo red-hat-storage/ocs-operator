@@ -6,10 +6,12 @@ echo "Collecting operator pod logs"
 operatorPodLogCollectionPath="${BASE_COLLECTION_PATH}/namespaces"
 operatorPodLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name}  --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}.log;{end}"
 operatorPodPreviousLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name} -p --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}-previous.log;{end}"
-oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh
-oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh
-oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}" >> collector.sh
-oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}" >> collector.sh
+{
+    timeout 120 oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}";
+    timeout 120 oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}";
+    timeout 120 oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}";
+    timeout 120 oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}";
+} >> collector.sh
 chmod +x collector.sh
 ./collector.sh
 # Resource List
@@ -24,8 +26,9 @@ resources+=(objectbuckets)
 # Add general resources to list if necessary 
 
 # Run the Collection of Resources using must-gather
-for resource in ${resources[@]}; do
-    openshift-must-gather --base-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
+for resource in "${resources[@]}"; do
+    echo "Collection dump of ${resource}"
+    timeout 120 openshift-must-gather --base-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces
 done
 
 # Call other gather scripts
