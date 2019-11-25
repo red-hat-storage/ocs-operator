@@ -191,12 +191,9 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Storage target spec such as aws-s3, s3-compatible, PV's and more. Used in BacketClass to construct data placement policies.
-      displayName: '[Internal] BackingStore'
+    - description: Storage target spec such as aws-s3, s3-compatible, PV's and more.
+        Used in BacketClass to construct data placement policies.
+      displayName: BackingStore
       kind: BackingStore
       name: backingstores.noobaa.io
       resources:
@@ -213,12 +210,9 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Storage policy spec  tiering, mirroring, spreading. Combines BackingStores. Referenced by ObjectBucketClaims.
-      displayName: '[Internal] BucketClass'
+    - description: Storage policy spec  tiering, mirroring, spreading. Combines BackingStores.
+        Referenced by ObjectBucketClaims.
+      displayName: BucketClass
       kind: BucketClass
       name: bucketclasses.noobaa.io
       resources:
