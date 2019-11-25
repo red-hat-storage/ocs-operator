@@ -32,4 +32,5 @@ done
 gather_noobaa_resources ${BASE_COLLECTION_PATH}
 gather_ceph_resources ${BASE_COLLECTION_PATH}
 
+find "${BASE_COLLECTION_PATH}" -empty -delete
 exit 0
