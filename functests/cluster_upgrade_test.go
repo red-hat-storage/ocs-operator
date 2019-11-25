@@ -2,6 +2,7 @@ package functests_test
 
 import (
 	"flag"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -46,7 +47,7 @@ var _ = PDescribe("Cluster upgrade", func() {
 				By("Getting the current csv before the upgrade")
 				csv, err := deployManager.GetCsv()
 				Expect(err).To(BeNil())
-				
+
 				By("Upgrading OCS with OLM to the current version from upgrade_from version")
 				err = deployManager.UpgradeOCSWithOLM(tests.OcsRegistryImage, tests.OcsSubscriptionChannel)
 				Expect(err).To(BeNil())
