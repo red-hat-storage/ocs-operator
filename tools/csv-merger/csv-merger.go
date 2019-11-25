@@ -447,15 +447,6 @@ func generateUnifiedCSV() {
 		}
 	}
 
-	// Add crd Requirements.
-	ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, csvv1.CRDDescription{
-		Name:        "localvolumes.local.storage.openshift.io",
-		Version:     "v1",
-		Kind:        "LocalVolume",
-		DisplayName: "Local Volume",
-		Description: "Local Storage Operator",
-	})
-
 	// Add tolerations to deployments
 	for i := range templateStrategySpec.Deployments {
 		d := &templateStrategySpec.Deployments[i]
