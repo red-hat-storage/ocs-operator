@@ -110,6 +110,14 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 	if instance.Status.CephObjectStoresCreated {
 		return nil
 	}
+	platform, err := r.platform.GetPlatform(r.client)
+	if err != nil {
+		return err
+	}
+	if platform == PlatformAWS {
+		r.reqLogger.Info("not creating a CephObjectStore because the platform is AWS")
+		return nil
+	}
 
 	cephObjectStores, err := r.newCephObjectStoreInstances(instance)
 	if err != nil {
@@ -260,8 +268,14 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 // ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-
 	if instance.Status.CephObjectStoreUsersCreated {
+		return nil
+	}
+	platform, err := r.platform.GetPlatform(r.client)
+	if err != nil {
+		return err
+	}
+	if platform == PlatformAWS {
 		return nil
 	}
 

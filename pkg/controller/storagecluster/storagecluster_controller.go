@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -63,6 +63,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
 		reqLogger: log,
+		platform:  &CloudPlatform{},
 	}
 
 	err := r.initializeImageVars()
@@ -118,7 +119,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			// Evaluates to false if the object has been confirmed deleted.
 			return !e.DeleteStateUnknown
 		},
-	  }
+	}
 	err = c.Watch(&source.Kind{Type: &corev1.PersistentVolumeClaim{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &ocsv1.StorageCluster{},
@@ -144,4 +145,5 @@ type ReconcileStorageCluster struct {
 	cephImage       string
 	noobaaDBImage   string
 	noobaaCoreImage string
+	platform        *CloudPlatform
 }
