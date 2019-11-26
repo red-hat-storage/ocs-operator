@@ -109,8 +109,8 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
             printf "collecting command output for: %s\n"  "${ceph_commands[$i]}"
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
             JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
-            timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- "${ceph_commands[$i]}" --connect-timeout=15 >> "${COMMAND_OUTPUT_FILE}" 2>/dev/null
-            timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- "${ceph_commands[$i]}" --connect-timeout=15 --format json-pretty >> "${JSON_COMMAND_OUTPUT_FILE}" 2>/dev/null
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } 2>/dev/null
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } 2>/dev/null
         done
     fi
 
@@ -123,7 +123,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
                 continue
             fi
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
-            timeout 120 oc -n "${ns}" exec "${osdPod}" -- ${ceph_volume_commands[$i]} >> "${COMMAND_OUTPUT_FILE}" 2>/dev/null
+            { timeout 120 oc -n "${ns}" exec "${osdPod}" -- bash -c "${ceph_volume_commands[$i]}" >> "${COMMAND_OUTPUT_FILE}"; } 2>/dev/null
         done
     done
     
@@ -132,7 +132,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
         printf "collecting prepare volume logs from node %s \n"  "${node}"
         NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
         mkdir -p "${NODE_OUTPUT_DIR}"
-        timeout 120 oc debug nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log 2>/dev/null
+        { timeout 120 oc debug nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log; } 2>/dev/null
     done
     oc delete -f pod_helper.yaml
 done
