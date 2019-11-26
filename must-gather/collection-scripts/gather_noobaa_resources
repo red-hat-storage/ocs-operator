@@ -18,8 +18,9 @@ noobaa_resources+=(backingstore)
 noobaa_resources+=(bucketclass)
 
 # Run the Collection of NooBaa Resources using must-gather
-for resource in ${noobaa_resources[@]}; do
-    openshift-must-gather --base-dir=${NOOBAA_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+for resource in "${noobaa_resources[@]}"; do
+    echo "Collecting dump of ${resource}"
+    timeout 120 openshift-must-gather --base-dir=${NOOBAA_COLLLECTION_PATH} inspect ${resource} --all-namespaces
 done
 
 # Collect logs for all noobaa pods using oc logs
@@ -31,6 +32,6 @@ do
     for pod in $(oc -n ${ns} get pod -l "${NOOBAA_PODS_LABEL}" | grep -v NAME | awk '{print $1}'); do
         LOG_DIR=${NOOBAA_COLLLECTION_PATH}/logs/${ns}
         mkdir -p ${LOG_DIR}
-        oc -n ${ns} logs --all-containers ${pod} &> ${LOG_DIR}/${pod}.log
+        timeout 120 oc -n ${ns} logs --all-containers ${pod} &> ${LOG_DIR}/${pod}.log
     done
 done
