@@ -124,7 +124,7 @@ for ns in $(oc get cephcluster --all-namespaces --no-headers | awk '{print $1}')
                 continue
             fi
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
-            timeout 120 oc -n "${ns}" exec "${osdPod}" -- ${ceph_volume_commands[$i]} >> "${COMMAND_OUTPUT_FILE}" 2>/dev/null
+            { timeout 120 oc -n "${ns}" exec "${osdPod}" -- bash -c "${ceph_volume_commands[$i]}" >> "${COMMAND_OUTPUT_FILE}"; } 2>/dev/null
         done
     done
     
