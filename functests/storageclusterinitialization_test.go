@@ -9,6 +9,7 @@ import (
 	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	scController "github.com/openshift/ocs-operator/pkg/controller/storagecluster"
 
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 	storagev1 "k8s.io/api/storage/v1"
@@ -29,6 +30,8 @@ var _ = Describe("StorageClusterInitialization", func() {
 	var name string
 	var namespace string
 	var client crclient.Client
+	var currentCloudPlatform scController.CloudPlatformType
+	platform := &scController.CloudPlatform{}
 
 	// This map is used to cross examine that objects maintain
 	// the same UID after re-reconciling. This is important to
@@ -60,6 +63,10 @@ var _ = Describe("StorageClusterInitialization", func() {
 
 		client, err = crclient.New(config, crclient.Options{Scheme: clientScheme})
 		Expect(err).To(BeNil())
+
+		currentCloudPlatform, err = platform.GetPlatform(client)
+		Expect(err).To(BeNil())
+		Expect(currentCloudPlatform).To(BeElementOf(append(scController.ValidCloudPlatforms, scController.PlatformUnknown)))
 	})
 
 	getSCI := func() (*ocsv1.StorageClusterInitialization, error) {
@@ -345,12 +352,15 @@ var _ = Describe("StorageClusterInitialization", func() {
 		})
 		Context("after", func() {
 			It("resources have been modified", func() {
+				if currentCloudPlatform != scController.PlatformAWS {
+					By("Modifying CephObjectStore")
+					cephObjectStoreModify(false)
+					By("Modifying CephObjectStoreUser")
+					cephObjectStoreUserModify(false)
+				}
+
 				By("Modifying StorageClass")
 				storageClassModify(false)
-				By("Modifying CephObjectStore")
-				cephObjectStoreModify(false)
-				By("Modifying CephObjectStoreUser")
-				cephObjectStoreUserModify(false)
 				By("Modifying CephBlockPool")
 				cephBlockPoolModify(false)
 				By("Modifying CephFilesystem")
@@ -361,10 +371,12 @@ var _ = Describe("StorageClusterInitialization", func() {
 
 				By("Verifying StorageClass is reconciled")
 				storageClassExpectReconcile(false)
-				By("Verifying CephObjectStore is reconciled")
-				cephObjectStoreExpectReconcile(false)
-				By("Verifying CephObjectStoreUser is reconciled")
-				cephObjectStoreUserExpectReconcile(false)
+				if currentCloudPlatform != scController.PlatformAWS {
+					By("Verifying CephObjectStore is reconciled")
+					cephObjectStoreExpectReconcile(false)
+					By("Verifying CephObjectStoreUser is reconciled")
+					cephObjectStoreUserExpectReconcile(false)
+				}
 				By("Verifying CephBlockPool is reconciled")
 				cephBlockPoolExpectReconcile(false)
 				By("Verifying CephFilesystem is reconciled")
@@ -373,12 +385,15 @@ var _ = Describe("StorageClusterInitialization", func() {
 			})
 
 			It("resources have been deleted", func() {
+
+				if currentCloudPlatform != scController.PlatformAWS {
+					By("Modifying CephObjectStore")
+					cephObjectStoreModify(true)
+					By("Modifying CephObjectStoreUser")
+					cephObjectStoreUserModify(true)
+				}
 				By("Modifying StorageClass")
 				storageClassModify(true)
-				By("Modifying CephObjectStore")
-				cephObjectStoreModify(true)
-				By("Modifying CephObjectStoreUser")
-				cephObjectStoreUserModify(true)
 				// We can't delete the block pool because it disrupts noobaa
 				//By("Modifying CephBlockPool")
 				//cephBlockPoolModify(true)
@@ -390,10 +405,12 @@ var _ = Describe("StorageClusterInitialization", func() {
 
 				By("Verifying StorageClass is reconciled")
 				storageClassExpectReconcile(true)
-				By("Verifying CephObjectStore is reconciled")
-				cephObjectStoreExpectReconcile(true)
-				By("Verifying CephObjectStoreUser is reconciled")
-				cephObjectStoreUserExpectReconcile(true)
+				if currentCloudPlatform != scController.PlatformAWS {
+					By("Verifying CephObjectStore is reconciled")
+					cephObjectStoreExpectReconcile(true)
+					By("Verifying CephObjectStoreUser is reconciled")
+					cephObjectStoreUserExpectReconcile(true)
+				}
 				// We can't delete the block pool because it disrupts noobaa
 				//By("Verifying CephBlockPool is reconciled")
 				//cephBlockPoolExpectReconcile(true)
