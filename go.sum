@@ -746,6 +746,8 @@ k8s.io/cli-runtime v0.0.0-20191005121332-4d28aef60981 h1:/o1WCRCwddWOUckroUAu1wd
 k8s.io/cli-runtime v0.0.0-20191005121332-4d28aef60981/go.mod h1:CICkH37E5f4cPVqJ/ZcIDn/kdvjJHq8sacFCdCyKHtU=
 k8s.io/client-go v0.0.0-20190409021438-1a26190bd76a h1:FH59qGH0V92P8HYzYVoCTnYTbIasdCuHjcD4fQzm6C0=
 k8s.io/client-go v0.0.0-20190409021438-1a26190bd76a/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
+k8s.io/cloud-provider v0.0.0-20191114015453-79225fba1e26 h1:7XuePCDdTKQGSzPAAS4qZ4JCH8HE8TUKsUEskt3WBnw=
+k8s.io/cloud-provider v0.0.0-20191114015453-79225fba1e26/go.mod h1:LlIffnLBu+GG7d4ppPzC8UnA1Ex8S+ntmSRVsnr7Xy4=
 k8s.io/code-generator v0.0.0-20181203235156-f8cba74510f3/go.mod h1:MYiN+ZJZ9HkETbgVZdWw2AsuAi9PZ4V80cwfuf2axe8=
 k8s.io/code-generator v0.0.0-20190311093542-50b561225d70/go.mod h1:MYiN+ZJZ9HkETbgVZdWw2AsuAi9PZ4V80cwfuf2axe8=
 k8s.io/code-generator v0.0.0-20190717022600-77f3a1fe56bb/go.mod h1:cDx5jQmWH25Ff74daM7NVYty9JWw9dvIS9zT9eIubCY=
