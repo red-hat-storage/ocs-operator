@@ -278,6 +278,10 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 					},
 				},
 			},
+			{
+				Name:  "CSI_ENABLE_SNAPSHOTTER",
+				Value: "false",
+			},
 		}
 
 		if *rookCsiCephImage != "" {
