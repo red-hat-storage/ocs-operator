@@ -56,7 +56,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Storage
-  name: ocs-operator.v0.0.2
+  name: ocs-operator.v4.3.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -1475,4 +1475,4 @@ spec:
   provider:
     name: Red Hat
   replaces: ocs-operator.v0.0.1
-  version: 0.0.2
+  version: 4.3.0
