@@ -52,22 +52,6 @@ metadata:
                       }
                   ]
               }
-          },
-          {
-              "apiVersion": "ocs.openshift.io/v1",
-              "kind": "OCSInitialization",
-              "metadata": {
-                  "name": "example-ocsinitialization"
-              },
-              "spec": {}
-          },
-          {
-              "apiVersion": "ocs.openshift.io/v1",
-              "kind": "StorageClusterInitialization",
-              "metadata": {
-                  "name": "example-storageclusterinitialization"
-              },
-              "spec": {}
           }
       ]
     capabilities: Full Lifecycle

@@ -677,22 +677,6 @@ After the three operators have been deployed into the openshift-storage namespac
                 }
             ]
         }
-    },
-    {
-        "apiVersion": "ocs.openshift.io/v1",
-        "kind": "OCSInitialization",
-        "metadata": {
-            "name": "example-ocsinitialization"
-        },
-        "spec": {}
-    },
-    {
-        "apiVersion": "ocs.openshift.io/v1",
-        "kind": "StorageClusterInitialization",
-        "metadata": {
-            "name": "example-storageclusterinitialization"
-        },
-        "spec": {}
     }
 ]`
 
