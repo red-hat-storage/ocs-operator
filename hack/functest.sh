@@ -12,5 +12,3 @@ if [ $? -ne 0 ]; then
 	echo "ERROR: Functest failed."
 	exit 1
 fi
-
-must-gather/functests/functests.sh
