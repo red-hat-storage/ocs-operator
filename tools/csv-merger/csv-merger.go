@@ -50,6 +50,8 @@ const (
 
 
 `
+	// Backticks cannot be escaped inside multi-line strings. So using this const and concating with multiline strings instead.
+	codeBlock = "```"
 )
 
 var (
@@ -426,7 +428,7 @@ func generateUnifiedCSV() {
 		switch definition.Name {
 		case "storageclusters.ocs.openshift.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Storage Cluster"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a Openshift Container Storage Cluster including Ceph Cluster, NooBaa and all the storage and compute resources required."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a OpenShift Container Storage Cluster including Ceph Cluster, NooBaa and all the storage and compute resources required."
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Resources = []csvv1.APIResourceReference{
 				csvv1.APIResourceReference{
 					Name:    "cephclusters.ceph.rook.io",
@@ -545,11 +547,81 @@ func generateUnifiedCSV() {
 
 	// Set Description
 	ocsCSV.Spec.Description = `
-Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
+Red Hat OpenShift Container Storage (RHOCS) provides hyperconverged storage for applications within an OpenShift cluster.
 
-The OCS operator is the primary operator for Red Hat OpenShift Container Storage (OCS). It serves to facilitate the other operators in OCS by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.`
+## Components
 
-	ocsCSV.Spec.DisplayName = "Openshift Container Storage Operator"
+RHOCS deploys three operators.
+
+### OCS operator
+
+The OCS operator is the primary operator for RHOCS. It serves to facilitate the other operators in OCS by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
+
+### Rook
+
+[Rook][1] deploys and manages Ceph on OpenShift, which provides block and file storage.
+
+### NooBaa operator
+
+The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on OpenShift, which provides object storage.
+
+## Before Subscription
+
+Before subcribing to RHOCS, there are two pre-requisites that need to be satisfied.
+
+### Namespace
+
+RHOCS runs only in the openshift-storage Namespace, which needs to be created before subscription. The following manifest can be used to create the Namespace.
+
+` + codeBlock + `
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    openshift.io/cluster-monitoring: "true"
+  name: openshift-storage
+spec: {}
+` + codeBlock + `
+
+Save the above as rhocs-namespace.yaml, and create the Namespace with,
+
+` + codeBlock + `
+$ oc create -f rhocs-namespace.yaml
+` + codeBlock + `
+
+
+### OperatorGroup
+An OperatorGroup targetting the openshift-storage namespace also needs to be created. The following manifest can be used to create the OperatorGroup.
+
+` + codeBlock + `
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-storage-operatorgroup
+  namespace: openshift-storage
+spec:
+  serviceAccount:
+    metadata:
+      creationTimestamp: null
+  targetNamespaces:
+  - openshift-storage
+` + codeBlock + `
+
+Save the above as rhocs-operatorgroup.yaml, and create the OperatorGroup with,
+
+` + codeBlock + `
+$ oc create -f rhocs-operatorgroup.yaml
+` + codeBlock + `
+
+## After subscription
+
+After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created. Note that the StorageCluster resource is the only resource that a user should be creating. RHOCS includes many other custom resources which are internal and not meant for direct usage by users.
+
+[1]: https://rook.io
+[2]: https://noobaa.io
+`
+
+	ocsCSV.Spec.DisplayName = "OpenShift Container Storage"
 
 	// Set Annotations
 	if *skipRange != "" {
