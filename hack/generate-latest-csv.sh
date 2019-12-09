@@ -10,7 +10,7 @@ CSV_CHECKSUM="tools/csv-checksum/csv-checksum"
 export CSV_CHECKSUM_OUTFILE="hack/latest-csv-checksum.md5"
 
 # Current DEV version of the CSV
-export CSV_VERSION=0.0.2
+export CSV_VERSION=4.3.0
 export REPLACES_CSV_VERSION=${REPLACES_CSV_VERSION:-"0.0.1"}
 
 # Current dependency images our DEV CSV are pinned to
