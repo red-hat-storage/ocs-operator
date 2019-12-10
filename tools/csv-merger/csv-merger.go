@@ -387,7 +387,7 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 	return nil
 }
 
-func generateUnifiedCSV() {
+func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	csvs := []string{
 		*rookCSVStr,
@@ -689,12 +689,22 @@ After the three operators have been deployed into the openshift-storage namespac
 	}
 
 	fmt.Printf("CSV written to %s\n", filepath.Join(*outputDir, finalizedCsvFilename()))
+	return ocsCSV
 }
 
-func copyCrds() {
+func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 	crdFiles, err := ioutil.ReadDir(*inputCrdsDir)
 	if err != nil {
 		panic(err)
+	}
+
+	ownedCrds := map[string]*csvv1.CRDDescription{}
+	requiredCrds := map[string]*csvv1.CRDDescription{}
+	for _, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
+		ownedCrds[definition.Name] = &definition
+	}
+	for _, definition := range ocsCSV.Spec.CustomResourceDefinitions.Required {
+		requiredCrds[definition.Name] = &definition
 	}
 
 	for _, crdFile := range crdFiles {
@@ -721,6 +731,13 @@ func copyCrds() {
 			if crd.Spec.Names.Singular == "" {
 				// filters out empty entries caused by starting file with '---' separator
 				continue
+			}
+			if requiredCrds[crd.Name] != nil {
+				// filter out required entries
+				continue
+			}
+			if ownedCrds[crd.Name] == nil {
+				fmt.Printf("WARNING: CRD is not owned and not required %s\n", crd.Name)
 			}
 
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("%s.crd.yaml", crd.Spec.Names.Singular))
@@ -790,7 +807,7 @@ func main() {
 	os.MkdirAll(*outputDir, os.FileMode(0755))
 	os.MkdirAll(filepath.Join(*outputDir, "crds"), os.FileMode(0755))
 
-	generateUnifiedCSV()
-	copyCrds()
+	ocsCSV := generateUnifiedCSV()
+	copyCrds(ocsCSV)
 	copyManifests()
 }
