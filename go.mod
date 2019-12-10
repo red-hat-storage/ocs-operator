@@ -9,6 +9,7 @@ require (
 	github.com/coreos/prometheus-operator v0.29.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
+	github.com/go-logr/zapr v0.1.1
 	github.com/go-openapi/spec v0.19.2
 	github.com/noobaa/noobaa-operator/v2 v2.0.8
 	github.com/onsi/ginkgo v1.10.1
@@ -19,7 +20,8 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190605231540-b8a4faf68e36
 	github.com/operator-framework/operator-sdk v0.10.0
 	github.com/rook/rook v1.1.3
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
+	go.uber.org/zap v1.13.0
 	google.golang.org/appengine v1.6.1 // indirect
 	k8s.io/api v0.0.0-20191005115622-2e41325d9e4b
 	k8s.io/apiextensions-apiserver v0.0.0-20190820104113-47893d27d7f7
