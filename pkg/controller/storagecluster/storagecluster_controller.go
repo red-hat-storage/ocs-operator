@@ -145,5 +145,6 @@ type ReconcileStorageCluster struct {
 	cephImage       string
 	noobaaDBImage   string
 	noobaaCoreImage string
+	nodeCount       int
 	platform        *CloudPlatform
 }
