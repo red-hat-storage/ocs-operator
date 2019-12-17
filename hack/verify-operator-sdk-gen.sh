@@ -1,0 +1,3 @@
+#!/bin/bash
+
+# OCS-OPERATOR-SKIP-SHELLCHECK
