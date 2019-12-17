@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# OCS-OPERATOR-SKIP-SHELLCHECK
+# skipping file as changes from shellcheck effect working of script
+
 IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-docker run --rm -it}"
 
 OUTDIR="build/_output"
