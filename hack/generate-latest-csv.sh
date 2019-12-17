@@ -41,16 +41,16 @@ fi
 echo "Generating MD5 Checksum for CSV with version $CSV_VERSION"
 $CSV_CHECKSUM \
 	--csv-version=$CSV_VERSION \
-	--replaces-csv-version=$REPLACES_CSV_VERSION \
-	--rook-image=$ROOK_IMAGE \
-	--ceph-image=$CEPH_IMAGE \
-	--rook-csi-ceph-image=$ROOK_CSI_CEPH_IMAGE \
-	--rook-csi-registrar-image=$ROOK_CSI_REGISTRAR_IMAGE \
-	--rook-csi-provisioner-image=$ROOK_CSI_PROVISIONER_IMAGE \
-	--rook-csi-snapshotter-image=$ROOK_CSI_SNAPSHOTTER_IMAGE \
-	--rook-csi-attacher-image=$ROOK_CSI_ATTACHER_IMAGE \
-	--noobaa-image=$NOOBAA_IMAGE \
-	--noobaa-core-image=$NOOBAA_CORE_IMAGE \
-	--noobaa-db-image=$NOOBAA_DB_IMAGE \
-	--ocs-image=$OCS_IMAGE \
-	--checksum-outfile=$CSV_CHECKSUM_OUTFILE
+	--replaces-csv-version="$REPLACES_CSV_VERSION" \
+	--rook-image="$ROOK_IMAGE" \
+	--ceph-image="$CEPH_IMAGE" \
+	--rook-csi-ceph-image="$ROOK_CSI_CEPH_IMAGE" \
+	--rook-csi-registrar-image="$ROOK_CSI_REGISTRAR_IMAGE" \
+	--rook-csi-provisioner-image="$ROOK_CSI_PROVISIONER_IMAGE" \
+	--rook-csi-snapshotter-image="$ROOK_CSI_SNAPSHOTTER_IMAGE" \
+	--rook-csi-attacher-image="$ROOK_CSI_ATTACHER_IMAGE" \
+	--noobaa-image="$NOOBAA_IMAGE" \
+	--noobaa-core-image="$NOOBAA_CORE_IMAGE" \
+	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
+	--ocs-image="$OCS_IMAGE" \
+	--checksum-outfile="$CSV_CHECKSUM_OUTFILE"
