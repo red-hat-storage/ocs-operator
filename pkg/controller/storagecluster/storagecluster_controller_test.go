@@ -218,6 +218,7 @@ func TestNodeTopologyMapNoNodes(t *testing.T) {
 	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, nodeList)
 	err := reconciler.reconcileNodeTopologyMap(mockStorageCluster, reconciler.reqLogger)
 	assert.Equal(t, err, fmt.Errorf("Not enough nodes found: Expected %d, found %d", defaults.DeviceSetReplica, len(nodeList.Items)))
+	assert.Equal(t, reconciler.nodeCount, 0)
 }
 
 func TestNodeTopologyMapPreexistingRack(t *testing.T) {
@@ -245,6 +246,7 @@ func TestNodeTopologyMapPreexistingRack(t *testing.T) {
 	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
 	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
 	assert.NoError(t, err)
+	assert.Equal(t, reconciler.nodeCount, 3)
 
 	actual := &api.StorageCluster{}
 	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
@@ -403,12 +405,12 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	assert.Equal(t, actual.Spec.DataDirHostPath, "/var/lib/rook")
 
 	sc.Spec.MonDataDirHostPath = "/var/lib/rook-test"
-	actual = newCephCluster(sc, "")
+	actual = newCephCluster(sc, "", 3)
 	assert.Equal(t, actual.Spec.DataDirHostPath, "/var/lib/rook-test")
 
 	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{}
 	sc.Spec.MonPVCTemplate.SetName("test-mon-pvc")
-	actual = newCephCluster(sc, "")
+	actual = newCephCluster(sc, "", 3)
 	assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate.GetName(), "test-mon-pvc")
 
 }
@@ -595,4 +597,17 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 		assert.Fail(t, "failed to add rookCephv1 scheme")
 	}
 	return scheme
+}
+
+func TestMonCountChange(t *testing.T) {
+	for nodeCount := 0; nodeCount <= 10; nodeCount++ {
+		monCountExpected := defaults.MonCountMin
+		if nodeCount >= defaults.MonCountMax {
+			monCountExpected = defaults.MonCountMax
+		}
+		monCountActual := getMonCount(nodeCount)
+		assert.Equal(t, monCountExpected, monCountActual)
+
+	}
+
 }
