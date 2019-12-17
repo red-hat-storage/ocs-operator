@@ -193,9 +193,31 @@ github.com/prometheus/procfs/internal/fs
 # github.com/rook/rook v1.2.2
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 github.com/rook/rook/pkg/apis/rook.io/v1alpha2
+github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/daemon/ceph/model
 github.com/rook/rook/pkg/apis/rook.io
+github.com/rook/rook/pkg/client/clientset/versioned/typed/cassandra.rook.io/v1alpha1
+github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
+github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb.rook.io/v1alpha1
+github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1
+github.com/rook/rook/pkg/client/clientset/versioned/typed/minio.rook.io/v1alpha1
+github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1
+github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2
+github.com/rook/rook/pkg/client/clientset/versioned/typed/yugabytedb.rook.io/v1alpha1
+github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1
+github.com/rook/rook/pkg/client/clientset/versioned/scheme
+github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1
+github.com/rook/rook/pkg/apis/edgefs.rook.io/v1
+github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1
+github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1
+github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1
+github.com/rook/rook/pkg/apis/cassandra.rook.io
+github.com/rook/rook/pkg/apis/cockroachdb.rook.io
+github.com/rook/rook/pkg/apis/edgefs.rook.io
+github.com/rook/rook/pkg/apis/minio.rook.io
+github.com/rook/rook/pkg/apis/nfs.rook.io
+github.com/rook/rook/pkg/apis/yugabytedb.rook.io
 # github.com/sirupsen/logrus v1.4.2
 github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.3
