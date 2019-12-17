@@ -30,39 +30,39 @@ function help_txt() {
 }
 
 # check required env vars
-if [ -z $NOOBAA_IMAGE ] || [ -z $NOOBAA_CORE_IMAGE ] || [ -z $NOOBAA_DB_IMAGE ] || \
-   [ -z $ROOK_IMAGE ] || [ -z $CSV_VERSION ] || [ -z $OCS_IMAGE ] || [ -z $CEPH_IMAGE ]; then
+if [ -z "$NOOBAA_IMAGE" ] || [ -z "$NOOBAA_CORE_IMAGE" ] || [ -z "$NOOBAA_DB_IMAGE" ] || \
+   [ -z "$ROOK_IMAGE" ] || [ -z "$CSV_VERSION" ] || [ -z "$OCS_IMAGE" ] || [ -z "$CEPH_IMAGE" ]; then
 	help_txt
 	echo ""
 	echo "ERROR: Missing required environment variables"
 	exit 1
 fi
 
-if [ ! -d $OUTDIR_TEMPLATES ]; then
+if [ ! -d "$OUTDIR_TEMPLATES" ]; then
 	echo "ERROR: no manifests found."
 	echo "Run 'make source-manifests' in order to source component-level manifests"
 fi
 
 # Merge component-level operators into ocs CSV
 $CSV_MERGER \
-	--csv-version=$CSV_VERSION \
-	--replaces-csv-version=$REPLACES_CSV_VERSION \
+	--csv-version="$CSV_VERSION" \
+	--replaces-csv-version="$REPLACES_CSV_VERSION" \
 	--skip-range="$SKIP_RANGE" \
 	--rook-csv-filepath=$ROOK_CSV \
 	--noobaa-csv-filepath=$NOOBAA_CSV \
 	--ocs-csv-filepath=$OCS_CSV \
-	--rook-image=$ROOK_IMAGE \
-	--ceph-image=$CEPH_IMAGE \
-	--rook-csi-ceph-image=$ROOK_CSI_CEPH_IMAGE \
-	--rook-csi-registrar-image=$ROOK_CSI_REGISTRAR_IMAGE \
-	--rook-csi-provisioner-image=$ROOK_CSI_PROVISIONER_IMAGE \
-	--rook-csi-snapshotter-image=$ROOK_CSI_SNAPSHOTTER_IMAGE \
-	--rook-csi-attacher-image=$ROOK_CSI_ATTACHER_IMAGE \
-	--noobaa-image=$NOOBAA_IMAGE \
-	--noobaa-core-image=$NOOBAA_CORE_IMAGE \
-	--noobaa-db-image=$NOOBAA_DB_IMAGE \
-	--ocs-image=$OCS_IMAGE \
-	--crds-directory=$OUTDIR_CRDS \
+	--rook-image="$ROOK_IMAGE" \
+	--ceph-image="$CEPH_IMAGE" \
+	--rook-csi-ceph-image="$ROOK_CSI_CEPH_IMAGE" \
+	--rook-csi-registrar-image="$ROOK_CSI_REGISTRAR_IMAGE" \
+	--rook-csi-provisioner-image="$ROOK_CSI_PROVISIONER_IMAGE" \
+	--rook-csi-snapshotter-image="$ROOK_CSI_SNAPSHOTTER_IMAGE" \
+	--rook-csi-attacher-image="$ROOK_CSI_ATTACHER_IMAGE" \
+	--noobaa-image="$NOOBAA_IMAGE" \
+	--noobaa-core-image="$NOOBAA_CORE_IMAGE" \
+	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
+	--ocs-image="$OCS_IMAGE" \
+	--crds-directory="$OUTDIR_CRDS" \
 	--manifests-directory=$OUTDIR_BUNDLEMANIFESTS \
-	--olm-bundle-directory=$OCS_FINAL_DIR
+	--olm-bundle-directory="$OCS_FINAL_DIR"
 
