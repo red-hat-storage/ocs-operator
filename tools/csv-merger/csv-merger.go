@@ -547,15 +547,15 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	// Set Description
 	ocsCSV.Spec.Description = `
-Red Hat OpenShift Container Storage (RHOCS) provides hyperconverged storage for applications within an OpenShift cluster.
+Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster.
 
 ## Components
 
-RHOCS deploys three operators.
+OpenShift Container Storage deploys three operators.
 
-### OCS operator
+### OpenShift Container Storage operator
 
-The OCS operator is the primary operator for RHOCS. It serves to facilitate the other operators in OCS by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
+The OpenShift Container Storage operator is the primary operator for OpenShift Container Storage. It serves to facilitate the other operators in OpenShift Container Storage by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
 
 ### Rook
 
@@ -567,11 +567,11 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 
 ## Before Subscription
 
-Before subcribing to RHOCS, there are two pre-requisites that need to be satisfied.
+Before subscribing to OpenShift Container Storage, there are two pre-requisites that need to be satisfied.
 
 ### Namespace
 
-RHOCS runs only in the openshift-storage Namespace, which needs to be created before subscription. The following manifest can be used to create the Namespace.
+OpenShift Container Storage runs only in the openshift-storage namespace, which needs to be created before subscription. The following manifest can be used to create the namespace.
 
 ` + codeBlock + `
 apiVersion: v1
@@ -615,7 +615,7 @@ $ oc create -f rhocs-operatorgroup.yaml
 
 ## After subscription
 
-After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created. Note that the StorageCluster resource is the only resource that a user should be creating. RHOCS includes many other custom resources which are internal and not meant for direct usage by users.
+After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created. Note that the StorageCluster resource is the only resource that a user should be creating. OpenShift Container Storage includes many other custom resources which are internal and not meant for direct usage by users.
 
 [1]: https://rook.io
 [2]: https://noobaa.io
