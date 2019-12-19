@@ -28,7 +28,7 @@ function help_txt() {
 }
 
 # check required env vars
-if [ -z $NOOBAA_IMAGE ] || [ -z $ROOK_IMAGE ]; then
+if [ -z "$NOOBAA_IMAGE" ] || [ -z "$ROOK_IMAGE" ]; then
 	help_txt
 	echo ""
 	echo "ERROR: Missing required environment variables"
@@ -50,9 +50,9 @@ fi
 noobaa_dump_crds_cmd="crd yaml"
 noobaa_dump_csv_cmd="olm csv yaml"
 echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
-($IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_csv_cmd) | tee $NOOBAA_CSV
+($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_csv_cmd") | tee $NOOBAA_CSV
 echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
-($IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_crds_cmd) | tee $OUTDIR_CRDS/noobaa-crd.yaml
+($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_crds_cmd") | tee $OUTDIR_CRDS/noobaa-crd.yaml
 
 # ==== DUMP ROOK YAMLS ====
 rook_template_dir="/etc/ceph-csv-templates"
@@ -60,15 +60,17 @@ rook_csv_template="rook-ceph-ocp.vVERSION.clusterserviceversion.yaml.in"
 rook_crds_dir=$rook_template_dir/crds
 crd_list=$(mktemp)
 echo "Dumping rook csv using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
-$IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template | tee $ROOK_CSV
+$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template | tee $ROOK_CSV
 echo "Listing rook crds using command: $IMAGE_RUN_CMD --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/"
-$IMAGE_RUN_CMD --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/ | tee $crd_list
-for i in $(cat $crd_list); do
-	crd_file=$(printf ${rook_crds_dir}/$i | tr -d '[:space:]')
+$IMAGE_RUN_CMD --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ | tee "$crd_list"
+# shellcheck disable=SC2013
+for i in $(cat "$crd_list"); do
+        # shellcheck disable=SC2059
+	crd_file=$(printf ${rook_crds_dir}/"$i" | tr -d '[:space:]')
 	echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $crd_file"
-	($IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $crd_file) | tee $OUTDIR_CRDS/$(basename $crd_file)
+	($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") | tee $OUTDIR_CRDS/"$(basename "$crd_file")"
 done;
-rm -f $crd_list
+rm -f "$crd_list"
 
 # ==== DUMP OCS YAMLS ====
 # Generate an OCS CSV using the operator-sdk.
@@ -78,7 +80,7 @@ gen_args="olm-catalog gen-csv --csv-version=$TMP_CSV_VERSION"
 if [ -n "$CSV_REPLACES_VERSION" ]; then
 	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
 fi
-$OPERATOR_SDK $gen_args 2>/dev/null
+$OPERATOR_SDK "$gen_args" 2>/dev/null
 OCS_TMP_CSV="deploy/olm-catalog/ocs-operator/${TMP_CSV_VERSION}/ocs-operator.v${TMP_CSV_VERSION}.clusterserviceversion.yaml"
 mv $OCS_TMP_CSV $OCS_CSV
 # Make variables templated for csv-merger tool
@@ -94,4 +96,4 @@ cp deploy/bundlemanifests/*.yaml $OUTDIR_BUNDLEMANIFESTS/
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
-rm -rf $(dirname $OCS_TMP_CSV)
+rm -rf "$(dirname $OCS_TMP_CSV)"

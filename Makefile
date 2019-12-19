@@ -40,6 +40,7 @@ all: ocs-operator ocs-must-gather ocs-registry
 	cluster-clean \
 	ocs-operator-openshift-ci-build \
 	functest \
+	shellcheck-test \
 	gofmt \
 	golint \
 	govet \
@@ -135,6 +136,10 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
+shellcheck-test:
+	@echo "Testing for shellcheck"
+	hack/shellcheck-test.sh
+
 # ignoring the functest dir since it requires an active cluster
 # use 'make functest' to run just the functional tests
 unit-test:
@@ -152,7 +157,7 @@ verify-generated: update-generated
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
 
-ocs-operator-ci: gofmt golint govet unit-test build verify-latest-csv verify-generated verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test gofmt golint govet unit-test build verify-latest-csv verify-generated verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"

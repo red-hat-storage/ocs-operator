@@ -11,19 +11,20 @@ if [ "${BASE_PATH}" = "" ]; then
 fi
 
 # finding the paths of ceph command output directories
-for path in $(find ${BASE_PATH} -type d -name must_gather_commands); do
-    numberOfEmptyOutputFiles=$(find ${path} -empty -type f | wc -l)
+# shellcheck disable=SC2044
+for path in $(find "${BASE_PATH}" -type d -name must_gather_commands); do
+    numberOfEmptyOutputFiles=$(find "${path}" -empty -type f | wc -l)
     if [ "${numberOfEmptyOutputFiles}" -ne "0" ]; then
         printf "The following files must not be empty : \n\n";
-        find ${path} -empty -type f 
+        find "${path}" -empty -type f 
         exit 1;
     fi
 
     jsonOutputPath=${path}/json_output
-    numberOfEmptyOutputFiles=$(find ${jsonOutputPath} -empty -type f | wc -l)
+    numberOfEmptyOutputFiles=$(find "${jsonOutputPath}" -empty -type f | wc -l)
     if [ "${numberOfEmptyOutputFiles}" -ne "0" ]; then
         printf "The following files must not be empty : \n\n";
-        find ${jsonOutputPath} -empty -type f 
+        find "${jsonOutputPath}" -empty -type f 
         exit 1;
     fi
 done

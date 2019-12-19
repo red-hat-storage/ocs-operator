@@ -16,7 +16,7 @@ else
 fi
 
 
-$GOBIN/ginkgo build functests/
+"$GOBIN"/ginkgo build functests/
 
 mkdir -p $OUTDIR_BIN
 mv functests/functests.test $OUTDIR_BIN/functests
