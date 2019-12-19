@@ -9,10 +9,10 @@ import (
 	"time"
 
 	yaml "github.com/ghodss/yaml"
-	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	v1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1"
 	v1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install"
 	appsv1 "k8s.io/api/apps/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -120,8 +120,12 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, subscrip
 		Spec: v1alpha1.CatalogSourceSpec{
 			SourceType:  v1alpha1.SourceTypeGrpc,
 			Image:       ocsRegistryImage,
-			DisplayName: "Openshift Container Storage",
+			DisplayName: "OpenShift Container Storage",
 			Publisher:   "Red Hat",
+			Icon: v1alpha1.Icon{
+				Data:      "PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTQ1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2UwMDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPlJlZEhhdC1Mb2dvLUhhdC1Db2xvcjwvdGl0bGU+PHBhdGggZD0iTTE1Ny43Nyw2Mi42MWExNCwxNCwwLDAsMSwuMzEsMy40MmMwLDE0Ljg4LTE4LjEsMTcuNDYtMzAuNjEsMTcuNDZDNzguODMsODMuNDksNDIuNTMsNTMuMjYsNDIuNTMsNDRhNi40Myw2LjQzLDAsMCwxLC4yMi0xLjk0bC0zLjY2LDkuMDZhMTguNDUsMTguNDUsMCwwLDAtMS41MSw3LjMzYzAsMTguMTEsNDEsNDUuNDgsODcuNzQsNDUuNDgsMjAuNjksMCwzNi40My03Ljc2LDM2LjQzLTIxLjc3LDAtMS4wOCwwLTEuOTQtMS43My0xMC4xM1oiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMjcuNDcsODMuNDljMTIuNTEsMCwzMC42MS0yLjU4LDMwLjYxLTE3LjQ2YTE0LDE0LDAsMCwwLS4zMS0zLjQybC03LjQ1LTMyLjM2Yy0xLjcyLTcuMTItMy4yMy0xMC4zNS0xNS43My0xNi42QzEyNC44OSw4LjY5LDEwMy43Ni41LDk3LjUxLjUsOTEuNjkuNSw5MCw4LDgzLjA2LDhjLTYuNjgsMC0xMS42NC01LjYtMTcuODktNS42LTYsMC05LjkxLDQuMDktMTIuOTMsMTIuNSwwLDAtOC40MSwyMy43Mi05LjQ5LDI3LjE2QTYuNDMsNi40MywwLDAsMCw0Mi41Myw0NGMwLDkuMjIsMzYuMywzOS40NSw4NC45NCwzOS40NU0xNjAsNzIuMDdjMS43Myw4LjE5LDEuNzMsOS4wNSwxLjczLDEwLjEzLDAsMTQtMTUuNzQsMjEuNzctMzYuNDMsMjEuNzdDNzguNTQsMTA0LDM3LjU4LDc2LjYsMzcuNTgsNTguNDlhMTguNDUsMTguNDUsMCwwLDEsMS41MS03LjMzQzIyLjI3LDUyLC41LDU1LC41LDc0LjIyYzAsMzEuNDgsNzQuNTksNzAuMjgsMTMzLjY1LDcwLjI4LDQ1LjI4LDAsNTYuNy0yMC40OCw1Ni43LTM2LjY1LDAtMTIuNzItMTEtMjcuMTYtMzAuODMtMzUuNzgiLz48L3N2Zz4=",
+				MediaType: "image/svg+xml",
+			},
 		},
 	}
 	ocsCatalog.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "CatalogSource", Version: v1alpha1.SchemeGroupVersion.Version})
@@ -413,7 +417,7 @@ func (t *DeployManager) UninstallOCS(ocsRegistryImage string, subscriptionChanne
 	for _, namespace := range co.namespaces {
 		err := t.DeleteNamespaceAndWait(namespace.Name)
 		if err != nil {
-		    return err
+			return err
 		}
 	}
 
@@ -425,7 +429,7 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 	for _, operatorGroup := range co.operatorGroups {
 		err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Delete(operatorGroup.Name, &metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
-		    return err
+			return err
 		}
 
 	}
@@ -433,14 +437,14 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 	for _, catalogSource := range co.catalogSources {
 		err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Delete(catalogSource.Name, &metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
-		    return err
+			return err
 		}
 	}
 
 	for _, subscription := range co.subscriptions {
 		err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Delete(subscription.Name, &metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
-		    return err
+			return err
 		}
 	}
 
@@ -517,7 +521,7 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 }
 
 // GetCsv retrieves the csv named ocs-operator
-func (t *DeployManager) GetCsv() (v1alpha1.ClusterServiceVersion, error){
+func (t *DeployManager) GetCsv() (v1alpha1.ClusterServiceVersion, error) {
 	csvName := "ocs-operator"
 	csv := v1alpha1.ClusterServiceVersion{}
 	csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(metav1.ListOptions{})
