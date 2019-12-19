@@ -300,12 +300,80 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-  description: |2-
+  description: |2
 
-    Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
+    Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster.
 
-    The OCS operator is the primary operator for Red Hat OpenShift Container Storage (OCS). It serves to facilitate the other operators in OCS by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
-  displayName: Openshift Container Storage Operator
+    ## Components
+
+    OpenShift Container Storage deploys three operators.
+
+    ### OpenShift Container Storage operator
+
+    The OpenShift Container Storage operator is the primary operator for OpenShift Container Storage. It serves to facilitate the other operators in OpenShift Container Storage by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
+
+    ### Rook
+
+    [Rook][1] deploys and manages Ceph on OpenShift, which provides block and file storage.
+
+    ### NooBaa operator
+
+    The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on OpenShift, which provides object storage.
+
+    ## Before Subscription
+
+    Before subscribing to OpenShift Container Storage, there are two pre-requisites that need to be satisfied.
+
+    ### Namespace
+
+    OpenShift Container Storage runs only in the openshift-storage namespace, which needs to be created before subscription. The following manifest can be used to create the namespace.
+
+    ```
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      labels:
+        openshift.io/cluster-monitoring: "true"
+      name: openshift-storage
+    spec: {}
+    ```
+
+    Save the above as rhocs-namespace.yaml, and create the Namespace with,
+
+    ```
+    $ oc create -f rhocs-namespace.yaml
+    ```
+
+    ### OperatorGroup
+    An OperatorGroup targetting the openshift-storage namespace also needs to be created. The following manifest can be used to create the OperatorGroup.
+
+    ```
+    apiVersion: operators.coreos.com/v1
+    kind: OperatorGroup
+    metadata:
+      name: openshift-storage-operatorgroup
+      namespace: openshift-storage
+    spec:
+      serviceAccount:
+        metadata:
+          creationTimestamp: null
+      targetNamespaces:
+      - openshift-storage
+    ```
+
+    Save the above as rhocs-operatorgroup.yaml, and create the OperatorGroup with,
+
+    ```
+    $ oc create -f rhocs-operatorgroup.yaml
+    ```
+
+    ## After subscription
+
+    After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created. Note that the StorageCluster resource is the only resource that a user should be creating. OpenShift Container Storage includes many other custom resources which are internal and not meant for direct usage by users.
+
+    [1]: https://rook.io
+    [2]: https://noobaa.io
+  displayName: OpenShift Container Storage
   install:
     spec:
       clusterPermissions:
