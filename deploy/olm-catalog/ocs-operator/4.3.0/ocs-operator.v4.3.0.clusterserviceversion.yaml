@@ -52,27 +52,11 @@ metadata:
                       }
                   ]
               }
-          },
-          {
-              "apiVersion": "ocs.openshift.io/v1",
-              "kind": "OCSInitialization",
-              "metadata": {
-                  "name": "example-ocsinitialization"
-              },
-              "spec": {}
-          },
-          {
-              "apiVersion": "ocs.openshift.io/v1",
-              "kind": "StorageClusterInitialization",
-              "metadata": {
-                  "name": "example-storageclusterinitialization"
-              },
-              "spec": {}
           }
       ]
     capabilities: Full Lifecycle
     categories: Storage
-  name: ocs-operator.v0.0.1
+  name: ocs-operator.v4.3.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -238,7 +222,7 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
-    - description: Storage Cluster represents a Openshift Container Storage Cluster
+    - description: Storage Cluster represents a OpenShift Container Storage Cluster
         including Ceph Cluster, NooBaa and all the storage and compute resources required.
       displayName: Storage Cluster
       kind: StorageCluster
@@ -344,7 +328,6 @@ spec:
     $ oc create -f rhocs-namespace.yaml
     ```
 
-    The OCS operator is the primary operator for Red Hat OpenShift Container Storage (OCS). It serves to facilitate the other operators in OCS by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
 
     ### OperatorGroup
     An OperatorGroup targetting the openshift-storage namespace also needs to be created. The following manifest can be used to create the OperatorGroup.
@@ -992,6 +975,7 @@ spec:
           - watch
           - create
           - update
+          - delete
         - apiGroups:
           - security.openshift.io
           resources:
@@ -1170,15 +1154,17 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: ocs-operator
+                - name: ROOK_CEPH_IMAGE
+                  value: rook/ceph:v1.1.4-27.gf20c056
                 - name: CEPH_IMAGE
-                  value: ceph/ceph:v14.2.4-20190917
+                  value: ceph/ceph:v14.2
                 - name: NOOBAA_CORE_IMAGE
                   value: noobaa/noobaa-core:5.2.11
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
                 - name: MON_COUNT_OVERRIDE
                   value: "3"
-                image: quay.io/ocs-dev/ocs-operator:4.2.0
+                image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: Always
                 name: ocs-operator
                 ports:
@@ -1469,7 +1455,7 @@ spec:
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
-  - supported: true
+  - supported: false
     type: AllNamespaces
   keywords:
   - storage
@@ -1488,4 +1474,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 0.0.1
+  replaces: ocs-operator.v0.0.1
+  version: 4.3.0
