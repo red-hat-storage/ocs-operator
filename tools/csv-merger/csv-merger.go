@@ -50,6 +50,8 @@ const (
 
 
 `
+	// Backticks cannot be escaped inside multi-line strings. So using this const and concating with multiline strings instead.
+	codeBlock = "```"
 )
 
 var (
@@ -392,6 +394,13 @@ func generateUnifiedCSV() {
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
 	ocsCSV.Spec.CustomResourceDefinitions.Owned = nil
 
+	ocsCSV.Spec.Icon = []csvv1.Icon{
+		csvv1.Icon{
+			Data:      "PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTQ1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2UwMDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPlJlZEhhdC1Mb2dvLUhhdC1Db2xvcjwvdGl0bGU+PHBhdGggZD0iTTE1Ny43Nyw2Mi42MWExNCwxNCwwLDAsMSwuMzEsMy40MmMwLDE0Ljg4LTE4LjEsMTcuNDYtMzAuNjEsMTcuNDZDNzguODMsODMuNDksNDIuNTMsNTMuMjYsNDIuNTMsNDRhNi40Myw2LjQzLDAsMCwxLC4yMi0xLjk0bC0zLjY2LDkuMDZhMTguNDUsMTguNDUsMCwwLDAtMS41MSw3LjMzYzAsMTguMTEsNDEsNDUuNDgsODcuNzQsNDUuNDgsMjAuNjksMCwzNi40My03Ljc2LDM2LjQzLTIxLjc3LDAtMS4wOCwwLTEuOTQtMS43My0xMC4xM1oiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMjcuNDcsODMuNDljMTIuNTEsMCwzMC42MS0yLjU4LDMwLjYxLTE3LjQ2YTE0LDE0LDAsMCwwLS4zMS0zLjQybC03LjQ1LTMyLjM2Yy0xLjcyLTcuMTItMy4yMy0xMC4zNS0xNS43My0xNi42QzEyNC44OSw4LjY5LDEwMy43Ni41LDk3LjUxLjUsOTEuNjkuNSw5MCw4LDgzLjA2LDhjLTYuNjgsMC0xMS42NC01LjYtMTcuODktNS42LTYsMC05LjkxLDQuMDktMTIuOTMsMTIuNSwwLDAtOC40MSwyMy43Mi05LjQ5LDI3LjE2QTYuNDMsNi40MywwLDAsMCw0Mi41Myw0NGMwLDkuMjIsMzYuMywzOS40NSw4NC45NCwzOS40NU0xNjAsNzIuMDdjMS43Myw4LjE5LDEuNzMsOS4wNSwxLjczLDEwLjEzLDAsMTQtMTUuNzQsMjEuNzctMzYuNDMsMjEuNzdDNzguNTQsMTA0LDM3LjU4LDc2LjYsMzcuNTgsNTguNDlhMTguNDUsMTguNDUsMCwwLDEsMS41MS03LjMzQzIyLjI3LDUyLC41LDU1LC41LDc0LjIyYzAsMzEuNDgsNzQuNTksNzAuMjgsMTMzLjY1LDcwLjI4LDQ1LjI4LDAsNTYuNy0yMC40OCw1Ni43LTM2LjY1LDAtMTIuNzItMTEtMjcuMTYtMzAuODMtMzUuNzgiLz48L3N2Zz4=",
+			MediaType: "image/svg+xml",
+		},
+	}
+
 	templateStrategySpec := csvStrategySpec{
 		Deployments:        []csvDeployments{},
 		Permissions:        []csvPermissions{},
@@ -521,11 +530,80 @@ func generateUnifiedCSV() {
 
 	// Set Description
 	ocsCSV.Spec.Description = `
-Red Hat Openshift Container Storage (OCS) provides hyperconverged storage for applications within an Openshift cluster.
+Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster.
 
-The OCS operator is the primary operator for Red Hat OpenShift Container Storage (OCS). It serves to facilitate the other operators in OCS by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.`
+## Components
 
-	ocsCSV.Spec.DisplayName = "Openshift Container Storage Operator"
+OpenShift Container Storage deploys three operators.
+
+### OpenShift Container Storage operator
+
+The OpenShift Container Storage operator is the primary operator for OpenShift Container Storage. It serves to facilitate the other operators in OpenShift Container Storage by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
+
+### Rook
+
+[Rook][1] deploys and manages Ceph on OpenShift, which provides block and file storage.
+
+### NooBaa operator
+
+The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on OpenShift, which provides object storage.
+
+## Before Subscription
+
+Before subscribing to OpenShift Container Storage, there are two pre-requisites that need to be satisfied.
+
+### Namespace
+
+OpenShift Container Storage runs only in the openshift-storage namespace, which needs to be created before subscription. The following manifest can be used to create the namespace.
+
+` + codeBlock + `
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    openshift.io/cluster-monitoring: "true"
+  name: openshift-storage
+spec: {}
+` + codeBlock + `
+
+Save the above as rhocs-namespace.yaml, and create the Namespace with,
+
+` + codeBlock + `
+$ oc create -f rhocs-namespace.yaml
+` + codeBlock + `
+
+### OperatorGroup
+An OperatorGroup targetting the openshift-storage namespace also needs to be created. The following manifest can be used to create the OperatorGroup.
+
+` + codeBlock + `
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-storage-operatorgroup
+  namespace: openshift-storage
+spec:
+  serviceAccount:
+    metadata:
+      creationTimestamp: null
+  targetNamespaces:
+  - openshift-storage
+` + codeBlock + `
+
+Save the above as rhocs-operatorgroup.yaml, and create the OperatorGroup with,
+
+` + codeBlock + `
+$ oc create -f rhocs-operatorgroup.yaml
+` + codeBlock + `
+
+## After subscription
+
+After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created. Note that the StorageCluster resource is the only resource that a user should be creating. OpenShift Container Storage includes many other custom resources which are internal and not meant for direct usage by users.
+
+[1]: https://rook.io
+[2]: https://noobaa.io
+`
+
+	ocsCSV.Spec.DisplayName = "OpenShift Container Storage"
 
 	// Set Annotations
 	if *skipRange != "" {
