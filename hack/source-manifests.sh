@@ -80,7 +80,7 @@ gen_args="olm-catalog gen-csv --csv-version=$TMP_CSV_VERSION"
 if [ -n "$CSV_REPLACES_VERSION" ]; then
 	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
 fi
-$OPERATOR_SDK "$gen_args" 2>/dev/null
+$OPERATOR_SDK $gen_args 2>/dev/null
 OCS_TMP_CSV="deploy/olm-catalog/ocs-operator/${TMP_CSV_VERSION}/ocs-operator.v${TMP_CSV_VERSION}.clusterserviceversion.yaml"
 mv $OCS_TMP_CSV $OCS_CSV
 # Make variables templated for csv-merger tool
