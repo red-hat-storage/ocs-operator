@@ -14,6 +14,10 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Created At
     type: string
+  - JSONPath: .spec.version
+    description: Storage Cluster Version
+    name: Version
+    type: string
   group: ocs.openshift.io
   names:
     kind: StorageCluster
@@ -107,6 +111,9 @@ spec:
                 - dataPVCTemplate
                 type: object
               type: array
+            version:
+              description: Version specifies the version of StorageCluster
+              type: string
           type: object
         status:
           properties:
