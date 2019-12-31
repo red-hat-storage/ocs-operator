@@ -57,7 +57,7 @@ metadata:
     capabilities: Full Lifecycle
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:4.3.0
-    createdAt: "2020-02-20 15:11:04"
+    createdAt: "2020-02-24 06:59:58"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     operators.operatorframework.io/internal-objects: '["cephclusters.ceph.rook.io",
@@ -81,8 +81,9 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
-    - description: Storage Cluster represents a OpenShift Container Storage Cluster
-        including Ceph Cluster, NooBaa and all the storage and compute resources required.
+    - description: OpenShift Container Storage runs as a cloud-native service for
+        optimal integration with applications in need of storage, and handles behind
+        the scenes tasks such as provisioning and management.
       displayName: Storage Cluster
       kind: StorageCluster
       name: storageclusters.ocs.openshift.io
@@ -234,7 +235,7 @@ spec:
         [This resource is not intended to be created or managed by users.]
 
 
-        Represents a cluster of Ceph NFS ganesha gateways.
+        Represents a cluster of Ceph NFS Ganesha gateways.
       displayName: '[Internal] Ceph NFS'
       kind: CephNFS
       name: cephnfses.ceph.rook.io
@@ -307,8 +308,8 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
-    - description: Storage target spec such as aws-s3, s3-compatible, PV's and more.
-        Used in BacketClass to construct data placement policies.
+    - description: Backing Stores are storage targets that are used to store chunks
+        of data on object buckets.
       displayName: BackingStore
       kind: BackingStore
       name: backingstores.noobaa.io
@@ -326,8 +327,8 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: Storage policy spec  tiering, mirroring, spreading. Combines BackingStores.
-        Referenced by ObjectBucketClaims.
+    - description: BucketClass is a CRD representing a class for buckets that defines
+        tiering policies and data placements for object buckets.
       displayName: BucketClass
       kind: BucketClass
       name: bucketclasses.noobaa.io

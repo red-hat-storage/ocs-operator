@@ -443,12 +443,12 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		}
 	}
 
-	// Inject deplay names and descriptions for our OCS crds
+	// Inject display names and descriptions for our OCS crds
 	for i, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		switch definition.Name {
 		case "storageclusters.ocs.openshift.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Storage Cluster"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a OpenShift Container Storage Cluster including Ceph Cluster, NooBaa and all the storage and compute resources required."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "OpenShift Container Storage runs as a cloud-native service for optimal integration with applications in need of storage, and handles behind the scenes tasks such as provisioning and management."
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Resources = []csvv1.APIResourceReference{
 				csvv1.APIResourceReference{
 					Name:    "cephclusters.ceph.rook.io",
@@ -469,7 +469,12 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
 		// backingstore and bucketclass can be used by the admin, so avoid adding internal prefix to these resources
 		case "backingstores.noobaa.io":
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Backing Stores are storage targets that are used to store chunks of data on object buckets."
 		case "bucketclasses.noobaa.io":
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "BucketClass is a CRD representing a class for buckets that defines tiering policies and data placements for object buckets."
+		case "cephnfses.ceph.rook.io":
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + strings.Replace(ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description, " ganesha ", " Ganesha ", -1)
 
 		default:
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName
