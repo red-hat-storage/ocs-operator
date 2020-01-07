@@ -4,6 +4,17 @@ kind: CustomResourceDefinition
 metadata:
   name: storageclusters.ocs.openshift.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  - JSONPath: .status.phase
+    description: Current Phase
+    name: Phase
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Created At
+    type: string
   group: ocs.openshift.io
   names:
     kind: StorageCluster
