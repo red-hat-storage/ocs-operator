@@ -320,7 +320,23 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 
 		// override the rook env var list.
 		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = vars
+
 	} else if strings.Contains(csv.Name, "noobaa") {
+
+		vars := []corev1.EnvVar{
+			{
+				Name:  "NOOBAA_CORE_IMAGE",
+				Value: *noobaaCoreContainerImage,
+			},
+			{
+				Name:  "NOOBAA_DB_IMAGE",
+				Value: *noobaaDBContainerImage,
+			},
+		}
+
+		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env =
+			append(templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env, vars...)
+
 		// TODO remove this if statement once issue
 		// https://github.com/noobaa/noobaa-operator/issues/35 is resolved
 		// this image should be set by the templator logic
