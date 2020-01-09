@@ -14,8 +14,8 @@ func BeforeTestSuiteSetup() {
 	t, err := deploymanager.NewDeployManager()
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = t.CreateNamespace(TestNamespace)
-	gomega.Expect(err).To(gomega.BeNil())
+	//err = t.CreateNamespace(TestNamespace)
+	//gomega.Expect(err).To(gomega.BeNil())
 
 	err = t.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
@@ -27,8 +27,8 @@ func AfterTestSuiteCleanup() {
 	t, err := deploymanager.NewDeployManager()
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = t.DeleteNamespaceAndWait(TestNamespace)
-	gomega.Expect(err).To(gomega.BeNil())
+	//err = t.DeleteNamespaceAndWait(TestNamespace)
+	//gomega.Expect(err).To(gomega.BeNil())
 
 	if ocsClusterUninstall {
 		err = t.UninstallOCS(OcsRegistryImage, OcsSubscriptionChannel)

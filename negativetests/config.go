@@ -2,15 +2,13 @@ package negativetests
 
 import (
 	"flag"
-
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 )
 
 // TestNamespace is the namespace we run all the tests in.
-const TestNamespace = "ocs-negativetest"
+//const TestNamespace = "ocs-negativetest"
 
 // TestStorageCluster is the name of the storage cluster the test suite installs
-const TestStorageCluster = deploymanager.DefaultStorageClusterName
+//const TestStorageCluster = deploymanager.DefaultStorageClusterName
 
 // OcsSubscriptionChannel is the name of the ocs subscription channel
 var OcsSubscriptionChannel string
