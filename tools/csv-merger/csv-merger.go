@@ -632,6 +632,7 @@ After the three operators have been deployed into the openshift-storage namespac
 	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
 	ocsCSV.Annotations["categories"] = "Storage"
+	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = `["cephclusters.ceph.rook.io", "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io", "cephnfses.ceph.rook.io", "noobaas.noobaa.io", "ocsinitializations.ocs.openshift.io", "storageclusterinitializations.ocs.openshift.io"]`
 	ocsCSV.Annotations["alm-examples"] = `
 [
     {
