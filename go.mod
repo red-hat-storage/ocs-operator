@@ -11,6 +11,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/go-openapi/spec v0.19.2
+	github.com/go-openapi/validate v0.18.0 // indirect
 	github.com/noobaa/noobaa-operator/v2 v2.0.8
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
@@ -19,7 +20,7 @@ require (
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190605231540-b8a4faf68e36
 	github.com/operator-framework/operator-sdk v0.10.0
-	github.com/rook/rook v1.1.3
+	github.com/rook/rook v1.2.2
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.13.0
 	google.golang.org/appengine v1.6.1 // indirect

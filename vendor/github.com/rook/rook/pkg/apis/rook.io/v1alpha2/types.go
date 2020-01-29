@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package v1alpha2
 
 import (
@@ -27,12 +28,10 @@ import (
 // ************************************************************************************
 
 type StorageScopeSpec struct {
-	Nodes         []Node            `json:"nodes,omitempty"`
-	UseAllNodes   bool              `json:"useAllNodes,omitempty"`
-	TopologyAware bool              `json:"topologyAware,omitempty"`
-	NodeCount     int               `json:"nodeCount,omitempty"`
-	Location      string            `json:"location,omitempty"`
-	Config        map[string]string `json:"config"`
+	Nodes       []Node            `json:"nodes,omitempty"`
+	UseAllNodes bool              `json:"useAllNodes,omitempty"`
+	NodeCount   int               `json:"nodeCount,omitempty"`
+	Config      map[string]string `json:"config"`
 	Selection
 	VolumeSources          []VolumeSource          `json:"volumeSources,omitempty"`
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets"`
@@ -40,7 +39,6 @@ type StorageScopeSpec struct {
 
 type Node struct {
 	Name      string                  `json:"name,omitempty"`
-	Location  string                  `json:"location,omitempty"`
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	Config    map[string]string       `json:"config"`
 	Selection
@@ -62,6 +60,8 @@ type Selection struct {
 	UseAllDevices *bool `json:"useAllDevices,omitempty"`
 	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
 	DeviceFilter string `json:"deviceFilter,omitempty"`
+	// A regular expression to allow more fine-grained selection of devices with path names
+	DevicePathFilter string `json:"devicePathFilter,omitempty"`
 	// List of devices to use as storage devices
 	Devices []Device `json:"devices,omitempty"`
 	// List of host directories to use as storage
@@ -80,6 +80,9 @@ type Placement struct {
 }
 
 type ResourceSpec map[string]v1.ResourceRequirements
+
+// PriorityClassNamesSpec is a map of priority class names to be assigned to components
+type PriorityClassNamesSpec map[KeyType]string
 
 // NetworkSpec represents cluster network settings
 type NetworkSpec struct {
@@ -133,7 +136,7 @@ type StorageClassDeviceSet struct {
 	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the devices
 	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
-	Portable             bool                       `json:"portable,omitempty"`             // OSD portablity across the hosts
+	Portable             bool                       `json:"portable,omitempty"`             // OSD portability across the hosts
 }
 
 type VolumeSource struct {
@@ -142,5 +145,6 @@ type VolumeSource struct {
 	Resources                   v1.ResourceRequirements              `json:"resources,omitempty"`
 	Placement                   Placement                            `json:"placement,omitempty"`
 	Config                      map[string]string                    `json:"config,omitempty"`
-	Portable                    bool                                 `json:"portable,omitempty"` // OSD portablity across the hosts
+	Portable                    bool                                 `json:"portable,omitempty"`        // OSD portability across the hosts
+	TuneSlowDeviceClass         bool                                 `json:"tuneDeviceClass,omitempty"` // Tune the OSD when running on a slow Device Class
 }
