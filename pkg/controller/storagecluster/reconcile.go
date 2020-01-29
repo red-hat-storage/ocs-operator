@@ -730,7 +730,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 			},
 			Storage: rook.StorageScopeSpec{
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc),
-				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
 				"all": defaults.DaemonPlacements["all"],
