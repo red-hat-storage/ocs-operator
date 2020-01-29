@@ -43,6 +43,8 @@ spec:
                   type: boolean
                 image:
                   type: string
+            continueUpgradeAfterChecksEvenIfNotHealthy:
+              type: boolean
             dashboard:
               properties:
                 enabled:
@@ -58,6 +60,20 @@ spec:
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                manageMachineDisruptionBudgets:
+                  type: boolean
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+            external:
+              properties:
+                enable:
+                  type: boolean
             mgr:
               properties:
                 modules:
@@ -75,6 +91,7 @@ spec:
                   maximum: 9
                   minimum: 0
                   type: integer
+                volumeClaimTemplate: {}
             monitoring:
               properties:
                 enabled:
@@ -85,18 +102,26 @@ spec:
               properties:
                 hostNetwork:
                   type: boolean
+                provider:
+                  type: string
+                selectors: {}
             placement: {}
             rbdMirroring:
               properties:
                 workers:
                   type: integer
+            removeOSDsIfOutAndSafeToRemove:
+              type: boolean
             resources: {}
             skipUpgradeChecks:
               type: boolean
             storage:
               properties:
                 config: {}
-                deviceFilter: {}
+                deviceFilter:
+                  type: string
+                devicePathFilter:
+                  type: string
                 directories:
                   items:
                     properties:
@@ -105,13 +130,14 @@ spec:
                   type: array
                 disruptionManagement:
                   properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
                     manageMachineDisruptionBudgets:
                       type: boolean
                     managePodBudgets:
                       type: boolean
                     osdMaintenanceTimeout:
                       type: integer
-                location: {}
                 nodes:
                   items:
                     properties:
@@ -133,7 +159,10 @@ spec:
                             type: string
                           walSizeMB:
                             type: string
-                      deviceFilter: {}
+                      deviceFilter:
+                        type: string
+                      devicePathFilter:
+                        type: string
                       devices:
                         items:
                           properties:
@@ -147,15 +176,13 @@ spec:
                             path:
                               type: string
                         type: array
-                      location: {}
                       name:
                         type: string
                       resources: {}
                       useAllDevices:
                         type: boolean
                   type: array
-                topologyAware:
-                  type: boolean
+                storageClassDeviceSets: {}
                 useAllDevices:
                   type: boolean
                 useAllNodes:

@@ -68,11 +68,17 @@ type ClusterSpec struct {
 	// Resources set resource requests and limits
 	Resources rook.ResourceSpec `json:"resources,omitempty"`
 
+	// PriorityClassNames sets priority classes on components
+	PriorityClassNames rook.PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
+
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
 	// SkipUpgradeChecks defines if an upgrade should be forced even if one of the check fails
 	SkipUpgradeChecks bool `json:"skipUpgradeChecks,omitempty"`
+
+	// ContinueUpgradeAfterChecksEvenIfNotHealthy defines if an upgrade should continue even if PGs are not clean
+	ContinueUpgradeAfterChecksEvenIfNotHealthy bool `json:"continueUpgradeAfterChecksEvenIfNotHealthy,omitempty"`
 
 	// A spec for configuring disruption management.
 	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
@@ -82,6 +88,9 @@ type ClusterSpec struct {
 
 	// A spec for rbd mirroring
 	RBDMirroring RBDMirroringSpec `json:"rbdMirroring"`
+
+	// A spec for the crash controller
+	CrashCollector CrashCollectorSpec `json:"crashCollector"`
 
 	// Dashboard settings
 	Dashboard DashboardSpec `json:"dashboard,omitempty"`
@@ -190,6 +199,11 @@ type RBDMirroringSpec struct {
 	Workers int `json:"workers"`
 }
 
+// CrashCollectorSpec represents options to configure the crash controller
+type CrashCollectorSpec struct {
+	Disable bool `json:"disable"`
+}
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -198,10 +212,10 @@ type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              PoolSpec `json:"spec"`
+	Status            *Status  `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 type CephBlockPoolList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
@@ -210,7 +224,7 @@ type CephBlockPoolList struct {
 
 // PoolSpec represents the spec of ceph pool
 type PoolSpec struct {
-	// The failure domain: osd/host/(region or zone if topologyAware) - technically also any type in the crush map
+	// The failure domain: osd/host/(region or zone if available) - technically also any type in the crush map
 	FailureDomain string `json:"failureDomain"`
 
 	// The root of the crush hierarchy utilized by the pool
@@ -224,6 +238,10 @@ type PoolSpec struct {
 
 	// The erasure code settings
 	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
+}
+
+type Status struct {
+	Phase string `json:"phase,omitempty"`
 }
 
 // ReplicationSpec represents the spec for replication in a pool
@@ -252,6 +270,7 @@ type CephFilesystem struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              FilesystemSpec `json:"spec"`
+	Status            *Status        `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -269,6 +288,9 @@ type FilesystemSpec struct {
 
 	// The data pool settings
 	DataPools []PoolSpec `json:"dataPools,omitempty"`
+
+	// Preserve pools on filesystem deletion
+	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
 
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
@@ -290,6 +312,9 @@ type MetadataServerSpec struct {
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
+
+	// PriorityClassName sets priority classes on components
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // +genclient
@@ -300,6 +325,7 @@ type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ObjectStoreSpec `json:"spec"`
+	Status            *Status         `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -318,6 +344,9 @@ type ObjectStoreSpec struct {
 	// The data pool settings
 	DataPool PoolSpec `json:"dataPool"`
 
+	// Preserve pools on object store deletion
+	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
+
 	// The rgw pod info
 	Gateway GatewaySpec `json:"gateway"`
 }
@@ -330,6 +359,7 @@ type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ObjectStoreUserSpec `json:"spec"`
+	Status            *Status             `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -372,6 +402,9 @@ type GatewaySpec struct {
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
+
+	// PriorityClassName sets priority classes on the rgw pods
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // +genclient
@@ -382,6 +415,7 @@ type CephNFS struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              NFSGaneshaSpec `json:"spec"`
+	Status            *Status        `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -419,6 +453,9 @@ type GaneshaServerSpec struct {
 
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// PriorityClassName sets the priority class on the pods
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code
@@ -445,4 +482,27 @@ type DisruptionManagementSpec struct {
 
 	// Namespace to look for MDBs by the machineDisruptionBudgetController
 	MachineDisruptionBudgetNamespace string `json:"machineDisruptionBudgetNamespace,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephClient struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ClientSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephClientList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephClient `json:"items"`
+}
+
+type ClientSpec struct {
+	Name string            `json:"name"`
+	Caps map[string]string `json:"caps"`
 }
