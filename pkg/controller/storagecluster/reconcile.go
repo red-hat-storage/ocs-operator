@@ -735,6 +735,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				"all": defaults.DaemonPlacements["all"],
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
+			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
 		},
 	}
 
