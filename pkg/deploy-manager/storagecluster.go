@@ -18,6 +18,11 @@ import (
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 )
 
+const (
+	// jsonPatch for removing finalizers
+	finalizerRemovalPatch = `[{ "op": "replace", "path": "/metadata/finalizers", "value":null}]`
+)
+
 // StartDefaultStorageCluster creates and waits on a StorageCluster to come online
 func (t *DeployManager) StartDefaultStorageCluster() error {
 	// create the namespaces we'll work with
@@ -179,6 +184,33 @@ func (t *DeployManager) createStorageCluster() (*ocsv1.StorageCluster, error) {
 	}
 
 	return newSc, nil
+}
+
+// deleteStorageCluster is used to delete the test suite storage cluster
+func (t *DeployManager) deleteStorageCluster() error {
+	sc, err := DefaultStorageCluster()
+	if err != nil {
+		return err
+	}
+
+	_, err = t.ocsClient.
+		Patch(types.JSONPatchType).
+		Resource("storageclusters").
+		Body([]byte(finalizerRemovalPatch)).
+		Name(sc.GetName()).
+		Namespace(sc.GetNamespace()).
+		VersionedParams(&metav1.GetOptions{}, t.GetParameterCodec()).
+		DoRaw()
+	if err != nil {
+		return err
+	}
+
+	_, err = t.ocsClient.Delete().
+		Resource("storageclusters").
+		Name(sc.GetName()).
+		Namespace(sc.GetNamespace()).
+		DoRaw()
+	return err
 }
 
 // WaitOnStorageCluster waits for storage cluster to come online
