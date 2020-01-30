@@ -69,4 +69,3 @@ func BeforeUpgradeTestSuiteSetup() {
 	err = t.StartDefaultStorageCluster()
 	gomega.Expect(err).To(gomega.BeNil())
 }
-
