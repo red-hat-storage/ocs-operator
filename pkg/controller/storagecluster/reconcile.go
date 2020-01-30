@@ -12,8 +12,16 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/go-logr/logr"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -22,16 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
-	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/openshift/ocs-operator/version"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
+
+// StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
+type StorageClassProvisionerType string
 
 const (
 	rookConfigMapName = "rook-config-override"
@@ -43,6 +46,8 @@ mon_osd_nearfull_ratio = .75
 osd_memory_target_cgroup_limit_ratio = 0.5
 `
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
+	// EBS represents AWS EBS provisioner for Storage Class
+	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -52,6 +57,8 @@ var validTopologyLabelKeys = []string{
 	"failure-domain.kubernetes.io",
 	"topology.rook.io",
 }
+
+var throttleDiskTypes = []string{"gp2", "io1"}
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -617,6 +624,21 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	// if StorageClass is "gp2" or "io1" based, set tuneSlowDeviceClass to true
+	// this is for performance optimization of slow device class
+	//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
+	for i, ds := range sc.Spec.StorageDeviceSets {
+		throttle, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+		if err != nil {
+			return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
+		}
+		if throttle {
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
+		} else {
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+		}
+	}
+
 	// Define a new CephCluster object
 	cephCluster := newCephCluster(sc, r.cephImage, r.nodeCount)
 
@@ -864,12 +886,28 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 				Config:               ds.Config.ToMap(),
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
 				Portable:             portable,
+				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
 			}
 			storageClassDeviceSets = append(storageClassDeviceSets, set)
 		}
 	}
 
 	return storageClassDeviceSets
+}
+
+func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string) (bool, error) {
+	storageClass := &storagev1.StorageClass{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve Storage Class %q. %+v", storageClassName, err)
+	}
+	switch storageClass.Provisioner {
+	case string(EBS):
+		if contains(throttleDiskTypes, storageClass.Parameters["type"]) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {

@@ -60,7 +60,11 @@ type StorageDeviceSet struct {
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
 // TODO: Fill in the members when the actual configurable options are defined in rook-ceph
-type StorageDeviceSetConfig struct{}
+type StorageDeviceSetConfig struct {
+	// TuneSlowDeviceClass tunes the OSD when running on a slow Device Class
+	// +optional
+	TuneSlowDeviceClass bool `json:"tuneSlowDeviceClass,omitempty"`
+}
 
 // StorageClusterStatus defines the observed state of StorageCluster
 // +k8s:openapi-gen=true

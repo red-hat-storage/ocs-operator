@@ -65,6 +65,11 @@ spec:
               items:
                 properties:
                   config:
+                    properties:
+                      tuneSlowDeviceClass:
+                        description: TuneSlowDeviceClass tunes the OSD when running
+                          on a slow Device Class
+                        type: boolean
                     type: object
                   count:
                     description: Count is the number of devices in each StorageClassDeviceSet
