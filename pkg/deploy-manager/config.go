@@ -6,6 +6,7 @@ import (
 
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	olmclient "github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned"
+	rookv1 "github.com/rook/rook/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
@@ -35,6 +36,7 @@ func init() {
 type DeployManager struct {
 	olmClient      *olmclient.Clientset
 	k8sClient      *kubernetes.Clientset
+	rookClient     *rookv1.Clientset
 	ocsClient      *rest.RESTClient
 	crClient       crclient.Client
 	parameterCodec runtime.ParameterCodec
@@ -53,6 +55,11 @@ func (t *DeployManager) GetK8sClient() *kubernetes.Clientset {
 // GetOcsClient is the function used to retrieve the ocs client
 func (t *DeployManager) GetOcsClient() *rest.RESTClient {
 	return t.ocsClient
+}
+
+// GetRookClient is the function used to retrieve the rook client
+func (t *DeployManager) GetRookClient() *rookv1.Clientset {
+	return t.rookClient
 }
 
 // GetParameterCodec is the function used to retrieve the parameterCodec
@@ -100,6 +107,16 @@ func NewDeployManager() (*DeployManager, error) {
 		return nil, err
 	}
 
+	// rook ceph rest client
+	rookConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	rookClient, err := rookv1.NewForConfig(rookConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	// controller-runtime client
 	crClient, err := crclient.New(config, crclient.Options{Scheme: scheme.Scheme})
 
@@ -119,6 +136,7 @@ func NewDeployManager() (*DeployManager, error) {
 	return &DeployManager{
 		olmClient:      olmClient,
 		k8sClient:      k8sClient,
+		rookClient:     rookClient,
 		ocsClient:      ocsClient,
 		crClient:       crClient,
 		parameterCodec: parameterCodec,
