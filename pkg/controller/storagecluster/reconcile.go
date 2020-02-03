@@ -14,7 +14,6 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -739,25 +738,12 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 		},
 	}
 
-	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
-	// have been provided, use the StorageClass of the DataPVCTemplate from the
-	// first StorageDeviceSet for providing the Mon PVs
+	if len(sc.Spec.MonDataDirHostPath) != 0 {
+		cephCluster.Spec.DataDirHostPath = sc.Spec.MonDataDirHostPath
+	}
 	if sc.Spec.MonPVCTemplate != nil {
 		cephCluster.Spec.Mon.VolumeClaimTemplate = sc.Spec.MonPVCTemplate
-	} else if len(sc.Spec.StorageDeviceSets) > 0 {
-		ds := sc.Spec.StorageDeviceSets[0]
-		cephCluster.Spec.Mon.VolumeClaimTemplate = &corev1.PersistentVolumeClaim{
-			Spec: corev1.PersistentVolumeClaimSpec{
-				StorageClassName: ds.DataPVCTemplate.Spec.StorageClassName,
-				Resources: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						corev1.ResourceStorage: resource.MustParse("10Gi"),
-					},
-				},
-			},
-		}
 	}
-
 	return cephCluster
 }
 
