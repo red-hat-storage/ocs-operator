@@ -48,6 +48,8 @@ spec:
               type: string
             manageNodes:
               type: boolean
+            monDataDirHostPath:
+              type: string
             monPVCTemplate:
               type: object
             resources:
