@@ -45,7 +45,7 @@ func (t *DeployManager) DeleteStorageClusterAndWait(namespace string) error {
 		}
 	}
 
-	timeout := 300 * time.Second
+	timeout := 600 * time.Second
 	interval := 10 * time.Second
 
 	// Wait for storagecluster and cephCluster to terminate
@@ -78,7 +78,7 @@ func (t *DeployManager) DeleteNamespaceAndWait(namespace string) error {
 		return err
 	}
 
-	timeout := 200 * time.Second
+	timeout := 600 * time.Second
 	interval := 10 * time.Second
 
 	// Wait for namespace to terminate
