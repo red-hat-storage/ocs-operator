@@ -97,11 +97,12 @@ func GetDataValidatorJob(pvc string) *k8sbatchv1.Job {
 								},
 							},
 							Command: []string{"/bin/sh", "-c"},
-							Args: []string{"dd if=/dev/zero of=/tmp/random.img bs=512 count=1", //This command creates new file named random.img
-								"md5VAR1=$(md5sum /tmp/random.img | awk '{ print $1 }')",  //calculates md5sum of random.img in pod and stores it in a variable
+							Args: []string{
+								"dd if=/dev/zero of=/tmp/random.img bs=512 count=1",       //This command creates new file named random.img
+								"md5VAR1=$(md5sum /tmp/random.img | awk '{ print $1 }')",  //calculates md5sum of random.img and stores it in a variable
 								"cp /tmp/random.img /data/random.img",                     //copies random.img file to pvc's mountpoint
 								"md5VAR2=$(md5sum /data/random.img | awk '{ print $1 }')", //calculates md5sum of file random.img
-								"if [[ \"$md5VAR1\" != \"$md5VAR2\" ]];then exit 1; fi",   //compares the md5sum of random.img file
+								"if [[ \"$md5VAR1\" != \"$md5VAR2\" ]];then exit 1; fi",   //compares the md5sum of random.img file with previous one
 							},
 						},
 					},
