@@ -41,11 +41,8 @@ func WaitForJobSucceeded(k8sClient *kubernetes.Clientset, jobName string, jobNam
 			return nil
 		}
 		return fmt.Errorf("Waiting on job %s/%s to succeed when it is currently %d", jobName, jobNamespace, job.Status.Succeeded)
-<<<<<<< HEAD
-	}, 200*time.Second, 1*time.Second).Should(gomega.Succeed())
-=======
-	}, 200*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
->>>>>>> 8e9e938f57bfc8e455a85e8df90b1f4e6da2c12b
+	},
+		200*time.Second, 1*time.Second).Should(gomega.Succeed())
 }
 
 // GetRandomPVC returns a pvc with a randomized name
@@ -100,15 +97,12 @@ func GetDataValidatorJob(pvc string) *k8sbatchv1.Job {
 								},
 							},
 							Command: []string{"/bin/sh", "-c"},
-<<<<<<< HEAD
 							Args: []string{"dd if=/dev/zero of=/tmp/random.img bs=512 count=1", //This command creates new file named random.img
 								"md5VAR1=$(md5sum /tmp/random.img | awk '{ print $1 }')",  //calculates md5sum of random.img in pod and stores it in a variable
 								"cp /tmp/random.img /data/random.img",                     //copies random.img file to pvc's mountpoint
 								"md5VAR2=$(md5sum /data/random.img | awk '{ print $1 }')", //calculates md5sum of file random.img
-								"if [[ \"$md5VAR1\" != \"$md5VAR2\" ]];then exit 1; fi"},  //compares the md5sum of random.img file
-=======
-							Args:    []string{"dd if=/dev/zero of=/tmp/random.img bs=512 count=1;md5VAR1=$(md5sum /tmp/random.img | awk '{ print $1 }');cp /tmp/random.img /data/random.img;md5VAR2=$(md5sum /data/random.img | awk '{ print $1 }');if [[ \"$md5VAR1\" != \"$md5VAR2\" ]];then exit 1; fi"},
->>>>>>> 8e9e938f57bfc8e455a85e8df90b1f4e6da2c12b
+								"if [[ \"$md5VAR1\" != \"$md5VAR2\" ]];then exit 1; fi",   //compares the md5sum of random.img file
+							},
 						},
 					},
 					Volumes: []k8sv1.Volume{
