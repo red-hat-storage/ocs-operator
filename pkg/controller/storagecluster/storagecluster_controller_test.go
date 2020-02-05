@@ -398,8 +398,19 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	actual := newCephCluster(sc, "")
 	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
 	assert.Equal(t, sc.Namespace, actual.Namespace)
-	pvcSpec := actual.Spec.Mon.VolumeClaimTemplate.Spec
-	assert.Equal(t, mockDeviceSets[0].DataPVCTemplate.Spec.StorageClassName, pvcSpec.StorageClassName)
+	var emptyPVCSpec *corev1.PersistentVolumeClaim
+	assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate, emptyPVCSpec)
+	assert.Equal(t, actual.Spec.DataDirHostPath, "/var/lib/rook")
+
+	sc.Spec.MonDataDirHostPath = "/var/lib/rook-test"
+	actual = newCephCluster(sc, "")
+	assert.Equal(t, actual.Spec.DataDirHostPath, "/var/lib/rook-test")
+
+	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{}
+	sc.Spec.MonPVCTemplate.SetName("test-mon-pvc")
+	actual = newCephCluster(sc, "")
+	assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate.GetName(), "test-mon-pvc")
+
 }
 
 func TestStorageClassDeviceSetCreation(t *testing.T) {

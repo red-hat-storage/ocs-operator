@@ -19,9 +19,10 @@ type StorageClusterSpec struct {
 	// HostNetwork defaults to false
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
-	Resources         map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
-	StorageDeviceSets []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
-	MonPVCTemplate    *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
+	Resources          map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
+	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
+	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
+	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
 }
 
 // StorageDeviceSet defines a set of storage devices.
