@@ -113,7 +113,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	}
 
 	if instance.Status.Phase != statusutil.PhaseReady &&
-		instance.Status.Phase != statusutil.PhaseClusterExpanding {
+		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
+		instance.Status.Phase != statusutil.PhaseDeleting {
 		instance.Status.Phase = statusutil.PhaseProgressing
 		phaseErr := r.client.Status().Update(context.TODO(), instance)
 		if phaseErr != nil {
@@ -145,6 +146,11 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		}
 	} else {
 		// The object is marked for deletion
+		instance.Status.Phase = statusutil.PhaseDeleting
+		phaseErr := r.client.Status().Update(context.TODO(), instance)
+		if phaseErr != nil {
+			reqLogger.Error(phaseErr, "Failed to set PhaseDeleting")
+		}
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			isDeleted, err := r.deleteResources(instance, reqLogger)
 			if err != nil {

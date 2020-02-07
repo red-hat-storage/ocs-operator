@@ -25,6 +25,8 @@ var (
 	PhaseNotReady = "Not Ready"
 	// PhaseClusterExpanding is used when cluster is expanding capacity
 	PhaseClusterExpanding = "Expanding Capacity"
+	// PhaseDeleting is used when cluster is deleting
+	PhaseDeleting = "Deleting"
 )
 
 // SetProgressingCondition sets the ProgressingCondition to True and other conditions to
