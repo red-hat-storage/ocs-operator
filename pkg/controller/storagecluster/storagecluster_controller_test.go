@@ -339,8 +339,8 @@ func TestEnsureCephClusterCreate(t *testing.T) {
 	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 	assert.NoError(t, err)
 
-	expected := newCephCluster(mockStorageCluster, "", 3)
-	actual := newCephCluster(mockStorageCluster, "", 3)
+	expected := newCephCluster(mockStorageCluster, "", 3, log)
+	actual := newCephCluster(mockStorageCluster, "", 3, log)
 	err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -353,8 +353,8 @@ func TestEnsureCephClusterUpdate(t *testing.T) {
 	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 	assert.NoError(t, err)
 
-	expected := newCephCluster(mockStorageCluster, "", 3)
-	actual := newCephCluster(mockStorageCluster, "", 3)
+	expected := newCephCluster(mockStorageCluster, "", 3, log)
+	actual := newCephCluster(mockStorageCluster, "", 3, log)
 	err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
 	assert.NoError(t, err)
 	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -363,7 +363,7 @@ func TestEnsureCephClusterUpdate(t *testing.T) {
 }
 
 func TestEnsureCephClusterNoConditions(t *testing.T) {
-	cc := newCephCluster(mockStorageCluster, "", 3)
+	cc := newCephCluster(mockStorageCluster, "", 3, log)
 	cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key" //for test purpose
 	reconciler := createFakeStorageClusterReconciler(t, cc)
 	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
@@ -383,7 +383,7 @@ func TestEnsureCephClusterNoConditions(t *testing.T) {
 }
 
 func TestEnsureCephClusterNegativeConditions(t *testing.T) {
-	cc := newCephCluster(mockStorageCluster, "", 3)
+	cc := newCephCluster(mockStorageCluster, "", 3, log)
 	cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 	cc.Status.State = rookCephv1.ClusterStateCreated
 	reconciler := createFakeStorageClusterReconciler(t, cc)
@@ -393,26 +393,51 @@ func TestEnsureCephClusterNegativeConditions(t *testing.T) {
 }
 
 func TestStorageClusterCephClusterCreation(t *testing.T) {
+	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.StorageDeviceSets = mockDeviceSets
-
-	actual := newCephCluster(sc, "", 3)
+	sc.Spec.MonDataDirHostPath = "/test/path"
+	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}}
+	actual := newCephCluster(sc, "", 3, log)
 	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
 	assert.Equal(t, sc.Namespace, actual.Namespace)
+	assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate.GetName(), sc.Spec.MonPVCTemplate.GetName())
+	assert.Equal(t, "/var/lib/rook", actual.Spec.DataDirHostPath)
+
+	// if only monDataDirHostPath is provided via storageCluster
+	sc = &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Spec.StorageDeviceSets = mockDeviceSets
+	sc.Spec.MonDataDirHostPath = "/test/path"
+	actual = newCephCluster(sc, "", 3, log)
 	var emptyPVCSpec *corev1.PersistentVolumeClaim
-	assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate, emptyPVCSpec)
-	assert.Equal(t, actual.Spec.DataDirHostPath, "/var/lib/rook")
+	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
+	assert.Equal(t, sc.Namespace, actual.Namespace)
+	assert.Equal(t, emptyPVCSpec, actual.Spec.Mon.VolumeClaimTemplate)
+	assert.Equal(t, "/test/path", actual.Spec.DataDirHostPath)
 
-	sc.Spec.MonDataDirHostPath = "/var/lib/rook-test"
-	actual = newCephCluster(sc, "", 3)
-	assert.Equal(t, actual.Spec.DataDirHostPath, "/var/lib/rook-test")
+	// if only monPVCTemplate is provided via storageCluster
+	sc = &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Spec.StorageDeviceSets = mockDeviceSets
+	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}}
+	actual = newCephCluster(sc, "", 3, log)
+	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
+	assert.Equal(t, sc.Namespace, actual.Namespace)
+	assert.Equal(t, sc.Spec.MonPVCTemplate, actual.Spec.Mon.VolumeClaimTemplate)
+	assert.Equal(t, "/var/lib/rook", actual.Spec.DataDirHostPath)
 
-	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{}
-	sc.Spec.MonPVCTemplate.SetName("test-mon-pvc")
-	actual = newCephCluster(sc, "", 3)
-	assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate.GetName(), "test-mon-pvc")
-
+	// if no monPVCTemplate and no monDataDirHostPath is provided via storageCluster
+	sc = &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Spec.StorageDeviceSets = mockDeviceSets
+	actual = newCephCluster(sc, "", 3, log)
+	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
+	assert.Equal(t, sc.Namespace, actual.Namespace)
+	pvcSpec := actual.Spec.Mon.VolumeClaimTemplate.Spec
+	assert.Equal(t, mockDeviceSets[0].DataPVCTemplate.Spec.StorageClassName, pvcSpec.StorageClassName)
+	assert.Equal(t, "/var/lib/rook", actual.Spec.DataDirHostPath)
 }
 
 func TestStorageClassDeviceSetCreation(t *testing.T) {
