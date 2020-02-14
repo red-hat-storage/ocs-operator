@@ -2,6 +2,7 @@
 BASE_COLLECTION_PATH="/must-gather"
 mkdir -p ${BASE_COLLECTION_PATH}
 
+echo $1
 echo "collecting operator pod logs" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
 operatorPodLogCollectionPath="${BASE_COLLECTION_PATH}/namespaces"
 operatorPodLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name}  --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}.log;{end}"
