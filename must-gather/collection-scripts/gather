@@ -31,6 +31,28 @@ for resource in "${resources[@]}"; do
     { timeout 120 oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 done
 
+# collection path for OC commands
+mkdir -p ${BASE_COLLECTION_PATH}/oc_output/
+
+# Command List
+commands=()
+
+# collect oc output of OC commands
+commands+=("version")
+commands+=("get pods -owide")
+commands+=("get nodes --show-labels")
+commands+=("describe nodes")
+commands+=("describe pods")
+commands+=("get pvc")
+commands+=("get pv")
+commands+=("get sc")
+
+# Run the Collection of Resources to list
+for command in "${commands[@]}"; do
+     echo "collecting oc command ${command}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
+     timeout 120 oc ${command} -n openshift-storage >> ${BASE_COLLECTION_PATH}/oc_output/"${command}"
+done
+
 # Call other gather scripts
 gather_noobaa_resources ${BASE_COLLECTION_PATH}
 gather_ceph_resources ${BASE_COLLECTION_PATH}
