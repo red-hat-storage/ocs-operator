@@ -36,9 +36,8 @@ const (
 	rookConfigData    = `[osd]
 osd_memory_target_cgroup_limit_ratio = 0.5
 `
+	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
 )
-
-var monCount = defaults.MonCount
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
@@ -46,23 +45,6 @@ var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
 	"topology.rook.io",
-}
-
-func init() {
-	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
-	if monCountStr == "" {
-		return
-	}
-
-	count, err := strconv.Atoi(monCountStr)
-	if err != nil {
-		panic(err)
-	}
-
-	if count > 0 {
-		monCount = count
-		log.Info("Using MON_COUNT_OVERRIDE value %d", monCount)
-	}
 }
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
@@ -361,8 +343,10 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	updated := false
 	nodeRacks := ocsv1.NewNodeTopologyMap()
 
-	if len(nodes.Items) < minNodes {
-		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, len(nodes.Items))
+	r.nodeCount = len(nodes.Items)
+
+	if r.nodeCount < minNodes {
+		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, r.nodeCount)
 	}
 
 	for _, node := range nodes.Items {
@@ -603,7 +587,7 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	// Define a new CephCluster object
-	cephCluster := newCephCluster(sc, r.cephImage)
+	cephCluster := newCephCluster(sc, r.cephImage, r.nodeCount)
 
 	// Set StorageCluster instance as the owner and controller
 	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
@@ -692,7 +676,7 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -709,7 +693,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				AllowUnsupported: false,
 			},
 			Mon: cephv1.MonSpec{
-				Count:                monCount,
+				Count:                getMonCount(nodeCount),
 				AllowMultiplePerNode: false,
 			},
 			Mgr: cephv1.MgrSpec{
@@ -922,4 +906,25 @@ func remove(slice []string, s string) (result []string) {
 		result = append(result, item)
 	}
 	return
+}
+
+func getMonCount(nodeCount int) int {
+	count := defaults.MonCountMin
+
+	// return static value if overriden
+	override := os.Getenv(monCountOverrideEnvVar)
+	if override != "" {
+		count, err := strconv.Atoi(override)
+		if err != nil {
+			log.Error(err, "could not decode env var %s", monCountOverrideEnvVar)
+		} else {
+			return count
+		}
+	}
+
+	if nodeCount >= defaults.MonCountMax {
+		count = defaults.MonCountMax
+	}
+
+	return count
 }

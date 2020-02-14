@@ -14,8 +14,10 @@ const (
 )
 
 var (
-	// MonCount is the default number of monitors to be configured for the CephCluster
-	MonCount = 3
+	// MonCountMin is the min number of monitors to be configured for the CephCluster
+	MonCountMin = 3
+	// MonCountMax is the maximum number of monitors to be configured for the CephCluster whenever enough nodes are available
+	MonCountMax = 5
 	// DeviceSetReplica is the default number of Rook-Ceph
 	// StorageClassDeviceSets per StorageCluster StorageDeviceSet
 	DeviceSetReplica = 3

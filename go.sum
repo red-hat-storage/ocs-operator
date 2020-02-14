@@ -351,7 +351,6 @@ github.com/openshift/cloud-credential-operator v0.0.0-20190614194054-1ccced634f6
 github.com/openshift/custom-resource-status v0.0.0-20190801200128-4c95b3a336cd/go.mod h1:5FN5ZOa6szVg6C3kB6PbSL6VHAbX5+HpLvGZhUCJmKs=
 github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7 h1:p5YcnpKhd5Urp8UqVu1tLATSU+kSfLlcZhlnSwHR4qU=
 github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7/go.mod h1:5FN5ZOa6szVg6C3kB6PbSL6VHAbX5+HpLvGZhUCJmKs=
-github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3 h1:XuAys09+XqT5/FjdR23G/UtbBLII89dFe9XIi73EKIQ=
 github.com/openshift/origin v0.0.0-20160503220234-8f127d736703/go.mod h1:0Rox5r9C8aQn6j1oAOQ0c1uC86mYbUFObzjBRvUKHII=
 github.com/openzipkin/zipkin-go v0.1.1/go.mod h1:NtoC/o8u3JlF1lSlyPNswIbeQH9bJTmOf0Erfk+hxe8=
 github.com/openzipkin/zipkin-go v0.1.3/go.mod h1:NtoC/o8u3JlF1lSlyPNswIbeQH9bJTmOf0Erfk+hxe8=
@@ -419,7 +418,6 @@ github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rook/rook v1.1.2/go.mod h1:r2r56HUT9OJw4APhDhfOfqnzrCgl+YB1i+gfHb+gr64=
 github.com/rook/rook v1.2.2 h1:ktuTfp3gKB+y9CEfA3OTid2ks+XChXzQjESINrt/eHE=
 github.com/rook/rook v1.2.2/go.mod h1:r2r56HUT9OJw4APhDhfOfqnzrCgl+YB1i+gfHb+gr64=
-github.com/rook/rook v1.2.3 h1:Bv5iYR3+Mjpey3kVe+1zLGO1YwEm4msXIrfASvFFD4M=
 github.com/russross/blackfriday v0.0.0-20151117072312-300106c228d5/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/sclevine/spec v1.0.0/go.mod h1:W4J29eT/Kzv7/b9IWLB055Z+qvVC9vt0Arko24q7p+U=
