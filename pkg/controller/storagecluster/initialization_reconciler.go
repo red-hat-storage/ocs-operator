@@ -251,7 +251,8 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 			Spec: cephv1.PoolSpec{
 				FailureDomain: initData.Status.FailureDomain,
 				Replicated: cephv1.ReplicatedSpec{
-					Size: 3,
+					Size:            3,
+					TargetSizeRatio: .5,
 				},
 			},
 		},
@@ -401,7 +402,8 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 				DataPools: []cephv1.PoolSpec{
 					cephv1.PoolSpec{
 						Replicated: cephv1.ReplicatedSpec{
-							Size: 3,
+							Size:            3,
+							TargetSizeRatio: .5,
 						},
 						FailureDomain: initData.Status.FailureDomain,
 					},

@@ -703,6 +703,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int) *
 			Mgr: cephv1.MgrSpec{
 				Modules: []cephv1.Module{
 					cephv1.Module{Name: "pg_autoscaler", Enabled: true},
+					cephv1.Module{Name: "balancer", Enabled: true},
 				},
 			},
 			DataDirHostPath: "/var/lib/rook",
