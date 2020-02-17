@@ -645,6 +645,7 @@ After the three operators have been deployed into the openshift-storage namespac
 		ocsCSV.Annotations["olm.skipRange"] = *skipRange
 	}
 	loc, err := time.LoadLocation("UTC")
+	ocsCSV.Annotations["external.cluster.ocs.openshift.io/supported"] = "true"
 	ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
 	ocsCSV.Annotations["repository"] = "https://github.com/openshift/ocs-operator"
 	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:4.3.0"
