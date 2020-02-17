@@ -12,6 +12,10 @@ spec:
     description: Current Phase
     name: Phase
     type: string
+  - JSONPath: .spec.externalStorage.enable
+    description: External Storage Cluster
+    name: External
+    type: boolean
   - JSONPath: .metadata.creationTimestamp
     name: Created At
     type: string
@@ -45,6 +49,14 @@ spec:
           type: object
         spec:
           properties:
+            externalStorage:
+              description: External Storage is optional and defaults to false. When
+                set to true, OCS will connect to an external OCS Storage Cluster instead
+                of provisioning one locally.
+              properties:
+                enable:
+                  type: boolean
+              type: object
             hostNetwork:
               description: HostNetwork defaults to false
               type: boolean
