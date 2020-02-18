@@ -403,9 +403,9 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	csvs := []string{
+		*ocsCSVStr,
 		*rookCSVStr,
 		*noobaaCSVStr,
-		*ocsCSVStr,
 	}
 
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
