@@ -11,4 +11,29 @@ spec:
     plural: cephblockpools
     singular: cephblockpool
   scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            erasureCoded:
+              properties:
+                codingChunks:
+                  maximum: 9
+                  minimum: 0
+                  type: integer
+                dataChunks:
+                  maximum: 9
+                  minimum: 0
+                  type: integer
+            failureDomain:
+              type: string
+            replicated:
+              properties:
+                size:
+                  maximum: 9
+                  minimum: 0
+                  type: integer
+                targetSizeRatio:
+                  type: number
   version: v1
