@@ -115,19 +115,6 @@ func SetCompleteCondition(conditions *[]conditionsv1.Condition, reason string, m
 // This will only look for negative conditions: !Available, Degraded, Progressing
 func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, found *cephv1.CephCluster) {
 	switch found.Status.State {
-	case cephv1.ClusterStateCreating:
-		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type:    conditionsv1.ConditionProgressing,
-			Status:  corev1.ConditionTrue,
-			Reason:  "ClusterStateCreating",
-			Message: fmt.Sprintf("CephCluster is creating: %v", string(found.Status.Message)),
-		})
-		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type:    conditionsv1.ConditionUpgradeable,
-			Status:  corev1.ConditionFalse,
-			Reason:  "ClusterStateCreating",
-			Message: fmt.Sprintf("CephCluster is creating: %v", string(found.Status.Message)),
-		})
 	case cephv1.ClusterStateUpdating:
 		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
 			Type:    conditionsv1.ConditionProgressing,
