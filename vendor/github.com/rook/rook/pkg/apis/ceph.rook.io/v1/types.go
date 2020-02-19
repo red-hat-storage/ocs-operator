@@ -142,9 +142,10 @@ type MonitoringSpec struct {
 }
 
 type ClusterStatus struct {
-	State      ClusterState `json:"state,omitempty"`
-	Message    string       `json:"message,omitempty"`
-	CephStatus *CephStatus  `json:"ceph,omitempty"`
+	State       ClusterState    `json:"state,omitempty"`
+	Message     string          `json:"message,omitempty"`
+	CephStatus  *CephStatus     `json:"ceph,omitempty"`
+	CephVersion *ClusterVersion `json:"version,omitempty"`
 }
 
 type CephStatus struct {
@@ -153,6 +154,11 @@ type CephStatus struct {
 	LastChecked    string                       `json:"lastChecked,omitempty"`
 	LastChanged    string                       `json:"lastChanged,omitempty"`
 	PreviousHealth string                       `json:"previousHealth,omitempty"`
+}
+
+type ClusterVersion struct {
+	Image   string `json:"image,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 type CephHealthMessage struct {
@@ -244,10 +250,13 @@ type Status struct {
 	Phase string `json:"phase,omitempty"`
 }
 
-// ReplicationSpec represents the spec for replication in a pool
+// ReplicatedSpec represents the spec for replication in a pool
 type ReplicatedSpec struct {
-	// Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
+	// Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
 	Size uint `json:"size"`
+
+	// TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
+	TargetSizeRatio float64 `json:"targetSizeRatio"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool

@@ -19,7 +19,7 @@ require (
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190605231540-b8a4faf68e36
 	github.com/operator-framework/operator-sdk v0.10.0
-	github.com/rook/rook v1.2.2
+	github.com/rook/rook v1.2.4
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.13.0
 	google.golang.org/appengine v1.6.1 // indirect
