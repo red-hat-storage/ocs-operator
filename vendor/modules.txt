@@ -190,10 +190,7 @@ github.com/prometheus/common/model
 # github.com/prometheus/procfs v0.0.2
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
-# github.com/rook/rook v1.2.2
-github.com/rook/rook/pkg/apis/cassandra.rook.io
-github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1
-github.com/rook/rook/pkg/apis/ceph.rook.io
+# github.com/rook/rook v1.2.4
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 github.com/rook/rook/pkg/apis/cockroachdb.rook.io
 github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1
