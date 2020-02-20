@@ -754,6 +754,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int) *
 			},
 			Placement: rook.PlacementSpec{
 				"all": defaults.DaemonPlacements["all"],
+				"mon": getCephDaemonPlacements(sc, "mon"),
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
@@ -917,6 +918,22 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	// NoobaaSystem is dependent upon ceph for volume provisioning.
 	// We want to make sure we delete noobaasystem before we delete cephcluster, to get a clean uninstall.
 	return r.deleteNoobaaSystems(sc, reqLogger)
+}
+
+//getCephDaemonPlacements returns placement configuration for ceph components with appropriate topology
+func getCephDaemonPlacements(sc *ocsv1.StorageCluster, component string) rook.Placement {
+	placement := rook.Placement{}
+	in := defaults.DaemonPlacements[component]
+	(&in).DeepCopyInto(&placement)
+	topologyMap := sc.Status.NodeTopologies
+	if topologyMap != nil {
+		topologyKey := determineFailureDomain(sc)
+		topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
+		podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+		podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
+	}
+
+	return placement
 }
 
 // Checks whether a string is contained within a slice
