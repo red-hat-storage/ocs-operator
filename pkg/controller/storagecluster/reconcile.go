@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blang/semver"
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +28,7 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	"github.com/openshift/ocs-operator/version"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
@@ -75,6 +77,31 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
+	if instance.Spec.Version == "" {
+		instance.Spec.Version = version.Version
+	} else if instance.Spec.Version != version.Version { // check anything else only if the versions mis-match
+		storClustSemV1, err := semver.Make(instance.Spec.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing Storage Cluster version")
+			return reconcile.Result{}, err
+		}
+		ocsSemV1, err := semver.Make(version.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing OCS Operator version")
+			return reconcile.Result{}, err
+		}
+		// if the storage cluster version is higher than the invoking OCS Operator's version,
+		// return error
+		if storClustSemV1.GT(ocsSemV1) {
+			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
+				instance.Spec.Version, version.Version)
+			reqLogger.Error(err, "Incompatible Storage cluster version")
+			return reconcile.Result{}, err
+		}
+		// if the storage cluster version is less than the OCS Operator version,
+		// just update.
+		instance.Spec.Version = version.Version
+	}
 	// Check for active StorageCluster only if Create request is made
 	// and ignore it if there's another active StorageCluster
 	// If Update request is made and StorageCluster is PhaseIgnored, no need to
