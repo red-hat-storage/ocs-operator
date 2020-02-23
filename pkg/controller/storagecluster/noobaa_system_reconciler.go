@@ -2,8 +2,6 @@ package storagecluster
 
 import (
 	"context"
-	"reflect"
-	"time"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
@@ -22,19 +20,9 @@ import (
 )
 
 func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-
-	nb := r.newNooBaaSystem(sc, reqLogger)
-
-	cephClusterCreated := false
-
-	err := controllerutil.SetControllerReference(sc, nb, r.scheme)
-	if err != nil {
-		return nil
-	}
-
 	// find cephCluster
 	foundCeph := &cephv1.CephCluster{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Waiting on ceph cluster to be created before starting noobaa")
@@ -42,91 +30,66 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 		}
 		return err
 	}
-
-	if foundCeph.Status.State == cephv1.ClusterStateCreated {
-		cephClusterCreated = true
+	if foundCeph.Status.State != cephv1.ClusterStateCreated {
+		reqLogger.Info("Waiting on ceph cluster to initialize before starting noobaa")
+		return nil
 	}
 
-	// check if this noobaa instance aleady exists
-	found := &nbv1.NooBaa{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: nb.ObjectMeta.Name, Namespace: sc.Namespace}, found)
+	// Take ownership over the noobaa object
+	nb := &nbv1.NooBaa{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "NooBaa",
+			APIVersion: "noobaa.io/v1alpha1'",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "noobaa",
+			Namespace: sc.Namespace,
+		},
+	}
+	err = controllerutil.SetControllerReference(sc, nb, r.scheme)
 	if err != nil {
-		if errors.IsNotFound(err) {
-
-			if cephClusterCreated {
-				// Arbitrary sleep to hopefully allow the
-				// CephCluster time to quiesce.
-				// TODO: Remove this
-				time.Sleep(5 * time.Second)
-				// noobaa system not found - create one
-				reqLogger.Info("Creating NooBaa system")
-				err := r.client.Create(context.TODO(), nb)
-				if err != nil {
-					reqLogger.Error(err, "Failed to create NooBaa system")
-					return err
-				}
-			} else {
-				reqLogger.Info("Waiting on ceph cluster to initialize before starting noobaa")
-				return nil
-			}
-		} else {
-			// other error. fail reconcile
-			reqLogger.Error(err, "Failed to get NooBaa system")
-			return err
-		}
-	} else {
-		// Update NooBaa CR if it is not in the desired state
-		if !reflect.DeepEqual(nb.Spec, found.Spec) {
-			reqLogger.Info("Updating spec for NooBaa")
-			found.Spec = nb.Spec
-			err := r.client.Update(context.TODO(), found)
-			if err != nil {
-				reqLogger.Error(err, "Failed to update NooBaa system")
-				return err
-			}
-		}
-
-		objectRef, err := reference.GetReference(r.scheme, found)
-		if err != nil {
-			return err
-		}
-		objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
+		return err
 	}
 
-	statusutil.MapNoobaaNegativeConditions(&r.conditions, found)
+	// Reconcile the noobaa state, creating or updating if needed
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.client, nb, func() error {
+		return r.setNooBaaDesiredState(nb, sc)
+	})
+	if err != nil {
+		reqLogger.Error(err, "Failed to create or update NooBaa system")
+		return err
+	}
 
+	objectRef, err := reference.GetReference(r.scheme, nb)
+	if err != nil {
+		return err
+	}
+	objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
+
+	statusutil.MapNoobaaNegativeConditions(&r.conditions, nb)
 	return nil
 }
 
-func (r *ReconcileStorageCluster) newNooBaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) *nbv1.NooBaa {
+func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster) error {
 	storageClassName := generateNameForCephBlockPoolSC(sc)
 	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
 	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
 	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", sc.Spec.Resources)
-	nb := &nbv1.NooBaa{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "noobaa",
-			Namespace: sc.Namespace,
-			Labels: map[string]string{
-				"app": "noobaa",
-			},
-		},
 
-		Spec: nbv1.NooBaaSpec{
-			DBStorageClass:            &storageClassName,
-			PVPoolDefaultStorageClass: &storageClassName,
-			CoreResources:             &coreResources,
-			DBResources:               &dbResources,
-			Tolerations:               defaults.DaemonPlacements["noobaa-core"].Tolerations,
-			Affinity:                  &corev1.Affinity{NodeAffinity: defaults.DaemonPlacements["noobaa-core"].NodeAffinity},
-			DBVolumeResources:         &dBVolumeResources,
-		},
+	nb.Labels = map[string]string{
+		"app": "noobaa",
 	}
-
+	nb.Spec.DBStorageClass = &storageClassName
+	nb.Spec.PVPoolDefaultStorageClass = &storageClassName
+	nb.Spec.CoreResources = &coreResources
+	nb.Spec.DBResources = &dbResources
+	nb.Spec.Tolerations = defaults.DaemonPlacements["noobaa-core"].Tolerations
+	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: defaults.DaemonPlacements["noobaa-core"].NodeAffinity}
+	nb.Spec.DBVolumeResources = &dBVolumeResources
 	nb.Spec.Image = &r.noobaaCoreImage
 	nb.Spec.DBImage = &r.noobaaDBImage
 
-	return nb
+	return nil
 }
 
 // Delete noobaa system in the namespace

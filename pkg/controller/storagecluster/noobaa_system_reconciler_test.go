@@ -24,7 +24,7 @@ const (
 	defaultStorageClass = "noobaa-ceph-rbd"
 )
 
-var nooBaaReconcileTestLogger = logf.Log.WithName("noobaa_system_reconciler_test")
+var noobaaReconcileTestLogger = logf.Log.WithName("noobaa_system_reconciler_test")
 
 func TestEnsureNooBaaSystem(t *testing.T) {
 	namespacedName := types.NamespacedName{
@@ -104,7 +104,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			err := reconciler.client.Create(context.TODO(), &c.noobaa)
 			assert.NoError(t, err)
 		}
-		err := reconciler.ensureNoobaaSystem(&sc, nooBaaReconcileTestLogger)
+		err := reconciler.ensureNoobaaSystem(&sc, noobaaReconcileTestLogger)
 		assert.NoError(t, err)
 
 		noobaa = v1alpha1.NooBaa{}
@@ -118,7 +118,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	}
 }
 
-func TestNewNooBaaSystem(t *testing.T) {
+func TestSetNooBaaDesiredState(t *testing.T) {
 	defaultInput := v1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test_name",
@@ -169,20 +169,34 @@ func TestNewNooBaaSystem(t *testing.T) {
 
 		reconciler := ReconcileStorageCluster{}
 		reconciler.initializeImageVars()
-		nooBaa := reconciler.newNooBaaSystem(&c.sc, nooBaaReconcileTestLogger)
 
-		assert.Equalf(t, nooBaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		assert.NotEmptyf(t, nooBaa.Labels, "[%s] expected noobaa Labels not found", c.label)
-		assert.Equalf(t, nooBaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
-		assert.Equalf(t, nooBaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		assert.Equal(t, *nooBaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
-		assert.Equal(t, *nooBaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
-		assert.Equalf(t, nooBaa.Namespace, c.sc.Namespace, "[%s] namespace mismatch", c.label)
+		noobaa := v1alpha1.NooBaa{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "NooBaa",
+				APIVersion: "noobaa.io/v1alpha1'",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "noobaa",
+				Namespace: defaultInput.Namespace,
+			},
+		}
+		err = reconciler.setNooBaaDesiredState(&noobaa, &c.sc)
+		if err != nil {
+			assert.Failf(t, "[%s] unable to set noobaa desired state", c.label)
+		}
+
+		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
+		assert.NotEmptyf(t, noobaa.Labels, "[%s] expected noobaa Labels not found", c.label)
+		assert.Equalf(t, noobaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
+		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
+		assert.Equal(t, *noobaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+		assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+		assert.Equalf(t, noobaa.Namespace, c.sc.Namespace, "[%s] namespace mismatch", c.label)
 		if c.envCore != "" {
-			assert.Equalf(t, *nooBaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)
+			assert.Equalf(t, *noobaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)
 		}
 		if c.envDB != "" {
-			assert.Equalf(t, *nooBaa.Spec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
+			assert.Equalf(t, *noobaa.Spec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
 		}
 	}
 }
