@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -640,7 +641,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	}
 
 	// Define a new CephCluster object
-	cephCluster := newCephCluster(sc, r.cephImage, r.nodeCount)
+	cephCluster := newCephCluster(sc, r.cephImage, r.nodeCount, reqLogger)
 
 	// Set StorageCluster instance as the owner and controller
 	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
@@ -729,7 +730,7 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, reqLogger logr.Logger) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -782,12 +783,32 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int) *
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
 		},
 	}
-
-	if len(sc.Spec.MonDataDirHostPath) != 0 {
-		cephCluster.Spec.DataDirHostPath = sc.Spec.MonDataDirHostPath
-	}
-	if sc.Spec.MonPVCTemplate != nil {
-		cephCluster.Spec.Mon.VolumeClaimTemplate = sc.Spec.MonPVCTemplate
+	monPVCTemplate := sc.Spec.MonPVCTemplate
+	monDataDirHostPath := sc.Spec.MonDataDirHostPath
+	// If the `monPVCTemplate` is provided, the mons will provisioned on the
+	// provided `monPVCTemplate`.
+	if monPVCTemplate != nil {
+		cephCluster.Spec.Mon.VolumeClaimTemplate = monPVCTemplate
+		// If the `monDataDirHostPath` is provided without the `monPVCTemplate`,
+		// the mons will be provisioned on the provided `monDataDirHostPath`.
+	} else if len(monDataDirHostPath) > 0 {
+		cephCluster.Spec.DataDirHostPath = monDataDirHostPath
+		// If no `monPVCTemplate` and `monDataDirHostPath` is provided, the mons will
+		// be provisioned using the PVC template of first StorageDeviceSets if present.
+	} else if len(sc.Spec.StorageDeviceSets) > 0 {
+		ds := sc.Spec.StorageDeviceSets[0]
+		cephCluster.Spec.Mon.VolumeClaimTemplate = &corev1.PersistentVolumeClaim{
+			Spec: corev1.PersistentVolumeClaimSpec{
+				StorageClassName: ds.DataPVCTemplate.Spec.StorageClassName,
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("10Gi"),
+					},
+				},
+			},
+		}
+	} else {
+		reqLogger.Info(fmt.Sprintf("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for storageCluster %s", sc.GetName()))
 	}
 	return cephCluster
 }
