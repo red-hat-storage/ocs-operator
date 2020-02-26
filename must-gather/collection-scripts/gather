@@ -6,7 +6,12 @@ mkdir -p ${BASE_COLLECTION_PATH}
 # Resource List
 resources=()
 # collect storagecluster resources
-resources+=(storageclusters)
+
+# TODO: Re enable the collection of storagecluster via inspect command
+# resources+=(storageclusters)
+
+# NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
+{ timeout 120 oc get storageclusters --all-namespaces -o yaml; } > $BASE_COLLECTION_PATH/storagecluster.yaml 2>&1
 
 # collect OB/OBC resoureces
 resources+=(objectbucketclaims)
