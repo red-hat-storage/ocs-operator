@@ -61,7 +61,7 @@ UPGRADE_FROM_OCS_SUBSCRIPTION_CHANNEL="${UPGRADE_FROM_OCS_SUBSCRIPTION_CHANNEL:-
 
 # Override the image name when this is invoked from openshift ci
 if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
-	CATALOG_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:${CATALOG_IMAGE_NAME}"
+	CATALOG_FULL_IMAGE_NAME="${IMAGE_FORMAT//\$\{component\}/${CATALOG_IMAGE_NAME}}"
 	echo "Openshift CI detected, deploying using image $CATALOG_FULL_IMAGE_NAME"
-	MUST_GATHER_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-must-gather-quay"
+	MUST_GATHER_FULL_IMAGE_NAME="${IMAGE_FORMAT//\$\{component\}/${MUST_GATHER_IMAGE_NAME}-quay}"
 fi
