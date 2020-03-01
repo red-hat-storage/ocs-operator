@@ -343,7 +343,7 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 	return templateStrategySpec
 }
 
-func marshallObject(obj interface{}, writer io.Writer) error {
+func marshallObject(obj interface{}, writer io.Writer, modifyUnstructuredFunc func(*unstructured.Unstructured) error) error {
 	jsonBytes, err := json.Marshal(obj)
 	if err != nil {
 		return err
@@ -369,6 +369,13 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 			unstructured.RemoveNestedField(deployment, "status")
 		}
 		unstructured.SetNestedSlice(r.Object, deployments, "spec", "install", "spec", "deployments")
+	}
+
+	if modifyUnstructuredFunc != nil {
+		err := modifyUnstructuredFunc(&r)
+		if err != nil {
+			return err
+		}
 	}
 
 	jsonBytes, err = json.Marshal(r.Object)
@@ -709,7 +716,7 @@ After the three operators have been deployed into the openshift-storage namespac
 
 	// write unified CSV to out dir
 	writer := strings.Builder{}
-	marshallObject(ocsCSV, &writer)
+	marshallObject(ocsCSV, &writer, injectCSVRelatedImages)
 	err = ioutil.WriteFile(filepath.Join(*outputDir, finalizedCsvFilename()), []byte(writer.String()), 0644)
 	if err != nil {
 		panic(err)
@@ -717,6 +724,74 @@ After the three operators have been deployed into the openshift-storage namespac
 
 	fmt.Printf("CSV written to %s\n", filepath.Join(*outputDir, finalizedCsvFilename()))
 	return ocsCSV
+}
+
+func injectCSVRelatedImages(r *unstructured.Unstructured) error {
+
+	relatedImages := []interface{}{}
+
+	if *rookContainerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-container",
+			"image": *rookContainerImage,
+		})
+	}
+	if *rookCsiCephImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-csi",
+			"image": *rookCsiCephImage,
+		})
+	}
+	if *rookCsiRegistrarImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-csi-registrar",
+			"image": *rookCsiRegistrarImage,
+		})
+	}
+	if *rookCsiProvisionerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-csi-provisioner",
+			"image": *rookCsiProvisionerImage,
+		})
+	}
+	if *rookCsiSnapshotterImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-csi-snapshotter",
+			"image": *rookCsiSnapshotterImage,
+		})
+	}
+	if *rookCsiAttacherImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-csi-attacher",
+			"image": *rookCsiAttacherImage,
+		})
+	}
+	if *cephContainerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "ceph-container",
+			"image": *cephContainerImage,
+		})
+	}
+	if *noobaaContainerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "noobaa-operator",
+			"image": *noobaaContainerImage,
+		})
+	}
+	if *noobaaCoreContainerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "noobaa-core",
+			"image": *noobaaCoreContainerImage,
+		})
+	}
+	if *noobaaDBContainerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "noobaa-db",
+			"image": *noobaaDBContainerImage,
+		})
+	}
+
+	return unstructured.SetNestedSlice(r.Object, relatedImages, "spec", "relatedImages")
 }
 
 func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
@@ -769,7 +844,7 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("%s.crd.yaml", crd.Spec.Names.Singular))
 			writer := strings.Builder{}
-			marshallObject(crd, &writer)
+			marshallObject(crd, &writer, nil)
 			err := ioutil.WriteFile(outputFile, []byte(writer.String()), 0644)
 			if err != nil {
 				panic(err)
