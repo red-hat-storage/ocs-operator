@@ -32,19 +32,20 @@ mkdir -p ${BASE_COLLECTION_PATH}/oc_output/
 commands=()
 
 # collect oc output of OC commands
-commands+=("version")
-commands+=("get pods -owide")
+commands+=("get clusterversion -oyaml")
+commands+=("get pods -owide -n openshift-storage")
 commands+=("get nodes --show-labels")
 commands+=("describe nodes")
-commands+=("describe pods")
-commands+=("get pvc")
+commands+=("describe pods -n openshift-storage")
+commands+=("get pvc -n openshift-storage")
 commands+=("get pv")
 commands+=("get sc")
+commands+=("get infrastructures.config -oyaml")
 
 # Run the Collection of Resources to list
 for command in "${commands[@]}"; do
      echo "collecting oc command ${command}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
-     timeout 120 oc ${command} -n openshift-storage >> ${BASE_COLLECTION_PATH}/oc_output/"${command}"
+     timeout 120 oc ${command}  >> ${BASE_COLLECTION_PATH}/oc_output/"${command}"
 done
 
 # Call other gather scripts
