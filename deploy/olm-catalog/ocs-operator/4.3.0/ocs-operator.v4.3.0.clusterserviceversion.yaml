@@ -56,12 +56,55 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Storage
+    containerImage: quay.io/ocs-dev/ocs-operator:4.3.0
+    createdAt: "2020-03-09 07:16:19"
+    description: Red Hat OpenShift Container Storage provides hyperconverged storage
+      for applications within an OpenShift cluster.
+    operatorframework.io/cluster-monitoring: "true"
+    operatorframework.io/suggested-namespace: openshift-storage
+    operators.operatorframework.io/internal-objects: '["cephclusters.ceph.rook.io",
+      "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io",
+      "cephnfses.ceph.rook.io", "noobaas.noobaa.io", "objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","ocsinitializations.ocs.openshift.io",
+      "storageclusterinitializations.ocs.openshift.io"]'
+    repository: https://github.com/openshift/ocs-operator
+    support: Red Hat
   name: ocs-operator.v4.3.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: |-
+        [This resource is not intended to be created or managed by users.]
+
+
+        OCS Initialization represents the initial data to be created when the OCS operator is installed.
+      displayName: '[Internal] OCS Initialization'
+      kind: OCSInitialization
+      name: ocsinitializations.ocs.openshift.io
+      version: v1
+    - description: Storage Cluster represents a OpenShift Container Storage Cluster
+        including Ceph Cluster, NooBaa and all the storage and compute resources required.
+      displayName: Storage Cluster
+      kind: StorageCluster
+      name: storageclusters.ocs.openshift.io
+      resources:
+      - kind: CephCluster
+        name: cephclusters.ceph.rook.io
+        version: v1
+      - kind: NooBaa
+        name: noobaas.noobaa.io
+        version: v1alpha1
+      version: v1
+    - description: |-
+        [This resource is not intended to be created or managed by users.]
+
+
+        StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters.
+      displayName: '[Internal] StorageCluster Initialization'
+      kind: StorageClusterInitialization
+      name: storageclusterinitializations.ocs.openshift.io
+      version: v1
     - description: |-
         [This resource is not intended to be created or managed by users.]
 
@@ -88,6 +131,97 @@ spec:
       displayName: '[Internal] Ceph Object Store'
       kind: CephObjectStore
       name: cephobjectstores.ceph.rook.io
+      specDescriptors:
+      - description: Coding Chunks
+        displayName: Coding Chunks
+        path: dataPool.erasureCoded.codingChunks
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: Data Chunks
+        displayName: Data Chunks
+        path: dataPool.erasureCoded.dataChunks
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: failureDomain
+        displayName: failureDomain
+        path: dataPool.failureDomain
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Size
+        displayName: Size
+        path: dataPool.replicated.size
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: Annotations
+        displayName: Annotations
+        path: gateway.annotations
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway
+        - urn:alm:descriptor:io.kubernetes:annotations
+      - description: Instances
+        displayName: Instances
+        path: gateway.instances
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: Resources
+        displayName: Resources
+        path: gateway.resources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway
+        - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
+      - description: placement
+        displayName: placement
+        path: gateway.placement
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway
+        - urn:alm:descriptor:io.kubernetes:placement
+      - description: securePort
+        displayName: securePort
+        path: gateway.securePort
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway
+        - urn:alm:descriptor:io.kubernetes:securePort
+      - description: sslCertificateRef
+        displayName: sslCertificateRef
+        path: gateway.sslCertificateRef
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway
+        - urn:alm:descriptor:io.kubernetes:sslCertificateRef
+      - description: Type
+        displayName: Type
+        path: gateway.type
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Coding Chunks
+        displayName: Coding Chunks
+        path: metadataPool.erasureCoded.codingChunks
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: Data Chunks
+        displayName: Data Chunks
+        path: metadataPool.erasureCoded.dataChunks
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: failureDomain
+        displayName: failureDomain
+        path: metadataPool.failureDomain
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Size
+        displayName: Size
+        path: metadataPool.replicated.size
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool
+        - urn:alm:descriptor:com.tectonic.ui:number
       version: v1
     - description: |-
         [This resource is not intended to be created or managed by users.]
@@ -217,38 +351,8 @@ spec:
         [This resource is not intended to be created or managed by users.]
 
 
-        OCS Initialization represents the initial data to be created when the OCS operator is installed.
-      displayName: '[Internal] OCS Initialization'
-      kind: OCSInitialization
-      name: ocsinitializations.ocs.openshift.io
-      version: v1
-    - description: Storage Cluster represents a OpenShift Container Storage Cluster
-        including Ceph Cluster, NooBaa and all the storage and compute resources required.
-      displayName: Storage Cluster
-      kind: StorageCluster
-      name: storageclusters.ocs.openshift.io
-      resources:
-      - kind: CephCluster
-        name: cephclusters.ceph.rook.io
-        version: v1
-      - kind: NooBaa
-        name: noobaas.noobaa.io
-        version: v1alpha1
-      version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters.
-      displayName: '[Internal] StorageCluster Initialization'
-      kind: StorageClusterInitialization
-      name: storageclusterinitializations.ocs.openshift.io
-      version: v1
-    required:
-    - description: Claim a bucket just like claiming a PV. Automate you app bucket
-        provisioning by creating OBC with your app deployment. A secret and configmap
-        (name=claim) will be created with access details for the app pods.
-      displayName: ObjectBucketClaim
+        Claim a bucket just like claiming a PV. Automate you app bucket provisioning by creating OBC with your app deployment. A secret and configmap (name=claim) will be created with access details for the app pods.
+      displayName: '[Internal] ObjectBucketClaim'
       kind: ObjectBucketClaim
       name: objectbucketclaims.objectbucket.io
       resources:
@@ -265,9 +369,12 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning
-        information.
-      displayName: ObjectBucket
+    - description: |-
+        [This resource is not intended to be created or managed by users.]
+
+
+        Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning information.
+      displayName: '[Internal] ObjectBucket'
       kind: ObjectBucket
       name: objectbuckets.objectbucket.io
       resources:
@@ -286,11 +393,7 @@ spec:
       version: v1alpha1
   description: |2
 
-    Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster.
-
-    ## Components
-
-    OpenShift Container Storage deploys three operators.
+    **Red Hat OpenShift Container Storage** deploys three operators.
 
     ### OpenShift Container Storage operator
 
@@ -304,9 +407,25 @@ spec:
 
     The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on OpenShift, which provides object storage.
 
+    # Core Capabilities
+
+    * **Self-managing service:** No matter which supported storage technologies you choose, OpenShift Container Storage ensures that resources can be deployed and managed automatically.
+
+    * **Hyper-scale or hyper-converged:** With OpenShift Container Storage you can either build dedicated storage clusters or hyper-converged clusters where your apps run alongside storage.
+
+    * **File, Block, and Object provided by OpenShift Container Storage:** OpenShift Container Storage integrates Ceph with multiple storage presentations including object storage (compatible with S3), block storage, and POSIX-compliant shared file system.
+
+    * **Your data, protected:** OpenShift Container Storage efficiently distributes and replicates your data across your cluster to minimize the risk of data loss. With snapshots, cloning, and versioning, no more losing sleep over your data.
+
+    * **Elastic storage in your datacenter:** Scale is now possible in your datacenter. Get started with a few terabytes, and easily scale up.
+
+    * **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
+
+    # Pre-requisites
+
     ## Before Subscription
 
-    Before subscribing to OpenShift Container Storage, there are two pre-requisites that need to be satisfied.
+    Before subscribing to OpenShift Container Storage, the following pre-requisites must be satisfied.
 
     ### Namespace
 
@@ -327,34 +446,11 @@ spec:
     ```
     $ oc create -f rhocs-namespace.yaml
     ```
-
-
-    ### OperatorGroup
-    An OperatorGroup targetting the openshift-storage namespace also needs to be created. The following manifest can be used to create the OperatorGroup.
-
-    ```
-    apiVersion: operators.coreos.com/v1
-    kind: OperatorGroup
-    metadata:
-      name: openshift-storage-operatorgroup
-      namespace: openshift-storage
-    spec:
-      serviceAccount:
-        metadata:
-          creationTimestamp: null
-      targetNamespaces:
-      - openshift-storage
-    ```
-
-    Save the above as rhocs-operatorgroup.yaml, and create the OperatorGroup with,
-
-    ```
-    $ oc create -f rhocs-operatorgroup.yaml
-    ```
+    **Important:** Make sure 'openshift.io/cluster-monitoring: "true"' is present in the rhocs-namespace.yaml, which enables the cluster monitoring.
 
     ## After subscription
 
-    After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created. Note that the StorageCluster resource is the only resource that a user should be creating. OpenShift Container Storage includes many other custom resources which are internal and not meant for direct usage by users.
+    After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created.
 
     [1]: https://rook.io
     [2]: https://noobaa.io
@@ -365,6 +461,104 @@ spec:
   install:
     spec:
       clusterPermissions:
+      - rules:
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          - nodes
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - '*'
+          - storageclusters
+          - ocsinitialization
+          - storageclusterinitializations
+          verbs:
+          - '*'
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephclusters
+          - cephblockpools
+          - cephfilesystems
+          - cephobjectstores
+          - cephobjectstoreusers
+          verbs:
+          - '*'
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - noobaas
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
+        serviceAccountName: ocs-operator
       - rules: []
         serviceAccountName: rook-ceph-cluster-mgmt
       - rules:
@@ -462,6 +656,7 @@ spec:
           resources:
           - poddisruptionbudgets
           - deployments
+          - replicasets
           verbs:
           - '*'
         - apiGroups:
@@ -486,6 +681,12 @@ spec:
           - create
           - update
           - delete
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - csidrivers
+          verbs:
+          - create
         serviceAccountName: rook-ceph-system
       - rules: []
         serviceAccountName: rook-ceph-mgr-cluster
@@ -620,6 +821,7 @@ spec:
           - create
           - delete
           - update
+          - patch
         - apiGroups:
           - ""
           resources:
@@ -656,6 +858,7 @@ spec:
           - list
           - watch
           - update
+          - patch
         - apiGroups:
           - ""
           resources:
@@ -664,6 +867,13 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims/status
+          verbs:
+          - update
+          - patch
         serviceAccountName: rook-csi-cephfs-provisioner-sa
       - rules: []
         serviceAccountName: rbd-csi-nodeplugin
@@ -737,6 +947,7 @@ spec:
           - create
           - delete
           - update
+          - patch
         - apiGroups:
           - ""
           resources:
@@ -755,6 +966,7 @@ spec:
           - list
           - watch
           - update
+          - patch
         - apiGroups:
           - ""
           resources:
@@ -826,6 +1038,13 @@ spec:
           - volumesnapshots/status
           verbs:
           - update
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims/status
+          verbs:
+          - update
+          - patch
         serviceAccountName: rook-csi-rbd-provisioner-sa
       - rules:
         - apiGroups:
@@ -900,105 +1119,63 @@ spec:
           verbs:
           - create
         serviceAccountName: noobaa
-      - rules:
-        - apiGroups:
-          - storage.k8s.io
-          resources:
-          - storageclasses
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          - services
-          - endpoints
-          - persistentvolumeclaims
-          - events
-          - configmaps
-          - secrets
-          - nodes
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - get
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          - daemonsets
-          - replicasets
-          - statefulsets
-          verbs:
-          - '*'
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
-          - '*'
-          - storageclusters
-          - ocsinitialization
-          - storageclusterinitializations
-          verbs:
-          - '*'
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephclusters
-          - cephblockpools
-          - cephfilesystems
-          - cephobjectstores
-          - cephobjectstoreusers
-          verbs:
-          - '*'
-        - apiGroups:
-          - noobaa.io
-          resources:
-          - noobaas
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - security.openshift.io
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - get
-          - create
-          - update
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - privileged
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - get
-          - create
-          - update
-        serviceAccountName: ocs-operator
       deployments:
+      - name: ocs-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: ocs-operator
+          strategy:
+            type: Recreate
+          template:
+            metadata:
+              labels:
+                name: ocs-operator
+            spec:
+              containers:
+              - command:
+                - ocs-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: ocs-operator
+                - name: ROOK_CEPH_IMAGE
+                  value: rook/ceph:v1.2.4
+                - name: CEPH_IMAGE
+                  value: ceph/ceph:v14.2
+                - name: NOOBAA_CORE_IMAGE
+                  value: noobaa/noobaa-core:5.2.11
+                - name: NOOBAA_DB_IMAGE
+                  value: centos/mongodb-36-centos7
+                image: quay.io/ocs-dev/ocs-operator:latest
+                imagePullPolicy: Always
+                name: ocs-operator
+                ports:
+                - containerPort: 60000
+                  name: metrics
+                readinessProbe:
+                  exec:
+                    command:
+                    - stat
+                    - /tmp/operator-sdk-ready
+                  failureThreshold: 1
+                  initialDelaySeconds: 4
+                  periodSeconds: 10
+                resources: {}
+              serviceAccountName: ocs-operator
+              tolerations:
+              - effect: NoSchedule
+                key: node.ocs.openshift.io/storage
+                operator: Equal
+                value: "true"
       - name: rook-ceph-operator
         spec:
           replicas: 1
@@ -1074,7 +1251,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: CSI_ENABLE_SNAPSHOTTER
                   value: "false"
-                image: rook/ceph:v1.1.4-27.gf20c056
+                image: rook/ceph:v1.2.4
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
@@ -1118,6 +1295,10 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
+                - name: NOOBAA_CORE_IMAGE
+                  value: noobaa/noobaa-core:5.2.11
+                - name: NOOBAA_DB_IMAGE
+                  value: centos/mongodb-36-centos7
                 image: noobaa/noobaa-operator:2.0.9
                 name: noobaa-operator
                 resources:
@@ -1125,64 +1306,6 @@ spec:
                     cpu: 250m
                     memory: 256Mi
               serviceAccountName: noobaa
-              tolerations:
-              - effect: NoSchedule
-                key: node.ocs.openshift.io/storage
-                operator: Equal
-                value: "true"
-      - name: ocs-operator
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              name: ocs-operator
-          strategy:
-            type: Recreate
-          template:
-            metadata:
-              labels:
-                name: ocs-operator
-            spec:
-              containers:
-              - command:
-                - ocs-operator
-                env:
-                - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['olm.targetNamespaces']
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: OPERATOR_NAME
-                  value: ocs-operator
-                - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.1.4-27.gf20c056
-                - name: CEPH_IMAGE
-                  value: ceph/ceph:v14.2
-                - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.2.11
-                - name: NOOBAA_DB_IMAGE
-                  value: centos/mongodb-36-centos7
-                - name: MON_COUNT_OVERRIDE
-                  value: "3"
-                image: quay.io/ocs-dev/ocs-operator:latest
-                imagePullPolicy: Always
-                name: ocs-operator
-                ports:
-                - containerPort: 60000
-                  name: metrics
-                readinessProbe:
-                  exec:
-                    command:
-                    - stat
-                    - /tmp/operator-sdk-ready
-                  failureThreshold: 1
-                  initialDelaySeconds: 4
-                  periodSeconds: 10
-                resources: {}
-              serviceAccountName: ocs-operator
               tolerations:
               - effect: NoSchedule
                 key: node.ocs.openshift.io/storage
@@ -1476,6 +1599,6 @@ spec:
     name: Red Hat Support
   maturity: alpha
   provider:
-    name: Red Hat
+    name: Red Hat, Inc
   replaces: ocs-operator.v0.0.1
   version: 4.3.0

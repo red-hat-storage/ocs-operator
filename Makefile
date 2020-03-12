@@ -1,17 +1,3 @@
-IMAGE_BUILD_CMD ?= "docker"
-IMAGE_REGISTRY ?= "quay.io"
-REGISTRY_NAMESPACE ?= "ocs-dev"
-IMAGE_TAG ?= "latest"
-
-OUTPUT_DIR="build/_output"
-CACHE_DIR="_cache"
-TOOLS_DIR="$(CACHE_DIR)/tools"
-
-OPERATOR_SDK_VERSION="v0.10.0"
-OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
-OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
-OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
-
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
 
@@ -53,14 +39,8 @@ deps-update:
 	go mod tidy && go mod vendor
 
 operator-sdk:
-	@if [ ! -x "$(OPERATOR_SDK)" ]; then\
-		echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION)";\
-		mkdir -p $(TOOLS_DIR);\
-		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/$(OPERATOR_SDK_BIN) -o $(OPERATOR_SDK);\
-		chmod +x $(OPERATOR_SDK);\
-	else\
-		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
-	fi
+	@echo "Ensuring operator-sdk"
+	hack/ensure-operator-sdk.sh
 
 ocs-operator-openshift-ci-build: build
 
@@ -71,17 +51,17 @@ build:
 
 ocs-operator: build
 	@echo "Building the ocs-operator image"
-	$(IMAGE_BUILD_CMD) build -f build/Dockerfile -t $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/ocs-operator:$(IMAGE_TAG) build/
+	hack/build-operator.sh
 
 ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
-	$(IMAGE_BUILD_CMD) build -f must-gather/Dockerfile -t $(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/ocs-must-gather:$(IMAGE_TAG) must-gather/
+	hack/build-must-gather.sh
 
-source-manifests:
+source-manifests: operator-sdk
 	@echo "Sourcing CSV and CRD manifests from component-level operators"
 	hack/source-manifests.sh
 
-gen-latest-csv:
+gen-latest-csv: operator-sdk
 	@echo "Generating latest development CSV version using predefined ENV VARs."
 	hack/generate-latest-csv.sh
 
@@ -93,7 +73,7 @@ verify-latest-deploy-yaml:
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
 
-gen-release-csv:
+gen-release-csv: operator-sdk
 	@echo "Generating unified CSV from sourced component-level operators"
 	hack/generate-unified-csv.sh
 
@@ -103,19 +83,19 @@ verify-latest-csv:
 
 ocs-registry:
 	@echo "Building the ocs-registry image"
-	IMAGE_BUILD_CMD=$(IMAGE_BUILD_CMD) REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/build-registry-bundle.sh
+	hack/build-registry-bundle.sh
 
 clean:
 	@echo "cleaning previous outputs"
-	rm -rf $(OUTPUT_DIR)
+	hack/clean.sh
 
 cluster-deploy: cluster-clean
 	@echo "Deploying ocs to cluster"
-	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/cluster-deploy.sh
+	hack/cluster-deploy.sh
 
 cluster-clean:
 	@echo "Removing ocs install from cluster"
-	REGISTRY_NAMESPACE=$(REGISTRY_NAMESPACE) IMAGE_TAG=$(IMAGE_TAG) IMAGE_REGISTRY=$(IMAGE_REGISTRY) ./hack/cluster-clean.sh
+	hack/cluster-clean.sh
 
 build-functest:
 	@echo "Building functional tests"
@@ -146,12 +126,12 @@ unit-test:
 	@echo "Executing unit tests"
 	go test -v `go list ./... | grep -v "functest"`
 
+# This override is needed to bring in this PR:
+# https://github.com/operator-framework/operator-sdk/pull/1470
+update-generated: export OPERATOR_SDK_VERSION := v0.10.0
 update-generated: operator-sdk
 	@echo Updating generated files
-	@echo
-	@$(OPERATOR_SDK) generate k8s
-	@echo
-	@$(OPERATOR_SDK) generate openapi
+	hack/generate-k8s-openapi.sh
 
 verify-generated: update-generated
 	@echo "Verifying generated code"

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/blang/semver"
 	yaml "github.com/ghodss/yaml"
@@ -169,10 +170,6 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 				Name:  "NOOBAA_DB_IMAGE",
 				Value: *noobaaDBContainerImage,
 			},
-			{
-				Name:  "MON_COUNT_OVERRIDE",
-				Value: "3",
-			},
 		}
 
 		// append to env var list.
@@ -319,7 +316,23 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 
 		// override the rook env var list.
 		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = vars
+
 	} else if strings.Contains(csv.Name, "noobaa") {
+
+		vars := []corev1.EnvVar{
+			{
+				Name:  "NOOBAA_CORE_IMAGE",
+				Value: *noobaaCoreContainerImage,
+			},
+			{
+				Name:  "NOOBAA_DB_IMAGE",
+				Value: *noobaaDBContainerImage,
+			},
+		}
+
+		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env =
+			append(templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env, vars...)
+
 		// TODO remove this if statement once issue
 		// https://github.com/noobaa/noobaa-operator/issues/35 is resolved
 		// this image should be set by the templator logic
@@ -390,9 +403,9 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	csvs := []string{
+		*ocsCSVStr,
 		*rookCSVStr,
 		*noobaaCSVStr,
-		*ocsCSVStr,
 	}
 
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
@@ -426,7 +439,15 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
 			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
-			ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, csvStruct.Spec.CustomResourceDefinitions.Required...)
+
+			for _, definition := range csvStruct.Spec.CustomResourceDefinitions.Required {
+				// Move ob and obc to Owned list instead ot Required
+				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
+					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
+				} else {
+					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
+				}
+			}
 		}
 	}
 
@@ -549,16 +570,12 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	// Set Provider
 	ocsCSV.Spec.Provider = csvv1.AppLink{
-		Name: "Red Hat",
+		Name: "Red Hat, Inc",
 	}
 
 	// Set Description
 	ocsCSV.Spec.Description = `
-Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster.
-
-## Components
-
-OpenShift Container Storage deploys three operators.
+**Red Hat OpenShift Container Storage** deploys three operators.
 
 ### OpenShift Container Storage operator
 
@@ -572,9 +589,25 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 
 The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on OpenShift, which provides object storage.
 
+# Core Capabilities
+
+* **Self-managing service:** No matter which supported storage technologies you choose, OpenShift Container Storage ensures that resources can be deployed and managed automatically.
+
+* **Hyper-scale or hyper-converged:** With OpenShift Container Storage you can either build dedicated storage clusters or hyper-converged clusters where your apps run alongside storage.
+
+* **File, Block, and Object provided by OpenShift Container Storage:** OpenShift Container Storage integrates Ceph with multiple storage presentations including object storage (compatible with S3), block storage, and POSIX-compliant shared file system.
+
+* **Your data, protected:** OpenShift Container Storage efficiently distributes and replicates your data across your cluster to minimize the risk of data loss. With snapshots, cloning, and versioning, no more losing sleep over your data.
+
+* **Elastic storage in your datacenter:** Scale is now possible in your datacenter. Get started with a few terabytes, and easily scale up.
+
+* **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
+
+# Pre-requisites
+
 ## Before Subscription
 
-Before subscribing to OpenShift Container Storage, there are two pre-requisites that need to be satisfied.
+Before subscribing to OpenShift Container Storage, the following pre-requisites must be satisfied.
 
 ### Namespace
 
@@ -595,34 +628,11 @@ Save the above as rhocs-namespace.yaml, and create the Namespace with,
 ` + codeBlock + `
 $ oc create -f rhocs-namespace.yaml
 ` + codeBlock + `
-
-
-### OperatorGroup
-An OperatorGroup targetting the openshift-storage namespace also needs to be created. The following manifest can be used to create the OperatorGroup.
-
-` + codeBlock + `
-apiVersion: operators.coreos.com/v1
-kind: OperatorGroup
-metadata:
-  name: openshift-storage-operatorgroup
-  namespace: openshift-storage
-spec:
-  serviceAccount:
-    metadata:
-      creationTimestamp: null
-  targetNamespaces:
-  - openshift-storage
-` + codeBlock + `
-
-Save the above as rhocs-operatorgroup.yaml, and create the OperatorGroup with,
-
-` + codeBlock + `
-$ oc create -f rhocs-operatorgroup.yaml
-` + codeBlock + `
+**Important:** Make sure 'openshift.io/cluster-monitoring: "true"' is present in the rhocs-namespace.yaml, which enables the cluster monitoring.
 
 ## After subscription
 
-After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created. Note that the StorageCluster resource is the only resource that a user should be creating. OpenShift Container Storage includes many other custom resources which are internal and not meant for direct usage by users.
+After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created.
 
 [1]: https://rook.io
 [2]: https://noobaa.io
@@ -634,8 +644,17 @@ After the three operators have been deployed into the openshift-storage namespac
 	if *skipRange != "" {
 		ocsCSV.Annotations["olm.skipRange"] = *skipRange
 	}
+	loc, err := time.LoadLocation("UTC")
+	ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
+	ocsCSV.Annotations["repository"] = "https://github.com/openshift/ocs-operator"
+	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:4.3.0"
+	ocsCSV.Annotations["description"] = "Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster."
+	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
 	ocsCSV.Annotations["categories"] = "Storage"
+	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = `["cephclusters.ceph.rook.io", "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io", "cephnfses.ceph.rook.io", "noobaas.noobaa.io", "objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","ocsinitializations.ocs.openshift.io", "storageclusterinitializations.ocs.openshift.io"]`
+	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
+	ocsCSV.Annotations["operatorframework.io/cluster-monitoring"] = "true"
 	ocsCSV.Annotations["alm-examples"] = `
 [
     {

@@ -2,22 +2,16 @@
 BASE_COLLECTION_PATH="/must-gather"
 mkdir -p ${BASE_COLLECTION_PATH}
 
-echo "collecting operator pod logs" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
-operatorPodLogCollectionPath="${BASE_COLLECTION_PATH}/namespaces"
-operatorPodLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name}  --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}.log;{end}"
-operatorPodPreviousLogCollectionJSONPath="{range .items[*]}mkdir -p ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name};oc logs {@.metadata.name} -p --all-containers -n {@.metadata.namespace} &> ${operatorPodLogCollectionPath}/{@.metadata.namespace}/logs/{@.metadata.name}/{@.metadata.name}-previous.log;{end}"
-{
-    timeout 120 oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}";
-    timeout 120 oc get pods --all-namespaces -l 'name in (local-storage-operator,ocs-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}";
-    timeout 120 oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodLogCollectionJSONPath}";
-    timeout 120 oc get pods --all-namespaces -l 'app in (noobaa,rook-ceph-operator)' -o jsonpath="${operatorPodPreviousLogCollectionJSONPath}";
-} >> collector.sh 2>>${BASE_COLLECTION_PATH}/gather-debug.log
-chmod +x collector.sh
-{ ./collector.sh; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+
 # Resource List
 resources=()
 # collect storagecluster resources
-resources+=(storageclusters)
+
+# TODO: Re enable the collection of storagecluster via inspect command
+# resources+=(storageclusters)
+
+# NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
+{ timeout 120 oc get storageclusters --all-namespaces -o yaml; } > $BASE_COLLECTION_PATH/storagecluster.yaml 2>&1
 
 # collect OB/OBC resoureces
 resources+=(objectbucketclaims)
@@ -29,6 +23,29 @@ resources+=(objectbuckets)
 for resource in "${resources[@]}"; do
     echo "collecting dump of ${resource}" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
     { timeout 120 oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+done
+
+# collection path for OC commands
+mkdir -p ${BASE_COLLECTION_PATH}/oc_output/
+
+# Command List
+commands=()
+
+# collect oc output of OC commands
+commands+=("get clusterversion -oyaml")
+commands+=("get pods -owide -n openshift-storage")
+commands+=("get nodes --show-labels")
+commands+=("describe nodes")
+commands+=("describe pods -n openshift-storage")
+commands+=("get pvc -n openshift-storage")
+commands+=("get pv")
+commands+=("get sc")
+commands+=("get infrastructures.config -oyaml")
+
+# Run the Collection of Resources to list
+for command in "${commands[@]}"; do
+     echo "collecting oc command ${command}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
+     timeout 120 oc ${command}  >> ${BASE_COLLECTION_PATH}/oc_output/"${command}"
 done
 
 # Call other gather scripts

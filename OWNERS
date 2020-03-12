@@ -4,9 +4,11 @@ approvers:
   - mhrivnak
   - obnoxxx
   - davidvossel
+  - egafford
 # review == this code is good /lgtm
 reviewers:
   - jarrpa
   - mhrivnak
   - obnoxxx
   - davidvossel
+  - egafford

@@ -14,6 +14,10 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Created At
     type: string
+  - JSONPath: .spec.version
+    description: Storage Cluster Version
+    name: Version
+    type: string
   group: ocs.openshift.io
   names:
     kind: StorageCluster
@@ -47,6 +51,8 @@ spec:
               type: string
             manageNodes:
               type: boolean
+            monDataDirHostPath:
+              type: string
             monPVCTemplate:
               type: object
             resources:
@@ -58,6 +64,11 @@ spec:
               items:
                 properties:
                   config:
+                    properties:
+                      tuneSlowDeviceClass:
+                        description: TuneSlowDeviceClass tunes the OSD when running
+                          on a slow Device Class
+                        type: boolean
                     type: object
                   count:
                     description: Count is the number of devices in each StorageClassDeviceSet
@@ -105,6 +116,9 @@ spec:
                 - dataPVCTemplate
                 type: object
               type: array
+            version:
+              description: Version specifies the version of StorageCluster
+              type: string
           type: object
         status:
           properties:

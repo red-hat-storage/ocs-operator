@@ -73,6 +73,15 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 		},
 		Status: api.StorageClusterStatus{
 			FailureDomain: "zone",
+			NodeTopologies: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					zoneTopologyLabel: []string{
+						"zone1",
+						"zone2",
+						"zone3",
+					},
+				},
+			},
 		},
 	}
 	request := reconcile.Request{
@@ -98,6 +107,15 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 		},
 		Status: api.StorageClusterStatus{
 			FailureDomain: "zone",
+			NodeTopologies: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					zoneTopologyLabel: []string{
+						"zone1",
+						"zone2",
+						"zone3",
+					},
+				},
+			},
 		},
 	}
 	request := reconcile.Request{

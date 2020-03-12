@@ -10,9 +10,18 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blang/semver"
 	"github.com/go-logr/logr"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
+	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,24 +31,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
-	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	"github.com/openshift/ocs-operator/version"
 )
+
+// StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
+type StorageClassProvisionerType string
 
 const (
 	rookConfigMapName = "rook-config-override"
-	rookConfigData    = `[osd]
+	rookConfigData    = `
+[global]
+mon_osd_full_ratio = .85
+mon_osd_backfillfull_ratio = .8
+mon_osd_nearfull_ratio = .75
+[osd]
 osd_memory_target_cgroup_limit_ratio = 0.5
 `
+	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
+	// EBS represents AWS EBS provisioner for Storage Class
+	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
 )
-
-var monCount = defaults.MonCount
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
@@ -49,22 +60,7 @@ var validTopologyLabelKeys = []string{
 	"topology.rook.io",
 }
 
-func init() {
-	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
-	if monCountStr == "" {
-		return
-	}
-
-	count, err := strconv.Atoi(monCountStr)
-	if err != nil {
-		panic(err)
-	}
-
-	if count > 0 {
-		monCount = count
-		log.Info("Using MON_COUNT_OVERRIDE value %d", monCount)
-	}
-}
+var throttleDiskTypes = []string{"gp2", "io1"}
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -90,6 +86,31 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
+	if instance.Spec.Version == "" {
+		instance.Spec.Version = version.Version
+	} else if instance.Spec.Version != version.Version { // check anything else only if the versions mis-match
+		storClustSemV1, err := semver.Make(instance.Spec.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing Storage Cluster version")
+			return reconcile.Result{}, err
+		}
+		ocsSemV1, err := semver.Make(version.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing OCS Operator version")
+			return reconcile.Result{}, err
+		}
+		// if the storage cluster version is higher than the invoking OCS Operator's version,
+		// return error
+		if storClustSemV1.GT(ocsSemV1) {
+			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
+				instance.Spec.Version, version.Version)
+			reqLogger.Error(err, "Incompatible Storage cluster version")
+			return reconcile.Result{}, err
+		}
+		// if the storage cluster version is less than the OCS Operator version,
+		// just update.
+		instance.Spec.Version = version.Version
+	}
 	// Check for active StorageCluster only if Create request is made
 	// and ignore it if there's another active StorageCluster
 	// If Update request is made and StorageCluster is PhaseIgnored, no need to
@@ -114,7 +135,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	}
 
 	if instance.Status.Phase != statusutil.PhaseReady &&
-		instance.Status.Phase != statusutil.PhaseClusterExpanding {
+		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
+		instance.Status.Phase != statusutil.PhaseDeleting {
 		instance.Status.Phase = statusutil.PhaseProgressing
 		phaseErr := r.client.Status().Update(context.TODO(), instance)
 		if phaseErr != nil {
@@ -146,6 +168,11 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		}
 	} else {
 		// The object is marked for deletion
+		instance.Status.Phase = statusutil.PhaseDeleting
+		phaseErr := r.client.Status().Update(context.TODO(), instance)
+		if phaseErr != nil {
+			reqLogger.Error(phaseErr, "Failed to set PhaseDeleting")
+		}
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			isDeleted, err := r.deleteResources(instance, reqLogger)
 			if err != nil {
@@ -356,8 +383,10 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	updated := false
 	nodeRacks := ocsv1.NewNodeTopologyMap()
 
-	if len(nodes.Items) < minNodes {
-		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, len(nodes.Items))
+	r.nodeCount = len(nodes.Items)
+
+	if r.nodeCount < minNodes {
+		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, r.nodeCount)
 	}
 
 	for _, node := range nodes.Items {
@@ -597,8 +626,23 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	// if StorageClass is "gp2" or "io1" based, set tuneSlowDeviceClass to true
+	// this is for performance optimization of slow device class
+	//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
+	for i, ds := range sc.Spec.StorageDeviceSets {
+		throttle, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+		if err != nil {
+			return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
+		}
+		if throttle {
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
+		} else {
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+		}
+	}
+
 	// Define a new CephCluster object
-	cephCluster := newCephCluster(sc, r.cephImage)
+	cephCluster := newCephCluster(sc, r.cephImage, r.nodeCount, reqLogger)
 
 	// Set StorageCluster instance as the owner and controller
 	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
@@ -687,7 +731,7 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, reqLogger logr.Logger) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -704,12 +748,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				AllowUnsupported: false,
 			},
 			Mon: cephv1.MonSpec{
-				Count:                monCount,
+				Count:                getMonCount(nodeCount),
 				AllowMultiplePerNode: false,
 			},
 			Mgr: cephv1.MgrSpec{
 				Modules: []cephv1.Module{
 					cephv1.Module{Name: "pg_autoscaler", Enabled: true},
+					cephv1.Module{Name: "balancer", Enabled: true},
 				},
 			},
 			DataDirHostPath: "/var/lib/rook",
@@ -730,20 +775,27 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 			},
 			Storage: rook.StorageScopeSpec{
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc),
-				TopologyAware:          true,
 			},
 			Placement: rook.PlacementSpec{
 				"all": defaults.DaemonPlacements["all"],
+				"mon": getCephDaemonPlacements(sc, "mon"),
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
+			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
 		},
 	}
-
-	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
-	// have been provided, use the StorageClass of the DataPVCTemplate from the
-	// first StorageDeviceSet for providing the Mon PVs
-	if sc.Spec.MonPVCTemplate != nil {
-		cephCluster.Spec.Mon.VolumeClaimTemplate = sc.Spec.MonPVCTemplate
+	monPVCTemplate := sc.Spec.MonPVCTemplate
+	monDataDirHostPath := sc.Spec.MonDataDirHostPath
+	// If the `monPVCTemplate` is provided, the mons will provisioned on the
+	// provided `monPVCTemplate`.
+	if monPVCTemplate != nil {
+		cephCluster.Spec.Mon.VolumeClaimTemplate = monPVCTemplate
+		// If the `monDataDirHostPath` is provided without the `monPVCTemplate`,
+		// the mons will be provisioned on the provided `monDataDirHostPath`.
+	} else if len(monDataDirHostPath) > 0 {
+		cephCluster.Spec.DataDirHostPath = monDataDirHostPath
+		// If no `monPVCTemplate` and `monDataDirHostPath` is provided, the mons will
+		// be provisioned using the PVC template of first StorageDeviceSets if present.
 	} else if len(sc.Spec.StorageDeviceSets) > 0 {
 		ds := sc.Spec.StorageDeviceSets[0]
 		cephCluster.Spec.Mon.VolumeClaimTemplate = &corev1.PersistentVolumeClaim{
@@ -756,8 +808,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				},
 			},
 		}
+	} else {
+		reqLogger.Info(fmt.Sprintf("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for storageCluster %s", sc.GetName()))
 	}
-
 	return cephCluster
 }
 
@@ -855,12 +908,28 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 				Config:               ds.Config.ToMap(),
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
 				Portable:             portable,
+				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
 			}
 			storageClassDeviceSets = append(storageClassDeviceSets, set)
 		}
 	}
 
 	return storageClassDeviceSets
+}
+
+func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string) (bool, error) {
+	storageClass := &storagev1.StorageClass{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve Storage Class %q. %+v", storageClassName, err)
+	}
+	switch storageClass.Provisioner {
+	case string(EBS):
+		if contains(throttleDiskTypes, storageClass.Parameters["type"]) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {
@@ -911,6 +980,22 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	return r.deleteNoobaaSystems(sc, reqLogger)
 }
 
+//getCephDaemonPlacements returns placement configuration for ceph components with appropriate topology
+func getCephDaemonPlacements(sc *ocsv1.StorageCluster, component string) rook.Placement {
+	placement := rook.Placement{}
+	in := defaults.DaemonPlacements[component]
+	(&in).DeepCopyInto(&placement)
+	topologyMap := sc.Status.NodeTopologies
+	if topologyMap != nil {
+		topologyKey := determineFailureDomain(sc)
+		topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
+		podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+		podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
+	}
+
+	return placement
+}
+
 // Checks whether a string is contained within a slice
 func contains(slice []string, s string) bool {
 	for _, item := range slice {
@@ -930,4 +1015,25 @@ func remove(slice []string, s string) (result []string) {
 		result = append(result, item)
 	}
 	return
+}
+
+func getMonCount(nodeCount int) int {
+	count := defaults.MonCountMin
+
+	// return static value if overriden
+	override := os.Getenv(monCountOverrideEnvVar)
+	if override != "" {
+		count, err := strconv.Atoi(override)
+		if err != nil {
+			log.Error(err, "could not decode env var %s", monCountOverrideEnvVar)
+		} else {
+			return count
+		}
+	}
+
+	if nodeCount >= defaults.MonCountMax {
+		count = defaults.MonCountMax
+	}
+
+	return count
 }

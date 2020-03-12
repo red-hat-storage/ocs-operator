@@ -65,6 +65,7 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 // on first run.
 func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
+	allowVolumeExpansion := false
 	ret := []*storagev1.StorageClass{
 		&storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
@@ -72,6 +73,9 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 			},
 			Provisioner:   fmt.Sprintf("%s.cephfs.csi.ceph.com", initData.Namespace),
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			// AllowVolumeExpansion is set to False to disable expansion of OCS backed Volumes
+			// This is not supported currently.
+			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID": initData.Namespace,
 				"fsName":    fmt.Sprintf("%s-cephfilesystem", initData.Name),
@@ -87,6 +91,9 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 			},
 			Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			// AllowVolumeExpansion is set to False to disable expansion of OCS backed Volumes
+			// This is not supported currently.
+			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID":                 initData.Namespace,
 				"pool":                      generateNameForCephBlockPool(initData),
@@ -251,7 +258,8 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 			Spec: cephv1.PoolSpec{
 				FailureDomain: initData.Status.FailureDomain,
 				Replicated: cephv1.ReplicatedSpec{
-					Size: 3,
+					Size:            3,
+					TargetSizeRatio: .49,
 				},
 			},
 		},
@@ -401,7 +409,8 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 				DataPools: []cephv1.PoolSpec{
 					cephv1.PoolSpec{
 						Replicated: cephv1.ReplicatedSpec{
-							Size: 3,
+							Size:            3,
+							TargetSizeRatio: .49,
 						},
 						FailureDomain: initData.Status.FailureDomain,
 					},
@@ -409,7 +418,7 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 				MetadataServer: cephv1.MetadataServerSpec{
 					ActiveCount:   1,
 					ActiveStandby: true,
-					Placement:     defaults.DaemonPlacements["mds"],
+					Placement:     getCephDaemonPlacements(initData, "mds"),
 					Resources:     defaults.GetDaemonResources("mds", initData.Spec.Resources),
 				},
 			},
