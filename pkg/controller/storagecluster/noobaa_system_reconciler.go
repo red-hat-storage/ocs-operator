@@ -75,6 +75,7 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
 	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
 	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", sc.Spec.Resources)
+	endpointResources := defaults.GetDaemonResources("noobaa-endpoint", sc.Spec.Resources)
 
 	nb.Labels = map[string]string{
 		"app": "noobaa",
@@ -88,6 +89,16 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	nb.Spec.DBVolumeResources = &dBVolumeResources
 	nb.Spec.Image = &r.noobaaCoreImage
 	nb.Spec.DBImage = &r.noobaaDBImage
+
+	if nb.Spec.Endpoints == nil {
+		nb.Spec.Endpoints = &nbv1.EndpointsSpec{
+			MinCount:  1,
+			MaxCount:  1,
+			Resources: &endpointResources,
+		}
+	} else {
+		nb.Spec.Endpoints.Resources = &endpointResources
+	}
 
 	return nil
 }

@@ -86,27 +86,31 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			// Setting empty ResourceLists to prevent ocs-operator from setting the
 			// default resource requirements
 			Resources: map[string]corev1.ResourceRequirements{
-				"mon": corev1.ResourceRequirements{
+				"mon": {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
-				"mds": corev1.ResourceRequirements{
+				"mds": {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
-				"rgw": corev1.ResourceRequirements{
+				"rgw": {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
-				"mgr": corev1.ResourceRequirements{
+				"mgr": {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
-				"noobaa-core": corev1.ResourceRequirements{
+				"noobaa-core": {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
-				"noobaa-db": corev1.ResourceRequirements{
+				"noobaa-db": {
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+				"noobaa-endpoint": {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},
