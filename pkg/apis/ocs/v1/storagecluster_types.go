@@ -16,6 +16,9 @@ import (
 type StorageClusterSpec struct {
 	ManageNodes  bool   `json:"manageNodes,omitempty"`
 	InstanceType string `json:"instanceType,omitempty"`
+	// External Storage is optional and defaults to false. When set to true, OCS will
+	// connect to an external OCS Storage Cluster instead of provisioning one locally.
+	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`
 	// HostNetwork defaults to false
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
@@ -25,6 +28,13 @@ type StorageClusterSpec struct {
 	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
 	// Version specifies the version of StorageCluster
 	Version string `json:"version,omitempty"`
+}
+
+// ExternalStorageClusterSpec defines the spec of the external Storage Cluster
+// to be connected to the local cluster
+type ExternalStorageClusterSpec struct {
+	// +optional
+	Enable bool `json:"enable,omitempty"`
 }
 
 // StorageDeviceSet defines a set of storage devices.
@@ -134,6 +144,7 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=.metadata.creationTimestamp
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=.status.phase,description="Current Phase"
+// +kubebuilder:printcolumn:name="External",type=boolean,JSONPath=.spec.externalStorage.enable,description="External Storage Cluster"
 // +kubebuilder:printcolumn:name="Created At",type=string,JSONPath=.metadata.creationTimestamp
 // +kubebuilder:printcolumn:name="Version",type=string,JSONPath=.spec.version,description="Storage Cluster Version"
 type StorageCluster struct {
