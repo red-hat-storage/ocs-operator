@@ -17,6 +17,7 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	"github.com/openshift/ocs-operator/version"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -31,11 +32,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"github.com/openshift/ocs-operator/version"
 )
 
 // StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
 type StorageClassProvisionerType string
+
+// ensureFunc s
+type ensureFunc func(*ocsv1.StorageCluster, logr.Logger) error
 
 const (
 	rookConfigMapName = "rook-config-override"
@@ -86,31 +89,16 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	if instance.Spec.Version == "" {
-		instance.Spec.Version = version.Version
-	} else if instance.Spec.Version != version.Version { // check anything else only if the versions mis-match
-		storClustSemV1, err := semver.Make(instance.Spec.Version)
-		if err != nil {
-			reqLogger.Error(err, "Error while parsing Storage Cluster version")
-			return reconcile.Result{}, err
-		}
-		ocsSemV1, err := semver.Make(version.Version)
-		if err != nil {
-			reqLogger.Error(err, "Error while parsing OCS Operator version")
-			return reconcile.Result{}, err
-		}
-		// if the storage cluster version is higher than the invoking OCS Operator's version,
-		// return error
-		if storClustSemV1.GT(ocsSemV1) {
-			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
-				instance.Spec.Version, version.Version)
-			reqLogger.Error(err, "Incompatible Storage cluster version")
-			return reconcile.Result{}, err
-		}
-		// if the storage cluster version is less than the OCS Operator version,
-		// just update.
-		instance.Spec.Version = version.Version
+	storageClusterTypeStr := "StorageCluster"
+	if instance.Spec.ExternalStorage.Enable {
+		storageClusterTypeStr = "External StorageCluster"
+		reqLogger.Info(fmt.Sprintf("%s detected", storageClusterTypeStr))
 	}
+
+	if err := versionCheck(instance, reqLogger); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// Check for active StorageCluster only if Create request is made
 	// and ignore it if there's another active StorageCluster
 	// If Update request is made and StorageCluster is PhaseIgnored, no need to
@@ -136,7 +124,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 	if instance.Status.Phase != statusutil.PhaseReady &&
 		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
-		instance.Status.Phase != statusutil.PhaseDeleting {
+		instance.Status.Phase != statusutil.PhaseDeleting &&
+		!instance.Spec.ExternalStorage.Enable {
 		instance.Status.Phase = statusutil.PhaseProgressing
 		phaseErr := r.client.Status().Update(context.TODO(), instance)
 		if phaseErr != nil {
@@ -147,7 +136,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	// Add conditions if there are none
 	if instance.Status.Conditions == nil {
 		reason := ocsv1.ReconcileInit
-		message := "Initializing StorageCluster"
+		message := fmt.Sprintf("Initializing %s", storageClusterTypeStr)
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
@@ -196,52 +185,54 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, nil
 	}
 
-	// Get storage node topology labels
-	err = r.reconcileNodeTopologyMap(instance, reqLogger)
-	if err != nil {
-		reqLogger.Error(err, "Failed to set node topology map")
-		return reconcile.Result{}, err
-	}
-
-	// Check for StorageClusterInitialization
-	scinit := &ocsv1.StorageClusterInitialization{}
-	err = r.client.Get(context.TODO(), request.NamespacedName, scinit)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating StorageClusterInitialization resource")
-
-			// if the StorageClusterInitialization object doesn't exist
-			// ensure we re-reconcile on all initialization resources
-			instance.Status.StorageClassesCreated = false
-			instance.Status.CephObjectStoresCreated = false
-			instance.Status.CephBlockPoolsCreated = false
-			instance.Status.CephObjectStoreUsersCreated = false
-			instance.Status.CephFilesystemsCreated = false
-			instance.Status.FailureDomain = determineFailureDomain(instance)
-			err = r.client.Status().Update(context.TODO(), instance)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-
-			scinit.Name = request.Name
-			scinit.Namespace = request.Namespace
-			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
-				return reconcile.Result{}, err
-			}
-
-			err = r.client.Create(context.TODO(), scinit)
-			switch {
-			case err == nil:
-				log.Info("Created StorageClusterInitialization resource")
-			case errors.IsAlreadyExists(err):
-				log.Info("StorageClusterInitialization resource already exists")
-			default:
-				log.Error(err, "Failed to create StorageClusterInitialization resource")
-				return reconcile.Result{}, err
-			}
-		} else {
-			// Error reading the object - requeue the request.
+	if !instance.Spec.ExternalStorage.Enable {
+		// Get storage node topology labels
+		err = r.reconcileNodeTopologyMap(instance, reqLogger)
+		if err != nil {
+			reqLogger.Error(err, "Failed to set node topology map")
 			return reconcile.Result{}, err
+		}
+
+		// Check for StorageClusterInitialization
+		scinit := &ocsv1.StorageClusterInitialization{}
+		err = r.client.Get(context.TODO(), request.NamespacedName, scinit)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating StorageClusterInitialization resource")
+
+				// if the StorageClusterInitialization object doesn't exist
+				// ensure we re-reconcile on all initialization resources
+				instance.Status.StorageClassesCreated = false
+				instance.Status.CephObjectStoresCreated = false
+				instance.Status.CephBlockPoolsCreated = false
+				instance.Status.CephObjectStoreUsersCreated = false
+				instance.Status.CephFilesystemsCreated = false
+				instance.Status.FailureDomain = determineFailureDomain(instance)
+				err = r.client.Status().Update(context.TODO(), instance)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+
+				scinit.Name = request.Name
+				scinit.Namespace = request.Namespace
+				if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
+					return reconcile.Result{}, err
+				}
+
+				err = r.client.Create(context.TODO(), scinit)
+				switch {
+				case err == nil:
+					log.Info("Created StorageClusterInitialization resource")
+				case errors.IsAlreadyExists(err):
+					log.Info("StorageClusterInitialization resource already exists")
+				default:
+					log.Error(err, "Failed to create StorageClusterInitialization resource")
+					return reconcile.Result{}, err
+				}
+			} else {
+				// Error reading the object - requeue the request.
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -250,8 +241,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	r.conditions = nil
 	// Start with empty r.phase
 	r.phase = ""
-
-	for _, f := range []func(*ocsv1.StorageCluster, logr.Logger) error{
+	// list of default enusure functions
+	ensureFs := []ensureFunc{
 		// Add support for additional resources here
 		r.ensureStorageClasses,
 		r.ensureCephObjectStores,
@@ -262,9 +253,17 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		r.ensureCephConfig,
 		r.ensureCephCluster,
 		r.ensureNoobaaSystem,
-	} {
+	}
+	// for external cluster, we have a different set of ensure functions
+	if instance.Spec.ExternalStorage.Enable {
+		ensureFs = []ensureFunc{
+			r.ensureCephConfig,
+			r.ensureCephCluster,
+		}
+	}
+	for _, f := range ensureFs {
 		err = f(instance, reqLogger)
-		if r.phase == statusutil.PhaseClusterExpanding {
+		if r.phase == statusutil.PhaseClusterExpanding && !instance.Spec.ExternalStorage.Enable {
 			instance.Status.Phase = statusutil.PhaseClusterExpanding
 			phaseErr := r.client.Status().Update(context.TODO(), instance)
 			if phaseErr != nil {
@@ -273,8 +272,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		} else {
 			if instance.Status.Phase != statusutil.PhaseReady {
 				instance.Status.Phase = statusutil.PhaseProgressing
-				phaseErr := r.client.Status().Update(context.TODO(), instance)
-				if phaseErr != nil {
+				if phaseErr := r.client.Status().Update(context.TODO(), instance); phaseErr != nil {
 					reqLogger.Error(phaseErr, "Failed to set PhaseProgressing")
 				}
 			}
@@ -307,7 +305,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			reqLogger.Error(err, "Failed to mark operator ready")
 			return reconcile.Result{}, err
 		}
-		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
+		if instance.Status.Phase != statusutil.PhaseClusterExpanding && !instance.Spec.ExternalStorage.Enable {
 			instance.Status.Phase = statusutil.PhaseReady
 		}
 	} else {
@@ -341,7 +339,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 				return reconcile.Result{}, err
 			}
 		}
-		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
+		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
+			!instance.Spec.ExternalStorage.Enable {
 			if conditionsv1.IsStatusConditionTrue(instance.Status.Conditions, conditionsv1.ConditionProgressing) {
 				instance.Status.Phase = statusutil.PhaseProgressing
 			} else if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
@@ -351,11 +350,42 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			}
 		}
 	}
-	phaseErr := r.client.Status().Update(context.TODO(), instance)
-	if phaseErr != nil {
+	if phaseErr := r.client.Status().Update(context.TODO(), instance); phaseErr != nil {
 		reqLogger.Error(phaseErr, "Failed to update status")
+		return reconcile.Result{}, phaseErr
 	}
-	return reconcile.Result{}, phaseErr
+
+	return reconcile.Result{}, nil
+}
+
+// versionCheck populates the `.Spec.Version` field
+func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	if sc.Spec.Version == "" {
+		sc.Spec.Version = version.Version
+	} else if sc.Spec.Version != version.Version { // check anything else only if the versions mis-match
+		storClustSemV1, err := semver.Make(sc.Spec.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing Storage Cluster version")
+			return err
+		}
+		ocsSemV1, err := semver.Make(version.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing OCS Operator version")
+			return err
+		}
+		// if the storage cluster version is higher than the invoking OCS Operator's version,
+		// return error
+		if storClustSemV1.GT(ocsSemV1) {
+			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
+				sc.Spec.Version, version.Version)
+			reqLogger.Error(err, "Incompatible Storage cluster version")
+			return err
+		}
+		// if the storage cluster version is less than the OCS Operator version,
+		// just update.
+		sc.Spec.Version = version.Version
+	}
+	return nil
 }
 
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
@@ -626,23 +656,32 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	// if StorageClass is "gp2" or "io1" based, set tuneSlowDeviceClass to true
-	// this is for performance optimization of slow device class
-	//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
-	for i, ds := range sc.Spec.StorageDeviceSets {
-		throttle, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
-		if err != nil {
-			return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
-		}
-		if throttle {
-			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
-		} else {
-			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+	if !sc.Spec.ExternalStorage.Enable {
+		// if StorageClass is "gp2" or "io1" based, set tuneSlowDeviceClass to true
+		// this is for performance optimization of slow device class
+		//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
+		for i, ds := range sc.Spec.StorageDeviceSets {
+			throttle, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+			if err != nil {
+				return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
+			}
+			if throttle {
+				sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
+			} else {
+				sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+			}
 		}
 	}
 
+	var cephCluster *cephv1.CephCluster
+	var cephClusterTypeStr = "CephCluster"
 	// Define a new CephCluster object
-	cephCluster := newCephCluster(sc, r.cephImage, r.nodeCount, reqLogger)
+	if sc.Spec.ExternalStorage.Enable {
+		cephCluster = newExternalCephCluster(sc, r.cephImage)
+		cephClusterTypeStr = "External CephCluster"
+	} else {
+		cephCluster = newCephCluster(sc, r.cephImage, r.nodeCount, reqLogger)
+	}
 
 	// Set StorageCluster instance as the owner and controller
 	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
@@ -654,7 +693,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating CephCluster")
+			reqLogger.Info(fmt.Sprintf("Creating %s", cephClusterTypeStr))
 			return r.client.Create(context.TODO(), cephCluster)
 		}
 		return err
@@ -662,20 +701,28 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 
 	// Update the CephCluster if it is not in the desired state
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
-		reqLogger.Info("Updating spec for CephCluster")
+		reqLogger.Info(fmt.Sprintf("Updating spec for %s", cephClusterTypeStr))
 		// Check if Cluster is Expanding
-		if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
-			r.phase = statusutil.PhaseClusterExpanding
-		} else if len(found.Spec.Storage.StorageClassDeviceSets) == len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
-			for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
-				for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
-					if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
-						r.phase = statusutil.PhaseClusterExpanding
+		if sc.Spec.ExternalStorage.Enable {
+			sc.Status.Phase = string(found.Status.State)
+			if err := r.client.Status().Update(context.TODO(), sc); err != nil {
+				reqLogger.Error(err, "Failed to add conditions to status")
+				return err
+			}
+		} else {
+			if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
+				r.phase = statusutil.PhaseClusterExpanding
+			} else if len(found.Spec.Storage.StorageClassDeviceSets) == len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
+				for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
+					for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+						if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
+							r.phase = statusutil.PhaseClusterExpanding
+							break
+						}
+					}
+					if r.phase == statusutil.PhaseClusterExpanding {
 						break
 					}
-				}
-				if r.phase == statusutil.PhaseClusterExpanding {
-					break
 				}
 			}
 		}
@@ -690,6 +737,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	}
 	objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
 
+	type mapNegativeConditionsFunc func(*[]conditionsv1.Condition, *cephv1.CephCluster)
+	var negativeMapFunc mapNegativeConditionsFunc = statusutil.MapCephClusterNegativeConditions
+	if sc.Spec.ExternalStorage.Enable {
+		// negativeMapFunc for External CephCluster
+	}
+
 	// Handle CephCluster resource status
 	if found.Status.State == "" {
 		reqLogger.Info("CephCluster resource is not reporting status.")
@@ -699,13 +752,14 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 		statusutil.MapCephClusterNoConditions(&r.conditions, reason, message)
 	} else {
 		// Interpret CephCluster status and set any negative conditions
-		statusutil.MapCephClusterNegativeConditions(&r.conditions, found)
+		negativeMapFunc(&r.conditions, found)
 	}
 
 	// When phase is expanding, wait for CephCluster state to be updating
 	// this means expansion is in progress and overall system is progressing
 	// else expansion is not yet triggered
 	if sc.Status.Phase == statusutil.PhaseClusterExpanding &&
+		!sc.Spec.ExternalStorage.Enable &&
 		found.Status.State != cephv1.ClusterStateUpdating {
 		r.phase = statusutil.PhaseClusterExpanding
 	}
@@ -812,6 +866,26 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, r
 		reqLogger.Info(fmt.Sprintf("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for storageCluster %s", sc.GetName()))
 	}
 	return cephCluster
+}
+
+func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
+	labels := map[string]string{
+		"app": sc.Name,
+	}
+	externalCephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForExternalCephCluster(sc),
+			Namespace: sc.Namespace,
+			Labels:    labels,
+		},
+		Spec: cephv1.ClusterSpec{
+			External: cephv1.ExternalSpec{
+				Enable: true,
+			},
+			DataDirHostPath: "/var/lib/rook",
+		},
+	}
+	return externalCephCluster
 }
 
 func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[string]corev1.ResourceRequirements {

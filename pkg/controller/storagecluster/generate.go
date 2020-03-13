@@ -6,8 +6,19 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 )
 
+func generateNameForExternalCephCluster(initData *ocsv1.StorageCluster) string {
+	return generateNameForCephClusterFromString(fmt.Sprintf("%s-external", initData.Name))
+}
+
 func generateNameForCephCluster(initData *ocsv1.StorageCluster) string {
-	return generateNameForCephClusterFromString(initData.Name)
+	clusterName := ""
+	// if 'ExternalStorage' is enabled, change the cluster name accordingly
+	if initData.Spec.ExternalStorage.Enable {
+		clusterName = generateNameForExternalCephCluster(initData)
+	} else {
+		clusterName = generateNameForCephClusterFromString(initData.Name)
+	}
+	return clusterName
 }
 
 func generateNameForCephClusterFromString(name string) string {
