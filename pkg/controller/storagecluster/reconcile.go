@@ -48,7 +48,7 @@ mon_osd_nearfull_ratio = .75
 osd_memory_target_cgroup_limit_ratio = 0.5
 `
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
-	// EBS represents AWS EBS provisioner for Storage Class
+	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
 )
 
@@ -939,7 +939,7 @@ func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string
 	storageClass := &storagev1.StorageClass{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
 	if err != nil {
-		return false, fmt.Errorf("failed to retrieve Storage Class %q. %+v", storageClassName, err)
+		return false, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
 	}
 	switch storageClass.Provisioner {
 	case string(EBS):
