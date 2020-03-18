@@ -17,6 +17,7 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	"github.com/openshift/ocs-operator/version"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -31,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"github.com/openshift/ocs-operator/version"
 )
 
 // StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
@@ -132,6 +132,12 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		}
 	} else if instance.Status.Phase == statusutil.PhaseIgnored {
 		return reconcile.Result{}, nil
+	}
+
+	err = r.validateStorageDeviceSets(instance)
+	if err != nil {
+		reqLogger.Error(err, "Failed to validate StorageDeviceSets")
+		return reconcile.Result{}, err
 	}
 
 	if instance.Status.Phase != statusutil.PhaseReady &&
@@ -356,6 +362,18 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		reqLogger.Error(phaseErr, "Failed to update status")
 	}
 	return reconcile.Result{}, phaseErr
+}
+
+// validateStorageDeviceSets checks the StorageDeviceSets of the given
+// StorageCluster for completeness and correctness
+func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageCluster) error {
+	for i, ds := range sc.Spec.StorageDeviceSets {
+		if ds.DataPVCTemplate.Spec.StorageClassName == nil || *ds.DataPVCTemplate.Spec.StorageClassName == "" {
+			return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified", i)
+		}
+	}
+
+	return nil
 }
 
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
