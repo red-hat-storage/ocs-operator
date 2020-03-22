@@ -9,12 +9,15 @@ Run it with `go run` alongside negativetest.
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -26,6 +29,7 @@ const (
 	ocsOperatorNamespace = "openshift-storage"
 	ocsOperatorName      = "ocs-operator"
 	ocsOperatorResource  = "deployments"
+	ocsPodLabelSelector  = "name=ocs-operator"
 )
 
 func main() {
@@ -59,22 +63,24 @@ func main() {
 	stopper := make(chan struct{})
 	defer close(stopper)
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			d := obj.(*appsv1.Deployment)
-			if d.Name != ocsOperatorName {
+		/*
+			AddFunc: func(obj interface{}) {
+				d := obj.(*appsv1.Deployment)
+				if d.Name != ocsOperatorName {
+					return
+				}
+				fmt.Printf("Added deployment %s\n", d.Name)
 				return
-			}
-			fmt.Printf("Added deployment %s\n", d.Name)
-			return
-		},
-		DeleteFunc: func(obj interface{}) {
-			d := obj.(*appsv1.Deployment)
-			if d.Name != ocsOperatorName {
+			},
+			DeleteFunc: func(obj interface{}) {
+				d := obj.(*appsv1.Deployment)
+				if d.Name != ocsOperatorName {
+					return
+				}
+				fmt.Printf("Deleted deployment %s\n", d.Name)
 				return
-			}
-			fmt.Printf("Deleted deployment %s\n", d.Name)
-			return
-		},
+			},
+		*/
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldD := oldObj.(*appsv1.Deployment)
 			newD := newObj.(*appsv1.Deployment)
@@ -85,8 +91,17 @@ func main() {
 				return
 			}
 			fmt.Printf("Updated deployment %s\n", oldD.Name)
-			for i, c := range newD.Status.Conditions {
-				fmt.Printf("\tCondition %d: %s\n", i, c.String())
+			for _, c := range newD.Status.Conditions {
+				if c.Type == appsv1.DeploymentAvailable {
+					fmt.Printf("\tCondition: %s\n", c.String())
+					if c.Status == corev1.ConditionTrue {
+						fmt.Println("Invoking killpod()")
+						killerr := killpod(clientset)
+						if killerr != nil {
+							fmt.Println(err.Error())
+						}
+					}
+				}
 			}
 		},
 	})
@@ -98,4 +113,45 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+func killpod(clientset *kubernetes.Clientset) error {
+	pod, err := clientset.CoreV1().Pods(ocsOperatorNamespace).List(metav1.ListOptions{LabelSelector: ocsPodLabelSelector})
+	if err != nil {
+		return err
+	}
+
+	if len(pod.Items) < 1 {
+		strNoRunningPods := "No running pods found."
+		fmt.Println(strNoRunningPods)
+		return errors.New(strNoRunningPods)
+	}
+
+	for _, p := range pod.Items {
+		var (
+			n           = p.Name
+			gracePeriod = int64(0)
+		)
+		fmt.Printf("Killing pod %s now!\n", n)
+
+		e := clientset.CoreV1().Pods(ocsOperatorNamespace).Delete(n, &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod})
+		if e != nil {
+			return e
+		}
+		fmt.Printf("Pod %s killed. Verifying.\n", n)
+
+		_, err := clientset.CoreV1().Pods(ocsOperatorNamespace).Get(n, metav1.GetOptions{})
+		if apierrors.IsNotFound(err) {
+			fmt.Printf("Pod %s not found. Successfully killed, then.\n", n)
+		} else if statusError, isStatus := err.(*apierrors.StatusError); isStatus {
+			fmt.Printf("Error getting pod %s: %v\n", n, statusError.ErrStatus.Message)
+		} else if err != nil {
+			return err
+		} else {
+			strPodFound := fmt.Sprintf("Found pod %s, this shouldn't be!\n", n)
+			errors.New(strPodFound)
+		}
+	}
+
+	return nil
 }
