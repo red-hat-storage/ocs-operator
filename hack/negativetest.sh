@@ -2,7 +2,7 @@
 
 source hack/common.sh
 
-$OUTDIR_BIN/negativetests --ocs-registry-image="${FULL_IMAGE_NAME}" \
+$OUTDIR_BIN/negativetests --ocs-registry-image="${CATALOG_FULL_IMAGE_NAME}" \
 	--ocs-subscription-channel="${OCS_SUBSCRIPTION_CHANNEL}" \
 	--ocs-cluster-uninstall="${OCS_CLUSTER_UNINSTALL}" "$@"
 if [ $? -ne 0 ]; then

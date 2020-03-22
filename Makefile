@@ -26,6 +26,7 @@ all: ocs-operator ocs-must-gather ocs-registry
 	cluster-clean \
 	ocs-operator-openshift-ci-build \
 	functest \
+	negativetest \
 	shellcheck-test \
 	gofmt \
 	golint \
@@ -104,6 +105,14 @@ build-functest:
 functest: build-functest
 	@echo "Running ocs developer functional test suite"
 	hack/functest.sh
+
+build-negativetest:
+	@echo "Building negative tests"
+	hack/build-negativetest.sh
+
+negativetest: build-negativetest
+	@echo "Running ocs developer negative test suite"
+	hack/negativetest.sh
 gofmt:
 	@echo "Running gofmt"
 	gofmt -s -l `find . -path ./vendor -prune -o -type f -name '*.go' -print`
