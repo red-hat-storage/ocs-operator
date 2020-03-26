@@ -1,0 +1,194 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: storageclusters.ocs.openshift.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  - JSONPath: .status.phase
+    description: Current Phase
+    name: Phase
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Created At
+    type: string
+  - JSONPath: .spec.version
+    description: Storage Cluster Version
+    name: Version
+    type: string
+  group: ocs.openshift.io
+  names:
+    kind: StorageCluster
+    listKind: StorageClusterList
+    plural: storageclusters
+    singular: storagecluster
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            hostNetwork:
+              description: HostNetwork defaults to false
+              type: boolean
+            instanceType:
+              type: string
+            manageNodes:
+              type: boolean
+            monDataDirHostPath:
+              type: string
+            monPVCTemplate:
+              type: object
+            resources:
+              additionalProperties:
+                type: object
+              description: Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
+              type: object
+            storageDeviceSets:
+              items:
+                properties:
+                  config:
+                    properties:
+                      tuneSlowDeviceClass:
+                        description: TuneSlowDeviceClass tunes the OSD when running
+                          on a slow Device Class
+                        type: boolean
+                    type: object
+                  count:
+                    description: Count is the number of devices in each StorageClassDeviceSet
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  dataPVCTemplate:
+                    type: object
+                  name:
+                    type: string
+                  placement:
+                    properties:
+                      nodeAffinity:
+                        type: object
+                      podAffinity:
+                        type: object
+                      podAntiAffinity:
+                        type: object
+                      tolerations:
+                        items:
+                          type: object
+                        type: array
+                    type: object
+                  portable:
+                    description: Portable says whether the OSDs in this device set
+                      can move between nodes. This is ignored if Placement is not
+                      set
+                    type: boolean
+                  replica:
+                    description: Replica is the number of StorageClassDeviceSets for
+                      this StorageDeviceSet
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  resources:
+                    type: object
+                  topologyKey:
+                    description: TopologyKey is the Kubernetes topology label that
+                      the StorageClassDeviceSets will be distributed across. Ignored
+                      if Placement is set
+                    type: string
+                required:
+                - count
+                - name
+                - dataPVCTemplate
+                type: object
+              type: array
+            version:
+              description: Version specifies the version of StorageCluster
+              type: string
+          type: object
+        status:
+          properties:
+            cephBlockPoolsCreated:
+              type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
+            conditions:
+              description: Conditions describes the state of the StorageCluster resource.
+              items:
+                properties:
+                  lastHeartbeatTime:
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - lastHeartbeatTime
+                - lastTransitionTime
+                type: object
+              type: array
+            failureDomain:
+              description: FailureDomain is the base CRUSH element Ceph will use to
+                distribute its data replicas for the default CephBlockPool
+              type: string
+            nodeTopologies:
+              description: NodeTopologies is a list of topology labels on all nodes
+                matching the StorageCluster's placement selector.
+              properties:
+                labels:
+                  additionalProperties:
+                    items:
+                      type: string
+                    type: array
+                  description: Labels is a map of topology label keys (e.g. "failure-domain.kubernetes.io")
+                    to a set of values for those keys. +nullable
+                  type: object
+              type: object
+            phase:
+              description: Phase describes the Phase of StorageCluster This is used
+                by OLM UI to provide status information to the user
+              type: string
+            relatedObjects:
+              description: RelatedObjects is a list of objects created and maintained
+                by this operator. Object references will be added to this list after
+                they have been created AND found in the cluster.
+              items:
+                type: object
+              type: array
+            storageClassesCreated:
+              type: boolean
+          type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true

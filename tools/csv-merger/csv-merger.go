@@ -439,7 +439,15 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
 			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
-			ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, csvStruct.Spec.CustomResourceDefinitions.Required...)
+
+			for _, definition := range csvStruct.Spec.CustomResourceDefinitions.Required {
+				// Move ob and obc to Owned list instead ot Required
+				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
+					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
+				} else {
+					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
+				}
+			}
 		}
 	}
 
@@ -644,7 +652,7 @@ After the three operators have been deployed into the openshift-storage namespac
 	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
 	ocsCSV.Annotations["categories"] = "Storage"
-	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = `["cephclusters.ceph.rook.io", "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io", "cephnfses.ceph.rook.io", "noobaas.noobaa.io", "ocsinitializations.ocs.openshift.io", "storageclusterinitializations.ocs.openshift.io"]`
+	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = `["cephclusters.ceph.rook.io", "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io", "cephnfses.ceph.rook.io", "noobaas.noobaa.io", "objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","ocsinitializations.ocs.openshift.io", "storageclusterinitializations.ocs.openshift.io"]`
 	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
 	ocsCSV.Annotations["operatorframework.io/cluster-monitoring"] = "true"
 	ocsCSV.Annotations["alm-examples"] = `
