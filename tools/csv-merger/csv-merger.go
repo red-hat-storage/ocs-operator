@@ -15,6 +15,7 @@ import (
 
 	"github.com/blang/semver"
 	yaml "github.com/ghodss/yaml"
+	ocsversion "github.com/openshift/ocs-operator/version"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/version"
 	appsv1 "k8s.io/api/apps/v1"
@@ -655,7 +656,7 @@ After the three operators have been deployed into the openshift-storage namespac
 	ocsCSV.Annotations["external.cluster.ocs.openshift.io/supported"] = "true"
 	ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
 	ocsCSV.Annotations["repository"] = "https://github.com/openshift/ocs-operator"
-	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:4.3.0"
+	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:" + ocsversion.Version
 	ocsCSV.Annotations["description"] = "Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster."
 	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
