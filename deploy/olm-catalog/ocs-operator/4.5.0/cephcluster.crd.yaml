@@ -1,0 +1,190 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephclusters.ceph.rook.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.dataDirHostPath
+    description: Directory used on the K8s nodes
+    name: DataDirHostPath
+    type: string
+  - JSONPath: .spec.mon.count
+    description: Number of MONs
+    name: MonCount
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  - JSONPath: .status.state
+    description: Current State
+    name: State
+    type: string
+  - JSONPath: .status.ceph.health
+    description: Ceph Health
+    name: Health
+    type: string
+  group: ceph.rook.io
+  names:
+    kind: CephCluster
+    listKind: CephClusterList
+    plural: cephclusters
+    singular: cephcluster
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            annotations: {}
+            cephVersion:
+              properties:
+                allowUnsupported:
+                  type: boolean
+                image:
+                  type: string
+            continueUpgradeAfterChecksEvenIfNotHealthy:
+              type: boolean
+            dashboard:
+              properties:
+                enabled:
+                  type: boolean
+                port:
+                  maximum: 65535
+                  minimum: 0
+                  type: integer
+                ssl:
+                  type: boolean
+                urlPrefix:
+                  type: string
+            dataDirHostPath:
+              pattern: ^/(\S+)
+              type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                manageMachineDisruptionBudgets:
+                  type: boolean
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+            external:
+              properties:
+                enable:
+                  type: boolean
+            mgr:
+              properties:
+                modules:
+                  items:
+                    properties:
+                      enabled:
+                        type: boolean
+                      name:
+                        type: string
+            mon:
+              properties:
+                allowMultiplePerNode:
+                  type: boolean
+                count:
+                  maximum: 9
+                  minimum: 0
+                  type: integer
+                volumeClaimTemplate: {}
+            monitoring:
+              properties:
+                enabled:
+                  type: boolean
+                rulesNamespace:
+                  type: string
+            network:
+              properties:
+                hostNetwork:
+                  type: boolean
+                provider:
+                  type: string
+                selectors: {}
+            placement: {}
+            rbdMirroring:
+              properties:
+                workers:
+                  type: integer
+            removeOSDsIfOutAndSafeToRemove:
+              type: boolean
+            resources: {}
+            skipUpgradeChecks:
+              type: boolean
+            storage:
+              properties:
+                config: {}
+                deviceFilter:
+                  type: string
+                devicePathFilter:
+                  type: string
+                directories:
+                  items:
+                    properties:
+                      path:
+                        type: string
+                  type: array
+                disruptionManagement:
+                  properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
+                    manageMachineDisruptionBudgets:
+                      type: boolean
+                    managePodBudgets:
+                      type: boolean
+                    osdMaintenanceTimeout:
+                      type: integer
+                nodes:
+                  items:
+                    properties:
+                      config:
+                        properties:
+                          databaseSizeMB:
+                            type: string
+                          encryptedDevice:
+                            pattern: ^(true|false)$
+                            type: string
+                          journalSizeMB:
+                            type: string
+                          metadataDevice:
+                            type: string
+                          osdsPerDevice:
+                            type: string
+                          storeType:
+                            pattern: ^(filestore|bluestore)$
+                            type: string
+                          walSizeMB:
+                            type: string
+                      deviceFilter:
+                        type: string
+                      devicePathFilter:
+                        type: string
+                      devices:
+                        items:
+                          properties:
+                            config: {}
+                            name:
+                              type: string
+                        type: array
+                      directories:
+                        items:
+                          properties:
+                            path:
+                              type: string
+                        type: array
+                      name:
+                        type: string
+                      resources: {}
+                      useAllDevices:
+                        type: boolean
+                  type: array
+                storageClassDeviceSets: {}
+                useAllDevices:
+                  type: boolean
+                useAllNodes:
+                  type: boolean
+  version: v1
