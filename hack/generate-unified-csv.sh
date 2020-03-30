@@ -21,6 +21,7 @@ function help_txt() {
 	echo "    SKIP_RANGE                 (optional) The skip range value set for this csv"
 	echo "    ROOK_CSI_CEPH_IMAGE        (optional) Sets custom image env var on the rook deployment spec"
 	echo "    ROOK_CSI_REGISTRAR_IMAGE   (optional) Sets custom image env var on the rook deployment spec"
+	echo "    ROOK_CSI_RESIZER_IMAGE     (optional) Sets custom image env var on the rook deployment spec"
 	echo "    ROOK_CSI_PROVISIONER_IMAGE (optional) Sets custom image env var on the rook deployment spec"
 	echo "    ROOK_CSI_SNAPSHOTTER_IMAGE (optional) Sets custom image env var on the rook deployment spec"
 	echo "    ROOK_CSI_ATTACHER_IMAGE    (optional) Sets custom image env var on the rook deployment spec"
@@ -52,6 +53,7 @@ $CSV_MERGER \
 	--ceph-image="$CEPH_IMAGE" \
 	--rook-csi-ceph-image="$ROOK_CSI_CEPH_IMAGE" \
 	--rook-csi-registrar-image="$ROOK_CSI_REGISTRAR_IMAGE" \
+	--rook-csi-resizer-image="$ROOK_CSI_RESIZER_IMAGE" \
 	--rook-csi-provisioner-image="$ROOK_CSI_PROVISIONER_IMAGE" \
 	--rook-csi-snapshotter-image="$ROOK_CSI_SNAPSHOTTER_IMAGE" \
 	--rook-csi-attacher-image="$ROOK_CSI_ATTACHER_IMAGE" \
