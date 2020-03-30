@@ -67,6 +67,7 @@ var (
 	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
 	rookCsiCephImage         = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiRegistrarImage    = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiResizerImage      = flag.String("rook-csi-resizer-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiProvisionerImage  = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiSnapshotterImage  = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiAttacherImage     = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
@@ -293,6 +294,12 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 			vars = append(vars, corev1.EnvVar{
 				Name:  "ROOK_CSI_REGISTRAR_IMAGE",
 				Value: *rookCsiRegistrarImage,
+			})
+		}
+		if *rookCsiResizerImage != "" {
+			vars = append(vars, corev1.EnvVar{
+				Name:  "ROOK_CSI_RESIZER_IMAGE",
+				Value: *rookCsiResizerImage,
 			})
 		}
 		if *rookCsiProvisionerImage != "" {
