@@ -8,7 +8,7 @@ GOPROXY="https://proxy.golang.org"
 GOROOT="${GOROOT:-go env GOROOT}"
 
 IMAGE_BUILD_CMD="${IMAGE_BUILD_CMD:-docker}"
-IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-docker run --rm -it}"
+IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-${IMAGE_BUILD_CMD} run --rm -it}"
 
 OUTDIR="build/_output"
 OUTDIR_BIN="build/_output/bin"
