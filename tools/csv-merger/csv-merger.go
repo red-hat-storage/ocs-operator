@@ -488,10 +488,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		// backingstore and bucketclass can be used by the admin, so avoid adding internal prefix to these resources
 		case "backingstores.noobaa.io":
 		case "bucketclasses.noobaa.io":
-
-		default:
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description
 		}
 	}
 
