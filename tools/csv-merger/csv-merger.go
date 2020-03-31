@@ -606,37 +606,6 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 
 * **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
 
-# Pre-requisites
-
-## Before Subscription
-
-Before subscribing to OpenShift Container Storage, the following pre-requisites must be satisfied.
-
-### Namespace
-
-OpenShift Container Storage runs only in the openshift-storage namespace, which needs to be created before subscription. The following manifest can be used to create the namespace.
-
-` + codeBlock + `
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    openshift.io/cluster-monitoring: "true"
-  name: openshift-storage
-spec: {}
-` + codeBlock + `
-
-Save the above as rhocs-namespace.yaml, and create the Namespace with,
-
-` + codeBlock + `
-$ oc create -f rhocs-namespace.yaml
-` + codeBlock + `
-**Important:** Make sure 'openshift.io/cluster-monitoring: "true"' is present in the rhocs-namespace.yaml, which enables the cluster monitoring.
-
-## After subscription
-
-After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created.
-
 [1]: https://rook.io
 [2]: https://noobaa.io
 `
