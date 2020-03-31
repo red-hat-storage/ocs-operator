@@ -456,7 +456,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
 
 			for _, definition := range csvStruct.Spec.CustomResourceDefinitions.Required {
-				// Move ob and obc to Owned list instead ot Required
+				// Move ob and obc to Owned list instead of Required
 				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
 					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
 				} else {
@@ -466,7 +466,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		}
 	}
 
-	// Inject deplay names and descriptions for our OCS crds
+	// Inject display name and description for our OCS crds
 	for i, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		switch definition.Name {
 		case "storageclusters.ocs.openshift.io":
