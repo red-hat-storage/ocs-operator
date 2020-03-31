@@ -57,7 +57,7 @@ metadata:
     capabilities: Full Lifecycle
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:4.5.0
-    createdAt: "2020-03-30 09:05:41"
+    createdAt: "2020-03-31 08:04:23"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.cluster.ocs.openshift.io/supported: "true"
@@ -76,12 +76,9 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        OCS Initialization represents the initial data to be created when the OCS operator is installed.
-      displayName: '[Internal] OCS Initialization'
+    - description: OCS Initialization represents the initial data to be created when
+        the OCS operator is installed.
+      displayName: OCS Initialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
@@ -98,39 +95,24 @@ spec:
         name: noobaas.noobaa.io
         version: v1alpha1
       version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters.
-      displayName: '[Internal] StorageCluster Initialization'
+    - description: StorageCluster Initialization represents a set of tasks the OCS
+        operator wants to implement for every StorageCluster it encounters.
+      displayName: StorageCluster Initialization
       kind: StorageClusterInitialization
       name: storageclusterinitializations.ocs.openshift.io
       version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Represents a Ceph cluster.
-      displayName: '[Internal] Ceph Cluster'
+    - description: Represents a Ceph cluster.
+      displayName: Ceph Cluster
       kind: CephCluster
       name: cephclusters.ceph.rook.io
       version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Represents a Ceph Block Pool.
-      displayName: '[Internal] Ceph Block Pool'
+    - description: Represents a Ceph Block Pool.
+      displayName: Ceph Block Pool
       kind: CephBlockPool
       name: cephblockpools.ceph.rook.io
       version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Represents a Ceph Object Store.
-      displayName: '[Internal] Ceph Object Store'
+    - description: Represents a Ceph Object Store.
+      displayName: Ceph Object Store
       kind: CephObjectStore
       name: cephobjectstores.ceph.rook.io
       specDescriptors:
@@ -225,30 +207,18 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool
         - urn:alm:descriptor:com.tectonic.ui:number
       version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Represents a Ceph Object Store User.
-      displayName: '[Internal] Ceph Object Store User'
+    - description: Represents a Ceph Object Store User.
+      displayName: Ceph Object Store User
       kind: CephObjectStoreUser
       name: cephobjectstoreusers.ceph.rook.io
       version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Represents a cluster of Ceph NFS ganesha gateways.
-      displayName: '[Internal] Ceph NFS'
+    - description: Represents a cluster of Ceph NFS ganesha gateways.
+      displayName: Ceph NFS
       kind: CephNFS
       name: cephnfses.ceph.rook.io
       version: v1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        A NooBaa system - Create this to start
-      displayName: '[Internal] NooBaa'
+    - description: A NooBaa system - Create this to start
+      displayName: NooBaa
       kind: NooBaa
       name: noobaas.noobaa.io
       resources:
@@ -349,12 +319,10 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Claim a bucket just like claiming a PV. Automate you app bucket provisioning by creating OBC with your app deployment. A secret and configmap (name=claim) will be created with access details for the app pods.
-      displayName: '[Internal] ObjectBucketClaim'
+    - description: Claim a bucket just like claiming a PV. Automate you app bucket
+        provisioning by creating OBC with your app deployment. A secret and configmap
+        (name=claim) will be created with access details for the app pods.
+      displayName: ObjectBucketClaim
       kind: ObjectBucketClaim
       name: objectbucketclaims.objectbucket.io
       resources:
@@ -371,12 +339,9 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: |-
-        [This resource is not intended to be created or managed by users.]
-
-
-        Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning information.
-      displayName: '[Internal] ObjectBucket'
+    - description: Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning
+        information.
+      displayName: ObjectBucket
       kind: ObjectBucket
       name: objectbuckets.objectbucket.io
       resources:
@@ -422,37 +387,6 @@ spec:
     * **Elastic storage in your datacenter:** Scale is now possible in your datacenter. Get started with a few terabytes, and easily scale up.
 
     * **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
-
-    # Pre-requisites
-
-    ## Before Subscription
-
-    Before subscribing to OpenShift Container Storage, the following pre-requisites must be satisfied.
-
-    ### Namespace
-
-    OpenShift Container Storage runs only in the openshift-storage namespace, which needs to be created before subscription. The following manifest can be used to create the namespace.
-
-    ```
-    apiVersion: v1
-    kind: Namespace
-    metadata:
-      labels:
-        openshift.io/cluster-monitoring: "true"
-      name: openshift-storage
-    spec: {}
-    ```
-
-    Save the above as rhocs-namespace.yaml, and create the Namespace with,
-
-    ```
-    $ oc create -f rhocs-namespace.yaml
-    ```
-    **Important:** Make sure 'openshift.io/cluster-monitoring: "true"' is present in the rhocs-namespace.yaml, which enables the cluster monitoring.
-
-    ## After subscription
-
-    After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created.
 
     [1]: https://rook.io
     [2]: https://noobaa.io
