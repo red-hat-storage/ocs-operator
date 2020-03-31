@@ -47,11 +47,6 @@ type csvStrategySpec struct {
 }
 
 const (
-	internalCRDPrefix      = "[Internal] "
-	internalCRDDescription = `[This resource is not intended to be created or managed by users.]
-
-
-`
 	// Backticks cannot be escaped inside multi-line strings. So using this const and concating with multiline strings instead.
 	codeBlock = "```"
 )
@@ -485,18 +480,18 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 				},
 			}
 		case "ocsinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + "OCS Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + "OCS Initialization represents the initial data to be created when the OCS operator is installed."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "OCS Initialization"
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "OCS Initialization represents the initial data to be created when the OCS operator is installed."
 		case "storageclusterinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + "StorageCluster Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "StorageCluster Initialization"
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
 		// backingstore and bucketclass can be used by the admin, so avoid adding internal prefix to these resources
 		case "backingstores.noobaa.io":
 		case "bucketclasses.noobaa.io":
 
 		default:
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description
 		}
 	}
 
