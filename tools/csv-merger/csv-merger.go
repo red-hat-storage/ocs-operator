@@ -485,9 +485,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		case "storageclusterinitializations.ocs.openshift.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "StorageCluster Initialization"
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
-		// backingstore and bucketclass can be used by the admin, so avoid adding internal prefix to these resources
-		case "backingstores.noobaa.io":
-		case "bucketclasses.noobaa.io":
 		}
 	}
 
