@@ -187,47 +187,9 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		reqLogger.Error(err, "Failed to set node topology map")
 		return reconcile.Result{}, err
 	}
-
-	// Check for StorageClusterInitialization
-	scinit := &ocsv1.StorageClusterInitialization{}
-	err = r.client.Get(context.TODO(), request.NamespacedName, scinit)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating StorageClusterInitialization resource")
-
-			// if the StorageClusterInitialization object doesn't exist
-			// ensure we re-reconcile on all initialization resources
-			instance.Status.StorageClassesCreated = false
-			instance.Status.CephObjectStoresCreated = false
-			instance.Status.CephBlockPoolsCreated = false
-			instance.Status.CephObjectStoreUsersCreated = false
-			instance.Status.CephFilesystemsCreated = false
-			instance.Status.FailureDomain = determineFailureDomain(instance)
-			err = r.client.Status().Update(context.TODO(), instance)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-
-			scinit.Name = request.Name
-			scinit.Namespace = request.Namespace
-			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
-				return reconcile.Result{}, err
-			}
-
-			err = r.client.Create(context.TODO(), scinit)
-			switch {
-			case err == nil:
-				log.Info("Created StorageClusterInitialization resource")
-			case errors.IsAlreadyExists(err):
-				log.Info("StorageClusterInitialization resource already exists")
-			default:
-				log.Error(err, "Failed to create StorageClusterInitialization resource")
-				return reconcile.Result{}, err
-			}
-		} else {
-			// Error reading the object - requeue the request.
-			return reconcile.Result{}, err
-		}
+	if err := r.ensureStorageClusterInit(instance, request, reqLogger); err != nil {
+		reqLogger.Error(err, "Failed to initialize the storagecluster")
+		return reconcile.Result{}, err
 	}
 
 	// in-memory conditions should start off empty. It will only ever hold
@@ -370,6 +332,55 @@ func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 		// just update.
 		sc.Spec.Version = version.Version
 	}
+	return nil
+}
+
+// ensureStorageClusterInit function initialize the StorageCluster
+func (r *ReconcileStorageCluster) ensureStorageClusterInit(
+	instance *ocsv1.StorageCluster,
+	request reconcile.Request,
+	reqLogger logr.Logger) error {
+	// Check for StorageClusterInitialization
+	scinit := &ocsv1.StorageClusterInitialization{}
+	if err := r.client.Get(context.TODO(), request.NamespacedName, scinit); err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating StorageClusterInitialization resource")
+
+			// if the StorageClusterInitialization object doesn't exist
+			// ensure we re-reconcile on all initialization resources
+			instance.Status.StorageClassesCreated = false
+			instance.Status.CephObjectStoresCreated = false
+			instance.Status.CephBlockPoolsCreated = false
+			instance.Status.CephObjectStoreUsersCreated = false
+			instance.Status.CephFilesystemsCreated = false
+			instance.Status.FailureDomain = determineFailureDomain(instance)
+			err = r.client.Status().Update(context.TODO(), instance)
+			if err != nil {
+				return err
+			}
+
+			scinit.Name = request.Name
+			scinit.Namespace = request.Namespace
+			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
+				return err
+			}
+
+			err = r.client.Create(context.TODO(), scinit)
+			switch {
+			case err == nil:
+				log.Info("Created StorageClusterInitialization resource")
+			case errors.IsAlreadyExists(err):
+				log.Info("StorageClusterInitialization resource already exists")
+			default:
+				log.Error(err, "Failed to create StorageClusterInitialization resource")
+				return err
+			}
+		} else {
+			// Error reading the object - requeue the request.
+			return err
+		}
+	}
+
 	return nil
 }
 
