@@ -125,16 +125,28 @@ type NodeTopologyMap struct {
 	Labels map[string]TopologyLabelValues `json:"labels,omitempty"`
 }
 
-// ConditionReconcileComplete communicates the status of the StorageCluster resource's
-// reconcile functionality. Basically, is the Reconcile function running to completion.
-const ConditionReconcileComplete conditionsv1.ConditionType = "ReconcileComplete"
+const (
+	// ConditionReconcileComplete communicates the status of the StorageCluster resource's
+	// reconcile functionality. Basically, is the Reconcile function running to completion.
+	ConditionReconcileComplete conditionsv1.ConditionType = "ReconcileComplete"
+
+	// ConditionExternalClusterConnected condition type indicates
+	// the successful connection to an external cluster
+	ConditionExternalClusterConnected conditionsv1.ConditionType = "ExternalClusterConnected"
+
+	// ConditionExternalClusterConnecting type indicates that rook is still trying for
+	// an external connection
+	ConditionExternalClusterConnecting conditionsv1.ConditionType = "ExternalClusterConnecting"
+)
 
 // List of constants to show different different reconciliation messages and statuses.
 const (
-	ReconcileFailed           = "ReconcileFailed"
-	ReconcileInit             = "Init"
-	ReconcileCompleted        = "ReconcileCompleted"
-	ReconcileCompletedMessage = "Reconcile completed successfully"
+	ReconcileFailed                 = "ReconcileFailed"
+	ReconcileInit                   = "Init"
+	ReconcileCompleted              = "ReconcileCompleted"
+	ReconcileCompletedMessage       = "Reconcile completed successfully"
+	ExternalClusterConnected        = "ExternalClusterConnected"
+	ExternalClusterConnectedMessage = "Connected successfully to an external cluster"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
