@@ -86,31 +86,10 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	if instance.Spec.Version == "" {
-		instance.Spec.Version = version.Version
-	} else if instance.Spec.Version != version.Version { // check anything else only if the versions mis-match
-		storClustSemV1, err := semver.Make(instance.Spec.Version)
-		if err != nil {
-			reqLogger.Error(err, "Error while parsing Storage Cluster version")
-			return reconcile.Result{}, err
-		}
-		ocsSemV1, err := semver.Make(version.Version)
-		if err != nil {
-			reqLogger.Error(err, "Error while parsing OCS Operator version")
-			return reconcile.Result{}, err
-		}
-		// if the storage cluster version is higher than the invoking OCS Operator's version,
-		// return error
-		if storClustSemV1.GT(ocsSemV1) {
-			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
-				instance.Spec.Version, version.Version)
-			reqLogger.Error(err, "Incompatible Storage cluster version")
-			return reconcile.Result{}, err
-		}
-		// if the storage cluster version is less than the OCS Operator version,
-		// just update.
-		instance.Spec.Version = version.Version
+	if err := versionCheck(instance, reqLogger); err != nil {
+		return reconcile.Result{}, err
 	}
+
 	// Check for active StorageCluster only if Create request is made
 	// and ignore it if there's another active StorageCluster
 	// If Update request is made and StorageCluster is PhaseIgnored, no need to
@@ -362,6 +341,36 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		reqLogger.Error(phaseErr, "Failed to update status")
 	}
 	return reconcile.Result{}, phaseErr
+}
+
+// versionCheck populates the `.Spec.Version` field
+func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	if sc.Spec.Version == "" {
+		sc.Spec.Version = version.Version
+	} else if sc.Spec.Version != version.Version { // check anything else only if the versions mis-match
+		storClustSemV1, err := semver.Make(sc.Spec.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing Storage Cluster version")
+			return err
+		}
+		ocsSemV1, err := semver.Make(version.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing OCS Operator version")
+			return err
+		}
+		// if the storage cluster version is higher than the invoking OCS Operator's version,
+		// return error
+		if storClustSemV1.GT(ocsSemV1) {
+			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
+				sc.Spec.Version, version.Version)
+			reqLogger.Error(err, "Incompatible Storage cluster version")
+			return err
+		}
+		// if the storage cluster version is less than the OCS Operator version,
+		// just update.
+		sc.Spec.Version = version.Version
+	}
+	return nil
 }
 
 // validateStorageDeviceSets checks the StorageDeviceSets of the given
