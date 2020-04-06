@@ -47,11 +47,6 @@ type csvStrategySpec struct {
 }
 
 const (
-	internalCRDPrefix      = "[Internal] "
-	internalCRDDescription = `[This resource is not intended to be created or managed by users.]
-
-
-`
 	// Backticks cannot be escaped inside multi-line strings. So using this const and concating with multiline strings instead.
 	codeBlock = "```"
 )
@@ -456,7 +451,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
 
 			for _, definition := range csvStruct.Spec.CustomResourceDefinitions.Required {
-				// Move ob and obc to Owned list instead ot Required
+				// Move ob and obc to Owned list instead of Required
 				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
 					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
 				} else {
@@ -466,7 +461,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		}
 	}
 
-	// Inject deplay names and descriptions for our OCS crds
+	// Inject display name and description for our OCS crds
 	for i, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		switch definition.Name {
 		case "storageclusters.ocs.openshift.io":
@@ -485,18 +480,11 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 				},
 			}
 		case "ocsinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + "OCS Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + "OCS Initialization represents the initial data to be created when the OCS operator is installed."
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "OCS Initialization"
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "OCS Initialization represents the initial data to be created when the OCS operator is installed."
 		case "storageclusterinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + "StorageCluster Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
-		// backingstore and bucketclass can be used by the admin, so avoid adding internal prefix to these resources
-		case "backingstores.noobaa.io":
-		case "bucketclasses.noobaa.io":
-
-		default:
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = internalCRDPrefix + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = internalCRDDescription + ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "StorageCluster Initialization"
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
 		}
 	}
 
@@ -617,37 +605,6 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 * **Elastic storage in your datacenter:** Scale is now possible in your datacenter. Get started with a few terabytes, and easily scale up.
 
 * **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
-
-# Pre-requisites
-
-## Before Subscription
-
-Before subscribing to OpenShift Container Storage, the following pre-requisites must be satisfied.
-
-### Namespace
-
-OpenShift Container Storage runs only in the openshift-storage namespace, which needs to be created before subscription. The following manifest can be used to create the namespace.
-
-` + codeBlock + `
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    openshift.io/cluster-monitoring: "true"
-  name: openshift-storage
-spec: {}
-` + codeBlock + `
-
-Save the above as rhocs-namespace.yaml, and create the Namespace with,
-
-` + codeBlock + `
-$ oc create -f rhocs-namespace.yaml
-` + codeBlock + `
-**Important:** Make sure 'openshift.io/cluster-monitoring: "true"' is present in the rhocs-namespace.yaml, which enables the cluster monitoring.
-
-## After subscription
-
-After the three operators have been deployed into the openshift-storage namespace, a StorageCluster can be created.
 
 [1]: https://rook.io
 [2]: https://noobaa.io
