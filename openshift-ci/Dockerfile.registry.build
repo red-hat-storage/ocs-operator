@@ -3,7 +3,7 @@ FROM quay.io/openshift/origin-operator-registry:latest
 COPY deploy/olm-catalog /registry/ocs-catalog
 
 # replaces ocs-operator image with the one built by openshift ci
-RUN find /registry/ocs-catalog/ -type f -exec sed -i "s|image\: .*/ocs-operator:.*$|image: registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-operator|g" {} \; || :
+RUN find /registry/ocs-catalog/ -type f -exec sed -i "s|image\: .*/ocs-operator:.*$|image: default-route-openshift-image-registry.apps.build01.ci.devcluster.openshift.com/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-operator|g" {} \; || :
 
 # Initialize the database
 RUN initializer --manifests /registry/ocs-catalog --output bundles.db
