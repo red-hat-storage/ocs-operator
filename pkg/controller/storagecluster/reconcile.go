@@ -892,14 +892,12 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 
 		for i := 0; i < replica; i++ {
 			placement := rook.Placement{}
-			portable := ds.Portable
 
 			if noPlacement {
 				in := defaults.DaemonPlacements["osd"]
 				(&in).DeepCopyInto(&placement)
 
 				if len(topologyKeyValues) >= replica {
-					portable = true
 					podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
 					podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
 
@@ -911,8 +909,6 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 					}
 					nodeSelectorTerms := placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 					nodeSelectorTerms[0].MatchExpressions = append(nodeSelectorTerms[0].MatchExpressions, nodeZoneSelector)
-				} else {
-					portable = false
 				}
 			} else {
 				placement = ds.Placement
@@ -925,7 +921,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 				Placement:            placement,
 				Config:               ds.Config.ToMap(),
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
-				Portable:             portable,
+				Portable:             ds.Portable,
 				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
 			}
 			storageClassDeviceSets = append(storageClassDeviceSets, set)
