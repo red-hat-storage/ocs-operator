@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	openshiftv1 "github.com/openshift/api/template/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -313,6 +314,10 @@ func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtim
 	err = storagev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add storagev1 scheme")
+	}
+	err = openshiftv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add openshiftv1 scheme")
 	}
 	return scheme
 }

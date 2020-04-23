@@ -100,3 +100,9 @@ rules:
   - get
   - create
   - update
+- apiGroups:
+  - template.openshift.io
+  resources:
+  - templates
+  verbs:
+  - '*'
