@@ -93,6 +93,7 @@ var mockDeviceSets = []api.StorageDeviceSet{
 				VolumeMode:       &volMode,
 			},
 		},
+		Portable: true,
 	},
 }
 
@@ -466,7 +467,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
 		assert.Equal(t, defaults.DaemonPlacements["osd"], scds.Placement)
 		assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
-		assert.Equal(t, false, scds.Portable)
+		assert.Equal(t, true, scds.Portable)
 	}
 
 	nodeTopologyMap.Labels[zoneTopologyLabel] = append(nodeTopologyMap.Labels[zoneTopologyLabel], "zone3")
