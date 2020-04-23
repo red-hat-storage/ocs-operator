@@ -57,7 +57,7 @@ metadata:
     capabilities: Full Lifecycle
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:4.4.0
-    createdAt: "2020-04-23 09:58:54"
+    createdAt: "2020-04-23 21:01:47"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     operatorframework.io/cluster-monitoring: "true"
@@ -558,6 +558,12 @@ spec:
           - get
           - create
           - update
+        - apiGroups:
+          - template.openshift.io
+          resources:
+          - templates
+          verbs:
+          - '*'
         serviceAccountName: ocs-operator
       - rules: []
         serviceAccountName: rook-ceph-cluster-mgmt

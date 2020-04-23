@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	openshiftv1 "github.com/openshift/api/template/v1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -213,6 +215,10 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster
 	err = cephv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add rookCephv1 scheme")
+	}
+	err = openshiftv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add openshiftv1 scheme")
 	}
 	client := fake.NewFakeClientWithScheme(scheme, registerObjs...)
 
