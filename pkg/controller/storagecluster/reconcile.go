@@ -135,8 +135,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	if instance.Status.Phase != statusutil.PhaseReady &&
 		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 		instance.Status.Phase != statusutil.PhaseDeleting &&
-		instance.Status.Phase != statusutil.PhaseConnecting &&
-		instance.Status.Phase != statusutil.PhaseConnected {
+		instance.Status.Phase != statusutil.PhaseConnecting {
 		instance.Status.Phase = statusutil.PhaseProgressing
 		phaseErr := r.client.Status().Update(context.TODO(), instance)
 		if phaseErr != nil {
@@ -245,8 +244,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			}
 		} else {
 			if instance.Status.Phase != statusutil.PhaseReady &&
-				instance.Status.Phase != statusutil.PhaseConnecting &&
-				instance.Status.Phase != statusutil.PhaseConnected {
+				instance.Status.Phase != statusutil.PhaseConnecting {
 				instance.Status.Phase = statusutil.PhaseProgressing
 				phaseErr := r.client.Status().Update(context.TODO(), instance)
 				if phaseErr != nil {
@@ -801,7 +799,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 		if found.Status.State == cephv1.ClusterStateConnecting {
 			sc.Status.Phase = statusutil.PhaseConnecting
 		} else if found.Status.State == cephv1.ClusterStateConnected {
-			sc.Status.Phase = statusutil.PhaseConnected
+			sc.Status.Phase = statusutil.PhaseReady
 		} else {
 			sc.Status.Phase = statusutil.PhaseNotReady
 		}
