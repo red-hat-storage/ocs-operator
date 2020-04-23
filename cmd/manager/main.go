@@ -4,16 +4,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/go-logr/zapr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"io"
 	"os"
 	"runtime"
 	"time"
 
+	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	nbapis "github.com/noobaa/noobaa-operator/v2/pkg/apis"
+	openshiftv1 "github.com/openshift/api/template/v1"
 	"github.com/openshift/ocs-operator/pkg/apis"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller"
@@ -117,6 +119,11 @@ func main() {
 
 	if err := corev1.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding core/v1 to scheme")
+		os.Exit(1)
+	}
+
+	if err := openshiftv1.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding openshift/v1 to scheme")
 		os.Exit(1)
 	}
 

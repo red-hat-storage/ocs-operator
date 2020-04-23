@@ -12,6 +12,7 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/go-logr/logr"
+	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -21,11 +22,13 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/tools/reference"
@@ -268,6 +271,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		r.ensureCephConfig,
 		r.ensureCephCluster,
 		r.ensureNoobaaSystem,
+		r.ensureJobTemplates,
 	} {
 		err = f(instance, reqLogger)
 		if r.phase == statusutil.PhaseClusterExpanding {
@@ -1050,4 +1054,125 @@ func getMonCount(nodeCount int) int {
 	}
 
 	return count
+}
+
+// ensureJobTemplates ensures if the osd removal job template exists
+func (r *ReconcileStorageCluster) ensureJobTemplates(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	osdCleanUpTemplate := &openshiftv1.Template{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-osd-removal",
+			Namespace: sc.Namespace,
+		},
+	}
+	_, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, osdCleanUpTemplate, func() error {
+		osdCleanUpTemplate.Objects = []runtime.RawExtension{
+			{
+				Object: newCleanupJob(sc),
+			},
+		}
+		osdCleanUpTemplate.Parameters = []openshiftv1.Parameter{
+			{
+				Name:     "FAILED_OSD_ID",
+				Required: true,
+			},
+		}
+		return controllerutil.SetControllerReference(sc, osdCleanUpTemplate, r.scheme)
+	})
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create Template: %v", err.Error())
+	}
+	return nil
+}
+
+func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
+	labels := map[string]string{
+		"app": "ceph-toolbox-job-${FAILED_OSD_ID}",
+	}
+
+	job := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-toolbox-job-${FAILED_OSD_ID}",
+			Namespace: sc.Namespace,
+			Labels:    labels,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "mon-endpoint-volume",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "rook-ceph-mon-endpoints",
+									},
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "data",
+											Path: "mon-endpoints",
+										},
+									},
+								},
+							},
+						},
+						{
+							Name:         "ceph-config",
+							VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+					Containers: []corev1.Container{
+						{
+							Name:  "script",
+							Image: os.Getenv("ROOK_CEPH_IMAGE"),
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									MountPath: "/etc/ceph",
+									Name:      "ceph-config",
+									ReadOnly:  true,
+								},
+							},
+							Command: []string{"bash", "-c", "ceph osd out osd.${FAILED_OSD_ID};ceph osd purge osd.${FAILED_OSD_ID}"},
+						},
+					},
+					InitContainers: []corev1.Container{
+						{
+							Name:            "config-init",
+							Image:           os.Getenv("ROOK_CEPH_IMAGE"),
+							Command:         []string{"/usr/local/bin/toolbox.sh"},
+							Args:            []string{"--skip-watch"},
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									MountPath: "/etc/ceph",
+									Name:      "ceph-config",
+								},
+								{
+									Name:      "mon-endpoint-volume",
+									MountPath: "/etc/rook",
+								},
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name: "ROOK_ADMIN_SECRET",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key:                  "admin-secret",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return job
 }
