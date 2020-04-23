@@ -109,7 +109,7 @@ github.com/modern-go/reflect2
 # github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20200219114615-8ae457e831e4
 github.com/noobaa/noobaa-operator/v2/pkg/apis
 github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1
-# github.com/onsi/ginkgo v1.10.1
+# github.com/onsi/ginkgo v1.12.0
 github.com/onsi/ginkgo
 github.com/onsi/ginkgo/config
 github.com/onsi/ginkgo/internal/codelocation
@@ -128,7 +128,7 @@ github.com/onsi/ginkgo/reporters/stenographer
 github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable
 github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
 github.com/onsi/ginkgo/types
-# github.com/onsi/gomega v1.7.0
+# github.com/onsi/gomega v1.9.0
 github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/internal/assertion
@@ -142,7 +142,9 @@ github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
 # github.com/openshift/api v3.9.1-0.20190904155310-a25bb2adc83e+incompatible
+github.com/openshift/api/pkg/serialization
 github.com/openshift/api/security/v1
+github.com/openshift/api/template/v1
 # github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
 github.com/openshift/client-go/security/clientset/versioned/scheme
 github.com/openshift/client-go/security/clientset/versioned/typed/security/v1
@@ -301,6 +303,9 @@ golang.org/x/tools/internal/fastwalk
 golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/internal/semver
 golang.org/x/tools/internal/span
+# golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+golang.org/x/xerrors
+golang.org/x/xerrors/internal
 # gomodules.xyz/jsonpatch/v2 v2.0.1
 gomodules.xyz/jsonpatch/v2
 # google.golang.org/appengine v1.6.5
