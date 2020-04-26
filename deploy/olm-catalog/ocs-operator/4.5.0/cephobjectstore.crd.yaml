@@ -11,6 +11,8 @@ spec:
     plural: cephobjectstores
     singular: cephobjectstore
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -18,6 +20,14 @@ spec:
           properties:
             dataPool:
               properties:
+                compressionMode:
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+                  type: string
                 erasureCoded:
                   properties:
                     codingChunks:
@@ -28,6 +38,8 @@ spec:
                   type: string
                 replicated:
                   properties:
+                    requireSafeReplicaSize:
+                      type: boolean
                     size:
                       type: integer
             gateway:
@@ -37,6 +49,8 @@ spec:
                   type: integer
                 placement: {}
                 port:
+                  maximum: 65535
+                  minimum: 1
                   type: integer
                 resources: {}
                 securePort: {}
@@ -45,6 +59,14 @@ spec:
                   type: string
             metadataPool:
               properties:
+                compressionMode:
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+                  type: string
                 erasureCoded:
                   properties:
                     codingChunks:
@@ -55,6 +77,8 @@ spec:
                   type: string
                 replicated:
                   properties:
+                    requireSafeReplicaSize:
+                      type: boolean
                     size:
                       type: integer
             preservePoolsOnDelete:

@@ -126,9 +126,6 @@ unit-test:
 	@echo "Executing unit tests"
 	go test -v `go list ./... | grep -v "functest"`
 
-# This override is needed to bring in this PR:
-# https://github.com/operator-framework/operator-sdk/pull/1470
-update-generated: export OPERATOR_SDK_VERSION := v0.10.0
 update-generated: operator-sdk
 	@echo Updating generated files
 	hack/generate-k8s-openapi.sh

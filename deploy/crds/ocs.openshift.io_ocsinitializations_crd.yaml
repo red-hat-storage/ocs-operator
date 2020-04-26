@@ -1,33 +1,31 @@
----
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: bucketclasses.noobaa.io
+  name: ocsinitializations.ocs.openshift.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .spec.placementPolicy
-    description: Placement
-    name: Placement
-    type: string
-  - JSONPath: .status.phase
-    description: Phase
-    name: Phase
-    type: string
   - JSONPath: .metadata.creationTimestamp
     name: Age
     type: date
-  group: noobaa.io
+  - JSONPath: .status.phase
+    description: Current Phase
+    name: Phase
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Created At
+    type: string
+  group: ocs.openshift.io
   names:
-    kind: BucketClass
-    listKind: BucketClassList
-    plural: bucketclasses
-    singular: bucketclass
-  scope: ""
+    kind: OCSInitialization
+    listKind: OCSInitializationList
+    plural: ocsinitializations
+    singular: ocsinitialization
+  scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: BucketClass is the Schema for the bucketclasses API
+      description: OCSInitialization is the Schema for the ocsinitialization API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -40,49 +38,21 @@ spec:
             submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
-          description: Standard object metadata.
           type: object
         spec:
-          description: Specification of the desired behavior of the noobaa BucketClass.
+          description: OCSInitializationSpec defines the desired state of OCSInitialization
           properties:
-            placementPolicy:
-              description: PlacementPolicy specifies the placement policy for the
-                bucket class
-              properties:
-                tiers:
-                  description: Tiers is an ordered list of tiers to use. The model
-                    is a waterfall - push to first tier by default, and when no more
-                    space spill "cold" storage to next tier.
-                  items:
-                    description: Tier specifies a storage tier
-                    properties:
-                      backingStores:
-                        description: BackingStores is an unordered list of backing
-                          store names. The meaning of the list depends on the placement.
-                        items:
-                          type: string
-                        type: array
-                      placement:
-                        description: Placement specifies the type of placement for
-                          the tier If empty it should have a single backing store.
-                        enum:
-                        - Spread
-                        - Mirror
-                        type: string
-                    type: object
-                  type: array
-              required:
-              - tiers
-              type: object
-          required:
-          - placementPolicy
+            enableCephTools:
+              description: EnableCephTools toggles on whether or not the ceph tools
+                pod should be deployed. Defaults to false
+              type: boolean
           type: object
         status:
-          description: Most recently observed status of the noobaa BackingStore.
+          description: OCSInitializationStatus defines the observed state of OCSInitialization
           properties:
             conditions:
-              description: Conditions is a list of conditions related to operator
-                reconciliation
+              description: Conditions describes the state of the OCSInitialization
+                resource.
               items:
                 description: Condition represents the state of the operator's reconciliation
                   functionality.
@@ -108,16 +78,16 @@ spec:
                 - type
                 type: object
               type: array
-            mode:
-              description: Mode is a simple, high-level summary of where the System
-                is in its lifecycle
+            errorMessage:
               type: string
             phase:
-              description: Phase is a simple, high-level summary of where the System
-                is in its lifecycle
+              description: Phase describes the Phase of OCSInitialization This is
+                used by OLM UI to provide status information to the user
               type: string
             relatedObjects:
-              description: RelatedObjects is a list of objects related to this operator.
+              description: RelatedObjects is a list of objects created and maintained
+                by this operator. Object references will be added to this list after
+                they have been created AND found in the cluster.
               items:
                 description: ObjectReference contains enough information to let you
                   inspect or modify the referred object.
@@ -156,10 +126,12 @@ spec:
                     type: string
                 type: object
               type: array
+            sCCsCreated:
+              type: boolean
           type: object
       type: object
-  version: v1alpha1
+  version: v1
   versions:
-  - name: v1alpha1
+  - name: v1
     served: true
     storage: true

@@ -60,7 +60,7 @@ rm -f "$crd_list"
 # Generate an OCS CSV using the operator-sdk.
 # This is the base CSV everything else gets merged into later on.
 TMP_CSV_VERSION=9999.9999.9999
-gen_args="olm-catalog gen-csv --csv-version=$TMP_CSV_VERSION"
+gen_args="generate csv --csv-version=$TMP_CSV_VERSION"
 if [ -n "$CSV_REPLACES_VERSION" ]; then
 	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
 fi

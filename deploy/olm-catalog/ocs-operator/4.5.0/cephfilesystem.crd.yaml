@@ -19,6 +19,8 @@ spec:
     plural: cephfilesystems
     singular: cephfilesystem
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -27,36 +29,64 @@ spec:
             dataPools:
               items:
                 properties:
+                  compressionMode:
+                    enum:
+                    - ""
+                    - none
+                    - passive
+                    - aggressive
+                    - force
+                    type: string
                   erasureCoded:
                     properties:
                       codingChunks:
+                        maximum: 10
+                        minimum: 0
                         type: integer
                       dataChunks:
+                        maximum: 10
+                        minimum: 0
                         type: integer
                   failureDomain:
                     type: string
                   replicated:
                     properties:
+                      requireSafeReplicaSize:
+                        type: boolean
                       size:
                         maximum: 10
-                        minimum: 1
+                        minimum: 0
                         type: integer
               type: array
             metadataPool:
               properties:
+                compressionMode:
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+                  type: string
                 erasureCoded:
                   properties:
                     codingChunks:
+                      maximum: 10
+                      minimum: 0
                       type: integer
                     dataChunks:
+                      maximum: 10
+                      minimum: 0
                       type: integer
                 failureDomain:
                   type: string
                 replicated:
                   properties:
+                    requireSafeReplicaSize:
+                      type: boolean
                     size:
                       maximum: 10
-                      minimum: 1
+                      minimum: 0
                       type: integer
             metadataServer:
               properties:

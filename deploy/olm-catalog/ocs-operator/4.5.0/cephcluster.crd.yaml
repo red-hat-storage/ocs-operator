@@ -16,9 +16,13 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: Age
     type: date
-  - JSONPath: .status.state
-    description: Current State
-    name: State
+  - JSONPath: .status.phase
+    description: Phase
+    name: Phase
+    type: string
+  - JSONPath: .status.message
+    description: Message
+    name: Message
     type: string
   - JSONPath: .status.ceph.health
     description: Ceph Health
@@ -42,6 +46,11 @@ spec:
                 allowUnsupported:
                   type: boolean
                 image:
+                  type: string
+            cleanupPolicy:
+              properties:
+                deleteDataDirOnHosts:
+                  pattern: ^$|^yes-really-destroy-data$
                   type: string
             continueUpgradeAfterChecksEvenIfNotHealthy:
               type: boolean
@@ -122,12 +131,6 @@ spec:
                   type: string
                 devicePathFilter:
                   type: string
-                directories:
-                  items:
-                    properties:
-                      path:
-                        type: string
-                  type: array
                 disruptionManagement:
                   properties:
                     machineDisruptionBudgetNamespace:
@@ -155,7 +158,7 @@ spec:
                           osdsPerDevice:
                             type: string
                           storeType:
-                            pattern: ^(filestore|bluestore)$
+                            pattern: ^(bluestore)$
                             type: string
                           walSizeMB:
                             type: string
@@ -168,12 +171,6 @@ spec:
                           properties:
                             config: {}
                             name:
-                              type: string
-                        type: array
-                      directories:
-                        items:
-                          properties:
-                            path:
                               type: string
                         type: array
                       name:

@@ -11,11 +11,21 @@ spec:
     plural: cephblockpools
     singular: cephblockpool
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
         spec:
           properties:
+            compressionMode:
+              enum:
+              - ""
+              - none
+              - passive
+              - aggressive
+              - force
+              type: string
             erasureCoded:
               properties:
                 codingChunks:
@@ -30,6 +40,8 @@ spec:
               type: string
             replicated:
               properties:
+                requireSafeReplicaSize:
+                  type: boolean
                 size:
                   maximum: 9
                   minimum: 0

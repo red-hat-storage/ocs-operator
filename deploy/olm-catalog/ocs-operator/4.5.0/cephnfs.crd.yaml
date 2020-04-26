@@ -13,6 +13,8 @@ spec:
     - nfs
     singular: cephnfs
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
