@@ -2,6 +2,7 @@ package v1
 
 import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,8 +15,10 @@ import (
 
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
-	ManageNodes  bool   `json:"manageNodes,omitempty"`
-	InstanceType string `json:"instanceType,omitempty"`
+	ManageNodes      bool                 `json:"manageNodes,omitempty"`
+	InstanceType     string               `json:"instanceType,omitempty"`
+	CustomNodeLabels string               `json:"customNodeLabels,omitempty"`
+	Placement        rookv1.PlacementSpec `json:"placement,omitempty"`
 	// External Storage is optional and defaults to false. When set to true, OCS will
 	// connect to an external OCS Storage Cluster instead of provisioning one locally.
 	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`
