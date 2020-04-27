@@ -1196,7 +1196,7 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-toolbox-job-${FAILED_OSD_ID}",
+			Name:      "ocs-osd-removal-${FAILED_OSD_ID}",
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -1237,7 +1237,7 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 									ReadOnly:  true,
 								},
 							},
-							Command: []string{"bash", "-c", "ceph osd out osd.${FAILED_OSD_ID};ceph osd purge osd.${FAILED_OSD_ID}"},
+							Command: []string{"bash", "-c", "ceph osd out osd.${FAILED_OSD_ID};ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it"},
 						},
 					},
 					InitContainers: []corev1.Container{
