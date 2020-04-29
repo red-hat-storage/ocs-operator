@@ -65,7 +65,7 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 // on first run.
 func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
-	allowVolumeExpansion := false
+	allowVolumeExpansion := true
 	ret := []*storagev1.StorageClass{
 		&storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
@@ -73,16 +73,17 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 			},
 			Provisioner:   fmt.Sprintf("%s.cephfs.csi.ceph.com", initData.Namespace),
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
-			// AllowVolumeExpansion is set to False to disable expansion of OCS backed Volumes
-			// This is not supported currently.
+			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID": initData.Namespace,
 				"fsName":    fmt.Sprintf("%s-cephfilesystem", initData.Name),
-				"csi.storage.k8s.io/provisioner-secret-name":      "rook-csi-cephfs-provisioner",
-				"csi.storage.k8s.io/provisioner-secret-namespace": initData.Namespace,
-				"csi.storage.k8s.io/node-stage-secret-name":       "rook-csi-cephfs-node",
-				"csi.storage.k8s.io/node-stage-secret-namespace":  initData.Namespace,
+				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
+				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
+				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
 		&storagev1.StorageClass{
@@ -91,8 +92,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 			},
 			Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
-			// AllowVolumeExpansion is set to False to disable expansion of OCS backed Volumes
-			// This is not supported currently.
+			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID":                 initData.Namespace,
@@ -100,10 +100,12 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 				"imageFeatures":             "layering",
 				"csi.storage.k8s.io/fstype": "ext4",
 				"imageFormat":               "2",
-				"csi.storage.k8s.io/provisioner-secret-name":      "rook-csi-rbd-provisioner",
-				"csi.storage.k8s.io/provisioner-secret-namespace": initData.Namespace,
-				"csi.storage.k8s.io/node-stage-secret-name":       "rook-csi-rbd-node",
-				"csi.storage.k8s.io/node-stage-secret-namespace":  initData.Namespace,
+				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
+				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
+				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
 	}
