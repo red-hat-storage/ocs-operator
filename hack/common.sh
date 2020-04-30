@@ -7,7 +7,14 @@ GO111MODULE="on"
 GOPROXY="https://proxy.golang.org"
 GOROOT="${GOROOT:-go env GOROOT}"
 
-IMAGE_BUILD_CMD="${IMAGE_BUILD_CMD:-docker}"
+IMAGE_BUILD_CMD="${IMAGE_BUILD_CMD}"
+if [ -z "$IMAGE_BUILD_CMD" ]; then
+    IMAGE_BUILD_CMD=$(command -v docker || echo "")
+fi
+if [ -z "$IMAGE_BUILD_CMD" ]; then
+    IMAGE_BUILD_CMD=$(command -v podman || echo "")
+fi
+
 IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-${IMAGE_BUILD_CMD} run --rm -it}"
 
 OUTDIR="build/_output"
