@@ -14,7 +14,7 @@ import (
 type CloudPlatformType string
 
 const (
-	// PlatformAWS represents the Amazon Web Services platofrm
+	// PlatformAWS represents the Amazon Web Services platform
 	PlatformAWS CloudPlatformType = "aws"
 	// PlatformUnknown represents an unknown validly formatted cloud platform
 	PlatformUnknown CloudPlatformType = "unknown"
