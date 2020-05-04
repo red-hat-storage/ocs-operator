@@ -41,6 +41,7 @@ commands+=("get pvc -n openshift-storage")
 commands+=("get pv")
 commands+=("get sc")
 commands+=("get infrastructures.config -oyaml")
+commands+=("get subscription -n openshift-storage")
 
 # Run the Collection of Resources to list
 for command in "${commands[@]}"; do
