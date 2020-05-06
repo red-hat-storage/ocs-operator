@@ -29,8 +29,6 @@ var (
 	PhaseDeleting = "Deleting"
 	// PhaseConnecting is used when cluster is connecting to external cluster
 	PhaseConnecting = "Connecting"
-	//PhaseConnected is used when cluster has connected to external cluster
-	PhaseConnected = "Connected"
 )
 
 const (
