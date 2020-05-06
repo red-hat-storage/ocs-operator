@@ -931,7 +931,9 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.
 			External: cephv1.ExternalSpec{
 				Enable: true,
 			},
-			DataDirHostPath: "/var/lib/rook",
+			CrashCollector: cephv1.CrashCollectorSpec{
+				Disable: true,
+			},
 		},
 	}
 	return externalCephCluster
