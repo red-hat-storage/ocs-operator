@@ -617,12 +617,13 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 		ocsCSV.Annotations["olm.skipRange"] = *skipRange
 	}
 	loc, err := time.LoadLocation("UTC")
-	// TODO: Deprecate once we move to 4.6
-	ocsCSV.Annotations["external.cluster.ocs.openshift.io/supported"] = "true"
 	// Feature gating for Console. The array values are unique identifiers provided by the console.
 	// This can be used to enable/disable console support for any supported feature
 	// Example: "features.ocs.openshift.io/enabled": `["external", "foo1", "foo2", ...]`
 	ocsCSV.Annotations["features.ocs.openshift.io/enabled"] = `["external"]`
+	// Used by UI to validate user uploaded metdata
+	// Metadata is used to connect to an external cluster
+	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner", "rook-csi-cephfs-node", rook-csi-cephfs-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["rook-ceph-retain-bucket"]}`
 	ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
 	ocsCSV.Annotations["repository"] = "https://github.com/openshift/ocs-operator"
 	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:" + ocsversion.Version
