@@ -125,6 +125,10 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 		r.reqLogger.Info("not creating a CephObjectStore because the platform is AWS")
 		return nil
 	}
+	if platform == PlatformGCP {
+		r.reqLogger.Info("not creating a CephObjectStore because the platform is GCP")
+		return nil
+	}
 
 	cephObjectStores, err := r.newCephObjectStoreInstances(instance)
 	if err != nil {
