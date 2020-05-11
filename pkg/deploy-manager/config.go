@@ -82,7 +82,7 @@ func NewDeployManager() (*DeployManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
 	config.APIPath = "/apis"
 	config.ContentType = runtime.ContentTypeJSON
 	k8sClient, err := kubernetes.NewForConfig(config)
@@ -96,7 +96,7 @@ func NewDeployManager() (*DeployManager, error) {
 		return nil, err
 	}
 	ocsConfig.GroupVersion = &ocsv1.SchemeGroupVersion
-	ocsConfig.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: codecs}
+	ocsConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
 	ocsConfig.APIPath = "/apis"
 	ocsConfig.ContentType = runtime.ContentTypeJSON
 	if ocsConfig.UserAgent == "" {
@@ -125,7 +125,7 @@ func NewDeployManager() (*DeployManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	olmConfig.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	olmConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
 	olmConfig.APIPath = "/apis"
 	olmConfig.ContentType = runtime.ContentTypeJSON
 	olmClient, err := olmclient.NewForConfig(olmConfig)
