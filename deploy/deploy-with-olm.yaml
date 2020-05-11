@@ -13,9 +13,6 @@ metadata:
   name: openshift-storage-operatorgroup
   namespace: openshift-storage
 spec:
-  serviceAccount:
-    metadata:
-      creationTimestamp: null
   targetNamespaces:
   - openshift-storage
 ---
@@ -40,6 +37,8 @@ metadata:
   namespace: openshift-storage
 spec:
   channel: alpha
+  config:
+    resources: {}
   name: ocs-operator
   source: ocs-catalogsource
   sourceNamespace: openshift-marketplace
