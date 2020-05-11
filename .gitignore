@@ -53,3 +53,4 @@ _cache
 tools/csv-merger/csv-merger
 tools/csv-checksum/csv-checksum
 tools/cluster-deploy/cluster-deploy
+tools/shellcheck
