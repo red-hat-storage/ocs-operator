@@ -21,7 +21,7 @@ import (
 	"github.com/openshift/ocs-operator/version"
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
