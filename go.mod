@@ -5,19 +5,11 @@ go 1.13
 require (
 	github.com/RHsyseng/operator-utils v0.0.0-20190807020041-5344a0f594b8
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/cloudflare/cfssl v0.0.0-20180726162950-56268a613adf // indirect
-	github.com/coreos/etcd v3.3.15+incompatible // indirect
-	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
 	github.com/coreos/prometheus-operator v0.38.0
-	github.com/coreos/rkt v1.30.0 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/go-openapi/spec v0.19.4
-	github.com/godbus/dbus v4.1.0+incompatible // indirect
-	github.com/google/certificate-transparency-go v1.0.21 // indirect
-	github.com/heketi/rest v0.0.0-20180404230133-aa6a65207413 // indirect
-	github.com/heketi/utils v0.0.0-20170317161834-435bc5bdfa64 // indirect
 	github.com/noobaa/noobaa-operator/v2 v2.1.1
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
@@ -29,7 +21,6 @@ require (
 	github.com/rook/rook v1.3.2
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.14.1
-	gonum.org/v1/gonum v0.0.0-20190710053202-4340aa3071a0 // indirect
 	k8s.io/api v0.17.4
 	k8s.io/apiextensions-apiserver v0.17.4
 	k8s.io/apimachinery v0.17.4
