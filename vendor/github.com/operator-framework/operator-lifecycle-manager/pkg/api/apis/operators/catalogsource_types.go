@@ -47,6 +47,11 @@ type CatalogSourceSpec struct {
 	// +Optional
 	Image string
 
+	// UpdateStrategy defines how updated catalog source images can be discovered
+	// Consists of an interval that defines polling duration and an embedded strategy type
+	// +Optional
+	UpdateStrategy *UpdateStrategy
+
 	// Secrets represent set of secrets that can be used to access the contents of the catalog.
 	// It is best to keep this list small, since each will need to be tried for every catalog entry.
 	// +Optional
@@ -59,6 +64,19 @@ type CatalogSourceSpec struct {
 	Icon        Icon
 }
 
+// UpdateStrategy holds all the different types of catalog source update strategies
+// Currently only registry polling strategy is implemented
+type UpdateStrategy struct {
+	*RegistryPoll
+}
+
+type RegistryPoll struct {
+	// Interval is used to determine the time interval between checks of the latest catalog source version.
+	// The catalog operator polls to see if a new version of the catalog source is available.
+	// If available, the latest image is pulled and gRPC traffic is directed to the latest catalog source.
+	Interval *metav1.Duration
+}
+
 type RegistryServiceStatus struct {
 	Protocol         string
 	ServiceName      string
@@ -67,22 +85,31 @@ type RegistryServiceStatus struct {
 	CreatedAt        metav1.Time
 }
 
+type GRPCConnectionState struct {
+	Address           string
+	LastObservedState string
+	LastConnectTime   metav1.Time
+}
+
 func (s *RegistryServiceStatus) Address() string {
-	return fmt.Sprintf("%s.%s.svc.cluster.local:%s", s.ServiceName, s.ServiceNamespace, s.Port)
+	return fmt.Sprintf("%s.%s.svc:%s", s.ServiceName, s.ServiceNamespace, s.Port)
 }
 
 type CatalogSourceStatus struct {
-	ConfigMapResource     *ConfigMapResourceReference
-	RegistryServiceStatus *RegistryServiceStatus
-	LastSync              metav1.Time
+	Message                 string          `json:"message,omitempty"`
+	Reason                  ConditionReason `json:"reason,omitempty"`
+	ConfigMapResource       *ConfigMapResourceReference
+	RegistryServiceStatus   *RegistryServiceStatus
+	GRPCConnectionState     *GRPCConnectionState
+	LatestImageRegistryPoll *metav1.Time
 }
 
 type ConfigMapResourceReference struct {
-	Name      string
-	Namespace string
-
+	Name            string
+	Namespace       string
 	UID             types.UID
 	ResourceVersion string
+	LastUpdateTime  metav1.Time
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

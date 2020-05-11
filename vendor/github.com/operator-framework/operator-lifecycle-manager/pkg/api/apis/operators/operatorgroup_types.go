@@ -29,8 +29,9 @@ type OperatorGroupSpec struct {
 	// +optional
 	TargetNamespaces []string
 
-	// ServiceAccount to bind OperatorGroup roles to.
-	ServiceAccount corev1.ServiceAccount
+	// ServiceAccountName is the admin specified service account which will be
+	// used to deploy operator(s) in this operator group.
+	ServiceAccountName string
 
 	// Static tells OLM not to update the OperatorGroup's providedAPIs annotation
 	// +optional
@@ -42,8 +43,11 @@ type OperatorGroupStatus struct {
 	// Namespaces is the set of target namespaces for the OperatorGroup.
 	Namespaces []string
 
+	// ServiceAccountRef references the service account object specified.
+	ServiceAccountRef *corev1.ObjectReference
+
 	// LastUpdated is a timestamp of the last time the OperatorGroup's status was Updated.
-	LastUpdated metav1.Time
+	LastUpdated *metav1.Time
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -70,6 +74,8 @@ type OperatorGroupList struct {
 }
 
 func (o *OperatorGroup) BuildTargetNamespaces() string {
-	sort.Strings(o.Status.Namespaces)
-	return strings.Join(o.Status.Namespaces, ",")
+	ns := make([]string, len(o.Status.Namespaces))
+	copy(ns, o.Status.Namespaces)
+	sort.Strings(ns)
+	return strings.Join(ns, ",")
 }
