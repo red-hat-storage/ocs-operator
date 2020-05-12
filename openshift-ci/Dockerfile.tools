@@ -8,6 +8,7 @@ ARG GO_PACKAGE_PATH=github.com/openshift/ocs-operator
 # rpms required for building and running test suites
 RUN dnf -y install \
     make \
+    gcc \
     wget \
     git \
     tar \
