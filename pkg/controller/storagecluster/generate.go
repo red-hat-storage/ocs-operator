@@ -30,6 +30,10 @@ func generateNameForCephObjectStore(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephobjectstore", initData.Name)
 }
 
+func generateNameForCephRgwSC(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-ceph-rgw", initData.Name)
+}
+
 func generateNameForCephFilesystemSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephfs", initData.Name)
 }

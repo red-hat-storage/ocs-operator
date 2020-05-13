@@ -61,6 +61,23 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 	return nil
 }
 
+func (r *ReconcileStorageCluster) newOBCStorageClass(initData *ocsv1.StorageCluster) *storagev1.StorageClass {
+	reclaimPolicy := corev1.PersistentVolumeReclaimDelete
+	retSC := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: generateNameForCephRgwSC(initData),
+		},
+		Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", initData.Namespace),
+		ReclaimPolicy: &reclaimPolicy,
+		Parameters: map[string]string{
+			"objectStoreName":      generateNameForCephObjectStore(initData),
+			"objectStoreNamespace": initData.Namespace,
+			"region":               "us-east-1",
+		},
+	}
+	return retSC
+}
+
 // newStorageClasses returns the StorageClass instances that should be created
 // on first run.
 func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
@@ -106,6 +123,10 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 				"csi.storage.k8s.io/node-stage-secret-namespace":  initData.Namespace,
 			},
 		},
+	}
+	// OBC StorageClass will be added only if it is not a cloud platform
+	if platform, err := r.platform.GetPlatform(r.client); err == nil && !isValidCloudPlatform(platform) {
+		ret = append(ret, r.newOBCStorageClass(initData))
 	}
 	return ret, nil
 }
