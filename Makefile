@@ -30,6 +30,7 @@ all: ocs-operator ocs-must-gather ocs-registry
 	gofmt \
 	golint \
 	govet \
+	goversion \
 	update-generated \
 	ocs-operator-ci \
 	red-hat-storage-ocs-ci \
@@ -116,6 +117,10 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
+goversion:
+	@echo "Running go version"
+	go version
+
 shellcheck-test:
 	@echo "Testing for shellcheck"
 	hack/shellcheck-test.sh
@@ -137,7 +142,7 @@ verify-generated: update-generated
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
 
-ocs-operator-ci: shellcheck-test gofmt golint govet unit-test build verify-generated verify-latest-deploy-yaml
+ocs-operator-ci: goversion shellcheck-test gofmt golint govet unit-test build verify-generated verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"
