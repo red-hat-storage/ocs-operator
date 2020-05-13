@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	// appLabelSelectorKey is common value for 'Key' field in 'LabelSelectorRequirement'
+	appLabelSelectorKey = "app"
 	// DaemonPlacements map contains the default placement configs for the
 	// various OCS daemons
 	DaemonPlacements = map[string]rook.Placement{
@@ -44,13 +46,13 @@ var (
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									metav1.LabelSelectorRequirement{
-										Key:      "app",
+										Key:      appLabelSelectorKey,
 										Operator: metav1.LabelSelectorOpIn,
 										Values:   []string{"rook-ceph-mon"},
 									},
 								},
 							},
-							TopologyKey: "kubernetes.io/hostname",
+							TopologyKey: corev1.LabelHostname,
 						},
 					},
 				},
@@ -88,13 +90,13 @@ var (
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									metav1.LabelSelectorRequirement{
-										Key:      "app",
+										Key:      appLabelSelectorKey,
 										Operator: metav1.LabelSelectorOpIn,
 										Values:   []string{"rook-ceph-osd"},
 									},
 								},
 							},
-							TopologyKey: "kubernetes.io/hostname",
+							TopologyKey: corev1.LabelHostname,
 						},
 					},
 				},
@@ -132,13 +134,13 @@ var (
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									metav1.LabelSelectorRequirement{
-										Key:      "app",
+										Key:      appLabelSelectorKey,
 										Operator: metav1.LabelSelectorOpIn,
 										Values:   []string{"rook-ceph-rgw"},
 									},
 								},
 							},
-							TopologyKey: "kubernetes.io/hostname",
+							TopologyKey: corev1.LabelHostname,
 						},
 					},
 				},
@@ -176,13 +178,13 @@ var (
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									metav1.LabelSelectorRequirement{
-										Key:      "app",
+										Key:      appLabelSelectorKey,
 										Operator: metav1.LabelSelectorOpIn,
 										Values:   []string{"rook-ceph-mds"},
 									},
 								},
 							},
-							TopologyKey: "kubernetes.io/hostname",
+							TopologyKey: corev1.LabelHostname,
 						},
 					},
 				},
