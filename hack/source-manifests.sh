@@ -60,13 +60,12 @@ rm -f "$crd_list"
 # Generate an OCS CSV using the operator-sdk.
 # This is the base CSV everything else gets merged into later on.
 TMP_CSV_VERSION=9999.9999.9999
-gen_args="generate csv --csv-version=$TMP_CSV_VERSION"
+gen_args="generate csv --csv-version=$TMP_CSV_VERSION --output-dir=$OUTDIR_TEMPLATES"
 if [ -n "$CSV_REPLACES_VERSION" ]; then
 	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
 fi
 $OPERATOR_SDK $gen_args
-OCS_TMP_CSV="deploy/olm-catalog/ocs-operator/${TMP_CSV_VERSION}/ocs-operator.v${TMP_CSV_VERSION}.clusterserviceversion.yaml"
-mv $OCS_TMP_CSV $OCS_CSV
+mv $OUTDIR_TEMPLATES/manifests/ocs-operator.clusterserviceversion.yaml $OCS_CSV
 # Make variables templated for csv-merger tool
 if [ "$OS_TYPE" == "Darwin" ]; then
 	sed -i '' "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
