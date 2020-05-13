@@ -79,8 +79,8 @@ func main() {
 		"deploy",
 		"deploy/bundlemanifests",
 		"deploy/crds",
-		"deploy/olm-catalog/ocs-operator/",
-		"deploy/olm-catalog/ocs-operator/" + *csvVersion,
+		"deploy/olm-catalog/ocs-operator/manifests",
+		"deploy/olm-catalog/ocs-operator/metadata",
 	}
 
 	md5Hash := md5.New()

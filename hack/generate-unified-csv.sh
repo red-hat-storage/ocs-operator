@@ -4,7 +4,7 @@ set -e
 
 source hack/common.sh
 
-OCS_FINAL_DIR="deploy/olm-catalog/ocs-operator/${CSV_VERSION}"
+OCS_FINAL_DIR="deploy/olm-catalog/ocs-operator/manifests"
 CSV_MERGER="tools/csv-merger/csv-merger"
 (cd tools/csv-merger/ && go build)
 

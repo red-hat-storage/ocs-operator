@@ -18,33 +18,10 @@ import (
 	ocsversion "github.com/openshift/ocs-operator/version"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/version"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
-
-type csvClusterPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvDeployments struct {
-	Name string                `json:"name"`
-	Spec appsv1.DeploymentSpec `json:"spec,omitempty"`
-}
-
-type csvStrategySpec struct {
-	ClusterPermissions []csvClusterPermissions `json:"clusterPermissions"`
-	Permissions        []csvPermissions        `json:"permissions"`
-	Deployments        []csvDeployments        `json:"deployments"`
-}
 
 const (
 	// Backticks cannot be escaped inside multi-line strings. So using this const and concating with multiline strings instead.
@@ -88,7 +65,7 @@ type templateData struct {
 }
 
 func finalizedCsvFilename() string {
-	return "ocs-operator.v" + *csvVersion + ".clusterserviceversion.yaml"
+	return "ocs-operator.clusterserviceversion.yaml"
 }
 
 func copyFile(src string, dst string) {
@@ -428,18 +405,25 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		},
 	}
 
-	templateStrategySpec := &csvv1.StrategyDetailsDeployment{}
-	// templateStrategySpec := csvStrategySpec{
-	// 	Deployments:        []csvDeployments{},
-	// 	Permissions:        []csvPermissions{},
-	// 	ClusterPermissions: []csvClusterPermissions{},
-	// }
+	templateStrategySpec := &csvv1.StrategyDetailsDeployment{
+		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{},
+		Permissions:        []csvv1.StrategyDeploymentPermissions{},
+		DeploymentSpecs:    []csvv1.StrategyDeploymentSpec{},
+	}
 
 	// Merge CSVs into Unified CSV
 	for _, csvStr := range csvs {
 		if csvStr != "" {
 			csvStruct := unmarshalCSV(csvStr)
-			templateStrategySpec = unmarshalStrategySpec(csvStruct)
+			strategySpec := unmarshalStrategySpec(csvStruct)
+
+			deploymentspecs := strategySpec.DeploymentSpecs
+			clusterPermissions := strategySpec.ClusterPermissions
+			permissions := strategySpec.Permissions
+
+			templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, deploymentspecs...)
+			templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
+			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
 			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
 			ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, csvStruct.Spec.CustomResourceDefinitions.Required...)
