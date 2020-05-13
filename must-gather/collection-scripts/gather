@@ -46,7 +46,8 @@ commands+=("get subscription -n openshift-storage")
 # Run the Collection of Resources to list
 for command in "${commands[@]}"; do
      echo "collecting oc command ${command}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
-     timeout 120 oc ${command}  >> ${BASE_COLLECTION_PATH}/oc_output/"${command}"
+     COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/oc_output/${command// /_}
+     timeout 120 oc ${command} >> "${COMMAND_OUTPUT_FILE}"
 done
 
 # Call other gather scripts
