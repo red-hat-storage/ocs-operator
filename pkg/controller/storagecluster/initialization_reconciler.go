@@ -107,7 +107,6 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 			},
 		},
 	}
-
 	return ret, nil
 }
 
@@ -125,6 +124,7 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 		reqLogger.Info(fmt.Sprintf("not creating a CephObjectStore because the platform is '%s'", platform))
 		return nil
 	}
+
 	cephObjectStores, err := r.newCephObjectStoreInstances(instance)
 	if err != nil {
 		return err
@@ -171,6 +171,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.ObjectStoreSpec{
+				PreservePoolsOnDelete: false,
 				DataPool: cephv1.PoolSpec{
 					FailureDomain: initData.Status.FailureDomain,
 					Replicated: cephv1.ReplicatedSpec{
@@ -185,7 +186,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 				},
 				Gateway: cephv1.GatewaySpec{
 					Port:      80,
-					Instances: 1,
+					Instances: 2,
 					Placement: defaults.DaemonPlacements["rgw"],
 					Resources: defaults.GetDaemonResources("rgw", initData.Spec.Resources),
 				},
