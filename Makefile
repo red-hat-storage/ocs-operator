@@ -1,6 +1,8 @@
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
 
+# Set minimum required Golang version to v1.13.3
+GO_REQUIRED_MIN_VERSION=1.13.3
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 # Enable GOPROXY. This speeds up a lot of vendoring operations.
