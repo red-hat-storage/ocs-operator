@@ -231,6 +231,10 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 				Value: "true",
 			},
 			{
+				Name:  "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION",
+				Value: "true",
+			},
+			{
 				Name:  "CSI_PROVISIONER_NODE_AFFINITY",
 				Value: "cluster.ocs.openshift.io/openshift-storage=",
 			},
