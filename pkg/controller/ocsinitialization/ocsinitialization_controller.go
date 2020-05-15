@@ -279,27 +279,25 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		}
 	}
 
-	if instance.Status.SCCsCreated != true {
-		err = r.ensureSCCs(instance, reqLogger)
-		if err != nil {
-			reason := ocsv1.ReconcileFailed
-			message := fmt.Sprintf("Error while reconciling: %v", err)
-			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+	err = r.ensureSCCs(instance, reqLogger)
+	if err != nil {
+		reason := ocsv1.ReconcileFailed
+		message := fmt.Sprintf("Error while reconciling: %v", err)
+		statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
-			instance.Status.Phase = statusutil.PhaseError
-			// don't want to overwrite the actual reconcile failure
-			uErr := r.client.Status().Update(context.TODO(), instance)
-			if uErr != nil {
-				reqLogger.Error(uErr, "Failed to update conditions")
-			}
-			return reconcile.Result{}, err
+		instance.Status.Phase = statusutil.PhaseError
+		// don't want to overwrite the actual reconcile failure
+		uErr := r.client.Status().Update(context.TODO(), instance)
+		if uErr != nil {
+			reqLogger.Error(uErr, "Failed to update conditions")
 		}
-		instance.Status.SCCsCreated = true
+		return reconcile.Result{}, err
+	}
+	instance.Status.SCCsCreated = true
 
-		err = r.client.Status().Update(context.TODO(), instance)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
+	err = r.client.Status().Update(context.TODO(), instance)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
 	err = r.ensureToolsDeployment(instance)
