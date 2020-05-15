@@ -70,9 +70,11 @@ mv $OUTDIR_TEMPLATES/manifests/ocs-operator.clusterserviceversion.yaml $OCS_CSV
 if [ "$OS_TYPE" == "Darwin" ]; then
 	sed -i '' "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
 	sed -i '' "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
+	sed -i '' "/replaces:/d" $OCS_CSV
 else
 	sed -i "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
 	sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
+	sed -i "/replaces:/d" $OCS_CSV
 fi
 cp deploy/crds/* $OUTDIR_CRDS/
 cp deploy/bundlemanifests/*.yaml $OUTDIR_BUNDLEMANIFESTS/
