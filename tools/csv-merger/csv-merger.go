@@ -453,15 +453,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
 			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
-
-			for _, definition := range csvStruct.Spec.CustomResourceDefinitions.Required {
-				// Move ob and obc to Owned list instead of Required
-				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
-					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				} else {
-					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				}
-			}
+			ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, csvStruct.Spec.CustomResourceDefinitions.Required...)
 		}
 	}
 
