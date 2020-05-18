@@ -39,6 +39,8 @@ if [ -z "$NOOBAA_IMAGE" ] || [ -z "$NOOBAA_CORE_IMAGE" ] || [ -z "$NOOBAA_DB_IMA
 	exit 1
 fi
 
+# removing final OCS manifests directory to get fresh manifests while sourcing
+rm -rf $OCS_FINAL_DIR
 hack/source-manifests.sh
 
 # Merge component-level operators into ocs CSV

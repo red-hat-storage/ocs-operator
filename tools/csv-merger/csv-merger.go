@@ -397,6 +397,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
 	ocsCSV.Spec.CustomResourceDefinitions.Owned = nil
+	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
 
 	ocsCSV.Spec.Icon = []csvv1.Icon{
 		csvv1.Icon{

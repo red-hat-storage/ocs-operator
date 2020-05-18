@@ -81,4 +81,4 @@ cp deploy/bundlemanifests/*.yaml $OUTDIR_BUNDLEMANIFESTS/
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
-rm -rf "$(dirname $OCS_TMP_CSV)"
+rm -rf $OUTDIR_TEMPLATES/manifests/
