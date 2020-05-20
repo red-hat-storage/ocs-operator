@@ -547,7 +547,7 @@ func (t *DeployManager) VerifyComponentOperators() error {
 		return err
 	}
 
-	strategyDetailsDeployment, _ := strategy.(*install.StrategyDetailsDeployment)
+	strategyDetailsDeployment, _ := strategy.(*v1alpha1.StrategyDetailsDeployment)
 	for _, deployment := range strategyDetailsDeployment.DeploymentSpecs {
 		image := deployment.Spec.Template.Spec.Containers[0].Image
 		foundImage, err := t.GetDeploymentImage(deployment.Name)

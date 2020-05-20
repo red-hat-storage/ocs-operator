@@ -2,7 +2,7 @@ package v1
 
 import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -63,7 +63,7 @@ type StorageDeviceSet struct {
 
 	Name            string                       `json:"name"`
 	Resources       corev1.ResourceRequirements  `json:"resources,omitempty"`
-	Placement       rookalpha.Placement          `json:"placement,omitempty"`
+	Placement       rook.Placement               `json:"placement,omitempty"`
 	Config          StorageDeviceSetConfig       `json:"config,omitempty"`
 	DataPVCTemplate corev1.PersistentVolumeClaim `json:"dataPVCTemplate"`
 }

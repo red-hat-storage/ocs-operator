@@ -18,33 +18,10 @@ import (
 	ocsversion "github.com/openshift/ocs-operator/version"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/version"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
-
-type csvClusterPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvDeployments struct {
-	Name string                `json:"name"`
-	Spec appsv1.DeploymentSpec `json:"spec,omitempty"`
-}
-
-type csvStrategySpec struct {
-	ClusterPermissions []csvClusterPermissions `json:"clusterPermissions"`
-	Permissions        []csvPermissions        `json:"permissions"`
-	Deployments        []csvDeployments        `json:"deployments"`
-}
 
 const (
 	// Backticks cannot be escaped inside multi-line strings. So using this const and concating with multiline strings instead.
@@ -88,7 +65,7 @@ type templateData struct {
 }
 
 func finalizedCsvFilename() string {
-	return "ocs-operator.v" + *csvVersion + ".clusterserviceversion.yaml"
+	return "ocs-operator.clusterserviceversion.yaml"
 }
 
 func copyFile(src string, dst string) {
@@ -140,13 +117,9 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	return csvStruct
 }
 
-func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
+func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvv1.StrategyDetailsDeployment {
 
-	templateStrategySpec := &csvStrategySpec{}
-	err := json.Unmarshal(csv.Spec.InstallStrategy.StrategySpecRaw, templateStrategySpec)
-	if err != nil {
-		panic(err)
-	}
+	templateStrategySpec := &csv.Spec.InstallStrategy.StrategySpec
 
 	// inject custom ENV VARS.
 	if strings.Contains(csv.Name, "ocs") {
@@ -170,7 +143,7 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 		}
 
 		// append to env var list.
-		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = append(templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env, vars...)
+		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env = append(templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env, vars...)
 
 	} else if strings.Contains(csv.Name, "rook") || strings.Contains(csv.Name, "ceph") {
 		vars := []corev1.EnvVar{
@@ -322,7 +295,7 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 		}
 
 		// override the rook env var list.
-		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env = vars
+		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env = vars
 
 	} else if strings.Contains(csv.Name, "noobaa") {
 
@@ -337,13 +310,13 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
 			},
 		}
 
-		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env =
-			append(templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Env, vars...)
+		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env =
+			append(templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env, vars...)
 
 		// TODO remove this if statement once issue
 		// https://github.com/noobaa/noobaa-operator/issues/35 is resolved
 		// this image should be set by the templator logic
-		templateStrategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
+		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
 	}
 
 	return templateStrategySpec
@@ -424,6 +397,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
 	ocsCSV.Spec.CustomResourceDefinitions.Owned = nil
+	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
 
 	ocsCSV.Spec.Icon = []csvv1.Icon{
 		csvv1.Icon{
@@ -432,10 +406,10 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		},
 	}
 
-	templateStrategySpec := csvStrategySpec{
-		Deployments:        []csvDeployments{},
-		Permissions:        []csvPermissions{},
-		ClusterPermissions: []csvClusterPermissions{},
+	templateStrategySpec := &csvv1.StrategyDetailsDeployment{
+		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{},
+		Permissions:        []csvv1.StrategyDeploymentPermissions{},
+		DeploymentSpecs:    []csvv1.StrategyDeploymentSpec{},
 	}
 
 	// Merge CSVs into Unified CSV
@@ -444,11 +418,11 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			csvStruct := unmarshalCSV(csvStr)
 			strategySpec := unmarshalStrategySpec(csvStruct)
 
-			deployments := strategySpec.Deployments
+			deploymentspecs := strategySpec.DeploymentSpecs
 			clusterPermissions := strategySpec.ClusterPermissions
 			permissions := strategySpec.Permissions
 
-			templateStrategySpec.Deployments = append(templateStrategySpec.Deployments, deployments...)
+			templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, deploymentspecs...)
 			templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
@@ -485,8 +459,8 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	}
 
 	// Add tolerations to deployments
-	for i := range templateStrategySpec.Deployments {
-		d := &templateStrategySpec.Deployments[i]
+	for i := range templateStrategySpec.DeploymentSpecs {
+		d := &templateStrategySpec.DeploymentSpecs[i]
 		d.Spec.Template.Spec.Tolerations = []corev1.Toleration{
 			{
 				Key:      "node.ocs.openshift.io/storage",
@@ -496,14 +470,9 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			},
 		}
 	}
-	fmt.Println(templateStrategySpec.Deployments)
+	fmt.Println(templateStrategySpec.DeploymentSpecs)
 
-	// Re-serialize deployments and permissions into csv strategy.
-	updatedStrat, err := json.Marshal(templateStrategySpec)
-	if err != nil {
-		panic(err)
-	}
-	ocsCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
+	ocsCSV.Spec.InstallStrategy.StrategySpec = *templateStrategySpec
 
 	// Set correct csv versions and name
 	semverVersion, err := semver.New(*csvVersion)

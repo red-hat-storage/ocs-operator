@@ -11,14 +11,13 @@ export CSV_CHECKSUM_OUTFILE="hack/latest-csv-checksum.md5"
 
 # Current DEV version of the CSV
 export CSV_VERSION=4.5.0
-export REPLACES_CSV_VERSION=${REPLACES_CSV_VERSION:-"4.4.0"}
 export SKIP_MINIMUM="0.0.1"
 export SKIP_RANGE=">=${SKIP_MINIMUM} <${CSV_VERSION}"
 
 # Current dependency images our DEV CSV are pinned to
-export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:v1.2.4"}
-export NOOBAA_IMAGE=${NOOBAA_IMAGE:-"noobaa/noobaa-operator:2.0.9"}
-export NOOBAA_CORE_IMAGE=${NOOBAA_CORE_IMAGE:-"noobaa/noobaa-core:5.2.11"}
+export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:v1.3.2"}
+export NOOBAA_IMAGE=${NOOBAA_IMAGE:-"noobaa/noobaa-operator:2.3.0-20200505"}
+export NOOBAA_CORE_IMAGE=${NOOBAA_CORE_IMAGE:-"noobaa/noobaa-core:5.5.0-20200422"}
 export NOOBAA_DB_IMAGE=${NOOBAA_DB_IMAGE:-"centos/mongodb-36-centos7"}
 export CEPH_IMAGE=${CEPH_IMAGE:-"ceph/ceph:v14.2"}
 export OCS_IMAGE=${OCS_IMAGE:-"${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}"}

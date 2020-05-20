@@ -2,7 +2,7 @@
 
 source hack/common.sh
 
-$OUTDIR_BIN/functests --ocs-registry-image="${CATALOG_FULL_IMAGE_NAME}" \
+$OUTDIR_BIN/functests --ocs-registry-image="${INDEX_FULL_IMAGE_NAME}" \
 	--ocs-subscription-channel="${OCS_SUBSCRIPTION_CHANNEL}" \
 	--upgrade-from-ocs-registry-image="${UPGRADE_FROM_OCS_REGISTRY_IMAGE}" \
 	--upgrade-from-ocs-subscription-channel="${UPGRADE_FROM_OCS_SUBSCRIPTION_CHANNEL}" \
