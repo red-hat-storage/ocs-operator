@@ -159,6 +159,15 @@ func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 	}
 	updateRTObjects := []runtime.Object{csfs, csrbd, cfs, cbp}
 
+	if !isValidCloudPlatform(cp.platform) {
+		csobc := &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "ocsinit-ceph-rgw",
+			},
+		}
+		updateRTObjects = append(updateRTObjects, csobc)
+	}
+
 	// Create 'cephobjectstoreuser' only for non-aws platforms
 	if cp.platform != PlatformAWS {
 		cosu := &cephv1.CephObjectStoreUser{
@@ -195,6 +204,7 @@ func TestInitStorageClusterResourcesUpdationOnAllPlatforms(t *testing.T) {
 func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
 	actualSc1 := &storagev1.StorageClass{}
 	actualSc2 := &storagev1.StorageClass{}
+	actualSc3 := &storagev1.StorageClass{}
 
 	request.Name = "ocsinit-cephfs"
 	err := reconciler.client.Get(nil, request.NamespacedName, actualSc1)
@@ -206,6 +216,24 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 
 	expected, err := reconciler.newStorageClasses(cr)
 	assert.NoError(t, err)
+	request.Name = "ocsinit-ceph-rgw"
+	err = reconciler.client.Get(nil, request.NamespacedName, actualSc3)
+	// on a cloud platform, 'Get' should throw an error,
+	// as OBC StorageClass won't be created
+	if isValidCloudPlatform(reconciler.platform.platform) {
+		// we should be expecting only 2 storage classes
+		assert.Equal(t, len(expected), 2)
+		assert.Error(t, err)
+	} else {
+		// if not a cloud platform, OBC Storage class should be created/updated
+		assert.Equal(t, len(expected), 3)
+		assert.NoError(t, err)
+		assert.Equal(t, len(expected[2].OwnerReferences), 0)
+		assert.Equal(t, expected[2].ObjectMeta.Name, actualSc3.ObjectMeta.Name)
+		assert.Equal(t, expected[2].Provisioner, actualSc3.Provisioner)
+		assert.Equal(t, expected[2].ReclaimPolicy, actualSc3.ReclaimPolicy)
+		assert.Equal(t, expected[2].Parameters, actualSc3.Parameters)
+	}
 
 	// The created StorageClasses should not have any ownerReferences set. Any
 	// OwnerReference set will be a cross-namespace OwnerReference, which could
