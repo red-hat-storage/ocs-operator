@@ -8,7 +8,7 @@ export GOPROXY=https://proxy.golang.org
 # Export GOROOT. Required for OPERATOR_SDK to work correctly for generate commands.
 export GOROOT=$(shell go env GOROOT)
 
-all: ocs-operator operator-bundle ocs-must-gather
+all: ocs-operator ocs-registry ocs-must-gather
 
 .PHONY: \
 	build \
@@ -18,6 +18,7 @@ all: ocs-operator operator-bundle ocs-must-gather
 	operator-bundle \
 	verify-operator-bundle
 	operator-index \
+	ocs-registry \
 	gen-release-csv \
 	gen-latest-csv \
 	gen-latest-deploy-yaml \
@@ -94,6 +95,10 @@ operator-bundle:
 operator-index:
 	@echo "Building ocs-operator-index image"
 	hack/build-operator-index.sh
+
+ocs-registry:
+	@echo "Building ocs-registry image in appregistry format"
+	hack/build-appregistry.sh
 
 clean:
 	@echo "cleaning previous outputs"
