@@ -306,6 +306,13 @@ func schema_pkg_apis_ocs_v1_StorageClusterStatus(ref common.ReferenceCallback) c
 							Format:      "",
 						},
 					},
+					"externalSecretFound": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalSecretFound indicates whether a Secret containing information about an external CephCluster was found or not",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"storageClassesCreated": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},

@@ -1,6 +1,8 @@
 package storagecluster
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
@@ -21,6 +23,47 @@ import (
 )
 
 var logt = logf.Log.WithName("controller_storageclusterinitialization_test")
+var ExternalResources = []ExternalResource{
+	ExternalResource{
+		Kind: "ConfigMap",
+		Data: map[string]string{
+			"maxMonId": "0",
+			"data":     "a=10.20.30.40:1234",
+			"mapping":  "{}",
+		},
+		Name: "rook-ceph-mon-endpoints",
+	},
+	ExternalResource{
+		Kind: "Secret",
+		Data: map[string]string{
+			"userKey": "someUserKeyRBD==",
+			"userID":  "csi-rbd-node",
+		},
+		Name: "rook-csi-rbd-node",
+	},
+	ExternalResource{
+		Kind: "StorageClass",
+		Data: map[string]string{
+			"pool": "device_health_metrics",
+		},
+		Name: "ceph-rbd",
+	},
+	ExternalResource{
+		Kind: "StorageClass",
+		Data: map[string]string{
+			"fsName": "myfs",
+			"pool":   "myfs-data0",
+		},
+		Name: "cephfs",
+	},
+	ExternalResource{
+		Kind: "StorageClass",
+		Data: map[string]string{
+			"endpoint": "10.20.30.40:50",
+		},
+		Name: "ceph-rgw",
+	},
+}
 
 func TestRecreatingStorageClusterInitialization(t *testing.T) {
 	cr := &api.StorageClusterInitialization{}
@@ -336,6 +379,79 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	}
 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
+}
+
+func TestEnsureExternalStorageClusterResources(t *testing.T) {
+	cr := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit",
+		},
+		Spec: api.StorageClusterSpec{
+			ExternalStorage: api.ExternalStorageClusterSpec{
+				Enable: true,
+			},
+		},
+	}
+	jsonBlob, err := json.Marshal(ExternalResources)
+	if err != nil {
+		t.Fatalf("fatal err %+v", err)
+	}
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+	externalSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: externalClusterDetailsSecret,
+		},
+		Data: map[string][]byte{
+			externalClusterDetailsKey: jsonBlob,
+		},
+	}
+	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
+	err = reconciler.client.Create(nil, cr)
+	err = reconciler.client.Create(nil, externalSecret)
+	result, err := reconciler.Reconcile(request)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+	assertExpectedExternalResources(t, reconciler, request, jsonBlob, cr)
+}
+
+func assertExpectedExternalResources(t assert.TestingT, reconciler ReconcileStorageCluster, request reconcile.Request, resources []byte, sc *api.StorageCluster) {
+	var data []ExternalResource
+	err := json.Unmarshal(resources, &data)
+	if err != nil {
+		t.Errorf("fatal err %+v", err)
+	}
+	for _, expected := range data {
+		request.Name = expected.Name
+		switch expected.Kind {
+		case "ConfigMap":
+			actual := &corev1.ConfigMap{}
+			err := reconciler.client.Get(nil, request.NamespacedName, actual)
+			assert.NoError(t, err)
+			for er := range expected.Data {
+				assert.Equal(t, expected.Data[er], actual.Data[er])
+			}
+		case "Secret":
+			actual := &corev1.Secret{}
+			err := reconciler.client.Get(nil, request.NamespacedName, actual)
+			assert.NoError(t, err)
+			for er := range expected.Data {
+				assert.Equal(t, []byte(expected.Data[er]), actual.Data[er])
+			}
+		case "StorageClass":
+			actual := &storagev1.StorageClass{}
+			request.Name = fmt.Sprintf("%s-%s", sc.Name, expected.Name)
+			err := reconciler.client.Get(nil, request.NamespacedName, actual)
+			assert.NoError(t, err)
+			for param, value := range expected.Data {
+				assert.Equal(t, value, actual.Parameters[param])
+			}
+		}
+	}
 }
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageCluster {

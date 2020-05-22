@@ -231,6 +231,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	} else {
 		// for external cluster, we have a different set of ensure functions
 		ensureFs = []ensureFunc{
+			r.ensureExternalStorageClusterResources,
 			r.ensureCephCluster,
 		}
 	}
