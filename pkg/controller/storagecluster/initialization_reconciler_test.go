@@ -6,6 +6,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -67,24 +68,9 @@ func TestInitStorageClusterWithOutResources(t *testing.T) {
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
-func TestInitStorageClusterResourcesCreation(t *testing.T) {
-	cr := &api.StorageCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit",
-		},
-		Status: api.StorageClusterStatus{
-			FailureDomain: "zone",
-			NodeTopologies: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
-					zoneTopologyLabel: []string{
-						"zone1",
-						"zone2",
-						"zone3",
-					},
-				},
-			},
-		},
-	}
+func initStorageClusterResourceCreateUpdateTestWithPlatform(
+	t *testing.T, platform *CloudPlatform, runtimeObjs []runtime.Object) {
+	cr := createDefaultStorageCluster()
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -92,39 +78,65 @@ func TestInitStorageClusterResourcesCreation(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	err := reconciler.client.Create(nil, cr)
+	rtObjsToCreateReconciler := []runtime.Object{&nbv1.NooBaa{}}
+	// runtimeObjs are present, it means tests are for update
+	// add all the update required changes
+	if runtimeObjs != nil {
+		tbd := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rook-ceph-tools",
+			},
+		}
+		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, tbd)
+	}
+
+	reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(
+		t, platform, rtObjsToCreateReconciler...)
+
+	_ = reconciler.client.Create(nil, cr)
+	for _, rtObj := range runtimeObjs {
+		_ = reconciler.client.Create(nil, rtObj)
+	}
 
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
+
 	assertExpectedResources(t, reconciler, cr, request)
 }
 
-func TestInitStorageClusterResourcesUpdate(t *testing.T) {
+func TestInitStorageClusterResourcesCreationOnAllPlatforms(t *testing.T) {
+	allPlatforms := append(ValidCloudPlatforms,
+		PlatformUnknown, CloudPlatformType("NonCloudPlatform"))
+	for _, eachPlatform := range allPlatforms {
+		initStorageClusterResourceCreateUpdateTestWithPlatform(
+			t, &CloudPlatform{platform: eachPlatform}, nil)
+	}
+}
+
+func createDefaultStorageCluster() *api.StorageCluster {
+	return createStorageCluster("ocsinit", "zone", []string{"zone1", "zone2", "zone3"})
+}
+
+func createStorageCluster(scName, failureDomainName string,
+	zoneTopologyLabels []string) *api.StorageCluster {
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit",
+			Name: scName,
 		},
 		Status: api.StorageClusterStatus{
-			FailureDomain: "zone",
+			FailureDomain: failureDomainName,
 			NodeTopologies: &api.NodeTopologyMap{
 				Labels: map[string]api.TopologyLabelValues{
-					zoneTopologyLabel: []string{
-						"zone1",
-						"zone2",
-						"zone3",
-					},
+					zoneTopologyLabel: zoneTopologyLabels,
 				},
 			},
 		},
 	}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
-	}
+	return cr
+}
+
+func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 	csfs := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfs",
@@ -140,47 +152,60 @@ func TestInitStorageClusterResourcesUpdate(t *testing.T) {
 			Name: "ocsinit-cephfilesystem",
 		},
 	}
-	cosu := &cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-cephobjectstoreuser",
-		},
-	}
 	cbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
 		},
 	}
-	cos := &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit-cephobjectstore",
-		},
+	updateRTObjects := []runtime.Object{csfs, csrbd, cfs, cbp}
+
+	if !isValidCloudPlatform(cp.platform) {
+		csobc := &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "ocsinit-ceph-rgw",
+			},
+		}
+		updateRTObjects = append(updateRTObjects, csobc)
 	}
-	tbd := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "rook-ceph-tools",
-		},
+
+	// Create 'cephobjectstoreuser' only for non-aws platforms
+	if cp.platform != PlatformAWS {
+		cosu := &cephv1.CephObjectStoreUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "ocsinit-cephobjectstoreuser",
+			},
+		}
+		updateRTObjects = append(updateRTObjects, cosu)
 	}
-	noobaa := &nbv1.NooBaa{}
-	reconciler := createFakeInitializationStorageClusterReconciler(t, tbd, noobaa)
 
-	err := reconciler.client.Create(nil, cr)
-	err = reconciler.client.Create(nil, cfs)
-	err = reconciler.client.Create(nil, cosu)
-	err = reconciler.client.Create(nil, cbp)
-	err = reconciler.client.Create(nil, cos)
-	err = reconciler.client.Create(nil, csfs)
-	err = reconciler.client.Create(nil, csrbd)
+	// Create 'cephobjectstore' only for non-cloud platforms
+	if !isValidCloudPlatform(cp.platform) {
+		cos := &cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "ocsinit-cephobjectstore",
+			},
+		}
+		updateRTObjects = append(updateRTObjects, cos)
+	}
 
-	result, err := reconciler.Reconcile(request)
-	assert.NoError(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
+	return updateRTObjects
+}
 
-	assertExpectedResources(t, reconciler, cr, request)
+func TestInitStorageClusterResourcesUpdationOnAllPlatforms(t *testing.T) {
+	allPlatforms := append(ValidCloudPlatforms,
+		PlatformUnknown, CloudPlatformType("NonCloudPlatform"))
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+		initStorageClusterResourceCreateUpdateTestWithPlatform(
+			t, cp, createUpdateRuntimeObjects(cp))
+	}
 }
 
 func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
 	actualSc1 := &storagev1.StorageClass{}
 	actualSc2 := &storagev1.StorageClass{}
+	actualSc3 := &storagev1.StorageClass{}
+
 	request.Name = "ocsinit-cephfs"
 	err := reconciler.client.Get(nil, request.NamespacedName, actualSc1)
 	assert.NoError(t, err)
@@ -191,6 +216,24 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 
 	expected, err := reconciler.newStorageClasses(cr)
 	assert.NoError(t, err)
+	request.Name = "ocsinit-ceph-rgw"
+	err = reconciler.client.Get(nil, request.NamespacedName, actualSc3)
+	// on a cloud platform, 'Get' should throw an error,
+	// as OBC StorageClass won't be created
+	if isValidCloudPlatform(reconciler.platform.platform) {
+		// we should be expecting only 2 storage classes
+		assert.Equal(t, len(expected), 2)
+		assert.Error(t, err)
+	} else {
+		// if not a cloud platform, OBC Storage class should be created/updated
+		assert.Equal(t, len(expected), 3)
+		assert.NoError(t, err)
+		assert.Equal(t, len(expected[2].OwnerReferences), 0)
+		assert.Equal(t, expected[2].ObjectMeta.Name, actualSc3.ObjectMeta.Name)
+		assert.Equal(t, expected[2].Provisioner, actualSc3.Provisioner)
+		assert.Equal(t, expected[2].ReclaimPolicy, actualSc3.ReclaimPolicy)
+		assert.Equal(t, expected[2].Parameters, actualSc3.Parameters)
+	}
 
 	// The created StorageClasses should not have any ownerReferences set. Any
 	// OwnerReference set will be a cross-namespace OwnerReference, which could
@@ -228,6 +271,9 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	assert.Equal(t, expectedAf[0].Spec, actualFs.Spec)
 
 	//
+	expectedCosu, err := reconciler.newCephObjectStoreUserInstances(cr)
+	assert.NoError(t, err)
+
 	actualCosu := &cephv1.CephObjectStoreUser{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephobjectstoreuser",
@@ -235,15 +281,15 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
 	err = reconciler.client.Get(nil, request.NamespacedName, actualCosu)
-	assert.NoError(t, err)
-
-	expectedCosu, err := reconciler.newCephObjectStoreUserInstances(cr)
-	assert.NoError(t, err)
+	if reconciler.platform.platform == PlatformAWS {
+		assert.Error(t, err)
+	} else {
+		assert.NoError(t, err)
+		assert.Equal(t, expectedCosu[0].ObjectMeta.Name, actualCosu.ObjectMeta.Name)
+		assert.Equal(t, expectedCosu[0].Spec, actualCosu.Spec)
+	}
 
 	assert.Equal(t, len(expectedCosu[0].OwnerReferences), 1)
-
-	assert.Equal(t, expectedCosu[0].ObjectMeta.Name, actualCosu.ObjectMeta.Name)
-	assert.Equal(t, expectedCosu[0].Spec, actualCosu.Spec)
 
 	//
 	actualCbp := &cephv1.CephBlockPool{
@@ -264,6 +310,9 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	assert.Equal(t, expectedCbp[0].Spec, actualCbp.Spec)
 
 	//
+	expectedCos, err := reconciler.newCephObjectStoreInstances(cr)
+	assert.NoError(t, err)
+
 	actualCos := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephobjectstore",
@@ -271,27 +320,44 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	}
 	request.Name = "ocsinit-cephobjectstore"
 	err = reconciler.client.Get(nil, request.NamespacedName, actualCos)
-	assert.NoError(t, err)
-
-	expectedCos, err := reconciler.newCephObjectStoreInstances(cr)
-	assert.NoError(t, err)
+	// for any cloud platform, 'cephobjectstore' should not be created
+	// 'Get' should have thrown an error
+	if isValidCloudPlatform(reconciler.platform.platform) {
+		assert.Error(t, err)
+	} else {
+		assert.NoError(t, err)
+		assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
+		assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
+		assert.Condition(
+			t, func() bool { return expectedCos[0].Spec.Gateway.Instances > 1 },
+			"there should be multiple 'Spec.Gateway.Instances'")
+		assert.Equal(
+			t, expectedCos[0].Spec.Gateway.Placement, defaults.DaemonPlacements["rgw"])
+	}
 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
-
-	assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
-	assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
 }
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageCluster {
+	return createFakeInitializationStorageClusterReconcilerWithPlatform(
+		t, &CloudPlatform{platform: PlatformUnknown}, obj...)
+}
+
+func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
+	platform *CloudPlatform,
+	obj ...runtime.Object) ReconcileStorageCluster {
 	scheme := createFakeInitializationScheme(t, obj...)
 	obj = append(obj, mockNodeList)
 	client := fake.NewFakeClientWithScheme(scheme, obj...)
+	if platform == nil {
+		platform = &CloudPlatform{platform: PlatformUnknown}
+	}
 
 	return ReconcileStorageCluster{
 		client:    client,
 		scheme:    scheme,
 		reqLogger: logf.Log.WithName("controller_storagecluster_test"),
-		platform:  &CloudPlatform{},
+		platform:  platform,
 	}
 }
 

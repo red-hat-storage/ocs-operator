@@ -25,7 +25,7 @@ const (
 )
 
 // ValidCloudPlatforms is a list of all CloudPlatformTypes recognized by the package other than PlatformUnknown
-var ValidCloudPlatforms = []CloudPlatformType{PlatformAWS, PlatformGCP, PlatformAzure }
+var ValidCloudPlatforms = []CloudPlatformType{PlatformAWS, PlatformGCP, PlatformAzure}
 
 // CloudPlatform is used to get the CloudPlatformType of the running cluster in a thread-safe manner.
 type CloudPlatform struct {
@@ -35,6 +35,10 @@ type CloudPlatform struct {
 
 // GetPlatform is used to get the CloudPlatformType of the running cluster
 func (p *CloudPlatform) GetPlatform(c client.Client) (CloudPlatformType, error) {
+	// if 'platform' is already set just return it
+	if p.platform != "" {
+		return p.platform, nil
+	}
 	p.mux.Lock()
 	defer p.mux.Unlock()
 	if !isValidCloudPlatform(p.platform) {

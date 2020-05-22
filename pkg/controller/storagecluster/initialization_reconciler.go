@@ -61,6 +61,23 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 	return nil
 }
 
+func (r *ReconcileStorageCluster) newOBCStorageClass(initData *ocsv1.StorageCluster) *storagev1.StorageClass {
+	reclaimPolicy := corev1.PersistentVolumeReclaimDelete
+	retSC := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: generateNameForCephRgwSC(initData),
+		},
+		Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", initData.Namespace),
+		ReclaimPolicy: &reclaimPolicy,
+		Parameters: map[string]string{
+			"objectStoreName":      generateNameForCephObjectStore(initData),
+			"objectStoreNamespace": initData.Namespace,
+			"region":               "us-east-1",
+		},
+	}
+	return retSC
+}
+
 // newStorageClasses returns the StorageClass instances that should be created
 // on first run.
 func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
@@ -107,7 +124,10 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 			},
 		},
 	}
-
+	// OBC StorageClass will be added only if it is not a cloud platform
+	if platform, err := r.platform.GetPlatform(r.client); err == nil && !isValidCloudPlatform(platform) {
+		ret = append(ret, r.newOBCStorageClass(initData))
+	}
 	return ret, nil
 }
 
@@ -121,16 +141,8 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 	if err != nil {
 		return err
 	}
-	if platform == PlatformAWS {
-		r.reqLogger.Info("not creating a CephObjectStore because the platform is AWS")
-		return nil
-	}
-	if platform == PlatformGCP {
-		r.reqLogger.Info("not creating a CephObjectStore because the platform is GCP")
-		return nil
-	}
-	if platform == PlatformAzure {
-		r.reqLogger.Info("not creating a CephObjectStore because the platform is Azure")
+	if isValidCloudPlatform(platform) {
+		reqLogger.Info(fmt.Sprintf("not creating a CephObjectStore because the platform is '%s'", platform))
 		return nil
 	}
 
@@ -180,6 +192,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.ObjectStoreSpec{
+				PreservePoolsOnDelete: false,
 				DataPool: cephv1.PoolSpec{
 					FailureDomain: initData.Status.FailureDomain,
 					Replicated: cephv1.ReplicatedSpec{
@@ -194,7 +207,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 				},
 				Gateway: cephv1.GatewaySpec{
 					Port:      80,
-					Instances: 1,
+					Instances: 2,
 					Placement: defaults.DaemonPlacements["rgw"],
 					Resources: defaults.GetDaemonResources("rgw", initData.Spec.Resources),
 				},
