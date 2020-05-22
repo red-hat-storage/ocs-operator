@@ -6,6 +6,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -291,12 +292,19 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	}
 	request.Name = "ocsinit-cephobjectstore"
 	err = reconciler.client.Get(nil, request.NamespacedName, actualCos)
+	// for any cloud platform, 'cephobjectstore' should not be created
+	// 'Get' should have thrown an error
 	if isValidCloudPlatform(reconciler.platform.platform) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
 		assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
+		assert.Condition(
+			t, func() bool { return expectedCos[0].Spec.Gateway.Instances > 1 },
+			"there should be multiple 'Spec.Gateway.Instances'")
+		assert.Equal(
+			t, expectedCos[0].Spec.Gateway.Placement, defaults.DaemonPlacements["rgw"])
 	}
 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
