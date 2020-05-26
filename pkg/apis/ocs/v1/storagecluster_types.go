@@ -16,11 +16,15 @@ import (
 type StorageClusterSpec struct {
 	ManageNodes  bool   `json:"manageNodes,omitempty"`
 	InstanceType string `json:"instanceType,omitempty"`
+	// LabelSelector is used to specify custom labels of nodes to run OCS on
+	LabelSelector metav1.LabelSelector `json:"labelSelector,omitempty"`
 	// External Storage is optional and defaults to false. When set to true, OCS will
 	// connect to an external OCS Storage Cluster instead of provisioning one locally.
 	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`
 	// HostNetwork defaults to false
 	HostNetwork bool `json:"hostNetwork,omitempty"`
+	// Placement is optional and used to specify placements of OCS components explicitly
+	Placement rook.PlacementSpec `json:"placement,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
 	Resources          map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
 	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`

@@ -83,8 +83,9 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	nb.Spec.PVPoolDefaultStorageClass = &storageClassName
 	nb.Spec.CoreResources = &coreResources
 	nb.Spec.DBResources = &dbResources
-	nb.Spec.Tolerations = defaults.DaemonPlacements["noobaa-core"].Tolerations
-	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: defaults.DaemonPlacements["noobaa-core"].NodeAffinity}
+	placement := getPlacement(sc, "noobaa-core")
+	nb.Spec.Tolerations = placement.Tolerations
+	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
 	nb.Spec.DBVolumeResources = &dBVolumeResources
 	nb.Spec.Image = &r.noobaaCoreImage
 	nb.Spec.DBImage = &r.noobaaDBImage
