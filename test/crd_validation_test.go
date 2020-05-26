@@ -27,6 +27,8 @@ const (
 	pathStatusRelatedObjs    = "/status/relatedObjects/"
 	pathStatusNodeTopologies = "/status/nodeTopologies/"
 	pathSpecMonPVCTemplate   = "/spec/monPVCTemplate/"
+	pathLabelSelector        = "/spec/labelSelector"
+	pathPlacement            = "/spec/placement"
 )
 
 func TestSampleCustomResources(t *testing.T) {
@@ -85,6 +87,8 @@ func TestCompleteCRD(t *testing.T) {
 			pathStatusRelatedObjs,
 			pathSpecMonPVCTemplate,
 			pathStatusNodeTopologies,
+			pathLabelSelector,
+			pathPlacement,
 		}
 		for _, missing := range missingEntries {
 			skipAsOmission := false

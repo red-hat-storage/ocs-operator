@@ -576,7 +576,7 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 				MetadataServer: cephv1.MetadataServerSpec{
 					ActiveCount:   1,
 					ActiveStandby: true,
-					Placement:     getCephDaemonPlacements(initData, "mds"),
+					Placement:     getPlacement(initData, "mds"),
 					Resources:     defaults.GetDaemonResources("mds", initData.Spec.Resources),
 				},
 			},

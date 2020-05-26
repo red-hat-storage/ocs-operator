@@ -9,9 +9,10 @@ import (
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -192,6 +193,8 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		assert.Equalf(t, noobaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
 		assert.Equal(t, *noobaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+		assert.Equal(t, noobaa.Spec.Tolerations, defaults.DaemonPlacements["noobaa-core"].Tolerations)
+		assert.Equal(t, noobaa.Spec.Affinity, &corev1.Affinity{NodeAffinity: defaults.DaemonPlacements["noobaa-core"].NodeAffinity})
 		assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
 		assert.Equalf(t, noobaa.Namespace, c.sc.Namespace, "[%s] namespace mismatch", c.label)
 		if c.envCore != "" {

@@ -437,13 +437,22 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	}
 
 	nodes := &corev1.NodeList{}
-
-	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
-	err := r.client.List(context.TODO(), nodes, client.MatchingLabels(nodeMatchLabel))
+	selector, err := metav1.LabelSelectorAsSelector(&sc.Spec.LabelSelector)
 	if err != nil {
 		return err
 	}
-
+	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
+	if len(sc.Spec.LabelSelector.MatchLabels) > 0 || len(sc.Spec.LabelSelector.MatchExpressions) > 0 {
+		err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
+		if err != nil {
+			return err
+		}
+	} else {
+		err = r.client.List(context.TODO(), nodes, client.MatchingLabels(nodeMatchLabel))
+		if err != nil {
+			return err
+		}
+	}
 	if sc.Status.NodeTopologies == nil || sc.Status.NodeTopologies.Labels == nil {
 		sc.Status.NodeTopologies = ocsv1.NewNodeTopologyMap()
 	}
@@ -879,8 +888,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, r
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc),
 			},
 			Placement: rook.PlacementSpec{
-				"all": defaults.DaemonPlacements["all"],
-				"mon": getCephDaemonPlacements(sc, "mon"),
+				"all": getPlacement(sc, "all"),
+				"mon": getPlacement(sc, "mon"),
+				"rgw": getPlacement(sc, "rgw"),
+				"mds": getPlacement(sc, "mds"),
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
@@ -1098,22 +1109,6 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	// NoobaaSystem is dependent upon ceph for volume provisioning.
 	// We want to make sure we delete noobaasystem before we delete cephcluster, to get a clean uninstall.
 	return r.deleteNoobaaSystems(sc, reqLogger)
-}
-
-//getCephDaemonPlacements returns placement configuration for ceph components with appropriate topology
-func getCephDaemonPlacements(sc *ocsv1.StorageCluster, component string) rook.Placement {
-	placement := rook.Placement{}
-	in := defaults.DaemonPlacements[component]
-	(&in).DeepCopyInto(&placement)
-	topologyMap := sc.Status.NodeTopologies
-	if topologyMap != nil {
-		topologyKey := determineFailureDomain(sc)
-		topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-		podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
-		podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
-	}
-
-	return placement
 }
 
 // Checks whether a string is contained within a slice
