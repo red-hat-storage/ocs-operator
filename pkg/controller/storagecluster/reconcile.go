@@ -1089,6 +1089,20 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 		"app": "ceph-toolbox-job-${FAILED_OSD_ID}",
 	}
 
+	// The purgeOSDScript finds osd status for given FAILED_OSD_ID whether it's up or down. The action will be taken according to osd status. If osd is up and running, it won't be marked out. If osd is down it can be taken out of the cluster and purged.
+	const purgeOSDScript = `
+set -x
+
+osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}') 
+if [[ "$osd_status" == "up" ]]; then 
+  echo "OSD ${FAILED_OSD_ID} is up and running."
+  echo "Please check if you entered correct ID of failed osd!"
+else 
+  echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
+  ceph osd out osd.${FAILED_OSD_ID} 
+  ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
+fi`
+
 	job := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Job",
@@ -1136,7 +1150,11 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 									ReadOnly:  true,
 								},
 							},
-							Command: []string{"bash", "-c", "ceph osd out osd.${FAILED_OSD_ID};ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it"},
+							Command: []string{
+								"/bin/bash",
+								"-c",
+								purgeOSDScript,
+							},
 						},
 					},
 					InitContainers: []corev1.Container{
