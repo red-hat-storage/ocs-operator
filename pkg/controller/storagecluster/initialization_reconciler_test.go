@@ -405,7 +405,6 @@ func TestEnsureExternalStorageClusterResources(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fatal err %+v", err)
 	}
-	request := createDefaultRequest()
 	externalSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: externalClusterDetailsSecret,
@@ -414,20 +413,28 @@ func TestEnsureExternalStorageClusterResources(t *testing.T) {
 			externalClusterDetailsKey: jsonBlob,
 		},
 	}
-	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	err = reconciler.client.Create(nil, cr)
-	err = reconciler.client.Create(nil, externalSecret)
-	result, err := reconciler.Reconcile(request)
-	assert.NoError(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
-	assertExpectedExternalResources(t, reconciler, request, jsonBlob, cr)
+	cp := &CloudPlatform{platform: PlatformUnknown}
+	createObjs := []runtime.Object{externalSecret}
+	initStorageClusterResourceCreateUpdateTestWithPlatform(
+		t, cp, cr, assertExpectedExternalResources, nil, createObjs)
 }
 
-func assertExpectedExternalResources(t assert.TestingT, reconciler ReconcileStorageCluster, request reconcile.Request, resources []byte, sc *api.StorageCluster) {
+func assertExpectedExternalResources(t *testing.T, reconciler ReconcileStorageCluster) {
+	request := createDefaultRequest()
+	cr := &api.StorageCluster{}
+	err := reconciler.client.Get(nil, request.NamespacedName, cr)
+	assert.NoError(t, err)
+
+	externalSecret := &corev1.Secret{}
+	request.Name = externalClusterDetailsSecret
+	err = reconciler.client.Get(nil, request.NamespacedName, externalSecret)
+	assert.NoError(t, err)
+
 	var data []ExternalResource
-	err := json.Unmarshal(resources, &data)
+	err = json.Unmarshal(externalSecret.Data[externalClusterDetailsKey], &data)
 	if err != nil {
 		t.Errorf("fatal err %+v", err)
+		t.FailNow()
 	}
 	for _, expected := range data {
 		request.Name = expected.Name
@@ -448,7 +455,7 @@ func assertExpectedExternalResources(t assert.TestingT, reconciler ReconcileStor
 			}
 		case "StorageClass":
 			actual := &storagev1.StorageClass{}
-			request.Name = fmt.Sprintf("%s-%s", sc.Name, expected.Name)
+			request.Name = fmt.Sprintf("%s-%s", cr.Name, expected.Name)
 			err := reconciler.client.Get(nil, request.NamespacedName, actual)
 			assert.NoError(t, err)
 			for param, value := range expected.Data {
