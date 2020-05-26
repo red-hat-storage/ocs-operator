@@ -199,7 +199,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rook/rook v1.3.2
+# github.com/rook/rook v1.3.4
 github.com/rook/rook/pkg/apis/cassandra.rook.io
 github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1
 github.com/rook/rook/pkg/apis/ceph.rook.io
