@@ -123,6 +123,9 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					},
 
 					DataPVCTemplate: k8sv1.PersistentVolumeClaim{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "data",
+						},
 						Spec: k8sv1.PersistentVolumeClaimSpec{
 							StorageClassName: &storageClassName,
 							AccessModes:      []k8sv1.PersistentVolumeAccessMode{k8sv1.ReadWriteOnce},
