@@ -22,6 +22,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
+type assertExpectedResourcesFunc func(*testing.T, ReconcileStorageCluster)
+
 var logt = logf.Log.WithName("controller_storageclusterinitialization_test")
 var ExternalResources = []ExternalResource{
 	ExternalResource{
@@ -67,12 +69,7 @@ var ExternalResources = []ExternalResource{
 
 func TestRecreatingStorageClusterInitialization(t *testing.T) {
 	cr := &api.StorageClusterInitialization{}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
-	}
+	request := createDefaultRequest()
 	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
@@ -81,12 +78,7 @@ func TestRecreatingStorageClusterInitialization(t *testing.T) {
 
 func TestStorageClusterInitializationWithUnExpectedNamespace(t *testing.T) {
 	cr := &api.StorageClusterInitialization{}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit-test-not-found",
-			Namespace: "ocsinit-test-not-found",
-		},
-	}
+	request := createRequest("ocsinit-test-not-found", "ocsinit-test-not-found")
 	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
@@ -99,12 +91,7 @@ func TestInitStorageClusterWithOutResources(t *testing.T) {
 			Name: "ocsinit",
 		},
 	}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
-	}
+	request := createDefaultRequest()
 	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
 	result, err := reconciler.Reconcile(request)
 	assert.Equal(t, nil, err)
@@ -112,32 +99,25 @@ func TestInitStorageClusterWithOutResources(t *testing.T) {
 }
 
 func initStorageClusterResourceCreateUpdateTestWithPlatform(
-	t *testing.T, platform *CloudPlatform, runtimeObjs []runtime.Object) {
-	cr := createDefaultStorageCluster()
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
+	t *testing.T, platform *CloudPlatform, cr *api.StorageCluster,
+	assertFunc assertExpectedResourcesFunc,
+	runtimeReconcilerObjs []runtime.Object, runtimeCreateObjs []runtime.Object) {
+	if cr == nil {
+		t.Errorf("StorageCluster resource cannot be empty")
+		t.FailNow()
 	}
+	// add the provided StorageCluster resource object
+	// to the list of runtime objects tobe created
+	runtimeCreateObjs = append(runtimeCreateObjs, cr)
 
-	rtObjsToCreateReconciler := []runtime.Object{&nbv1.NooBaa{}}
-	// runtimeObjs are present, it means tests are for update
-	// add all the update required changes
-	if runtimeObjs != nil {
-		tbd := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "rook-ceph-tools",
-			},
-		}
-		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, tbd)
-	}
+	request := createDefaultRequest()
+	runtimeReconcilerObjs = append(runtimeReconcilerObjs, &nbv1.NooBaa{})
 
 	reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(
-		t, platform, rtObjsToCreateReconciler...)
+		t, platform, runtimeReconcilerObjs...)
 
-	_ = reconciler.client.Create(nil, cr)
-	for _, rtObj := range runtimeObjs {
+	// create all the given resources
+	for _, rtObj := range runtimeCreateObjs {
 		_ = reconciler.client.Create(nil, rtObj)
 	}
 
@@ -145,18 +125,33 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
-	assertExpectedResources(t, reconciler, cr, request)
+	assertFunc(t, reconciler)
 }
 
 func TestInitStorageClusterResourcesCreationOnAllPlatforms(t *testing.T) {
+	cr := createDefaultStorageCluster()
 	allPlatforms := append(ValidCloudPlatforms,
 		PlatformUnknown, CloudPlatformType("NonCloudPlatform"))
 	for _, eachPlatform := range allPlatforms {
 		initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, &CloudPlatform{platform: eachPlatform}, nil)
+			t, &CloudPlatform{platform: eachPlatform},
+			cr, assertExpectedResources, nil, nil)
 	}
 }
 
+func createDefaultRequest() reconcile.Request {
+	return createRequest("ocsinit", "")
+}
+
+func createRequest(name, namespace string) reconcile.Request {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	return request
+}
 func createDefaultStorageCluster() *api.StorageCluster {
 	return createStorageCluster("ocsinit", "zone", []string{"zone1", "zone2", "zone3"})
 }
@@ -235,22 +230,36 @@ func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 }
 
 func TestInitStorageClusterResourcesUpdationOnAllPlatforms(t *testing.T) {
+	cr := createDefaultStorageCluster()
+	toolsD := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-ceph-tools",
+		},
+	}
+	reconcilerCreationRTObjs := []runtime.Object{toolsD}
+
 	allPlatforms := append(ValidCloudPlatforms,
 		PlatformUnknown, CloudPlatformType("NonCloudPlatform"))
 	for _, eachPlatform := range allPlatforms {
 		cp := &CloudPlatform{platform: eachPlatform}
 		initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, createUpdateRuntimeObjects(cp))
+			t, cp, cr, assertExpectedResources, reconcilerCreationRTObjs,
+			createUpdateRuntimeObjects(cp))
 	}
 }
 
-func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
+func assertExpectedResources(t *testing.T, reconciler ReconcileStorageCluster) {
+	request := createDefaultRequest()
+	cr := &api.StorageCluster{}
+	err := reconciler.client.Get(nil, request.NamespacedName, cr)
+	assert.NoError(t, err)
+
 	actualSc1 := &storagev1.StorageClass{}
 	actualSc2 := &storagev1.StorageClass{}
 	actualSc3 := &storagev1.StorageClass{}
 
 	request.Name = "ocsinit-cephfs"
-	err := reconciler.client.Get(nil, request.NamespacedName, actualSc1)
+	err = reconciler.client.Get(nil, request.NamespacedName, actualSc1)
 	assert.NoError(t, err)
 
 	request.Name = "ocsinit-ceph-rbd"
@@ -396,12 +405,7 @@ func TestEnsureExternalStorageClusterResources(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fatal err %+v", err)
 	}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
-	}
+	request := createDefaultRequest()
 	externalSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: externalClusterDetailsSecret,
