@@ -677,3 +677,37 @@ func TestMonCountChange(t *testing.T) {
 	}
 
 }
+
+func TestNodeTopologyMapLabelSelector(t *testing.T) {
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Spec.LabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			metav1.LabelSelectorRequirement{
+				Key:      WorkerAffinityKey,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	}
+	nodeList := &corev1.NodeList{}
+	mockNodeList.DeepCopyInto(nodeList)
+	for i := 0; i < len(nodeList.Items); i++ {
+		_, ok := nodeList.Items[i].ObjectMeta.Labels[defaults.NodeAffinityKey]
+		if ok {
+			delete(nodeList.Items[i].ObjectMeta.Labels, defaults.NodeAffinityKey)
+		}
+		nodeList.Items[i].ObjectMeta.Labels[WorkerAffinityKey] = ""
+	}
+	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
+	reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
+	nodeTopologyMap := &api.NodeTopologyMap{
+		Labels: map[string]api.TopologyLabelValues{
+			zoneTopologyLabel: []string{
+				"zone1",
+				"zone2",
+				"zone3",
+			},
+		},
+	}
+	assert.Equal(t, nodeTopologyMap, sc.Status.NodeTopologies)
+}
