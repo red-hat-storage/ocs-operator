@@ -701,6 +701,12 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 			"image": *rookCsiRegistrarImage,
 		})
 	}
+	if *rookCsiResizerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-csi-resizer",
+			"image": *rookCsiResizerImage,
+		})
+	}
 	if *rookCsiProvisionerImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "rook-csi-provisioner",
