@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -100,14 +101,15 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	if err != nil {
 		return err
 	}
-	ownerRef := metav1.OwnerReference{
-		UID:        instance.UID,
-		APIVersion: instance.APIVersion,
-		Kind:       instance.Kind,
-		Name:       instance.Name,
+	encodedJSONBlobStr := string(found.Data[externalClusterDetailsKey])
+	decodedJSONBlob, err := base64.StdEncoding.DecodeString(encodedJSONBlobStr)
+	if err != nil {
+		reqLogger.Info(fmt.Sprintf("Found Secret:\n %+v\n", found))
+		reqLogger.Error(err, "failed to decode the json blob from external secret")
+		return err
 	}
 	var data []ExternalResource
-	err = json.Unmarshal(found.Data[externalClusterDetailsKey], &data)
+	err = json.Unmarshal(decodedJSONBlob, &data)
 	if err != nil {
 		reqLogger.Error(err, "could not parse json blob")
 		return err
@@ -116,6 +118,12 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	if err != nil {
 		reqLogger.Error(err, "failed to create StorageClasses")
 		return err
+	}
+	ownerRef := metav1.OwnerReference{
+		UID:        instance.UID,
+		APIVersion: instance.APIVersion,
+		Kind:       instance.Kind,
+		Name:       instance.Name,
 	}
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{
