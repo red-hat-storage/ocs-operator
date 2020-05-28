@@ -9,7 +9,6 @@ $OUTDIR_BIN/functests --ocs-registry-image="${CATALOG_FULL_IMAGE_NAME}" \
 	--ocs-cluster-uninstall="${OCS_CLUSTER_UNINSTALL}" "$@"
 
 if [ $? -ne 0 ]; then
-	hack/dump-debug-info.sh
 	echo "ERROR: Functest failed."
 	exit 1
 fi
