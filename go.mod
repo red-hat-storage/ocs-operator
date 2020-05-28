@@ -33,6 +33,7 @@ require (
 // Pinned to kubernetes-1.17.4
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.3.2+incompatible // Required by OLM
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20190924102528-32369d4db2ad
 	k8s.io/api => k8s.io/api v0.17.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.17.4
