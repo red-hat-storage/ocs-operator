@@ -26,6 +26,7 @@ spec:
   validation:
     openAPIV3Schema:
       description: OCSInitialization is the Schema for the ocsinitialization API
+      type: object
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -41,28 +42,34 @@ spec:
           type: object
         spec:
           description: OCSInitializationSpec defines the desired state of OCSInitialization
+          type: object
           properties:
             enableCephTools:
               description: EnableCephTools toggles on whether or not the ceph tools
                 pod should be deployed. Defaults to false
               type: boolean
-          type: object
         status:
           description: OCSInitializationStatus defines the observed state of OCSInitialization
+          type: object
           properties:
             conditions:
               description: Conditions describes the state of the OCSInitialization
                 resource.
+              type: array
               items:
                 description: Condition represents the state of the operator's reconciliation
                   functionality.
+                type: object
+                required:
+                - status
+                - type
                 properties:
                   lastHeartbeatTime:
-                    format: date-time
                     type: string
+                    format: date-time
                   lastTransitionTime:
-                    format: date-time
                     type: string
+                    format: date-time
                   message:
                     type: string
                   reason:
@@ -73,11 +80,6 @@ spec:
                     description: ConditionType is the state of the operator's reconciliation
                       functionality.
                     type: string
-                required:
-                - status
-                - type
-                type: object
-              type: array
             errorMessage:
               type: string
             phase:
@@ -88,9 +90,11 @@ spec:
               description: RelatedObjects is a list of objects created and maintained
                 by this operator. Object references will be added to this list after
                 they have been created AND found in the cluster.
+              type: array
               items:
                 description: ObjectReference contains enough information to let you
                   inspect or modify the referred object.
+                type: object
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -124,12 +128,8 @@ spec:
                   uid:
                     description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                     type: string
-                type: object
-              type: array
             sCCsCreated:
               type: boolean
-          type: object
-      type: object
   version: v1
   versions:
   - name: v1
