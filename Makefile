@@ -1,12 +1,20 @@
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
 
+# Set minimum required Golang version to v1.13.3
+GO_REQUIRED_MIN_VERSION=1.13.3
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 # Enable GOPROXY. This speeds up a lot of vendoring operations.
 export GOPROXY=https://proxy.golang.org
 # Export GOROOT. Required for OPERATOR_SDK to work correctly for generate commands.
 export GOROOT=$(shell go env GOROOT)
+
+include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
+  targets/openshift/crd-schema-gen.mk \
+)
+
+$(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
 
 all: ocs-operator ocs-registry ocs-must-gather
 
@@ -144,6 +152,8 @@ unit-test:
 update-generated: operator-sdk
 	@echo Updating generated files
 	hack/generate-k8s-openapi.sh
+	@echo Running update-codegen-crds
+	@make update-codegen-crds
 
 verify-generated: update-generated
 	@echo "Verifying generated code"

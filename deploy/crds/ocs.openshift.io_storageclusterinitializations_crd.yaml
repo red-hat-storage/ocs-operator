@@ -16,6 +16,7 @@ spec:
     openAPIV3Schema:
       description: StorageClusterInitialization is the Schema for the storageclusterinitializations
         API
+      type: object
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -37,7 +38,6 @@ spec:
           description: StorageClusterInitializationStatus defines the observed state
             of StorageClusterInitialization
           type: object
-      type: object
   version: v1
   versions:
   - name: v1
