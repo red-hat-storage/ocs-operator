@@ -1908,6 +1908,8 @@ spec:
                       fieldPath: metadata.namespace
                 - name: CSI_ENABLE_SNAPSHOTTER
                   value: "false"
+                - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
+                  value: "true"
                 image: rook/ceph:v1.3.4-4.gb97be10
                 name: rook-ceph-operator
                 resources: {}
