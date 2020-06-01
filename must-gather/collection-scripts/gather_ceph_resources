@@ -49,6 +49,10 @@ ceph_commands+=("ceph mds stat")
 ceph_commands+=("ceph versions")
 ceph_commands+=("ceph fs dump")
 ceph_commands+=("ceph auth list")
+ceph_commands+=("ceph osd pool ls detail")
+ceph_commands+=("ceph osd lspools")
+ceph_commands+=("ceph fs subvolumegroup ls ocs-storagecluster-cephfilesystem")
+ceph_commands+=("ceph fs subvolume ls ocs-storagecluster-cephfilesystem csi")
 
 # Ceph volume commands
 ceph_volume_commands+=()
@@ -99,6 +103,9 @@ for ns in $namespaces; do
                 JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+            done
+            for i in `timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'`; do 
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> ${COMMAND_OUTPUT_DIR}/pools_rbd_$i; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
             done
         fi
 
