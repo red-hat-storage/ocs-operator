@@ -37,9 +37,10 @@ type OCSInitializationStatus struct {
 	// operator. Object references will be added to this list after they have
 	// been created AND found in the cluster.
 	// +optional
-	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
-	ErrorMessage   string                   `json:"errorMessage,omitempty"`
-	SCCsCreated    bool                     `json:"sCCsCreated,omitempty"`
+	RelatedObjects                []corev1.ObjectReference `json:"relatedObjects,omitempty"`
+	ErrorMessage                  string                   `json:"errorMessage,omitempty"`
+	SCCsCreated                   bool                     `json:"sCCsCreated,omitempty"`
+	RookCephOperatorConfigCreated bool                     `json:"rookCephOperatorConfigCreated,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

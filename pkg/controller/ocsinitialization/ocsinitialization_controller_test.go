@@ -2,6 +2,7 @@ package ocsinitialization
 
 import (
 	"fmt"
+	"testing"
 
 	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -15,7 +16,6 @@ import (
 	testingClient "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
 )
 
 var successfulReconcileConditions = map[conditionsv1.ConditionType]corev1.ConditionStatus{
@@ -149,7 +149,7 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 }
 
 func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileOCSInitialization {
-	registerObjs := []runtime.Object{&v1.OCSInitialization{}, &appsv1.Deployment{}}
+	registerObjs := []runtime.Object{&v1.OCSInitialization{}, &appsv1.Deployment{}, &corev1.ConfigMap{}}
 	registerObjs = append(registerObjs)
 	v1.SchemeBuilder.Register(registerObjs...)
 
@@ -164,5 +164,60 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileOCSInitializat
 		scheme:    scheme,
 		client:    client,
 		secClient: secClient,
+	}
+}
+
+func TestEnsureRookCephOperatorConfig(t *testing.T) {
+	ocsinit := &v1.OCSInitialization{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocsinit",
+			Namespace: "openshift-storage",
+		},
+	}
+	ocsinitFalse := ocsinit
+	ocsinitFalse.Status.RookCephOperatorConfigCreated = false
+	ocsinitTrue := ocsinit
+	ocsinitTrue.Status.RookCephOperatorConfigCreated = true
+
+	type args struct {
+		reconciler  ReconcileOCSInitialization
+		initialData *v1.OCSInitialization
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "RookCephOperatorConfigCreated not set",
+			args: args{
+				initialData: ocsinit,
+				reconciler:  getReconciler(t, ocsinit),
+			},
+			wantErr: false,
+		},
+		{
+			name: "RookCephOperatorConfigCreated is false",
+			args: args{
+				initialData: ocsinitFalse,
+				reconciler:  getReconciler(t, ocsinitFalse),
+			},
+			wantErr: false,
+		},
+		{
+			name: "RookCephOperatorConfigCreated is true",
+			args: args{
+				initialData: ocsinitTrue,
+				reconciler:  getReconciler(t, ocsinitTrue),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.args.reconciler.ensureRookCephOperatorConfig(tt.args.initialData); (err != nil) != tt.wantErr {
+				t.Errorf("ReconcileOCSInitialization.ensureRookCephOperatorConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

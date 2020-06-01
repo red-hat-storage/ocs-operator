@@ -6,6 +6,8 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
@@ -32,7 +34,11 @@ var watchNamespace string
 
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
 
-const rookCephToolDeploymentName = "rook-ceph-tools"
+const (
+	rookCephToolDeploymentName = "rook-ceph-tools"
+	// This name is predefined by Rook
+	rookCephOperatorConfigName = "rook-ceph-operator-config"
+)
 
 // InitNamespacedName returns a NamespacedName for the singleton instance that
 // should exist.
@@ -306,6 +312,17 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
+	if !instance.Status.RookCephOperatorConfigCreated {
+		// if true, no need to ensure presence of ConfigMap
+		// if false, ensure ConfigMap and update the status
+		err = r.ensureRookCephOperatorConfig(instance)
+		if err != nil {
+			reqLogger.Error(err, "Failed to process %s Configmap", rookCephOperatorConfigName)
+			return reconcile.Result{}, err
+		}
+		instance.Status.RookCephOperatorConfigCreated = true
+	}
+
 	reason := ocsv1.ReconcileCompleted
 	message := ocsv1.ReconcileCompletedMessage
 	statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
@@ -314,4 +331,44 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 	err = r.client.Status().Update(context.TODO(), instance)
 
 	return reconcile.Result{}, err
+}
+
+// returns a ConfigMap with default settings for rook-ceph operator
+func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
+	var defaultCSIToleration string = `
+- key: ` + defaults.NodeTolerationKey + `
+  operator: Equal
+  value: "true"
+  effect: NoSchedule`
+
+	config := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rookCephOperatorConfigName,
+			Namespace: namespace,
+		},
+	}
+	data := make(map[string]string)
+	data["CSI_PROVISIONER_NODE_AFFINITY"] = defaults.NodeAffinityKey
+	data["CSI_PROVISIONER_TOLERATIONS"] = defaultCSIToleration
+	data["CSI_PLUGIN_TOLERATIONS"] = defaultCSIToleration
+	config.Data = data
+
+	return config
+}
+
+func (r *ReconcileOCSInitialization) ensureRookCephOperatorConfig(initialData *ocsv1.OCSInitialization) error {
+	rookCephOperatorConfig := &corev1.ConfigMap{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: initialData.Namespace}, rookCephOperatorConfig)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// If it does not exist, create a ConfigMap with default settings
+			return r.client.Create(context.TODO(), newRookCephOperatorConfig(initialData.Namespace))
+		}
+		return err
+	}
+	// If it already exists, do not update. It is up to the user to
+	// update the ConfigMap as they see fit. Changes will be picked
+	// up by rook operator and reconciled. We do not want to reconcile
+	// this ConfigMap. If we do, user changes will be reset to defaults.
+	return nil
 }

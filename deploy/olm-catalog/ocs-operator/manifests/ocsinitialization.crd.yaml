@@ -127,6 +127,8 @@ spec:
                     type: string
                 type: object
               type: array
+            rookCephOperatorConfigCreated:
+              type: boolean
             sCCsCreated:
               type: boolean
           type: object
