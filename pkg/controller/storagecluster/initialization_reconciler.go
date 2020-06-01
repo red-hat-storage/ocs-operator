@@ -203,10 +203,15 @@ func (r *ReconcileStorageCluster) newOBCStorageClass(initData *ocsv1.StorageClus
 		Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", initData.Namespace),
 		ReclaimPolicy: &reclaimPolicy,
 		Parameters: map[string]string{
-			"objectStoreName":      generateNameForCephObjectStore(initData),
 			"objectStoreNamespace": initData.Namespace,
 			"region":               "us-east-1",
 		},
+	}
+
+	// On external cluster, Rook-Ceph does not need the objectStoreName since no ObjectStore is deployed
+	// This is only valid on converged mode
+	if !initData.Spec.ExternalStorage.Enable {
+		retSC.Parameters["objectStoreName"] = generateNameForCephObjectStore(initData)
 	}
 	return retSC
 }

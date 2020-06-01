@@ -276,6 +276,11 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 		assert.Equal(t, expected[2].Provisioner, actualSc3.Provisioner)
 		assert.Equal(t, expected[2].ReclaimPolicy, actualSc3.ReclaimPolicy)
 		assert.Equal(t, expected[2].Parameters, actualSc3.Parameters)
+		// Doing a bit more validation for the RGW SC since some fields differ whether
+		// we do independent or converged mode, typically "objectStoreName" param must exist
+		assert.NotEmpty(t, actualSc3.Parameters["objectStoreName"], actualSc3.Parameters)
+		assert.NotEmpty(t, actualSc3.Parameters["region"], actualSc3.Parameters)
+		assert.Equal(t, 3, len(actualSc3.Parameters))
 	}
 
 	// The created StorageClasses should not have any ownerReferences set. Any
@@ -449,6 +454,16 @@ func assertExpectedExternalResources(t assert.TestingT, reconciler ReconcileStor
 			assert.NoError(t, err)
 			for param, value := range expected.Data {
 				assert.Equal(t, value, actual.Parameters[param])
+			}
+			// Verify the RGW SC parameters in external mode are correct
+			// The main difference between external and converged is the presence of an endpoint
+			// and the absence of the "objectStoreName" parameter
+			if actual.Name == "ocsinit-ceph-rgw" {
+				assert.NotEmpty(t, actual.Parameters["endpoint"], actual.Parameters["endpoint"])
+				assert.NotEmpty(t, actual.Parameters["region"], actual.Parameters)
+				assert.NotContains(t, actual.Parameters["objectStoreName"], actual.Parameters)
+				assert.Equal(t, actual.Parameters["region"], "us-east-1")
+				assert.Equal(t, 3, len(actual.Parameters), actual.Parameters)
 			}
 		}
 	}
