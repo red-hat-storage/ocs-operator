@@ -1011,7 +1011,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 			placement := rook.Placement{}
 
 			if noPlacement {
-				in := defaults.DaemonPlacements["osd"]
+				in := getPlacement(sc, "osd")
 				(&in).DeepCopyInto(&placement)
 
 				if len(topologyKeyValues) >= replica {
