@@ -22,9 +22,10 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 	}
 	term := convertLabelToNodeSelector(sc.Spec.LabelSelector)
 	if len(term.MatchExpressions) != 0 {
-		placement.NodeAffinity = &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{term},
-		},
+		placement.NodeAffinity = &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{term},
+			},
 		}
 	}
 	topologyMap := sc.Status.NodeTopologies
