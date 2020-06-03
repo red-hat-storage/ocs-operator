@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -204,6 +205,66 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			assert.Equalf(t, *noobaa.Spec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
 		}
 	}
+}
+
+func TestNoobaaSystemInExternalClusterMode(t *testing.T) {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+	reconciler := createExternalClusterReconciler(t)
+	result, err := reconciler.Reconcile(request)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+	assertNoobaaResource(t, reconciler)
+}
+
+func assertNoobaaResource(t *testing.T, reconciler ReconcileStorageCluster) {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+
+	cr := &v1.StorageCluster{}
+	err := reconciler.client.Get(nil, request.NamespacedName, cr)
+	assert.NoError(t, err)
+
+	// get the ceph cluster
+	request.Name = generateNameForCephCluster(cr)
+	foundCeph := &cephv1.CephCluster{}
+	err = reconciler.client.Get(nil, request.NamespacedName, foundCeph)
+	assert.NoError(t, err)
+
+	// set the state to 'ClusterStateConnecting' (to mock a state where external cluster is still trying to connect)
+	foundCeph.Status.State = cephv1.ClusterStateConnecting
+	err = reconciler.client.Update(nil, foundCeph)
+	assert.NoError(t, err)
+	// calling 'ensureNoobaaSystem()' function and the expectation is that 'Noobaa' system is not be created
+	err = reconciler.ensureNoobaaSystem(cr, reconciler.reqLogger)
+	assert.NoError(t, err)
+	fNoobaa := &v1alpha1.NooBaa{}
+	request.Name = "noobaa"
+	// expectation is not to get any Noobaa object
+	err = reconciler.client.Get(nil, request.NamespacedName, fNoobaa)
+	assert.Error(t, err)
+
+	// now setting the state to 'ClusterStateConnected' (to mock a successful external cluster connection)
+	foundCeph.Status.State = cephv1.ClusterStateConnected
+	err = reconciler.client.Update(nil, foundCeph)
+	assert.NoError(t, err)
+	// call 'ensureNoobaaSystem()' to make sure it takes appropriate action
+	// when ceph cluster is connected to an external cluster
+	err = reconciler.ensureNoobaaSystem(cr, reconciler.reqLogger)
+	assert.NoError(t, err)
+	fNoobaa = &v1alpha1.NooBaa{}
+	request.Name = "noobaa"
+	// expectation is to get an appropriate Noobaa object
+	err = reconciler.client.Get(nil, request.NamespacedName, fNoobaa)
+	assert.NoError(t, err)
 }
 
 func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster {
