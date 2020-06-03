@@ -30,9 +30,16 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 		}
 		return err
 	}
-	if foundCeph.Status.State != cephv1.ClusterStateCreated {
-		reqLogger.Info("Waiting on ceph cluster to initialize before starting noobaa")
-		return nil
+	if !sc.Spec.ExternalStorage.Enable {
+		if foundCeph.Status.State != cephv1.ClusterStateCreated {
+			reqLogger.Info("Waiting on ceph cluster to initialize before starting noobaa")
+			return nil
+		}
+	} else {
+		if foundCeph.Status.State != cephv1.ClusterStateConnected {
+			reqLogger.Info("Waiting for the external ceph cluster to be connected before starting noobaa")
+			return nil
+		}
 	}
 
 	// Take ownership over the noobaa object
