@@ -40,6 +40,9 @@ import (
 // StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
 type StorageClassProvisionerType string
 
+// CleanupPolicyType is a string representing cleanup policy
+type CleanupPolicyType string
+
 // ensureFunc which encapsulate all the 'ensure*' type functions
 type ensureFunc func(*ocsv1.StorageCluster, logr.Logger) error
 
@@ -56,6 +59,10 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
 	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
+	// CleanupPolicyLabel defines the cleanup policy
+	CleanupPolicyLabel = "cleanup.ocs.openshift.io"
+	// CleanupPolicyDelete when set, modifies the cleanup policy for Rook to delete the DataDirHostPath on uninstall
+	CleanupPolicyDelete CleanupPolicyType = "yes-really-destroy-data"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -172,7 +179,12 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		if phaseErr != nil {
 			reqLogger.Error(phaseErr, "Failed to set PhaseDeleting")
 		}
+
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
+			err = r.setRookCleanupPolicy(instance, reqLogger)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 			isDeleted, err := r.deleteResources(instance, reqLogger)
 			if err != nil {
 				// If the dependencies failed to delete because of errors, retry again
@@ -1104,6 +1116,29 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 		}
 	}
 	return true, nil
+}
+
+func (r *ReconcileStorageCluster) setRookCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+	if v, found := instance.ObjectMeta.Labels[CleanupPolicyLabel]; found {
+		if v == string(CleanupPolicyDelete) {
+			cephCluster := &cephv1.CephCluster{}
+			err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					reqLogger.Info("CephCluster not found, can't set the cleanup policy")
+				} else {
+					return fmt.Errorf("Unable to retrive cephCluster: %v", err)
+				}
+			} else {
+				cephCluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
+				err := r.client.Update(context.TODO(), cephCluster)
+				if err != nil {
+					return fmt.Errorf("Unable to update cephCluster: %v", err)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (bool, error) {
