@@ -1,4 +1,4 @@
-FROM registry.redhat.io/ubi8 AS stage
+FROM registry.redhat.io/ubi8:latest AS stage
 
 COPY . /ocs-operator
 
