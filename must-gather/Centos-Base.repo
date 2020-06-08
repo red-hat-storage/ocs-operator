@@ -1,6 +1,6 @@
 [centos]
 name=CentOS-7
-baseurl=http://ftp.heanet.ie/pub/centos/7/os/x86_64/
+baseurl=http://mirror.facebook.net/centos-altarch/7/os/ppc64le/
 enabled=1
 gpgcheck=1
-gpgkey=http://ftp.heanet.ie/pub/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7
+gpgkey=http://mirror.facebook.net/centos-altarch/7/os/ppc64le/RPM-GPG-KEY-CentOS-7
