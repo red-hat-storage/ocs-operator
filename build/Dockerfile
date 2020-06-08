@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+FROM registry.redhat.io/ubi8
 
 USER nobody
 
