@@ -17,7 +17,7 @@ spec:
         secretKeyRef:
           key: admin-secret
           name: rook-ceph-mon
-    image: IMAGE_NAME
+    image: quay.io/multi-arch/ocs4-ocs-must-gather-rhel8:4.3-2-ppc64le
     imagePullPolicy: IfNotPresent
     name: must-gather-helper
     securityContext:
