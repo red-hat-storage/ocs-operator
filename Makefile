@@ -44,7 +44,8 @@ all: ocs-operator ocs-registry ocs-must-gather
 	update-generated \
 	ocs-operator-ci \
 	red-hat-storage-ocs-ci \
-	unit-test
+	unit-test \
+	deps-update
 
 deps-update:
 	go mod tidy && go mod vendor
