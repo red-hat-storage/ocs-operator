@@ -10,13 +10,13 @@ export GOPROXY=https://proxy.golang.org
 # Export GOROOT. Required for OPERATOR_SDK to work correctly for generate commands.
 export GOROOT=$(shell go env GOROOT)
 
+all: ocs-operator ocs-registry ocs-must-gather
+
 include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
   targets/openshift/crd-schema-gen.mk \
 )
 
 $(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
-
-all: ocs-operator ocs-registry ocs-must-gather
 
 .PHONY: \
 	build \
