@@ -1,5 +1,5 @@
 TARGET_GOOS=linux
-TARGET_GOARCH=amd64
+TARGET_GOARCH=ppc64le
 
 # Set minimum required Golang version to v1.13.3
 GO_REQUIRED_MIN_VERSION=1.13.3
