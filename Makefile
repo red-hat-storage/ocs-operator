@@ -55,7 +55,7 @@ operator-sdk:
 
 ocs-operator-openshift-ci-build: build
 
-build:
+build: deps-update
 	@echo "Building the ocs-operator binary"
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/ocs-operator ./cmd/manager
