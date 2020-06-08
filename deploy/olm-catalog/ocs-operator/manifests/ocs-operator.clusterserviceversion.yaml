@@ -56,7 +56,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Storage
-    containerImage: quay.io/ocs-dev/ocs-operator:4.5.0
+    containerImage: quay.io/multi-arch/ocs4-ocs-rhel8-operator:4.3
     createdAt: "2020-06-03 18:40:03"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
@@ -627,7 +627,7 @@ metadata:
       "storageclusterinitializations.ocs.openshift.io"]'
     repository: https://github.com/openshift/ocs-operator
     support: Red Hat
-  name: ocs-operator.v4.5.0
+  name: ocs-operator.v4.3.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -1803,14 +1803,14 @@ spec:
                 - name: OPERATOR_NAME
                   value: ocs-operator
                 - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.3.4-21.g4e04d63
+                  value: quay.io/multi-arch/ocs4-rook-ceph-rhel8-operator:latest 
                 - name: CEPH_IMAGE
-                  value: ceph/ceph:v14.2
+                  value: quay.io/multi-arch/rhceph-rhceph-4-rhel8:latest
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.5.0-20200422
+                  value: quay.io/multi-arch/ocs4-mcg-core-rhel8:4.3
                 - name: NOOBAA_DB_IMAGE
-                  value: centos/mongodb-36-centos7
-                image: quay.io/ocs-dev/ocs-operator:latest
+                  value: hub.docker.com/ibmcom/mongodb:3.6.0-ppc64le
+                image: quay.io/multi-arch/ocs4-ocs-rhel8-operator:4.3
                 imagePullPolicy: Always
                 name: ocs-operator
                 ports:
@@ -1910,7 +1910,7 @@ spec:
                   value: "false"
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: rook/ceph:v1.3.4-21.g4e04d63
+                image: quay.io/multi-arch/ocs4-rook-ceph-rhel8-operator:latest 
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
@@ -1955,10 +1955,10 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.5.0-20200422
+                  value: quay.io/multi-arch/ocs4-mcg-core-rhel8:4.3
                 - name: NOOBAA_DB_IMAGE
-                  value: centos/mongodb-36-centos7
-                image: noobaa/noobaa-operator:2.3.0-20200505
+                  value: hub.docker.com/ibmcom/mongodb:3.6.0-ppc64le
+                image: quay.io/multi-arch/ocs4-mcg-rhel8-operator:4.3
                 name: noobaa-operator
                 resources:
                   limits:
@@ -2312,14 +2312,14 @@ spec:
   provider:
     name: Red Hat, Inc
   relatedImages:
-  - image: rook/ceph:v1.3.4-21.g4e04d63
+  - image: quay.io/multi-arch/ocs4-rook-ceph-rhel8-operator:latest
     name: rook-container
-  - image: ceph/ceph:v14.2
+  - image: quay.io/multi-arch/rhceph-rhceph-4-rhel8:latest
     name: ceph-container
-  - image: noobaa/noobaa-operator:2.3.0-20200505
+  - image: quay.io/multi-arch/ocs4-mcg-rhel8-operator:4.3
     name: noobaa-operator
-  - image: noobaa/noobaa-core:5.5.0-20200422
+  - image: quay.io/multi-arch/ocs4-mcg-core-rhel8:4.3
     name: noobaa-core
-  - image: centos/mongodb-36-centos7
+  - image: hub.docker.com/ibmcom/mongodb:3.6.0-ppc64le
     name: noobaa-db
-  version: 4.5.0
+  version: 4.3.0
