@@ -24,7 +24,7 @@ all: ocs-operator ocs-registry ocs-must-gather
 	ocs-operator \
 	ocs-must-gather \
 	operator-bundle \
-	verify-operator-bundle
+	verify-operator-bundle \
 	operator-index \
 	ocs-registry \
 	gen-release-csv \
