@@ -44,9 +44,11 @@ all: ocs-operator ocs-registry ocs-must-gather
 	update-generated \
 	ocs-operator-ci \
 	red-hat-storage-ocs-ci \
-	unit-test
+	unit-test \
+	deps-update
 
 deps-update:
+	@echo "Running deps-update"
 	go mod tidy && go mod vendor
 
 operator-sdk:
@@ -55,7 +57,7 @@ operator-sdk:
 
 ocs-operator-openshift-ci-build: build
 
-build:
+build: deps-update
 	@echo "Building the ocs-operator binary"
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/ocs-operator ./cmd/manager
