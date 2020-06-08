@@ -1,4 +1,4 @@
-FROM quay.io/openshift/origin-operator-registry:latest
+FROM quay.io/multi-arch/openshift4-ose-operator-registry:v4.3 
 
 COPY build/_output/appregistry/olm-catalog /registry/ocs-catalog
 
