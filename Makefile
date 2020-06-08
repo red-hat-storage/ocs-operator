@@ -48,6 +48,7 @@ all: ocs-operator ocs-registry ocs-must-gather
 	deps-update
 
 deps-update:
+	@echo "Running deps-update"
 	go mod tidy && go mod vendor
 
 operator-sdk:
