@@ -24,7 +24,7 @@ $(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
 	ocs-operator \
 	ocs-must-gather \
 	operator-bundle \
-	verify-operator-bundle
+	verify-operator-bundle \
 	operator-index \
 	ocs-registry \
 	gen-release-csv \
