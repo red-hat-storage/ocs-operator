@@ -70,6 +70,9 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			Namespace: "openshift-storage",
 		},
 		Spec: ocsv1.StorageClusterSpec{
+			LabelSelector: metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{},
+			},
 			ManageNodes: false,
 			MonPVCTemplate: &k8sv1.PersistentVolumeClaim{
 				Spec: k8sv1.PersistentVolumeClaimSpec{
