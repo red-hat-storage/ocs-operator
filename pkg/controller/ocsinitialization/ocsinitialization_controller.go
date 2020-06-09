@@ -348,7 +348,6 @@ func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
 		},
 	}
 	data := make(map[string]string)
-	data["CSI_PROVISIONER_NODE_AFFINITY"] = defaults.NodeAffinityKey
 	data["CSI_PROVISIONER_TOLERATIONS"] = defaultCSIToleration
 	data["CSI_PLUGIN_TOLERATIONS"] = defaultCSIToleration
 	config.Data = data
