@@ -429,6 +429,27 @@ func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageClu
 	return nil
 }
 
+func (r *ReconcileStorageCluster) getStorageClusterEligibleNodes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (*corev1.NodeList, error) {
+	nodes := &corev1.NodeList{}
+	selector, err := metav1.LabelSelectorAsSelector(sc.Spec.LabelSelector)
+	if err != nil {
+		return nodes, err
+	}
+	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
+	if sc.Spec.LabelSelector != nil {
+		err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
+		if err != nil {
+			return nodes, err
+		}
+	} else {
+		err = r.client.List(context.TODO(), nodes, client.MatchingLabels(nodeMatchLabel))
+		if err != nil {
+			return nodes, err
+		}
+	}
+	return nodes, err
+}
+
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
 func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
@@ -439,23 +460,11 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 		}
 	}
 
-	nodes := &corev1.NodeList{}
-	selector, err := metav1.LabelSelectorAsSelector(sc.Spec.LabelSelector)
+	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
 	if err != nil {
 		return err
 	}
-	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
-	if sc.Spec.LabelSelector != nil {
-		err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
-		if err != nil {
-			return err
-		}
-	} else {
-		err = r.client.List(context.TODO(), nodes, client.MatchingLabels(nodeMatchLabel))
-		if err != nil {
-			return err
-		}
-	}
+
 	if sc.Status.NodeTopologies == nil || sc.Status.NodeTopologies.Labels == nil {
 		sc.Status.NodeTopologies = ocsv1.NewNodeTopologyMap()
 	}
