@@ -603,7 +603,7 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
 	ocsCSV.Annotations["categories"] = "Storage"
-	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = `["cephclusters.ceph.rook.io", "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io", "cephnfses.ceph.rook.io","cephclients.ceph.rook.io", "noobaas.noobaa.io", "objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","ocsinitializations.ocs.openshift.io", "storageclusterinitializations.ocs.openshift.io"]`
+	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = `["cephclusters.ceph.rook.io", "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io", "cephnfses.ceph.rook.io","cephclients.ceph.rook.io", "noobaas.noobaa.io", "objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","ocsinitializations.ocs.openshift.io", "storageclusterinitializations.ocs.openshift.io", "cephfilesystems.ceph.rook.io"]`
 	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
 	ocsCSV.Annotations["operatorframework.io/cluster-monitoring"] = "true"
 	ocsCSV.Annotations["alm-examples"] = `
