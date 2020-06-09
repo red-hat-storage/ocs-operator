@@ -1149,6 +1149,12 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	if err != nil {
 		finalerr = fmt.Errorf("%w, %v", finalerr, err)
 	}
+
+	err = r.deleteStorageClasses(sc, reqLogger)
+	if err != nil {
+		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+	}
+
 	return finalerr
 }
 
