@@ -66,9 +66,6 @@ func (p *CloudPlatform) getPlatform(c client.Client) (CloudPlatformType, error) 
 }
 
 func isValidCloudPlatform(p CloudPlatformType) bool {
-	if p == PlatformUnknown {
-		return true
-	}
 	for _, cp := range ValidCloudPlatforms {
 		if p == cp {
 			return true
