@@ -20,14 +20,19 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
 	}
-	term := convertLabelToNodeSelector(sc.Spec.LabelSelector)
-	if len(term.MatchExpressions) != 0 {
-		placement.NodeAffinity = &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{term},
-			},
+	if sc.Spec.LabelSelector == nil {
+		placement.NodeAffinity = defaults.DefaultNodeAffinity
+	} else {
+		term := convertLabelToNodeSelector(*sc.Spec.LabelSelector)
+		if len(term.MatchExpressions) != 0 {
+			placement.NodeAffinity = &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{term},
+				},
+			}
 		}
 	}
+
 	topologyMap := sc.Status.NodeTopologies
 	if topologyMap != nil && (component == "mon" || component == "mds") {
 		topologyKey := determineFailureDomain(sc)
