@@ -9,24 +9,25 @@ import (
 var (
 	// appLabelSelectorKey is common value for 'Key' field in 'LabelSelectorRequirement'
 	appLabelSelectorKey = "app"
-	// DaemonPlacements map contains the default placement configs for the
-	// various OCS daemons
-	DaemonPlacements = map[string]rook.Placement{
-		"all": rook.Placement{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						corev1.NodeSelectorTerm{
-							MatchExpressions: []corev1.NodeSelectorRequirement{
-								corev1.NodeSelectorRequirement{
-									Key:      NodeAffinityKey,
-									Operator: corev1.NodeSelectorOpExists,
-								},
-							},
+	// DefaultNodeAffinity is the NodeAffinity to be used when labelSelector is nil
+	DefaultNodeAffinity = &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+			NodeSelectorTerms: []corev1.NodeSelectorTerm{
+				corev1.NodeSelectorTerm{
+					MatchExpressions: []corev1.NodeSelectorRequirement{
+						corev1.NodeSelectorRequirement{
+							Key:      NodeAffinityKey,
+							Operator: corev1.NodeSelectorOpExists,
 						},
 					},
 				},
 			},
+		},
+	}
+	// DaemonPlacements map contains the default placement configs for the
+	// various OCS daemons
+	DaemonPlacements = map[string]rook.Placement{
+		"all": rook.Placement{
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
 					Key:      NodeTolerationKey,
@@ -60,20 +61,6 @@ var (
 		},
 
 		"osd": rook.Placement{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						corev1.NodeSelectorTerm{
-							MatchExpressions: []corev1.NodeSelectorRequirement{
-								corev1.NodeSelectorRequirement{
-									Key:      NodeAffinityKey,
-									Operator: corev1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
 					Key:      NodeTolerationKey,
@@ -104,20 +91,6 @@ var (
 		},
 
 		"rgw": rook.Placement{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						corev1.NodeSelectorTerm{
-							MatchExpressions: []corev1.NodeSelectorRequirement{
-								corev1.NodeSelectorRequirement{
-									Key:      NodeAffinityKey,
-									Operator: corev1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
 					Key:      NodeTolerationKey,
@@ -162,20 +135,6 @@ var (
 		},
 
 		"mds": rook.Placement{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						corev1.NodeSelectorTerm{
-							MatchExpressions: []corev1.NodeSelectorRequirement{
-								corev1.NodeSelectorRequirement{
-									Key:      NodeAffinityKey,
-									Operator: corev1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
 					Key:      NodeTolerationKey,
@@ -206,20 +165,6 @@ var (
 		},
 
 		"noobaa-core": rook.Placement{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						corev1.NodeSelectorTerm{
-							MatchExpressions: []corev1.NodeSelectorRequirement{
-								corev1.NodeSelectorRequirement{
-									Key:      NodeAffinityKey,
-									Operator: corev1.NodeSelectorOpExists,
-								},
-							},
-						},
-					},
-				},
-			},
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
 					Key:      NodeTolerationKey,

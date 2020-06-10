@@ -450,12 +450,12 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	}
 
 	nodes := &corev1.NodeList{}
-	selector, err := metav1.LabelSelectorAsSelector(&sc.Spec.LabelSelector)
+	selector, err := metav1.LabelSelectorAsSelector(sc.Spec.LabelSelector)
 	if err != nil {
 		return err
 	}
 	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
-	if len(sc.Spec.LabelSelector.MatchLabels) > 0 || len(sc.Spec.LabelSelector.MatchExpressions) > 0 {
+	if sc.Spec.LabelSelector != nil {
 		err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
 		if err != nil {
 			return err

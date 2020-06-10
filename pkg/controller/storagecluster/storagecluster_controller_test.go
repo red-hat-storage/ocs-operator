@@ -467,7 +467,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		// TODO: Change this when OCP console is updated
 		assert.Equal(t, deviceSet.Count/3, scds.Count)
 		assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
-		assert.Equal(t, defaults.DaemonPlacements["osd"], scds.Placement)
+		assert.Equal(t, getPlacement(sc, "osd"), scds.Placement)
 		assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 		assert.Equal(t, true, scds.Portable)
 	}
@@ -681,7 +681,7 @@ func TestMonCountChange(t *testing.T) {
 func TestNodeTopologyMapLabelSelector(t *testing.T) {
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	sc.Spec.LabelSelector = metav1.LabelSelector{
+	sc.Spec.LabelSelector = &metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			metav1.LabelSelectorRequirement{
 				Key:      WorkerAffinityKey,
