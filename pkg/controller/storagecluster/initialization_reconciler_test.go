@@ -212,7 +212,7 @@ func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 	}
 
 	// Create 'cephobjectstoreuser' only for non-aws platforms
-	if cp.platform != PlatformAWS {
+	if !isValidCloudPlatform(cp.platform) {
 		cosu := &cephv1.CephObjectStoreUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-cephobjectstoreuser",
@@ -329,7 +329,7 @@ func assertExpectedResources(t assert.TestingT, reconciler ReconcileStorageClust
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
 	err = reconciler.client.Get(nil, request.NamespacedName, actualCosu)
-	if reconciler.platform.platform == PlatformAWS {
+	if isValidCloudPlatform(reconciler.platform.platform) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)
