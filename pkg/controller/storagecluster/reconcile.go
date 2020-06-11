@@ -445,10 +445,8 @@ func (r *ReconcileStorageCluster) getStorageClusterEligibleNodes(sc *ocsv1.Stora
 
 	selector, err = metav1.LabelSelectorAsSelector(labelSelector)
 	err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
-	if err != nil {
-		return nodes, err
-	}
-	return nodes, nil
+
+	return nodes, err
 }
 
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
