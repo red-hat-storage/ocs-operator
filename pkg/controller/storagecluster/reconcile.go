@@ -433,14 +433,12 @@ func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageClu
 func (r *ReconcileStorageCluster) getStorageClusterEligibleNodes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (nodes *corev1.NodeList, err error) {
 	nodes = &corev1.NodeList{}
 	var selector labels.Selector
-	var labelSelector *metav1.LabelSelector
 
+	labelSelector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{defaults.NodeAffinityKey: ""},
+	}
 	if sc.Spec.LabelSelector != nil {
 		labelSelector = sc.Spec.LabelSelector
-	} else {
-		labelSelector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{defaults.NodeAffinityKey: ""},
-		}
 	}
 
 	selector, err = metav1.LabelSelectorAsSelector(labelSelector)
