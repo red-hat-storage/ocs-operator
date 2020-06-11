@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -91,5 +92,53 @@ func (r *ReconcileStorageCluster) deleteNodeAffinityKeyFromNodes(sc *ocsv1.Stora
 		}
 
 	}
+	return nil
+}
+
+// deleteNodeTaint deletes the default NodeTolerationKey from the OCS nodes
+func (r *ReconcileStorageCluster) deleteNodeTaint(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+
+	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
+	if err != nil {
+		reqLogger.Error(err, fmt.Sprintf("Unable to obtain the list of nodes eligible for the Storage Cluster"))
+		return nil
+	}
+	for _, node := range nodes.Items {
+		reqLogger.Info(fmt.Sprintf("Deleting OCS NodeTolerationKey from the node %s", node.Name))
+		new := node.DeepCopy()
+		new.Spec.Taints = make([]corev1.Taint, 0)
+		for _, taint := range node.Spec.Taints {
+			if defaults.NodeTolerationKey == taint.Key {
+				continue
+			}
+			new.Spec.Taints = append(new.Spec.Taints, taint)
+		}
+
+		oldJSON, err := json.Marshal(node)
+		if err != nil {
+			reqLogger.Error(err, fmt.Sprintf("Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			continue
+		}
+
+		newJSON, err := json.Marshal(new)
+		if err != nil {
+			reqLogger.Error(err, fmt.Sprintf("Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			continue
+		}
+
+		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
+		if err != nil {
+			reqLogger.Error(err, fmt.Sprintf("Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			continue
+		}
+
+		err = r.client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		if err != nil {
+			reqLogger.Error(err, fmt.Sprintf("Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			continue
+		}
+
+	}
+
 	return nil
 }
