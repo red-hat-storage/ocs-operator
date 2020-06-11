@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -429,6 +430,27 @@ func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageClu
 	return nil
 }
 
+func (r *ReconcileStorageCluster) getStorageClusterEligibleNodes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (nodes *corev1.NodeList, err error) {
+	nodes = &corev1.NodeList{}
+	var selector labels.Selector
+	var labelSelector *metav1.LabelSelector
+
+	if sc.Spec.LabelSelector != nil {
+		labelSelector = sc.Spec.LabelSelector
+	} else {
+		labelSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{defaults.NodeAffinityKey: ""},
+		}
+	}
+
+	selector, err = metav1.LabelSelectorAsSelector(labelSelector)
+	err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
+	if err != nil {
+		return nodes, err
+	}
+	return nodes, nil
+}
+
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
 func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
@@ -439,23 +461,11 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 		}
 	}
 
-	nodes := &corev1.NodeList{}
-	selector, err := metav1.LabelSelectorAsSelector(sc.Spec.LabelSelector)
+	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
 	if err != nil {
 		return err
 	}
-	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
-	if sc.Spec.LabelSelector != nil {
-		err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
-		if err != nil {
-			return err
-		}
-	} else {
-		err = r.client.List(context.TODO(), nodes, client.MatchingLabels(nodeMatchLabel))
-		if err != nil {
-			return err
-		}
-	}
+
 	if sc.Status.NodeTopologies == nil || sc.Status.NodeTopologies.Labels == nil {
 		sc.Status.NodeTopologies = ocsv1.NewNodeTopologyMap()
 	}
@@ -1151,6 +1161,11 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	}
 
 	err = r.deleteStorageClasses(sc, reqLogger)
+	if err != nil {
+		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+	}
+
+	err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
 	if err != nil {
 		finalerr = fmt.Errorf("%w, %v", finalerr, err)
 	}
