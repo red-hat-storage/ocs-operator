@@ -1165,6 +1165,11 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		finalerr = fmt.Errorf("%w, %v", finalerr, err)
 	}
 
+	err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
+	if err != nil {
+		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+	}
+
 	return finalerr
 }
 
