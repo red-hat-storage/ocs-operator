@@ -64,5 +64,5 @@ $CSV_MERGER \
 	--ocs-image="$OCS_IMAGE" \
 	--crds-directory="$OUTDIR_CRDS" \
 	--manifests-directory=$OUTDIR_BUNDLEMANIFESTS \
-	--olm-bundle-directory="$OCS_FINAL_DIR"
-
+	--olm-bundle-directory="$OCS_FINAL_DIR" \
+	--timestamp="$TIMESTAMP"

@@ -35,6 +35,7 @@ var (
 	rookCSVStr         = flag.String("rook-csv-filepath", "", "path to rook csv yaml file")
 	noobaaCSVStr       = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
+	timestamp          = flag.String("timestamp", "false", "bool value to enable/disable timestamp changes in CSV")
 
 	rookContainerImage       = flag.String("rook-image", "", "rook operator container image")
 	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
@@ -582,7 +583,6 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	if *skipRange != "" {
 		ocsCSV.Annotations["olm.skipRange"] = *skipRange
 	}
-	loc, err := time.LoadLocation("UTC")
 	// Feature gating for Console. The array values are unique identifiers provided by the console.
 	// This can be used to enable/disable console support for any supported feature
 	// Example: "features.ocs.openshift.io/enabled": `["external", "foo1", "foo2", ...]`
@@ -592,7 +592,13 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner", "rook-csi-cephfs-node", "rook-csi-cephfs-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rgw", "ceph-rbd", "cephfs"]}`
 	// Injecting the RHCS exporter script present in Rook CSV
 	ocsCSV.Annotations["external.features.ocs.openshift.io/export-script"] = rookCSV.GetAnnotations()["externalClusterScript"]
-	ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
+	if *timestamp == "true" {
+		loc, err := time.LoadLocation("UTC")
+		if err != nil {
+			panic(err)
+		}
+		ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
+	}
 	ocsCSV.Annotations["repository"] = "https://github.com/openshift/ocs-operator"
 	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:" + ocsversion.Version
 	ocsCSV.Annotations["description"] = "Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster."
