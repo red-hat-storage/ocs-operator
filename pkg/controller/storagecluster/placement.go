@@ -45,11 +45,9 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 	topologyKey := determineFailureDomain(sc)
 	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
 	if component == "mon" {
-		podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
-		podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
+		placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey = topologyKey
 	} else if component == "mds" {
-		podAffinityTerms := placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-		podAffinityTerms[0].TopologyKey = topologyKey
+		placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey = topologyKey
 	}
 
 	return placement
