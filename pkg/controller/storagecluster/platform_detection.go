@@ -17,7 +17,7 @@ const (
 	// PlatformAWS represents the Amazon Web Services platform
 	PlatformAWS CloudPlatformType = "aws"
 	// PlatformGCP represents the Google cloud Platform
-	PlatformGCP CloudPlatformType = "gcp"
+	PlatformGCP CloudPlatformType = "gce"
 	// PlatformAzure represents the Azure Platform
 	PlatformAzure CloudPlatformType = "azure"
 	// PlatformUnknown represents an unknown validly formatted cloud platform
