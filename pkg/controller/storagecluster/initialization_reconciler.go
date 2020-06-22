@@ -23,6 +23,13 @@ const (
 	cephFsStorageClassName       = "cephfs"
 	cephRbdStorageClassName      = "ceph-rbd"
 	cephRgwStorageClassName      = "ceph-rgw"
+	externalCephRgwEndpointKey   = "endpoint"
+)
+
+var (
+	// externalRgwEndpoint is the rgw endpoint as discovered in the Secret externalClusterDetailsSecret
+	// It is used for independent mode only. It will be passed to the Noobaa CR as a label
+	externalRgwEndpoint string
 )
 
 // ExternalResource containes a list of External Cluster Resources
@@ -177,6 +184,9 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 				// Setting the PoolName for RBD StorageClass
 				sc = scs[1]
 			} else if d.Name == cephRgwStorageClassName {
+				// Set the external rgw endpoint variable for later use on the Noobaa CR (as a label)
+				externalRgwEndpoint = d.Data[externalCephRgwEndpointKey]
+
 				// Setting the Endpoint for OBC StorageClass
 				sc = scs[2]
 			}
