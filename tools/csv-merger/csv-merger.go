@@ -250,7 +250,7 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvv1.StrategyDeta
 			},
 			{
 				Name:  "CSI_ENABLE_SNAPSHOTTER",
-				Value: "false",
+				Value: "true",
 			},
 			{
 				Name:  "ROOK_OBC_WATCH_OPERATOR_NAMESPACE",

@@ -1904,7 +1904,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: CSI_ENABLE_SNAPSHOTTER
-                  value: "false"
+                  value: "true"
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
                 image: rook/ceph:v1.3.4-21.g4e04d63
