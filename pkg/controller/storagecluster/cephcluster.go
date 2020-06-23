@@ -352,6 +352,12 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 				Portable:             ds.Portable,
 				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
 			}
+
+			if ds.MetadataPVCTemplate != nil {
+				ds.MetadataPVCTemplate.ObjectMeta.Name = metadataPVCName
+				set.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{ds.DataPVCTemplate, *ds.MetadataPVCTemplate}
+			}
+
 			storageClassDeviceSets = append(storageClassDeviceSets, set)
 		}
 	}

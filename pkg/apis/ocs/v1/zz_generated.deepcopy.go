@@ -406,6 +406,11 @@ func (in *StorageDeviceSet) DeepCopyInto(out *StorageDeviceSet) {
 	in.Placement.DeepCopyInto(&out.Placement)
 	out.Config = in.Config
 	in.DataPVCTemplate.DeepCopyInto(&out.DataPVCTemplate)
+	if in.MetadataPVCTemplate != nil {
+		in, out := &in.MetadataPVCTemplate, &out.MetadataPVCTemplate
+		*out = new(corev1.PersistentVolumeClaim)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
