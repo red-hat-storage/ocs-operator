@@ -58,6 +58,8 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	CleanupPolicyLabel = "cleanup.ocs.openshift.io"
 	// CleanupPolicyDelete when set, modifies the cleanup policy for Rook to delete the DataDirHostPath on uninstall
 	CleanupPolicyDelete CleanupPolicyType = "yes-really-destroy-data"
+	//Name of MetadataPVCTemplate
+	metadataPVCName = "metadata"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -418,6 +420,11 @@ func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageClu
 	for i, ds := range sc.Spec.StorageDeviceSets {
 		if ds.DataPVCTemplate.Spec.StorageClassName == nil || *ds.DataPVCTemplate.Spec.StorageClassName == "" {
 			return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified", i)
+		}
+		if ds.MetadataPVCTemplate != nil {
+			if ds.MetadataPVCTemplate.Spec.StorageClassName == nil || *ds.MetadataPVCTemplate.Spec.StorageClassName == "" {
+				return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified for metadataPVCTemplate", i)
+			}
 		}
 	}
 

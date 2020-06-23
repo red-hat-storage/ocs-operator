@@ -65,11 +65,12 @@ type StorageDeviceSet struct {
 	// +optional
 	Portable bool `json:"portable,omitempty"`
 
-	Name            string                       `json:"name"`
-	Resources       corev1.ResourceRequirements  `json:"resources,omitempty"`
-	Placement       rook.Placement               `json:"placement,omitempty"`
-	Config          StorageDeviceSetConfig       `json:"config,omitempty"`
-	DataPVCTemplate corev1.PersistentVolumeClaim `json:"dataPVCTemplate"`
+	Name                string                        `json:"name"`
+	Resources           corev1.ResourceRequirements   `json:"resources,omitempty"`
+	Placement           rook.Placement                `json:"placement,omitempty"`
+	Config              StorageDeviceSetConfig        `json:"config,omitempty"`
+	DataPVCTemplate     corev1.PersistentVolumeClaim  `json:"dataPVCTemplate"`
+	MetadataPVCTemplate *corev1.PersistentVolumeClaim `json:"metadataPVCTemplate,omitempty"`
 }
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
