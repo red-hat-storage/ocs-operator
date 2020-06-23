@@ -95,6 +95,18 @@ var mockDeviceSets = []api.StorageDeviceSet{
 				VolumeMode:       &volMode,
 			},
 		},
+		MetadataPVCTemplate: &corev1.PersistentVolumeClaim{
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("1Ti"),
+					},
+				},
+				StorageClassName: &storageClassName,
+				VolumeMode:       &volMode,
+			},
+		},
 		Portable: true,
 	},
 }
@@ -512,6 +524,15 @@ func TestStorageDeviceSets(t *testing.T) {
 	reconciler := createFakeStorageClusterReconciler(t, storageClassEBS)
 	err := reconciler.validateStorageDeviceSets(sc)
 	assert.NoError(t, err)
+
+	metadataScName := ""
+	sc.Spec.StorageDeviceSets[0].MetadataPVCTemplate.Spec.StorageClassName = &metadataScName
+	err = reconciler.validateStorageDeviceSets(sc)
+	assert.Contains(t, err.Error(), "no StorageClass specified for metadataPVCTemplate")
+
+	sc.Spec.StorageDeviceSets[0].MetadataPVCTemplate.Spec.StorageClassName = nil
+	err = reconciler.validateStorageDeviceSets(sc)
+	assert.Contains(t, err.Error(), "no StorageClass specified for metadataPVCTemplate")
 
 	scName := ""
 	sc.Spec.StorageDeviceSets[0].DataPVCTemplate.Spec.StorageClassName = &scName
