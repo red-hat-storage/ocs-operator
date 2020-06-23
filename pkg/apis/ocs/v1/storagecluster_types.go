@@ -17,7 +17,7 @@ type StorageClusterSpec struct {
 	ManageNodes  bool   `json:"manageNodes,omitempty"`
 	InstanceType string `json:"instanceType,omitempty"`
 	// LabelSelector is used to specify custom labels of nodes to run OCS on
-	LabelSelector metav1.LabelSelector `json:"labelSelector,omitempty"`
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 	// External Storage is optional and defaults to false. When set to true, OCS will
 	// connect to an external OCS Storage Cluster instead of provisioning one locally.
 	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`

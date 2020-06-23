@@ -42,23 +42,49 @@ var mockPlacements = map[rookv1.KeyType]rookv1.Placement{
 		},
 	},
 }
+var defaultLabelPlacement = map[rookv1.KeyType]rookv1.Placement{
+	"all": rookv1.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					corev1.NodeSelectorTerm{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							corev1.NodeSelectorRequirement{
+								Key:      defaults.NodeAffinityKey,
+								Operator: corev1.NodeSelectorOpExists,
+							},
+						},
+					},
+				},
+			},
+		},
+		Tolerations: []corev1.Toleration{
+			corev1.Toleration{
+				Key:      defaults.NodeTolerationKey,
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			},
+		},
+	},
+}
 
 func TestGetPlacement(t *testing.T) {
 	// Case 1: Defaults are preserved i.e no placement and no label selector
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	assert.Equal(t, defaults.DaemonPlacements["all"], getPlacement(sc, "all"))
+	assert.Equal(t, defaultLabelPlacement["all"], getPlacement(sc, "all"))
 
 	// Case 2: The configured Placements override the defaults
 	sc = &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.Placement = mockPlacements
-	assert.Equal(t, mockPlacements["all"], getPlacement(sc, "all"))
+	assert.Equal(t, defaultLabelPlacement["all"], getPlacement(sc, "all"))
 
 	// Case 3: LabelSelector to modify the default placements correctly
 	sc = &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	sc.Spec.LabelSelector = metav1.LabelSelector{
+	sc.Spec.LabelSelector = &metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			metav1.LabelSelectorRequirement{
 				Key:      WorkerAffinityKey,
@@ -68,11 +94,11 @@ func TestGetPlacement(t *testing.T) {
 	}
 	assert.Equal(t, mockPlacements["all"], getPlacement(sc, "all"))
 
-	//Case 4: The LabelSelector modifies the configured Placements correctly
+	// Case 4: The LabelSelector modifies the configured Placements correctly
 	sc = &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.Placement = mockPlacements
-	sc.Spec.LabelSelector = metav1.LabelSelector{
+	sc.Spec.LabelSelector = &metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			metav1.LabelSelectorRequirement{
 				Key:      MasterAffinityKey,
@@ -83,4 +109,12 @@ func TestGetPlacement(t *testing.T) {
 	expectedPlacements := mockPlacements
 	expectedPlacements["all"].NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key = MasterAffinityKey
 	assert.Equal(t, expectedPlacements["all"], getPlacement(sc, "all"))
+
+	// Case 5: Empty LabelSelector sets no Node Affinity
+	sc = &ocsv1.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Spec.LabelSelector = &metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{},
+	}
+	assert.Equal(t, defaults.DaemonPlacements["all"], getPlacement(sc, "all"))
 }
