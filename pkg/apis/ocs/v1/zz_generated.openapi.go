@@ -70,7 +70,15 @@ func schema_pkg_apis_ocs_v1_OCSInitializationSpec(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "OCSInitializationSpec defines the desired state of OCSInitialization",
-				Properties:  map[string]spec.Schema{},
+				Properties: map[string]spec.Schema{
+					"enableCephTools": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableCephTools toggles on whether or not the ceph tools pod should be deployed. Defaults to false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 		Dependencies: []string{},
@@ -227,32 +235,10 @@ func schema_pkg_apis_ocs_v1_StorageClusterInitializationSpec(ref common.Referenc
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageClusterInitializationSpec defines the desired state of StorageClusterInitialization",
-				Properties: map[string]spec.Schema{
-					"resources": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Resources is set by the StorageCluster controller when it creates the StorageClusterInitialization resource, and is set to the StorageCluster.Spec.Resources",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.ResourceRequirements"),
-									},
-								},
-							},
-						},
-					},
-					"failureDomain": {
-						SchemaProps: spec.SchemaProps{
-							Description: "FailureDomain is the base CRUSH element Ceph will use to distribute its data replicas for the default CephBlockPool",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
+				Properties:  map[string]spec.Schema{},
 			},
 		},
-		Dependencies: []string{
-			"k8s.io/api/core/v1.ResourceRequirements"},
+		Dependencies: []string{},
 	}
 }
 
@@ -261,87 +247,10 @@ func schema_pkg_apis_ocs_v1_StorageClusterInitializationStatus(ref common.Refere
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "StorageClusterInitializationStatus defines the observed state of StorageClusterInitialization",
-				Properties: map[string]spec.Schema{
-					"phase": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Phase describes the Phase of StorageClusterInitialization This is used by OLM UI to provide status information to the user",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"conditions": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Conditions describes the state of the StorageClusterInitialization resource.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/openshift/custom-resource-status/conditions/v1.Condition"),
-									},
-								},
-							},
-						},
-					},
-					"relatedObjects": {
-						SchemaProps: spec.SchemaProps{
-							Description: "RelatedObjects is a list of objects created and maintained by this operator. Object references will be added to this list after they have been created AND found in the cluster.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.ObjectReference"),
-									},
-								},
-							},
-						},
-					},
-					"storageClassesCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"cephObjectStoresCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"cephBlockPoolsCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"cephObjectStoreUsersCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"cephFilesystemsCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"noobaaSystemCreated": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"errorMessage": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
+				Properties:  map[string]spec.Schema{},
 			},
 		},
-		Dependencies: []string{
-			"github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
+		Dependencies: []string{},
 	}
 }
 
@@ -388,6 +297,43 @@ func schema_pkg_apis_ocs_v1_StorageClusterStatus(ref common.ReferenceCallback) c
 						SchemaProps: spec.SchemaProps{
 							Description: "NodeTopologies is a list of topology labels on all nodes matching the StorageCluster's placement selector.",
 							Ref:         ref("github.com/openshift/ocs-operator/pkg/apis/ocs/v1.NodeTopologyMap"),
+						},
+					},
+					"failureDomain": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailureDomain is the base CRUSH element Ceph will use to distribute its data replicas for the default CephBlockPool",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"storageClassesCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephObjectStoresCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephBlockPoolsCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephObjectStoreUsersCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"cephFilesystemsCreated": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 				},

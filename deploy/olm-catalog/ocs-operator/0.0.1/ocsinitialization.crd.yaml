@@ -29,6 +29,11 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            enableCephTools:
+              description: EnableCephTools toggles on whether or not the ceph tools
+                pod should be deployed. Defaults to false
+              type: boolean
           type: object
         status:
           properties:

@@ -1,4 +1,9 @@
-packageName: ocs-operator
 channels:
-- name: alpha
+- name: 4.2.0
   currentCSV: ocs-operator.v0.0.1
+- name: 4.3.0
+  currentCSV: ocs-operator.v4.3.0
+- name: alpha
+  currentCSV: ocs-operator.v4.4.0
+defaultChannel: alpha
+packageName: ocs-operator

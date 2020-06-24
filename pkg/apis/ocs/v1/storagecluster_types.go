@@ -19,9 +19,12 @@ type StorageClusterSpec struct {
 	// HostNetwork defaults to false
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
-	Resources         map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
-	StorageDeviceSets []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
-	MonPVCTemplate    *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
+	Resources          map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
+	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
+	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
+	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
+	// Version specifies the version of StorageCluster
+	Version string `json:"version,omitempty"`
 }
 
 // StorageDeviceSet defines a set of storage devices.
@@ -57,7 +60,11 @@ type StorageDeviceSet struct {
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
 // TODO: Fill in the members when the actual configurable options are defined in rook-ceph
-type StorageDeviceSetConfig struct{}
+type StorageDeviceSetConfig struct {
+	// TuneSlowDeviceClass tunes the OSD when running on a slow Device Class
+	// +optional
+	TuneSlowDeviceClass bool `json:"tuneSlowDeviceClass,omitempty"`
+}
 
 // StorageClusterStatus defines the observed state of StorageCluster
 // +k8s:openapi-gen=true
@@ -81,6 +88,17 @@ type StorageClusterStatus struct {
 	// the StorageCluster's placement selector.
 	// +optional
 	NodeTopologies *NodeTopologyMap `json:"nodeTopologies,omitempty"`
+
+	// FailureDomain is the base CRUSH element Ceph will use to distribute
+	// its data replicas for the default CephBlockPool
+	// +optional
+	FailureDomain string `json:"failureDomain,omitempty"`
+
+	StorageClassesCreated       bool `json:"storageClassesCreated,omitempty"`
+	CephObjectStoresCreated     bool `json:"cephObjectStoresCreated,omitempty"`
+	CephBlockPoolsCreated       bool `json:"cephBlockPoolsCreated,omitempty"`
+	CephObjectStoreUsersCreated bool `json:"cephObjectStoreUsersCreated,omitempty"`
+	CephFilesystemsCreated      bool `json:"cephFilesystemsCreated,omitempty"`
 }
 
 // TopologyLabelValues is a list of values for a topology label
@@ -114,6 +132,10 @@ const (
 // StorageCluster is the Schema for the storageclusters API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=.metadata.creationTimestamp
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=.status.phase,description="Current Phase"
+// +kubebuilder:printcolumn:name="Created At",type=string,JSONPath=.metadata.creationTimestamp
+// +kubebuilder:printcolumn:name="Version",type=string,JSONPath=.spec.version,description="Storage Cluster Version"
 type StorageCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

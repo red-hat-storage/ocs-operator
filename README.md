@@ -21,59 +21,23 @@ $ dep ensure --vendor-only
 $ make ocs-operator
 ```
 
-### Converged CSV
+### OLM catalog
 
-The converged CSV is created by sourcing manifests from each component-level
-operator to create a single unified CSV capable of deploying the component-level
-operators as well as the ocs-operator.
+Update `hack/generate-latest-csv.sh` with the image versions to be used, and run
 
-Building the unifed CSV is broken into two steps which are supported by the
-`make source-manifests` and `make gen-release-csv` make targets.
-
-**Step 1:** Source in the component-level manifests from the component-level operator
-container images.
-
-Set environment variables referencing the ROOK and NOOBAA container images
-to source the CSV/CRD data from. Then execute `make source-manifests`
-
-```
-$ export ROOK_IMAGE=<add rook image url here>
-$ export NOOBAA_IMAGE=<add noobaa image url here>
-$ make source-manifests
+```console
+$ make gen-latest-csv
 ```
 
-The above example will source manifests in from the supplied container images
-and store those manifests in `build/_outdir/csv-templates/`
+to generate/update the OLM catalog for OCS-operator.
 
-**Step 2:** Generate the unified CSV by merging together all the manifests
-sourced in from step 1.
+A catalog registry image can be then generated using,
 
-Set environment variables related to CSV versioning.
-
-Also, set environment variables representing the container images that should be
-used in the deployments.
-
-
-**NOTE: Floating tags like 'master' and 'latest' should never be used in an official release.**
-
-```
-$ export CSV_VERSION=0.0.2
-$ export REPLACES_CSV_VERSION=0.0.1
-$ export ROOK_IMAGE=<add rook image url here>
-$ export NOOBAA_IMAGE=<add noobaa image url here>
-$ export OCS_IMAGE=<add ocs operator image url here>
-$ export ROOK_CSI_CEPH_IMAGE=<add image here>
-$ export ROOK_CSI_REGISTRAR_IMAGE=<add image here>
-$ export ROOK_CSI_PROVISIONER_IMAGE=<add image here>
-$ export ROOK_CSI_SNAPSHOTTER_IMAGE=<add image here>
-$ export ROOK_CSI_ATTACHER_IMAGE=<add image here>
-
-$ make gen-release-csv
+```console
+$ make ocs-registry
 ```
 
-This example results in both a unified CSV along with all the corresponding CRDs being placed in `deploy/olm-catalog/ocs-operator/0.0.2/` for release.
-
-Run `make ocs-registry` to generate the registry bundle container image.
+More details on the catalog generation are avilable in [docs/catalog-generation.md](docs/catalog-generation.md).
 
 ## Prerequisites
 
@@ -276,19 +240,6 @@ up properly.
 NOTE: The StorageCluster created in the BeforeSuite phase is not cleaned up.
 If you run the functional testsuite multiple times, BeforeSuite will simply
 fast succeed by detecting the StorageCluster already exists.
-
-**Replica 2 Workaround**
-
-Due to issue [#113](https://github.com/openshift/ocs-operator/issues/131) the functional test suite
-runs in replica 2 mode instead of replica 3. Once the underlying issue with
-rook is resolved, the test suite needs to return back to using replica 3. This
-will involve making two changes.
-
-1. Setting `MinOSDsCount = 3` in `functests/config.go`
-2. Removing the `Override mon count` RUN entry in the
-`openshift-ci/Dockerfile.registry.build file.
-
-Once these two changes are made, the functional test should run using replica 3
 
 ### Developing Functional Tests
 

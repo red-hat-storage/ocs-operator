@@ -14,6 +14,11 @@ import (
 // OCSInitializationSpec defines the desired state of OCSInitialization
 // +k8s:openapi-gen=true
 type OCSInitializationSpec struct {
+	// EnableCephTools toggles on whether or not the ceph tools pod
+	// should be deployed.
+	// Defaults to false
+	// +optional
+	EnableCephTools bool `json:"enableCephTools,omitempty"`
 }
 
 // OCSInitializationStatus defines the observed state of OCSInitialization
@@ -42,6 +47,9 @@ type OCSInitializationStatus struct {
 // OCSInitialization is the Schema for the ocsinitialization API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=.metadata.creationTimestamp
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=.status.phase,description="Current Phase"
+// +kubebuilder:printcolumn:name="Created At",type=string,JSONPath=.metadata.creationTimestamp
 type OCSInitialization struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

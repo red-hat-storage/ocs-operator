@@ -3,6 +3,21 @@ kind: CustomResourceDefinition
 metadata:
   name: storageclusters.ocs.openshift.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  - JSONPath: .status.phase
+    description: Current Phase
+    name: Phase
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Created At
+    type: string
+  - JSONPath: .spec.version
+    description: Storage Cluster Version
+    name: Version
+    type: string
   group: ocs.openshift.io
   names:
     kind: StorageCluster
@@ -36,6 +51,8 @@ spec:
               type: string
             manageNodes:
               type: boolean
+            monDataDirHostPath:
+              type: string
             monPVCTemplate:
               type: object
             resources:
@@ -47,6 +64,11 @@ spec:
               items:
                 properties:
                   config:
+                    properties:
+                      tuneSlowDeviceClass:
+                        description: TuneSlowDeviceClass tunes the OSD when running
+                          on a slow Device Class
+                        type: boolean
                     type: object
                   count:
                     description: Count is the number of devices in each StorageClassDeviceSet
@@ -94,9 +116,20 @@ spec:
                 - dataPVCTemplate
                 type: object
               type: array
+            version:
+              description: Version specifies the version of StorageCluster
+              type: string
           type: object
         status:
           properties:
+            cephBlockPoolsCreated:
+              type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
             conditions:
               description: Conditions describes the state of the StorageCluster resource.
               items:
@@ -122,6 +155,10 @@ spec:
                 - lastTransitionTime
                 type: object
               type: array
+            failureDomain:
+              description: FailureDomain is the base CRUSH element Ceph will use to
+                distribute its data replicas for the default CephBlockPool
+              type: string
             nodeTopologies:
               description: NodeTopologies is a list of topology labels on all nodes
                 matching the StorageCluster's placement selector.
@@ -146,6 +183,8 @@ spec:
               items:
                 type: object
               type: array
+            storageClassesCreated:
+              type: boolean
           type: object
   version: v1
   versions:

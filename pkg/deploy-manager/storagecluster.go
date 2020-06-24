@@ -18,6 +18,11 @@ import (
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 )
 
+const (
+	// jsonPatch for removing finalizers
+	finalizerRemovalPatch = `[{ "op": "replace", "path": "/metadata/finalizers", "value":null}]`
+)
+
 // StartDefaultStorageCluster creates and waits on a StorageCluster to come online
 func (t *DeployManager) StartDefaultStorageCluster() error {
 	// create the namespaces we'll work with
@@ -39,7 +44,7 @@ func (t *DeployManager) StartDefaultStorageCluster() error {
 	}
 
 	// Ensure storage cluster is online before starting tests
-	err = t.waitOnStorageCluster()
+	err = t.WaitOnStorageCluster()
 	if err != nil {
 		return err
 	}
@@ -112,9 +117,11 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					Count:    MinOSDsCount,
 					Portable: true,
 					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{},
-						Limits:   corev1.ResourceList{},
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+						},
 					},
+
 					DataPVCTemplate: k8sv1.PersistentVolumeClaim{
 						Spec: k8sv1.PersistentVolumeClaimSpec{
 							StorageClassName: &storageClassName,
@@ -179,8 +186,35 @@ func (t *DeployManager) createStorageCluster() (*ocsv1.StorageCluster, error) {
 	return newSc, nil
 }
 
-// wait for storage cluster to come online
-func (t *DeployManager) waitOnStorageCluster() error {
+// deleteStorageCluster is used to delete the test suite storage cluster
+func (t *DeployManager) deleteStorageCluster() error {
+	sc, err := DefaultStorageCluster()
+	if err != nil {
+		return err
+	}
+
+	_, err = t.ocsClient.
+		Patch(types.JSONPatchType).
+		Resource("storageclusters").
+		Body([]byte(finalizerRemovalPatch)).
+		Name(sc.GetName()).
+		Namespace(sc.GetNamespace()).
+		VersionedParams(&metav1.GetOptions{}, t.GetParameterCodec()).
+		DoRaw()
+	if err != nil {
+		return err
+	}
+
+	_, err = t.ocsClient.Delete().
+		Resource("storageclusters").
+		Name(sc.GetName()).
+		Namespace(sc.GetNamespace()).
+		DoRaw()
+	return err
+}
+
+// WaitOnStorageCluster waits for storage cluster to come online
+func (t *DeployManager) WaitOnStorageCluster() error {
 	timeout := 1200 * time.Second
 	// NOTE the long timeout above. It can take quite a bit of time for this
 	// storage cluster to fully initialize
@@ -279,15 +313,29 @@ func (t *DeployManager) waitOnStorageCluster() error {
 			return false, nil
 		}
 
-		canaryOnline := 0
-		for _, pod := range pods.Items {
-			if pod.Status.Phase == k8sv1.PodRunning {
-				canaryOnline++
-			}
-		}
-		if canaryOnline < MinOSDsCount {
-			lastReason = fmt.Sprintf("Waiting on %d/%d canary pods to come online", canaryOnline, MinOSDsCount)
+		osdPods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
+		if err != nil {
+			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
+		}
+
+		// ensure we have a canary pod for every node an OSD runs on
+		for _, osdPod := range osdPods.Items {
+			if osdPod.Status.Phase != k8sv1.PodRunning {
+				continue
+			}
+			nodeName := osdPod.Spec.NodeName
+			canaryOnline := false
+			for _, pod := range pods.Items {
+				if pod.Status.Phase == k8sv1.PodRunning && pod.Spec.NodeName == nodeName {
+					canaryOnline = true
+					break
+				}
+			}
+			if !canaryOnline {
+				lastReason = fmt.Sprintf("Waiting on canary pod for node %s", nodeName)
+				return false, nil
+			}
 		}
 
 		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running

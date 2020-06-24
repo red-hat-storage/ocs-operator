@@ -24,7 +24,8 @@ const (
 type PoolType int
 
 type ReplicatedPoolConfig struct {
-	Size uint `json:"size"`
+	Size            uint    `json:"size"`
+	TargetSizeRatio float64 `json:"targetSizeRatio"`
 }
 
 type ErasureCodedPoolConfig struct {
@@ -42,4 +43,5 @@ type Pool struct {
 	DeviceClass        string                 `json:"deviceClass"`
 	ReplicatedConfig   ReplicatedPoolConfig   `json:"replicatedConfig"`
 	ErasureCodedConfig ErasureCodedPoolConfig `json:"erasureCodedConfig"`
+	NotEnableAppPool   bool                   `json:"notEnableAppPool"`
 }

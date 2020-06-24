@@ -2,56 +2,68 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/blang/semver"
 	"github.com/go-logr/logr"
-	"github.com/operator-framework/operator-sdk/pkg/ready"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/reference"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
+	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	"github.com/openshift/ocs-operator/version"
+	"github.com/operator-framework/operator-sdk/pkg/ready"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/client-go/tools/reference"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var monCount = defaults.MonCount
+// StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
+type StorageClassProvisionerType string
+
+const (
+	rookConfigMapName = "rook-config-override"
+	rookConfigData    = `
+[global]
+mon_osd_full_ratio = .85
+mon_osd_backfillfull_ratio = .8
+mon_osd_nearfull_ratio = .75
+[osd]
+osd_memory_target_cgroup_limit_ratio = 0.5
+`
+	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
+	// EBS represents AWS EBS provisioner for Storage Class
+	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
+)
+
+var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
 var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
+	"topology.rook.io",
 }
 
-func init() {
-	monCountStr := os.Getenv("MON_COUNT_OVERRIDE")
-	if monCountStr == "" {
-		return
-	}
-
-	count, err := strconv.Atoi(monCountStr)
-	if err != nil {
-		panic(err)
-	}
-
-	if count > 0 {
-		monCount = count
-		log.Info("Using MON_COUNT_OVERRIDE value %d", monCount)
-	}
-}
+var throttleDiskTypes = []string{"gp2", "io1"}
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -77,6 +89,31 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
+	if instance.Spec.Version == "" {
+		instance.Spec.Version = version.Version
+	} else if instance.Spec.Version != version.Version { // check anything else only if the versions mis-match
+		storClustSemV1, err := semver.Make(instance.Spec.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing Storage Cluster version")
+			return reconcile.Result{}, err
+		}
+		ocsSemV1, err := semver.Make(version.Version)
+		if err != nil {
+			reqLogger.Error(err, "Error while parsing OCS Operator version")
+			return reconcile.Result{}, err
+		}
+		// if the storage cluster version is higher than the invoking OCS Operator's version,
+		// return error
+		if storClustSemV1.GT(ocsSemV1) {
+			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
+				instance.Spec.Version, version.Version)
+			reqLogger.Error(err, "Incompatible Storage cluster version")
+			return reconcile.Result{}, err
+		}
+		// if the storage cluster version is less than the OCS Operator version,
+		// just update.
+		instance.Spec.Version = version.Version
+	}
 	// Check for active StorageCluster only if Create request is made
 	// and ignore it if there's another active StorageCluster
 	// If Update request is made and StorageCluster is PhaseIgnored, no need to
@@ -100,8 +137,15 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, nil
 	}
 
+	err = r.validateStorageDeviceSets(instance)
+	if err != nil {
+		reqLogger.Error(err, "Failed to validate StorageDeviceSets")
+		return reconcile.Result{}, err
+	}
+
 	if instance.Status.Phase != statusutil.PhaseReady &&
-		instance.Status.Phase != statusutil.PhaseClusterExpanding {
+		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
+		instance.Status.Phase != statusutil.PhaseDeleting {
 		instance.Status.Phase = statusutil.PhaseProgressing
 		phaseErr := r.client.Status().Update(context.TODO(), instance)
 		if phaseErr != nil {
@@ -121,6 +165,46 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		}
 	}
 
+	// Check GetDeletionTimestamp to determine if the object is under deletion
+	if instance.GetDeletionTimestamp().IsZero() {
+		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
+			reqLogger.Info("Finalizer not found for storagecluster. Adding finalizer")
+			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				reqLogger.Error(err, "Failed to update storagecluster with finalizer")
+				return reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is marked for deletion
+		instance.Status.Phase = statusutil.PhaseDeleting
+		phaseErr := r.client.Status().Update(context.TODO(), instance)
+		if phaseErr != nil {
+			reqLogger.Error(phaseErr, "Failed to set PhaseDeleting")
+		}
+		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
+			isDeleted, err := r.deleteResources(instance, reqLogger)
+			if err != nil {
+				// If the dependencies failed to delete because of errors, retry again
+				return reconcile.Result{}, err
+			}
+			if isDeleted {
+				reqLogger.Info("Removing finalizer")
+				// Once all finalizers have been removed, the object will be deleted
+				instance.ObjectMeta.Finalizers = remove(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
+				if err := r.client.Update(context.TODO(), instance); err != nil {
+					reqLogger.Error(err, "Failed to remove finalizer from storagecluster")
+					return reconcile.Result{}, err
+				}
+			} else {
+				// Watch resources and events and reconcile.
+				return reconcile.Result{}, nil
+			}
+		}
+		reqLogger.Info("Object is terminated, skipping reconciliation")
+		return reconcile.Result{}, nil
+	}
+
 	// Get storage node topology labels
 	err = r.reconcileNodeTopologyMap(instance, reqLogger)
 	if err != nil {
@@ -135,16 +219,24 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating StorageClusterInitialization resource")
 
-			scinit.Name = request.Name
-			scinit.Namespace = request.Namespace
-			scinit.Spec.FailureDomain = determineFailureDomain(instance.Status.NodeTopologies)
-			// Set StorageCluster instance as the owner and controller
-			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
+			// if the StorageClusterInitialization object doesn't exist
+			// ensure we re-reconcile on all initialization resources
+			instance.Status.StorageClassesCreated = false
+			instance.Status.CephObjectStoresCreated = false
+			instance.Status.CephBlockPoolsCreated = false
+			instance.Status.CephObjectStoreUsersCreated = false
+			instance.Status.CephFilesystemsCreated = false
+			instance.Status.FailureDomain = determineFailureDomain(instance)
+			err = r.client.Status().Update(context.TODO(), instance)
+			if err != nil {
 				return reconcile.Result{}, err
 			}
 
-			// Copy the customized Resources into scinit
-			scinit.Spec.Resources = instance.Spec.Resources
+			scinit.Name = request.Name
+			scinit.Namespace = request.Namespace
+			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
+				return reconcile.Result{}, err
+			}
 
 			err = r.client.Create(context.TODO(), scinit)
 			switch {
@@ -156,9 +248,10 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 				log.Error(err, "Failed to create StorageClusterInitialization resource")
 				return reconcile.Result{}, err
 			}
+		} else {
+			// Error reading the object - requeue the request.
+			return reconcile.Result{}, err
 		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
 	}
 
 	// in-memory conditions should start off empty. It will only ever hold
@@ -169,7 +262,16 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 	for _, f := range []func(*ocsv1.StorageCluster, logr.Logger) error{
 		// Add support for additional resources here
+		r.ensureStorageClasses,
+		r.ensureCephObjectStores,
+		r.ensureCephObjectStoreUsers,
+		r.ensureCephBlockPools,
+		r.ensureCephFilesystems,
+
+		r.ensureCephConfig,
 		r.ensureCephCluster,
+		r.ensureNoobaaSystem,
+		r.ensureJobTemplates,
 	} {
 		err = f(instance, reqLogger)
 		if r.phase == statusutil.PhaseClusterExpanding {
@@ -266,14 +368,32 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	return reconcile.Result{}, phaseErr
 }
 
+// validateStorageDeviceSets checks the StorageDeviceSets of the given
+// StorageCluster for completeness and correctness
+func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageCluster) error {
+	for i, ds := range sc.Spec.StorageDeviceSets {
+		if ds.DataPVCTemplate.Spec.StorageClassName == nil || *ds.DataPVCTemplate.Spec.StorageClassName == "" {
+			return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified", i)
+		}
+	}
+
+	return nil
+}
+
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
 func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	nodes := &corev1.NodeList{}
-	nodeListOptions := client.ListOptions{}
-	nodeListOptions.SetLabelSelector(defaults.NodeAffinityKey)
+	minNodes := defaults.DeviceSetReplica
+	for _, deviceSet := range sc.Spec.StorageDeviceSets {
+		if deviceSet.Replica > minNodes {
+			minNodes = deviceSet.Replica
+		}
+	}
 
-	err := r.client.List(context.TODO(), &nodeListOptions, nodes)
+	nodes := &corev1.NodeList{}
+
+	nodeMatchLabel := map[string]string{defaults.NodeAffinityKey: ""}
+	err := r.client.List(context.TODO(), nodes, client.MatchingLabels(nodeMatchLabel))
 	if err != nil {
 		return err
 	}
@@ -283,6 +403,13 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	}
 	topologyMap := sc.Status.NodeTopologies
 	updated := false
+	nodeRacks := ocsv1.NewNodeTopologyMap()
+
+	r.nodeCount = len(nodes.Items)
+
+	if r.nodeCount < minNodes {
+		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, r.nodeCount)
+	}
 
 	for _, node := range nodes.Items {
 		labels := node.Labels
@@ -296,8 +423,20 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 					}
 				}
 			}
+			if strings.Contains(label, "rack") {
+				if !nodeRacks.Contains(value, node.Name) {
+					nodeRacks.Add(value, node.Name)
+				}
+			}
 		}
 
+	}
+
+	if determineFailureDomain(sc) == "rack" {
+		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap, reqLogger)
+		if err != nil {
+			return err
+		}
 	}
 
 	if updated {
@@ -311,11 +450,221 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	return nil
 }
 
+// ensureNodeRacks iterates through the list of storage nodes and ensures
+// all nodes have a rack topology label.
+func (r *ReconcileStorageCluster) ensureNodeRacks(nodes *corev1.NodeList, minRacks int, nodeRacks, topologyMap *ocsv1.NodeTopologyMap, reqLogger logr.Logger) error {
+
+	for _, node := range nodes.Items {
+		hasRack := false
+
+		for _, nodeNames := range nodeRacks.Labels {
+			for _, nodeName := range nodeNames {
+				if nodeName == node.Name {
+					hasRack = true
+					break
+				}
+			}
+			if hasRack {
+				break
+			}
+		}
+
+		if !hasRack {
+			rack := determinePlacementRack(nodes, node, minRacks, nodeRacks)
+			nodeRacks.Add(rack, node.Name)
+			if !topologyMap.Contains(defaults.RackTopologyKey, rack) {
+				reqLogger.Info("Adding rack label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+				topologyMap.Add(defaults.RackTopologyKey, rack)
+			}
+
+			reqLogger.Info("Labeling node with rack label", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+			newNode := node.DeepCopy()
+			newNode.Labels[defaults.RackTopologyKey] = rack
+			patch, err := generateStrategicPatch(node, newNode)
+			if err != nil {
+				return err
+			}
+			err = r.client.Patch(context.TODO(), &node, patch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func generateStrategicPatch(oldObj, newObj interface{}) (client.Patch, error) {
+	oldJSON, err := json.Marshal(oldObj)
+	if err != nil {
+		return nil, err
+	}
+
+	newJSON, err := json.Marshal(newObj)
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, oldObj)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.ConstantPatch(types.StrategicMergePatchType, patch), nil
+}
+
+// determinePlacementRack sorts the list of known racks in alphabetical order,
+// counts the number of Nodes in each rack, then returns the first rack with
+// the fewest number of Nodes. If there are fewer than three racks, define new
+// racks so that there are at least three. It also ensures that only racks with
+// either no nodes or nodes in the same AZ are considered valid racks.
+func determinePlacementRack(nodes *corev1.NodeList, node corev1.Node, minRacks int, nodeRacks *ocsv1.NodeTopologyMap) string {
+	rackList := []string{}
+
+	if len(nodeRacks.Labels) < minRacks {
+		for i := len(nodeRacks.Labels); i < minRacks; i++ {
+			for j := 0; j <= i; j++ {
+				newRack := fmt.Sprintf("rack%d", j)
+				if _, ok := nodeRacks.Labels[newRack]; !ok {
+					nodeRacks.Labels[newRack] = ocsv1.TopologyLabelValues{}
+					break
+				}
+			}
+		}
+	}
+
+	targetAZ := ""
+	for label, value := range node.Labels {
+		for _, key := range validTopologyLabelKeys {
+			if strings.Contains(label, key) && strings.Contains(label, "zone") {
+				targetAZ = value
+				break
+			}
+		}
+		if targetAZ != "" {
+			break
+		}
+	}
+
+	if len(targetAZ) > 0 {
+		for rack := range nodeRacks.Labels {
+			nodeNames := nodeRacks.Labels[rack]
+			if len(nodeNames) == 0 {
+				rackList = append(rackList, rack)
+				continue
+			}
+
+			validRack := false
+			for _, nodeName := range nodeNames {
+				for _, n := range nodes.Items {
+					if n.Name == nodeName {
+						for label, value := range n.Labels {
+							for _, key := range validTopologyLabelKeys {
+								if strings.Contains(label, key) && strings.Contains(label, "zone") && value == targetAZ {
+									validRack = true
+									break
+								}
+							}
+							if validRack {
+								break
+							}
+						}
+						break
+					}
+				}
+				if validRack {
+					break
+				}
+			}
+			if validRack {
+				rackList = append(rackList, rack)
+			}
+		}
+	} else {
+		for rack := range nodeRacks.Labels {
+			rackList = append(rackList, rack)
+		}
+	}
+
+	sort.Strings(rackList)
+	rack := rackList[0]
+
+	for _, r := range rackList {
+		if len(nodeRacks.Labels[r]) < len(nodeRacks.Labels[rack]) {
+			rack = r
+		}
+	}
+
+	return rack
+}
+
+// ensureCephConfig ensures that a ConfigMap resource exists with its Spec in
+// the desired state.
+func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	ownerRef := metav1.OwnerReference{
+		UID:        sc.UID,
+		APIVersion: sc.APIVersion,
+		Kind:       sc.Kind,
+		Name:       sc.Name,
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            rookConfigMapName,
+			Namespace:       sc.Namespace,
+			OwnerReferences: []metav1.OwnerReference{ownerRef},
+		},
+		Data: map[string]string{
+			"config": rookConfigData,
+		},
+	}
+
+	found := &corev1.ConfigMap{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating Ceph ConfigMap")
+			err = r.client.Create(context.TODO(), cm)
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	}
+
+	ownerRefFound := false
+	for _, ownerRef := range found.OwnerReferences {
+		if ownerRef.UID == sc.UID {
+			ownerRefFound = true
+		}
+	}
+	val, ok := found.Data["config"]
+	if ok != true || val != rookConfigData || ownerRefFound != true {
+		reqLogger.Info("Updating Ceph ConfigMap")
+		return r.client.Update(context.TODO(), cm)
+	}
+	return nil
+}
+
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	// if StorageClass is "gp2" or "io1" based, set tuneSlowDeviceClass to true
+	// this is for performance optimization of slow device class
+	//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
+	for i, ds := range sc.Spec.StorageDeviceSets {
+		throttle, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+		if err != nil {
+			return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
+		}
+		if throttle {
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
+		} else {
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+		}
+	}
+
 	// Define a new CephCluster object
-	cephCluster := newCephCluster(sc, r.cephImage)
+	cephCluster := newCephCluster(sc, r.cephImage, r.nodeCount, reqLogger)
 
 	// Set StorageCluster instance as the owner and controller
 	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
@@ -387,9 +736,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 
 // determineFailureDomain determines the appropriate Ceph failure domain based
 // on the storage cluster's topology map
-func determineFailureDomain(topologyMap *ocsv1.NodeTopologyMap) string {
-	failureDomain := "host"
-
+func determineFailureDomain(sc *ocsv1.StorageCluster) string {
+	if sc.Status.FailureDomain != "" {
+		return sc.Status.FailureDomain
+	}
+	topologyMap := sc.Status.NodeTopologies
+	failureDomain := "rack"
 	for label, labelValues := range topologyMap.Labels {
 		if strings.Contains(label, "zone") {
 			if len(labelValues) >= 3 {
@@ -397,19 +749,18 @@ func determineFailureDomain(topologyMap *ocsv1.NodeTopologyMap) string {
 			}
 		}
 	}
-
 	return failureDomain
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, reqLogger logr.Logger) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
 
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sc.Name,
+			Name:      generateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -419,12 +770,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				AllowUnsupported: false,
 			},
 			Mon: cephv1.MonSpec{
-				Count:                monCount,
+				Count:                getMonCount(nodeCount),
 				AllowMultiplePerNode: false,
 			},
 			Mgr: cephv1.MgrSpec{
 				Modules: []cephv1.Module{
 					cephv1.Module{Name: "pg_autoscaler", Enabled: true},
+					cephv1.Module{Name: "balancer", Enabled: true},
 				},
 			},
 			DataDirHostPath: "/var/lib/rook",
@@ -444,21 +796,28 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				RulesNamespace: "openshift-storage",
 			},
 			Storage: rook.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc.Spec.StorageDeviceSets, sc.Status.NodeTopologies),
-				TopologyAware:          true,
+				StorageClassDeviceSets: newStorageClassDeviceSets(sc),
 			},
 			Placement: rook.PlacementSpec{
 				"all": defaults.DaemonPlacements["all"],
+				"mon": getCephDaemonPlacements(sc, "mon"),
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
+			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
 		},
 	}
-
-	// If a MonPVCTemplate is provided, use that. If not, if StorageDeviceSets
-	// have been provided, use the StorageClass of the DataPVCTemplate from the
-	// first StorageDeviceSet for providing the Mon PVs
-	if sc.Spec.MonPVCTemplate != nil {
-		cephCluster.Spec.Mon.VolumeClaimTemplate = sc.Spec.MonPVCTemplate
+	monPVCTemplate := sc.Spec.MonPVCTemplate
+	monDataDirHostPath := sc.Spec.MonDataDirHostPath
+	// If the `monPVCTemplate` is provided, the mons will provisioned on the
+	// provided `monPVCTemplate`.
+	if monPVCTemplate != nil {
+		cephCluster.Spec.Mon.VolumeClaimTemplate = monPVCTemplate
+		// If the `monDataDirHostPath` is provided without the `monPVCTemplate`,
+		// the mons will be provisioned on the provided `monDataDirHostPath`.
+	} else if len(monDataDirHostPath) > 0 {
+		cephCluster.Spec.DataDirHostPath = monDataDirHostPath
+		// If no `monPVCTemplate` and `monDataDirHostPath` is provided, the mons will
+		// be provisioned using the PVC template of first StorageDeviceSets if present.
 	} else if len(sc.Spec.StorageDeviceSets) > 0 {
 		ds := sc.Spec.StorageDeviceSets[0]
 		cephCluster.Spec.Mon.VolumeClaimTemplate = &corev1.PersistentVolumeClaim{
@@ -471,8 +830,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephClus
 				},
 			},
 		}
+	} else {
+		reqLogger.Info(fmt.Sprintf("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for storageCluster %s", sc.GetName()))
 	}
-
 	return cephCluster
 }
 
@@ -492,7 +852,10 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 }
 
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
-func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topologyMap *ocsv1.NodeTopologyMap) []rook.StorageClassDeviceSet {
+func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDeviceSet {
+	storageDeviceSets := sc.Spec.StorageDeviceSets
+	topologyMap := sc.Status.NodeTopologies
+
 	var storageClassDeviceSets []rook.StorageClassDeviceSet
 
 	for _, ds := range storageDeviceSets {
@@ -507,7 +870,7 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 
 		if noPlacement {
 			if topologyKey == "" {
-				topologyKey = "zone"
+				topologyKey = determineFailureDomain(sc)
 			}
 			if topologyMap != nil {
 				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
@@ -533,14 +896,12 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 
 		for i := 0; i < replica; i++ {
 			placement := rook.Placement{}
-			portable := ds.Portable
 
 			if noPlacement {
 				in := defaults.DaemonPlacements["osd"]
 				(&in).DeepCopyInto(&placement)
 
 				if len(topologyKeyValues) >= replica {
-					portable = true
 					podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
 					podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
 
@@ -552,8 +913,6 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 					}
 					nodeSelectorTerms := placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 					nodeSelectorTerms[0].MatchExpressions = append(nodeSelectorTerms[0].MatchExpressions, nodeZoneSelector)
-				} else {
-					portable = false
 				}
 			} else {
 				placement = ds.Placement
@@ -566,7 +925,8 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 				Placement:            placement,
 				Config:               ds.Config.ToMap(),
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
-				Portable:             portable,
+				Portable:             ds.Portable,
+				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
 			}
 			storageClassDeviceSets = append(storageClassDeviceSets, set)
 		}
@@ -575,24 +935,31 @@ func newStorageClassDeviceSets(storageDeviceSets []ocsv1.StorageDeviceSet, topol
 	return storageClassDeviceSets
 }
 
+func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string) (bool, error) {
+	storageClass := &storagev1.StorageClass{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve Storage Class %q. %+v", storageClassName, err)
+	}
+	switch storageClass.Provisioner {
+	case string(EBS):
+		if contains(throttleDiskTypes, storageClass.Parameters["type"]) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {
 	storageClusterList := ocsv1.StorageClusterList{}
-	opts := &client.ListOptions{
-		Namespace: instance.Namespace,
-		Raw: &metav1.ListOptions{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       instance.Kind,
-				APIVersion: instance.APIVersion,
-			},
-		},
-	}
+
 	// instance is already marked for deletion
 	// do not mark it as active
 	if !instance.GetDeletionTimestamp().IsZero() {
 		return false, nil
 	}
 
-	err := r.client.List(context.TODO(), opts, &storageClusterList)
+	err := r.client.List(context.TODO(), &storageClusterList, client.InNamespace(instance.Namespace))
 	if err != nil {
 		return false, fmt.Errorf("Error fetching StorageClusterList. %+v", err)
 	}
@@ -623,4 +990,207 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 		}
 	}
 	return true, nil
+}
+
+func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (bool, error) {
+	// NoobaaSystem is dependent upon ceph for volume provisioning.
+	// We want to make sure we delete noobaasystem before we delete cephcluster, to get a clean uninstall.
+	return r.deleteNoobaaSystems(sc, reqLogger)
+}
+
+//getCephDaemonPlacements returns placement configuration for ceph components with appropriate topology
+func getCephDaemonPlacements(sc *ocsv1.StorageCluster, component string) rook.Placement {
+	placement := rook.Placement{}
+	in := defaults.DaemonPlacements[component]
+	(&in).DeepCopyInto(&placement)
+	topologyMap := sc.Status.NodeTopologies
+	if topologyMap != nil {
+		topologyKey := determineFailureDomain(sc)
+		topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
+		podAffinityTerms := placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+		podAffinityTerms[0].PodAffinityTerm.TopologyKey = topologyKey
+	}
+
+	return placement
+}
+
+// Checks whether a string is contained within a slice
+func contains(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// Removes a given string from a slice and returns the new slice
+func remove(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
+}
+
+func getMonCount(nodeCount int) int {
+	count := defaults.MonCountMin
+
+	// return static value if overriden
+	override := os.Getenv(monCountOverrideEnvVar)
+	if override != "" {
+		count, err := strconv.Atoi(override)
+		if err != nil {
+			log.Error(err, "could not decode env var %s", monCountOverrideEnvVar)
+		} else {
+			return count
+		}
+	}
+
+	if nodeCount >= defaults.MonCountMax {
+		count = defaults.MonCountMax
+	}
+
+	return count
+}
+
+// ensureJobTemplates ensures if the osd removal job template exists
+func (r *ReconcileStorageCluster) ensureJobTemplates(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	osdCleanUpTemplate := &openshiftv1.Template{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-osd-removal",
+			Namespace: sc.Namespace,
+		},
+	}
+	_, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, osdCleanUpTemplate, func() error {
+		osdCleanUpTemplate.Objects = []runtime.RawExtension{
+			{
+				Object: newCleanupJob(sc),
+			},
+		}
+		osdCleanUpTemplate.Parameters = []openshiftv1.Parameter{
+			{
+				Name:     "FAILED_OSD_ID",
+				Required: true,
+			},
+		}
+		return controllerutil.SetControllerReference(sc, osdCleanUpTemplate, r.scheme)
+	})
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create Template: %v", err.Error())
+	}
+	return nil
+}
+
+func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
+	labels := map[string]string{
+		"app": "ceph-toolbox-job-${FAILED_OSD_ID}",
+	}
+
+	// The purgeOSDScript finds osd status for given FAILED_OSD_ID whether it's up or down. The action will be taken according to osd status. If osd is up and running, it won't be marked out. If osd is down it can be taken out of the cluster and purged.
+	const purgeOSDScript = `
+set -x
+
+osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}') 
+if [[ "$osd_status" == "up" ]]; then 
+  echo "OSD ${FAILED_OSD_ID} is up and running."
+  echo "Please check if you entered correct ID of failed osd!"
+else 
+  echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
+  ceph osd out osd.${FAILED_OSD_ID} 
+  ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
+fi`
+
+	job := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-osd-removal-${FAILED_OSD_ID}",
+			Namespace: sc.Namespace,
+			Labels:    labels,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "mon-endpoint-volume",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "rook-ceph-mon-endpoints",
+									},
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "data",
+											Path: "mon-endpoints",
+										},
+									},
+								},
+							},
+						},
+						{
+							Name:         "ceph-config",
+							VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+					Containers: []corev1.Container{
+						{
+							Name:  "script",
+							Image: os.Getenv("ROOK_CEPH_IMAGE"),
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									MountPath: "/etc/ceph",
+									Name:      "ceph-config",
+									ReadOnly:  true,
+								},
+							},
+							Command: []string{
+								"/bin/bash",
+								"-c",
+								purgeOSDScript,
+							},
+						},
+					},
+					InitContainers: []corev1.Container{
+						{
+							Name:            "config-init",
+							Image:           os.Getenv("ROOK_CEPH_IMAGE"),
+							Command:         []string{"/usr/local/bin/toolbox.sh"},
+							Args:            []string{"--skip-watch"},
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									MountPath: "/etc/ceph",
+									Name:      "ceph-config",
+								},
+								{
+									Name:      "mon-endpoint-volume",
+									MountPath: "/etc/rook",
+								},
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name: "ROOK_ADMIN_SECRET",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key:                  "admin-secret",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return job
 }

@@ -17,6 +17,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.BucketClass":        schema_pkg_apis_noobaa_v1alpha1_BucketClass(ref),
 		"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.BucketClassSpec":    schema_pkg_apis_noobaa_v1alpha1_BucketClassSpec(ref),
 		"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.BucketClassStatus":  schema_pkg_apis_noobaa_v1alpha1_BucketClassStatus(ref),
+		"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.EndpointsSpec":      schema_pkg_apis_noobaa_v1alpha1_EndpointsSpec(ref),
 		"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.NooBaa":             schema_pkg_apis_noobaa_v1alpha1_NooBaa(ref),
 		"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.NooBaaSpec":         schema_pkg_apis_noobaa_v1alpha1_NooBaaSpec(ref),
 		"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.NooBaaStatus":       schema_pkg_apis_noobaa_v1alpha1_NooBaaStatus(ref),
@@ -166,12 +167,17 @@ func schema_pkg_apis_noobaa_v1alpha1_BackingStoreStatus(ref common.ReferenceCall
 							},
 						},
 					},
+					"mode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Mode specifies the updating mode of a BackingStore",
+							Ref:         ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.BackingStoreMode"),
+						},
+					},
 				},
-				Required: []string{"phase"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
+			"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.BackingStoreMode", "github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
 	}
 }
 
@@ -287,12 +293,66 @@ func schema_pkg_apis_noobaa_v1alpha1_BucketClassStatus(ref common.ReferenceCallb
 							},
 						},
 					},
+					"mode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Mode is a simple, high-level summary of where the System is in its lifecycle",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"phase"},
 			},
 		},
 		Dependencies: []string{
 			"github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
+	}
+}
+
+func schema_pkg_apis_noobaa_v1alpha1_EndpointsSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "EndpointsSpec defines the desired state of noobaa endpoint deployment",
+				Properties: map[string]spec.Schema{
+					"minCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MinCount, the number of endpoint instances (pods) to be used as the lower bound when autoscaling",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxCount, the number of endpoint instances (pods) to be used as the upper bound when autoscaling",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"additionalVirtualHosts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalVirtualHosts (optional) provide a list of additional hostnames (on top of the buildin names defined by the cluster: service name, elb name, route name) to be used as virtual hosts by the the endpoints in the endpoint deployment",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources (optional) overrides the default resource requirements for every endpoint pod",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.ResourceRequirements"},
 	}
 }
 
@@ -407,17 +467,42 @@ func schema_pkg_apis_noobaa_v1alpha1_NooBaaSpec(ref common.ReferenceCallback) co
 							},
 						},
 					},
+					"affinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Affinity (optional) passed through to noobaa's pods",
+							Ref:         ref("k8s.io/api/core/v1.Affinity"),
+						},
+					},
 					"imagePullSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ImagePullSecret (optional) sets a pull secret for the system image",
 							Ref:         ref("k8s.io/api/core/v1.LocalObjectReference"),
 						},
 					},
+					"region": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Region (optional) provide a region for the location info of the endpoints in the endpoint deployment",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"endpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Endpoints (optional) sets configuration info for the noobaa endpoint deployment.",
+							Ref:         ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.EndpointsSpec"),
+						},
+					},
+					"joinSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "JoinSecret (optional) instructs the operator to join another cluster and point to a secret that holds the join information",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration"},
+			"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.EndpointsSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecretReference", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -482,12 +567,20 @@ func schema_pkg_apis_noobaa_v1alpha1_NooBaaStatus(ref common.ReferenceCallback) 
 					},
 					"accounts": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.AccountsStatus"),
+							Description: "Accounts reports accounts info for the admin account",
+							Ref:         ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.AccountsStatus"),
 						},
 					},
 					"services": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.ServicesStatus"),
+							Description: "Services reports addresses for the services",
+							Ref:         ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.ServicesStatus"),
+						},
+					},
+					"endpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Endpoints reports the actual number of endpoints in the endpoint deployment and the virtual hosts list used recognized by the endpoints",
+							Ref:         ref("github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.EndpointsStatus"),
 						},
 					},
 					"readme": {
@@ -498,10 +591,9 @@ func schema_pkg_apis_noobaa_v1alpha1_NooBaaStatus(ref common.ReferenceCallback) 
 						},
 					},
 				},
-				Required: []string{"observedGeneration", "phase", "actualImage", "accounts", "services", "readme"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.AccountsStatus", "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.ServicesStatus", "github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
+			"github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.AccountsStatus", "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.EndpointsStatus", "github.com/noobaa/noobaa-operator/pkg/apis/noobaa/v1alpha1.ServicesStatus", "github.com/openshift/custom-resource-status/conditions/v1.Condition", "k8s.io/api/core/v1.ObjectReference"},
 	}
 }

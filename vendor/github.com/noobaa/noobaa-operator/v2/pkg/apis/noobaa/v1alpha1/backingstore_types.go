@@ -87,7 +87,8 @@ type BackingStoreSpec struct {
 type BackingStoreStatus struct {
 
 	// Phase is a simple, high-level summary of where the backing store is in its lifecycle
-	Phase BackingStorePhase `json:"phase"`
+	// +optional
+	Phase BackingStorePhase `json:"phase,omitempty"`
 
 	// Conditions is a list of conditions related to operator reconciliation
 	// +patchMergeKey=type
@@ -96,7 +97,34 @@ type BackingStoreStatus struct {
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"  patchStrategy:"merge" patchMergeKey:"type"`
 
 	// RelatedObjects is a list of objects related to this operator.
+	// +optional
 	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
+	// Mode specifies the updating mode of a BackingStore
+	// +optional
+	Mode BackingStoreMode `json:"mode,omitempty"`
+}
+
+// BackingStoreMode defines the updated Mode of BackingStore
+type BackingStoreMode struct {
+	// ModeCode specifies the updated mode of backingstore
+	// +optional
+	ModeCode string `json:"modeCode,omitempty"`
+	// TimeStamp specifies the update time of backingstore new mode
+	// +optional
+	TimeStamp string `json:"timeStamp,omitempty"`
+}
+
+// BackingStorePhaseInfo defines the phase and the updated Mode of BackingStore
+type BackingStorePhaseInfo struct {
+	// Phase specifies the phase of backingstore
+	// +optional
+	Phase BackingStorePhase `json:"phase,omitempty"`
+	// Reason specifies the reason of backingstore phase
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// Message specifies the message of backingstore phase
+	// +optional
+	Message string `json:"message,omitempty"`
 }
 
 // StoreType is the backing store type enum

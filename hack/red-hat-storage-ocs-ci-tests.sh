@@ -13,7 +13,7 @@ cd $OUTDIR_OCS_CI
 # detect latest master hash of ocs-ci if we're not pinned to a specific commit hash
 if [ -z "$REDHAT_OCS_CI_HASH" ]; then
 	echo "Using latest ocs-ci master branch commit"
-	REDHAT_OCS_CI_HASH=$(git ls-remote $REDHAT_OCS_CI_REPO | grep refs/heads/master | cut -f 1)
+	REDHAT_OCS_CI_HASH=$(git ls-remote "$REDHAT_OCS_CI_REPO" | grep refs/heads/master | cut -f 1)
 fi
 
 echo "ocs-ci commit hash: $REDHAT_OCS_CI_HASH at repo: $REDHAT_OCS_CI_REPO"
@@ -28,24 +28,17 @@ fi
 
 if [ -n "${DOWNLOAD_SRC}" ]; then
 	echo "Cloning code from $REDHAT_OCS_CI_REPO using hash $REDHAT_OCS_CI_HASH"
+        # shellcheck disable=SC2086
 	curl -L ${REDHAT_OCS_CI_REPO}/archive/${REDHAT_OCS_CI_HASH}/ocs-ci.tar.gz | tar xz ocs-ci-${REDHAT_OCS_CI_HASH}
-	mv ocs-ci-${REDHAT_OCS_CI_HASH} ocs-ci
+	mv ocs-ci-"${REDHAT_OCS_CI_HASH}" ocs-ci
 else
 	echo "Using cached ocs-ci src"
 fi
 
 cd ocs-ci
 
-# install the rook/ceph tools pod if required
-if [ "$REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL" = "true" ]; then
-	echo "Installing the rook/ceph tools pod"
-	rook_image=$(oc get deployment -n openshift-storage rook-ceph-operator -o yaml | grep "image\:" | awk -F' ' '{ print $2 }')
-	cp ocs_ci/templates/ocs-deployment/toolbox_pod.yaml custom_toolbox_pod.yaml
-	sed -i "s|image\: .*$|image\: $rook_image|g" custom_toolbox_pod.yaml
-
-	oc apply -f custom_toolbox_pod.yaml
-	oc wait --for=condition=available --timeout=200s deployment/rook-ceph-tools -n openshift-storage
-fi
+oc patch ocsinitialization ocsinit -n openshift-storage --type json --patch  '[{ "op": "replace", "path": "/spec/enableCephTools", "value": true }]'
+sleep 10
 
 # record the hash in a file so we don't redownload the source if nothing changed.
 echo "$REDHAT_OCS_CI_HASH" > git-hash
@@ -54,7 +47,7 @@ echo "$REDHAT_OCS_CI_HASH" > git-hash
 # for the ocs-ci test suite. All we need is to provide
 # the auth credentials in the predictable directory structure
 mkdir -p fakecluster/auth
-cp $KUBECONFIG fakecluster/auth/kubeconfig
+cp "$KUBECONFIG" fakecluster/auth/kubeconfig
 
 # Openshift CI runs this test within a pod with a randomized uid
 # ocs-ci expects this randomized user to exist in the /etc/passwd file
@@ -98,7 +91,7 @@ echo "Running ocs-ci testsuite using -k $REDHAT_OCS_CI_TEST_EXPRESSION"
 run-ci -k "$REDHAT_OCS_CI_TEST_EXPRESSION" --cluster-path "$(pwd)/fakecluster/" --ocsci-conf my-config.yaml
 
 if [ $? -ne 0 ]; then
-	${ORIG_DIR}/hack/dump-debug-info.sh
+	"${ORIG_DIR}"/hack/dump-debug-info.sh
 	echo "ERROR: red-hat-storage/ocs-ci test suite failed."
 	exit 1
 fi

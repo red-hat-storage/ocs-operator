@@ -1,14 +1,14 @@
 # approval == this is a good idea /approve
 approvers:
   - jarrpa
-  - kshlm
   - mhrivnak
   - obnoxxx
   - davidvossel
+  - egafford
 # review == this code is good /lgtm
 reviewers:
   - jarrpa
-  - kshlm
   - mhrivnak
   - obnoxxx
   - davidvossel
+  - egafford

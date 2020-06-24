@@ -133,7 +133,7 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 		r.reqLogger.Info("not creating a CephObjectStore because the platform is Azure")
 		return nil
 	}
-
+  
 	cephObjectStores, err := r.newCephObjectStoreInstances(instance)
 	if err != nil {
 		return err

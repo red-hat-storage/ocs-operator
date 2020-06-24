@@ -2,10 +2,16 @@
 BASE_COLLECTION_PATH="/must-gather"
 mkdir -p ${BASE_COLLECTION_PATH}
 
-# TODO: Resources commnon to both noobaa and ceph can be collected here
 
 # Resource List
 resources=()
+# collect storagecluster resources
+
+# TODO: Re enable the collection of storagecluster via inspect command
+# resources+=(storageclusters)
+
+# NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
+{ timeout 120 oc get storageclusters --all-namespaces -o yaml; } > $BASE_COLLECTION_PATH/storagecluster.yaml 2>&1
 
 # collect OB/OBC resoureces
 resources+=(objectbucketclaims)
@@ -14,12 +20,37 @@ resources+=(objectbuckets)
 # Add general resources to list if necessary 
 
 # Run the Collection of Resources using must-gather
-for resource in ${resources[@]}; do
-    openshift-must-gather --base-dir=${BASE_COLLECTION_PATH} inspect ${resource} --all-namespaces
+for resource in "${resources[@]}"; do
+    echo "collecting dump of ${resource}" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
+    { timeout 120 oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+done
+
+# collection path for OC commands
+mkdir -p ${BASE_COLLECTION_PATH}/oc_output/
+
+# Command List
+commands=()
+
+# collect oc output of OC commands
+commands+=("version")
+commands+=("get pods -owide")
+commands+=("get nodes --show-labels")
+commands+=("describe nodes")
+commands+=("describe pods")
+commands+=("get pvc")
+commands+=("get pv")
+commands+=("get sc")
+
+# Run the Collection of Resources to list
+for command in "${commands[@]}"; do
+     echo "collecting oc command ${command}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
+     timeout 120 oc ${command} -n openshift-storage >> ${BASE_COLLECTION_PATH}/oc_output/"${command}"
 done
 
 # Call other gather scripts
 gather_noobaa_resources ${BASE_COLLECTION_PATH}
 gather_ceph_resources ${BASE_COLLECTION_PATH}
 
+echo "deleting empty files" >> ${BASE_COLLECTION_PATH}/gather-debug.log
+find "${BASE_COLLECTION_PATH}" -empty -delete >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 exit 0

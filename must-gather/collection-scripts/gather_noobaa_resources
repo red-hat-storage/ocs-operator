@@ -1,15 +1,15 @@
 #!/bin/bash
-
+  
 # Expect base collection path as an argument
 BASE_COLLECTION_PATH=$1
 
 # Use PWD as base path if no argument is passed
-if [ "${BASE_COLLECTION_PATH}" = "" ]]; then
+if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
 
 NOOBAA_COLLLECTION_PATH="${BASE_COLLECTION_PATH}/noobaa"
-mkdir -p ${NOOBAA_COLLLECTION_PATH}
+mkdir -p "${NOOBAA_COLLLECTION_PATH}"
 
 noobaa_resources=()
 
@@ -18,8 +18,9 @@ noobaa_resources+=(backingstore)
 noobaa_resources+=(bucketclass)
 
 # Run the Collection of NooBaa Resources using must-gather
-for resource in ${noobaa_resources[@]}; do
-    openshift-must-gather --base-dir=${NOOBAA_COLLLECTION_PATH} inspect ${resource} --all-namespaces
+for resource in "${noobaa_resources[@]}"; do
+    echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+    { timeout 120 oc adm --dest-dir="${NOOBAA_COLLLECTION_PATH}" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
 
 # Collect logs for all noobaa pods using oc logs
@@ -28,9 +29,10 @@ NOOBAA_PODS_LABEL='app in (noobaa)'
 for ns in $(oc get pod --all-namespaces -l "${NOOBAA_PODS_LABEL}" | grep -v NAMESPACE | awk '{print $1}' | uniq)
 do
     #get logs for all pods with label app=noobaa
-    for pod in $(oc -n ${ns} get pod -l "${NOOBAA_PODS_LABEL}" | grep -v NAME | awk '{print $1}'); do
+    for pod in $(oc -n "${ns}" get pod -l "${NOOBAA_PODS_LABEL}" | grep -v NAME | awk '{print $1}'); do
+        echo "collecting dump of ${pod} pod from ${ns}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         LOG_DIR=${NOOBAA_COLLLECTION_PATH}/logs/${ns}
-        mkdir -p ${LOG_DIR}
-        oc -n ${ns} logs --all-containers ${pod} &> ${LOG_DIR}/${pod}.log
+        mkdir -p "${LOG_DIR}"
+        { timeout 120 oc -n "${ns}" logs --all-containers "${pod}" &> "${LOG_DIR}"/"${pod}".log; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
     done
 done

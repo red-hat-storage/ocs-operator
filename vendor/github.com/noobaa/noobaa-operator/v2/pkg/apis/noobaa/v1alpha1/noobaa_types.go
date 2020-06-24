@@ -104,9 +104,50 @@ type NooBaaSpec struct {
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
+	// Affinity (optional) passed through to noobaa's pods
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
 	// ImagePullSecret (optional) sets a pull secret for the system image
 	// +optional
 	ImagePullSecret *corev1.LocalObjectReference `json:"imagePullSecret,omitempty"`
+
+	// Region (optional) provide a region for the location info
+	// of the endpoints in the endpoint deployment
+	// +optional
+	Region *string `json:"region,omitempty"`
+
+	// Endpoints (optional) sets configuration info for the noobaa endpoint
+	// deployment.
+	// +optional
+	Endpoints *EndpointsSpec `json:"endpoints,omitempty"`
+
+	// JoinSecret (optional) instructs the operator to join another cluster
+	// and point to a secret that holds the join information
+	// +optional
+	JoinSecret *corev1.SecretReference `json:"joinSecret,omitempty"`
+}
+
+// EndpointsSpec defines the desired state of noobaa endpoint deployment
+// +k8s:openapi-gen=true
+type EndpointsSpec struct {
+	// MinCount, the number of endpoint instances (pods)
+	// to be used as the lower bound when autoscaling
+	MinCount int32 `json:"minCount,omitempty"`
+
+	// MaxCount, the number of endpoint instances (pods)
+	// to be used as the upper bound when autoscaling
+	MaxCount int32 `json:"maxCount,omitempty"`
+
+	// AdditionalVirtualHosts (optional) provide a list of additional hostnames
+	// (on top of the buildin names defined by the cluster: service name, elb name, route name)
+	// to be used as virtual hosts by the the endpoints in the endpoint deployment
+	// +optional
+	AdditionalVirtualHosts []string `json:"additionalVirtualHosts,omitempty"`
+
+	// Resources (optional) overrides the default resource requirements for every endpoint pod
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // NooBaaStatus defines the observed state of System
@@ -115,10 +156,12 @@ type NooBaaStatus struct {
 
 	// ObservedGeneration is the most recent generation observed for this noobaa system.
 	// It corresponds to the CR generation, which is updated on mutation by the API Server.
-	ObservedGeneration int64 `json:"observedGeneration"`
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
 	// Phase is a simple, high-level summary of where the System is in its lifecycle
-	Phase SystemPhase `json:"phase"`
+	// +optional
+	Phase SystemPhase `json:"phase,omitempty"`
 
 	// Conditions is a list of conditions related to operator reconciliation
 	// +patchMergeKey=type
@@ -127,17 +170,29 @@ type NooBaaStatus struct {
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"  patchStrategy:"merge" patchMergeKey:"type"`
 
 	// RelatedObjects is a list of objects related to this operator.
+	// +optional
 	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
 
 	// ActualImage is set to report which image the operator is using
-	ActualImage string `json:"actualImage"`
+	// +optional
+	ActualImage string `json:"actualImage,omitempty"`
 
-	Accounts AccountsStatus `json:"accounts"`
+	// Accounts reports accounts info for the admin account
+	// +optional
+	Accounts *AccountsStatus `json:"accounts,omitempty"`
 
-	Services ServicesStatus `json:"services"`
+	// Services reports addresses for the services
+	// +optional
+	Services *ServicesStatus `json:"services,omitempty"`
+
+	// Endpoints reports the actual number of endpoints in the endpoint deployment
+	// and the virtual hosts list used recognized by the endpoints
+	// +optional
+	Endpoints *EndpointsStatus `json:"endpoints,omitempty"`
 
 	// Readme is a user readable string with explanations on the system
-	Readme string `json:"readme"`
+	// +optional
+	Readme string `json:"readme,omitempty"`
 }
 
 // SystemPhase is a string enum type for system phases
@@ -246,6 +301,12 @@ type ServiceStatus struct {
 	// ExternalDNS are external public addresses for the service
 	// +optional
 	ExternalDNS []string `json:"externalDNS,omitempty"`
+}
+
+// EndpointsStatus is the status info for the endpoints deployment
+type EndpointsStatus struct {
+	ReadyCount   int32    `json:"readyCount"`
+	VirtualHosts []string `json:"virtualHosts"`
 }
 
 const (

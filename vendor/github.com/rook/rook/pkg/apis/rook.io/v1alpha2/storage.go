@@ -82,6 +82,7 @@ func (s *StorageScopeSpec) resolveNodeSelection(node *Node) {
 	}
 
 	resolveString(&(node.Selection.DeviceFilter), s.Selection.DeviceFilter, "")
+	resolveString(&(node.Selection.DevicePathFilter), s.Selection.DevicePathFilter, "")
 
 	if len(node.Selection.Devices) == 0 {
 		node.Selection.Devices = s.Devices
@@ -97,8 +98,6 @@ func (s *StorageScopeSpec) resolveNodeSelection(node *Node) {
 }
 
 func (s *StorageScopeSpec) resolveNodeConfig(node *Node) {
-	resolveString(&(node.Location), s.Location, "")
-
 	// check for any keys the parent scope has that the node does not
 	for scopeKey, scopeVal := range s.Config {
 		if _, ok := node.Config[scopeKey]; !ok {
