@@ -246,6 +246,10 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.
 			CrashCollector: cephv1.CrashCollectorSpec{
 				Disable: true,
 			},
+			DisruptionManagement: cephv1.DisruptionManagementSpec{
+				ManagePodBudgets:               false,
+				ManageMachineDisruptionBudgets: false,
+			},
 		},
 	}
 	return externalCephCluster
