@@ -265,6 +265,9 @@ func assertNoobaaResource(t *testing.T, reconciler ReconcileStorageCluster) {
 	// expectation is to get an appropriate Noobaa object
 	err = reconciler.client.Get(nil, request.NamespacedName, fNoobaa)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, fNoobaa.Labels[externalRgwEndpointLabelName])
+	// The endpoint is base64 encoded, the decoded value is "10.20.30.40:50"
+	assert.Equal(t, fNoobaa.Labels[externalRgwEndpointLabelName], "MTAuMjAuMzAuNDA6NTA=")
 }
 
 func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster {
