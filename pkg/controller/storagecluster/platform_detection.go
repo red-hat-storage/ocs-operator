@@ -41,10 +41,8 @@ func (p *CloudPlatform) GetPlatform(c client.Client) (CloudPlatformType, error) 
 	}
 	p.mux.Lock()
 	defer p.mux.Unlock()
-	if !isValidCloudPlatform(p.platform) {
-		return p.getPlatform(c)
-	}
-	return p.platform, nil
+
+	return p.getPlatform(c)
 }
 
 func (p *CloudPlatform) getPlatform(c client.Client) (CloudPlatformType, error) {
@@ -68,9 +66,6 @@ func (p *CloudPlatform) getPlatform(c client.Client) (CloudPlatformType, error) 
 }
 
 func isValidCloudPlatform(p CloudPlatformType) bool {
-	if p == PlatformUnknown {
-		return true
-	}
 	for _, cp := range ValidCloudPlatforms {
 		if p == cp {
 			return true
