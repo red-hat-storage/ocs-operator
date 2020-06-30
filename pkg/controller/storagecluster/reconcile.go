@@ -200,7 +200,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			reqLogger.Error(err, "Failed to set node topology map")
 			return reconcile.Result{}, err
 		}
-		if err := r.ensureStorageClusterInit(instance, request, reqLogger); err != nil {
+		if err := r.ensurestorageclusterinit(instance, request, reqLogger); err != nil {
 			reqLogger.Error(err, "Failed to initialize the storagecluster")
 			return reconcile.Result{}, err
 		}
@@ -221,7 +221,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			r.ensureCephObjectStoreUsers,
 			r.ensureCephBlockPools,
 			r.ensureCephFilesystems,
-
 			r.ensureCephConfig,
 			r.ensureCephCluster,
 			r.ensureNoobaaSystem,
@@ -362,55 +361,6 @@ func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 		// just update.
 		sc.Spec.Version = version.Version
 	}
-	return nil
-}
-
-// ensureStorageClusterInit function initialize the StorageCluster
-func (r *ReconcileStorageCluster) ensureStorageClusterInit(
-	instance *ocsv1.StorageCluster,
-	request reconcile.Request,
-	reqLogger logr.Logger) error {
-	// Check for StorageClusterInitialization
-	scinit := &ocsv1.StorageClusterInitialization{}
-	if err := r.client.Get(context.TODO(), request.NamespacedName, scinit); err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating StorageClusterInitialization resource")
-
-			// if the StorageClusterInitialization object doesn't exist
-			// ensure we re-reconcile on all initialization resources
-			instance.Status.StorageClassesCreated = false
-			instance.Status.CephObjectStoresCreated = false
-			instance.Status.CephBlockPoolsCreated = false
-			instance.Status.CephObjectStoreUsersCreated = false
-			instance.Status.CephFilesystemsCreated = false
-			instance.Status.FailureDomain = determineFailureDomain(instance)
-			err = r.client.Status().Update(context.TODO(), instance)
-			if err != nil {
-				return err
-			}
-
-			scinit.Name = request.Name
-			scinit.Namespace = request.Namespace
-			if err = controllerutil.SetControllerReference(instance, scinit, r.scheme); err != nil {
-				return err
-			}
-
-			err = r.client.Create(context.TODO(), scinit)
-			switch {
-			case err == nil:
-				log.Info("Created StorageClusterInitialization resource")
-			case errors.IsAlreadyExists(err):
-				log.Info("StorageClusterInitialization resource already exists")
-			default:
-				log.Error(err, "Failed to create StorageClusterInitialization resource")
-				return err
-			}
-		} else {
-			// Error reading the object - requeue the request.
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -903,14 +853,14 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 	const purgeOSDScript = `
 set -x
 
-osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}') 
-if [[ "$osd_status" == "up" ]]; then 
-  echo "OSD ${FAILED_OSD_ID} is up and running."
-  echo "Please check if you entered correct ID of failed osd!"
-else 
-  echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
-  ceph osd out osd.${FAILED_OSD_ID} 
-  ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
+osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}')
+if [[ "$osd_status" == "up" ]]; then
+echo "OSD ${FAILED_OSD_ID} is up and running."
+echo "Please check if you entered correct ID of failed osd!"
+else
+echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
+ceph osd out osd.${FAILED_OSD_ID}
+ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
 fi`
 
 	job := &batchv1.Job{
