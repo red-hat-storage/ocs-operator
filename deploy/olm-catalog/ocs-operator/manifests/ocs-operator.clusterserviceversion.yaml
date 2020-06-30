@@ -1035,7 +1035,6 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:placementPolicy
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
-    required:
     - description: Claim a bucket just like claiming a PV. Automate you app bucket
         provisioning by creating OBC with your app deployment. A secret and configmap
         (name=claim) will be created with access details for the app pods.
