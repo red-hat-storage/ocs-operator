@@ -22,7 +22,7 @@ func TestCephObjectStoreUsers(t *testing.T) {
 		},
 	}
 	for _, eachPlatform := range allPlatforms {
-		cp := &CloudPlatform{platform: eachPlatform}
+		cp := &Platform{platform: eachPlatform}
 		for _, c := range cases {
 			var objects []runtime.Object
 			if c.createRuntimeObjects {
@@ -47,7 +47,7 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler ReconcileStorageCluster
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
 	err = reconciler.client.Get(nil, request.NamespacedName, actualCosu)
-	if isValidCloudPlatform(reconciler.platform.platform) {
+	if avoidObjectStore(reconciler.platform.platform) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)

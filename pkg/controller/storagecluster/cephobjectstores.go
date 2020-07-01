@@ -25,7 +25,7 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 	if err != nil {
 		return err
 	}
-	if isValidCloudPlatform(platform) {
+	if avoidObjectStore(platform) {
 		reqLogger.Info(fmt.Sprintf("not creating a CephObjectStore because the platform is '%s'", platform))
 		return nil
 	}
@@ -94,7 +94,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 				DataPool: cephv1.PoolSpec{
 					FailureDomain: initData.Status.FailureDomain,
 					Replicated: cephv1.ReplicatedSpec{
-						Size: 3,
+						Size:            3,
 						TargetSizeRatio: .49,
 					},
 				},

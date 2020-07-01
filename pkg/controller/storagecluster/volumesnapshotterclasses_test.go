@@ -13,7 +13,7 @@ import (
 
 func TestVolumeSnapshotterClasses(t *testing.T) {
 	for _, eachPlatform := range allPlatforms {
-		cp := &CloudPlatform{platform: eachPlatform}
+		cp := &Platform{platform: eachPlatform}
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
 		assertVolumeSnapshotterClasses(t, reconciler, cr, request)
 	}

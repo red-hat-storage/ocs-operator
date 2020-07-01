@@ -386,6 +386,6 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster
 	return ReconcileStorageCluster{
 		scheme:   scheme,
 		client:   client,
-		platform: &CloudPlatform{},
+		platform: &Platform{},
 	}
 }

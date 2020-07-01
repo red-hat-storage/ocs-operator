@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	configv1 "github.com/openshift/api/config/v1"
 	appsv1 "k8s.io/api/apps/v1"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
@@ -47,7 +48,7 @@ func createStorageCluster(scName, failureDomainName string,
 	return cr
 }
 
-func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
+func createUpdateRuntimeObjects(cp *Platform) []runtime.Object {
 	csfs := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfs",
@@ -70,7 +71,7 @@ func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 	}
 	updateRTObjects := []runtime.Object{csfs, csrbd, cfs, cbp}
 
-	if !isValidCloudPlatform(cp.platform) {
+	if !avoidObjectStore(cp.platform) {
 		csobc := &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-ceph-rgw",
@@ -80,7 +81,7 @@ func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 	}
 
 	// Create 'cephobjectstoreuser' only for non-aws platforms
-	if !isValidCloudPlatform(cp.platform) {
+	if !avoidObjectStore(cp.platform) {
 		cosu := &cephv1.CephObjectStoreUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-cephobjectstoreuser",
@@ -90,7 +91,7 @@ func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 	}
 
 	// Create 'cephobjectstore' only for non-cloud platforms
-	if !isValidCloudPlatform(cp.platform) {
+	if !avoidObjectStore(cp.platform) {
 		cos := &cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-cephobjectstore",
@@ -103,7 +104,7 @@ func createUpdateRuntimeObjects(cp *CloudPlatform) []runtime.Object {
 }
 
 func initStorageClusterResourceCreateUpdateTestWithPlatform(
-	t *testing.T, platform *CloudPlatform, runtimeObjs []runtime.Object) (*testing.T, ReconcileStorageCluster, *api.StorageCluster, reconcile.Request) {
+	t *testing.T, platform *Platform, runtimeObjs []runtime.Object) (*testing.T, ReconcileStorageCluster, *api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -141,17 +142,17 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageCluster {
 	return createFakeInitializationStorageClusterReconcilerWithPlatform(
-		t, &CloudPlatform{platform: PlatformUnknown}, obj...)
+		t, &Platform{platform: configv1.NonePlatformType}, obj...)
 }
 
 func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
-	platform *CloudPlatform,
+	platform *Platform,
 	obj ...runtime.Object) ReconcileStorageCluster {
 	scheme := createFakeInitializationScheme(t, obj...)
 	obj = append(obj, mockNodeList)
 	client := fake.NewFakeClientWithScheme(scheme, obj...)
 	if platform == nil {
-		platform = &CloudPlatform{platform: PlatformUnknown}
+		platform = &Platform{platform: configv1.NonePlatformType}
 	}
 
 	return ReconcileStorageCluster{
