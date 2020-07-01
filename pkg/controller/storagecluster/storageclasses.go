@@ -148,7 +148,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 	// OR
 	// b. current platform is not a cloud-based platform
 	platform, err := r.platform.GetPlatform(r.client)
-	if initData.Spec.ExternalStorage.Enable || err == nil && !isValidCloudPlatform(platform) {
+	if initData.Spec.ExternalStorage.Enable || err == nil && !avoidObjectStore(platform) {
 		ret = append(ret, r.newOBCStorageClass(initData))
 	}
 	return ret, nil

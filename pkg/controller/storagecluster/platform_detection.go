@@ -3,38 +3,29 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
-	corev1 "k8s.io/api/core/v1"
+	configv1 "github.com/openshift/api/config/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// CloudPlatformType is a string representing cloud platform type. Eg: aws, unknown
-type CloudPlatformType string
+// AvoidObjectStorePlatforms is a list of all PlatformTypes where CephObjectStores will not be deployed.
+var AvoidObjectStorePlatforms = []configv1.PlatformType{
+	configv1.AWSPlatformType,
+	configv1.GCPPlatformType,
+	configv1.AzurePlatformType,
+}
 
-const (
-	// PlatformAWS represents the Amazon Web Services platform
-	PlatformAWS CloudPlatformType = "aws"
-	// PlatformGCP represents the Google cloud Platform
-	PlatformGCP CloudPlatformType = "gce"
-	// PlatformAzure represents the Azure Platform
-	PlatformAzure CloudPlatformType = "azure"
-	// PlatformUnknown represents an unknown validly formatted cloud platform
-	PlatformUnknown CloudPlatformType = "unknown"
-)
-
-// ValidCloudPlatforms is a list of all CloudPlatformTypes recognized by the package other than PlatformUnknown
-var ValidCloudPlatforms = []CloudPlatformType{PlatformAWS, PlatformGCP, PlatformAzure}
-
-// CloudPlatform is used to get the CloudPlatformType of the running cluster in a thread-safe manner.
-type CloudPlatform struct {
-	platform CloudPlatformType
+// Platform is used to get the CloudPlatformType of the running cluster in a thread-safe manner
+type Platform struct {
+	platform configv1.PlatformType
 	mux      sync.Mutex
 }
 
 // GetPlatform is used to get the CloudPlatformType of the running cluster
-func (p *CloudPlatform) GetPlatform(c client.Client) (CloudPlatformType, error) {
+func (p *Platform) GetPlatform(c client.Client) (configv1.PlatformType, error) {
 	// if 'platform' is already set just return it
 	if p.platform != "" {
 		return p.platform, nil
@@ -45,29 +36,20 @@ func (p *CloudPlatform) GetPlatform(c client.Client) (CloudPlatformType, error) 
 	return p.getPlatform(c)
 }
 
-func (p *CloudPlatform) getPlatform(c client.Client) (CloudPlatformType, error) {
-	nodeList := &corev1.NodeList{}
-	err := c.List(context.TODO(), nodeList)
+func (p *Platform) getPlatform(c client.Client) (configv1.PlatformType, error) {
+	infrastructure := &configv1.Infrastructure{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
+	err := c.Get(context.TODO(), types.NamespacedName{Name: infrastructure.ObjectMeta.Name}, infrastructure)
 	if err != nil {
-		return "", fmt.Errorf("could not get storage nodes to determine cloud platform: %v", err)
+		return "", fmt.Errorf("could not get infrastructure details to determine cloud platform: %v", err)
 	}
-	for _, node := range nodeList.Items {
-		providerID := node.Spec.ProviderID
-		for _, cp := range ValidCloudPlatforms {
-			prefix := fmt.Sprintf("%s://", cp)
-			if strings.HasPrefix(providerID, prefix) {
-				p.platform = cp
-				return p.platform, nil
-			}
-		}
-	}
-	p.platform = PlatformUnknown
+
+	p.platform = infrastructure.Status.Platform
 	return p.platform, nil
 }
 
-func isValidCloudPlatform(p CloudPlatformType) bool {
-	for _, cp := range ValidCloudPlatforms {
-		if p == cp {
+func avoidObjectStore(p configv1.PlatformType) bool {
+	for _, platform := range AvoidObjectStorePlatforms {
+		if p == platform {
 			return true
 		}
 	}

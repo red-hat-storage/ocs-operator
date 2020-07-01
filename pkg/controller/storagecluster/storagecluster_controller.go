@@ -80,7 +80,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
 		reqLogger: log,
-		platform:  &CloudPlatform{},
+		platform:  &Platform{},
 	}
 
 	err := r.initializeImageVars()
@@ -161,5 +161,5 @@ type ReconcileStorageCluster struct {
 	noobaaDBImage   string
 	noobaaCoreImage string
 	nodeCount       int
-	platform        *CloudPlatform
+	platform        *Platform
 }
