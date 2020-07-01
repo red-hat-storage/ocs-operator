@@ -850,9 +850,11 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 	}
 
 	// The purgeOSDScript finds osd status for given FAILED_OSD_ID whether it's up or down. The action will be taken according to osd status. If osd is up and running, it won't be marked out. If osd is down it can be taken out of the cluster and purged.
+	// HOST_TO_REMOVE variable contains the host name associated with the failed osd. When all osds are removed from the host, the host will be removed from crush map
 	const purgeOSDScript = `
 set -x
 
+HOST_TO_REMOVE=$(ceph osd find osd.${FAILED_OSD_ID} | grep "host" | tail -n 1 | awk '{print $2}' | cut -d'"' -f 2)
 osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}')
 if [[ "$osd_status" == "up" ]]; then
 echo "OSD ${FAILED_OSD_ID} is up and running."
@@ -861,6 +863,8 @@ else
 echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
 ceph osd out osd.${FAILED_OSD_ID}
 ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
+echo "Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host"
+ceph osd crush rm $HOST_TO_REMOVE
 fi`
 
 	job := &batchv1.Job{
