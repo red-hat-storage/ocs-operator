@@ -335,7 +335,7 @@ func (r *ReconcileOCSInitialization) Reconcile(request reconcile.Request) (recon
 
 // returns a ConfigMap with default settings for rook-ceph operator
 func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
-	var defaultCSIToleration string = `
+	var defaultCSIToleration = `
 - key: ` + defaults.NodeTolerationKey + `
   operator: Equal
   value: "true"
