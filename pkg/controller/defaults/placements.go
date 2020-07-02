@@ -144,21 +144,18 @@ var (
 				},
 			},
 			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					corev1.WeightedPodAffinityTerm{
-						Weight: 100,
-						PodAffinityTerm: corev1.PodAffinityTerm{
-							LabelSelector: &metav1.LabelSelector{
-								MatchExpressions: []metav1.LabelSelectorRequirement{
-									metav1.LabelSelectorRequirement{
-										Key:      appLabelSelectorKey,
-										Operator: metav1.LabelSelectorOpIn,
-										Values:   []string{"rook-ceph-mds"},
-									},
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								metav1.LabelSelectorRequirement{
+									Key:      appLabelSelectorKey,
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{"rook-ceph-mds"},
 								},
 							},
-							TopologyKey: corev1.LabelHostname,
 						},
+						TopologyKey: corev1.LabelHostname,
 					},
 				},
 			},
