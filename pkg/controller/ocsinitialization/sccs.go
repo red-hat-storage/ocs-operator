@@ -184,8 +184,6 @@ func newNooBaaSCC(namespace string) *secv1.SecurityContextConstraints {
 	scc.Users = []string{
 		fmt.Sprintf("system:serviceaccount:%s:noobaa", namespace),
 	}
-	priority := int32(11) // 1 higher than anyuid default one
-	scc.Priority = &priority
 
 	return scc
 }
