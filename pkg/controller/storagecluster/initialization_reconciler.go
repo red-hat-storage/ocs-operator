@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -62,29 +63,37 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 
 func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageClass, reqLogger logr.Logger) error {
 	for _, sc := range scs {
-		existing := storagev1.StorageClass{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
+		existing := &storagev1.StorageClass{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 
-		switch {
-		case err == nil:
-			if existing.DeletionTimestamp != nil {
-				reqLogger.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
-				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
-			}
-
-			reqLogger.Info(fmt.Sprintf("Restoring original StorageClass %s", sc.Name))
-			existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
-			sc.ObjectMeta = existing.ObjectMeta
-
-			err = r.client.Update(context.TODO(), sc)
-			if err != nil {
-				return err
-			}
-		case errors.IsNotFound(err):
+		if errors.IsNotFound(err) {
+			// Since the StorageClass is not found, we will create a new one
 			reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
 			err = r.client.Create(context.TODO(), sc)
 			if err != nil {
 				return err
+			}
+		} else if err != nil {
+			return err
+		} else {
+			if existing.DeletionTimestamp != nil {
+				return fmt.Errorf("failed to restore storageclass  %s because it is marked for deletion", existing.Name)
+			}
+			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) {
+				// Since we have to update the existing StorageClass
+				// So, we will delete the existing storageclass and create a new one
+				reqLogger.Info(fmt.Sprintf("StorageClass %s needs to be updated, deleting it", existing.Name))
+				err = r.client.Delete(context.TODO(), existing)
+				if err != nil {
+					return err
+				}
+				reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+				existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
+				sc.ObjectMeta = existing.ObjectMeta
+				err = r.client.Create(context.TODO(), sc)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
