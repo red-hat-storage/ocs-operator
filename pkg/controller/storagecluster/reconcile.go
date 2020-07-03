@@ -855,16 +855,16 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 set -x
 
 HOST_TO_REMOVE=$(ceph osd find osd.${FAILED_OSD_ID} | grep "host" | tail -n 1 | awk '{print $2}' | cut -d'"' -f 2)
-osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}')
-if [[ "$osd_status" == "up" ]]; then
-echo "OSD ${FAILED_OSD_ID} is up and running."
-echo "Please check if you entered correct ID of failed osd!"
-else
-echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
-ceph osd out osd.${FAILED_OSD_ID}
-ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
-echo "Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host"
-ceph osd crush rm $HOST_TO_REMOVE
+osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}') 
+if [[ "$osd_status" == "up" ]]; then 
+  echo "OSD ${FAILED_OSD_ID} is up and running."
+  echo "Please check if you entered correct ID of failed osd!"
+else 
+  echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
+  ceph osd out osd.${FAILED_OSD_ID} 
+  ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
+  echo "Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host"
+  ceph osd crush rm $HOST_TO_REMOVE
 fi`
 
 	job := &batchv1.Job{
