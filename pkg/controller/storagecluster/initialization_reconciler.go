@@ -2,10 +2,10 @@ package storagecluster
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -195,8 +195,9 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 				sc = scs[1]
 			} else if d.Name == cephRgwStorageClassName {
 				// Set the external rgw endpoint variable for later use on the Noobaa CR (as a label)
-				externalRgwEndpointToBase64 := base64.StdEncoding.EncodeToString([]byte(d.Data[externalCephRgwEndpointKey]))
-				externalRgwEndpoint = externalRgwEndpointToBase64
+				// Replace the colon with an underscore, otherwise the label will be invalid
+				externalRgwEndpointReplaceColon := strings.Replace(d.Data[externalCephRgwEndpointKey], ":", "_", -1)
+				externalRgwEndpoint = externalRgwEndpointReplaceColon
 
 				// Setting the Endpoint for OBC StorageClass
 				sc = scs[2]
