@@ -63,6 +63,7 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 
 func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageClass, reqLogger logr.Logger) error {
 	for _, sc := range scs {
+		reqLogger.Info(fmt.Sprintf(" StorageClass %s", sc.Name))
 		existing := &storagev1.StorageClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 

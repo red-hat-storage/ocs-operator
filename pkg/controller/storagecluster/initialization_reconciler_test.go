@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -63,6 +64,27 @@ var ExternalResources = []ExternalResource{
 		},
 		Name: "ceph-rgw",
 	},
+}
+
+func TestCreateStorageClasses(t *testing.T) {
+	var reconciler ReconcileStorageCluster
+	var reqLogger logr.Logger
+	var scs []*storagev1.StorageClass
+	csfs := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephfs",
+		},
+	}
+	scs = append(scs, csfs)
+	err := reconciler.createStorageClasses(scs, reqLogger)
+	assert.NoError(t, err)
+	scrbd := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "ocsinit-ceph-rbd",
+			DeletionTimestamp: nil,
+		},
+	}
+	scs = append(scs, scrbd)
 }
 
 func TestRecreatingStorageClusterInitialization(t *testing.T) {
