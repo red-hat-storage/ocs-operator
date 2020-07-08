@@ -23,13 +23,11 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 	if sc.Spec.LabelSelector == nil {
 		placement.NodeAffinity = defaults.DefaultNodeAffinity
 	} else {
-		term := convertLabelToNodeSelector(*sc.Spec.LabelSelector)
-		if len(term.MatchExpressions) != 0 {
-			placement.NodeAffinity = &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{term},
-				},
-			}
+		// If the StorageCluster specifies a label selector, append it to the
+		// node affinity, creating it if it doesn't exist.
+		reqs := convertLabelToNodeSelectorRequirements(*sc.Spec.LabelSelector)
+		if len(reqs) != 0 {
+			appendNodeRequirements(&placement, reqs...)
 		}
 	}
 
@@ -51,15 +49,15 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 	return placement
 }
 
-//convertLabelToNodeSelector returns NodeSelectorTerm type from a given LabelSelector
-func convertLabelToNodeSelector(labelSelector metav1.LabelSelector) corev1.NodeSelectorTerm {
-	term := corev1.NodeSelectorTerm{}
+//convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
+func convertLabelToNodeSelectorRequirements(labelSelector metav1.LabelSelector) []corev1.NodeSelectorRequirement {
+	reqs := []corev1.NodeSelectorRequirement{}
 	for key, value := range labelSelector.MatchLabels {
 		req := corev1.NodeSelectorRequirement{}
 		req.Key = key
 		req.Operator = corev1.NodeSelectorOpIn
 		req.Values = append(req.Values, value)
-		term.MatchExpressions = append(term.MatchExpressions, req)
+		reqs = append(reqs, req)
 	}
 	numIter := len(labelSelector.MatchExpressions)
 	for i := 0; i < numIter; i++ {
@@ -67,9 +65,23 @@ func convertLabelToNodeSelector(labelSelector metav1.LabelSelector) corev1.NodeS
 		req.Key = labelSelector.MatchExpressions[i].Key
 		req.Operator = corev1.NodeSelectorOperator(labelSelector.MatchExpressions[i].Operator)
 		req.Values = labelSelector.MatchExpressions[i].Values
-		term.MatchExpressions = append(term.MatchExpressions, req)
+		reqs = append(reqs, req)
 	}
-	return term
+	return reqs
+}
+
+func appendNodeRequirements(placement *rookv1.Placement, reqs ...corev1.NodeSelectorRequirement) {
+	if placement.NodeAffinity == nil {
+		placement.NodeAffinity = &corev1.NodeAffinity{}
+	}
+	if placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
+	}
+	nodeSelector := placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	if len(nodeSelector.NodeSelectorTerms) == 0 {
+		nodeSelector.NodeSelectorTerms = append(nodeSelector.NodeSelectorTerms, corev1.NodeSelectorTerm{})
+	}
+	nodeSelector.NodeSelectorTerms[0].MatchExpressions = append(nodeSelector.NodeSelectorTerms[0].MatchExpressions, reqs...)
 }
 
 // MatchingLabelsSelector filters the list/delete operation on the given label

@@ -94,7 +94,42 @@ func TestGetPlacement(t *testing.T) {
 	}
 	assert.Equal(t, mockPlacements["all"], getPlacement(sc, "all"))
 
-	// Case 4: The LabelSelector modifies the configured Placements correctly
+	// Case 4: LabelSelector modifies an empty NodeAffinity
+	sc = &ocsv1.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Spec.Placement = map[rookv1.KeyType]rookv1.Placement{
+		"all": rookv1.Placement{
+			Tolerations: defaults.DaemonPlacements["all"].Tolerations,
+		},
+	}
+	sc.Spec.LabelSelector = &metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			metav1.LabelSelectorRequirement{
+				Key:      MasterAffinityKey,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	}
+	expectedPlacement := rookv1.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					corev1.NodeSelectorTerm{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							corev1.NodeSelectorRequirement{
+								Key:      MasterAffinityKey,
+								Operator: corev1.NodeSelectorOpExists,
+							},
+						},
+					},
+				},
+			},
+		},
+		Tolerations: defaults.DaemonPlacements["all"].Tolerations,
+	}
+	assert.Equal(t, expectedPlacement, getPlacement(sc, "all"))
+
+	// Case 5: LabelSelector modifies a configured NodeAffinity
 	sc = &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.Placement = mockPlacements
@@ -106,11 +141,31 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 	}
-	expectedPlacements := mockPlacements
-	expectedPlacements["all"].NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key = MasterAffinityKey
-	assert.Equal(t, expectedPlacements["all"], getPlacement(sc, "all"))
+	expectedPlacement = rookv1.Placement{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					corev1.NodeSelectorTerm{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							corev1.NodeSelectorRequirement{
+								Key:      WorkerAffinityKey,
+								Operator: corev1.NodeSelectorOpExists,
+							},
+							corev1.NodeSelectorRequirement{
+								Key:      MasterAffinityKey,
+								Operator: corev1.NodeSelectorOpExists,
+							},
+						},
+					},
+				},
+			},
+		},
+		Tolerations: defaults.DaemonPlacements["all"].Tolerations,
+	}
 
-	// Case 5: Empty LabelSelector sets no Node Affinity
+	assert.Equal(t, expectedPlacement, getPlacement(sc, "all"))
+
+	// Case 6: Empty LabelSelector sets no Node Affinity
 	sc = &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.LabelSelector = &metav1.LabelSelector{
