@@ -20,11 +20,17 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
 	}
-	if sc.Spec.LabelSelector == nil {
+
+	// If no placement is specified for the given component and the
+	// StorageCluster has no label selector, set the default node
+	// affinity.
+	if placement.NodeAffinity == nil && sc.Spec.LabelSelector == nil {
 		placement.NodeAffinity = defaults.DefaultNodeAffinity
-	} else {
-		// If the StorageCluster specifies a label selector, append it to the
-		// node affinity, creating it if it doesn't exist.
+	}
+
+	// If the StorageCluster specifies a label selector, append it to the
+	// node affinity, creating it if it doesn't exist.
+	if sc.Spec.LabelSelector != nil {
 		reqs := convertLabelToNodeSelectorRequirements(*sc.Spec.LabelSelector)
 		if len(reqs) != 0 {
 			appendNodeRequirements(&placement, reqs...)
