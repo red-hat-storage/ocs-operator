@@ -23,13 +23,14 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 	if sc.Spec.LabelSelector == nil {
 		placement.NodeAffinity = defaults.DefaultNodeAffinity
 	} else {
+		placement.NodeAffinity = &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{},
+		}
+
 		term := convertLabelToNodeSelector(*sc.Spec.LabelSelector)
 		if len(term.MatchExpressions) != 0 {
-			placement.NodeAffinity = &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{term},
-				},
-			}
+			placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms =
+				[]corev1.NodeSelectorTerm{term}
 		}
 	}
 

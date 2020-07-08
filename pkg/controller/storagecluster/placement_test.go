@@ -116,5 +116,9 @@ func TestGetPlacement(t *testing.T) {
 	sc.Spec.LabelSelector = &metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{},
 	}
-	assert.Equal(t, defaults.DaemonPlacements["all"], getPlacement(sc, "all"))
+	expectedPlacement := defaults.DaemonPlacements["all"]
+	expectedPlacement.NodeAffinity = &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{},
+	}
+	assert.Equal(t, expectedPlacement, getPlacement(sc, "all"))
 }
