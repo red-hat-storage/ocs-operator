@@ -506,6 +506,39 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 }
 
+func TestStorageClassDeviceSetCreationEmptyLabelSelector(t *testing.T) {
+	sc := &api.StorageCluster{}
+	sc.Spec.StorageDeviceSets = mockDeviceSets
+
+	nodeTopologyMap := &api.NodeTopologyMap{
+		Labels: map[string]api.TopologyLabelValues{
+			zoneTopologyLabel: []string{
+				"zone1",
+			},
+		},
+	}
+	sc.Status.NodeTopologies = nodeTopologyMap
+
+	var emptyLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{},
+	}
+	sc.Spec.LabelSelector = &emptyLabelSelector
+
+	actual := newStorageClassDeviceSets(sc)
+	assert.Equal(t, defaults.DeviceSetReplica, len(actual))
+
+	deviceSet := sc.Spec.StorageDeviceSets[0]
+	for i, scds := range actual {
+		assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
+		// TODO: Change this when OCP console is updated
+		assert.Equal(t, deviceSet.Count/3, scds.Count)
+		assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
+		assert.Equal(t, getPlacement(sc, "osd"), scds.Placement)
+		assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+		assert.Equal(t, true, scds.Portable)
+	}
+}
+
 func TestStorageDeviceSets(t *testing.T) {
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
