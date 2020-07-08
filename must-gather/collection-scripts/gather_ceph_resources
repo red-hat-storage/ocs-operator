@@ -94,7 +94,7 @@ ceph_volume_commands+=("ceph-volume raw list")
 # Inspecting ceph related custom resources for all namespaces
 for resource in "${ceph_resources[@]}"; do
     echo "collecting dump ${resource}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-    { timeout 120 oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    { timeout 420 oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
 
 namespaces=$(oc get deploy --all-namespaces -o go-template --template='{{range .items}}{{if .metadata.labels}}{{printf "%s %v" .metadata.namespace (index .metadata.labels "olm.owner")}} {{printf "\n"}}{{end}}{{end}}' | grep ocs-operator | awk '{print $1}' | uniq)

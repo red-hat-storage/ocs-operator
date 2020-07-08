@@ -23,8 +23,8 @@ noobaa_cli+=(noobaa obc list)
 # Run the Collection of Noobaa cli using must-gather
 for cli in "${noobaa_cli[@]}"; do
     echo "collecting dump of ${cli}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-    COMMAND_OUTPUT_FILE="${NOOBAA_COLLLECTION_PATH}"/raw_output/"${cli}"// /_}
-    { timeout 120 "${cli}" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    COMMAND_OUTPUT_FILE="${NOOBAA_COLLLECTION_PATH}"/raw_output/${cli// /_}
+    { timeout 180 "${cli}" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
 
 # Run the Collection of NooBaa Resources using must-gather
