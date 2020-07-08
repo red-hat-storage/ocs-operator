@@ -79,7 +79,7 @@ func TestGetPlacement(t *testing.T) {
 	sc = &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.Placement = mockPlacements
-	assert.Equal(t, defaultLabelPlacement["all"], getPlacement(sc, "all"))
+	assert.Equal(t, mockPlacements["all"], getPlacement(sc, "all"))
 
 	// Case 3: LabelSelector to modify the default placements correctly
 	sc = &ocsv1.StorageCluster{}
