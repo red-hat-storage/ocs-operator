@@ -504,6 +504,33 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 		assert.Equal(t, true, scds.Portable)
 	}
+
+	// Test with an empty label selector present in the StorageCluster.
+	// This used to trigger a segfault (nil pointer dereference) in
+	// newStorageClassDeviceSets. Make sure we don't regress.
+	var emptyLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{},
+	}
+	sc.Spec.LabelSelector = &emptyLabelSelector
+
+	actual = newStorageClassDeviceSets(sc)
+	assert.Equal(t, defaults.DeviceSetReplica, len(actual))
+
+	for i, scds := range actual {
+		assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
+		// TODO: Change this when OCP console is updated
+		assert.Equal(t, deviceSet.Count/3, scds.Count)
+		assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
+		topologyKey := scds.Placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey
+		assert.Equal(t, zoneTopologyLabel, topologyKey)
+		matchExpressions := scds.Placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
+		assert.Equal(t, 1, len(matchExpressions))
+		nodeSelector := matchExpressions[0]
+		assert.Equal(t, zoneTopologyLabel, nodeSelector.Key)
+		assert.Equal(t, nodeTopologyMap.Labels[zoneTopologyLabel][i], nodeSelector.Values[0])
+		assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+		assert.Equal(t, true, scds.Portable)
+	}
 }
 
 func TestStorageDeviceSets(t *testing.T) {
