@@ -149,7 +149,7 @@ shellcheck-test:
 # use 'make functest' to run just the functional tests
 unit-test:
 	@echo "Executing unit tests"
-	go test -v `go list ./... | grep -v "functest"`
+	go test -v -cover `go list ./... | grep -v "functest"`
 
 update-generated: operator-sdk
 	@echo Updating generated files
