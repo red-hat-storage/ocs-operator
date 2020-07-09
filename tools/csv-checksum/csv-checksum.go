@@ -30,6 +30,7 @@ var (
 	noobaaCoreContainerImage = flag.String("noobaa-core-image", "", "noobaa core container image")
 	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
+	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 
 	outFile = flag.String("checksum-outfile", "", "the file to write the checksum to")
 )
@@ -123,6 +124,7 @@ func main() {
 	md5Hash = addArgToHash("--noobaa-core-image", *noobaaCoreContainerImage, md5Hash)
 	md5Hash = addArgToHash("--noobaa-db-image", *noobaaDBContainerImage, md5Hash)
 	md5Hash = addArgToHash("--ocs-image", *ocsContainerImage, md5Hash)
+	md5Hash = addArgToHash("--ocs-must-gather-image", *ocsMustGatherImage, md5Hash)
 
 	hashInBytes := md5Hash.Sum(nil)
 	md5Str := hex.EncodeToString(hashInBytes)

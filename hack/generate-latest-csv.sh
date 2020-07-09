@@ -19,6 +19,7 @@ export NOOBAA_CORE_IMAGE=${NOOBAA_CORE_IMAGE:-"noobaa/noobaa-core:5.5.0-20200422
 export NOOBAA_DB_IMAGE=${NOOBAA_DB_IMAGE:-"centos/mongodb-36-centos7"}
 export CEPH_IMAGE=${CEPH_IMAGE:-"ceph/ceph:v14.2"}
 export OCS_IMAGE=${OCS_IMAGE:-"${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}"}
+export OCS_MUST_GATHER_IMAGE=${OCS_MUST_GATHER_IMAGE:-"${MUST_GATHER_FULL_IMAGE_NAME}"}
 
 echo "=== Generating DEV CSV with the following vars ==="
 echo -e "\tCSV_VERSION=$CSV_VERSION"
@@ -49,4 +50,5 @@ $CSV_CHECKSUM \
 	--noobaa-core-image="$NOOBAA_CORE_IMAGE" \
 	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
 	--ocs-image="$OCS_IMAGE" \
+	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
 	--checksum-outfile="$CSV_CHECKSUM_OUTFILE"

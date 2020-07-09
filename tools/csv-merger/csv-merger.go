@@ -48,6 +48,7 @@ var (
 	noobaaCoreContainerImage = flag.String("noobaa-core-image", "", "noobaa core container image")
 	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
+	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -741,6 +742,12 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "noobaa-db",
 			"image": *noobaaDBContainerImage,
+		})
+	}
+	if *ocsMustGatherImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "ocs-must-gather",
+			"image": *ocsMustGatherImage,
 		})
 	}
 
