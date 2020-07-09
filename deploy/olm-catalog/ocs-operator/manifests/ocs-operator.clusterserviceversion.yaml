@@ -2286,4 +2286,6 @@ spec:
     name: noobaa-core
   - image: centos/mongodb-36-centos7
     name: noobaa-db
+  - image: quay.io/ocs-dev/ocs-must-gather:latest
+    name: ocs-must-gather
   version: 4.6.0
