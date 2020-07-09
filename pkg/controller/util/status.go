@@ -199,14 +199,6 @@ func MapExternalCephClusterNegativeConditions(conditions *[]conditionsv1.Conditi
 			Reason:  ExternalClusterErrorReason,
 			Message: fmt.Sprintf("External CephCluster error: %v", string(found.Status.Message)),
 		})
-	default:
-
-		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
-			Type:    conditionsv1.ConditionDegraded,
-			Status:  corev1.ConditionTrue,
-			Reason:  ExternalClusterUnknownReason,
-			Message: fmt.Sprintf("External CephCluster Unknown Condition: %v", string(found.Status.Message)),
-		})
 	}
 }
 
