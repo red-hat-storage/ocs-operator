@@ -59,5 +59,8 @@ for script in ${SCRIPTS}; do
                 echo "${script}: ok" >&2
         fi
 done
+
+echo "${failed} scripts with errors were found"
+
 exit ${failed}
 
