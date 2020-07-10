@@ -36,7 +36,7 @@ fi
 
 echo "Generating MD5 Checksum for CSV with version $CSV_VERSION"
 $CSV_CHECKSUM \
-	--csv-version=$CSV_VERSION \
+	--csv-version="$CSV_VERSION" \
 	--replaces-csv-version="$REPLACES_CSV_VERSION" \
 	--rook-image="$ROOK_IMAGE" \
 	--ceph-image="$CEPH_IMAGE" \
