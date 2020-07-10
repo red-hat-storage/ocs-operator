@@ -101,7 +101,7 @@ namespaces=$(oc get deploy --all-namespaces -o go-template --template='{{range .
 # Inspecting the namespace where ocs-cluster is installed
 for ns in $namespaces; do
     operatorImage=$(oc get pods -l app=rook-ceph-operator -n openshift-storage -o jsonpath="{range .items[*]}{@.spec.containers[0].image}+{end}" | tr "+" "\n" | head -n1)
-    cephClusterCount=$(oc get cephcluster -n ${ns} -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}" | wc -l)
+    cephClusterCount=$(oc get cephcluster -n "${ns}" -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}" | wc -l)
     if [ "${operatorImage}" = "" ]; then
         echo "not able to find the rook's operator image. Skipping collection of ceph command output" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
     elif [[ $cephClusterCount -gt 0 ]]; then
@@ -138,8 +138,8 @@ for ns in $namespaces; do
                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
             done
-            for i in `timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'`; do
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> ${COMMAND_OUTPUT_DIR}/pools_rbd_$i; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
+            for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
             done
         fi
 
