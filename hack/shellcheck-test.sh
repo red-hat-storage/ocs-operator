@@ -44,12 +44,12 @@ failed=0
 for script in ${SCRIPTS}; do
         err=0
         test_syntax "${script}"
-        if [[ ${err} -ne 0 ]]; then
+        if [[ $? -ne 0 ]]; then
                 err=1
                 echo "detected syntax issues in ${script}}" >&2
         fi
         test_shellcheck "${script}"
-        if [[ ${err} -ne 0 ]]; then
+        if [[ $? -ne 0 ]]; then
                 err=1
                 echo "detected shellcheck issues in ${script}" >&2
         fi
