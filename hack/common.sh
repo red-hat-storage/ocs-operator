@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# OCS-OPERATOR-SKIP-SHELLCHECK
-# skipping file as changes from shellcheck effect working of script
+# shellcheck disable=SC2034
+# disable unused variable warnings
 
 GO111MODULE="on"
 GOPROXY="https://proxy.golang.org"
