@@ -2,6 +2,8 @@
   
 # Check for shell syntax & style.
 
+source hack/common.sh
+
 test_syntax() {
         bash -n "${1}"
 }
@@ -27,9 +29,9 @@ BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 if [[ -z "${SHELLCHECK}" ]]; then
         echo "warning: could not find shellcheck ... installing shellcheck" >&2
         scversion="stable"
+        FILE="${OUTDIR_TOOLS}/shellcheck"
         wget -qO- "https://storage.googleapis.com/shellcheck/shellcheck-${scversion?}.linux.x86_64.tar.xz" | tar -xJv
-        cp "shellcheck-${scversion}/shellcheck" "$GOPATH"/src/github.com/openshift/ocs-operator/tools/
-        FILE="$GOPATH"/src/github.com/openshift/ocs-operator/tools/shellcheck
+        cp -f "shellcheck-${scversion}/shellcheck" "${FILE}"
         if [ -f "$FILE" ]; then
                 SHELLCHECK="${FILE}"
         fi
