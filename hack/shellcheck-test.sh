@@ -54,7 +54,7 @@ for script in ${SCRIPTS}; do
                 echo "detected shellcheck issues in ${script}" >&2
         fi
         if [[ $err -ne 0 ]]; then
-                ((failed=err))
+                ((failed+=err))
         else
                 echo "${script}: ok" >&2
         fi
