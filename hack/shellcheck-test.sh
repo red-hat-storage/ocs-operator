@@ -14,7 +14,8 @@ test_shellcheck() {
                 if grep -q '^#.*OCS-OPERATOR-SKIP-SHELLCHECK' "${1}"; then
                         return 0
                 fi
-                shellcheck -x -e SC2181,SC2029,SC1091,SC1090,SC2012 "${1}"
+                #shell check -x -e SC2181,SC2029,SC1091,SC1090,SC2012 "${1}"
+                shellcheck -x -e SC2181 "${1}"
         else
                 return 0
         fi
