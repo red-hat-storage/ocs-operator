@@ -59,6 +59,7 @@ fi
 # Create a Python virtual environment for the tests to execute with.
 echo "Using $REDHAT_OCS_CI_PYTHON_BINARY"
 $REDHAT_OCS_CI_PYTHON_BINARY -m venv .venv
+# shellcheck disable=SC1091
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
