@@ -38,6 +38,11 @@ if [[ -z "${SHELLCHECK}" ]]; then
         fi
 fi
 
+if [[ -z "${SHELLCHECK}" ]]; then
+	echo "shellcheck not available"
+	exit 1
+fi
+
 cd "${BASE_DIR}" || exit 2
 SCRIPTS=$(find . \( -path "*/vendor/*" -o -path "*/build/*" -o -path "*/_cache/*" \) -prune -o -name "*~" -prune -o -name "*.swp" -prune -o -type f -exec grep -l -e '^#!/bin/bash$' {} \;)
 
