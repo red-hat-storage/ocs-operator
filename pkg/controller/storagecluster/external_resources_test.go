@@ -3,8 +3,10 @@ package storagecluster
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"testing"
+	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -55,7 +57,7 @@ var ExternalResources = []ExternalResource{
 	ExternalResource{
 		Kind: "StorageClass",
 		Data: map[string]string{
-			"endpoint": "10.20.30.40:50",
+			"endpoint": fmt.Sprintf("127.0.0.1:%d", generateRandomPort(10000, 30000)),
 		},
 		Name: "ceph-rgw",
 	},
@@ -126,6 +128,9 @@ func createExternalClusterReconcilerFromCustomResources(
 				Enable: true,
 			},
 		},
+	}
+	if extResource, err := findNamedResourceFromArray(ExternalResources, "ceph-rgw"); err == nil {
+		startServerAt(extResource.Data["endpoint"])
 	}
 	externalSecret, err := createExternalCephClusterSecret(extResources)
 	if err != nil {
@@ -230,6 +235,37 @@ func removeNamedResourceFromArray(extArr []ExternalResource, name string) []Exte
 		newExtArr = append(newExtArr, extArr[indx+1:]...)
 	}
 	return newExtArr
+}
+
+func startServerAt(endpoint string) <-chan error {
+	var doneChan = make(chan error)
+	go func(doneChan chan<- error) {
+		defer close(doneChan)
+		ln, err := net.Listen("tcp4", endpoint)
+		if err != nil {
+			doneChan <- err
+			return
+		}
+		defer ln.Close()
+		conn, err := ln.Accept()
+		if err != nil {
+			doneChan <- err
+			return
+		}
+		defer conn.Close()
+		doneChan <- nil
+	}(doneChan)
+	return doneChan
+}
+
+func generateRandomPort(minPort, maxPort int) int {
+	rand.Seed(time.Now().UnixNano())
+	portRange := minPort - maxPort
+	if portRange < 0 {
+		portRange *= -1
+	}
+	retPort := rand.Intn(portRange) + minPort
+	return retPort
 }
 
 func TestOptionalExternalStorageClusterResources(t *testing.T) {

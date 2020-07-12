@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -63,6 +64,15 @@ func (r *ReconcileStorageCluster) setRookCSICephFS(
 	}
 	rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] = enableDisableFlagStr
 	return r.client.Update(context.TODO(), rookCephOperatorConfig)
+}
+
+func checkRGWEndpoint(endpoint string, timeout time.Duration) error {
+	con, err := net.DialTimeout("tcp", endpoint, timeout)
+	if err != nil {
+		return err
+	}
+	defer con.Close()
+	return nil
 }
 
 // retrieveExternalSecretData function retrieves the external secret and returns the data it contains
@@ -231,6 +241,10 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				sc = scs[1]
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
+				if err := checkRGWEndpoint(rgwEndpoint, 5*time.Second); err != nil {
+					reqLogger.Error(err, fmt.Sprintf("RGW endpoint, %q, is not reachable", rgwEndpoint))
+					return err
+				}
 				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint, reqLogger)
 				if err != nil {
 					return err
