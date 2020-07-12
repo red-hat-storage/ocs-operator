@@ -71,7 +71,8 @@ gen_args="generate csv --csv-version=$TMP_CSV_VERSION --output-dir=$OUTDIR_TEMPL
 if [ -n "$CSV_REPLACES_VERSION" ]; then
 	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
 fi
-$OPERATOR_SDK "$gen_args"
+# shellcheck disable=SC2086
+$OPERATOR_SDK $gen_args
 mv $OUTDIR_TEMPLATES/manifests/ocs-operator.clusterserviceversion.yaml $OCS_CSV
 # Make variables templated for csv-merger tool
 if [ "$OS_TYPE" == "Darwin" ]; then
