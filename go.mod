@@ -22,6 +22,7 @@ require (
 	github.com/rook/rook v1.3.5-0.20200601192858-4e04d639724f
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.14.1
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	k8s.io/api v0.17.4
 	k8s.io/apiextensions-apiserver v0.17.4
 	k8s.io/apimachinery v0.17.4
