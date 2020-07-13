@@ -63,5 +63,5 @@ done
 
 echo "${failed} scripts with errors were found"
 
-exit ${failed}
+exit "${failed}"
 
