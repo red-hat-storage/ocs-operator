@@ -6,7 +6,6 @@ source hack/common.sh
 
 OPM_VERSION="v1.12.3"
 OPM_PLATFORM="linux-amd64-opm"
-OS_TYPE=$(uname)
 if [ "$OS_TYPE" == "Darwin" ]; then
 	OPM_PLATFORM=darwin-amd64-opm
 fi
