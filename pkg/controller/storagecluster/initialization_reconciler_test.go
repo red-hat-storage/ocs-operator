@@ -512,7 +512,7 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	platform *CloudPlatform,
 	obj ...runtime.Object) ReconcileStorageCluster {
 	scheme := createFakeInitializationScheme(t, obj...)
-	obj = append(obj, mockNodeList)
+	obj = append(obj, mockNodeList, mockAlertmanagerSecret.DeepCopyObject())
 	client := fake.NewFakeClientWithScheme(scheme, obj...)
 	if platform == nil {
 		platform = &CloudPlatform{platform: PlatformUnknown}

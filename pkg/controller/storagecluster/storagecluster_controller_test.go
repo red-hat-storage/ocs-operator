@@ -158,6 +158,56 @@ var mockNodeList = &corev1.NodeList{
 	},
 }
 
+var alertmanagerConfigSecretName = "alertmanager-main"
+var alertmanagerConfigSecretNamespace = "openshift-monitoring"
+var alertmanagerConfig = `
+	"global":
+	  "resolve_timeout": "5m"
+	"inhibit_rules":
+	- "equal":
+	  - "namespace"
+	  - "alertname"
+	  "source_match":
+	    "severity": "critical"
+	  "target_match_re":
+	    "severity": "warning|info"
+	- "equal":
+	  - "namespace"
+	  - "alertname"
+	  "source_match":
+	    "severity": "warning"
+	  "target_match_re":
+	    "severity": "info"
+	"receivers":
+	- "name": "Default"
+	- "name": "Watchdog"
+	- "name": "Critical"
+	"route":
+	  "group_by":
+	  - "namespace"
+	  "group_interval": "5m"
+	  "group_wait": "30s"
+	  "receiver": "Default"
+	  "repeat_interval": "12h"
+	  "routes":
+	  - "match":
+	      "alertname": "Watchdog"
+	    "receiver": "Watchdog"
+	  - "match":
+	      "severity": "critical"
+	    "receiver": "Critical"
+		`
+var alertmanagerConfigSecretData = map[string][]byte{
+	"alertmanager.yaml": []byte(alertmanagerConfig),
+}
+var mockAlertmanagerSecret = &corev1.Secret{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      alertmanagerConfigSecretName,
+		Namespace: alertmanagerConfigSecretNamespace,
+	},
+	Data: alertmanagerConfigSecretData,
+}
+
 func TestReconcilerImplInterface(t *testing.T) {
 	reconciler := ReconcileStorageCluster{}
 	var i interface{} = &reconciler
@@ -679,6 +729,7 @@ func assertCondition(conditions []conditionsv1.Condition, conditionType conditio
 
 func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageCluster {
 	scheme := createFakeScheme(t)
+	obj = append(obj, mockAlertmanagerSecret.DeepCopyObject())
 	client := fake.NewFakeClientWithScheme(scheme, obj...)
 
 	return ReconcileStorageCluster{
@@ -758,4 +809,105 @@ func TestNodeTopologyMapLabelSelector(t *testing.T) {
 		},
 	}
 	assert.Equal(t, nodeTopologyMap, sc.Status.NodeTopologies)
+}
+
+func TestGetInhibitionRules(t *testing.T) {
+	configWithoutInhibition := alertmanagerConfig
+	configWithInhibition := `
+	"global":
+	  "resolve_timeout": "5m"
+	"inhibit_rules":
+	- "equal":
+	  - "namespace"
+	  - "alertname"
+	  "source_match_re":
+	   "poddisruptionbudget" : "^rook-ceph-osd-[0-9]+$"
+	  "target_match_re":
+	    "poddisruptionbudget" : "^rook-ceph-osd-[0-9]+$"
+	- "equal":
+	  - "namespace"
+	  - "alertname"
+	  "source_match":
+	    "severity": "critical"
+	  "target_match_re":
+	    "severity": "warning|info"
+	- "equal":
+	  - "namespace"
+	  - "alertname"
+	  "source_match":
+	    "severity": "warning"
+	  "target_match_re":
+	    "severity": "info"
+	"receivers":
+	- "name": "Default"
+	- "name": "Watchdog"
+	- "name": "Critical"
+	"route":
+	  "group_by":
+	  - "namespace"
+	  "group_interval": "5m"
+	  "group_wait": "30s"
+	  "receiver": "Default"
+	  "repeat_interval": "12h"
+	  "routes":
+	  - "match":
+	      "alertname": "Watchdog"
+	    "receiver": "Watchdog"
+	  - "match":
+	      "severity": "critical"
+	    "receiver": "Critical"
+		`
+
+	secretWithoutInhibition := mockAlertmanagerSecret.DeepCopy()
+	secretWithInhibition := mockAlertmanagerSecret.DeepCopy()
+	secretWithoutInhibition.Data["alertmanager.yaml"] = []byte(configWithoutInhibition)
+	secretWithInhibition.Data["alertmanager.yaml"] = []byte(configWithInhibition)
+	type args struct {
+		actualSecret         *corev1.Secret
+		expectedSecret       *corev1.Secret
+		storageClusterLength int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "No inhibition rule, no Storagecluster",
+			args: args{
+				actualSecret:         secretWithoutInhibition,
+				expectedSecret:       secretWithoutInhibition,
+				storageClusterLength: 0,
+			},
+		},
+		{
+			name: "No inhibition rule, 1 Storagecluster",
+			args: args{
+				actualSecret:         secretWithoutInhibition,
+				expectedSecret:       secretWithInhibition,
+				storageClusterLength: 1,
+			},
+		},
+		{
+			name: "Inhibition rule, no Storagecluster",
+			args: args{
+				actualSecret:         secretWithInhibition,
+				expectedSecret:       secretWithoutInhibition,
+				storageClusterLength: 0,
+			},
+		},
+		{
+			name: "Inhibition rule, 1 Storagecluster",
+			args: args{
+				actualSecret:         secretWithInhibition,
+				expectedSecret:       secretWithInhibition,
+				storageClusterLength: 1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		got := getInhibitionRules(tt.args.actualSecret.DeepCopy(), tt.args.storageClusterLength)
+		// explicitly converting to string from []byte as this will be logged on terminal in case of failure
+		assert.Equal(t, string(tt.args.expectedSecret.Data["alertmanager.yaml"]), string(got.Data["alertmanager.yaml"]))
+	}
 }
