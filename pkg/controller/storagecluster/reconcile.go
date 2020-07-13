@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -103,6 +104,17 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 	if err := versionCheck(instance, reqLogger); err != nil {
 		return reconcile.Result{}, err
+	}
+
+	// always inhibit PDB alerts for OSDs on Internal Clusters
+	// if failed to inhibit PDB alert, log error and continue
+	// this is to unblock Storage Cluster operations in case
+	// of alertmanager failures
+	if !instance.Spec.ExternalStorage.Enable {
+		err = inhibitPDBAlert(r.client, r.reqLogger)
+		if err != nil {
+			reqLogger.Error(err, "unable to inhibit PDB alerts")
+		}
 	}
 
 	// Check for active StorageCluster only if Create request is made
@@ -957,4 +969,65 @@ fi`
 	}
 
 	return job
+}
+
+// inhibitPDBAlert patches the Alertmanager config to inhibit PDB alerts for Rook OSDs
+// Inhibition Rules will be added if there is at least one Storage Cluster and
+// be removed otherwise
+func inhibitPDBAlert(client client.Client, reqLogger logr.Logger) error {
+	reqLogger.Info("Adding inhibition rules for PDB alerts on OSDs")
+	storageClusterList := &ocsv1.StorageClusterList{}
+	err := client.List(context.TODO(), storageClusterList)
+	if err != nil {
+		return fmt.Errorf("couldn't list Storage Clusters. %v", err)
+	}
+	storageClusterLength := len(storageClusterList.Items)
+
+	alertmanagerConfigSecret := &corev1.Secret{}
+	alertmanagerConfigSecretName := "alertmanager-main"
+	alertmanagerConfigSecretNamespace := "openshift-monitoring"
+	err = client.Get(context.TODO(), types.NamespacedName{Name: alertmanagerConfigSecretName, Namespace: alertmanagerConfigSecretNamespace}, alertmanagerConfigSecret)
+	if err != nil {
+		return fmt.Errorf("couldn't fetch alertmanager config secret. %v", err)
+	}
+	newAlertmanagerConfigSecret := getInhibitionRules(alertmanagerConfigSecret.DeepCopy(), storageClusterLength)
+	alertmanagerConfigSecret.Data = newAlertmanagerConfigSecret.Data
+	err = client.Update(context.TODO(), alertmanagerConfigSecret)
+	if err != nil {
+		return fmt.Errorf("couldn't update alertmanager config secret. %v", err)
+	}
+	reqLogger.Info("Added inhibition rules for PDB alerts on OSDs")
+	return nil
+}
+
+func getInhibitionRules(alertmanagerConfigSecret *corev1.Secret, storageClusterLength int) *corev1.Secret {
+	// DO NOT EDIT THE FORMATTING OF THIS STRING
+	// Whitespaces are important as it is directly converted into YAML
+	inhibitRules := `
+	- "equal":
+	  - "namespace"
+	  - "alertname"
+	  "source_match_re":
+	   "poddisruptionbudget" : "^rook-ceph-osd-[0-9]+$"
+	  "target_match_re":
+	    "poddisruptionbudget" : "^rook-ceph-osd-[0-9]+$"`
+	oldConfig := alertmanagerConfigSecret.Data["alertmanager.yaml"]
+	oldconfigBytes := bytes.SplitAfter(oldConfig, []byte("\"inhibit_rules\":"))
+	containsBytes := bytes.Contains(oldconfigBytes[1], []byte(inhibitRules))
+	if len(oldconfigBytes) > 1 {
+		if containsBytes && storageClusterLength == 0 {
+			// inhibit rule exists but Storage Cluster doesn't. Need to remove inhibit rule.
+			temp := bytes.SplitAfter(oldConfig, []byte(inhibitRules))
+			oldconfigBytes[1] = temp[1]
+			newConfig := bytes.Join(oldconfigBytes, nil)
+			alertmanagerConfigSecret.Data["alertmanager.yaml"] = newConfig
+		} else if !containsBytes && storageClusterLength > 0 {
+			// inhibit rule doesn't exist but Storage Cluster does. Need to add inhibit rule.
+			newConfig := bytes.Join(oldconfigBytes, []byte(inhibitRules))
+			alertmanagerConfigSecret.Data["alertmanager.yaml"] = newConfig
+		}
+	}
+	// inhibit rule and Storage Cluster exists. No need to remove inhibit rule.
+	// inhibit rule and Storage Cluster doesn't exist. No need to add inhibit rule.
+	return alertmanagerConfigSecret
 }
