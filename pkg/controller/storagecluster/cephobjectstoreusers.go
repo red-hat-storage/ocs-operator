@@ -52,10 +52,19 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 	if err != nil {
 		return err
 	}
+	err = r.createCephObjectStoreUsers(cephObjectStoreUsers, instance, reqLogger)
+        if err != nil {
+		reqLogger.Error(err, "could not create CephObjectStoresUsers")
+                return err
+        }
+	return err
+}
+
+// createCephObjectStoreUsers creates CephObjectStoreUsers in the desired state
+func (r *ReconcileStorageCluster) createCephObjectStoreUsers(cephObjectStoreUsers []*cephv1.CephObjectStoreUser, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	for _, cephObjectStoreUser := range cephObjectStoreUsers {
 		existing := cephv1.CephObjectStoreUser{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
-
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
 		switch {
 		case err == nil:
 			if existing.DeletionTimestamp != nil {
@@ -78,5 +87,5 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 			}
 		}
 	}
-	return err
+	return nil
 }
