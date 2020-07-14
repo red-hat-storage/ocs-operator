@@ -71,6 +71,22 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 		reqLogger.Error(err, "failed to create StorageClasses")
 		return err
 	}
+	err = r.createExternalStorageClusterResources(ownerRef, scs, data, instance, reqLogger)
+	if err != nil {
+                reqLogger.Error(err, "could not create ExternalStorageClusterResource")
+                return err
+        }
+	// creating all the storageClasses once we set the values
+	err = r.createStorageClasses(scs, reqLogger)
+	if err != nil {
+		return err
+	}
+	instance.Status.ExternalSecretFound = true
+	return nil
+}
+
+// createExternalStorageClusterResources creates external cluster resources
+func (r *ReconcileStorageCluster) createExternalStorageClusterResources(ownerRef metav1.OwnerReference, scs []*storagev1.StorageClass, data []ExternalResource, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{
 			Name:            d.Name,
@@ -85,19 +101,10 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 				Data:       d.Data,
 			}
 			found := &corev1.ConfigMap{ObjectMeta: objectMeta}
-			err := r.client.Get(context.TODO(), objectKey, found)
+			err := r.createExternalStorageClusterConfigMap(cm, found, reqLogger, objectKey)
 			if err != nil {
-				if errors.IsNotFound(err) {
-					reqLogger.Info(fmt.Sprintf("creating configmap: %s", cm.Name))
-					err = r.client.Create(context.TODO(), cm)
-					if err != nil {
-						reqLogger.Error(err, "creation of configmap failed")
-						return err
-					}
-				} else {
-					reqLogger.Error(err, "unable the get the configmap")
-					return err
-				}
+				reqLogger.Error(err, "could not create ExternalStorageClusterConfigMap")
+				return err
 			}
 		case "Secret":
 			sec := &corev1.Secret{
@@ -108,19 +115,10 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 				sec.Data[k] = []byte(v)
 			}
 			found := &corev1.Secret{ObjectMeta: objectMeta}
-			err := r.client.Get(context.TODO(), objectKey, found)
+			err := r.createExternalStorageClusterSecret(sec, found, reqLogger, objectKey)
 			if err != nil {
-				if errors.IsNotFound(err) {
-					reqLogger.Info(fmt.Sprintf("creating secret: %s", sec.Name))
-					err = r.client.Create(context.TODO(), sec)
-					if err != nil {
-						reqLogger.Error(err, "creation of secret failed")
-						return err
-					}
-				} else {
-					reqLogger.Error(err, "unable to get the secret")
-					return err
-				}
+				reqLogger.Error(err, "could not create ExternalStorageClusterSecret")
+				return err
 			}
 		case "StorageClass":
 			var sc *storagev1.StorageClass
@@ -144,11 +142,43 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 			}
 		}
 	}
-	// creating all the storageClasses once we set the values
-	err = r.createStorageClasses(scs, reqLogger)
+	return nil
+}
+
+// createExternalStorageClusterConfigMap creates configmap for external cluster
+func (r *ReconcileStorageCluster) createExternalStorageClusterConfigMap(cm *corev1.ConfigMap, found *corev1.ConfigMap, reqLogger logr.Logger, objectKey types.NamespacedName) error {
+	err := r.client.Get(context.TODO(), objectKey, found)
 	if err != nil {
-		return err
+		if errors.IsNotFound(err) {
+			reqLogger.Info(fmt.Sprintf("creating configmap: %s", cm.Name))
+			err = r.client.Create(context.TODO(), cm)
+			if err != nil {
+				reqLogger.Error(err, "creation of configmap failed")
+				return err
+			}
+		} else {
+			reqLogger.Error(err, "unable the get the configmap")
+			return err
+		}
 	}
-	instance.Status.ExternalSecretFound = true
+	return nil
+}
+
+// createExternalStorageClusterSecret creates secret for external cluster
+func (r *ReconcileStorageCluster) createExternalStorageClusterSecret(sec *corev1.Secret, found *corev1.Secret, reqLogger logr.Logger, objectKey types.NamespacedName) error {
+	err := r.client.Get(context.TODO(), objectKey, found)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info(fmt.Sprintf("creating secret: %s", sec.Name))
+			err = r.client.Create(context.TODO(), sec)
+			if err != nil {
+				reqLogger.Error(err, "creation of secret failed")
+				return err
+			}
+		} else {
+			reqLogger.Error(err, "unable the get the secret")
+			return err
+		}
+	}
 	return nil
 }
