@@ -1,5 +1,5 @@
 #!/bin/bash
-  
+
 # Check for shell syntax & style.
 
 source hack/common.sh
@@ -15,28 +15,37 @@ test_shellcheck() {
                         return 0
                 fi
                 #shell check -x -e SC2181,SC2029,SC1091,SC1090,SC2012 "${1}"
-                shellcheck -x -e SC2181 "${1}"
+                "${SHELLCHECK}" -x -e SC2181 "${1}"
         else
                 return 0
         fi
 }
 
-SHELLCHECK="$(command -v shellcheck 2>/dev/null)"
-
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
-
 BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SHELLCHECK="${OUTDIR_TOOLS}/shellcheck"
 
-if [[ -z "${SHELLCHECK}" ]]; then
-        echo "warning: could not find shellcheck ... installing shellcheck" >&2
-        scversion="stable"
-        FILE="${OUTDIR_TOOLS}/shellcheck"
-        wget -qO- "https://storage.googleapis.com/shellcheck/shellcheck-${scversion?}.linux.x86_64.tar.xz" | tar -xJv
-        cp -f "shellcheck-${scversion}/shellcheck" "${FILE}"
-        if [ -f "$FILE" ]; then
-                SHELLCHECK="${FILE}"
+if [ ! -f "${SHELLCHECK}" ]; then
+        SC_VERSION="stable"
+        echo "Shellcheck not found, installing shellcheck... (${SC_VERSION?})" >&2
+
+        if [ "$OS_TYPE" == "Darwin" ]; then
+                SC_SOURCE="https://github.com/koalaman/shellcheck/releases/download/${SC_VERSION?}/shellcheck-${SC_VERSION?}.darwin.x86_64.tar.xz"
+        else
+                SC_SOURCE="https://github.com/koalaman/shellcheck/releases/download/${SC_VERSION?}/shellcheck-${SC_VERSION?}.linux.x86_64.tar.xz"
+        fi
+
+        wget -qO- "${SC_SOURCE}" | tar -xJv
+        mkdir -p ${OUTDIR_TOOLS}
+        cp -f "shellcheck-${SC_VERSION}/shellcheck" "${SHELLCHECK}"
+
+        if [ -f "$SHELLCHECK" ]; then
+                rm -rf "./shellcheck-${SC_VERSION?}"
+        else
+                unset SHELLCHECK
         fi
 fi
+
 
 cd "${BASE_DIR}" || exit 2
 SCRIPTS=$(find . \( -path "*/vendor/*" -o -path "*/build/*" -o -path "*/_cache/*" \) -prune -o -name "*~" -prune -o -name "*.swp" -prune -o -type f -exec grep -l -e '^#!/bin/bash$' {} \;)
@@ -63,5 +72,5 @@ done
 
 echo "${failed} scripts with errors were found"
 
-exit ${failed}
+exit "${failed}"
 
