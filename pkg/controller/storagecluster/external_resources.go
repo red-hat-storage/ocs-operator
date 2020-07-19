@@ -62,13 +62,9 @@ func (r *ReconcileStorageCluster) setRookCSICephFS(
 	return r.client.Update(context.TODO(), rookCephOperatorConfig)
 }
 
-// ensureExternalStorageClusterResources ensures that requested resources for the external cluster
-// being created
-func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	// check for the status boolean value accepted or not
-	if instance.Status.ExternalSecretFound {
-		return nil
-	}
+// retrieveExternalSecretData function retrieves the external secret and returns the data it contains
+func (r *ReconcileStorageCluster) retrieveExternalSecretData(
+	instance *ocsv1.StorageCluster, reqLogger logr.Logger) ([]ExternalResource, error) {
 	found := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalClusterDetailsSecret,
@@ -77,15 +73,26 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: found.Name, Namespace: found.Namespace}, found)
 	if err != nil {
-		return err
+		reqLogger.Error(err, "could not find the external secret resource")
+		return nil, err
 	}
 	var data []ExternalResource
 	err = json.Unmarshal(found.Data[externalClusterDetailsKey], &data)
 	if err != nil {
 		reqLogger.Error(err, "could not parse json blob")
-		return err
+		return nil, err
 	}
-	err = r.createExternalStorageClusterResources(data, instance, reqLogger)
+	return data, nil
+}
+
+// ensureExternalStorageClusterResources ensures that requested resources for the external cluster
+// being created
+func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	// check for the status boolean value accepted or not
+	if instance.Status.ExternalSecretFound {
+		return nil
+	}
+	err := r.createExternalStorageClusterResources(instance, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "could not create ExternalStorageClusterResource")
 		return err
@@ -94,9 +101,8 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	return nil
 }
 
-// createExternalStorageClusterResources create the needed external cluster resources
-func (r *ReconcileStorageCluster) createExternalStorageClusterResources(
-	data []ExternalResource, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+// createExternalStorageClusterResources creates external cluster resources
+func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	ownerRef := metav1.OwnerReference{
 		UID:        instance.UID,
 		APIVersion: instance.APIVersion,
@@ -112,6 +118,11 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
 	var availableSCs []*storagev1.StorageClass
+	data, err := r.retrieveExternalSecretData(instance, reqLogger)
+	if err != nil {
+		reqLogger.Error(err, "Failed to retrieve external resources")
+		return err
+	}
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{
 			Name:            d.Name,

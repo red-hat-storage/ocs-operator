@@ -29,12 +29,11 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 		return nil
 	}
 
-	cephObjectStores, err := r.newCephObjectStoreInstances(instance)
+	cephObjectStores, err := r.newCephObjectStoreInstances(instance, reqLogger)
 	if err != nil {
 		return err
 	}
-
-	err = r.createCephObjectStores(cephObjectStores, instance, reqLogger)
+	err = r.createCephObjectStores(cephObjectStores, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "could not create CephObjectStores")
 		return err
@@ -46,15 +45,16 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 }
 
 // createCephObjectStore creates CephObjectStore in the desired state
-func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cephv1.CephObjectStore, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cephv1.CephObjectStore, reqLogger logr.Logger) error {
 	for _, cephObjectStore := range cephObjectStores {
 		existing := cephv1.CephObjectStore{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
 		switch {
 		case err == nil:
 			if existing.DeletionTimestamp != nil {
-				reqLogger.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
-				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
+				err := fmt.Errorf("failed to restore cephobjectstore object %s because it is marked for deletion", existing.Name)
+				reqLogger.Info("cephobjectstore restore failed")
+				return err
 			}
 
 			reqLogger.Info(fmt.Sprintf("Restoring original cephObjectStore %s", cephObjectStore.Name))
@@ -62,12 +62,14 @@ func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cep
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
 			err = r.client.Update(context.TODO(), cephObjectStore)
 			if err != nil {
+				reqLogger.Error(err, fmt.Sprintf("Failed to update CephObjectStore Object: %s", cephObjectStore.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
 			reqLogger.Info(fmt.Sprintf("Creating CephObjectStore %s", cephObjectStore.Name))
 			err = r.client.Create(context.TODO(), cephObjectStore)
 			if err != nil {
+				reqLogger.Error(err, fmt.Sprintf("Creation failed for CephObjectStore object: %s", cephObjectStore.Name))
 				return err
 			}
 		}
@@ -77,7 +79,7 @@ func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cep
 
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephObjectStore, error) {
+func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, reqLogger logr.Logger) ([]*cephv1.CephObjectStore, error) {
 	ret := []*cephv1.CephObjectStore{
 		&cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{
@@ -110,6 +112,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 	for _, obj := range ret {
 		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
 		if err != nil {
+			reqLogger.Error(err, fmt.Sprintf("Failed to set ControllerReference to %s", obj.Name))
 			return nil, err
 		}
 	}

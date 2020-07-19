@@ -22,7 +22,7 @@ func TestCephObjectStores(t *testing.T) {
 	}
 }
 func assertCephObjectStores(t *testing.T, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
-	expectedCos, err := reconciler.newCephObjectStoreInstances(cr)
+	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, reconciler.reqLogger)
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{
