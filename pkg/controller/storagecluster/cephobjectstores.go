@@ -62,14 +62,14 @@ func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cep
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
 			err = r.client.Update(context.TODO(), cephObjectStore)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Failed to update CephObjectStore Object: %s", cephObjectStore.Name))
+				reqLogger.Error(err, fmt.Sprintf("failed to update CephObjectStore Object: %s", cephObjectStore.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
-			reqLogger.Info(fmt.Sprintf("Creating CephObjectStore %s", cephObjectStore.Name))
+			reqLogger.Info(fmt.Sprintf("creating CephObjectStore %s", cephObjectStore.Name))
 			err = r.client.Create(context.TODO(), cephObjectStore)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Creation failed for CephObjectStore object: %s", cephObjectStore.Name))
+				reqLogger.Error(err, fmt.Sprintf("failed to create CephObjectStore object: %s", cephObjectStore.Name))
 				return err
 			}
 		}

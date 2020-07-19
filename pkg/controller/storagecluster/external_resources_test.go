@@ -183,6 +183,8 @@ func assertExpectedExternalResources(t *testing.T, reconciler ReconcileStorageCl
 			request.Name = fmt.Sprintf("%s-%s", sc.Name, expected.Name)
 			err := reconciler.client.Get(nil, request.NamespacedName, actual)
 			assert.NoError(t, err)
+			// 'endpoint's are not required, as they are moved out to CephObjectStore
+			delete(expected.Data, "endpoint")
 			for param, value := range expected.Data {
 				assert.Equal(t, value, actual.Parameters[param])
 			}
@@ -190,7 +192,6 @@ func assertExpectedExternalResources(t *testing.T, reconciler ReconcileStorageCl
 			// The main difference between external and converged is the presence of an endpoint
 			// and the absence of the "objectStoreName" parameter
 			if actual.Name == "ocsinit-ceph-rgw" {
-				assert.NotEmpty(t, actual.Parameters["endpoint"], actual.Parameters["endpoint"])
 				assert.NotEmpty(t, actual.Parameters["region"], actual.Parameters)
 				assert.NotContains(t, actual.Parameters["objectStoreName"], actual.Parameters)
 				assert.Equal(t, actual.Parameters["region"], "us-east-1")

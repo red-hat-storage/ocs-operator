@@ -27,7 +27,12 @@ func generateNameForCephBlockPool(initData *ocsv1.StorageCluster) string {
 }
 
 func generateNameForCephObjectStore(initData *ocsv1.StorageCluster) string {
-	return fmt.Sprintf("%s-cephobjectstore", initData.Name)
+	cosName := "cephobjectstore"
+	if initData.Spec.ExternalStorage.Enable {
+		cosName = fmt.Sprintf("external-%s", cosName)
+	}
+	cosName = fmt.Sprintf("%s-%s", initData.Name, cosName)
+	return cosName
 }
 
 func generateNameForCephRgwSC(initData *ocsv1.StorageCluster) string {
