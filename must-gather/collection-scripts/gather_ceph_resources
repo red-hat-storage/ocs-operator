@@ -113,6 +113,8 @@ for ns in $namespaces; do
     echo "collecting dump of clusterresourceversion" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
     timeout 120 oc adm --dest-dir="${CEPH_COLLECTION_PATH}/pvc_all_namespaces" inspect pvc --all-namespaces >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
     timeout 120 oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect csv -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    timeout 120 oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect sc -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    timeout 120 oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect installplan -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
     if [[ $cephClusterCount -gt 0 ]]; then
         COMMAND_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands
         COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
