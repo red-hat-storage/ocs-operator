@@ -24,7 +24,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-var _ = Describe("StorageClusterInitialization", func() {
+const (
+	resourceName = "storageclusterinitializations"
+)
+
+var _ = Describe("StorageClusterInitialization", StorageClusterInitializationTest)
+
+func StorageClusterInitializationTest() {
 	var ocsClient *rest.RESTClient
 	var parameterCodec runtime.ParameterCodec
 	var name string
@@ -72,7 +78,7 @@ var _ = Describe("StorageClusterInitialization", func() {
 	getSCI := func() (*ocsv1.StorageClusterInitialization, error) {
 		sci := &ocsv1.StorageClusterInitialization{}
 		err := ocsClient.Get().
-			Resource("storageclusterinitializations").
+			Resource(resourceName).
 			Namespace(namespace).
 			Name(name).
 			VersionedParams(&metav1.GetOptions{}, parameterCodec).
@@ -83,7 +89,7 @@ var _ = Describe("StorageClusterInitialization", func() {
 
 	deleteSCIAndWaitForCreate := func() {
 		err := ocsClient.Delete().
-			Resource("storageclusterinitializations").
+			Resource(resourceName).
 			Namespace(namespace).
 			Name(name).
 			VersionedParams(&metav1.GetOptions{}, parameterCodec).
@@ -418,4 +424,4 @@ var _ = Describe("StorageClusterInitialization", func() {
 			})
 		})
 	})
-})
+}

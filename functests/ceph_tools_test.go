@@ -17,7 +17,9 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var _ = Describe("Rook Ceph Tools", func() {
+var _ = Describe("Rook Ceph Tools", rookCephToolsTest)
+
+func rookCephToolsTest() {
 	var k8sClient *kubernetes.Clientset
 	var ocsClient *rest.RESTClient
 	var parameterCodec runtime.ParameterCodec
@@ -98,4 +100,4 @@ var _ = Describe("Rook Ceph Tools", func() {
 
 		})
 	})
-})
+}

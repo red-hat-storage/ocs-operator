@@ -16,7 +16,9 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var _ = Describe("StorageCluster Creation", func() {
+var _ = Describe("StorageCluster Creation", StorageClusterCreationTest)
+
+func StorageClusterCreationTest() {
 	var ocsClient *rest.RESTClient
 	var parameterCodec runtime.ParameterCodec
 	var duplicateStorageCluster *ocsv1.StorageCluster
@@ -87,4 +89,4 @@ var _ = Describe("StorageCluster Creation", func() {
 			})
 		})
 	})
-})
+}

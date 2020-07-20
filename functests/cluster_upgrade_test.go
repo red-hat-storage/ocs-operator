@@ -11,7 +11,9 @@ import (
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 )
 
-var _ = PDescribe("Cluster upgrade", func() {
+var _ = PDescribe("Cluster upgrade", ClusterUpgradeTest)
+
+func ClusterUpgradeTest() {
 	flag.Parse()
 
 	BeforeEach(func() {
@@ -75,4 +77,4 @@ var _ = PDescribe("Cluster upgrade", func() {
 			})
 		})
 	})
-})
+}
