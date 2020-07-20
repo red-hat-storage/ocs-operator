@@ -39,10 +39,12 @@ commands+=("describe nodes")
 commands+=("describe pods -n openshift-storage")
 commands+=("get pvc --all-namespaces")
 commands+=("get pv")
-commands+=("get sc")
 commands+=("get infrastructures.config -oyaml")
 commands+=("get subscription -n openshift-storage")
 commands+=("get csv -n openshift-storage")
+commands+=("get sc")
+commands+=("get installplan -n openshift-storage")
+commands+=("get events -n openshift-storage")
 
 # Run the Collection of Resources to list
 for command in "${commands[@]}"; do
