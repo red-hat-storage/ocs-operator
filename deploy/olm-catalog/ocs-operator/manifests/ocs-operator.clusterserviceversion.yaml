@@ -2270,7 +2270,7 @@ spec:
   - name: Source Code
     url: https://github.com/openshift/ocs-operator
   maintainers:
-  - email: support@redhat.com
+  - email: ocs-support@redhat.com
     name: Red Hat Support
   maturity: alpha
   provider:
