@@ -523,7 +523,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	ocsCSV.Spec.Maintainers = []csvv1.Maintainer{
 		{
 			Name:  "Red Hat Support",
-			Email: "support@redhat.com",
+			Email: "ocs-support@redhat.com",
 		},
 	}
 
