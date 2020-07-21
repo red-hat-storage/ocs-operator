@@ -17,15 +17,17 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	disableToolsPatch = `[{ "op": "replace", "path": "/spec/enableCephTools", "value": false }]`
+	enableToolsPatch  = `[{ "op": "replace", "path": "/spec/enableCephTools", "value": true }]`
+)
+
 var _ = Describe("Rook Ceph Tools", rookCephToolsTest)
 
 func rookCephToolsTest() {
 	var k8sClient *kubernetes.Clientset
 	var ocsClient *rest.RESTClient
 	var parameterCodec runtime.ParameterCodec
-
-	disableToolsPatch := `[{ "op": "replace", "path": "/spec/enableCephTools", "value": false }]`
-	enableToolsPatch := `[{ "op": "replace", "path": "/spec/enableCephTools", "value": true }]`
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
