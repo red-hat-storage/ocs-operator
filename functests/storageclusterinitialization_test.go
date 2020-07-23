@@ -6,7 +6,6 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo"
-	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	scController "github.com/openshift/ocs-operator/pkg/controller/storagecluster"
@@ -28,90 +27,123 @@ const (
 	resourceName = "storageclusterinitializations"
 )
 
-var _ = Describe("StorageClusterInitialization", StorageClusterInitializationTest)
-
-func StorageClusterInitializationTest() {
-	var ocsClient *rest.RESTClient
-	var parameterCodec runtime.ParameterCodec
-	var name string
-	var namespace string
-	var client crclient.Client
-	var currentCloudPlatform scController.CloudPlatformType
-	platform := &scController.CloudPlatform{}
+type SCInit struct {
+	ocsClient            *rest.RESTClient
+	parameterCodec       runtime.ParameterCodec
+	name                 string
+	namespace            string
+	client               crclient.Client
+	currentCloudPlatform scController.CloudPlatformType
 
 	// This map is used to cross examine that objects maintain
 	// the same UID after re-reconciling. This is important to
 	// ensure objects are reconciled in place, and not deleted/recreated
-	var uidMap map[types.UID]string
+	uidMap map[types.UID]string
+}
+
+func newSCInit() (*SCInit, error) {
+	scInitObj := &SCInit{}
+
+	// initialize 'uidMap'
+	scInitObj.uidMap = make(map[types.UID]string)
+
+	// initialize controller runtime client, 'client'
+	clientScheme := scheme.Scheme
+	cephv1.AddToScheme(clientScheme)
+	conf, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	scInitObj.client, err = crclient.New(conf, crclient.Options{Scheme: clientScheme})
+	if err != nil {
+		return nil, err
+	}
+
+	// initialize the 'name' and 'namespace' with the default storagecluster
+	defaultStorageCluster, err := deploymanager.DefaultStorageCluster()
+	scInitObj.name = defaultStorageCluster.Name
+	scInitObj.namespace = defaultStorageCluster.Namespace
+
+	// initialize 'ocsClient', the rest-client
+	deployManager, err := deploymanager.NewDeployManager()
+	if err != nil {
+		return nil, err
+	}
+	scInitObj.ocsClient = deployManager.GetOcsClient()
+
+	// initialize 'parameterCodec', with the current runtime parameterCodec,
+	// which is used for serializing and deserializing API objects to url values
+	scInitObj.parameterCodec = deployManager.GetParameterCodec()
+
+	// initialize 'currentCloudPlatform', if not cloud it will contain 'PlatformUnknown
+	platform := &scController.CloudPlatform{}
+	scInitObj.currentCloudPlatform, err = platform.GetPlatform(scInitObj.client)
+	if err != nil {
+		return nil, err
+	}
+
+	return scInitObj, nil
+}
+
+func (scInitObj *SCInit) getSCI() (*ocsv1.StorageClusterInitialization, error) {
+	sci := &ocsv1.StorageClusterInitialization{}
+	err := scInitObj.ocsClient.Get().
+		Resource(resourceName).
+		Namespace(scInitObj.namespace).
+		Name(scInitObj.name).
+		VersionedParams(&metav1.GetOptions{}, scInitObj.parameterCodec).
+		Do().
+		Into(sci)
+	if err != nil {
+		return nil, err
+	}
+	return sci, nil
+}
+
+func (scInitObj *SCInit) deleteResource() error {
+	return scInitObj.ocsClient.Delete().
+		Resource(resourceName).
+		Namespace(scInitObj.namespace).
+		Name(scInitObj.name).
+		VersionedParams(&metav1.GetOptions{}, scInitObj.parameterCodec).
+		Do().
+		Error()
+}
+
+var _ = Describe("StorageClusterInitialization", StorageClusterInitializationTest)
+
+func StorageClusterInitializationTest() {
+	var scInitObj *SCInit
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
 
 		var err error
 
-		clientScheme := scheme.Scheme
-		cephv1.AddToScheme(clientScheme)
-
-		uidMap = make(map[types.UID]string)
-
-		defaultStorageCluster, err := deploymanager.DefaultStorageCluster()
-		name = defaultStorageCluster.Name
-		namespace = defaultStorageCluster.Namespace
-
-		deployManager, err := deploymanager.NewDeployManager()
+		scInitObj, err = newSCInit()
 		Expect(err).To(BeNil())
 
-		ocsClient = deployManager.GetOcsClient()
-		parameterCodec = deployManager.GetParameterCodec()
-
-		config, err := config.GetConfig()
-		Expect(err).To(BeNil())
-
-		client, err = crclient.New(config, crclient.Options{Scheme: clientScheme})
-		Expect(err).To(BeNil())
-
-		currentCloudPlatform, err = platform.GetPlatform(client)
-		Expect(err).To(BeNil())
-		Expect(currentCloudPlatform).To(BeElementOf(append(scController.ValidCloudPlatforms, scController.PlatformUnknown)))
+		Expect(scInitObj.currentCloudPlatform).To(BeElementOf(append(scController.ValidCloudPlatforms,
+			scController.PlatformUnknown)))
 	})
 
-	getSCI := func() (*ocsv1.StorageClusterInitialization, error) {
-		sci := &ocsv1.StorageClusterInitialization{}
-		err := ocsClient.Get().
-			Resource(resourceName).
-			Namespace(namespace).
-			Name(name).
-			VersionedParams(&metav1.GetOptions{}, parameterCodec).
-			Do().
-			Into(sci)
-		return sci, err
-	}
-
 	deleteSCIAndWaitForCreate := func() {
-		err := ocsClient.Delete().
-			Resource(resourceName).
-			Namespace(namespace).
-			Name(name).
-			VersionedParams(&metav1.GetOptions{}, parameterCodec).
-			Do().
-			Error()
-		if err != nil {
-			Expect(err).To(BeNil())
-		}
-
-		gomega.Eventually(func() error {
-			_, err := getSCI()
+		err := scInitObj.deleteResource()
+		Expect(err).To(BeNil())
+		Eventually(func() error {
+			_, err := scInitObj.getSCI()
 			if err != nil {
 				return fmt.Errorf("Waiting on StorageClusterInitialization to be re-created: %v", err)
 			}
 			return nil
-		}, 10*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+		}, 10*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 	}
 
 	cephFilesystemModify := func(shouldDelete bool) {
 		filesystem := &cephv1.CephFilesystem{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephfilesystem", name)}
-		err := client.Get(context.TODO(),
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace,
+			Name: fmt.Sprintf("%s-cephfilesystem", scInitObj.name)}
+		err := scInitObj.client.Get(context.TODO(),
 			key,
 			filesystem,
 		)
@@ -119,23 +151,23 @@ func StorageClusterInitializationTest() {
 
 		// modifying the failure domain
 		if shouldDelete {
-			err = client.Delete(context.TODO(), filesystem)
+			err = scInitObj.client.Delete(context.TODO(), filesystem)
 			Expect(err).To(BeNil())
 		} else {
 			filesystem.Spec.DataPools[0].FailureDomain = "fake"
-			err = client.Update(context.TODO(), filesystem)
+			err = scInitObj.client.Update(context.TODO(), filesystem)
 			Expect(err).To(BeNil())
 
 		}
-		uidMap[filesystem.UID] = ""
+		scInitObj.uidMap[filesystem.UID] = ""
 	}
 
 	cephFilesystemExpectReconcile := func(expectDelete bool) {
 		filesystem := &cephv1.CephFilesystem{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephfilesystem", name)}
-
-		gomega.Eventually(func() error {
-			err := client.Get(context.TODO(),
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace,
+			Name: fmt.Sprintf("%s-cephfilesystem", scInitObj.name)}
+		Eventually(func() error {
+			err := scInitObj.client.Get(context.TODO(),
 				key,
 				filesystem,
 			)
@@ -148,18 +180,18 @@ func StorageClusterInitializationTest() {
 			}
 
 			if !expectDelete {
-				_, ok := uidMap[filesystem.UID]
+				_, ok := scInitObj.uidMap[filesystem.UID]
 				Expect(ok).To(BeTrue())
 			}
 
 			return nil
-		}, 15*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+		}, 15*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 	}
 
 	cephObjectStoreUserModify := func(shouldDelete bool) {
 		objStoreUser := &cephv1.CephObjectStoreUser{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephobjectstoreuser", name)}
-		err := client.Get(context.TODO(),
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-cephobjectstoreuser", scInitObj.name)}
+		err := scInitObj.client.Get(context.TODO(),
 			key,
 			objStoreUser,
 		)
@@ -168,22 +200,22 @@ func StorageClusterInitializationTest() {
 		// modifying the user store name
 		if shouldDelete {
 
-			err = client.Delete(context.TODO(), objStoreUser)
+			err = scInitObj.client.Delete(context.TODO(), objStoreUser)
 			Expect(err).To(BeNil())
 		} else {
 			objStoreUser.Spec.Store = "fake"
-			err = client.Update(context.TODO(), objStoreUser)
+			err = scInitObj.client.Update(context.TODO(), objStoreUser)
 			Expect(err).To(BeNil())
 		}
-		uidMap[objStoreUser.UID] = ""
+		scInitObj.uidMap[objStoreUser.UID] = ""
 	}
 
 	cephObjectStoreUserExpectReconcile := func(expectDelete bool) {
 		objStoreUser := &cephv1.CephObjectStoreUser{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephobjectstoreuser", name)}
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-cephobjectstoreuser", scInitObj.name)}
 
-		gomega.Eventually(func() error {
-			err := client.Get(context.TODO(),
+		Eventually(func() error {
+			err := scInitObj.client.Get(context.TODO(),
 				key,
 				objStoreUser,
 			)
@@ -196,18 +228,18 @@ func StorageClusterInitializationTest() {
 			}
 
 			if !expectDelete {
-				_, ok := uidMap[objStoreUser.UID]
+				_, ok := scInitObj.uidMap[objStoreUser.UID]
 				Expect(ok).To(BeTrue())
 			}
 
 			return nil
-		}, 15*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+		}, 15*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 	}
 
 	cephBlockPoolModify := func(shouldDelete bool) {
 		blockPool := &cephv1.CephBlockPool{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephblockpool", name)}
-		err := client.Get(context.TODO(),
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-cephblockpool", scInitObj.name)}
+		err := scInitObj.client.Get(context.TODO(),
 			key,
 			blockPool,
 		)
@@ -215,23 +247,23 @@ func StorageClusterInitializationTest() {
 
 		// modifying the failure domain
 		if shouldDelete {
-			err = client.Delete(context.TODO(), blockPool)
+			err = scInitObj.client.Delete(context.TODO(), blockPool)
 			Expect(err).To(BeNil())
 		} else {
 			blockPool.Spec.FailureDomain = "fake"
-			err = client.Update(context.TODO(), blockPool)
+			err = scInitObj.client.Update(context.TODO(), blockPool)
 			Expect(err).To(BeNil())
 		}
 
-		uidMap[blockPool.UID] = ""
+		scInitObj.uidMap[blockPool.UID] = ""
 	}
 
 	cephBlockPoolExpectReconcile := func(expectDelete bool) {
 		blockPool := &cephv1.CephBlockPool{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephblockpool", name)}
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-cephblockpool", scInitObj.name)}
 
-		gomega.Eventually(func() error {
-			err := client.Get(context.TODO(),
+		Eventually(func() error {
+			err := scInitObj.client.Get(context.TODO(),
 				key,
 				blockPool,
 			)
@@ -244,18 +276,18 @@ func StorageClusterInitializationTest() {
 			}
 
 			if !expectDelete {
-				_, ok := uidMap[blockPool.UID]
+				_, ok := scInitObj.uidMap[blockPool.UID]
 				Expect(ok).To(BeTrue())
 			}
 
 			return nil
-		}, 15*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+		}, 15*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 	}
 
 	cephObjectStoreModify := func(shouldDelete bool) {
 		objStore := &cephv1.CephObjectStore{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephobjectstore", name)}
-		err := client.Get(context.TODO(),
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-cephobjectstore", scInitObj.name)}
+		err := scInitObj.client.Get(context.TODO(),
 			key,
 			objStore,
 		)
@@ -263,24 +295,23 @@ func StorageClusterInitializationTest() {
 
 		// modifying the gateway instance count
 		if shouldDelete {
-			err = client.Delete(context.TODO(), objStore)
+			err = scInitObj.client.Delete(context.TODO(), objStore)
 			Expect(err).To(BeNil())
 		} else {
 			objStore.Spec.Gateway.Instances = 5
-			err = client.Update(context.TODO(), objStore)
+			err = scInitObj.client.Update(context.TODO(), objStore)
 			Expect(err).To(BeNil())
-
 		}
 
-		uidMap[objStore.UID] = ""
+		scInitObj.uidMap[objStore.UID] = ""
 	}
 
 	cephObjectStoreExpectReconcile := func(expectDelete bool) {
 		objStore := &cephv1.CephObjectStore{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-cephobjectstore", name)}
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-cephobjectstore", scInitObj.name)}
 
-		gomega.Eventually(func() error {
-			err := client.Get(context.TODO(),
+		Eventually(func() error {
+			err := scInitObj.client.Get(context.TODO(),
 				key,
 				objStore,
 			)
@@ -293,27 +324,26 @@ func StorageClusterInitializationTest() {
 			}
 
 			if !expectDelete {
-				_, ok := uidMap[objStore.UID]
+				_, ok := scInitObj.uidMap[objStore.UID]
 				Expect(ok).To(BeTrue())
 			}
 
 			return nil
-		}, 15*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+		}, 15*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 	}
 
 	storageClassModify := func(shouldDelete bool) {
 		storageClass := &storagev1.StorageClass{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-ceph-rbd", name)}
-		err := client.Get(context.TODO(),
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-ceph-rbd", scInitObj.name)}
+		err := scInitObj.client.Get(context.TODO(),
 			key,
 			storageClass,
 		)
 		Expect(err).To(BeNil())
 
 		if shouldDelete {
-			err = client.Delete(context.TODO(), storageClass)
+			err = scInitObj.client.Delete(context.TODO(), storageClass)
 			Expect(err).To(BeNil())
-
 		} else {
 			// I couldn't find a storageClass field in the Spec that
 			// the apiserver allows mutations on.
@@ -321,15 +351,15 @@ func StorageClusterInitializationTest() {
 			// the reconcile loop though.
 		}
 
-		uidMap[storageClass.UID] = ""
+		scInitObj.uidMap[storageClass.UID] = ""
 	}
 
 	storageClassExpectReconcile := func(expectDelete bool) {
 		storageClass := &storagev1.StorageClass{}
-		key := crclient.ObjectKey{Namespace: namespace, Name: fmt.Sprintf("%s-ceph-rbd", name)}
+		key := crclient.ObjectKey{Namespace: scInitObj.namespace, Name: fmt.Sprintf("%s-ceph-rbd", scInitObj.name)}
 
-		gomega.Eventually(func() error {
-			err := client.Get(context.TODO(),
+		Eventually(func() error {
+			err := scInitObj.client.Get(context.TODO(),
 				key,
 				storageClass,
 			)
@@ -338,12 +368,12 @@ func StorageClusterInitializationTest() {
 			}
 
 			if !expectDelete {
-				_, ok := uidMap[storageClass.UID]
+				_, ok := scInitObj.uidMap[storageClass.UID]
 				Expect(ok).To(BeTrue())
 			}
 
 			return nil
-		}, 15*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+		}, 15*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 	}
 
 	Describe("verify re-initialization", func() {
@@ -358,7 +388,7 @@ func StorageClusterInitializationTest() {
 		})
 		Context("after", func() {
 			It("resources have been modified", func() {
-				if currentCloudPlatform != scController.PlatformAWS {
+				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
 					By("Modifying CephObjectStore")
 					cephObjectStoreModify(false)
 					By("Modifying CephObjectStoreUser")
@@ -377,7 +407,7 @@ func StorageClusterInitializationTest() {
 
 				By("Verifying StorageClass is reconciled")
 				storageClassExpectReconcile(false)
-				if currentCloudPlatform != scController.PlatformAWS {
+				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
 					By("Verifying CephObjectStore is reconciled")
 					cephObjectStoreExpectReconcile(false)
 					By("Verifying CephObjectStoreUser is reconciled")
@@ -387,11 +417,10 @@ func StorageClusterInitializationTest() {
 				cephBlockPoolExpectReconcile(false)
 				By("Verifying CephFilesystem is reconciled")
 				cephFilesystemExpectReconcile(false)
-
 			})
 
 			It("resources have been deleted", func() {
-				if currentCloudPlatform != scController.PlatformAWS {
+				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
 					By("Modifying CephObjectStore")
 					cephObjectStoreModify(true)
 					By("Modifying CephObjectStoreUser")
@@ -410,7 +439,7 @@ func StorageClusterInitializationTest() {
 
 				By("Verifying StorageClass is reconciled")
 				storageClassExpectReconcile(true)
-				if currentCloudPlatform != scController.PlatformAWS {
+				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
 					By("Verifying CephObjectStore is reconciled")
 					cephObjectStoreExpectReconcile(true)
 					By("Verifying CephObjectStoreUser is reconciled")
