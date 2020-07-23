@@ -306,6 +306,55 @@ spec:
                     phase:
                       description: Phase represents the current phase of PersistentVolumeClaim.
                       type: string
+            multiCloudGateway:
+              description: MultiCloudGatewaySpec defines specific multi-cloud gateway
+                configuration options
+              type: object
+              properties:
+                endpoints:
+                  description: Endpoints (optional) sets configuration info for the
+                    noobaa endpoint deployment.
+                  type: object
+                  properties:
+                    additionalVirtualHosts:
+                      description: 'AdditionalVirtualHosts (optional) provide a list
+                        of additional hostnames (on top of the buildin names defined
+                        by the cluster: service name, elb name, route name) to be
+                        used as virtual hosts by the the endpoints in the endpoint
+                        deployment'
+                      type: array
+                      items:
+                        type: string
+                    maxCount:
+                      description: MaxCount, the number of endpoint instances (pods)
+                        to be used as the upper bound when autoscaling
+                      type: integer
+                      format: int32
+                    minCount:
+                      description: MinCount, the number of endpoint instances (pods)
+                        to be used as the lower bound when autoscaling
+                      type: integer
+                      format: int32
+                    resources:
+                      description: Resources (optional) overrides the default resource
+                        requirements for every endpoint pod
+                      type: object
+                      properties:
+                        limits:
+                          description: 'Limits describes the maximum amount of compute
+                            resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                          type: object
+                          additionalProperties:
+                            type: string
+                        requests:
+                          description: 'Requests describes the minimum amount of compute
+                            resources required. If Requests is omitted for a container,
+                            it defaults to Limits if that is explicitly specified,
+                            otherwise to an implementation-defined value. More info:
+                            https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                          type: object
+                          additionalProperties:
+                            type: string
             placement:
               description: Placement is optional and used to specify placements of
                 OCS components explicitly

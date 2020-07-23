@@ -1,6 +1,7 @@
 package v1
 
 import (
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +31,7 @@ type StorageClusterSpec struct {
 	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
+	MultiCloudGateway  *MultiCloudGatewaySpec                 `json:"multiCloudGateway,omitempty"`
 	// Version specifies the version of StorageCluster
 	Version string `json:"version,omitempty"`
 }
@@ -79,6 +81,14 @@ type StorageDeviceSetConfig struct {
 	// TuneSlowDeviceClass tunes the OSD when running on a slow Device Class
 	// +optional
 	TuneSlowDeviceClass bool `json:"tuneSlowDeviceClass,omitempty"`
+}
+
+// MultiCloudGatewaySpec defines specific multi-cloud gateway configuration options
+type MultiCloudGatewaySpec struct {
+	// Endpoints (optional) sets configuration info for the noobaa endpoint
+	// deployment.
+	// +optional
+	Endpoints *nbv1.EndpointsSpec `json:"endpoints,omitempty"`
 }
 
 // StorageClusterStatus defines the observed state of StorageCluster

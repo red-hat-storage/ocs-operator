@@ -108,14 +108,32 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	nb.Spec.Image = &r.noobaaCoreImage
 	nb.Spec.DBImage = &r.noobaaDBImage
 
-	if nb.Spec.Endpoints == nil {
-		nb.Spec.Endpoints = &nbv1.EndpointsSpec{
-			MinCount:  1,
-			MaxCount:  1,
-			Resources: &endpointResources,
+	// Default endpoint spec.
+	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
+		MinCount:               1,
+		MaxCount:               3,
+		AdditionalVirtualHosts: []string{},
+
+		// TODO: After spec.resources["noobaa-endpoint"] is decleared obesolete this
+		// definition should hold a constant value. and should not be read from
+		// GetDaemonResources()
+		Resources: &endpointResources,
+	}
+
+	// Override with MCG options specified in the storage cluster spec
+	if sc.Spec.MultiCloudGateway != nil {
+		if sc.Spec.MultiCloudGateway.Endpoints != nil {
+			epSpec := sc.Spec.MultiCloudGateway.Endpoints
+
+			nb.Spec.Endpoints.MinCount = epSpec.MinCount
+			nb.Spec.Endpoints.MaxCount = epSpec.MaxCount
+			if epSpec.AdditionalVirtualHosts != nil {
+				nb.Spec.Endpoints.AdditionalVirtualHosts = epSpec.AdditionalVirtualHosts
+			}
+			if epSpec.Resources != nil {
+				nb.Spec.Endpoints.Resources = epSpec.Resources
+			}
 		}
-	} else {
-		nb.Spec.Endpoints.Resources = &endpointResources
 	}
 
 	return nil
