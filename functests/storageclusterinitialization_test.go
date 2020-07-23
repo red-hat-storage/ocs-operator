@@ -27,6 +27,15 @@ const (
 	resourceName = "storageclusterinitializations"
 )
 
+// constant names of each resource
+const (
+	CephObjectStoreUserType = "CephObjectStoreUser"
+	CephObjectStoreType     = "CephObjectStore"
+	StorageClassType        = "StorageClass"
+	CephFilesystemType      = "CephFilesystem"
+	CephBlockPoolType       = "CephBlockPool"
+)
+
 type SCInit struct {
 	ocsClient            *rest.RESTClient
 	parameterCodec       runtime.ParameterCodec
@@ -161,6 +170,10 @@ func newCephFilesystemExpect(scInitObj *SCInit) *cephFilesystemExpect {
 	return cfsExpectObj
 }
 
+func (cfsExpectObj *cephFilesystemExpect) ExpectResourceTypeName() string {
+	return CephFilesystemType
+}
+
 func (cfsExpectObj *cephFilesystemExpect) ExpectDelete(expectDelete bool) {
 	cfsExpectObj.expectDelete = expectDelete
 }
@@ -231,6 +244,10 @@ func newCephObjectStoreUserExpect(scInitObj *SCInit) *cephObjectStoreUserExpect 
 	return cosuExpectObj
 }
 
+func (cosuExpectObj *cephObjectStoreUserExpect) ExpectResourceTypeName() string {
+	return CephObjectStoreUserType
+}
+
 func (cosuExpectObj *cephObjectStoreUserExpect) ExpectModify() error {
 	err := cosuExpectObj.scInitObj.client.Get(context.TODO(),
 		cosuExpectObj.key,
@@ -298,6 +315,10 @@ func newCephBlockPoolExpect(scInitObj *SCInit) *cephBlockPoolExpect {
 		Namespace: scInitObj.namespace,
 		Name:      fmt.Sprintf("%s-cephblockpool", scInitObj.name)}
 	return cbpExpect
+}
+
+func (cbpExpect *cephBlockPoolExpect) ExpectResourceTypeName() string {
+	return CephBlockPoolType
 }
 
 func (cbpExpect *cephBlockPoolExpect) ExpectDelete(expectDelete bool) {
@@ -372,6 +393,10 @@ func newCephObjectStoreExpect(scInitObj *SCInit) *cephObjectStoreExpect {
 	return cosExpectObj
 }
 
+func (cosExpectObj *cephObjectStoreExpect) ExpectResourceTypeName() string {
+	return CephObjectStoreType
+}
+
 func (cosExpectObj *cephObjectStoreExpect) ExpectDelete(expectDelete bool) {
 	cosExpectObj.expectDelete = expectDelete
 }
@@ -440,6 +465,10 @@ func newStorageClassExpect(scInitObj *SCInit) *storageClassExpect {
 	return scExpectObj
 }
 
+func (scExpectObj *storageClassExpect) ExpectResourceTypeName() string {
+	return StorageClassType
+}
+
 func (scExpectObj *storageClassExpect) ExpectModify() error {
 	err := scExpectObj.scInitObj.client.Get(context.TODO(),
 		scExpectObj.key,
@@ -481,6 +510,44 @@ func (scExpectObj *storageClassExpect) ExpectReconcile() error {
 		}
 	}
 	return nil
+}
+
+// ExpectTypeI an interface that
+// brings a common test behavioural pattern
+type ExpectTypeI interface {
+	ExpectResourceTypeName() string
+	ExpectModify() error
+	ExpectDelete(bool)
+	ExpectReconcile() error
+}
+
+func getAllValidExpectResources(scInitObj *SCInit, tobeDeleted bool) []ExpectTypeI {
+	var expctRs = []ExpectTypeI{
+		scInitObj.createCephFilesystemExpect(tobeDeleted),
+		scInitObj.createStorageClassExpect(tobeDeleted),
+	}
+	// CephBlockPool can only be added if it is not to be deleted (ie; 'tobeDeleted' flag is false)
+	// deletion of CephBlockPool disrupts 'noobaa'
+	if !tobeDeleted {
+		expctRs = append(expctRs, scInitObj.createCephBlockPoolExpect(tobeDeleted))
+	}
+	// add CephObjectStore and CephObjectStoreUser
+	// only if the current platform is not a cloud one (not AWS or GCP or Azure),
+	if scInitObj.currentCloudPlatform == scController.PlatformUnknown {
+		expctRs = append(expctRs, scInitObj.createCephObjectStoreExpect(tobeDeleted))
+		expctRs = append(expctRs, scInitObj.createCephObjectStoreUserExpect(tobeDeleted))
+	}
+	return expctRs
+}
+
+// at compile time itself, assert that all the test resources
+// follow the 'ExpectTypeI' interface pattern
+var _ = []ExpectTypeI{
+	&cephFilesystemExpect{},
+	&cephObjectStoreUserExpect{},
+	&cephBlockPoolExpect{},
+	&cephObjectStoreExpect{},
+	&storageClassExpect{},
 }
 
 // main 'Describe' function
@@ -525,123 +592,43 @@ func StorageClusterInitializationTest() {
 		Context("after", func() {
 			It("resources have been modified", func() {
 				var err error
-				var cephObjStoreExpect *cephObjectStoreExpect
-				var cephObjStoreUserExpect *cephObjectStoreUserExpect
-				cephFSExpect := scInitObj.createCephFilesystemExpect(false)
-				cephBlkPoolExpect := scInitObj.createCephBlockPoolExpect(false)
-				strgClassExpect := scInitObj.createStorageClassExpect(false)
-
-				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
-					cephObjStoreExpect = scInitObj.createCephObjectStoreExpect(false)
-					By("Modifying CephObjectStore")
-					err = cephObjStoreExpect.ExpectModify()
-					Expect(err).To(BeNil())
-
-					cephObjStoreUserExpect = scInitObj.createCephObjectStoreUserExpect(false)
-					By("Modifying CephObjectStoreUser")
-					err = cephObjStoreUserExpect.ExpectModify()
+				var expectResources = getAllValidExpectResources(scInitObj, false)
+				for _, eachResource := range expectResources {
+					By(fmt.Sprintf("Modifying %s", eachResource.ExpectResourceTypeName()))
+					err = eachResource.ExpectModify()
 					Expect(err).To(BeNil())
 				}
-
-				By("Modifying StorageClass")
-				err = strgClassExpect.ExpectModify()
-				Expect(err).To(BeNil())
-
-				By("Modifying CephBlockPool")
-				err = cephBlkPoolExpect.ExpectModify()
-				Expect(err).To(BeNil())
-
-				By("Modifying CephFilesystem")
-				err = cephFSExpect.ExpectModify()
-				Expect(err).To(BeNil())
 
 				By("Deleting StorageClusterInitialization and waiting for it to recreate")
 				deleteSCIAndWaitForCreate()
 
-				By("Verifying StorageClass is reconciled")
-				Eventually(strgClassExpect.ExpectReconcile, 15*time.Second,
-					1*time.Second).ShouldNot(HaveOccurred())
-
-				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
-					By("Verifying CephObjectStore is reconciled")
-					Eventually(cephObjStoreExpect.ExpectReconcile, 15*time.Second,
+				for _, eachResource := range expectResources {
+					By(fmt.Sprintf("Verifying %s is reconciled",
+						eachResource.ExpectResourceTypeName()))
+					Eventually(eachResource.ExpectReconcile, 15*time.Second,
 						1*time.Second).ShouldNot(HaveOccurred())
-
-					By("Verifying CephObjectStoreUser is reconciled")
-					Eventually(cephObjStoreUserExpect.ExpectReconcile, 15*time.Second,
-						1*time.Second).ShouldNot(HaveOccurred())
-
 				}
-				By("Verifying CephBlockPool is reconciled")
-				Eventually(cephBlkPoolExpect.ExpectReconcile, 15*time.Second,
-					1*time.Second).ShouldNot(HaveOccurred())
-
-				By("Verifying CephFilesystem is reconciled")
-				Eventually(cephFSExpect.ExpectReconcile, 15*time.Second,
-					1*time.Second).ShouldNot(HaveOccurred())
 			})
 
 			It("resources have been deleted", func() {
 				var err error
-				var cephObjStoreExpect *cephObjectStoreExpect
-				var cephObjStoreUserExpect *cephObjectStoreUserExpect
-				cephFSExpect := scInitObj.createCephFilesystemExpect(true)
-				strgClassExpect := scInitObj.createStorageClassExpect(true)
-
-				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
-					cephObjStoreExpect = scInitObj.createCephObjectStoreExpect(true)
-					By("Modifying CephObjectStore (expected tobe deleted)")
-					err = cephObjStoreExpect.ExpectModify()
-					Expect(err).To(BeNil())
-
-					cephObjStoreUserExpect = scInitObj.createCephObjectStoreUserExpect(true)
-					By("Modifying CephObjectStoreUser (expected tobe deleted)")
-					err = cephObjStoreUserExpect.ExpectModify()
+				var expectResources = getAllValidExpectResources(scInitObj, true)
+				for _, eachResource := range expectResources {
+					By(fmt.Sprintf("Modifying %s (expected to be deleted)",
+						eachResource.ExpectResourceTypeName()))
+					err = eachResource.ExpectModify()
 					Expect(err).To(BeNil())
 				}
-				By("Modifying StorageClass (expected tobe deleted)")
-				err = strgClassExpect.ExpectModify()
-				Expect(err).To(BeNil())
-
-				// We can't delete the block pool because it disrupts noobaa
-				//By("Modifying CephBlockPool (expected tobe deleted)")
-				// cephBlkPoolExpect := scInitObj.createCephBlockPoolExpect(true)
-				// err = cephBlkPoolExpect.ExpectModify()
-				// Expect(err).To(BeNil())
-
-				By("Modifying CephFilesystem (expected tobe deleted)")
-				err = cephFSExpect.ExpectModify()
-				Expect(err).To(BeNil())
 
 				By("Deleting StorageClusterInitialization and waiting for it to recreate")
 				deleteSCIAndWaitForCreate()
 
-				By("Verifying StorageClass is reconciled (after deletion)")
-				Eventually(strgClassExpect.ExpectReconcile, 15*time.Second,
-					1*time.Second).ShouldNot(HaveOccurred())
-
-				if scInitObj.currentCloudPlatform != scController.PlatformAWS {
-					By("Verifying CephObjectStore is reconciled (after deletion)")
-					Eventually(cephObjStoreExpect.ExpectReconcile, 15*time.Second,
+				for _, eachResource := range expectResources {
+					By(fmt.Sprintf("Verifying %s is reconciled (after deletion)",
+						eachResource.ExpectResourceTypeName()))
+					Eventually(eachResource.ExpectReconcile, 15*time.Second,
 						1*time.Second).ShouldNot(HaveOccurred())
-
-					By("Verifying CephObjectStoreUser is reconciled (after deletion)")
-					Eventually(cephObjStoreUserExpect.ExpectReconcile, 15*time.Second,
-						1*time.Second).ShouldNot(HaveOccurred())
-
-					// cephObjectStoreUserExpectReconcile(true)
 				}
-
-				// We can't delete the block pool because it disrupts noobaa
-				//By("Verifying CephBlockPool is reconciled")
-				// cephBlkPoolExpect := scInitObj.createCephBlockPoolExpect(false)
-				// By("Verifying CephBlockPool is reconciled")
-				// Eventually(cephBlkPoolExpect.ExpectReconcile, 15*time.Second,
-				//	1*time.Second).ShouldNot(HaveOccurred())
-
-				By("Verifying CephFilesystem is reconciled (after deletion)")
-				Eventually(cephFSExpect.ExpectReconcile, 15*time.Second,
-					1*time.Second).ShouldNot(HaveOccurred())
 			})
 		})
 	})
