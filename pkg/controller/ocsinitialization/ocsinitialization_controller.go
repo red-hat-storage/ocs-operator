@@ -145,11 +145,20 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 							Args:    []string{"-g", "--", "/usr/local/bin/toolbox.sh"},
 							Env: []corev1.EnvVar{
 								corev1.EnvVar{
-									Name: "ROOK_ADMIN_SECRET",
+									Name: "ROOK_CEPH_USERNAME",
 									ValueFrom: &corev1.EnvVarSource{
 										SecretKeyRef: &corev1.SecretKeySelector{
 											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "admin-secret",
+											Key:                  "ceph-username",
+										},
+									},
+								},
+								corev1.EnvVar{
+									Name: "ROOK_CEPH_SECRET",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+											Key:                  "ceph-secret",
 										},
 									},
 								},
