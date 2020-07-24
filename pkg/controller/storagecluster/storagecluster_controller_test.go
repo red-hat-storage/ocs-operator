@@ -413,9 +413,13 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
+	topologyMap := &api.NodeTopologyMap{
+		Labels: map[string]api.TopologyLabelValues{},
+	}
 	sc.Spec.StorageDeviceSets = mockDeviceSets
 	sc.Spec.MonDataDirHostPath = "/test/path"
 	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}}
+	sc.Status.NodeTopologies = topologyMap
 	actual := newCephCluster(sc, "", 3, log)
 	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
 	assert.Equal(t, sc.Namespace, actual.Namespace)
@@ -427,6 +431,7 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.StorageDeviceSets = mockDeviceSets
 	sc.Spec.MonDataDirHostPath = "/test/path"
+	sc.Status.NodeTopologies = topologyMap
 	actual = newCephCluster(sc, "", 3, log)
 	var emptyPVCSpec *corev1.PersistentVolumeClaim
 	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
@@ -439,6 +444,7 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.StorageDeviceSets = mockDeviceSets
 	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}}
+	sc.Status.NodeTopologies = topologyMap
 	actual = newCephCluster(sc, "", 3, log)
 	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
 	assert.Equal(t, sc.Namespace, actual.Namespace)
@@ -449,6 +455,7 @@ func TestStorageClusterCephClusterCreation(t *testing.T) {
 	sc = &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Spec.StorageDeviceSets = mockDeviceSets
+	sc.Status.NodeTopologies = topologyMap
 	actual = newCephCluster(sc, "", 3, log)
 	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
 	assert.Equal(t, sc.Namespace, actual.Namespace)
