@@ -230,9 +230,10 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 
 func TestNodeTopologyMapNoNodes(t *testing.T) {
 	nodeList := &corev1.NodeList{}
-
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
 	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, nodeList)
-	err := reconciler.reconcileNodeTopologyMap(mockStorageCluster, reconciler.reqLogger)
+	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
 	assert.Equal(t, err, fmt.Errorf("Not enough nodes found: Expected %d, found %d", defaults.DeviceSetReplica, len(nodeList.Items)))
 	assert.Equal(t, reconciler.nodeCount, 0)
 }
