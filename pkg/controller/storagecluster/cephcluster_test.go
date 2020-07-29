@@ -13,66 +13,82 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestEnsureCephClusterCreate(t *testing.T) {
-	cc := &rookCephv1.CephCluster{}
-	mockCephCluster.DeepCopyInto(cc)
-	cc.ObjectMeta.Name = "doesn't exist"
-
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc)
-	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
-	assert.NoError(t, err)
-
-	expected := newCephCluster(mockStorageCluster, "", 3, log)
-	actual := newCephCluster(mockStorageCluster, "", 3, log)
-	err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
-	assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
-	assert.Equal(t, expected.Spec, actual.Spec)
-}
-
-func TestEnsureCephClusterUpdate(t *testing.T) {
-	reconciler := createFakeStorageClusterReconciler(t, mockCephCluster)
-	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
-	assert.NoError(t, err)
-
-	expected := newCephCluster(mockStorageCluster, "", 3, log)
-	actual := newCephCluster(mockStorageCluster, "", 3, log)
-	err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
-	assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
-	assert.Equal(t, expected.Spec, actual.Spec)
-}
-
-func TestEnsureCephClusterNoConditions(t *testing.T) {
-	cc := newCephCluster(mockStorageCluster, "", 3, log)
-	cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key" //for test purpose
-	reconciler := createFakeStorageClusterReconciler(t, cc)
-	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, reconciler.conditions)
-	assert.Len(t, reconciler.conditions, 3)
-
-	expectedConditions := map[conditionsv1.ConditionType]corev1.ConditionStatus{
-		conditionsv1.ConditionAvailable:   corev1.ConditionFalse,
-		conditionsv1.ConditionProgressing: corev1.ConditionTrue,
-		conditionsv1.ConditionUpgradeable: corev1.ConditionFalse,
+func TestEnsureCephCluster(t *testing.T) {
+	// cases for testing
+	cases := []struct {
+		label     string
+		cc        *rookCephv1.CephCluster
+		isCreate  bool
+		condition string
+	}{
+		{
+			label:     "case 1", // create logic
+			isCreate:  true,
+			condition: "",
+		},
+		{
+			label:     "case 2", // update logic
+			isCreate:  false,
+			condition: "",
+		},
+		{
+			label:     "case 3", // No Conditions
+			isCreate:  false,
+			condition: "noCondition",
+		},
+		{
+			label:     "case 4", // Negative Conditions
+			isCreate:  false,
+			condition: "negativeCondition",
+		},
 	}
-	for cType, status := range expectedConditions {
-		found := assertCondition(reconciler.conditions, cType, status)
-		assert.True(t, found, "expected status condition not found", cType, status)
-	}
-}
 
-func TestEnsureCephClusterNegativeConditions(t *testing.T) {
-	cc := newCephCluster(mockStorageCluster, "", 3, log)
-	cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
-	cc.Status.State = rookCephv1.ClusterStateCreated
-	reconciler := createFakeStorageClusterReconciler(t, cc)
-	err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
-	assert.NoError(t, err)
-	assert.Empty(t, reconciler.conditions)
+	for _, c := range cases {
+		c.cc = &rookCephv1.CephCluster{}
+		if c.condition == "" {
+			mockCephCluster.DeepCopyInto(c.cc)
+			if c.isCreate {
+				c.cc.ObjectMeta.Name = "doesn't exist"
+			}
+		} else {
+			c.cc = newCephCluster(mockStorageCluster, "", 3, log)
+			c.cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
+			if c.condition == "negativeCondition" {
+				c.cc.Status.State = rookCephv1.ClusterStateCreated
+			}
+		}
+
+		reconciler := createFakeStorageClusterReconciler(t, c.cc)
+		err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
+		assert.NoError(t, err)
+		if c.condition == "" {
+			expected := newCephCluster(mockStorageCluster, "", 3, log)
+			actual := newCephCluster(mockStorageCluster, "", 3, log)
+			err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
+			assert.NoError(t, err)
+			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
+			assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
+			assert.Equal(t, expected.Spec, actual.Spec)
+		} else if c.condition == "noCondition" {
+
+			assert.NotEmpty(t, reconciler.conditions)
+			assert.Len(t, reconciler.conditions, 3)
+
+			expectedConditions := map[conditionsv1.ConditionType]corev1.ConditionStatus{
+				conditionsv1.ConditionAvailable:   corev1.ConditionFalse,
+				conditionsv1.ConditionProgressing: corev1.ConditionTrue,
+				conditionsv1.ConditionUpgradeable: corev1.ConditionFalse,
+			}
+			for cType, status := range expectedConditions {
+				found := assertCondition(reconciler.conditions, cType, status)
+				assert.True(t, found, "expected status condition not found", cType, status)
+			}
+
+		} else {
+			assert.Empty(t, reconciler.conditions)
+		}
+
+	}
 }
 
 func TestStorageClusterCephClusterCreation(t *testing.T) {
