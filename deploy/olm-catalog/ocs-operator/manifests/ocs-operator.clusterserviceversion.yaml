@@ -1954,7 +1954,7 @@ spec:
                   value: noobaa/noobaa-core:5.5.0-20200422
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
-                image: noobaa/noobaa-operator:2.3.0-20200505
+                image: noobaa/noobaa-operator:2.3.0
                 name: noobaa-operator
                 resources:
                   limits:
@@ -2280,7 +2280,7 @@ spec:
     name: rook-container
   - image: ceph/ceph:v14.2
     name: ceph-container
-  - image: noobaa/noobaa-operator:2.3.0-20200505
+  - image: noobaa/noobaa-operator:2.3.0
     name: noobaa-operator
   - image: noobaa/noobaa-core:5.5.0-20200422
     name: noobaa-core
