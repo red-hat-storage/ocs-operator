@@ -30,7 +30,7 @@ done
 # Run the Collection of NooBaa Resources using must-gather
 for resource in "${noobaa_resources[@]}"; do
     echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-    { timeout 120 oc adm --dest-dir="${NOOBAA_COLLLECTION_PATH}" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    { oc adm --dest-dir="${NOOBAA_COLLLECTION_PATH}" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
 
 # Collect logs for all noobaa pods using oc logs

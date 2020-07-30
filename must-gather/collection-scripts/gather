@@ -11,7 +11,7 @@ resources=()
 # resources+=(storageclusters)
 
 # NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
-{ timeout 120 oc get storageclusters --all-namespaces -o yaml; } > $BASE_COLLECTION_PATH/storagecluster.yaml 2>&1
+{ oc get storageclusters --all-namespaces -o yaml; } > $BASE_COLLECTION_PATH/storagecluster.yaml 2>&1
 
 # collect OB/OBC resoureces
 resources+=(objectbucketclaims)
@@ -22,7 +22,7 @@ resources+=(objectbuckets)
 # Run the Collection of Resources using must-gather
 for resource in "${resources[@]}"; do
     echo "collecting dump of ${resource}" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
-    { timeout 120 oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+    { oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 done
 
 # collection path for OC commands
