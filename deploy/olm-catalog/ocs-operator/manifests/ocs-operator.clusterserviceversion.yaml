@@ -713,6 +713,10 @@ metadata:
     support: Red Hat
   name: ocs-operator.v4.6.0
   namespace: placeholder
+  labels:
+    "operatorframework.io/arch.amd64": supported
+    "operatorframework.io/arch.ppc64le": supported
+    "operatorframework.io/arch.s390x": supported
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
