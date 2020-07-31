@@ -588,6 +588,12 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 
 	ocsCSV.Spec.DisplayName = "OpenShift Container Storage"
 
+        ocsCSV.Labels = make(map[string]string)
+
+        ocsCSV.Labels["operators.operatorframework.io/arch.amd64"] = "supported"
+        ocsCSV.Labels["operators.operatorframework.io/arch.ppc64le"] = "supported"
+        ocsCSV.Labels["operators.operatorframework.io/arch.s390x"] = "supported"
+
 	// Set Annotations
 	if *skipRange != "" {
 		ocsCSV.Annotations["olm.skipRange"] = *skipRange
