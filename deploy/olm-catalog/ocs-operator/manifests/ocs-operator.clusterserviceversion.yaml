@@ -1805,7 +1805,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: ceph/ceph:v14.2
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.5.0-20200422
+                  value: noobaa/noobaa-core:5.5.0
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
@@ -1951,7 +1951,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.5.0-20200422
+                  value: noobaa/noobaa-core:5.5.0
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
                 image: noobaa/noobaa-operator:2.3.0
@@ -2282,7 +2282,7 @@ spec:
     name: ceph-container
   - image: noobaa/noobaa-operator:2.3.0
     name: noobaa-operator
-  - image: noobaa/noobaa-core:5.5.0-20200422
+  - image: noobaa/noobaa-core:5.5.0
     name: noobaa-core
   - image: centos/mongodb-36-centos7
     name: noobaa-db
