@@ -2274,7 +2274,7 @@ spec:
     name: Red Hat Support
   maturity: alpha
   provider:
-    name: Red Hat, Inc
+    name: Red Hat
   relatedImages:
   - image: rook/ceph:v1.3.4-21.g4e04d63
     name: rook-container
