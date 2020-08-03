@@ -160,6 +160,8 @@ update-generated: operator-sdk
 verify-generated: update-generated
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
+	@echo "Verifying CRDs"
+	hack/verify-crds.sh
 
 ocs-operator-ci: shellcheck-test gofmt golint govet unit-test build verify-generated verify-latest-deploy-yaml
 
