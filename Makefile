@@ -10,6 +10,9 @@ export GOPROXY=https://proxy.golang.org
 # Export GOROOT. Required for OPERATOR_SDK to work correctly for generate commands.
 export GOROOT=$(shell go env GOROOT)
 
+# Explicitly set controller-gen to v0.2.5 as build-machinery-go only supports v0.2.1 currently
+export CONTROLLER_GEN_VERSION=v0.2.5
+
 all: ocs-operator ocs-registry ocs-must-gather
 
 include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
