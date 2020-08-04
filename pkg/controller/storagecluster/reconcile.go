@@ -864,7 +864,7 @@ else
   ceph osd out osd.${FAILED_OSD_ID}
   ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
   echo "Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host"
-  ceph osd crush rm $HOST_TO_REMOVE
+  ceph osd crush rm $HOST_TO_REMOVE || true
 fi`
 
 	job := &batchv1.Job{
