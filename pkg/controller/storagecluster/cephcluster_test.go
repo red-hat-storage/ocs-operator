@@ -91,59 +91,75 @@ func TestEnsureCephCluster(t *testing.T) {
 	}
 }
 
-func TestStorageClusterCephClusterCreation(t *testing.T) {
+func TestNewCephClusterMonData(t *testing.T) {
 	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	topologyMap := &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{},
 	}
-	sc.Spec.StorageDeviceSets = mockDeviceSets
-	sc.Spec.MonDataDirHostPath = "/test/path"
-	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}}
-	sc.Status.NodeTopologies = topologyMap
-	actual := newCephCluster(sc, "", 3, log)
-	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
-	assert.Equal(t, sc.Namespace, actual.Namespace)
-	assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate.GetName(), sc.Spec.MonPVCTemplate.GetName())
-	assert.Equal(t, "/var/lib/rook", actual.Spec.DataDirHostPath)
+	cases := []struct {
+		label               string
+		sc                  *api.StorageCluster
+		monPVCTemplate      *corev1.PersistentVolumeClaim
+		monDataPath         string
+		expectedMonDataPath string
+	}{
+		{
+			label:               "case 1", // both MonPvcTemplate and MonDataDirHostPath are provided via StorageCluster
+			sc:                  sc,
+			monPVCTemplate:      &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}},
+			monDataPath:         "/test/path",
+			expectedMonDataPath: "/var/lib/rook",
+		},
+		{
+			label:               "case 2", // only MonDataDirHostPath is provided via StorageCluster
+			sc:                  sc,
+			monPVCTemplate:      nil,
+			monDataPath:         "/test/path",
+			expectedMonDataPath: "/test/path",
+		},
+		{
+			label:               "case 3", // only MonPvcTemplate is provided via StorageCluster
+			sc:                  sc,
+			monPVCTemplate:      &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}},
+			monDataPath:         "",
+			expectedMonDataPath: "/var/lib/rook",
+		},
+		{
+			label:               "case 4", // no MonPvcTemplate and no MonDataDirHostPath are provided via StorageCluster
+			sc:                  sc,
+			monPVCTemplate:      nil,
+			monDataPath:         "",
+			expectedMonDataPath: "/var/lib/rook",
+		},
+	}
 
-	// if only monDataDirHostPath is provided via storageCluster
-	sc = &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	sc.Spec.StorageDeviceSets = mockDeviceSets
-	sc.Spec.MonDataDirHostPath = "/test/path"
-	sc.Status.NodeTopologies = topologyMap
-	actual = newCephCluster(sc, "", 3, log)
-	var emptyPVCSpec *corev1.PersistentVolumeClaim
-	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
-	assert.Equal(t, sc.Namespace, actual.Namespace)
-	assert.Equal(t, emptyPVCSpec, actual.Spec.Mon.VolumeClaimTemplate)
-	assert.Equal(t, "/test/path", actual.Spec.DataDirHostPath)
+	for _, c := range cases {
+		mockStorageCluster.DeepCopyInto(c.sc)
+		c.sc.Spec.StorageDeviceSets = mockDeviceSets
+		c.sc.Status.NodeTopologies = topologyMap
+		c.sc.Spec.MonPVCTemplate = c.monPVCTemplate
+		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 
-	// if only monPVCTemplate is provided via storageCluster
-	sc = &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	sc.Spec.StorageDeviceSets = mockDeviceSets
-	sc.Spec.MonPVCTemplate = &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "test-mon-PVC"}}
-	sc.Status.NodeTopologies = topologyMap
-	actual = newCephCluster(sc, "", 3, log)
-	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
-	assert.Equal(t, sc.Namespace, actual.Namespace)
-	assert.Equal(t, sc.Spec.MonPVCTemplate, actual.Spec.Mon.VolumeClaimTemplate)
-	assert.Equal(t, "/var/lib/rook", actual.Spec.DataDirHostPath)
+		actual := newCephCluster(c.sc, "", 3, log)
+		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
+		assert.Equal(t, c.sc.Namespace, actual.Namespace)
+		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
 
-	// if no monPVCTemplate and no monDataDirHostPath is provided via storageCluster
-	sc = &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	sc.Spec.StorageDeviceSets = mockDeviceSets
-	sc.Status.NodeTopologies = topologyMap
-	actual = newCephCluster(sc, "", 3, log)
-	assert.Equal(t, generateNameForCephCluster(sc), actual.Name)
-	assert.Equal(t, sc.Namespace, actual.Namespace)
-	pvcSpec := actual.Spec.Mon.VolumeClaimTemplate.Spec
-	assert.Equal(t, mockDeviceSets[0].DataPVCTemplate.Spec.StorageClassName, pvcSpec.StorageClassName)
-	assert.Equal(t, "/var/lib/rook", actual.Spec.DataDirHostPath)
+		if c.monPVCTemplate != nil {
+			assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate, c.sc.Spec.MonPVCTemplate)
+		} else {
+			if c.monDataPath != "" {
+				var emptyPVCSpec *corev1.PersistentVolumeClaim
+				assert.Equal(t, emptyPVCSpec, actual.Spec.Mon.VolumeClaimTemplate)
+			} else {
+				pvcSpec := actual.Spec.Mon.VolumeClaimTemplate.Spec
+				assert.Equal(t, mockDeviceSets[0].DataPVCTemplate.Spec.StorageClassName, pvcSpec.StorageClassName)
+			}
+		}
+
+	}
 }
 
 func TestStorageClassDeviceSetCreation(t *testing.T) {
