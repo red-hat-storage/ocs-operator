@@ -3,6 +3,9 @@
 # Expect base collection path as an argument
 BASE_COLLECTION_PATH=$1
 
+# Expect time option as an argument
+SINCE_TIME=$2
+
 # Use PWD as base path if no argument is passed
 if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
@@ -30,7 +33,7 @@ done
 # Run the Collection of NooBaa Resources using must-gather
 for resource in "${noobaa_resources[@]}"; do
     echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-    { oc adm --dest-dir="${NOOBAA_COLLLECTION_PATH}" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    { oc adm --dest-dir="${NOOBAA_COLLLECTION_PATH}" inspect "${resource}" --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
 
 # Collect logs for all noobaa pods using oc logs
