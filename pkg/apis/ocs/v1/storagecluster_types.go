@@ -113,7 +113,6 @@ type StorageClusterStatus struct {
 	ExternalSecretFound bool `json:"externalSecretFound,omitempty"`
 
 	StorageClassesCreated       bool `json:"storageClassesCreated,omitempty"`
-	CephObjectStoresCreated     bool `json:"cephObjectStoresCreated,omitempty"`
 	CephBlockPoolsCreated       bool `json:"cephBlockPoolsCreated,omitempty"`
 	CephObjectStoreUsersCreated bool `json:"cephObjectStoreUsersCreated,omitempty"`
 	CephFilesystemsCreated      bool `json:"cephFilesystemsCreated,omitempty"`
