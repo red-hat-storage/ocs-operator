@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -141,4 +142,36 @@ func (r *ReconcileStorageCluster) deleteNodeTaint(sc *ocsv1.StorageCluster, reqL
 	}
 
 	return nil
+}
+
+// deleteCephCluster deletes the CephCluster owned by the StorageCluster
+func (r *ReconcileStorageCluster) deleteCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	cephCluster := &cephv1.CephCluster{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("CephCluster not found")
+			return nil
+		} else {
+			return fmt.Errorf("Unable to retrive cephCluster: %v", err)
+		}
+	}
+
+	if cephCluster.GetDeletionTimestamp().IsZero() {
+		reqLogger.Info("Deleting cephCluster")
+		err = r.client.Delete(context.TODO(), cephCluster)
+		if err != nil {
+			return fmt.Errorf("Failed to delete cephCluster: %v", err)
+		}
+	}
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("CephCluster is deleted")
+			return nil
+		}
+	}
+	return fmt.Errorf("Waiting for cephCluster to be deleted")
+
 }
