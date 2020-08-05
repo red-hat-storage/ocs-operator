@@ -458,9 +458,6 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 // ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if instance.Status.CephObjectStoreUsersCreated {
-		return nil
-	}
 	platform, err := r.platform.GetPlatform(r.client)
 	if err != nil {
 		return err
@@ -499,8 +496,6 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 			}
 		}
 	}
-
-	instance.Status.CephObjectStoreUsersCreated = true
 
 	return err
 }
