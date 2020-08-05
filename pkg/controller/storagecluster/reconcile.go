@@ -849,6 +849,11 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 		"app": "ceph-toolbox-job-${FAILED_OSD_ID}",
 	}
 
+	// Annotation template.alpha.openshift.io/wait-for-ready ensures template readiness
+	annotations := map[string]string{
+		"template.alpha.openshift.io/wait-for-ready": "true",
+	}
+
 	// The purgeOSDScript finds osd status for given FAILED_OSD_ID whether it's up or down. The action will be taken according to osd status. If osd is up and running, it won't be marked out. If osd is down it can be taken out of the cluster and purged.
 	// HOST_TO_REMOVE variable contains the host name associated with the failed osd. When all osds are removed from the host, the host will be removed from crush map
 	const purgeOSDScript = `
@@ -873,9 +878,10 @@ fi`
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ocs-osd-removal-${FAILED_OSD_ID}",
-			Namespace: sc.Namespace,
-			Labels:    labels,
+			Name:        "ocs-osd-removal-${FAILED_OSD_ID}",
+			Namespace:   sc.Namespace,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
