@@ -807,39 +807,35 @@ func (r *ReconcileStorageCluster) setRookCleanupPolicy(instance *ocsv1.StorageCl
 }
 
 // deleteResources is the function where the storageClusterFinalizer is handled
-// Every function that is called within this function
-// 1. should be idempotent
-// 2. should wrap the finalerr with its own err
-// 3. optionally set a state variable for other calls which might depend on it
-// If this function returns a nil finalerr, the finalizer is removed.
-func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (finalerr error) {
+// Every function that is called within this function should be idempotent
+func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
 	err := r.setRookCleanupPolicy(sc, reqLogger)
 	if err != nil {
-		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+		return err
 	}
 
 	err = r.deleteNoobaaSystems(sc, reqLogger)
 	if err != nil {
-		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+		return err
 	}
 
 	err = r.deleteStorageClasses(sc, reqLogger)
 	if err != nil {
-		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+		return err
 	}
 
 	err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
 	if err != nil {
-		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+		return err
 	}
 
 	err = r.deleteNodeTaint(sc, reqLogger)
 	if err != nil {
-		finalerr = fmt.Errorf("%w, %v", finalerr, err)
+		return err
 	}
 
-	return finalerr
+	return nil
 }
 
 // Checks whether a string is contained within a slice
