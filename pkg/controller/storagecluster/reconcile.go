@@ -817,9 +817,8 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	if err != nil {
 		finalerr = fmt.Errorf("%w, %v", finalerr, err)
 	}
-	// NoobaaSystem is dependent upon ceph for volume provisioning.
-	// We want to make sure we delete noobaasystem before we delete cephcluster, to get a clean uninstall.
-	_, err = r.deleteNoobaaSystems(sc, reqLogger)
+
+	err = r.deleteNoobaaSystems(sc, reqLogger)
 	if err != nil {
 		finalerr = fmt.Errorf("%w, %v", finalerr, err)
 	}
