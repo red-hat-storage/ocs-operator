@@ -48,7 +48,6 @@ var mockStorageCluster = &api.StorageCluster{
 
 	Status: api.StorageClusterStatus{
 		StorageClassesCreated:       true,
-		CephObjectStoresCreated:     true,
 		CephObjectStoreUsersCreated: true,
 		CephBlockPoolsCreated:       true,
 		CephFilesystemsCreated:      true,
