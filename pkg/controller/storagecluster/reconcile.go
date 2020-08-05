@@ -180,7 +180,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			err = r.deleteResources(instance, reqLogger)
 			if err != nil {
-				reqLogger.Error(err, "Could not delete one or more resources from the StorageCluster")
 				return reconcile.Result{}, err
 			}
 			reqLogger.Info("Removing finalizer")
