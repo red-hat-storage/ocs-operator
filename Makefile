@@ -1,6 +1,3 @@
-TARGET_GOOS=linux
-TARGET_GOARCH=amd64
-
 # Set minimum required Golang version to v1.13.3
 GO_REQUIRED_MIN_VERSION=1.13.3
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
@@ -23,6 +20,8 @@ $(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
 
 .PHONY: \
 	build \
+	build-go \
+	build-container \
 	clean \
 	ocs-operator \
 	ocs-must-gather \
@@ -60,10 +59,15 @@ operator-sdk:
 
 ocs-operator-openshift-ci-build: build
 
-build: deps-update
+build: build-go
+
+build-go: deps-update
 	@echo "Building the ocs-operator binary"
-	mkdir -p build/_output/bin
-	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/ocs-operator ./cmd/manager
+	hack/go-build.sh
+
+build-container:
+	@echo "Building the ocs-operator binary (containerized)"
+	hack/build-container.sh
 
 ocs-operator: build
 	@echo "Building the ocs-operator image"
