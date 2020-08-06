@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
@@ -122,7 +123,7 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 }
 
 // Delete noobaa system in the namespace
-func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (bool, error) {
+func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	noobaa := &nbv1.NooBaa{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
@@ -134,17 +135,15 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 			}
 			err = r.client.List(context.TODO(), pvcs, opts...)
 			if err != nil {
-				return false, err
+				return err
 			}
 			if len(pvcs.Items) > 0 {
-				reqLogger.Info("Waiting on NooBaa system and PVCs to be deleted")
-				return false, nil
+				return fmt.Errorf("Waiting on NooBaa system and PVCs to be deleted")
 			}
 			reqLogger.Info("NooBaa and noobaa-core PVC not found.")
-			return true, nil
+			return nil
 		}
-		reqLogger.Error(err, "Failed to retrieve NooBaa system")
-		return false, err
+		return fmt.Errorf("Failed to retrieve NooBaa system: %v", err)
 	}
 
 	isOwned := false
@@ -157,7 +156,7 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 	if !isOwned {
 		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
 		reqLogger.Info("NooBaa object found, but ownerReference not set to storagecluster. Skipping")
-		return true, nil
+		return nil
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
@@ -165,9 +164,8 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 		err = r.client.Delete(context.TODO(), noobaa)
 		if err != nil {
 			reqLogger.Error(err, "Failed to delete NooBaa system")
-			return false, err
+			return fmt.Errorf("Failed to delete NooBaa system: %v", err)
 		}
 	}
-	reqLogger.Info("Waiting on NooBaa system to be deleted")
-	return false, nil
+	return fmt.Errorf("Waiting on NooBaa system to be deleted")
 }
