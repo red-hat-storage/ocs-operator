@@ -123,11 +123,8 @@ type StorageClusterStatus struct {
 	// about an external CephCluster was found or not
 	ExternalSecretFound bool `json:"externalSecretFound,omitempty"`
 
-	StorageClassesCreated       bool `json:"storageClassesCreated,omitempty"`
-	CephObjectStoresCreated     bool `json:"cephObjectStoresCreated,omitempty"`
-	CephBlockPoolsCreated       bool `json:"cephBlockPoolsCreated,omitempty"`
-	CephObjectStoreUsersCreated bool `json:"cephObjectStoreUsersCreated,omitempty"`
-	CephFilesystemsCreated      bool `json:"cephFilesystemsCreated,omitempty"`
+	StorageClassesCreated bool `json:"storageClassesCreated,omitempty"`
+	CephBlockPoolsCreated bool `json:"cephBlockPoolsCreated,omitempty"`
 }
 
 // TopologyLabelValues is a list of values for a topology label
