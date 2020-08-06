@@ -300,9 +300,6 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 // ensureCephObjectStores ensures that CephObjectStore resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if instance.Status.CephObjectStoresCreated {
-		return nil
-	}
 	platform, err := r.platform.GetPlatform(r.client)
 	if err != nil {
 		return err
@@ -342,8 +339,6 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 			}
 		}
 	}
-
-	instance.Status.CephObjectStoresCreated = true
 
 	return nil
 }
@@ -463,9 +458,6 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 // ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if instance.Status.CephObjectStoreUsersCreated {
-		return nil
-	}
 	platform, err := r.platform.GetPlatform(r.client)
 	if err != nil {
 		return err
@@ -505,8 +497,6 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 		}
 	}
 
-	instance.Status.CephObjectStoreUsersCreated = true
-
 	return err
 }
 
@@ -537,11 +527,6 @@ func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv
 // ensureCephFilesystems ensures that cephFilesystem resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-
-	if instance.Status.CephFilesystemsCreated {
-		return nil
-	}
-
 	cephFilesystems, err := r.newCephFilesystemInstances(instance)
 	if err != nil {
 		return err
@@ -571,8 +556,6 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 			}
 		}
 	}
-
-	instance.Status.CephFilesystemsCreated = true
 
 	return nil
 }
