@@ -5,6 +5,7 @@ approvers:
   - davidvossel
   - egafford
   - umangachapagain
+  - agarwal-mudit
 # review == this code is good /lgtm
 reviewers:
   - jarrpa
@@ -12,3 +13,4 @@ reviewers:
   - davidvossel
   - egafford
   - umangachapagain
+  - agarwal-mudit
