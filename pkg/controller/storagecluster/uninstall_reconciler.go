@@ -46,6 +46,8 @@ func (r *ReconcileStorageCluster) deleteStorageClasses(instance *ocsv1.StorageCl
 			}
 		case errors.IsNotFound(err):
 			reqLogger.Info(fmt.Sprintf("Uninstall: StorageClass %s not found, nothing to do", sc.Name))
+		default:
+			reqLogger.Info(fmt.Sprintf("Uninstall: Error while getting StorageClass %s: %v", sc.Name, err))
 		}
 	}
 	return nil
