@@ -152,9 +152,8 @@ func (r *ReconcileStorageCluster) deleteCephCluster(sc *ocsv1.StorageCluster, re
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Uninstall: CephCluster not found")
 			return nil
-		} else {
-			return fmt.Errorf("Uninstall: Unable to retrive cephCluster: %v", err)
 		}
+		return fmt.Errorf("Uninstall: Unable to retrive cephCluster: %v", err)
 	}
 
 	if cephCluster.GetDeletionTimestamp().IsZero() {
