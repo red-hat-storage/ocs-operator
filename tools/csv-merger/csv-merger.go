@@ -598,7 +598,7 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	ocsCSV.Annotations["features.ocs.openshift.io/enabled"] = `["external"]`
 	// Used by UI to validate user uploaded metdata
 	// Metadata is used to connect to an external cluster
-	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner", "rook-csi-cephfs-node", "rook-csi-cephfs-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd", "cephfs"]}`
+	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner", "rook-csi-cephfs-node", "rook-csi-cephfs-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"]}`
 	// Injecting the RHCS exporter script present in Rook CSV
 	ocsCSV.Annotations["external.features.ocs.openshift.io/export-script"] = rookCSV.GetAnnotations()["externalClusterScript"]
 	if *timestamp == "true" {
