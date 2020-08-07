@@ -50,6 +50,12 @@ NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
+LATEST_ROOK_IMAGE="rook/ceph:v1.4.0-28.g3c00330"
+LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:2.3.0"
+LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.5.0"
+LATEST_NOOBAA_DB_IMAGE="centos/mongodb-36-centos7"
+LATEST_CEPH_IMAGE="ceph/ceph:v14.2"
+
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
 DEFAULT_IMAGE_TAG="latest"
