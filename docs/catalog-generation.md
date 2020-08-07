@@ -61,8 +61,6 @@ To update the catalog for a release, update the images versions in the helper sc
 $ make gen-latest-csv
 ```
 
-This updates a the catalog bundle for the release, and also generates a checksum in `hack/latest-csv-checksum.md5` which is used to verify that the catalog has been correctly updated in CI.
-
 > NOTE: This script needs to be updated whenever a new release branch is created, to create and update a new release in the catalog.
 
 ## Creating a new release channel

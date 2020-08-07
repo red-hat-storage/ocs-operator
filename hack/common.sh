@@ -45,6 +45,7 @@ REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL="${REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL:-fa
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"
 OCS_FINAL_DIR="deploy/olm-catalog/ocs-operator/manifests"
+BUNDLEMANIFESTS_DIR="deploy/bundlemanifests"
 
 NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
@@ -91,5 +92,8 @@ OS_TYPE=$(uname)
 if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	CATALOG_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:${CATALOG_IMAGE_NAME}"
 	echo "Openshift CI detected, deploying using image $CATALOG_FULL_IMAGE_NAME"
+	# When run by the openshift ci, we must pass the original
+	# ocs-must-gather image name to the csv-merger tool
+	export OCS_MUST_GATHER_IMAGE="${MUST_GATHER_FULL_IMAGE_NAME}"
 	MUST_GATHER_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-must-gather-quay"
 fi

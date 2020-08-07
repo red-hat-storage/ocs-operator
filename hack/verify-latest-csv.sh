@@ -18,9 +18,9 @@ if [[ -n "${NOT_FOUND}" ]];then
 	exit 1
 fi
 
-CSV_CHECKSUM_ONLY=1 hack/generate-latest-csv.sh
-if [[ -n "$(git status --porcelain hack/latest-csv-checksum.md5)" ]]; then
+if [[ -n "$(git status --porcelain deploy/olm-catalog)" ]]; then
+	git diff -u deploy/olm-catalog
 	echo "uncommitted CSV changes. run 'make gen-latest-csv' and commit results."
 	exit 1
 fi
-echo "Success: no out of source tree changes found"
+echo "Success: no out of source tree changes found for CSV"
