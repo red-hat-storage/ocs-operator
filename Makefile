@@ -168,7 +168,7 @@ verify-generated: update-generated
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
 
-ocs-operator-ci: shellcheck-test gofmt golint govet unit-test build verify-generated verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test gofmt golint govet unit-test verify-generated verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"
