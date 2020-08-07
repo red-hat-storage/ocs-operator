@@ -1,0 +1,6 @@
+apiVersion: ocs.openshift.io/v1
+kind: StorageClusterInitialization
+metadata:
+  name: example-storageclusterinitialization
+spec:
+  {}
