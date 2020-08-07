@@ -89,7 +89,7 @@ gen-latest-deploy-yaml:
 	@echo "Generating latest deployment yaml file"
 	hack/gen-deployment-yaml.sh
 
-verify-latest-deploy-yaml:
+verify-latest-deploy-yaml: gen-latest-deploy-yaml
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
 
