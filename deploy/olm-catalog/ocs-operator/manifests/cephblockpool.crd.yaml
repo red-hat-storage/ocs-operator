@@ -26,6 +26,10 @@ spec:
               - aggressive
               - force
               type: string
+            enableRBDStats:
+              description: EnableRBDStats is used to enable gathering of statistics
+                for all RBD images in the pool
+              type: boolean
             erasureCoded:
               properties:
                 codingChunks:
@@ -38,6 +42,8 @@ spec:
                   type: integer
             failureDomain:
               type: string
+            parameters:
+              type: object
             replicated:
               properties:
                 requireSafeReplicaSize:
