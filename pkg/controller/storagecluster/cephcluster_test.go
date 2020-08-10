@@ -175,6 +175,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 
 	sc2 := &api.StorageCluster{}
+	sc2.Spec.Encryption.Enable = false
 	sc2.Spec.StorageDeviceSets = mockDeviceSets
 	sc2.Status.NodeTopologies = &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{
@@ -187,6 +188,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 
 	sc3 := &api.StorageCluster{}
+	sc3.Spec.Encryption.Enable = true
 	sc3.Spec.StorageDeviceSets = mockDeviceSets
 	sc3.Status.NodeTopologies = &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{
@@ -239,6 +241,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
 			assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
+			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
 
 			if c.topologyKey == "rack" {
 				assert.Equal(t, getPlacement(c.sc, "osd"), scds.Placement)
