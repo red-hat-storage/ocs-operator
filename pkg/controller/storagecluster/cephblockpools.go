@@ -28,6 +28,7 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 					Size:            3,
 					TargetSizeRatio: .49,
 				},
+				EnableRBDStats: true,
 			},
 		},
 	}
