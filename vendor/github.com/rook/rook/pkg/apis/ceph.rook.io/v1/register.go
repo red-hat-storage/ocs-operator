@@ -68,6 +68,14 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephObjectStoreList{},
 		&CephObjectStoreUser{},
 		&CephObjectStoreUserList{},
+		&CephObjectRealm{},
+		&CephObjectRealmList{},
+		&CephObjectZoneGroup{},
+		&CephObjectZoneGroupList{},
+		&CephObjectZone{},
+		&CephObjectZoneList{},
+		&CephRBDMirror{},
+		&CephRBDMirrorList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

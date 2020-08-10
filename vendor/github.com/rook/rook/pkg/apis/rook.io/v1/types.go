@@ -81,6 +81,11 @@ type Placement struct {
 
 type ResourceSpec map[string]v1.ResourceRequirements
 
+type ProbeSpec struct {
+	Disabled bool      `json:"disabled,omitempty"`
+	Probe    *v1.Probe `json:"probe,omitempty"`
+}
+
 // PriorityClassNamesSpec is a map of priority class names to be assigned to components
 type PriorityClassNamesSpec map[KeyType]string
 
@@ -111,17 +116,21 @@ type StorageClassDeviceSet struct {
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
 	Portable             bool                       `json:"portable,omitempty"`             // OSD portability across the hosts
 	TuneSlowDeviceClass  bool                       `json:"tuneDeviceClass,omitempty"`      // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	SchedulerName        string                     `json:"schedulerName,omitempty"`        // Scheduler name for OSD pod placement
+	Encrypted            bool                       `json:"encrypted,omitempty"`            // Whether to encrypt the deviceSet
 }
 
 // VolumeSource is a volume source spec for Rook
 type VolumeSource struct {
-	Name                        string                               `json:"name,omitempty"`
-	PersistentVolumeClaimSource v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaimSource,omitempty"`
-	Resources                   v1.ResourceRequirements              `json:"resources,omitempty"`
-	Placement                   Placement                            `json:"placement,omitempty"`
-	Config                      map[string]string                    `json:"config,omitempty"`
-	Portable                    bool                                 `json:"portable,omitempty"`         // Portable OSD portability across the hosts
-	TuneSlowDeviceClass         bool                                 `json:"tuneDeviceClass,omitempty"`  // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
-	Type                        string                               `json:"type,omitempty"`             // Type represents the device type for an OSD, possible values are "data": the bluestore 'block' data and "metadata": the bluestore 'block.db' device
-	CrushDeviceClass            string                               `json:"crushDeviceClass,omitempty"` // CrushDeviceClass represents the crush device class for an OSD
+	Name                string                                          `json:"name,omitempty"`
+	PVCSources          map[string]v1.PersistentVolumeClaimVolumeSource `json:"pvcSources,omitempty"`
+	Resources           v1.ResourceRequirements                         `json:"resources,omitempty"`
+	Placement           Placement                                       `json:"placement,omitempty"`
+	Config              map[string]string                               `json:"config,omitempty"`
+	Portable            bool                                            `json:"portable,omitempty"`         // Portable OSD portability across the hosts
+	TuneSlowDeviceClass bool                                            `json:"tuneDeviceClass,omitempty"`  // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	SchedulerName       string                                          `json:"schedulerName,omitempty"`    // Scheduler name for OSD pod placement
+	CrushDeviceClass    string                                          `json:"crushDeviceClass,omitempty"` // CrushDeviceClass represents the crush device class for an OSD
+	Size                string                                          `json:"size,omitempty"`             // Size represents the size requested for the PVC
+	Encrypted           bool                                            `json:"encrypted,omitempty"`        // Whether to encrypt the deviceSet
 }
