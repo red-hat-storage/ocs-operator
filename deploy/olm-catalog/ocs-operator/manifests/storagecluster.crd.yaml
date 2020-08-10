@@ -51,6 +51,13 @@ spec:
         spec:
           description: StorageClusterSpec defines the desired state of StorageCluster
           properties:
+            encryption:
+              description: EncryptionSpec defines if encryption should be enabled
+                for the Storage Cluster It is optional and defaults to false.
+              properties:
+                enable:
+                  type: boolean
+              type: object
             externalStorage:
               description: External Storage is optional and defaults to false. When
                 set to true, OCS will connect to an external OCS Storage Cluster instead
