@@ -351,6 +351,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
 				Portable:             ds.Portable,
 				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
+				Encrypted:            sc.Spec.Encryption.Enable,
 			}
 
 			if ds.MetadataPVCTemplate != nil {

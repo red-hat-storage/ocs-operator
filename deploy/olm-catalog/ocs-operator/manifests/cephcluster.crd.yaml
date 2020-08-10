@@ -35,6 +35,8 @@ spec:
     plural: cephclusters
     singular: cephcluster
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -52,6 +54,17 @@ spec:
                 confirmation:
                   pattern: ^$|^yes-really-destroy-data$
                   type: string
+                sanitizeDisks:
+                  properties:
+                    dataSource:
+                      pattern: ^(zero|random)$
+                      type: string
+                    iteration:
+                      format: int32
+                      type: integer
+                    method:
+                      pattern: ^(complete|quick)$
+                      type: string
             continueUpgradeAfterChecksEvenIfNotHealthy:
               type: boolean
             dashboard:
@@ -79,10 +92,22 @@ spec:
                   type: boolean
                 osdMaintenanceTimeout:
                   type: integer
+            driveGroups:
+              items:
+                properties:
+                  name:
+                    type: string
+                  placement: {}
+                  spec: {}
+                required:
+                - name
+                - spec
+              type: array
             external:
               properties:
                 enable:
                   type: boolean
+            healthCheck: {}
             mgr:
               properties:
                 modules:
@@ -105,6 +130,12 @@ spec:
               properties:
                 enabled:
                   type: boolean
+                externalMgrEndpoints:
+                  items:
+                    properties:
+                      ip:
+                        type: string
+                  type: array
                 rulesNamespace:
                   type: string
             network:
@@ -115,10 +146,6 @@ spec:
                   type: string
                 selectors: {}
             placement: {}
-            rbdMirroring:
-              properties:
-                workers:
-                  type: integer
             removeOSDsIfOutAndSafeToRemove:
               type: boolean
             resources: {}

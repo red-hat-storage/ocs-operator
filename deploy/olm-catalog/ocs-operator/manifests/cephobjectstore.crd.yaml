@@ -36,6 +36,8 @@ spec:
                       type: integer
                 failureDomain:
                   type: string
+                parameters:
+                  type: object
                 replicated:
                   properties:
                     requireSafeReplicaSize:
@@ -45,6 +47,12 @@ spec:
             gateway:
               properties:
                 annotations: {}
+                externalRgwEndpoints:
+                  items:
+                    properties:
+                      ip:
+                        type: string
+                  type: array
                 instances:
                   type: integer
                 placement: {}
@@ -57,6 +65,14 @@ spec:
                 sslCertificateRef: {}
                 type:
                   type: string
+            healthCheck:
+              properties:
+                bucket:
+                  properties:
+                    enabled:
+                      type: boolean
+                    interval:
+                      type: string
             metadataPool:
               properties:
                 compressionMode:
@@ -75,6 +91,8 @@ spec:
                       type: integer
                 failureDomain:
                   type: string
+                parameters:
+                  type: object
                 replicated:
                   properties:
                     requireSafeReplicaSize:

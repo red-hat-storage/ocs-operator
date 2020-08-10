@@ -30,8 +30,6 @@ const (
 	ResourcesKeyOSD = "osd"
 	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
 	ResourcesKeyPrepareOSD = "prepareosd"
-	// ResourcesKeyRBDMirror represents the name of resource in the CR for the rbdmirror
-	ResourcesKeyRBDMirror = "rbdmirror"
 	// ResourcesKeyCrashCollector represents the name of resource in the CR for the crash
 	ResourcesKeyCrashCollector = "crashcollector"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
@@ -56,11 +54,6 @@ func GetOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 // GetPrepareOSDResources returns the placement for the OSDs prepare job
 func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyPrepareOSD]
-}
-
-// GetRBDMirrorResources returns the placement for the RBD Mirrors
-func GetRBDMirrorResources(p rook.ResourceSpec) v1.ResourceRequirements {
-	return p[ResourcesKeyRBDMirror]
 }
 
 // GetCrashCollectorResources returns the placement for the crash daemon

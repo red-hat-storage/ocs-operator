@@ -28,6 +28,7 @@ type StorageClusterSpec struct {
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
 	Resources          map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
+	Encryption         EncryptionSpec                         `json:"encryption,omitempty"`
 	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
@@ -89,6 +90,13 @@ type MultiCloudGatewaySpec struct {
 	// deployment.
 	// +optional
 	Endpoints *nbv1.EndpointsSpec `json:"endpoints,omitempty"`
+}
+
+// EncryptionSpec defines if encryption should be enabled for the Storage Cluster
+// It is optional and defaults to false.
+type EncryptionSpec struct {
+	// +optional
+	Enable bool `json:"enable,omitempty"`
 }
 
 // StorageClusterStatus defines the observed state of StorageCluster
