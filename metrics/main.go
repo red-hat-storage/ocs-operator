@@ -25,8 +25,10 @@ func main() {
 	exporterMux := http.NewServeMux()
 	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry)
 
+	customResourceRegistry := prometheus.NewRegistry()
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
+	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry)
 
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, host, exporterMetricsPort))
