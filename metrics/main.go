@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/oklog/run"
+	"github.com/openshift/ocs-operator/metrics/internal/collectors"
 	"github.com/openshift/ocs-operator/metrics/internal/exporter"
 	"github.com/openshift/ocs-operator/metrics/internal/handler"
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,6 +27,9 @@ func main() {
 	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry)
 
 	customResourceRegistry := prometheus.NewRegistry()
+	// Add custom resource collectors to the registry.
+	collectors.RegisterCustomResourceCollectors(customResourceRegistry)
+
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry)
