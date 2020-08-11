@@ -13,7 +13,7 @@ export SKIP_MINIMUM="0.0.1"
 export SKIP_RANGE=">=${SKIP_MINIMUM} <${CSV_VERSION}"
 
 # Current dependency images our DEV CSV are pinned to
-export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:v1.4.0"}
+export ROOK_IMAGE=${ROOK_IMAGE:-"rook/ceph:v1.4.0-28.g3c00330"}
 export NOOBAA_IMAGE=${NOOBAA_IMAGE:-"noobaa/noobaa-operator:2.3.0"}
 export NOOBAA_CORE_IMAGE=${NOOBAA_CORE_IMAGE:-"noobaa/noobaa-core:5.5.0"}
 export NOOBAA_DB_IMAGE=${NOOBAA_DB_IMAGE:-"centos/mongodb-36-centos7"}
