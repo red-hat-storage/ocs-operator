@@ -1,0 +1,10 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal as builder
+
+RUN microdnf install -y make golang; microdnf -y clean all
+
+FROM builder
+
+RUN mkdir -p /output
+COPY . /ocs-operator
+WORKDIR /ocs-operator
+RUN make go-build OUTDIR_BIN=/output

@@ -6,6 +6,8 @@
 GO111MODULE="on"
 GOPROXY="https://proxy.golang.org"
 GOROOT="${GOROOT:-go env GOROOT}"
+GOOS="${GOOS:-linux}"
+GOARCH="${GOARCH:-amd64}"
 
 # Current DEV version of the CSV
 DEFAULT_CSV_VERSION="4.6.0"
