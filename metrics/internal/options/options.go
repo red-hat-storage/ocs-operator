@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 )
 
@@ -17,15 +18,18 @@ const (
 
 // Options are the configurable parameters for kube-events-exporter.
 type Options struct {
-	Apiserver      string
-	KubeconfigPath string
-	Host           string
-	Port           int
-	ExporterHost   string
-	ExporterPort   int
-	Help           bool
+	Apiserver         string
+	KubeconfigPath    string
+	Host              string
+	Port              int
+	ExporterHost      string
+	ExporterPort      int
+	Help              bool
+	AllowedNamespaces []string
 
-	flags *pflag.FlagSet
+	flags      *pflag.FlagSet
+	StopCh     chan struct{}
+	Kubeconfig *rest.Config
 }
 
 // NewOptions returns a new instance of `Options`.
@@ -49,6 +53,7 @@ func (o *Options) AddFlags() {
 	o.flags.StringVar(&o.ExporterHost, "exporter-host", host, "Host to expose exporter self metrics on.")
 	o.flags.IntVar(&o.ExporterPort, "exporter-port", exporterMetricsPort, "Port to expose exporter self metrics on.")
 	o.flags.BoolVar(&o.Help, "help", false, "To display Usage information.")
+	o.flags.StringArrayVar(&o.AllowedNamespaces, "namespaces", []string{"openshift-storage"}, "List of namespaces to be monitored.")
 }
 
 // Parse parses the flags

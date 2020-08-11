@@ -7,10 +7,12 @@ import (
 	"strconv"
 
 	"github.com/oklog/run"
+	"github.com/openshift/ocs-operator/metrics/internal/collectors"
 	"github.com/openshift/ocs-operator/metrics/internal/exporter"
 	"github.com/openshift/ocs-operator/metrics/internal/handler"
 	"github.com/openshift/ocs-operator/metrics/internal/options"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 )
 
@@ -26,6 +28,15 @@ func main() {
 	}
 	klog.Infof("using options: %+v", opts)
 
+	opts.StopCh = make(chan struct{})
+	defer close(opts.StopCh)
+
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.Apiserver, opts.KubeconfigPath)
+	if err != nil {
+		klog.Fatalf("failed to create cluster config: %v", err)
+	}
+	opts.Kubeconfig = kubeconfig
+
 	exporterRegistry := prometheus.NewRegistry()
 	// Add exporter self metrics collectors to the registry.
 	exporter.RegisterExporterCollectors(exporterRegistry)
@@ -34,8 +45,13 @@ func main() {
 	exporterMux := http.NewServeMux()
 	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry)
 
+	customResourceRegistry := prometheus.NewRegistry()
+	// Add custom resource collectors to the registry.
+	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
+
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
+	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry)
 
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
@@ -43,7 +59,7 @@ func main() {
 
 	klog.Infof("Running metrics server on %s:%v", opts.Host, opts.Port)
 	klog.Infof("Running telemetry server on %s:%v", opts.ExporterHost, opts.ExporterPort)
-	err := rg.Run()
+	err = rg.Run()
 	if err != nil {
 		klog.Fatalf("metrics and telemetry servers terminated: %v", err)
 	}
