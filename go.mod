@@ -12,6 +12,7 @@ require (
 	github.com/go-openapi/spec v0.19.5
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1
 	github.com/noobaa/noobaa-operator/v2 v2.3.0
+	github.com/oklog/run v1.0.0
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
@@ -21,6 +22,7 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20200321030439-57b580e57e88
 	github.com/operator-framework/operator-sdk v0.17.0
 	github.com/rook/rook v1.4.0
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.14.1
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
@@ -29,6 +31,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.17.4
 	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20200204173128-addea2498afe
 	sigs.k8s.io/controller-runtime v0.5.2
 )
