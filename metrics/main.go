@@ -3,23 +3,32 @@ package main
 import (
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/oklog/run"
 	"github.com/openshift/ocs-operator/metrics/internal/collectors"
 	"github.com/openshift/ocs-operator/metrics/internal/exporter"
 	"github.com/openshift/ocs-operator/metrics/internal/handler"
+	"github.com/openshift/ocs-operator/metrics/internal/options"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 )
 
 func main() {
-	host := "0.0.0.0"
-	customResourceMetricsPort := 8080
-	exporterMetricsPort := 8081
+	opts := options.NewOptions()
+	opts.AddFlags()
+	// parses the flags and ExitOnError so errors can be ignored
+	opts.Parse()
+	if opts.Help {
+		// prints usage messages for flags
+		opts.Usage()
+		os.Exit(0)
+	}
+	klog.Infof("using options: %+v", opts)
 
-	kubeconfig, err := clientcmd.BuildConfigFromFlags("", "")
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.Apiserver, opts.Kubeconfig)
 	if err != nil {
 		klog.Fatalf("failed to create cluster config: %v", err)
 	}
@@ -41,11 +50,11 @@ func main() {
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry)
 
 	var rg run.Group
-	rg.Add(listenAndServe(exporterMux, host, exporterMetricsPort))
-	rg.Add(listenAndServe(customResourceMux, host, customResourceMetricsPort))
+	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
+	rg.Add(listenAndServe(customResourceMux, opts.Host, opts.Port))
 
-	klog.Infof("Running metrics server on %s:%v", "0.0.0.0", 8080)
-	klog.Infof("Running telemetry server on %s:%v", "0.0.0.0", 8081)
+	klog.Infof("Running metrics server on %s:%v", opts.Host, opts.Port)
+	klog.Infof("Running telemetry server on %s:%v", opts.ExporterHost, opts.ExporterPort)
 	err = rg.Run()
 	if err != nil {
 		klog.Fatalf("metrics and telemetry servers terminated: %v", err)
