@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/oklog/run"
+	"github.com/openshift/ocs-operator/metrics/internal/exporter"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog"
 )
 
@@ -13,6 +15,10 @@ func main() {
 	host := "0.0.0.0"
 	customResourceMetricsPort := 8080
 	exporterMetricsPort := 8081
+
+	exporterRegistry := prometheus.NewRegistry()
+	// Add exporter self metrics collectors to the registry.
+	exporter.RegisterExporterCollectors(exporterRegistry)
 
 	// serves exporter self metrics
 	exporterMux := http.NewServeMux()
