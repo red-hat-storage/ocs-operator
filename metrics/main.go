@@ -10,6 +10,7 @@ import (
 	"github.com/openshift/ocs-operator/metrics/internal/exporter"
 	"github.com/openshift/ocs-operator/metrics/internal/handler"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 )
 
@@ -17,6 +18,11 @@ func main() {
 	host := "0.0.0.0"
 	customResourceMetricsPort := 8080
 	exporterMetricsPort := 8081
+
+	kubeconfig, err := clientcmd.BuildConfigFromFlags("", "")
+	if err != nil {
+		klog.Fatalf("failed to create cluster config: %v", err)
+	}
 
 	exporterRegistry := prometheus.NewRegistry()
 	// Add exporter self metrics collectors to the registry.
@@ -28,7 +34,7 @@ func main() {
 
 	customResourceRegistry := prometheus.NewRegistry()
 	// Add custom resource collectors to the registry.
-	collectors.RegisterCustomResourceCollectors(customResourceRegistry)
+	collectors.RegisterCustomResourceCollectors(kubeconfig, customResourceRegistry)
 
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
@@ -40,7 +46,7 @@ func main() {
 
 	klog.Infof("Running metrics server on %s:%v", "0.0.0.0", 8080)
 	klog.Infof("Running telemetry server on %s:%v", "0.0.0.0", 8081)
-	err := rg.Run()
+	err = rg.Run()
 	if err != nil {
 		klog.Fatalf("metrics and telemetry servers terminated: %v", err)
 	}
