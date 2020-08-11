@@ -7,7 +7,9 @@ import (
 	"strconv"
 
 	"github.com/oklog/run"
+	"github.com/openshift/ocs-operator/metrics/internal/exporter"
 	"github.com/openshift/ocs-operator/metrics/internal/options"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog"
 )
 
@@ -22,6 +24,10 @@ func main() {
 		os.Exit(0)
 	}
 	klog.Infof("using options: %+v", opts)
+
+	exporterRegistry := prometheus.NewRegistry()
+	// Add exporter self metrics collectors to the registry.
+	exporter.RegisterExporterCollectors(exporterRegistry)
 
 	// serves exporter self metrics
 	exporterMux := http.NewServeMux()
