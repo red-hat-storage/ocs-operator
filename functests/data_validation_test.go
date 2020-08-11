@@ -15,10 +15,10 @@ import (
 
 var _ = Describe("job creation", func() {
 	var k8sClient *kubernetes.Clientset
+	var deployManager *deploymanager.DeployManager
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
-
 		deployManager, err := deploymanager.NewDeployManager()
 		Expect(err).To(BeNil())
 
@@ -53,14 +53,14 @@ var _ = Describe("job creation", func() {
 				Expect(err).To(BeNil())
 
 				By("Verifying PVC reaches BOUND phase")
-				tests.WaitForPVCBound(k8sClient, pvc.Name, namespace)
+				deployManager.WaitForPVCBound(pvc.Name, namespace)
 
 				By("Creating job")
 				_, err = k8sClient.BatchV1().Jobs(namespace).Create(job)
 				Expect(err).To(BeNil())
 
 				By("Verifying job succeeds in data validation")
-				tests.WaitForJobSucceeded(k8sClient, job.GetName(), namespace)
+				deployManager.WaitForJobSucceeded(job.GetName(), namespace)
 
 				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(job.GetName(), metav1.GetOptions{})
 				Expect(err).To(BeNil())

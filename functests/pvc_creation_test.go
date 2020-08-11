@@ -15,6 +15,7 @@ import (
 
 var _ = Describe("PVC Creation", func() {
 	var k8sClient *kubernetes.Clientset
+	var deployManager *deploymanager.DeployManager
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
@@ -48,7 +49,7 @@ var _ = Describe("PVC Creation", func() {
 				Expect(err).To(BeNil())
 
 				By("Verifying PVC reaches BOUND phase")
-				tests.WaitForPVCBound(k8sClient, pvc.Name, namespace)
+				deployManager.WaitForPVCBound(pvc.Name, namespace)
 
 				By("Deleting PVC")
 				err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
