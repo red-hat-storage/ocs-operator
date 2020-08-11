@@ -7,6 +7,7 @@ import (
 
 	"github.com/oklog/run"
 	"github.com/openshift/ocs-operator/metrics/internal/exporter"
+	"github.com/openshift/ocs-operator/metrics/internal/handler"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog"
 )
@@ -22,6 +23,8 @@ func main() {
 
 	// serves exporter self metrics
 	exporterMux := http.NewServeMux()
+	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry)
+
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 
