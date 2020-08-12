@@ -22,6 +22,7 @@ require (
 	github.com/operator-framework/operator-sdk v0.17.0
 	github.com/prometheus/client_golang v1.5.1
 	github.com/rook/rook v1.4.0
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.14.1
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
