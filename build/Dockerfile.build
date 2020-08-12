@@ -7,4 +7,4 @@ FROM builder
 RUN mkdir -p /output
 COPY . /ocs-operator
 WORKDIR /ocs-operator
-RUN make go-build OUTDIR_BIN=/output
+RUN make build-go OUTDIR_BIN=/output
