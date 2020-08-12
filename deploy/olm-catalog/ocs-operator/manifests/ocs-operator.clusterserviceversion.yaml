@@ -696,9 +696,8 @@ metadata:
       cHRpb24gYXMgZXJyOgogICAgICAgICAgICBwcmludCgiU3VjY2Vzc2Z1bGx5IHRocm93biBlcnJv
       cjoge30iLmZvcm1hdChlcnIpKQo=
     external.features.ocs.openshift.io/validation: '{"secrets":["rook-ceph-operator-creds",
-      "rook-csi-rbd-node", "rook-csi-rbd-provisioner", "rook-csi-cephfs-node", "rook-csi-cephfs-provisioner"],
-      "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses":
-      ["ceph-rbd"]}'
+      "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints",
+      "rook-ceph-mon"], "storageClasses": ["ceph-rbd"]}'
     features.ocs.openshift.io/enabled: '["external"]'
     olm.skipRange: '>=0.0.1 <4.6.0'
     operatorframework.io/cluster-monitoring: "true"
