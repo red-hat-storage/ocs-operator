@@ -626,12 +626,12 @@ metadata:
       "storageclusterinitializations.ocs.openshift.io", "cephfilesystems.ceph.rook.io"]'
     repository: https://github.com/openshift/ocs-operator
     support: Red Hat
+  labels:
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.ppc64le: supported
+    operatorframework.io/arch.s390x: supported
   name: ocs-operator.v4.6.0
   namespace: placeholder
-  labels:
-    "operatorframework.io/arch.amd64": supported
-    "operatorframework.io/arch.ppc64le": supported
-    "operatorframework.io/arch.s390x": supported
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
