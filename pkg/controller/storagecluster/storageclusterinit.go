@@ -28,6 +28,7 @@ func (r *ReconcileStorageCluster) ensurestorageclusterinit(
 			instance.Status.CephBlockPoolsCreated = false
 			instance.Status.CephObjectStoreUsersCreated = false
 			instance.Status.CephFilesystemsCreated = false
+			instance.Status.SnapshotClassesCreated = false
 			instance.Status.FailureDomain = determineFailureDomain(instance)
 			err = r.client.Status().Update(context.TODO(), instance)
 			if err != nil {

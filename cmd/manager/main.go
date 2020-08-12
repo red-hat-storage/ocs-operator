@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	nbapis "github.com/noobaa/noobaa-operator/v2/pkg/apis"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	"github.com/openshift/ocs-operator/pkg/apis"
@@ -131,6 +132,11 @@ func main() {
 
 	if err := openshiftv1.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding openshift/v1 to scheme")
+		os.Exit(1)
+	}
+
+	if err := snapapi.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding volume-snapshot apis to scheme")
 		os.Exit(1)
 	}
 

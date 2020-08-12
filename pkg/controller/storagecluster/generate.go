@@ -41,3 +41,17 @@ func generateNameForCephFilesystemSC(initData *ocsv1.StorageCluster) string {
 func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
 }
+
+// generateNameForSnapshotClass function generates 'SnapshotClass' name.
+// 'snapshotType' can be: 'rbdSnapshotter' or 'cephfsSnapshotter'
+func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
+	return fmt.Sprintf("%s-%splugin-snapclass", initData.Name, snapshotType)
+}
+
+func generateNameForSnapshotClassDriver(initData *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
+	return fmt.Sprintf("%s.%s.csi.ceph.com", initData.Namespace, snapshotType)
+}
+
+func generateNameForSnapshotClassSecret(snapshotType SnapshotterType) string {
+	return fmt.Sprintf("rook-csi-%s-provisioner", snapshotType)
+}

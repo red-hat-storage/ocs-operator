@@ -8,6 +8,7 @@ import (
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
+	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -523,6 +524,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = openshiftv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add openshiftv1 scheme")
+	}
+	err = snapapi.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add volume-snapshot scheme")
 	}
 	return scheme
 }
