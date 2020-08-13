@@ -26,6 +26,8 @@ spec:
               - aggressive
               - force
               type: string
+            crushRoot:
+              type: string
             enableRBDStats:
               description: EnableRBDStats is used to enable gathering of statistics
                 for all RBD images in the pool

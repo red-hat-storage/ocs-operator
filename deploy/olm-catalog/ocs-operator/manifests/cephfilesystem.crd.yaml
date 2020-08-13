@@ -37,6 +37,8 @@ spec:
                     - aggressive
                     - force
                     type: string
+                  crushRoot:
+                    type: string
                   erasureCoded:
                     properties:
                       codingChunks:
@@ -69,6 +71,8 @@ spec:
                   - passive
                   - aggressive
                   - force
+                  type: string
+                crushRoot:
                   type: string
                 erasureCoded:
                   properties:
