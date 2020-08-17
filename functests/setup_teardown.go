@@ -35,8 +35,9 @@ func AfterTestSuiteCleanup() {
 	// collect debug log before deleting namespace & cluster
 	gopath := os.Getenv("GOPATH")
 	cmd := exec.Command("/bin/bash", gopath+"/src/github.com/openshift/ocs-operator/hack/dump-debug-info.sh")
-	_, err = cmd.CombinedOutput()
-	gomega.Expect(err).To(gomega.BeNil())
+	cmd.Env = os.Environ()
+	output, err := cmd.CombinedOutput()
+	gomega.Expect(err).To(gomega.BeNil(), "Error dumping debug info: %v", output)
 
 	err = t.DeleteNamespaceAndWait(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
