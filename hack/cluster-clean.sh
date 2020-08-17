@@ -9,15 +9,6 @@ set +e
 echo "Deleting noobaa objects"
 $OCS_OC_PATH -n openshift-storage delete noobaa --all
 
-# Remove finalizers from all cephclusters, to not block the cleanup
-echo "Removing cephcluster finalizers"
-$OCS_OC_PATH get cephcluster -n openshift-storage -o=custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace,FINALIZERS:.metadata.finalizers --no-headers | grep cephcluster.ceph.rook.io | while read -r p; do
-    arr=("$p")
-    name="${arr[0]}"
-    namespace="${arr[1]}"
-    $OCS_OC_PATH patch cephcluster "$name" -n "$namespace" --type=json -p '[{ "op": "remove", "path": "/metadata/finalizers" }]'
-done
-
 # delete storage clusters.
 # StorageClusterInitialization and CephClusters are automatically deleted as a result
 # deleting the StorageCluster due to owner references.
