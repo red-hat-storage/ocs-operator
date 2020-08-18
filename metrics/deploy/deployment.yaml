@@ -26,6 +26,8 @@ spec:
         ports:
         - containerPort: 8080
         - containerPort: 8081
+        args:
+          - --namespaces=openshift-storage
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000660000
