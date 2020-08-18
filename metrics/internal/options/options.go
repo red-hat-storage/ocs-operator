@@ -5,9 +5,11 @@ import (
 	"os"
 
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 )
 
+// default options
 const (
 	host                      = "0.0.0.0"
 	customResourceMetricsPort = 8080
@@ -16,15 +18,18 @@ const (
 
 // Options are the configurable parameters for kube-events-exporter.
 type Options struct {
-	Apiserver    string
-	Kubeconfig   string
-	Host         string
-	Port         int
-	ExporterHost string
-	ExporterPort int
-	Help         bool
+	Apiserver         string
+	KubeconfigPath    string
+	Host              string
+	Port              int
+	ExporterHost      string
+	ExporterPort      int
+	Help              bool
+	AllowedNamespaces []string
 
-	flags *pflag.FlagSet
+	flags      *pflag.FlagSet
+	StopCh     chan struct{}
+	Kubeconfig *rest.Config
 }
 
 // NewOptions returns a new instance of `Options`.
@@ -42,12 +47,13 @@ func (o *Options) AddFlags() {
 	}
 
 	o.flags.StringVar(&o.Apiserver, "apiserver", "", "The URL of the apiserver to use as a master.")
-	o.flags.StringVar(&o.Kubeconfig, "kubeconfig", os.Getenv("KUBECONFIG"), "Absolute path to the kubeconfig file.")
+	o.flags.StringVar(&o.KubeconfigPath, "kubeconfig", os.Getenv("KUBECONFIG"), "Absolute path to the kubeconfig file.")
 	o.flags.StringVar(&o.Host, "host", host, "Host to expose custom resource metrics on.")
 	o.flags.IntVar(&o.Port, "port", customResourceMetricsPort, "Port to expose custom resource metrics on.")
 	o.flags.StringVar(&o.ExporterHost, "exporter-host", host, "Host to expose exporter self metrics on.")
 	o.flags.IntVar(&o.ExporterPort, "exporter-port", exporterMetricsPort, "Port to expose exporter self metrics on.")
 	o.flags.BoolVar(&o.Help, "help", false, "To display Usage information.")
+	o.flags.StringArrayVar(&o.AllowedNamespaces, "namespaces", []string{"openshift-storage"}, "List of namespaces to be monitored.")
 }
 
 // Parse parses the flags

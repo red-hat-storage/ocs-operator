@@ -28,13 +28,14 @@ func main() {
 	}
 	klog.Infof("using options: %+v", opts)
 
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	opts.StopCh = make(chan struct{})
+	defer close(opts.StopCh)
 
-	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.Apiserver, opts.Kubeconfig)
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.Apiserver, opts.KubeconfigPath)
 	if err != nil {
 		klog.Fatalf("failed to create cluster config: %v", err)
 	}
+	opts.Kubeconfig = kubeconfig
 
 	exporterRegistry := prometheus.NewRegistry()
 	// Add exporter self metrics collectors to the registry.
@@ -46,7 +47,7 @@ func main() {
 
 	customResourceRegistry := prometheus.NewRegistry()
 	// Add custom resource collectors to the registry.
-	collectors.RegisterCustomResourceCollectors(kubeconfig, customResourceRegistry, stopCh)
+	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
 
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()

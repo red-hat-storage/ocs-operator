@@ -3,6 +3,7 @@ package collectors
 import (
 	"fmt"
 
+	"github.com/openshift/ocs-operator/metrics/internal/options"
 	"github.com/prometheus/client_golang/prometheus"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
@@ -10,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
@@ -26,13 +26,14 @@ var _ prometheus.Collector = &CephObjectStoreCollector{}
 
 // CephObjectStoreCollector is a custom collector for CephObjectStore Custom Resource
 type CephObjectStoreCollector struct {
-	RGWHealthStatus *prometheus.Desc
-	Informer        cache.SharedIndexInformer
+	RGWHealthStatus   *prometheus.Desc
+	Informer          cache.SharedIndexInformer
+	AllowedNamespaces []string
 }
 
 // NewCephObjectStoreCollector constructs a collector
-func NewCephObjectStoreCollector(kubeConfig *rest.Config) *CephObjectStoreCollector {
-	client, err := rookclient.NewForConfig(kubeConfig)
+func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollector {
+	client, err := rookclient.NewForConfig(opts.Kubeconfig)
 	if err != nil {
 		klog.Error(err)
 	}
@@ -47,7 +48,8 @@ func NewCephObjectStoreCollector(kubeConfig *rest.Config) *CephObjectStoreCollec
 			[]string{"name", "namespace", "rgw_endpoint", "status"},
 			nil,
 		),
-		Informer: sharedIndexInformer,
+		Informer:          sharedIndexInformer,
+		AllowedNamespaces: opts.AllowedNamespaces,
 	}
 }
 
@@ -70,15 +72,24 @@ func (c *CephObjectStoreCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect implements prometheus.Collector interface
 func (c *CephObjectStoreCollector) Collect(ch chan<- prometheus.Metric) {
 	cephObjectStoreLister := cephv1listers.NewCephObjectStoreLister(c.Informer.GetIndexer())
-	cephObjectStores, err := cephObjectStoreLister.CephObjectStores("rook-ceph").List(labels.Everything())
-	if err != nil {
-		ch <- prometheus.NewInvalidMetric(c.RGWHealthStatus, err)
-	}
+	cephObjectStores := getAllObjectStores(cephObjectStoreLister, c.AllowedNamespaces)
 	if len(cephObjectStores) > 0 {
 		c.collectObjectStoreHealth(cephObjectStores, ch)
 	} else {
 		ch <- prometheus.NewInvalidMetric(c.RGWHealthStatus, fmt.Errorf("CephObjectStore not found"))
 	}
+}
+
+func getAllObjectStores(lister cephv1listers.CephObjectStoreLister, namespaces []string) (cephObjectStores []*cephv1.CephObjectStore) {
+	for _, namespace := range namespaces {
+		tempCephObjectStores, err := lister.CephObjectStores(namespace).List(labels.Everything())
+		if err != nil {
+			klog.Errorf("couldn't list CephObjectStores in namespace %s. %v", namespace, err)
+			continue
+		}
+		cephObjectStores = append(cephObjectStores, tempCephObjectStores...)
+	}
+	return
 }
 
 func (c *CephObjectStoreCollector) collectObjectStoreHealth(cephObjectStores []*cephv1.CephObjectStore, ch chan<- prometheus.Metric) {
