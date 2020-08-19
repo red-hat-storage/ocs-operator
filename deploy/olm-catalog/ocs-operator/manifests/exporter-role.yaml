@@ -1,0 +1,13 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: ocs-metrics-exporter
+rules:
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephobjectstores
+  verbs:
+    - get
+    - list
+    - watch
