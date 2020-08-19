@@ -1298,6 +1298,7 @@ spec:
           - snapshot.storage.k8s.io
           resources:
           - volumesnapshots
+          - volumesnapshotclasses
           verbs:
           - get
           - list
@@ -1614,6 +1615,57 @@ spec:
           - update
           - patch
         - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshots
+          verbs:
+          - get
+          - list
+          - watch
+          - update
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshotcontents
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+          - update
+          - delete
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshotclasses
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshotcontents/status
+          verbs:
+          - update
+        - apiGroups:
+          - apiextensions.k8s.io
+          resources:
+          - customresourcedefinitions
+          verbs:
+          - create
+          - list
+          - watch
+          - delete
+          - get
+          - update
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshots/status
+          verbs:
+          - update
+        - apiGroups:
           - storage.k8s.io
           resources:
           - volumeattachments
@@ -1915,7 +1967,7 @@ spec:
                 - name: OPERATOR_NAME
                   value: ocs-operator
                 - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.4.0-28.g3c00330
+                  value: rook/ceph:v1.4.1
                 - name: CEPH_IMAGE
                   value: ceph/ceph:v14.2
                 - name: NOOBAA_CORE_IMAGE
@@ -2018,7 +2070,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: rook/ceph:v1.4.0-28.g3c00330
+                image: rook/ceph:v1.4.1
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
@@ -2388,7 +2440,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: rook/ceph:v1.4.0-28.g3c00330
+  - image: rook/ceph:v1.4.1
     name: rook-container
   - image: ceph/ceph:v14.2
     name: ceph-container
