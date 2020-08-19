@@ -1,0 +1,12 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: ocs-metrics-exporter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ocs-metrics-exporter
+subjects:
+- kind: ServiceAccount
+  name: ocs-metrics-exporter
+  namespace: openshift-storage
