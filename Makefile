@@ -173,3 +173,4 @@ ocs-operator-ci: shellcheck-test gofmt golint govet unit-test verify-generated v
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"
 	hack/red-hat-storage-ocs-ci-tests.sh
+
