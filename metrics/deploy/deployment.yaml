@@ -21,14 +21,15 @@ spec:
         app.kubernetes.io/version: 0.0.1
     spec:
       containers:
-      - image: quay.io/umangachapagain/metrics-exporter:latest
+      - image: quay.io/ocs-dev/ocs-operator
         name: ocs-metrics-exporter
         ports:
         - containerPort: 8080
         - containerPort: 8081
+        command:
+        - /usr/local/bin/metrics-exporter
         args:
           - --namespaces=openshift-storage
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000660000
       serviceAccountName: ocs-metrics-exporter
