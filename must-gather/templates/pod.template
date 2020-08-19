@@ -12,11 +12,16 @@ spec:
     command:
     - /tini
     env:
-    - name: ROOK_ADMIN_SECRET
+    - name: ROOK_CEPH_USERNAME
       valueFrom:
         secretKeyRef:
-          key: admin-secret
+          key: ceph-username
           name: rook-ceph-mon
+    - name: ROOK_CEPH_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: rook-ceph-mon
+          key: ceph-secret
     image: IMAGE_NAME
     imagePullPolicy: IfNotPresent
     name: must-gather-helper
