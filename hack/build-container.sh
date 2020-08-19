@@ -4,5 +4,4 @@ set -e
 
 source hack/common.sh
 
-mkdir -p ${OUTDIR_BIN}
-${IMAGE_BUILD_CMD} build -v "$(pwd)/${OUTDIR_BIN}":/output -f build/Dockerfile.build .
+${IMAGE_BUILD_CMD} build -f build/Dockerfile.build -t "${OPERATOR_FULL_IMAGE_NAME}" .
