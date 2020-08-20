@@ -55,6 +55,13 @@ var (
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
 
 	outputDir = flag.String("olm-bundle-directory", "", "The directory to output the unified CSV and CRDs to")
+
+	// List of APIs which should be exposed in Console
+	exposedAPIs = []string{
+		"storageclusters.ocs.openshift.io",
+		"backingstores.noobaa.io",
+		"bucketclasses.noobaa.io",
+	}
 )
 
 type templateData struct {
@@ -385,6 +392,16 @@ func marshallObject(obj interface{}, writer io.Writer, modifyUnstructuredFunc fu
 	return nil
 }
 
+// Checks whether a string is contained within a slice
+func contains(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
 func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	csvs := []string{
@@ -404,6 +421,8 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			MediaType: "image/svg+xml",
 		},
 	}
+
+	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = ""
 
 	templateStrategySpec := &csvv1.StrategyDetailsDeployment{
 		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{},
@@ -434,6 +453,18 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 				} else {
 					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
 				}
+			}
+		}
+	}
+	// whitelisting APIs
+	for index, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
+		if !contains(exposedAPIs, definition.Name) {
+			if index == 0 {
+				ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = "[" + "\"" + definition.Name + "\""
+			} else if index == len(ocsCSV.Spec.CustomResourceDefinitions.Owned)-1 {
+				ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] + "," + "\"" + definition.Name + "\"" + "]"
+			} else {
+				ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] + "," + "\"" + definition.Name + "\""
 			}
 		}
 	}
@@ -610,7 +641,6 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
 	ocsCSV.Annotations["categories"] = "Storage"
-	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = `["cephclusters.ceph.rook.io", "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io", "cephnfses.ceph.rook.io","cephclients.ceph.rook.io", "noobaas.noobaa.io", "objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","ocsinitializations.ocs.openshift.io", "storageclusterinitializations.ocs.openshift.io", "cephfilesystems.ceph.rook.io"]`
 	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
 	ocsCSV.Annotations["operatorframework.io/cluster-monitoring"] = "true"
 	ocsCSV.Annotations["alm-examples"] = `
