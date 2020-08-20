@@ -341,6 +341,15 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, phaseErr
 	}
 
+	// enable metrics exporter at the end of reconcile
+	// this allows storagecluster to be instantiated before
+	// scraping metrics
+	err = r.enableMetricsExporter(instance)
+	if err != nil {
+		reqLogger.Error(err, "failed to reconcile metrics exporter")
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
