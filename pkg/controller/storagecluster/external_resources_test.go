@@ -139,14 +139,13 @@ func createExternalClusterReconcilerFromCustomResources(
 	return reconciler
 }
 
-func assertExpectedExternalResources(t assert.TestingT, reconciler ReconcileStorageCluster) {
+func assertExpectedExternalResources(t *testing.T, reconciler ReconcileStorageCluster) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
 			Namespace: "",
 		},
 	}
-
 	sc := &api.StorageCluster{}
 	err := reconciler.client.Get(nil, request.NamespacedName, sc)
 	assert.NoError(t, err)
@@ -199,4 +198,101 @@ func assertExpectedExternalResources(t assert.TestingT, reconciler ReconcileStor
 			}
 		}
 	}
+}
+
+// removeNamedResourceFromArray removes the first resource with 'Name' == 'name'
+func removeNamedResourceFromArray(extArr []ExternalResource, name string) []ExternalResource {
+	extArrLen := len(extArr)
+	var indx int
+	for indx = 0; indx < extArrLen; indx++ {
+		extRsrc := extArr[indx]
+		if extRsrc.Name == name {
+			break
+		}
+	}
+	var newExtArr []ExternalResource
+	newExtArr = append(newExtArr, extArr[:indx]...)
+	if indx < extArrLen {
+		newExtArr = append(newExtArr, extArr[indx+1:]...)
+	}
+	return newExtArr
+}
+
+func TestOptionalExternalStorageClusterResources(t *testing.T) {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+
+	optionalTestParams := []struct {
+		resourceToBeRemoved       string
+		expectedRookCephConfigVal string
+	}{
+		{resourceToBeRemoved: "ceph-rgw", expectedRookCephConfigVal: "true"},
+		{resourceToBeRemoved: "cephfs", expectedRookCephConfigVal: "false"},
+	}
+
+	for _, testParam := range optionalTestParams {
+		extResources := removeNamedResourceFromArray(ExternalResources, testParam.resourceToBeRemoved)
+		reconciler := createExternalClusterReconcilerFromCustomResources(t, extResources)
+		result, err := reconciler.Reconcile(request)
+		assert.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, result)
+		// rest of the resources should be available
+		assertExpectedExternalResources(t, reconciler)
+		// make sure we are missing the provided resource
+		assertMissingExternalResource(t, reconciler, testParam.resourceToBeRemoved)
+		// make sure that we have expected rook ceph config value
+		assertRookCephOperatorConfigValue(t, reconciler, testParam.expectedRookCephConfigVal)
+	}
+}
+
+func assertRookCephOperatorConfigValue(t *testing.T, reconciler ReconcileStorageCluster, checkValue string) {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+	sc := &api.StorageCluster{}
+	err := reconciler.client.Get(nil, request.NamespacedName, sc)
+	assert.NoError(t, err)
+	rookCephOperatorConfig := &corev1.ConfigMap{}
+	err = reconciler.client.Get(nil,
+		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: sc.ObjectMeta.Namespace},
+		rookCephOperatorConfig)
+	assert.NoErrorf(t, err, "Unable to get '%s' config", rookCephOperatorConfigName)
+	assert.Truef(t,
+		rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] == checkValue,
+		"'%s' key is supposed to be '%s'", rookEnableCephFSCSIKey, checkValue)
+}
+
+func assertMissingExternalResource(t *testing.T, reconciler ReconcileStorageCluster, resourceName string) {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+	sc := &api.StorageCluster{}
+	err := reconciler.client.Get(nil, request.NamespacedName, sc)
+	assert.NoError(t, err)
+
+	externalSecret := &corev1.Secret{}
+	request.Name = externalClusterDetailsSecret
+	err = reconciler.client.Get(nil, request.NamespacedName, externalSecret)
+	assert.NoError(t, err)
+
+	var data []ExternalResource
+	err = json.Unmarshal(externalSecret.Data[externalClusterDetailsKey], &data)
+	if err != nil {
+		t.Errorf("fatal err %+v", err)
+	}
+	actual := &storagev1.StorageClass{}
+	request.Name = fmt.Sprintf("%s-%s", sc.Name, resourceName)
+	err = reconciler.client.Get(nil, request.NamespacedName, actual)
+	// as the resource is missing, we are expecting an 'error'
+	assert.Error(t, err)
 }
