@@ -175,17 +175,24 @@ func getZapLogger(destWriter io.Writer, development bool, opts ...zap.Option) *z
 		encCfg := zap.NewDevelopmentEncoderConfig()
 		encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
 		enc = zapcore.NewConsoleEncoder(encCfg)
-
+		// when running in development mode, all logs starting from Debug level is logged
 		lvl = zap.NewAtomicLevelAt(zap.DebugLevel)
-		opts = append(opts, zap.Development(), zap.AddStacktrace(zap.ErrorLevel))
+		// when running in development mode, stacktrace is logged for Warning level logs and above
+		opts = append(opts, zap.Development(), zap.AddStacktrace(zap.WarnLevel))
 	} else {
 		encCfg := zap.NewProductionEncoderConfig()
 		encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
 		enc = zapcore.NewJSONEncoder(encCfg)
+		// when running in production mode, all logs starting from Info level is logged
 		lvl = zap.NewAtomicLevelAt(zap.InfoLevel)
-		opts = append(opts, zap.AddStacktrace(zap.WarnLevel),
+		// when running in production mode, stacktrace is logged for Error level logs and above
+		opts = append(opts, zap.AddStacktrace(zap.ErrorLevel),
 			zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-				return zapcore.NewSampler(core, time.Second, 100, 100)
+				// if more Entries with the same level and message are seen during
+				// the same interval, every Mth message is logged and the rest are dropped.
+				// In this case, first 3 similar messages are logged. After that every 10th
+				// similar message is logged.
+				return zapcore.NewSampler(core, time.Second, 3, 10)
 			}))
 	}
 	opts = append(opts, zap.AddCallerSkip(1), zap.ErrorOutput(sink))
