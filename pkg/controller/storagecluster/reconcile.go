@@ -33,6 +33,9 @@ type StorageClassProvisionerType string
 // CleanupPolicyType is a string representing cleanup policy
 type CleanupPolicyType string
 
+// UninstallModeType is a string representing cleanup mode, it decides whether the deletion is graceful or forced
+type UninstallModeType string
+
 // ensureFunc which encapsulate all the 'ensure*' type functions
 type ensureFunc func(*ocsv1.StorageCluster, logr.Logger) error
 
@@ -55,6 +58,12 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	CleanupPolicyDelete CleanupPolicyType = "delete"
 	// CleanupPolicyRetain when set, modifies the cleanup policy for Rook to not cleanup the DataDirHostPath and the disks on uninstall
 	CleanupPolicyRetain CleanupPolicyType = "retain"
+	// UninstallModeAnnotation defines the uninstall mode
+	UninstallModeAnnotation = "uninstall.ocs.openshift.io/mode"
+	// UninstallModeForced when set, sets the uninstall mode for Rook and Noobaa to forced.
+	UninstallModeForced UninstallModeType = "forced"
+	// UninstallModeGraceful when set, sets the uninstall mode for Rook and Noobaa to graceful.
+	UninstallModeGraceful UninstallModeType = "graceful"
 	//Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
 )
