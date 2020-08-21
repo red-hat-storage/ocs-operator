@@ -24,6 +24,11 @@ const (
 	externalCephRgwEndpointKey   = "endpoint"
 )
 
+const (
+	rookCephOperatorConfigName = "rook-ceph-operator-config"
+	rookEnableCephFSCSIKey     = "ROOK_CSI_ENABLE_CEPHFS"
+)
+
 var (
 	// externalRgwEndpoint is the rgw endpoint as discovered in the Secret externalClusterDetailsSecret
 	// It is used for independent mode only. It will be passed to the Noobaa CR as a label
@@ -35,6 +40,26 @@ type ExternalResource struct {
 	Kind string            `json:"kind"`
 	Data map[string]string `json:"data"`
 	Name string            `json:"name"`
+}
+
+// setRookCSICephFS function enables or disables the 'ROOK_CSI_ENABLE_CEPHFS' key
+func (r *ReconcileStorageCluster) setRookCSICephFS(
+	enableDisableFlag bool, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	rookCephOperatorConfig := &corev1.ConfigMap{}
+	err := r.client.Get(context.TODO(),
+		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: instance.ObjectMeta.Namespace},
+		rookCephOperatorConfig)
+	if err != nil {
+		reqLogger.Error(err, fmt.Sprintf("Unable to get '%s' config", rookCephOperatorConfigName))
+		return err
+	}
+	enableDisableFlagStr := fmt.Sprintf("%v", enableDisableFlag)
+	// if the current state of 'ROOK_CSI_ENABLE_CEPHFS' flag is same, just return
+	if rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] == enableDisableFlagStr {
+		return nil
+	}
+	rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] = enableDisableFlagStr
+	return r.client.Update(context.TODO(), rookCephOperatorConfig)
 }
 
 // ensureExternalStorageClusterResources ensures that requested resources for the external cluster
@@ -54,39 +79,39 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	if err != nil {
 		return err
 	}
-	ownerRef := metav1.OwnerReference{
-		UID:        instance.UID,
-		APIVersion: instance.APIVersion,
-		Kind:       instance.Kind,
-		Name:       instance.Name,
-	}
 	var data []ExternalResource
 	err = json.Unmarshal(found.Data[externalClusterDetailsKey], &data)
 	if err != nil {
 		reqLogger.Error(err, "could not parse json blob")
 		return err
 	}
-	scs, err := r.newStorageClasses(instance)
-	if err != nil {
-		reqLogger.Error(err, "failed to create StorageClasses")
-		return err
-	}
-	err = r.createExternalStorageClusterResources(ownerRef, scs, data, instance, reqLogger)
+	err = r.createExternalStorageClusterResources(data, instance, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "could not create ExternalStorageClusterResource")
-		return err
-	}
-	// creating all the storageClasses once we set the values
-	err = r.createStorageClasses(scs, reqLogger)
-	if err != nil {
 		return err
 	}
 	instance.Status.ExternalSecretFound = true
 	return nil
 }
 
-// createExternalStorageClusterResources creates external cluster resources
-func (r *ReconcileStorageCluster) createExternalStorageClusterResources(ownerRef metav1.OwnerReference, scs []*storagev1.StorageClass, data []ExternalResource, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+// createExternalStorageClusterResources create the needed external cluster resources
+func (r *ReconcileStorageCluster) createExternalStorageClusterResources(
+	data []ExternalResource, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	ownerRef := metav1.OwnerReference{
+		UID:        instance.UID,
+		APIVersion: instance.APIVersion,
+		Kind:       instance.Kind,
+		Name:       instance.Name,
+	}
+	scs, err := r.newStorageClasses(instance)
+	if err != nil {
+		reqLogger.Error(err, "failed to create StorageClasses")
+		return err
+	}
+	// this flag sets the 'ROOK_CSI_ENABLE_CEPHFS' flag
+	enableRookCSICephFS := false
+	// this stores only the StorageClasses specified in the Secret
+	var availableSCs []*storagev1.StorageClass
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{
 			Name:            d.Name,
@@ -125,6 +150,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(ownerRef
 			if d.Name == cephFsStorageClassName {
 				// 'sc' points to CephFS StorageClass
 				sc = scs[0]
+				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
 				// 'sc' points to RBD StorageClass
 				sc = scs[1]
@@ -142,7 +168,19 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(ownerRef
 			for k, v := range d.Data {
 				sc.Parameters[k] = v
 			}
+			availableSCs = append(availableSCs, sc)
 		}
+	}
+	// creating only the available storageClasses
+	err = r.createStorageClasses(availableSCs, reqLogger)
+	if err != nil {
+		reqLogger.Error(err, "failed to create needed StorageClasses")
+		return err
+	}
+	if err = r.setRookCSICephFS(enableRookCSICephFS, instance, reqLogger); err != nil {
+		reqLogger.Error(err,
+			fmt.Sprintf("failed to set '%s' to %v", rookEnableCephFSCSIKey, enableRookCSICephFS))
+		return err
 	}
 	return nil
 }

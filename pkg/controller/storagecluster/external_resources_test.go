@@ -5,6 +5,7 @@ import (
 	"fmt"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -71,8 +72,28 @@ func TestEnsureExternalStorageClusterResources(t *testing.T) {
 	assertExpectedExternalResources(t, reconciler)
 }
 
-func createExternalCephClusterSecret() (*corev1.Secret, error) {
-	jsonBlob, err := json.Marshal(ExternalResources)
+func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
+	var defaultCSIToleration = `
+- key: ` + defaults.NodeTolerationKey + `
+  operator: Equal
+  value: "true"
+  effect: NoSchedule`
+	config := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rookCephOperatorConfigName,
+			Namespace: namespace,
+		},
+	}
+	data := make(map[string]string)
+	data["CSI_PROVISIONER_TOLERATIONS"] = defaultCSIToleration
+	data["CSI_PLUGIN_TOLERATIONS"] = defaultCSIToleration
+	data["CSI_LOG_LEVEL"] = "5"
+	config.Data = data
+	return config
+}
+
+func createExternalCephClusterSecret(extResources []ExternalResource) (*corev1.Secret, error) {
+	jsonBlob, err := json.Marshal(extResources)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +109,11 @@ func createExternalCephClusterSecret() (*corev1.Secret, error) {
 }
 
 func createExternalClusterReconciler(t *testing.T) ReconcileStorageCluster {
+	return createExternalClusterReconcilerFromCustomResources(t, ExternalResources)
+}
+
+func createExternalClusterReconcilerFromCustomResources(
+	t *testing.T, extResources []ExternalResource) ReconcileStorageCluster {
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit",
@@ -98,12 +124,13 @@ func createExternalClusterReconciler(t *testing.T) ReconcileStorageCluster {
 			},
 		},
 	}
-	externalSecret, err := createExternalCephClusterSecret()
+	externalSecret, err := createExternalCephClusterSecret(extResources)
 	if err != nil {
 		t.Fatalf("failed to create external secret: %v", err)
 	}
+	rookCephConfig := newRookCephOperatorConfig("")
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	runtimeObjs := []runtime.Object{cr, externalSecret}
+	runtimeObjs := []runtime.Object{cr, externalSecret, rookCephConfig}
 	for _, obj := range runtimeObjs {
 		if err = reconciler.client.Create(nil, obj); err != nil {
 			t.Fatalf("failed to create a needed runtime object: %v", err)
