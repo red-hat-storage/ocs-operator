@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -149,7 +150,7 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 }
 
 func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileOCSInitialization {
-	registerObjs := []runtime.Object{&v1.OCSInitialization{}, &appsv1.Deployment{}, &corev1.ConfigMap{}}
+	registerObjs := []runtime.Object{&v1.OCSInitialization{}, &appsv1.Deployment{}, &corev1.ConfigMap{}, &monitoringv1.ServiceMonitor{}}
 	registerObjs = append(registerObjs)
 	v1.SchemeBuilder.Register(registerObjs...)
 

@@ -1,10 +1,12 @@
 package storagecluster
 
 import (
-	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
 	"testing"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
+
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -227,6 +229,10 @@ func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtim
 	err = openshiftv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add openshiftv1 scheme")
+	}
+	err = monitoringv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add monitoringv1 scheme")
 	}
 	return scheme
 }
