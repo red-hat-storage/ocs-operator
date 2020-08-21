@@ -73,9 +73,9 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	}
 	err = r.createExternalStorageClusterResources(ownerRef, scs, data, instance, reqLogger)
 	if err != nil {
-                reqLogger.Error(err, "could not create ExternalStorageClusterResource")
-                return err
-        }
+		reqLogger.Error(err, "could not create ExternalStorageClusterResource")
+		return err
+	}
 	// creating all the storageClasses once we set the values
 	err = r.createStorageClasses(scs, reqLogger)
 	if err != nil {
