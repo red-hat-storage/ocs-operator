@@ -123,10 +123,10 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(ownerRef
 		case "StorageClass":
 			var sc *storagev1.StorageClass
 			if d.Name == cephFsStorageClassName {
-				// Setting the fsname for cephfs StorageClass
+				// 'sc' points to CephFS StorageClass
 				sc = scs[0]
 			} else if d.Name == cephRbdStorageClassName {
-				// Setting the PoolName for RBD StorageClass
+				// 'sc' points to RBD StorageClass
 				sc = scs[1]
 			} else if d.Name == cephRgwStorageClassName {
 				// Set the external rgw endpoint variable for later use on the Noobaa CR (as a label)
@@ -134,9 +134,11 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(ownerRef
 				externalRgwEndpointReplaceColon := strings.Replace(d.Data[externalCephRgwEndpointKey], ":", "_", -1)
 				externalRgwEndpoint = externalRgwEndpointReplaceColon
 
-				// Setting the Endpoint for OBC StorageClass
+				// 'sc' points to OBC StorageClass
 				sc = scs[2]
 			}
+			// now sc is pointing to appropriate StorageClass,
+			// whose parameters have to be updated
 			for k, v := range d.Data {
 				sc.Parameters[k] = v
 			}
