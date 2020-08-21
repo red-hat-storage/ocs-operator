@@ -3,47 +3,12 @@ package functests
 import (
 	"github.com/onsi/gomega"
 
-	"fmt"
-	"time"
-
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/client-go/kubernetes"
 )
-
-// WaitForPVCBound waits for a pvc with a given name and namespace to reach BOUND phase
-func WaitForPVCBound(k8sClient *kubernetes.Clientset, pvcName string, pvcNamespace string) {
-	gomega.Eventually(func() error {
-		pvc, err := k8sClient.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(pvcName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		if pvc.Status.Phase == k8sv1.ClaimBound {
-			return nil
-		}
-		return fmt.Errorf("Waiting on pvc %s/%s to reach bound state when it is currently %s", pvcNamespace, pvcName, pvc.Status.Phase)
-	}, 200*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
-}
-
-// WaitForJobSucceeded waits for a Job with a given name and namespace to succeed until 200 seconds
-func WaitForJobSucceeded(k8sClient *kubernetes.Clientset, jobName string, jobNamespace string) {
-	gomega.Eventually(func() error {
-		job, err := k8sClient.BatchV1().Jobs(jobNamespace).Get(jobName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		if job.Status.Succeeded > 0 {
-			return nil
-		}
-		return fmt.Errorf("Waiting on job %s/%s to succeed when it is currently %d", jobName, jobNamespace, job.Status.Succeeded)
-	},
-		200*time.Second, 1*time.Second).Should(gomega.Succeed())
-}
 
 // GetRandomPVC returns a pvc with a randomized name
 func GetRandomPVC(storageClass string, quantity string) *k8sv1.PersistentVolumeClaim {

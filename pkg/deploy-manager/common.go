@@ -1,8 +1,10 @@
 package deploymanager
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/onsi/gomega"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,4 +102,35 @@ func (t *DeployManager) GetDeploymentImage(name string) (string, error) {
 		return "", err
 	}
 	return deployment.Spec.Template.Spec.Containers[0].Image, nil
+}
+
+// WaitForPVCBound waits for a pvc with a given name and namespace to reach BOUND phase
+func (t *DeployManager) WaitForPVCBound(pvcName string, pvcNamespace string) {
+	gomega.Eventually(func() error {
+		pvc, err := t.k8sClient.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(pvcName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if pvc.Status.Phase == k8sv1.ClaimBound {
+			return nil
+		}
+		return fmt.Errorf("Waiting on pvc %s/%s to reach bound state when it is currently %s", pvcNamespace, pvcName, pvc.Status.Phase)
+	}, 200*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+}
+
+// WaitForJobSucceeded waits for a Job with a given name and namespace to succeed until 200 seconds
+func (t *DeployManager) WaitForJobSucceeded(jobName string, jobNamespace string) {
+	gomega.Eventually(func() error {
+		job, err := t.k8sClient.BatchV1().Jobs(jobNamespace).Get(jobName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if job.Status.Succeeded > 0 {
+			return nil
+		}
+		return fmt.Errorf("Waiting on job %s/%s to succeed when it is currently %d", jobName, jobNamespace, job.Status.Succeeded)
+	},
+		200*time.Second, 1*time.Second).Should(gomega.Succeed())
 }
