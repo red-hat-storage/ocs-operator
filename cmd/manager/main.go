@@ -39,6 +39,11 @@ import (
 
 var log = logf.Log.WithName("cmd")
 
+// isDevelopmentEnv is a comman line option that takes boolean value.
+// It defaults to 'false' and indicates if the cluster is running in Production
+// or not. This helps us configure logger accordingly.
+var isDevelopmentEnv bool
+
 func printVersion() {
 	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
@@ -46,15 +51,17 @@ func printVersion() {
 }
 
 func main() {
+	flag.BoolVar(&isDevelopmentEnv, "development", false, "Enable/Disable running operator in development environment")
 	flag.Parse()
 
 	// The logger instantiated here can be changed to any logger
 	// implementing the logr.Logger interface. This logger will
 	// be propagated through the whole operator, generating
 	// uniform and structured logs.
-	initLogger()
+	initLogger(isDevelopmentEnv)
 
 	printVersion()
+	log.Info(fmt.Sprintf("Running in development mode: %v", isDevelopmentEnv))
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {
@@ -161,8 +168,8 @@ func main() {
 	}
 }
 
-func initLogger() {
-	logger := zapr.NewLogger(getZapLogger(os.Stderr, false))
+func initLogger(isDevelopmentEnv bool) {
+	logger := zapr.NewLogger(getZapLogger(os.Stderr, isDevelopmentEnv))
 	logf.SetLogger(logger)
 }
 
