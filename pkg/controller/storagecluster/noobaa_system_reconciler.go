@@ -112,7 +112,7 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	// Default endpoint spec.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
 		MinCount:               1,
-		MaxCount:               3,
+		MaxCount:               2,
 		AdditionalVirtualHosts: []string{},
 
 		// TODO: After spec.resources["noobaa-endpoint"] is decleared obesolete this
