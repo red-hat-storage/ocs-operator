@@ -377,7 +377,10 @@ func (r *ReconcileStorageCluster) ensureStorageClusterInit(
 			// if the StorageClusterInitialization object doesn't exist
 			// ensure we re-reconcile on all initialization resources
 			instance.Status.StorageClassesCreated = false
+			instance.Status.CephObjectStoresCreated = false
 			instance.Status.CephBlockPoolsCreated = false
+			instance.Status.CephObjectStoreUsersCreated = false
+			instance.Status.CephFilesystemsCreated = false
 			instance.Status.FailureDomain = determineFailureDomain(instance)
 			err = r.client.Status().Update(context.TODO(), instance)
 			if err != nil {
