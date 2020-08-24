@@ -1,0 +1,22 @@
+#!/bin/bash
+# Expect base collection path as an argument
+BASE_COLLECTION_PATH=$1
+
+# Use PWD as base path if no argument is passed
+if [ "${BASE_COLLECTION_PATH}" = "" ]; then
+    BASE_COLLECTION_PATH=$(pwd)
+fi
+
+namespaces=$(oc get deploy --all-namespaces -o go-template --template='{{range .items}}{{if .metadata.labels}}{{printf "%s %v" .metadata.namespace (index .metadata.labels "olm.owner")}} {{printf "\n"}}{{end}}{{end}}' | grep ocs-operator | awk '{print $1}' | uniq)
+# Inspecting the namespace where ocs-cluster is installed
+for ns in $namespaces; do
+    echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+    oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    echo "collecting dump of clusterresourceversion" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+    # shellcheck disable=SC2129
+    oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect pvc --all-namespaces >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect csv -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect sc -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect installplan -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+done
+
