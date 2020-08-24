@@ -1,0 +1,294 @@
+package collectors
+
+import (
+	"testing"
+
+	"github.com/openshift/ocs-operator/metrics/internal/options"
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+var (
+	mockOpts = &options.Options{
+		Apiserver:         "https://localhost:8443",
+		KubeconfigPath:    "",
+		Host:              "0.0.0.0",
+		Port:              8080,
+		ExporterHost:      "0.0.0.0",
+		ExporterPort:      8081,
+		AllowedNamespaces: []string{"openshift-storage"},
+		Help:              false,
+	}
+	mockCephObjectStore1 = cephv1.CephObjectStore{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "ceph.rook.io/v1",
+			Kind:       "CephObjectStore",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mockCephObjectStore-1",
+			Namespace: "openshift-storage",
+		},
+		Spec:   cephv1.ObjectStoreSpec{},
+		Status: &cephv1.ObjectStoreStatus{},
+	}
+	mockCephObjectStore2 = cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mockCephObjectStore-2",
+			Namespace: "openshift-storage",
+		},
+		Spec:   cephv1.ObjectStoreSpec{},
+		Status: &cephv1.ObjectStoreStatus{},
+	}
+	mockCephObjectStore3 = cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mockCephObjectStore-3",
+			Namespace: "default",
+		},
+		Spec:   cephv1.ObjectStoreSpec{},
+		Status: &cephv1.ObjectStoreStatus{},
+	}
+)
+
+func setKubeConfig(t *testing.T) {
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(mockOpts.Apiserver, mockOpts.KubeconfigPath)
+	assert.Nil(t, err, "error: %v", err)
+
+	mockOpts.Kubeconfig = kubeconfig
+}
+
+func getMockCephObjectStoreCollector(t *testing.T, mockOpts *options.Options) (mockCephObjectStoreCollector *CephObjectStoreCollector) {
+	setKubeConfig(t)
+	mockCephObjectStoreCollector = NewCephObjectStoreCollector(mockOpts)
+	assert.NotNil(t, mockCephObjectStoreCollector)
+	return
+}
+
+func setInformerStore(t *testing.T, objs []*cephv1.CephObjectStore, mockCephObjectStoreCollector *CephObjectStoreCollector) {
+	if objs != nil {
+		for _, obj := range objs {
+			err := mockCephObjectStoreCollector.Informer.GetStore().Add(obj)
+			assert.Nil(t, err)
+		}
+	}
+}
+
+func resetInformerStore(t *testing.T, objs []*cephv1.CephObjectStore, mockCephObjectStoreCollector *CephObjectStoreCollector) {
+	if objs != nil {
+		for _, obj := range objs {
+			err := mockCephObjectStoreCollector.Informer.GetStore().Delete(obj)
+			assert.Nil(t, err)
+		}
+	}
+}
+
+func TestNewCephObjectStoreCollector(t *testing.T) {
+	type args struct {
+		opts *options.Options
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Test CephObjectStoreCollector",
+			args: args{
+				opts: mockOpts,
+			},
+		},
+	}
+	for _, tt := range tests {
+		got := getMockCephObjectStoreCollector(t, tt.args.opts)
+		assert.NotNil(t, got.AllowedNamespaces)
+		assert.NotNil(t, got.Informer)
+	}
+}
+
+func TestGetAllObjectStores(t *testing.T) {
+	mockOpts.StopCh = make(chan struct{})
+	defer close(mockOpts.StopCh)
+
+	cephObjectStoreCollector := getMockCephObjectStoreCollector(t, mockOpts)
+
+	type args struct {
+		lister     cephv1listers.CephObjectStoreLister
+		namespaces []string
+	}
+	tests := []struct {
+		name                  string
+		args                  args
+		inputCephObjectStores []*cephv1.CephObjectStore
+		wantCephObjectStores  []*cephv1.CephObjectStore
+	}{
+		{
+			name: "CephObjectStore doesn't exist",
+			args: args{
+				lister:     cephv1listers.NewCephObjectStoreLister(cephObjectStoreCollector.Informer.GetIndexer()),
+				namespaces: cephObjectStoreCollector.AllowedNamespaces,
+			},
+			inputCephObjectStores: []*cephv1.CephObjectStore{},
+			// []*cephv1.CephObjectStore(nil) is not DeepEqual to []*cephv1.CephObjectStore{}
+			// getAllObjectStores returns []*cephv1.CephObjectStore(nil) if no CephObjectStore is present
+			wantCephObjectStores: []*cephv1.CephObjectStore(nil),
+		},
+		{
+			name: "One CephObjectStore exists",
+			args: args{
+				lister:     cephv1listers.NewCephObjectStoreLister(cephObjectStoreCollector.Informer.GetIndexer()),
+				namespaces: cephObjectStoreCollector.AllowedNamespaces,
+			},
+			inputCephObjectStores: []*cephv1.CephObjectStore{
+				&mockCephObjectStore1,
+			},
+			wantCephObjectStores: []*cephv1.CephObjectStore{
+				&mockCephObjectStore1,
+			},
+		},
+		{
+			name: "Two CephObjectStores exists",
+			args: args{
+				lister:     cephv1listers.NewCephObjectStoreLister(cephObjectStoreCollector.Informer.GetIndexer()),
+				namespaces: cephObjectStoreCollector.AllowedNamespaces,
+			},
+			inputCephObjectStores: []*cephv1.CephObjectStore{
+				&mockCephObjectStore1,
+				&mockCephObjectStore2,
+			},
+			wantCephObjectStores: []*cephv1.CephObjectStore{
+				&mockCephObjectStore1,
+				&mockCephObjectStore2,
+			},
+		},
+		{
+			name: "One CephObjectStores exists in disallowed namespace",
+			args: args{
+				lister:     cephv1listers.NewCephObjectStoreLister(cephObjectStoreCollector.Informer.GetIndexer()),
+				namespaces: cephObjectStoreCollector.AllowedNamespaces,
+			},
+			inputCephObjectStores: []*cephv1.CephObjectStore{
+				&mockCephObjectStore1,
+				&mockCephObjectStore2,
+				&mockCephObjectStore3,
+			},
+			wantCephObjectStores: []*cephv1.CephObjectStore{
+				&mockCephObjectStore1,
+				&mockCephObjectStore2,
+			},
+		},
+	}
+	for _, tt := range tests {
+		setInformerStore(t, tt.inputCephObjectStores, cephObjectStoreCollector)
+		gotCephObjectStores := getAllObjectStores(tt.args.lister, tt.args.namespaces)
+		assert.Len(t, gotCephObjectStores, len(tt.wantCephObjectStores))
+		for _, obj := range gotCephObjectStores {
+			assert.Contains(t, tt.wantCephObjectStores, obj)
+		}
+		resetInformerStore(t, tt.inputCephObjectStores, cephObjectStoreCollector)
+	}
+}
+
+func TestCollectObjectStoreHealth(t *testing.T) {
+	mockOpts.StopCh = make(chan struct{})
+	defer close(mockOpts.StopCh)
+
+	cephObjectStoreCollector := getMockCephObjectStoreCollector(t, mockOpts)
+	mockInfo := map[string]string{
+		"endpoint": "http://www.endpoint.mock:1234",
+	}
+
+	objConnected := mockCephObjectStore1.DeepCopy()
+	objConnected.Name = objConnected.Name + string(cephv1.ConditionConnected)
+	objConnected.Status = &cephv1.ObjectStoreStatus{
+		Phase:        cephv1.ConditionConnected,
+		BucketStatus: &cephv1.BucketStatus{},
+		Info:         mockInfo,
+		Message:      "",
+	}
+
+	objProgressing := mockCephObjectStore1.DeepCopy()
+	objProgressing.Name = objProgressing.Name + string(cephv1.ConditionProgressing)
+	objProgressing.Status = &cephv1.ObjectStoreStatus{
+		Phase:        cephv1.ConditionProgressing,
+		BucketStatus: &cephv1.BucketStatus{},
+		Info:         mockInfo,
+		Message:      "",
+	}
+
+	objFailure := mockCephObjectStore1.DeepCopy()
+	objFailure.Name = objFailure.Name + string(cephv1.ConditionFailure)
+	objFailure.Status = &cephv1.ObjectStoreStatus{
+		Phase:        cephv1.ConditionFailure,
+		BucketStatus: &cephv1.BucketStatus{},
+		Info:         mockInfo,
+		Message:      "",
+	}
+
+	objUnknown := mockCephObjectStore1.DeepCopy()
+	objUnknown.Name = objUnknown.Name + string(cephv1.ConditionType("unknown"))
+	objUnknown.Status = &cephv1.ObjectStoreStatus{
+		Phase:        cephv1.ConditionType("unknown"),
+		BucketStatus: &cephv1.BucketStatus{},
+		Info:         mockInfo,
+		Message:      "",
+	}
+
+	type args struct {
+		cephObjectStores []*cephv1.CephObjectStore
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Collect Ceph Object Store health metrics",
+			args: args{
+				cephObjectStores: []*cephv1.CephObjectStore{
+					objUnknown,
+					objProgressing,
+					objConnected,
+					objFailure,
+				},
+			},
+		},
+		{
+			name: "Empty CephObjectStores",
+			args: args{
+				cephObjectStores: []*cephv1.CephObjectStore{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		ch := make(chan prometheus.Metric)
+		metric := dto.Metric{}
+		go func() {
+			cephObjectStoreCollector.collectObjectStoreHealth(tt.args.cephObjectStores, ch)
+			close(ch)
+		}()
+
+		for m := range ch {
+			assert.Contains(t, m.Desc().String(), "health_status")
+			metric.Reset()
+			m.Write(&metric)
+			labels := metric.GetLabel()
+			for _, label := range labels {
+				if *label.Name == "name" {
+					if *label.Value == objConnected.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(0))
+					} else if *label.Value == objProgressing.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(1))
+					} else if *label.Value == objFailure.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(2))
+					}
+				} else if *label.Name == "namespace" {
+					assert.Contains(t, cephObjectStoreCollector.AllowedNamespaces, *label.Value)
+				} else if *label.Name == "rgw_endpoint" {
+					assert.Equal(t, mockInfo["endpoint"], *label.Value)
+				}
+			}
+		}
+	}
+}
