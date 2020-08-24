@@ -61,6 +61,10 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 // state.
 func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
+	if instance.Status.CephFilesystemsCreated {
+		return nil
+	}
+
 	cephFilesystems, err := r.newCephFilesystemInstances(instance)
 	if err != nil {
 		return err
@@ -90,6 +94,8 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 			}
 		}
 	}
+
+	instance.Status.CephFilesystemsCreated = true
 
 	return nil
 }

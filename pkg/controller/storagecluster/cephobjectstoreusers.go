@@ -40,6 +40,9 @@ func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv
 // ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	if instance.Status.CephObjectStoreUsersCreated {
+		return nil
+	}
 	platform, err := r.platform.GetPlatform(r.client)
 	if err != nil {
 		return err
@@ -57,6 +60,9 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 		reqLogger.Error(err, "could not create CephObjectStoresUsers")
                 return err
         }
+
+	instance.Status.CephObjectStoreUsersCreated = true
+
 	return err
 }
 

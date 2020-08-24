@@ -17,6 +17,9 @@ import (
 // ensureCephObjectStores ensures that CephObjectStore resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	if instance.Status.CephObjectStoresCreated {
+		return nil
+	}
 	platform, err := r.platform.GetPlatform(r.client)
 	if err != nil {
 		return err
@@ -36,6 +39,9 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
                 reqLogger.Error(err,"could not create CephObjectStores")
                 return err
         }
+
+	instance.Status.CephObjectStoresCreated = true
+
 	return nil
 }
 

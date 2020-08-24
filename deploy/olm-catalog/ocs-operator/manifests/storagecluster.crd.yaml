@@ -2120,6 +2120,12 @@ spec:
           properties:
             cephBlockPoolsCreated:
               type: boolean
+            cephFilesystemsCreated:
+              type: boolean
+            cephObjectStoreUsersCreated:
+              type: boolean
+            cephObjectStoresCreated:
+              type: boolean
             conditions:
               description: Conditions describes the state of the StorageCluster resource.
               items:
