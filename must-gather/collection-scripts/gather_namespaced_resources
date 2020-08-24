@@ -14,9 +14,54 @@ for ns in $namespaces; do
     oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
     echo "collecting dump of clusterresourceversion" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
     # shellcheck disable=SC2129
-    oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect pvc --all-namespaces >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
     oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect csv -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-    oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect sc -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
     oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect installplan -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+done
+
+# Resource List
+resources=()
+# collect storagecluster resources
+
+# TODO: Re enable the collection of storagecluster via inspect command
+# resources+=(storageclusters)
+
+# NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
+{ oc get storageclusters --all-namespaces -o yaml; } > $BASE_COLLECTION_PATH/storagecluster.yaml 2>&1
+
+# collect OB/OBC resoureces
+resources+=(objectbucketclaims)
+resources+=(objectbuckets)
+
+# Add general resources to list if necessary
+
+# Run the Collection of Resources using must-gather
+for resource in "${resources[@]}"; do
+    echo "collecting dump of ${resource}" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
+    { oc adm --dest-dir=${BASE_COLLECTION_PATH} inspect "${resource}" --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+done
+
+# collection path for OC commands
+mkdir -p ${BASE_COLLECTION_PATH}/oc_output/
+
+# Command List
+commands=()
+
+# collect oc output of OC commands
+commands+=("get clusterversion -oyaml")
+commands+=("describe nodes")
+commands+=("describe pods -n openshift-storage")
+commands+=("get pvc --all-namespaces")
+commands+=("get infrastructures.config -oyaml")
+commands+=("get subscription -n openshift-storage")
+commands+=("get csv -n openshift-storage")
+commands+=("get installplan -n openshift-storage")
+commands+=("get events -n openshift-storage")
+
+# Run the Collection of Resources to list
+for command in "${commands[@]}"; do
+     echo "collecting oc command ${command}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
+     COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/oc_output/${command// /_}
+     # shellcheck disable=SC2086
+     timeout 120 oc ${command} >> "${COMMAND_OUTPUT_FILE}"
 done
 
