@@ -36,9 +36,9 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 
 	err = r.createCephObjectStores(cephObjectStores, instance, reqLogger)
 	if err != nil {
-                reqLogger.Error(err,"could not create CephObjectStores")
-                return err
-        }
+		reqLogger.Error(err, "could not create CephObjectStores")
+		return err
+	}
 
 	instance.Status.CephObjectStoresCreated = true
 
