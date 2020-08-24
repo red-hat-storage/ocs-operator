@@ -56,10 +56,10 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 		return err
 	}
 	err = r.createCephObjectStoreUsers(cephObjectStoreUsers, instance, reqLogger)
-        if err != nil {
+	if err != nil {
 		reqLogger.Error(err, "could not create CephObjectStoresUsers")
-                return err
-        }
+		return err
+	}
 
 	instance.Status.CephObjectStoreUsersCreated = true
 
