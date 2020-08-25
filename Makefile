@@ -89,7 +89,7 @@ gen-latest-deploy-yaml:
 	@echo "Generating latest deployment yaml file"
 	hack/gen-deployment-yaml.sh
 
-verify-latest-deploy-yaml:
+verify-latest-deploy-yaml: gen-latest-deploy-yaml
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
 
@@ -97,8 +97,8 @@ gen-release-csv: operator-sdk
 	@echo "Generating unified CSV from sourced component-level operators"
 	hack/generate-unified-csv.sh
 
-verify-latest-csv:
-	@echo "Verifying latest csv checksum"
+verify-latest-csv: gen-latest-csv
+	@echo "Verifying latest CSV"
 	hack/verify-latest-csv.sh
 
 verify-operator-bundle:

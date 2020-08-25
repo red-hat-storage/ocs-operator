@@ -33,17 +33,17 @@ mkdir -p $OUTDIR_CRDS $OUTDIR_BUNDLEMANIFESTS
 # directory which causes issues in Permissions spec of CSV. So,
 # removing depoy/bundlemanifests/ while generating CSV and keeping a
 # backup in $OUTDIR_BUNDLEMANIFESTS
-cp deploy/bundlemanifests/*.yaml $OUTDIR_BUNDLEMANIFESTS/
-rm deploy/bundlemanifests/*.yaml
+cp $BUNDLEMANIFESTS_DIR/*.yaml $OUTDIR_BUNDLEMANIFESTS/
+rm $BUNDLEMANIFESTS_DIR/*.yaml
 mkdir -p $OUTDIR_TOOLS
 
 # ==== DUMP NOOBAA YAMLS ====
 noobaa_dump_crds_cmd="crd yaml"
 noobaa_dump_csv_cmd="olm csv yaml"
 echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
-($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_csv_cmd") | tee $NOOBAA_CSV
+($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_csv_cmd") > $NOOBAA_CSV
 echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
-($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_crds_cmd") | tee $OUTDIR_CRDS/noobaa-crd.yaml
+($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_crds_cmd") > $OUTDIR_CRDS/noobaa-crd.yaml
 
 # ==== DUMP ROOK YAMLS ====
 rook_template_dir="/etc/ceph-csv-templates"
@@ -51,15 +51,15 @@ rook_csv_template="rook-ceph-ocp.vVERSION.clusterserviceversion.yaml.in"
 rook_crds_dir=$rook_template_dir/crds
 crd_list=$(mktemp)
 echo "Dumping rook csv using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
-$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template | tee $ROOK_CSV
+$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template > $ROOK_CSV
 echo "Listing rook crds using command: $IMAGE_RUN_CMD --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/"
-$IMAGE_RUN_CMD --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ | tee "$crd_list"
+$IMAGE_RUN_CMD --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ > "$crd_list"
 # shellcheck disable=SC2013
 for i in $(cat "$crd_list"); do
         # shellcheck disable=SC2059
 	crd_file=$(printf ${rook_crds_dir}/"$i" | tr -d '[:space:]')
 	echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $crd_file"
-	($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") | tee $OUTDIR_CRDS/"$(basename "$crd_file")"
+	($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $OUTDIR_CRDS/"$(basename "$crd_file")"
 done;
 rm -f "$crd_list"
 
@@ -92,5 +92,5 @@ echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 # directory which causes issues in Permissions spec of CSV. So,
 # removing depoy/bundlemanifests/ before generating CSV and restoring it
 # (from $OUTDIR_BUNDLEMANIFESTS) afterwards to bypass the recursive check
-cp $OUTDIR_BUNDLEMANIFESTS/*.yaml deploy/bundlemanifests
+cp $OUTDIR_BUNDLEMANIFESTS/*.yaml $BUNDLEMANIFESTS_DIR
 mv $OUTDIR_TEMPLATES/manifests/ $OCS_FINAL_DIR

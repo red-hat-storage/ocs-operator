@@ -38,7 +38,9 @@ if [ -z "$NOOBAA_IMAGE" ] || [ -z "$NOOBAA_CORE_IMAGE" ] || [ -z "$NOOBAA_DB_IMA
 	exit 1
 fi
 
-hack/source-manifests.sh
+if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ]; then
+	hack/source-manifests.sh
+fi
 
 # Merge component-level operators into ocs CSV
 $CSV_MERGER \
@@ -62,6 +64,6 @@ $CSV_MERGER \
 	--ocs-image="$OCS_IMAGE" \
 	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
 	--crds-directory="$OUTDIR_CRDS" \
-	--manifests-directory=$OUTDIR_BUNDLEMANIFESTS \
+	--manifests-directory=$BUNDLEMANIFESTS_DIR \
 	--olm-bundle-directory="$OCS_FINAL_DIR" \
 	--timestamp="$TIMESTAMP"

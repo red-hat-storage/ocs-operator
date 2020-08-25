@@ -1,0 +1,262 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "ocs.openshift.io/v1",
+          "kind": "OCSInitialization",
+          "metadata": {
+            "name": "example-ocsinitialization"
+          },
+          "spec": {}
+        },
+        {
+          "apiVersion": "ocs.openshift.io/v1",
+          "kind": "StorageCluster",
+          "metadata": {
+            "name": "example-storagecluster",
+            "namespace": "openshift-storage"
+          },
+          "spec": {
+            "manageNodes": false,
+            "monPVCTemplate": {
+              "spec": {
+                "accessModes": [
+                  "ReadWriteOnce"
+                ],
+                "resources": {
+                  "requests": {
+                    "storage": "10Gi"
+                  }
+                },
+                "storageClassName": "gp2"
+              }
+            },
+            "storageDeviceSets": [
+              {
+                "count": 3,
+                "dataPVCTemplate": {
+                  "spec": {
+                    "accessModes": [
+                      "ReadWriteOnce"
+                    ],
+                    "resources": {
+                      "requests": {
+                        "storage": "1Ti"
+                      }
+                    },
+                    "storageClassName": "gp2",
+                    "volumeMode": "Block"
+                  }
+                },
+                "name": "example-deviceset",
+                "placement": {},
+                "portable": true,
+                "resources": {}
+              }
+            ]
+          }
+        },
+        {
+          "apiVersion": "ocs.openshift.io/v1",
+          "kind": "StorageClusterInitialization",
+          "metadata": {
+            "name": "example-storageclusterinitialization"
+          },
+          "spec": {}
+        }
+      ]
+    capabilities: Basic Install
+  name: ocs-operator.v{{.OcsOperatorCsvVersion}}
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: OCSInitialization is the Schema for the ocsinitialization API
+      kind: OCSInitialization
+      name: ocsinitializations.ocs.openshift.io
+      version: v1
+    - description: StorageClusterInitialization is the Schema for the storageclusterinitializations
+        API
+      kind: StorageClusterInitialization
+      name: storageclusterinitializations.ocs.openshift.io
+      version: v1
+    - description: StorageCluster is the Schema for the storageclusters API
+      kind: StorageCluster
+      name: storageclusters.ocs.openshift.io
+      version: v1
+  displayName: Ocs Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          - nodes
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - '*'
+          - storageclusters
+          - ocsinitialization
+          - storageclusterinitializations
+          verbs:
+          - '*'
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephclusters
+          - cephblockpools
+          - cephfilesystems
+          - cephobjectstores
+          - cephobjectstoreusers
+          verbs:
+          - '*'
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - noobaas
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - create
+          - update
+        - apiGroups:
+          - template.openshift.io
+          resources:
+          - templates
+          verbs:
+          - '*'
+        serviceAccountName: ocs-operator
+      deployments:
+      - name: ocs-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: ocs-operator
+          strategy:
+            type: Recreate
+          template:
+            metadata:
+              labels:
+                name: ocs-operator
+            spec:
+              containers:
+              - command:
+                - ocs-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: ocs-operator
+                image: {{.OcsOperatorImage}}
+                imagePullPolicy: Always
+                name: ocs-operator
+                ports:
+                - containerPort: 60000
+                  name: metrics
+                readinessProbe:
+                  exec:
+                    command:
+                    - stat
+                    - /tmp/operator-sdk-ready
+                  failureThreshold: 1
+                  initialDelaySeconds: 4
+                  periodSeconds: 10
+                resources: {}
+              serviceAccountName: ocs-operator
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - ""
+  maintainers:
+  - {}
+  maturity: alpha
+  provider: {}
+  version: {{.OcsOperatorCsvVersion}}

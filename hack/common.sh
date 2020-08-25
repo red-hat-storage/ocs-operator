@@ -26,9 +26,9 @@ IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-${IMAGE_BUILD_CMD} run --rm -it}"
 OUTDIR="build/_output"
 OUTDIR_BIN="build/_output/bin"
 OUTDIR_OCS_CI="build/_output/ocs-ci-testsuite"
-OUTDIR_TEMPLATES="$OUTDIR/csv-templates"
+OUTDIR_TEMPLATES="deploy/csv-templates"
 OUTDIR_CRDS="$OUTDIR_TEMPLATES/crds"
-OUTDIR_BUNDLEMANIFESTS="$OUTDIR_TEMPLATES/bundlemanifests"
+OUTDIR_BUNDLEMANIFESTS="$OUTDIR/bundlemanifests"
 OUTDIR_TOOLS="$OUTDIR/tools"
 OUTDIR_CLUSTER_DEPLOY_MANIFESTS="$OUTDIR/cluster-deploy-manifests"
 
@@ -45,10 +45,17 @@ REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL="${REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL:-fa
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"
 OCS_FINAL_DIR="deploy/olm-catalog/ocs-operator/manifests"
+BUNDLEMANIFESTS_DIR="deploy/bundlemanifests"
 
 NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
+
+LATEST_ROOK_IMAGE="rook/ceph:v1.4.0-28.g3c00330"
+LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:2.3.0"
+LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.5.0"
+LATEST_NOOBAA_DB_IMAGE="centos/mongodb-36-centos7"
+LATEST_CEPH_IMAGE="ceph/ceph:v14.2"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
@@ -85,5 +92,8 @@ OS_TYPE=$(uname)
 if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	CATALOG_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:${CATALOG_IMAGE_NAME}"
 	echo "Openshift CI detected, deploying using image $CATALOG_FULL_IMAGE_NAME"
+	# When run by the openshift ci, we must pass the original
+	# ocs-must-gather image name to the csv-merger tool
+	export OCS_MUST_GATHER_IMAGE="${MUST_GATHER_FULL_IMAGE_NAME}"
 	MUST_GATHER_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-must-gather-quay"
 fi
