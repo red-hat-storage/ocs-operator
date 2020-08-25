@@ -2497,6 +2497,8 @@ spec:
                   uid:
                     description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                     type: string
+            snapshotClassesCreated:
+              type: boolean
             storageClassesCreated:
               type: boolean
   version: v1

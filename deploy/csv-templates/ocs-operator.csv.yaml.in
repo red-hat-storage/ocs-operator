@@ -175,6 +175,18 @@ spec:
           - update
           - delete
         - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshots
+          - volumesnapshotclasses
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
           - security.openshift.io
           resources:
           - securitycontextconstraints
