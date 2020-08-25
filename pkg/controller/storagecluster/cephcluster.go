@@ -23,6 +23,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
+	networkProvider           = "multus"
+	publicNetworkSelectorKey  = "public"
+	clusterNetworkSelectorKey = "cluster"
+)
+
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {

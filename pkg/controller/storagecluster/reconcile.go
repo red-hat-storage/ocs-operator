@@ -55,10 +55,6 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	CleanupPolicyDelete CleanupPolicyType = "yes-really-destroy-data"
 	//Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
-	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
-	networkProvider           = "multus"
-	publicNetworkSelectorKey  = "public"
-	clusterNetworkSelectorKey = "cluster"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"

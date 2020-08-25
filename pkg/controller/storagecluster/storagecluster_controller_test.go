@@ -582,25 +582,6 @@ func TestNodeTopologyMapLabelSelector(t *testing.T) {
 
 // TestStorageClusterOnMultus tests if multus configurations in StorageCluster are successfully applied to CephClusterCR
 func TestStorageClusterOnMultus(t *testing.T) {
-	// When only public network is specified.
-	createStorageClusterWithMultus(t, "public-network", "")
-	// When both public and cluster network are specified.
-	createStorageClusterWithMultus(t, "public-network", "cluster-network")
-	// When only cluster network is specified, this will be an error case .
-	createStorageClusterWithMultus(t, "", "cluster-network")
-	// When public network and cluster network is empty, this will be an error case.
-	createStorageClusterWithMultus(t, "", "")
-}
-
-func createStorageClusterWithMultus(t *testing.T, publicNetwork string, clusterNetwork string) {
-	cr := createDefaultStorageCluster()
-	cr.Spec.Network = v1.NetworkSpec{
-		Provider: networkProvider,
-		Selectors: map[string]string{
-			"public":  publicNetwork,
-			"cluster": clusterNetwork,
-		},
-	}
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -608,18 +589,59 @@ func createStorageClusterWithMultus(t *testing.T, publicNetwork string, clusterN
 		},
 	}
 	platform := &CloudPlatform{platform: PlatformUnknown}
-	reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(
-		t, platform)
+	cases := []struct {
+		testCase string
+		publicNW string
+		clusterNW string
+		cr *api.StorageCluster
+	}{
+		{
+			// When only public network is specified.
+			testCase: "public",
+			publicNW: "public-network",
+			clusterNW: "",
+		},
+		{
+			// When only cluster network is specified, this will be an error case .
+			testCase: "cluster",
+			publicNW: "",
+			clusterNW: "cluster-network",
+		},
+		{
+	   		// When both public and cluster network are specified.
+			testCase: "both",
+			publicNW: "public-network",
+			clusterNW: "cluster-network",
+		},
+		{
+			// When public network and cluster network is empty, this will be an error case.
+			testCase: "none",
+			publicNW: "",
+			clusterNW: "",
+		},
+	}
 
-	_ = reconciler.client.Create(nil, cr)
-	result, err := reconciler.Reconcile(request)
-	validMultus := validateMultusSelectors(cr.Spec.Network.Selectors)
-	if validMultus != nil {
-		assert.Error(t, err)
-	} else {
-		assert.NoError(t, err)
-		assert.Equal(t, reconcile.Result{}, result)
-		assertCephClusterNetwork(t, reconciler, cr, request)
+	for _, c := range cases {
+		c.cr = createDefaultStorageCluster()
+		c.cr.Spec.Network = v1.NetworkSpec{
+			Provider: networkProvider,
+			Selectors: map[string]string{
+				"public": c.publicNW,
+				"cluster": c.clusterNW,
+			},
+		}
+		reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(t, platform)
+		_ = reconciler.client.Create(nil, c.cr)
+		result, err := reconciler.Reconcile(request)
+		validMultus := validateMultusSelectors(c.cr.Spec.Network.Selectors)
+		if validMultus != nil {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, reconcile.Result{}, result)
+			assertCephClusterNetwork(t, reconciler, c.cr, request)
+		}
+
 	}
 }
 

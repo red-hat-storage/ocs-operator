@@ -40,18 +40,18 @@ spec:
 ```
 
 The selector keys are required to be public and cluster where each represents:
-`public`: client communications with the cluster (reads/writes)
-`cluster`: internal Ceph replication network
+* `public`: client communications with the cluster (reads/writes)
+* `cluster`: internal Ceph replication network
+
 Based on the configuration, the operator will do the following:
-if only the public network is specified both communication and replication will happen on that network
-if both public and cluster networks are specified the first one will run the communication network and the second the replication network
-In order to work, each network key value must match a `NetworkAttachmentDefinition` object name in Multus. For example, you can do:
-`public: “my-public-storage-network”`
-`cluster: “my-replication-storage-network”`
+* If only the public network is specified both communication and replication will happen on that network
+* If both public and cluster networks are specified the first one will run the communication network and the second the replication network
+
+In order to work, each network key value must match a `NetworkAttachmentDefinition` object name in Multus. 
 
 For multus network provider, an already working cluster with Multus networking is required. Network attachment definition that later will be attached to the cluster needs to be created before the Cluster CRD. If Rook cannot find the provided Network attachment definition it will fail running the Ceph OSD pods. You can add the Multus network attachment selection annotation selecting the created network attachment definition on selectors.
 
-Following is an example of multus NetworkAttachmentDefinition
+The following are the examples of valid multus NetworkAttachmentDefinitions:
 Create a `public` and `cluster` network by creating a `NetworkAttachmentDefinition` object.
 Example NetworkAttachmentDefinition
 ```yaml
@@ -67,14 +67,8 @@ spec:
       "master": "ens3",
       "mode": "bridge",
       "ipam": {
-            "type": "host-local",
-            "subnet": "192.168.1.0/24",
-            "rangeStart": "192.168.1.200",
-            "rangeEnd": "192.168.1.216",
-            "routes": [
-                  { "dst": "0.0.0.0/0" }
-            ],
-            "gateway": "192.168.1.1"
+            "type": "whereabouts",
+            "range": "192.168.1.0/24",
       }
   }'
 ```
@@ -91,14 +85,8 @@ spec:
       "master": "ens3",
       "mode": "bridge",
       "ipam": {
-            "type": "host-local",
-            "subnet": "192.168.0.0/24",
-            "rangeStart": "192.168.0.200",
-            "rangeEnd": "192.168.0.216",
-            "routes": [
-                  { "dst": "0.0.0.0/0" }
-            ],
-            "gateway": "192.168.0.1"
+            "type": "whereabouts",
+            "range": "192.168.0.0/24",
       }
   }'
 ```
