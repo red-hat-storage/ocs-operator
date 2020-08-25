@@ -44,6 +44,13 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 		}
 	}
 
+	if sc.Spec.Network.IsMultus() {
+		err := validateMultusSelectors(sc.Spec.Network.Selectors)
+		if err != nil {
+			return err
+		}
+	}
+
 	var cephCluster *cephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
@@ -226,7 +233,25 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, r
 	} else {
 		reqLogger.Info(fmt.Sprintf("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for storageCluster %s", sc.GetName()))
 	}
+	if sc.Spec.Network.IsMultus() {
+		cephCluster.Spec.Network.NetworkSpec = sc.Spec.Network
+	}
 	return cephCluster
+}
+
+func validateMultusSelectors(selectors map[string]string) error {
+	publicNetwork, validPublicNetworkKey := selectors[publicNetworkSelectorKey]
+	clusterNetwork, validClusterNetworkKey := selectors[clusterNetworkSelectorKey]
+	if !validPublicNetworkKey && !validClusterNetworkKey {
+		return fmt.Errorf("invalid value of the keys for the network selectors. keys should be public and cluster only")
+	}
+	if publicNetwork == "" && clusterNetwork == "" {
+		return fmt.Errorf("Both public and cluster network selector values can't be empty")
+	}
+	if publicNetwork == "" {
+		return fmt.Errorf("public network selector values can't be empty")
+	}
+	return nil
 }
 
 func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
