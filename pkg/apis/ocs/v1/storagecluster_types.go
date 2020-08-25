@@ -136,6 +136,7 @@ type StorageClusterStatus struct {
 	CephBlockPoolsCreated       bool `json:"cephBlockPoolsCreated,omitempty"`
 	CephObjectStoreUsersCreated bool `json:"cephObjectStoreUsersCreated,omitempty"`
 	CephFilesystemsCreated      bool `json:"cephFilesystemsCreated,omitempty"`
+	SnapshotClassesCreated      bool `json:"snapshotClassesCreated,omitempty"`
 }
 
 // TopologyLabelValues is a list of values for a topology label

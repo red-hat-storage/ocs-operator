@@ -10,6 +10,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/go-openapi/spec v0.19.5
+	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1
 	github.com/noobaa/noobaa-operator/v2 v2.3.0
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0

@@ -212,6 +212,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		ensureFs = []ensureFunc{
 			// Add support for additional resources here
 			r.ensureStorageClasses,
+			r.ensureSnapshotClasses,
 			r.ensureCephObjectStores,
 			r.ensureCephObjectStoreUsers,
 			r.ensureCephBlockPools,
