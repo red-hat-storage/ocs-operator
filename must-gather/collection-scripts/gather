@@ -5,6 +5,7 @@ mkdir -p ${BASE_COLLECTION_PATH}
 
 # Call other gather scripts
 gather_namespaced_resources ${BASE_COLLECTION_PATH}
+gather_clusterscoped_resources ${BASE_COLLECTION_PATH}
 gather_noobaa_resources ${BASE_COLLECTION_PATH}
 gather_ceph_resources ${BASE_COLLECTION_PATH}
 
