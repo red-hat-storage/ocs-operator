@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -62,13 +65,9 @@ func (r *ReconcileStorageCluster) setRookCSICephFS(
 	return r.client.Update(context.TODO(), rookCephOperatorConfig)
 }
 
-// ensureExternalStorageClusterResources ensures that requested resources for the external cluster
-// being created
-func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	// check for the status boolean value accepted or not
-	if instance.Status.ExternalSecretFound {
-		return nil
-	}
+// retrieveExternalSecretData function retrieves the external secret and returns the data it contains
+func (r *ReconcileStorageCluster) retrieveExternalSecretData(
+	instance *ocsv1.StorageCluster, reqLogger logr.Logger) ([]ExternalResource, error) {
 	found := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalClusterDetailsSecret,
@@ -77,15 +76,86 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: found.Name, Namespace: found.Namespace}, found)
 	if err != nil {
-		return err
+		reqLogger.Error(err, "could not find the external secret resource")
+		return nil, err
 	}
 	var data []ExternalResource
 	err = json.Unmarshal(found.Data[externalClusterDetailsKey], &data)
 	if err != nil {
 		reqLogger.Error(err, "could not parse json blob")
-		return err
+		return nil, err
 	}
-	err = r.createExternalStorageClusterResources(data, instance, reqLogger)
+	return data, nil
+}
+
+func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger) (*cephv1.GatewaySpec, error) {
+	var gateWay cephv1.GatewaySpec
+	hostIP, portStr, err := net.SplitHostPort(rgwEndpoint)
+	if err != nil {
+		reqLogger.Error(err,
+			fmt.Sprintf("invalid rgw endpoint provided: %s", rgwEndpoint))
+		return nil, err
+	}
+	if hostIP == "" {
+		err := fmt.Errorf("An empty rgw host 'IP' address found")
+		reqLogger.Error(err, "Host IP should not be empty in rgw endpoint")
+		return nil, err
+	}
+	gateWay.ExternalRgwEndpoints = []corev1.EndpointAddress{{IP: hostIP}}
+	var portInt64 int64
+	if portInt64, err = strconv.ParseInt(portStr, 10, 32); err != nil {
+		reqLogger.Error(err,
+			fmt.Sprintf("invalid rgw 'port' provided: %s", portStr))
+		return nil, err
+	}
+	gateWay.Port = int32(portInt64)
+	return &gateWay, nil
+}
+
+// newExternalCephObjectStoreInstances returns a set of CephObjectStores
+// needed for external cluster mode
+func (r *ReconcileStorageCluster) newExternalCephObjectStoreInstances(
+	initData *ocsv1.StorageCluster, rgwEndpoint string, reqLogger logr.Logger) ([]*cephv1.CephObjectStore, error) {
+	// check whether the provided rgw endpoint is empty
+	if rgwEndpoint = strings.TrimSpace(rgwEndpoint); rgwEndpoint == "" {
+		reqLogger.Info("WARNING: Empty RGW Endpoint specified, external CephObjectStore won't be created")
+		return nil, nil
+	}
+	gatewaySpec, err := newExternalGatewaySpec(rgwEndpoint, reqLogger)
+	if err != nil {
+		return nil, err
+	}
+	// enable bucket healthcheck
+	healthCheck := cephv1.BucketHealthCheckSpec{
+		Bucket: cephv1.HealthCheckSpec{
+			Disabled: false,
+			Interval: "60s",
+		},
+	}
+	retObj := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephObjectStore(initData),
+			Namespace: initData.Namespace,
+		},
+		Spec: cephv1.ObjectStoreSpec{
+			Gateway:     *gatewaySpec,
+			HealthCheck: healthCheck,
+		},
+	}
+	retArrObj := []*cephv1.CephObjectStore{
+		retObj,
+	}
+	return retArrObj, nil
+}
+
+// ensureExternalStorageClusterResources ensures that requested resources for the external cluster
+// being created
+func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	// check for the status boolean value accepted or not
+	if instance.Status.ExternalSecretFound {
+		return nil
+	}
+	err := r.createExternalStorageClusterResources(instance, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "could not create ExternalStorageClusterResource")
 		return err
@@ -94,9 +164,8 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 	return nil
 }
 
-// createExternalStorageClusterResources create the needed external cluster resources
-func (r *ReconcileStorageCluster) createExternalStorageClusterResources(
-	data []ExternalResource, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+// createExternalStorageClusterResources creates external cluster resources
+func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	ownerRef := metav1.OwnerReference{
 		UID:        instance.UID,
 		APIVersion: instance.APIVersion,
@@ -112,6 +181,12 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
 	var availableSCs []*storagev1.StorageClass
+	data, err := r.retrieveExternalSecretData(instance, reqLogger)
+	if err != nil {
+		reqLogger.Error(err, "Failed to retrieve external resources")
+		return err
+	}
+	var extCephObjectStores []*cephv1.CephObjectStore
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{
 			Name:            d.Name,
@@ -155,9 +230,19 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(
 				// 'sc' points to RBD StorageClass
 				sc = scs[1]
 			} else if d.Name == cephRgwStorageClassName {
+				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
+				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint, reqLogger)
+				if err != nil {
+					return err
+				}
+				// rgw-endpoint is no longer needed in the 'd.Data' dictionary,
+				// and can be deleted
+				// created an issue in rook to add `CephObjectStore` type directly in the JSON output
+				// https://github.com/rook/rook/issues/6165
+				delete(d.Data, externalCephRgwEndpointKey)
 				// Set the external rgw endpoint variable for later use on the Noobaa CR (as a label)
 				// Replace the colon with an underscore, otherwise the label will be invalid
-				externalRgwEndpointReplaceColon := strings.Replace(d.Data[externalCephRgwEndpointKey], ":", "_", -1)
+				externalRgwEndpointReplaceColon := strings.Replace(rgwEndpoint, ":", "_", -1)
 				externalRgwEndpoint = externalRgwEndpointReplaceColon
 
 				// 'sc' points to OBC StorageClass
@@ -181,6 +266,11 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(
 		reqLogger.Error(err,
 			fmt.Sprintf("failed to set '%s' to %v", rookEnableCephFSCSIKey, enableRookCSICephFS))
 		return err
+	}
+	if extCephObjectStores != nil {
+		if err = r.createCephObjectStores(extCephObjectStores, reqLogger); err != nil {
+			return err
+		}
 	}
 	return nil
 }
