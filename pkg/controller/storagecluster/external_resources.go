@@ -242,8 +242,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				delete(d.Data, externalCephRgwEndpointKey)
 				// Set the external rgw endpoint variable for later use on the Noobaa CR (as a label)
 				// Replace the colon with an underscore, otherwise the label will be invalid
-				externalRgwEndpointReplaceColon := strings.Replace(rgwEndpoint, ":", "_", -1)
-				externalRgwEndpoint = externalRgwEndpointReplaceColon
+				externalRgwEndpoint = strings.Replace(rgwEndpoint, ":", "_", -1)
 
 				// 'sc' points to OBC StorageClass
 				sc = scs[2]
