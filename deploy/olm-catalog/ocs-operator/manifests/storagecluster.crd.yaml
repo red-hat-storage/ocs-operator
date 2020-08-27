@@ -381,6 +381,25 @@ spec:
                       type: object
                   type: object
               type: object
+            network:
+              description: Network represents cluster network settings
+              properties:
+                provider:
+                  description: Provider is what provides network connectivity to the
+                    cluster e.g. "host" or "multus"
+                  type: string
+                selectors:
+                  additionalProperties:
+                    type: string
+                  description: Selectors string values describe what networks will
+                    be used to connect the cluster. Meanwhile the keys describe each
+                    network respective responsibilities or any metadata storage provider
+                    decide.
+                  type: object
+              required:
+              - provider
+              - selectors
+              type: object
             placement:
               additionalProperties:
                 properties:

@@ -382,6 +382,25 @@ spec:
                             - type: integer
                             - type: string
                             x-kubernetes-int-or-string: true
+            network:
+              description: Network represents cluster network settings
+              type: object
+              required:
+              - provider
+              - selectors
+              properties:
+                provider:
+                  description: Provider is what provides network connectivity to the
+                    cluster e.g. "host" or "multus"
+                  type: string
+                selectors:
+                  description: Selectors string values describe what networks will
+                    be used to connect the cluster. Meanwhile the keys describe each
+                    network respective responsibilities or any metadata storage provider
+                    decide.
+                  type: object
+                  additionalProperties:
+                    type: string
             placement:
               description: Placement is optional and used to specify placements of
                 OCS components explicitly

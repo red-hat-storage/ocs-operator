@@ -23,6 +23,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
+	networkProvider           = "multus"
+	publicNetworkSelectorKey  = "public"
+	clusterNetworkSelectorKey = "cluster"
+)
+
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
@@ -41,6 +48,13 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
 		} else {
 			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+		}
+	}
+
+	if sc.Spec.Network.IsMultus() {
+		err := validateMultusSelectors(sc.Spec.Network.Selectors)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -226,7 +240,25 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, r
 	} else {
 		reqLogger.Info(fmt.Sprintf("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for storageCluster %s", sc.GetName()))
 	}
+	if sc.Spec.Network.IsMultus() {
+		cephCluster.Spec.Network.NetworkSpec = sc.Spec.Network
+	}
 	return cephCluster
+}
+
+func validateMultusSelectors(selectors map[string]string) error {
+	publicNetwork, validPublicNetworkKey := selectors[publicNetworkSelectorKey]
+	clusterNetwork, validClusterNetworkKey := selectors[clusterNetworkSelectorKey]
+	if !validPublicNetworkKey && !validClusterNetworkKey {
+		return fmt.Errorf("invalid value of the keys for the network selectors. keys should be public and cluster only")
+	}
+	if publicNetwork == "" && clusterNetwork == "" {
+		return fmt.Errorf("Both public and cluster network selector values can't be empty")
+	}
+	if publicNetwork == "" {
+		return fmt.Errorf("public network selector values can't be empty")
+	}
+	return nil
 }
 
 func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {

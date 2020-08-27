@@ -10,6 +10,7 @@ import (
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	v1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -577,4 +578,77 @@ func TestNodeTopologyMapLabelSelector(t *testing.T) {
 		},
 	}
 	assert.Equal(t, nodeTopologyMap, sc.Status.NodeTopologies)
+}
+
+// TestStorageClusterOnMultus tests if multus configurations in StorageCluster are successfully applied to CephClusterCR
+func TestStorageClusterOnMultus(t *testing.T) {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+	platform := &CloudPlatform{platform: PlatformUnknown}
+	cases := []struct {
+		testCase string
+		publicNW string
+		clusterNW string
+		cr *api.StorageCluster
+	}{
+		{
+			// When only public network is specified.
+			testCase: "public",
+			publicNW: "public-network",
+			clusterNW: "",
+		},
+		{
+			// When only cluster network is specified, this will be an error case .
+			testCase: "cluster",
+			publicNW: "",
+			clusterNW: "cluster-network",
+		},
+		{
+	   		// When both public and cluster network are specified.
+			testCase: "both",
+			publicNW: "public-network",
+			clusterNW: "cluster-network",
+		},
+		{
+			// When public network and cluster network is empty, this will be an error case.
+			testCase: "none",
+			publicNW: "",
+			clusterNW: "",
+		},
+	}
+
+	for _, c := range cases {
+		c.cr = createDefaultStorageCluster()
+		c.cr.Spec.Network = v1.NetworkSpec{
+			Provider: networkProvider,
+			Selectors: map[string]string{
+				"public": c.publicNW,
+				"cluster": c.clusterNW,
+			},
+		}
+		reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(t, platform)
+		_ = reconciler.client.Create(nil, c.cr)
+		result, err := reconciler.Reconcile(request)
+		validMultus := validateMultusSelectors(c.cr.Spec.Network.Selectors)
+		if validMultus != nil {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, reconcile.Result{}, result)
+			assertCephClusterNetwork(t, reconciler, c.cr, request)
+		}
+
+	}
+}
+
+func assertCephClusterNetwork(t assert.TestingT, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
+	request.Name = "ocsinit-cephcluster"
+	cephCluster := newCephCluster(cr, "", 3, log)
+	err := reconciler.client.Get(nil, request.NamespacedName, cephCluster)
+	assert.NoError(t, err)
+	assert.Equal(t, cr.Spec.Network, cephCluster.Spec.Network.NetworkSpec)
 }
