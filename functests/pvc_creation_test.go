@@ -13,7 +13,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var _ = Describe("PVC Creation", func() {
+var _ = Describe("PVC Creation", PVCCreationTest)
+
+func PVCCreationTest() {
 	var k8sClient *kubernetes.Clientset
 	var deployManager *deploymanager.DeployManager
 
@@ -57,4 +59,4 @@ var _ = Describe("PVC Creation", func() {
 			})
 		})
 	})
-})
+}

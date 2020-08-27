@@ -17,85 +17,101 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var _ = Describe("Rook Ceph Tools", func() {
-	var k8sClient *kubernetes.Clientset
-	var ocsClient *rest.RESTClient
-	var parameterCodec runtime.ParameterCodec
+const (
+	disableToolsPatch = `[{ "op": "replace", "path": "/spec/enableCephTools", "value": false }]`
+	enableToolsPatch  = `[{ "op": "replace", "path": "/spec/enableCephTools", "value": true }]`
+)
 
-	disableToolsPatch := `[{ "op": "replace", "path": "/spec/enableCephTools", "value": false }]`
-	enableToolsPatch := `[{ "op": "replace", "path": "/spec/enableCephTools", "value": true }]`
+type RookCephTools struct {
+	k8sClient      *kubernetes.Clientset
+	ocsClient      *rest.RESTClient
+	parameterCodec runtime.ParameterCodec
+}
+
+func newRookCephTools() (*RookCephTools, error) {
+	deployManager, err := deploymanager.NewDeployManager()
+	if err != nil {
+		return nil, err
+	}
+	retOCSObj := &RookCephTools{
+		k8sClient:      deployManager.GetK8sClient(),
+		ocsClient:      deployManager.GetOcsClient(),
+		parameterCodec: deployManager.GetParameterCodec(),
+	}
+	return retOCSObj, nil
+}
+
+func (rctObj *RookCephTools) patchOCSInit(patch string) error {
+	init := &ocsv1.OCSInitialization{}
+	return rctObj.ocsClient.Patch(types.JSONPatchType).
+		Resource("ocsinitializations").
+		Namespace(deploymanager.InstallNamespace).
+		Name("ocsinit").
+		Body([]byte(patch)).
+		VersionedParams(&metav1.GetOptions{}, rctObj.parameterCodec).
+		Do().
+		Into(init)
+}
+
+func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
+	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	if err != nil {
+		return err
+	}
+	if len(pods.Items) == 0 {
+		return fmt.Errorf("waiting on a rook-tools-pod to come online")
+	}
+	if pods.Items[0].Status.Phase != k8sv1.PodRunning {
+		return fmt.Errorf("Waiting on rook-tools-pod with phase %s to be %s",
+			pods.Items[0].Status.Phase, k8sv1.PodRunning)
+	}
+	// pod is online and running
+	return nil
+}
+
+func (rctObj *RookCephTools) toolsRemove() error {
+	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	if err != nil {
+		return err
+	}
+	if len(pods.Items) != 0 {
+		return fmt.Errorf("waiting for rook-tools-pod to be deleted")
+	}
+	// pod is removed
+	return nil
+}
+
+var _ = Describe("Rook Ceph Tools", rookCephToolsTest)
+
+func rookCephToolsTest() {
+	var rctObj *RookCephTools
+	var err error
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
-
-		deployManager, err := deploymanager.NewDeployManager()
+		rctObj, err = newRookCephTools()
 		Expect(err).To(BeNil())
-		k8sClient = deployManager.GetK8sClient()
-		ocsClient = deployManager.GetOcsClient()
-		parameterCodec = deployManager.GetParameterCodec()
 	})
-
-	patchOcsInit := func(patch string) {
-
-		init := &ocsv1.OCSInitialization{}
-		err := ocsClient.Patch(types.JSONPatchType).
-			Resource("ocsinitializations").
-			Namespace(deploymanager.InstallNamespace).
-			Name("ocsinit").
-			Body([]byte(patch)).
-			VersionedParams(&metav1.GetOptions{}, parameterCodec).
-			Do().
-			Into(init)
-
-		Expect(err).To(BeNil())
-	}
 
 	Describe("Deployment", func() {
 		AfterEach(func() {
-			patchOcsInit(disableToolsPatch)
+			err = rctObj.patchOCSInit(disableToolsPatch)
+			Expect(err).To(BeNil())
 		})
-
 		It("Ensure enable tools works", func() {
-
 			By("Setting enableCephTools=true")
-			patchOcsInit(enableToolsPatch)
+			err = rctObj.patchOCSInit(enableToolsPatch)
+			Expect(err).To(BeNil())
 
 			By("Ensuring tools are created")
-			Eventually(func() error {
-				pods, err := k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
-				if err != nil {
-					return err
-				}
-
-				if len(pods.Items) == 0 {
-					return fmt.Errorf("waiting on a rook-tools-pod to come online")
-				}
-
-				if pods.Items[0].Status.Phase != k8sv1.PodRunning {
-					return fmt.Errorf("Waiting on rook-tools-pod with phase %s to be %s", pods.Items[0].Status.Phase, k8sv1.PodRunning)
-				}
-				// pod is online and running
-				return nil
-			}, 200*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
+			Eventually(rctObj.toolsPodOnlineCheck, 200*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 
 			By("Setting enableCephTools=false")
-			patchOcsInit(disableToolsPatch)
+			err = rctObj.patchOCSInit(disableToolsPatch)
+			Expect(err).To(BeNil())
 
 			By("Ensuring tools are removed")
-			Eventually(func() error {
-				pods, err := k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
-				if err != nil {
-					return err
-				}
-
-				if len(pods.Items) != 0 {
-					return fmt.Errorf("waiting for rook-tools-pod to be deleted")
-				}
-
-				// pod is removed
-				return nil
-			}, 200*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
-
+			Eventually(rctObj.toolsRemove, 200*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
 		})
 	})
-})
+}

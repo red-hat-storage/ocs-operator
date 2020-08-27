@@ -13,7 +13,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var _ = Describe("job creation", func() {
+var _ = Describe("job creation", DataValidationTest)
+
+func DataValidationTest() {
 	var k8sClient *kubernetes.Clientset
 	var deployManager *deploymanager.DeployManager
 
@@ -68,4 +70,4 @@ var _ = Describe("job creation", func() {
 			})
 		})
 	})
-})
+}

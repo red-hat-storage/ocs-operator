@@ -9,7 +9,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Must Gather", func() {
+var _ = Describe("Must Gather", MustGatherTest)
+
+func MustGatherTest() {
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
 	})
@@ -22,4 +24,4 @@ var _ = Describe("Must Gather", func() {
 		fmt.Printf("%s", output)
 		Expect(err).To(BeNil())
 	})
-})
+}
