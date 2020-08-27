@@ -143,6 +143,7 @@ type ReconcileStorageCluster struct {
 	conditions      []conditionsv1.Condition
 	phase           string
 	cephImage       string
+	monitoringIP    string
 	noobaaDBImage   string
 	noobaaCoreImage string
 	nodeCount       int
