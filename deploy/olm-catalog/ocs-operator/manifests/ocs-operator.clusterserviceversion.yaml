@@ -702,10 +702,7 @@ metadata:
     olm.skipRange: '>=0.0.1 <4.6.0'
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-storage
-    operators.operatorframework.io/internal-objects: '["cephclusters.ceph.rook.io",
-      "cephblockpools.ceph.rook.io", "cephobjectstores.ceph.rook.io", "cephobjectstoreusers.ceph.rook.io",
-      "cephnfses.ceph.rook.io","cephclients.ceph.rook.io", "noobaas.noobaa.io", "objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","ocsinitializations.ocs.openshift.io",
-      "storageclusterinitializations.ocs.openshift.io", "cephfilesystems.ceph.rook.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclusterinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephblockpools.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","noobaas.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
     repository: https://github.com/openshift/ocs-operator
     support: Red Hat
   name: ocs-operator.v4.6.0
