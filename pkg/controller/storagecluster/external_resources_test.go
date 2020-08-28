@@ -323,7 +323,7 @@ func assertCephObjectStore(t *testing.T, reconciler ReconcileStorageCluster, rem
 	sc := &api.StorageCluster{}
 	err := reconciler.client.Get(nil, request.NamespacedName, sc)
 	assert.NoError(t, err)
-	expectedName := fmt.Sprintf("%s-external-cephobjectstore", sc.Name)
+	expectedName := fmt.Sprintf("%s-cephobjectstore", sc.Name)
 	request.Name = expectedName
 	cObjS := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
