@@ -52,7 +52,9 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	// CleanupPolicyAnnotation defines the cleanup policy
 	CleanupPolicyAnnotation = "cleanup.ocs.openshift.io"
 	// CleanupPolicyDelete when set, modifies the cleanup policy for Rook to delete the DataDirHostPath on uninstall
-	CleanupPolicyDelete CleanupPolicyType = "yes-really-destroy-data"
+	CleanupPolicyDelete CleanupPolicyType = "delete"
+	// CleanupPolicyRetain when set, modifies the cleanup policy for Rook to not cleanup the DataDirHostPath and the disks on uninstall
+	CleanupPolicyRetain CleanupPolicyType = "retain"
 	//Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
 )
