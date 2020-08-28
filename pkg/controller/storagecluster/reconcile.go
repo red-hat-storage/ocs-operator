@@ -49,8 +49,8 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
 	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
-	// CleanupPolicyLabel defines the cleanup policy
-	CleanupPolicyLabel = "cleanup.ocs.openshift.io"
+	// CleanupPolicyAnnotation defines the cleanup policy
+	CleanupPolicyAnnotation = "cleanup.ocs.openshift.io"
 	// CleanupPolicyDelete when set, modifies the cleanup policy for Rook to delete the DataDirHostPath on uninstall
 	CleanupPolicyDelete CleanupPolicyType = "yes-really-destroy-data"
 	//Name of MetadataPVCTemplate
@@ -482,7 +482,7 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 }
 
 func (r *ReconcileStorageCluster) setRookCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
-	if v, found := instance.ObjectMeta.Labels[CleanupPolicyLabel]; found {
+	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
 		if v == string(CleanupPolicyDelete) {
 			cephCluster := &cephv1.CephCluster{}
 			err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
