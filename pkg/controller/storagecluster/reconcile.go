@@ -49,8 +49,8 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
 	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
-	// CleanupPolicyAnnotation defines the cleanup policy
-	CleanupPolicyAnnotation = "cleanup.ocs.openshift.io"
+	// CleanupPolicyAnnotation defines the cleanup policy for data and metadata during uninstall
+	CleanupPolicyAnnotation = "uninstall.ocs.openshift.io/cleanup-policy"
 	// CleanupPolicyDelete when set, modifies the cleanup policy for Rook to delete the DataDirHostPath on uninstall
 	CleanupPolicyDelete CleanupPolicyType = "delete"
 	// CleanupPolicyRetain when set, modifies the cleanup policy for Rook to not cleanup the DataDirHostPath and the disks on uninstall
