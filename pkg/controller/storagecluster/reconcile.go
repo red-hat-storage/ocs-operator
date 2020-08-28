@@ -175,6 +175,9 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 				return reconcile.Result{}, err
 			}
 		}
+
+		r.reconcileUninstallAnnotations(instance, reqLogger)
+
 	} else {
 		// The object is marked for deletion
 		instance.Status.Phase = statusutil.PhaseDeleting
@@ -587,6 +590,19 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	}
 
 	return nil
+}
+
+// reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none are set.
+func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) {
+	if _, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
+		reqLogger.Info("setting uninstall mode annotation to default", UninstallModeGraceful)
+	}
+
+	if _, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
+		reqLogger.Info("setting uninstall cleanup policy annotation to default", CleanupPolicyDelete)
+	}
 }
 
 // Checks whether a string is contained within a slice
