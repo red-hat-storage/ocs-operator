@@ -94,12 +94,12 @@ OS_TYPE=$(uname)
 
 # Override the image name when this is invoked from openshift ci
 if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
-	CATALOG_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:${CATALOG_IMAGE_NAME}"
+	CATALOG_FULL_IMAGE_NAME="${IMAGE_FORMAT%:*}:ocs-registry"
 	echo "Openshift CI detected, deploying using image $CATALOG_FULL_IMAGE_NAME"
 	# When run by the openshift ci, we must pass the original
 	# ocs-must-gather image name to the csv-merger tool
 	export OCS_MUST_GATHER_IMAGE="${MUST_GATHER_FULL_IMAGE_NAME}"
-	MUST_GATHER_FULL_IMAGE_NAME="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:ocs-must-gather-quay"
+	MUST_GATHER_FULL_IMAGE_NAME="${IMAGE_FORMAT%:*}:ocs-must-gather-quay"
 	OCS_MUST_GATHER_DIR="${ARTIFACT_DIR}/ocs-must-gather"
 	OCP_MUST_GATHER_DIR="${ARTIFACT_DIR}/ocp-must-gather"
 fi
