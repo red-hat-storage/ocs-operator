@@ -33,6 +33,9 @@ type StorageClassProvisionerType string
 // CleanupPolicyType is a string representing cleanup policy
 type CleanupPolicyType string
 
+// UninstallModeType is a string representing cleanup mode, it decides whether the deletion is graceful or forced
+type UninstallModeType string
+
 // ensureFunc which encapsulate all the 'ensure*' type functions
 type ensureFunc func(*ocsv1.StorageCluster, logr.Logger) error
 
@@ -49,10 +52,18 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
 	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
-	// CleanupPolicyLabel defines the cleanup policy
-	CleanupPolicyLabel = "cleanup.ocs.openshift.io"
+	// CleanupPolicyAnnotation defines the cleanup policy for data and metadata during uninstall
+	CleanupPolicyAnnotation = "uninstall.ocs.openshift.io/cleanup-policy"
 	// CleanupPolicyDelete when set, modifies the cleanup policy for Rook to delete the DataDirHostPath on uninstall
-	CleanupPolicyDelete CleanupPolicyType = "yes-really-destroy-data"
+	CleanupPolicyDelete CleanupPolicyType = "delete"
+	// CleanupPolicyRetain when set, modifies the cleanup policy for Rook to not cleanup the DataDirHostPath and the disks on uninstall
+	CleanupPolicyRetain CleanupPolicyType = "retain"
+	// UninstallModeAnnotation defines the uninstall mode
+	UninstallModeAnnotation = "uninstall.ocs.openshift.io/mode"
+	// UninstallModeForced when set, sets the uninstall mode for Rook and Noobaa to forced.
+	UninstallModeForced UninstallModeType = "forced"
+	// UninstallModeGraceful when set, sets the uninstall mode for Rook and Noobaa to graceful.
+	UninstallModeGraceful UninstallModeType = "graceful"
 	//Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
 )
@@ -482,7 +493,7 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 }
 
 func (r *ReconcileStorageCluster) setRookCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
-	if v, found := instance.ObjectMeta.Labels[CleanupPolicyLabel]; found {
+	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
 		if v == string(CleanupPolicyDelete) {
 			cephCluster := &cephv1.CephCluster{}
 			err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
@@ -504,26 +515,33 @@ func (r *ReconcileStorageCluster) setRookCleanupPolicy(instance *ocsv1.StorageCl
 	return nil
 }
 
-// set noobaa cleanup policy to destroy obc
-func (r *ReconcileStorageCluster) setNoobaaCleanupPolicy(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+// setNoobaaUninstallMode sets the uninstall mode for Noobaa based on the annotation on the StorageCluster
+func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
-	noobaa := &nbv1.NooBaa{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: NooBaa not found, can't set the cleanup policy")
-			return nil
+	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
+		if v == string(UninstallModeForced) {
+			noobaa := &nbv1.NooBaa{}
+			err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					reqLogger.Info("Uninstall: NooBaa not found, can't set UninstallModeForced")
+					return nil
+				}
+				return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
+			}
+
+			// The CleanupPolicy attribute in the Noobaa spec decides the uninstall mode.
+			// Unlike the Rook CleanupPolicy which decides whether the data needs to be erased.
+			noobaa.Spec.CleanupPolicy.Confirmation = nbv1.DeleteOBCConfirmation
+			err = r.client.Update(context.TODO(), noobaa)
+			if err != nil {
+				return fmt.Errorf("Uninstall: Unable to update NooBaa UninstallModeForced: %v", err)
+			}
+
+			reqLogger.Info("Uninstall: NooBaa UninstallModeForced has been set")
 		}
-		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
 	}
 
-	noobaa.Spec.CleanupPolicy.Confirmation = nbv1.DeleteOBCConfirmation
-	err = r.client.Update(context.TODO(), noobaa)
-	if err != nil {
-		return fmt.Errorf("Uninstall: Unable to update NooBaa: %v", err)
-	}
-
-	reqLogger.Info("Uninstall: NooBaa CleanupPolicy has been set to DeleteOBCConfirmation")
 	return nil
 }
 
@@ -536,7 +554,7 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
-	err = r.setNoobaaCleanupPolicy(sc, reqLogger)
+	err = r.setNoobaaUninstallMode(sc, reqLogger)
 	if err != nil {
 		return err
 	}
