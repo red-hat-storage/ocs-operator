@@ -114,7 +114,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			instance.Status.Phase = statusutil.PhaseIgnored
 			phaseErr := r.client.Status().Update(context.TODO(), instance)
 			if phaseErr != nil {
-				reqLogger.Error(phaseErr, "Failed to set PhaseIgnored")
+				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
 				return reconcile.Result{}, phaseErr
 			}
 			return reconcile.Result{}, nil
@@ -138,7 +138,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		instance.Status.Phase = statusutil.PhaseProgressing
 		phaseErr := r.client.Status().Update(context.TODO(), instance)
 		if phaseErr != nil {
-			reqLogger.Error(phaseErr, "Failed to set PhaseProgressing")
+			reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
 		}
 	}
 
@@ -149,7 +149,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
-			reqLogger.Error(err, "Failed to add conditions to status")
+			reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to add conditions to status")
 			return reconcile.Result{}, err
 		}
 	}
@@ -160,7 +160,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			reqLogger.Info("Finalizer not found for storagecluster. Adding finalizer")
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
 			if err := r.client.Update(context.TODO(), instance); err != nil {
-				reqLogger.Error(err, "Failed to update storagecluster with finalizer")
+				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to update storagecluster with finalizer")
 				return reconcile.Result{}, err
 			}
 		}
@@ -169,7 +169,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		instance.Status.Phase = statusutil.PhaseDeleting
 		phaseErr := r.client.Status().Update(context.TODO(), instance)
 		if phaseErr != nil {
-			reqLogger.Error(phaseErr, "Failed to set PhaseDeleting")
+			reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseDeleting")
 		}
 
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
@@ -181,7 +181,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			// Once all finalizers have been removed, the object will be deleted
 			instance.ObjectMeta.Finalizers = remove(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
 			if err := r.client.Update(context.TODO(), instance); err != nil {
-				reqLogger.Error(err, "Failed to remove finalizer from storagecluster")
+				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to remove finalizer from storagecluster")
 				return reconcile.Result{}, err
 			}
 		}
@@ -236,7 +236,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			instance.Status.Phase = statusutil.PhaseClusterExpanding
 			phaseErr := r.client.Status().Update(context.TODO(), instance)
 			if phaseErr != nil {
-				reqLogger.Error(phaseErr, "Failed to set PhaseClusterExpanding")
+				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseClusterExpanding")
 			}
 		} else {
 			if instance.Status.Phase != statusutil.PhaseReady &&
@@ -244,7 +244,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 				instance.Status.Phase = statusutil.PhaseProgressing
 				phaseErr := r.client.Status().Update(context.TODO(), instance)
 				if phaseErr != nil {
-					reqLogger.Error(phaseErr, "Failed to set PhaseProgressing")
+					reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
 				}
 			}
 		}
@@ -256,7 +256,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			// don't want to overwrite the actual reconcile failure
 			uErr := r.client.Status().Update(context.TODO(), instance)
 			if uErr != nil {
-				reqLogger.Error(uErr, "Failed to update status")
+				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to update status")
 			}
 			return reconcile.Result{}, err
 		}
@@ -323,7 +323,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	}
 	phaseErr := r.client.Status().Update(context.TODO(), instance)
 	if phaseErr != nil {
-		reqLogger.Error(phaseErr, "Failed to update status")
+		reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
 		return reconcile.Result{}, phaseErr
 	}
 
