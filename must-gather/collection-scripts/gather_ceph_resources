@@ -108,64 +108,53 @@ for ns in $namespaces; do
         apply_helper_pod "$ns" "$operatorImage"
     fi
 
-    echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect ns/"${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-    echo "collecting dump of clusterresourceversion" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-    # shellcheck disable=SC2129
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}/pvc_all_namespaces" inspect pvc --all-namespaces >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect csv -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect sc -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-    oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect installplan -n "${ns}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-    if [[ $cephClusterCount -gt 0 ]]; then
-        COMMAND_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands
-        COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/must_gather_commands/json_output
-        mkdir -p "${COMMAND_OUTPUT_DIR}"
-        mkdir -p "${COMMAND_JSON_OUTPUT_DIR}"
+    COMMAND_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/must_gather_commands
+    COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/must_gather_commands_json_output
+    mkdir -p "${COMMAND_OUTPUT_DIR}"
+    mkdir -p "${COMMAND_JSON_OUTPUT_DIR}"
 
-        if [ "${operatorImage}" != "" ]; then
-            for i in {1..50}
-            do
-                if [ "$(oc get pods  "${HOSTNAME}"-helper -n "${ns}" -o jsonpath='{.status.phase}')" = "Running" ]; then
-                    echo "helper pod got deployed successfully." | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-                    break
-                fi
-                echo "waiting for helper pod to come up in ${ns} namespace. Retrying ${i}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-                sleep 5
-            done
-
-            # Collecting output of ceph commands
-            for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
-                printf "collecting command output for: %s\n"  "${ceph_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-                COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
-                JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-            done
-            for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
-            done
-        fi
-
-        # Collecting output of ceph volume commands
-        for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
-            printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-            for osdPod in $(oc get pods -n "${ns}" -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
-                pod_status=$(oc get po "${osdPod}" -n "${ns}" -o jsonpath='{.status.phase}')
-                if [ "${pod_status}" != "Running" ]; then
-                    continue
-                fi
-                COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
-                { timeout 120 oc -n "${ns}" exec "${osdPod}" -- bash -c "${ceph_volume_commands[$i]}" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-            done
+    if [ "${operatorImage}" != "" ]; then
+        for i in {1..50};do
+           if [ "$(oc get pods  "${HOSTNAME}"-helper -n "${ns}" -o jsonpath='{.status.phase}')" = "Running" ]; then
+                echo "helper pod got deployed successfully." | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+                break
+           fi
+           echo "waiting for helper pod to come up in ${ns} namespace. Retrying ${i}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+           sleep 5
         done
 
-        # Collecting ceph prepare volume logs
-        for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | grep -w 'Ready' | awk '{print $1}'); do
-            printf "collecting prepare volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-            NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
-            mkdir -p "${NODE_OUTPUT_DIR}"
-            { timeout 120 oc debug nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+        # Collecting output of ceph commands
+        for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
+            printf "collecting command output for: %s\n"  "${ceph_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
+            JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
         done
-        oc delete -f pod_helper.yaml
+        for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
+        done
     fi
+
+    # Collecting output of ceph volume commands
+    for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
+        printf "collecting command output for: %s\n"  "${ceph_volume_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        for osdPod in $(oc get pods -n "${ns}" -l app=rook-ceph-osd --no-headers | awk '{print $1}'); do
+            pod_status=$(oc get po "${osdPod}" -n "${ns}" -o jsonpath='{.status.phase}')
+            if [ "${pod_status}" != "Running" ]; then
+                continue
+            fi
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_volume_commands[$i]// /_}
+            { timeout 120 oc -n "${ns}" exec "${osdPod}" -- bash -c "${ceph_volume_commands[$i]}" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+        done
+    done
+
+    # Collecting ceph prepare volume logs
+    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | grep -w 'Ready' | awk '{print $1}'); do
+        printf "collecting prepare volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
+        mkdir -p "${NODE_OUTPUT_DIR}"
+        { timeout 120 oc debug nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    done
+    oc delete -f pod_helper.yaml
 done
