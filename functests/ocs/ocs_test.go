@@ -1,4 +1,4 @@
-package functests_test
+package ocs_test
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ import (
 
 func TestTests(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Tests Suite")
+	RunSpecs(t, "OCS Test Suite")
 }
 
 var _ = BeforeSuite(func() {

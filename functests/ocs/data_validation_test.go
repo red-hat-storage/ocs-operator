@@ -1,4 +1,4 @@
-package functests_test
+package ocs_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,14 +7,15 @@ import (
 	tests "github.com/openshift/ocs-operator/functests"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 
+	k8sbatchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("PVC Creation", PVCCreationTest)
+var _ = Describe("job creation", DataValidationTest)
 
-func PVCCreationTest() {
+func DataValidationTest() {
 	deployManager, err := deploymanager.NewDeployManager()
 	if err != nil {
 		panic("failed to initialize DeployManager")
@@ -22,30 +23,39 @@ func PVCCreationTest() {
 	k8sClient := deployManager.GetK8sClient()
 
 	Describe("rbd", func() {
-		var pvc *k8sv1.PersistentVolumeClaim
 		var namespace string
+		var pvc *k8sv1.PersistentVolumeClaim
+		var job *k8sbatchv1.Job
 
 		BeforeEach(func() {
 			namespace = tests.TestNamespace
 			pvc = tests.GetRandomPVC(tests.StorageClassRBD, "1Gi")
+			job = tests.GetDataValidatorJob(pvc.GetName())
 		})
 
 		AfterEach(func() {
-			err := k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
+			err := k8sClient.BatchV1().Jobs(namespace).Delete(job.GetName(), &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				Expect(err).To(BeNil())
+			}
+			err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				Expect(err).To(BeNil())
 			}
 		})
-
-		Context("create pvc", func() {
-			It("and verify bound status", func() {
+		Context("Create job with pvc", func() {
+			It("and verify the data integrity", func() {
 				By("Creating PVC")
 				err := deployManager.WaitForPVCBound(pvc, namespace)
 				Expect(err).To(BeNil())
 
-				By("Deleting PVC")
-				err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
+				By("Running Job")
+				err = deployManager.WaitForJobSucceeded(job, namespace)
 				Expect(err).To(BeNil())
+
+				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(job.GetName(), metav1.GetOptions{})
+				Expect(err).To(BeNil())
+				Expect(finalJob.Status.Succeeded).NotTo(BeZero())
 			})
 		})
 	})

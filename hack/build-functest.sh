@@ -4,6 +4,7 @@ set -e
 
 source hack/common.sh
 
+suite="${GINKGO_TEST_SUITE:-ocs}"
 GOBIN="${GOBIN:-$GOPATH/bin}"
 GINKGO=$GOBIN/ginkgo
 
@@ -16,7 +17,7 @@ else
 fi
 
 
-"$GOBIN"/ginkgo build functests/
+"$GOBIN"/ginkgo build "functests/${suite}/"
 
 mkdir -p $OUTDIR_BIN
-mv functests/functests.test $OUTDIR_BIN/functests
+mv "functests/${suite}/${suite}.test" "${OUTDIR_BIN}/${suite}_tests"
