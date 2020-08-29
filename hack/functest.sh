@@ -2,7 +2,7 @@
 
 source hack/common.sh
 
-$OUTDIR_BIN/functests -ginkgo.v \
+"$OUTDIR_BIN/${GINKGO_TEST_SUITE}_tests" -ginkgo.v \
         --ocs-registry-image="${CATALOG_FULL_IMAGE_NAME}" \
 	--ocs-subscription-channel="${OCS_SUBSCRIPTION_CHANNEL}" \
 	--upgrade-from-ocs-registry-image="${UPGRADE_FROM_OCS_REGISTRY_IMAGE}" \
