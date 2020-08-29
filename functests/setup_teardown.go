@@ -16,13 +16,13 @@ func BeforeTestSuiteSetup() {
 	t, err := deploymanager.NewDeployManager()
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = t.CreateNamespace(TestNamespace)
-	gomega.Expect(err).To(gomega.BeNil())
-
 	err = t.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 
 	err = t.StartDefaultStorageCluster()
+	gomega.Expect(err).To(gomega.BeNil())
+
+	err = t.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 }
 
