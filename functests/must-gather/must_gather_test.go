@@ -1,9 +1,6 @@
 package must_gather_test
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -33,11 +30,8 @@ func MustGatherTest() {
 	})
 
 	It("Ensures that a valid cluster dump is collected", func() {
-		gopath := os.Getenv("GOPATH")
-		Expect(gopath).NotTo(BeEmpty())
-		cmd := exec.Command("/bin/bash", gopath+"/src/github.com/openshift/ocs-operator/must-gather/functests/functests.sh")
-		output, err := cmd.CombinedOutput()
-		fmt.Printf("%s", output)
+		By("Running oc adm must-gather")
+		err := tests.RunMustGather()
 		Expect(err).To(BeNil())
 	})
 }
