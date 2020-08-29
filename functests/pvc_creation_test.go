@@ -10,22 +10,16 @@ import (
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var _ = Describe("PVC Creation", PVCCreationTest)
 
 func PVCCreationTest() {
-	var k8sClient *kubernetes.Clientset
-	var deployManager *deploymanager.DeployManager
-
-	BeforeEach(func() {
-		RegisterFailHandler(Fail)
-
-		deployManager, err := deploymanager.NewDeployManager()
-		Expect(err).To(BeNil())
-		k8sClient = deployManager.GetK8sClient()
-	})
+	deployManager, err := deploymanager.NewDeployManager()
+	if err != nil {
+		panic("failed to initialize DeployManager")
+	}
+	k8sClient := deployManager.GetK8sClient()
 
 	Describe("rbd", func() {
 		var pvc *k8sv1.PersistentVolumeClaim
