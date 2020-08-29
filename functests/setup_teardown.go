@@ -2,8 +2,6 @@ package functests
 
 import (
 	"flag"
-	"os"
-	"os/exec"
 
 	"github.com/onsi/gomega"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
@@ -42,11 +40,8 @@ func AfterTestSuiteCleanup() {
 
 	// collect debug log before deleting namespace & cluster
 	debug("AfterTestSuite: collecting debug information\n")
-	gopath := os.Getenv("GOPATH")
-	cmd := exec.Command("/bin/bash", gopath+"/src/github.com/openshift/ocs-operator/hack/dump-debug-info.sh")
-	cmd.Env = os.Environ()
-	output, err := cmd.CombinedOutput()
-	gomega.Expect(err).To(gomega.BeNil(), "error dumping debug info: %v", string(output))
+	err = RunMustGather()
+	gomega.Expect(err).To(gomega.BeNil())
 
 	debug("AfterTestSuite: deleting Namespace %s\n", TestNamespace)
 	err = t.DeleteNamespaceAndWait(TestNamespace)
