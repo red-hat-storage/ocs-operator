@@ -40,11 +40,8 @@ func PVCCreationTest() {
 		Context("create pvc", func() {
 			It("and verify bound status", func() {
 				By("Creating PVC")
-				_, err := k8sClient.CoreV1().PersistentVolumeClaims(namespace).Create(pvc)
+				err := deployManager.WaitForPVCBound(pvc, namespace)
 				Expect(err).To(BeNil())
-
-				By("Verifying PVC reaches BOUND phase")
-				deployManager.WaitForPVCBound(pvc.Name, namespace)
 
 				By("Deleting PVC")
 				err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})

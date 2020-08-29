@@ -46,18 +46,12 @@ func DataValidationTest() {
 		Context("Create job with pvc", func() {
 			It("and verify the data integrity", func() {
 				By("Creating PVC")
-				_, err := k8sClient.CoreV1().PersistentVolumeClaims(namespace).Create(pvc)
+				err := deployManager.WaitForPVCBound(pvc, namespace)
 				Expect(err).To(BeNil())
 
-				By("Verifying PVC reaches BOUND phase")
-				deployManager.WaitForPVCBound(pvc.Name, namespace)
-
-				By("Creating job")
-				_, err = k8sClient.BatchV1().Jobs(namespace).Create(job)
+				By("Running Job")
+				err = deployManager.WaitForJobSucceeded(job, namespace)
 				Expect(err).To(BeNil())
-
-				By("Verifying job succeeds in data validation")
-				deployManager.WaitForJobSucceeded(job.GetName(), namespace)
 
 				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(job.GetName(), metav1.GetOptions{})
 				Expect(err).To(BeNil())
