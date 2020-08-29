@@ -16,12 +16,15 @@ func BeforeTestSuiteSetup() {
 	t, err := deploymanager.NewDeployManager()
 	gomega.Expect(err).To(gomega.BeNil())
 
+	debug("BeforeTestSuite: deploying OCS\n")
 	err = t.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 
+	debug("BeforeTestSuite: starting default StorageCluster\n")
 	err = t.StartDefaultStorageCluster()
 	gomega.Expect(err).To(gomega.BeNil())
 
+	debug("BeforeTestSuite: creating Namespace %s\n", TestNamespace)
 	err = t.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 }
@@ -34,18 +37,21 @@ func AfterTestSuiteCleanup() {
 	gomega.Expect(err).To(gomega.BeNil())
 
 	// collect debug log before deleting namespace & cluster
+	debug("AfterTestSuite: collecting debug information\n")
 	gopath := os.Getenv("GOPATH")
 	cmd := exec.Command("/bin/bash", gopath+"/src/github.com/openshift/ocs-operator/hack/dump-debug-info.sh")
 	cmd.Env = os.Environ()
 	output, err := cmd.CombinedOutput()
-	gomega.Expect(err).To(gomega.BeNil(), "Error dumping debug info: %v", output)
+	gomega.Expect(err).To(gomega.BeNil(), "error dumping debug info: %v", string(output))
 
+	debug("AfterTestSuite: deleting Namespace %s\n", TestNamespace)
 	err = t.DeleteNamespaceAndWait(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
 	if ocsClusterUninstall {
+		debug("AfterTestSuite: uninstalling OCS\n")
 		err = t.UninstallOCS(OcsRegistryImage, OcsSubscriptionChannel)
-		gomega.Expect(err).To(gomega.BeNil())
+		gomega.Expect(err).To(gomega.BeNil(), "error uninstalling OCS: %v", err)
 	}
 }
 
