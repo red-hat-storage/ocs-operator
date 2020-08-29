@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/onsi/gomega"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,32 +104,79 @@ func (t *DeployManager) GetDeploymentImage(name string) (string, error) {
 }
 
 // WaitForPVCBound waits for a pvc with a given name and namespace to reach BOUND phase
-func (t *DeployManager) WaitForPVCBound(pvcName string, pvcNamespace string) {
-	gomega.Eventually(func() error {
-		pvc, err := t.k8sClient.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(pvcName, metav1.GetOptions{})
-		if err != nil {
-			return err
+func (t *DeployManager) WaitForPVCBound(pvc *k8sv1.PersistentVolumeClaim, namespace string) error {
+	pvc, err := t.k8sClient.CoreV1().PersistentVolumeClaims(namespace).Create(pvc)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	lastReason := ""
+	timeout := 100 * time.Second
+	interval := 1 * time.Second
+
+	// Wait for namespace to terminate
+	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+		pvc, err := t.k8sClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			lastReason = fmt.Sprintf("error talking to k8s apiserver: %v", err)
+			return false, nil
 		}
 
-		if pvc.Status.Phase == k8sv1.ClaimBound {
-			return nil
+		if pvc.Status.Phase != k8sv1.ClaimBound {
+			lastReason = fmt.Sprintf("waiting on pvc %s/%s to reach bound state, currently %s", pvc.Namespace, pvc.Name, pvc.Status.Phase)
+			return false, nil
 		}
-		return fmt.Errorf("Waiting on pvc %s/%s to reach bound state when it is currently %s", pvcNamespace, pvcName, pvc.Status.Phase)
-	}, 200*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
+
+		return true, nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, lastReason)
+	}
+
+	return nil
 }
 
 // WaitForJobSucceeded waits for a Job with a given name and namespace to succeed until 200 seconds
-func (t *DeployManager) WaitForJobSucceeded(jobName string, jobNamespace string) {
-	gomega.Eventually(func() error {
-		job, err := t.k8sClient.BatchV1().Jobs(jobNamespace).Get(jobName, metav1.GetOptions{})
-		if err != nil {
-			return err
+func (t *DeployManager) WaitForJobSucceeded(job *batchv1.Job, namespace string) error {
+	job, err := t.k8sClient.BatchV1().Jobs(namespace).Create(job)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	lastReason := ""
+	timeout := 200 * time.Second
+	interval := 1 * time.Second
+
+	// Wait for namespace to terminate
+	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+		job, err := t.k8sClient.BatchV1().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			lastReason = fmt.Sprintf("error talking to k8s apiserver: %v", err)
+			return false, nil
 		}
 
-		if job.Status.Succeeded > 0 {
-			return nil
+		if job.Status.Active != 0 {
+			lastReason = fmt.Sprintf("waiting on job %s/%s to succeed, currently Active", job.Namespace, job.Name)
+			return false, nil
 		}
-		return fmt.Errorf("Waiting on job %s/%s to succeed when it is currently %d", jobName, jobNamespace, job.Status.Succeeded)
-	},
-		200*time.Second, 1*time.Second).Should(gomega.Succeed())
+
+		if job.Status.Failed != 0 {
+			lastReason = fmt.Sprintf("waiting on job %s/%s to succeed, currently Failed", job.Namespace, job.Name)
+			return false, nil
+		}
+
+		if job.Status.Succeeded == 0 {
+			lastReason = fmt.Sprintf("waiting on job %s/%s to succeed", job.Namespace, job.Name)
+			return false, nil
+		}
+
+		return true, nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, lastReason)
+	}
+
+	return nil
 }
