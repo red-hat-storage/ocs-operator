@@ -483,7 +483,6 @@ func (t *DeployManager) VerifyComponentOperators() error {
 		return err
 	}
 
-	//resolver := install.StrategyResolver{}
 	var resolver *install.StrategyResolver
 	strategy, err := resolver.UnmarshalStrategy(csv.Spec.InstallStrategy)
 	if err != nil {

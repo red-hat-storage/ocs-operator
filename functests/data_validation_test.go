@@ -6,6 +6,7 @@ import (
 
 	tests "github.com/openshift/ocs-operator/functests"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

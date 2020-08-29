@@ -29,6 +29,7 @@ func BeforeTestSuiteSetup() {
 // AfterTestSuiteCleanup is the function called to tear down the test environment
 func AfterTestSuiteCleanup() {
 	flag.Parse()
+
 	t, err := deploymanager.NewDeployManager()
 	gomega.Expect(err).To(gomega.BeNil())
 
@@ -57,7 +58,7 @@ func AfterUpgradeTestSuiteCleanup() {
 	err = t.DeleteNamespaceAndWait(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
-	// Only called after upgrade failures, so the cluster has to be unnstalled.
+	// Only called after upgrade failures, so the cluster has to be uninstalled.
 	err = t.UninstallOCS(OcsRegistryImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 }
