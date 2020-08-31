@@ -5,7 +5,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	tests "github.com/openshift/ocs-operator/functests"
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
@@ -16,11 +15,8 @@ import (
 var _ = Describe("job creation", DataValidationTest)
 
 func DataValidationTest() {
-	deployManager, err := deploymanager.NewDeployManager()
-	if err != nil {
-		panic("failed to initialize DeployManager")
-	}
-	k8sClient := deployManager.GetK8sClient()
+	dm := tests.DeployManager
+	k8sClient := dm.GetK8sClient()
 
 	Describe("rbd", func() {
 		var namespace string
@@ -46,11 +42,11 @@ func DataValidationTest() {
 		Context("Create job with pvc", func() {
 			It("and verify the data integrity", func() {
 				By("Creating PVC")
-				err := deployManager.WaitForPVCBound(pvc, namespace)
+				err := dm.WaitForPVCBound(pvc, namespace)
 				Expect(err).To(BeNil())
 
 				By("Running Job")
-				err = deployManager.WaitForJobSucceeded(job, namespace)
+				err = dm.WaitForJobSucceeded(job, namespace)
 				Expect(err).To(BeNil())
 
 				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(job.GetName(), metav1.GetOptions{})

@@ -2,6 +2,7 @@ package functests
 
 import (
 	"flag"
+	"fmt"
 
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 )
@@ -27,6 +28,9 @@ var OcsRegistryImage string
 // UpgradeFromOcsRegistryImage is the ocs-registry container image to upgrade from in the deployment
 var UpgradeFromOcsRegistryImage string
 
+// DeployManager is the suite global DeployManager
+var DeployManager *deploymanager.DeployManager
+
 var ocsClusterUninstall bool
 
 func init() {
@@ -35,4 +39,10 @@ func init() {
 	flag.StringVar(&UpgradeFromOcsRegistryImage, "upgrade-from-ocs-registry-image", "", "The ocs-registry container image to upgrade from in the deployment")
 	flag.StringVar(&UpgradeFromOcsSubscriptionChannel, "upgrade-from-ocs-subscription-channel", "", "The subscription channel to upgrade from")
 	flag.BoolVar(&ocsClusterUninstall, "ocs-cluster-uninstall", true, "Uninstall the ocs cluster after tests completion")
+
+	dm, err := deploymanager.NewDeployManager()
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize DeployManager: %v", err))
+	}
+	DeployManager = dm
 }

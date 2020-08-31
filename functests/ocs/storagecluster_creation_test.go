@@ -6,6 +6,8 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	tests "github.com/openshift/ocs-operator/functests"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/util"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
@@ -22,13 +24,9 @@ type SCCreation struct {
 }
 
 func initSCCreation() (*SCCreation, error) {
-	deployManager, err := deploymanager.NewDeployManager()
-	if err != nil {
-		return nil, err
-	}
 	retSCCObj := &SCCreation{}
-	retSCCObj.ocsClient = deployManager.GetOcsClient()
-	retSCCObj.parameterCodec = deployManager.GetParameterCodec()
+	retSCCObj.ocsClient = tests.DeployManager.GetOcsClient()
+	retSCCObj.parameterCodec = tests.DeployManager.GetParameterCodec()
 	return retSCCObj, nil
 }
 
