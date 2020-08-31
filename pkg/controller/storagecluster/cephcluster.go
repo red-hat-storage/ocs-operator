@@ -61,7 +61,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	var cephCluster *cephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		cephCluster = newExternalCephCluster(sc, r.cephImage)
+		cephCluster = newExternalCephCluster(sc, r.cephImage, r.monitoringIP)
 	} else {
 		cephCluster = newCephCluster(sc, r.cephImage, r.nodeCount, reqLogger)
 	}
@@ -261,7 +261,7 @@ func validateMultusSelectors(selectors map[string]string) error {
 	return nil
 }
 
-func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.CephCluster {
+func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitoringIP string) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -282,8 +282,14 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string) *cephv1.
 				ManagePodBudgets:               false,
 				ManageMachineDisruptionBudgets: false,
 			},
+			Monitoring: cephv1.MonitoringSpec{
+				Enabled:              true,
+				RulesNamespace:       sc.Namespace,
+				ExternalMgrEndpoints: []corev1.EndpointAddress{{IP: monitoringIP}},
+			},
 		},
 	}
+
 	return externalCephCluster
 }
 
