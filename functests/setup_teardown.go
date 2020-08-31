@@ -27,6 +27,8 @@ func BeforeTestSuiteSetup() {
 	debug("BeforeTestSuite: creating Namespace %s\n", TestNamespace)
 	err = t.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
+
+	debug("------------------------------\n")
 }
 
 // AfterTestSuiteCleanup is the function called to tear down the test environment
@@ -35,6 +37,8 @@ func AfterTestSuiteCleanup() {
 
 	t, err := deploymanager.NewDeployManager()
 	gomega.Expect(err).To(gomega.BeNil())
+
+	debug("\n------------------------------\n")
 
 	// collect debug log before deleting namespace & cluster
 	debug("AfterTestSuite: collecting debug information\n")
