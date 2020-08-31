@@ -47,7 +47,6 @@ func StorageClusterCreationTest() {
 	var err error
 
 	BeforeEach(func() {
-		RegisterFailHandler(Fail)
 		sccObj, err = initSCCreation()
 		Expect(err).To(BeNil())
 	})

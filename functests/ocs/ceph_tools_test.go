@@ -87,7 +87,6 @@ func rookCephToolsTest() {
 	var err error
 
 	BeforeEach(func() {
-		RegisterFailHandler(Fail)
 		rctObj, err = newRookCephTools()
 		Expect(err).To(BeNil())
 	})
