@@ -9,6 +9,7 @@ import (
 
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -98,6 +99,7 @@ func rookCephToolsTest() {
 			err = rctObj.patchOCSInit(disableToolsPatch)
 			Expect(err).To(BeNil())
 		})
+
 		It("Ensure enable tools works", func() {
 			By("Setting enableCephTools=true")
 			err = rctObj.patchOCSInit(enableToolsPatch)

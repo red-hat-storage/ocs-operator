@@ -8,8 +8,8 @@ import (
 	. "github.com/onsi/gomega"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/util"
-
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -46,10 +46,10 @@ var _ = Describe("StorageCluster Creation", StorageClusterCreationTest)
 
 func StorageClusterCreationTest() {
 	var sccObj *SCCreation
+	var err error
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
-		var err error
 		sccObj, err = initSCCreation()
 		Expect(err).To(BeNil())
 	})
