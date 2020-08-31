@@ -353,6 +353,12 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
+	err = r.enablePrometheusRules(instance.Spec.ExternalStorage.Enable)
+	if err != nil {
+		reqLogger.Error(err, "failed to reconcile prometheus rules")
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
