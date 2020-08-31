@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	tests "github.com/openshift/ocs-operator/functests"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 
@@ -30,14 +31,10 @@ type RookCephTools struct {
 }
 
 func newRookCephTools() (*RookCephTools, error) {
-	deployManager, err := deploymanager.NewDeployManager()
-	if err != nil {
-		return nil, err
-	}
 	retOCSObj := &RookCephTools{
-		k8sClient:      deployManager.GetK8sClient(),
-		ocsClient:      deployManager.GetOcsClient(),
-		parameterCodec: deployManager.GetParameterCodec(),
+		k8sClient:      tests.DeployManager.GetK8sClient(),
+		ocsClient:      tests.DeployManager.GetOcsClient(),
+		parameterCodec: tests.DeployManager.GetParameterCodec(),
 	}
 	return retOCSObj, nil
 }

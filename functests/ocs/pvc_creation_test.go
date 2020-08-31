@@ -5,7 +5,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	tests "github.com/openshift/ocs-operator/functests"
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,11 +14,8 @@ import (
 var _ = Describe("PVC Creation", PVCCreationTest)
 
 func PVCCreationTest() {
-	deployManager, err := deploymanager.NewDeployManager()
-	if err != nil {
-		panic("failed to initialize DeployManager")
-	}
-	k8sClient := deployManager.GetK8sClient()
+	dm := tests.DeployManager
+	k8sClient := dm.GetK8sClient()
 
 	Describe("rbd", func() {
 		var pvc *k8sv1.PersistentVolumeClaim
@@ -40,7 +36,7 @@ func PVCCreationTest() {
 		Context("create pvc", func() {
 			It("and verify bound status", func() {
 				By("Creating PVC")
-				err := deployManager.WaitForPVCBound(pvc, namespace)
+				err := dm.WaitForPVCBound(pvc, namespace)
 				Expect(err).To(BeNil())
 
 				By("Deleting PVC")
