@@ -66,6 +66,15 @@ func (r *ReconcileStorageCluster) setRookCSICephFS(
 	return r.client.Update(context.TODO(), rookCephOperatorConfig)
 }
 
+func checkRGWEndpoint(endpoint string, timeout time.Duration) error {
+	con, err := net.DialTimeout("tcp", endpoint, timeout)
+	if err != nil {
+		return err
+	}
+	defer con.Close()
+	return nil
+}
+
 // retrieveExternalSecretData function retrieves the external secret and returns the data it contains
 func (r *ReconcileStorageCluster) retrieveExternalSecretData(
 	instance *ocsv1.StorageCluster, reqLogger logr.Logger) ([]ExternalResource, error) {
@@ -256,6 +265,10 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				sc = scs[1]
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
+				if err := checkRGWEndpoint(rgwEndpoint, 5*time.Second); err != nil {
+					reqLogger.Error(err, fmt.Sprintf("RGW endpoint, %q, is not reachable", rgwEndpoint))
+					return err
+				}
 				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint, reqLogger)
 				if err != nil {
 					return err
@@ -267,8 +280,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				delete(d.Data, externalCephRgwEndpointKey)
 				// Set the external rgw endpoint variable for later use on the Noobaa CR (as a label)
 				// Replace the colon with an underscore, otherwise the label will be invalid
-				externalRgwEndpointReplaceColon := strings.Replace(rgwEndpoint, ":", "_", -1)
-				externalRgwEndpoint = externalRgwEndpointReplaceColon
+				externalRgwEndpoint = strings.Replace(rgwEndpoint, ":", "_", -1)
 
 				// 'sc' points to OBC StorageClass
 				sc = scs[2]

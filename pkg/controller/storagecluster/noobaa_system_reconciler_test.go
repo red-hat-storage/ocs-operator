@@ -267,7 +267,7 @@ func assertNoobaaResource(t *testing.T, reconciler ReconcileStorageCluster) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, fNoobaa.Labels[externalRgwEndpointLabelName])
 	// The endpoint has its colon replaced by an underscore so that the label is valid
-	assert.Equal(t, fNoobaa.Labels[externalRgwEndpointLabelName], "10.20.30.40_50")
+	assert.Equal(t, fNoobaa.Labels[externalRgwEndpointLabelName], externalRgwEndpoint)
 }
 
 func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster {
