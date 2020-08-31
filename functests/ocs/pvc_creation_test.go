@@ -17,6 +17,12 @@ func PVCCreationTest() {
 	dm := tests.DeployManager
 	k8sClient := dm.GetK8sClient()
 
+	AfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			tests.SuiteFailed = tests.SuiteFailed || true
+		}
+	})
+
 	Describe("rbd", func() {
 		var pvc *k8sv1.PersistentVolumeClaim
 		var namespace string
