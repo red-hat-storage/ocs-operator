@@ -25,10 +25,6 @@ var _ = AfterSuite(func() {
 var _ = PDescribe("Must Gather", MustGatherTest)
 
 func MustGatherTest() {
-	BeforeEach(func() {
-		RegisterFailHandler(Fail)
-	})
-
 	It("Ensures that a valid cluster dump is collected", func() {
 		By("Running oc adm must-gather")
 		err := tests.RunMustGather()
