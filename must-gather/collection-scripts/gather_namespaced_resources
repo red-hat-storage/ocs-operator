@@ -24,7 +24,7 @@ resources+=(objectbucketclaims)
 resources+=(objectbuckets)
 
 # collection path for OC commands
-mkdir -p ${BASE_COLLECTION_PATH}/oc_output/
+mkdir -p "${BASE_COLLECTION_PATH}/oc_output/"
 
 # Command List
 commands_get=()
@@ -60,11 +60,11 @@ for oc_yaml in "${oc_yamls[@]}"; do
 done
 
 # Create the dir for oc_output
-mkdir -p ${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/
+mkdir -p "${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/"
 
 # Run the Collection of Resources to list
 for command_get in "${commands_get[@]}"; do
-     echo "collecting oc command ${command_get}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
+     echo "collecting oc command ${command_get}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
      COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/${command_get// /_}
      # shellcheck disable=SC2086
      { oc get ${command_get} -n ${INSTALL_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
@@ -72,26 +72,26 @@ done
 
 # Run the Collection of OC desc commands
 for command_desc in "${commands_desc[@]}"; do
-     echo "collecting oc describe command ${command_desc}" | tee -a ${BASE_COLLECTION_PATH}/gather-debug.log
+     echo "collecting oc describe command ${command_desc}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
      COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/${command_desc// /_}
      # shellcheck disable=SC2086
      { oc describe ${command_desc} -n ${INSTALL_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
 done
 
 # NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
-{ oc get storageclusters -n ${INSTALL_NAMESPACE} -o yaml; } > $BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagecluster.yaml 2>&1
+{ oc get storageclusters -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagecluster.yaml" 2>&1
 
 # Create the dir for data from all namespaces
-mkdir -p ${BASE_COLLECTION_PATH}/namespaces/all/
+mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
 
 # Run the Collection of Resources using must-gather
 for resource in "${resources[@]}"; do
-    echo "collecting dump of ${resource}" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
-    { oc adm --dest-dir=${BASE_COLLECTION_PATH}/namespaces/all/ inspect "${resource}" --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+    echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+    { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
 done
 
 
 # For pvc of all namesspaces 
-echo "collecting dump of oc get pvc all namespaces" | tee -a  ${BASE_COLLECTION_PATH}/gather-debug.log
-{ oc get pvc --all-namespaces; } >> ${BASE_COLLECTION_PATH}/namespaces/all/pvc_all_namespaces
-{ oc adm --dest-dir=${BASE_COLLECTION_PATH}/namespaces/all/ inspect pvc --all-namespaces; } >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+echo "collecting dump of oc get pvc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+{ oc get pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/pvc_all_namespaces"
+{ oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
