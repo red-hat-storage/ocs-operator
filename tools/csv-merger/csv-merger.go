@@ -18,8 +18,11 @@ import (
 	ocsversion "github.com/openshift/ocs-operator/version"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/version"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -508,6 +511,23 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			},
 		}
 	}
+
+	// Add metrics exporter deployment to CSV
+	metricExporterStrategySpec := csvv1.StrategyDeploymentSpec{
+		Name: "ocs-metrics-exporter",
+		Spec: getMetricsExporterDeployment(),
+	}
+	templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, metricExporterStrategySpec)
+	templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, csvv1.StrategyDeploymentPermissions{
+		ServiceAccountName: "ocs-metrics-exporter",
+		Rules: []rbac.PolicyRule{
+			{
+				APIGroups: []string{"monitoring.coreos.com"},
+				Resources: []string{"*"},
+				Verbs:     []string{"*"},
+			},
+		},
+	})
 	fmt.Println(templateStrategySpec.DeploymentSpecs)
 
 	ocsCSV.Spec.InstallStrategy.StrategySpec = *templateStrategySpec
@@ -869,6 +889,52 @@ func copyManifests() {
 		outputPath := filepath.Join(*outputDir, manifest.Name())
 		copyFile(inputPath, outputPath)
 	}
+}
+
+func getMetricsExporterDeployment() appsv1.DeploymentSpec {
+	replica := int32(1)
+	runAsNonRoot := true
+	deployment := appsv1.DeploymentSpec{
+		Replicas: &replica,
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/component": "ocs-metrics-exporter",
+				"app.kubernetes.io/name":      "ocs-metrics-exporter",
+			},
+		},
+		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"app.kubernetes.io/component": "ocs-metrics-exporter",
+					"app.kubernetes.io/name":      "ocs-metrics-exporter",
+					"app.kubernetes.io/version":   "0.0.1",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    "ocs-metrics-exporter",
+						Image:   *ocsContainerImage,
+						Command: []string{"/usr/local/bin/metrics-exporter"},
+						Args:    []string{"--namespaces=openshift-storage"},
+						Ports: []corev1.ContainerPort{
+							{
+								ContainerPort: 8080,
+							},
+							{
+								ContainerPort: 8081,
+							},
+						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
+						},
+					},
+				},
+				ServiceAccountName: "ocs-metrics-exporter",
+			},
+		},
+	}
+	return deployment
 }
 
 func main() {

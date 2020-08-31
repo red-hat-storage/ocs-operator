@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: ocs-metrics-exporter
+    app.kubernetes.io/name: ocs-metrics-exporter
+    app.kubernetes.io/version: 0.0.1
+  name: ocs-metrics-exporter
+  namespace: openshift-storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: ocs-metrics-exporter
+      app.kubernetes.io/name: ocs-metrics-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: ocs-metrics-exporter
+        app.kubernetes.io/name: ocs-metrics-exporter
+        app.kubernetes.io/version: 0.0.1
+    spec:
+      containers:
+      - image: quay.io/ocs-dev/ocs-operator
+        name: ocs-metrics-exporter
+        ports:
+        - containerPort: 8080
+        - containerPort: 8081
+        command:
+        - /usr/local/bin/metrics-exporter
+        args:
+          - --namespaces=openshift-storage
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: ocs-metrics-exporter

@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ocs-metrics-exporter
+  namespace: openshift-storage
+  labels:
+    app.kubernetes.io/component: ocs-metrics-exporter
+    app.kubernetes.io/name: ocs-metrics-exporter
+    app.kubernetes.io/version: 0.0.1
+spec:
+  namespaceSelector:
+    matchNames:
+      - openshift-storage
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: ocs-metrics-exporter
+      app.kubernetes.io/name: ocs-metrics-exporter
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 1m
+  - port: exporter
+    path: /metrics
+    interval: 1m

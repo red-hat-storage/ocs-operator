@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ocs-metrics-exporter
+  namespace: openshift-storage
+  labels:
+    app.kubernetes.io/component: ocs-metrics-exporter
+    app.kubernetes.io/name: ocs-metrics-exporter
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  - name: exporter
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app.kubernetes.io/component: ocs-metrics-exporter
+    app.kubernetes.io/name: ocs-metrics-exporter
