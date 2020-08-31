@@ -176,7 +176,10 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			}
 		}
 
-		r.reconcileUninstallAnnotations(instance, reqLogger)
+		err = r.reconcileUninstallAnnotations(instance, reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
 	} else {
 		// The object is marked for deletion
@@ -602,7 +605,7 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 }
 
 // reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none are set.
-func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) {
+func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	if _, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
 		reqLogger.Info("setting uninstall mode annotation to default", UninstallModeGraceful)
@@ -612,6 +615,12 @@ func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.Storag
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
 		reqLogger.Info("setting uninstall cleanup policy annotation to default", CleanupPolicyDelete)
 	}
+
+	if err := r.client.Update(context.TODO(), sc); err != nil {
+		reqLogger.Error(err, "Failed to update the storagecluster with uninstall defaults")
+		return err
+	}
+	return nil
 }
 
 // Checks whether a string is contained within a slice
