@@ -91,6 +91,12 @@ func rookCephToolsTest() {
 		Expect(err).To(BeNil())
 	})
 
+	AfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			tests.SuiteFailed = tests.SuiteFailed || true
+		}
+	})
+
 	Describe("Deployment", func() {
 		AfterEach(func() {
 			err = rctObj.patchOCSInit(disableToolsPatch)

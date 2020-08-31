@@ -51,6 +51,12 @@ func StorageClusterCreationTest() {
 		Expect(err).To(BeNil())
 	})
 
+	AfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			tests.SuiteFailed = tests.SuiteFailed || true
+		}
+	})
+
 	Describe("Duplicate StorageCluster Creation", func() {
 		BeforeEach(func() {
 			err := sccObj.populateDuplicateSC()

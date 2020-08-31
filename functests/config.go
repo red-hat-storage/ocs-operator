@@ -31,6 +31,9 @@ var UpgradeFromOcsRegistryImage string
 // DeployManager is the suite global DeployManager
 var DeployManager *deploymanager.DeployManager
 
+// SuiteFailed indicates whether any test in the current suite has failed
+var SuiteFailed = false
+
 var ocsClusterUninstall bool
 
 func init() {
