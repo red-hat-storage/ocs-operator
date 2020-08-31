@@ -1256,11 +1256,13 @@ spec:
           - monitoring.coreos.com
           resources:
           - servicemonitors
+          - prometheusrules
           verbs:
           - get
           - list
           - watch
           - create
+          - update
         - apiGroups:
           - ocs.openshift.io
           resources:
