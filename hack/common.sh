@@ -33,7 +33,7 @@ OUTDIR_TOOLS="$OUTDIR/tools"
 OUTDIR_CLUSTER_DEPLOY_MANIFESTS="$OUTDIR/cluster-deploy-manifests"
 
 DEPLOY_YAML_PATH="deploy/deploy-with-olm.yaml"
-PROMETHEUS_RULE_PATH="metrics/deploy"
+PROMETHEUS_RULES_PATH="metrics/deploy"
 
 REDHAT_OCS_CI_DEFAULT_TEST_EXPRESSION="TestOSCBasics or TestPvCreation or TestRawBlockPV or TestReclaimPolicy or TestCreateSCSameName or TestBasicPVCOperations or TestVerifyAllFieldsInScYamlWithOcDescribe"
 REDHAT_OCS_CI_REPO="${REDHAT_OCS_CI_REPO:-https://github.com/red-hat-storage/ocs-ci}"
