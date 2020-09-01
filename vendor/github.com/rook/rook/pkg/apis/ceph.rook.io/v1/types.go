@@ -74,6 +74,9 @@ type ClusterSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.AnnotationsSpec `json:"annotations,omitempty"`
 
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.LabelsSpec `json:"labels,omitempty"`
+
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rookv1.PlacementSpec `json:"placement,omitempty"`
 
@@ -402,6 +405,9 @@ type MetadataServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
+
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
 
@@ -450,7 +456,7 @@ type ObjectStoreSpec struct {
 }
 
 type BucketHealthCheckSpec struct {
-	Bucket        HealthCheckSpec   `json:"rgw,omitempty"`
+	Bucket        HealthCheckSpec   `json:"bucket,omitempty"`
 	LivenessProbe *rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
@@ -481,6 +487,9 @@ type GatewaySpec struct {
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
@@ -671,6 +680,9 @@ type GaneshaServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
+
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 
@@ -728,8 +740,9 @@ type ClientSpec struct {
 }
 
 type CleanupPolicySpec struct {
-	Confirmation  CleanupConfirmationProperty `json:"confirmation,omitempty"`
-	SanitizeDisks SanitizeDisksSpec           `json:"sanitizeDisks"`
+	Confirmation              CleanupConfirmationProperty `json:"confirmation,omitempty"`
+	SanitizeDisks             SanitizeDisksSpec           `json:"sanitizeDisks"`
+	AllowUninstallWithVolumes bool                        `json:"allowUninstallWithVolumes,omitempty"`
 }
 
 type CleanupConfirmationProperty string
@@ -773,9 +786,12 @@ type RBDMirroringSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
-	// The resource requirements for the rgw pods
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
+
+	// The resource requirements for the rbd mirror pods
 	Resources v1.ResourceRequirements `json:"resources"`
 
-	// PriorityClassName sets priority classes on the rgw pods
+	// PriorityClassName sets priority class on the rbd mirror pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
