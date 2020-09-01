@@ -507,26 +507,47 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 	return true, nil
 }
 
-func (r *ReconcileStorageCluster) setRookCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+
+	cephCluster := &cephv1.CephCluster{}
+	var updateRequired bool
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("CephCluster not found, can't set the cleanup policy and uninstall mode")
+			return nil
+		}
+		return fmt.Errorf("Unable to retrive the cephCluster: %v", err)
+	}
+
 	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
-		if v == string(CleanupPolicyDelete) {
-			cephCluster := &cephv1.CephCluster{}
-			err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					reqLogger.Info("CephCluster not found, can't set the cleanup policy")
-				} else {
-					return fmt.Errorf("Unable to retrive cephCluster: %v", err)
-				}
-			} else {
-				cephCluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
-				err := r.client.Update(context.TODO(), cephCluster)
-				if err != nil {
-					return fmt.Errorf("Unable to update cephCluster: %v", err)
-				}
-			}
+		if (v == string(CleanupPolicyDelete)) && (cephCluster.Spec.CleanupPolicy.Confirmation != cephv1.DeleteDataDirOnHostsConfirmation) {
+			cephCluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
+			updateRequired = true
+		} else if (v == string(CleanupPolicyRetain)) && (cephCluster.Spec.CleanupPolicy.Confirmation != "") {
+			cephCluster.Spec.CleanupPolicy.Confirmation = ""
+			updateRequired = true
 		}
 	}
+
+	if v, found := instance.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
+		if (v == string(UninstallModeForced)) && (cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes != true) {
+			cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = true
+			updateRequired = true
+		} else if (v == string(UninstallModeGraceful)) && (cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes != false) {
+			cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = false
+			updateRequired = true
+		}
+	}
+
+	if updateRequired {
+		err := r.client.Update(context.TODO(), cephCluster)
+		if err != nil {
+			return fmt.Errorf("Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -564,7 +585,7 @@ func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluste
 // Every function that is called within this function should be idempotent
 func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
-	err := r.setRookCleanupPolicy(sc, reqLogger)
+	err := r.setRookUninstallandCleanupPolicy(sc, reqLogger)
 	if err != nil {
 		return err
 	}
