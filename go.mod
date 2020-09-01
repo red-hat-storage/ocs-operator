@@ -23,7 +23,7 @@ require (
 	github.com/operator-framework/operator-sdk v0.17.0
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/client_model v0.2.0
-	github.com/rook/rook v1.4.0
+	github.com/rook/rook v1.4.3-0.20200901124914-0b665e6e3315
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.14.1
