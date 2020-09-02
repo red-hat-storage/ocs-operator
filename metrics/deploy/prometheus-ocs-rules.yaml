@@ -8,8 +8,6 @@ metadata:
   namespace: openshift-storage
 spec:
   groups:
-  - name: ocs.rules
-    rules: []
   - name: cluster-services-alert.rules
     rules:
     - alert: ClusterObjectStoreState

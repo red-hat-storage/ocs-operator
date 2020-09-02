@@ -32,6 +32,7 @@ $(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
 	gen-release-csv \
 	gen-latest-csv \
 	gen-latest-deploy-yaml \
+	gen-latest-prometheus-rules-yamls \
 	verify-latest-deploy-yaml \
 	verify-latest-csv \
 	source-manifests \
@@ -89,6 +90,10 @@ gen-latest-deploy-yaml:
 	@echo "Generating latest deployment yaml file"
 	hack/gen-deployment-yaml.sh
 
+gen-latest-prometheus-rules-yamls:
+	@echo "Generating latest Prometheus rules yamls"
+	hack/gen-promethues-rules.sh
+	
 verify-latest-deploy-yaml: gen-latest-deploy-yaml
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
