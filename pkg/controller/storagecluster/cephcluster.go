@@ -51,7 +51,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 		}
 	}
 
-	if sc.Spec.Network.IsMultus() {
+	if isMultus(sc.Spec.Network) {
 		err := validateMultusSelectors(sc.Spec.Network.Selectors)
 		if err != nil {
 			return err
@@ -240,10 +240,17 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, r
 	} else {
 		reqLogger.Info(fmt.Sprintf("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for storageCluster %s", sc.GetName()))
 	}
-	if sc.Spec.Network.IsMultus() {
-		cephCluster.Spec.Network.NetworkSpec = sc.Spec.Network
+	if isMultus(sc.Spec.Network) {
+		cephCluster.Spec.Network.NetworkSpec = *sc.Spec.Network
 	}
 	return cephCluster
+}
+
+func isMultus(nwSpec *rook.NetworkSpec) bool {
+	if nwSpec != nil {
+		return nwSpec.IsMultus()
+	}
+	return false
 }
 
 func validateMultusSelectors(selectors map[string]string) error {

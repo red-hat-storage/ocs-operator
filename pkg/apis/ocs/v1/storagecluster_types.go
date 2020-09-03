@@ -36,7 +36,7 @@ type StorageClusterSpec struct {
 	// Version specifies the version of StorageCluster
 	Version string `json:"version,omitempty"`
    // Network represents cluster network settings
-	Network  rook.NetworkSpec `json:"network,omitempty"`
+	Network  *rook.NetworkSpec `json:"network,omitempty"`
 }
 
 // ExternalStorageClusterSpec defines the spec of the external Storage Cluster

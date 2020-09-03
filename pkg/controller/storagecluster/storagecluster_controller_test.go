@@ -595,58 +595,65 @@ func TestStorageClusterOnMultus(t *testing.T) {
 	}
 	platform := &CloudPlatform{platform: PlatformUnknown}
 	cases := []struct {
-		testCase string
-		publicNW string
+		testCase  string
+		publicNW  string
 		clusterNW string
-		cr *api.StorageCluster
+		cr        *api.StorageCluster
 	}{
 		{
 			// When only public network is specified.
-			testCase: "public",
-			publicNW: "public-network",
+			testCase:  "public",
+			publicNW:  "public-network",
 			clusterNW: "",
 		},
 		{
 			// When only cluster network is specified, this will be an error case .
-			testCase: "cluster",
-			publicNW: "",
+			testCase:  "cluster",
+			publicNW:  "",
 			clusterNW: "cluster-network",
 		},
 		{
-	   		// When both public and cluster network are specified.
-			testCase: "both",
-			publicNW: "public-network",
+			// When both public and cluster network are specified.
+			testCase:  "both",
+			publicNW:  "public-network",
 			clusterNW: "cluster-network",
 		},
 		{
 			// When public network and cluster network is empty, this will be an error case.
-			testCase: "none",
-			publicNW: "",
+			testCase:  "none",
+			publicNW:  "",
 			clusterNW: "",
+		},
+		{
+			// When Network is not specified
+			testCase: "default",
 		},
 	}
 
 	for _, c := range cases {
 		c.cr = createDefaultStorageCluster()
-		c.cr.Spec.Network = v1.NetworkSpec{
-			Provider: networkProvider,
-			Selectors: map[string]string{
-				"public": c.publicNW,
-				"cluster": c.clusterNW,
-			},
+		if c.testCase != "default" {
+			c.cr.Spec.Network = &v1.NetworkSpec{
+				Provider: networkProvider,
+				Selectors: map[string]string{
+					"public":  c.publicNW,
+					"cluster": c.clusterNW,
+				},
+			}
 		}
 		reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(t, platform)
 		_ = reconciler.client.Create(nil, c.cr)
 		result, err := reconciler.Reconcile(request)
-		validMultus := validateMultusSelectors(c.cr.Spec.Network.Selectors)
-		if validMultus != nil {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-			assert.Equal(t, reconcile.Result{}, result)
-			assertCephClusterNetwork(t, reconciler, c.cr, request)
+		if c.testCase != "default" {
+			validMultus := validateMultusSelectors(c.cr.Spec.Network.Selectors)
+			if validMultus != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, reconcile.Result{}, result)
+				assertCephClusterNetwork(t, reconciler, c.cr, request)
+			}
 		}
-
 	}
 }
 
@@ -655,5 +662,10 @@ func assertCephClusterNetwork(t assert.TestingT, reconciler ReconcileStorageClus
 	cephCluster := newCephCluster(cr, "", 3, log)
 	err := reconciler.client.Get(nil, request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
-	assert.Equal(t, cr.Spec.Network, cephCluster.Spec.Network.NetworkSpec)
+	if cr.Spec.Network == nil {
+		assert.Equal(t, "", cephCluster.Spec.Network.NetworkSpec.Provider)
+		assert.Nil(t, cephCluster.Spec.Network.NetworkSpec.Selectors)
+	} else {
+		assert.Equal(t, *cr.Spec.Network, cephCluster.Spec.Network.NetworkSpec)
+	}
 }

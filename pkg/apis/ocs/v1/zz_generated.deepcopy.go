@@ -397,7 +397,11 @@ func (in *StorageClusterSpec) DeepCopyInto(out *StorageClusterSpec) {
 		*out = new(MultiCloudGatewaySpec)
 		(*in).DeepCopyInto(*out)
 	}
-	in.Network.DeepCopyInto(&out.Network)
+	if in.Network != nil {
+		in, out := &in.Network, &out.Network
+		*out = new(rookiov1.NetworkSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
