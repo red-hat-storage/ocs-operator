@@ -129,9 +129,8 @@ type StorageClusterStatus struct {
 	// +optional
 	FailureDomain string `json:"failureDomain,omitempty"`
 
-	// ExternalSecretFound indicates whether a Secret containing information
-	// about an external CephCluster was found or not
-	ExternalSecretFound bool `json:"externalSecretFound,omitempty"`
+	// ExternalSecretHash holds the checksum value of external secret data.
+	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
 
 	StorageClassesCreated       bool `json:"storageClassesCreated,omitempty"`
 	CephObjectStoresCreated     bool `json:"cephObjectStoresCreated,omitempty"`
