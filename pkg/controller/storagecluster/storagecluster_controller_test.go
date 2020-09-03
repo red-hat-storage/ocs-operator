@@ -595,33 +595,33 @@ func TestStorageClusterOnMultus(t *testing.T) {
 	}
 	platform := &CloudPlatform{platform: PlatformUnknown}
 	cases := []struct {
-		testCase string
-		publicNW string
+		testCase  string
+		publicNW  string
 		clusterNW string
-		cr *api.StorageCluster
+		cr        *api.StorageCluster
 	}{
 		{
 			// When only public network is specified.
-			testCase: "public",
-			publicNW: "public-network",
+			testCase:  "public",
+			publicNW:  "public-network",
 			clusterNW: "",
 		},
 		{
 			// When only cluster network is specified, this will be an error case .
-			testCase: "cluster",
-			publicNW: "",
+			testCase:  "cluster",
+			publicNW:  "",
 			clusterNW: "cluster-network",
 		},
 		{
 			// When both public and cluster network are specified.
-			testCase: "both",
-			publicNW: "public-network",
+			testCase:  "both",
+			publicNW:  "public-network",
 			clusterNW: "cluster-network",
 		},
 		{
 			// When public network and cluster network is empty, this will be an error case.
-			testCase: "none",
-			publicNW: "",
+			testCase:  "none",
+			publicNW:  "",
 			clusterNW: "",
 		},
 		{
