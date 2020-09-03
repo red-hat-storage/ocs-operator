@@ -237,6 +237,16 @@ func removeNamedResourceFromArray(extArr []ExternalResource, name string) []Exte
 	return newExtArr
 }
 
+// updateNamedResourceInArray updates the provided 'extArr' with the given 'extRsrc' external resource
+func updateNamedResourceInArray(extArr []ExternalResource, extRsrc ExternalResource) []ExternalResource {
+	_, err := findNamedResourceFromArray(extArr, extRsrc.Name)
+	if err == nil {
+		extArr = removeNamedResourceFromArray(extArr, extRsrc.Name)
+	}
+	extArr = append(extArr, extRsrc)
+	return extArr
+}
+
 func startServerAt(endpoint string) <-chan error {
 	var doneChan = make(chan error)
 	go func(doneChan chan<- error) {
@@ -384,4 +394,73 @@ func assertCephObjectStore(t *testing.T, reconciler ReconcileStorageCluster, rem
 		// and the first IP should be that of the host we passed from 'ceph-rgw' resource
 		assert.Equal(t, hostFound, cObjS.Spec.Gateway.ExternalRgwEndpoints[0].IP)
 	}
+}
+
+func TestExternalResourceReconcile(t *testing.T) {
+	reconciler := createExternalClusterReconciler(t)
+	assertReconciliationOfExternalResource(t, reconciler)
+}
+
+func assertReconciliationOfExternalResource(t *testing.T, reconciler ReconcileStorageCluster) {
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+
+	// first reconcile, which sets everything in place
+	result, err := reconciler.Reconcile(request)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+	assertExpectedExternalResources(t, reconciler)
+
+	sc := &api.StorageCluster{}
+	err = reconciler.client.Get(nil, request.NamespacedName, sc)
+	assert.NoError(t, err)
+	firstExtSecretChecksum := sc.Status.ExternalSecretHash
+
+	extRsrcs, err := reconciler.retrieveExternalSecretData(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+	rgwRsrc, err := findNamedResourceFromArray(extRsrcs, cephRgwStorageClassName)
+	assert.NoError(t, err)
+	// change 'rgw-endpoint'
+	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("127.0.0.1:%d", generateRandomPort(20000, 30000))
+	// start a dummy / local server at the endpoint
+	startServerAt(rgwRsrc.Data[externalCephRgwEndpointKey])
+	extRsrcs = updateNamedResourceInArray(extRsrcs, rgwRsrc)
+	// create and update external secret with new changes
+	extSecret, err := createExternalCephClusterSecret(extRsrcs)
+	assert.NoError(t, err)
+	err = reconciler.client.Update(nil, extSecret)
+	assert.NoError(t, err)
+
+	// second reconcile on same 'reconciler', we should have expected/changed resources
+	result, err = reconciler.Reconcile(request)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+	assertExpectedExternalResources(t, reconciler)
+
+	// get the updated storagecluster object after second reconciliation
+	sc = &api.StorageCluster{}
+	err = reconciler.client.Get(nil, request.NamespacedName, sc)
+	assert.NoError(t, err)
+	secondExtSecretChecksum := sc.Status.ExternalSecretHash
+	// as there are changes, first and second checksums should not match
+	assert.NotEqual(t, firstExtSecretChecksum, secondExtSecretChecksum)
+
+	// third reconcile on same 'reconciler', without any change in the resources
+	result, err = reconciler.Reconcile(request)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+	assertExpectedExternalResources(t, reconciler)
+
+	// get the updated storagecluster object after third reconciliation
+	sc = &api.StorageCluster{}
+	err = reconciler.client.Get(nil, request.NamespacedName, sc)
+	assert.NoError(t, err)
+	thirdExtSecretChecksum := sc.Status.ExternalSecretHash
+	// as there are no changes, second and third checksums should match
+	assert.Equal(t, secondExtSecretChecksum, thirdExtSecretChecksum)
+
 }
