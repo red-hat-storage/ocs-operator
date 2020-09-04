@@ -97,10 +97,14 @@ func (r *ReconcileStorageCluster) ensureSnapshotClasses(instance *ocsv1.StorageC
 	if instance.Status.SnapshotClassesCreated {
 		return nil
 	}
-	var err error
+
 	scs := newSnapshotClasses(instance)
-	if err = r.createSnapshotClasses(scs, reqLogger); err == nil {
-		instance.Status.SnapshotClassesCreated = true
+
+	err := r.createSnapshotClasses(scs, reqLogger)
+	if err != nil {
+		return nil
 	}
-	return err
+	instance.Status.SnapshotClassesCreated = true
+
+	return nil
 }
