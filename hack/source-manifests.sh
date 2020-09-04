@@ -33,8 +33,8 @@ mkdir -p $OUTDIR_CRDS $OUTDIR_BUNDLEMANIFESTS
 # directory which causes issues in Permissions spec of CSV. So,
 # removing depoy/bundlemanifests/ while generating CSV and keeping a
 # backup in $OUTDIR_BUNDLEMANIFESTS
-cp $BUNDLEMANIFESTS_DIR/*.yaml $OUTDIR_BUNDLEMANIFESTS/
-rm $BUNDLEMANIFESTS_DIR/*.yaml
+cp $BUNDLEMANIFESTS_DIR/*.yaml $OUTDIR_BUNDLEMANIFESTS/ || echo "Ignoring '$BUNDLEMANIFESTS_DIR' yaml file(s) copying."
+rm -f $BUNDLEMANIFESTS_DIR/*.yaml
 mkdir -p $OUTDIR_TOOLS
 
 # ==== DUMP NOOBAA YAMLS ====
