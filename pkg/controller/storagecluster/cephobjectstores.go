@@ -17,7 +17,8 @@ import (
 // ensureCephObjectStores ensures that CephObjectStore resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if instance.Status.CephObjectStoresCreated {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
 	platform, err := r.platform.GetPlatform(r.client)
@@ -33,24 +34,26 @@ func (r *ReconcileStorageCluster) ensureCephObjectStores(instance *ocsv1.Storage
 	if err != nil {
 		return err
 	}
-	err = r.createCephObjectStores(cephObjectStores, reqLogger)
+	err = r.createCephObjectStores(cephObjectStores, instance, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "could not create CephObjectStores")
 		return err
 	}
 
-	instance.Status.CephObjectStoresCreated = true
-
 	return nil
 }
 
 // createCephObjectStore creates CephObjectStore in the desired state
-func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cephv1.CephObjectStore, reqLogger logr.Logger) error {
+func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cephv1.CephObjectStore, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	for _, cephObjectStore := range cephObjectStores {
 		existing := cephv1.CephObjectStore{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
 		switch {
 		case err == nil:
+			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+				return nil
+			}
 			if existing.DeletionTimestamp != nil {
 				err := fmt.Errorf("failed to restore cephobjectstore object %s because it is marked for deletion", existing.Name)
 				reqLogger.Info("cephobjectstore restore failed")

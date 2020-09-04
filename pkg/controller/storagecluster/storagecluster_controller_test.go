@@ -52,14 +52,6 @@ var mockStorageCluster = &api.StorageCluster{
 		Name:      mockStorageClusterRequest.Name,
 		Namespace: mockStorageClusterRequest.Namespace,
 	},
-
-	Status: api.StorageClusterStatus{
-		StorageClassesCreated:       true,
-		CephObjectStoresCreated:     true,
-		CephObjectStoreUsersCreated: true,
-		CephBlockPoolsCreated:       true,
-		CephFilesystemsCreated:      true,
-	},
 }
 
 var mockCephCluster = &rookCephv1.CephCluster{
@@ -72,16 +64,6 @@ var mockCephCluster = &rookCephv1.CephCluster{
 var mockCephClusterNamespacedName = types.NamespacedName{
 	Name:      generateNameForCephCluster(mockStorageCluster),
 	Namespace: mockStorageCluster.Namespace,
-}
-
-var mockStorageClusterInit = &api.StorageClusterInitialization{
-	TypeMeta: metav1.TypeMeta{
-		Kind: "StorageClusterInitialization",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "storage-test",
-		Namespace: "storage-test-ns",
-	},
 }
 
 var storageClassName = "gp2"
@@ -443,7 +425,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	mockCephCluster.DeepCopyInto(cc)
 	cc.Status.State = rookCephv1.ClusterStateCreated
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cc, nodeList)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc, nodeList)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -570,7 +552,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	mockNodeList.DeepCopyInto(nodeList)
 	cc.Status.State = rookCephv1.ClusterStateCreated
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, mockStorageClusterInit, cc, nodeList)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc, nodeList)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)

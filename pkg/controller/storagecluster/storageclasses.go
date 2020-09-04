@@ -17,8 +17,8 @@ import (
 // ensureStorageClasses ensures that StorageClass resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-
-	if instance.Status.StorageClassesCreated {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
 
@@ -26,15 +26,16 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 	if err != nil {
 		return err
 	}
-	err = r.createStorageClasses(scs, reqLogger)
+
+	err = r.createStorageClasses(scs, instance, reqLogger)
 	if err != nil {
 		return err
 	}
-	instance.Status.StorageClassesCreated = true
+
 	return nil
 }
 
-func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageClass, reqLogger logr.Logger) error {
+func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	for _, sc := range scs {
 		existing := &storagev1.StorageClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
@@ -49,6 +50,10 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 		} else if err != nil {
 			return err
 		} else {
+			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+				return nil
+			}
 			if existing.DeletionTimestamp != nil {
 				return fmt.Errorf("failed to restore storageclass  %s because it is marked for deletion", existing.Name)
 			}

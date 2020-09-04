@@ -25,6 +25,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// ReconcileStrategy is a string representing how we want to reconcile
+// (or not) a particular resource
+type ReconcileStrategy string
+
 // StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
 type StorageClassProvisionerType string
 
@@ -46,6 +50,15 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
 	//Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
+
+	// ReconcileStrategyUnknown is the same as default
+	ReconcileStrategyUnknown ReconcileStrategy = ""
+	// ReconcileStrategyDefault means reconcile once and ignore if it exists
+	ReconcileStrategyDefault ReconcileStrategy = "default"
+	// ReconcileStrategyIgnore means never reconcile
+	ReconcileStrategyIgnore ReconcileStrategy = "ignore"
+	// ReconcileStrategyManage means always reconcile
+	ReconcileStrategyManage ReconcileStrategy = "manage"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -190,10 +203,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		// Get storage node topology labels
 		if err := r.reconcileNodeTopologyMap(instance, reqLogger); err != nil {
 			reqLogger.Error(err, "Failed to set node topology map")
-			return reconcile.Result{}, err
-		}
-		if err := r.ensurestorageclusterinit(instance, request, reqLogger); err != nil {
-			reqLogger.Error(err, "Failed to initialize the storagecluster")
 			return reconcile.Result{}, err
 		}
 	}

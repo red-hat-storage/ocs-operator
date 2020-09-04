@@ -17,11 +17,6 @@ func TestStorageClasses(t *testing.T) {
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 			t, cp, nil)
 		assertStorageClasses(t, reconciler, cr, request)
-
-		t, reconciler, cr, request = initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, createUpdateRuntimeObjects(cp))
-
-		assertStorageClasses(t, reconciler, cr, request)
 	}
 
 }

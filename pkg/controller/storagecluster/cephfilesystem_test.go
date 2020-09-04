@@ -21,10 +21,6 @@ func TestCephFileSystem(t *testing.T) {
 			label:                "case 1",
 			createRuntimeObjects: false,
 		},
-		{
-			label:                "case 2",
-			createRuntimeObjects: true,
-		},
 	}
 	for _, eachPlatform := range allPlatforms {
 		cp := &CloudPlatform{platform: eachPlatform}
