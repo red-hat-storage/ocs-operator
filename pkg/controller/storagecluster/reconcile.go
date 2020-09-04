@@ -513,6 +513,7 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 	return true, nil
 }
 
+// setRookUninstallandCleanupPolicy sets the uninstall mode and cleanup policy for rook based on the annotation on the StorageCluster
 func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
 
 	cephCluster := &cephv1.CephCluster{}
@@ -639,7 +640,7 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	return nil
 }
 
-// reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none are set.
+// reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none or unrecognized ones are set.
 func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
