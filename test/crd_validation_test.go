@@ -35,9 +35,8 @@ const (
 func TestSampleCustomResources(t *testing.T) {
 	root := "./../deploy/crds"
 	crdCrMap := map[string]string{
-		"ocs.openshift.io_ocsinitializations_crd.yaml":            "ocs_v1_ocsinitialization_cr",
-		"ocs.openshift.io_storageclusters_crd.yaml":               "ocs_v1_storagecluster_cr",
-		"ocs.openshift.io_storageclusterinitializations_crd.yaml": "ocs_v1_storageclusterinitialization_cr",
+		"ocs.openshift.io_ocsinitializations_crd.yaml": "ocs_v1_ocsinitialization_cr",
+		"ocs.openshift.io_storageclusters_crd.yaml":    "ocs_v1_storagecluster_cr",
 	}
 	for crd, prefix := range crdCrMap {
 		validateCustomResources(t, root, crd, prefix)
@@ -68,9 +67,8 @@ func validateCustomResources(t *testing.T, root string, crd string, prefix strin
 func TestCompleteCRD(t *testing.T) {
 	root := "./../deploy/crds"
 	crdStructMap := map[string]interface{}{
-		"ocs.openshift.io_ocsinitializations_crd.yaml":            &v1.OCSInitialization{},
-		"ocs.openshift.io_storageclusters_crd.yaml":               &v1.StorageCluster{},
-		"ocs.openshift.io_storageclusterinitializations_crd.yaml": &v1.StorageClusterInitialization{},
+		"ocs.openshift.io_ocsinitializations_crd.yaml": &v1.OCSInitialization{},
+		"ocs.openshift.io_storageclusters_crd.yaml":    &v1.StorageCluster{},
 	}
 	for crd, obj := range crdStructMap {
 		schema := getSchema(t, fmt.Sprintf("%s/%s", root, crd))

@@ -35,8 +35,51 @@ type StorageClusterSpec struct {
 	MultiCloudGateway  *MultiCloudGatewaySpec                 `json:"multiCloudGateway,omitempty"`
 	// Version specifies the version of StorageCluster
 	Version string `json:"version,omitempty"`
-   // Network represents cluster network settings
-	Network  *rook.NetworkSpec `json:"network,omitempty"`
+	// Network represents cluster network settings
+	Network *rook.NetworkSpec `json:"network,omitempty"`
+	// ManagedResources specifies how to deal with auxiliary resources reconciled
+	// with the StorageCluster
+	ManagedResources ManagedResourcesSpec `json:"managedResources,omitempty"`
+}
+
+// ManagedResourcesSpec defines how to reconcile auxiliary resources
+type ManagedResourcesSpec struct {
+	CephBlockPools       ManageCephBlockPools       `json:"cephBlockPools,omitempty"`
+	CephFilesystems      ManageCephFilesystems      `json:"cephFilesystems,omitempty"`
+	CephObjectStores     ManageCephObjectStores     `json:"cephObjectStores,omitempty"`
+	CephObjectStoreUsers ManageCephObjectStoreUsers `json:"cephObjectStoreUsers,omitempty"`
+	SnapshotClasses      ManageSnapshotClasses      `json:"snapshotClasses,omitempty"`
+	StorageClasses       ManageStorageClasses       `json:"storageClasses,omitempty"`
+}
+
+// ManageCephBlockPools defines how to reconcilea CephBlockPools
+type ManageCephBlockPools struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// ManageCephFilesystems defines how to reconcile CephFilesystems
+type ManageCephFilesystems struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// ManageCephObjectStores defines how to reconcile CephObjectStores
+type ManageCephObjectStores struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
+type ManageCephObjectStoreUsers struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// ManageSnapshotClasses defines how to reconcile SnapshotClasses
+type ManageSnapshotClasses struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// ManageStorageClasses defines how to reconcile StorageClasses
+type ManageStorageClasses struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
 // ExternalStorageClusterSpec defines the spec of the external Storage Cluster
@@ -131,13 +174,6 @@ type StorageClusterStatus struct {
 
 	// ExternalSecretHash holds the checksum value of external secret data.
 	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
-
-	StorageClassesCreated       bool `json:"storageClassesCreated,omitempty"`
-	CephObjectStoresCreated     bool `json:"cephObjectStoresCreated,omitempty"`
-	CephBlockPoolsCreated       bool `json:"cephBlockPoolsCreated,omitempty"`
-	CephObjectStoreUsersCreated bool `json:"cephObjectStoreUsersCreated,omitempty"`
-	CephFilesystemsCreated      bool `json:"cephFilesystemsCreated,omitempty"`
-	SnapshotClassesCreated      bool `json:"snapshotClassesCreated,omitempty"`
 }
 
 // TopologyLabelValues is a list of values for a topology label

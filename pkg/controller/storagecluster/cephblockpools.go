@@ -44,8 +44,8 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 // ensureCephBlockPools ensures that cephBlockPool resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-
-	if instance.Status.CephBlockPoolsCreated {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
 
@@ -59,6 +59,9 @@ func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCl
 
 		switch {
 		case err == nil:
+			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+				return nil
+			}
 			if existing.DeletionTimestamp != nil {
 				reqLogger.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
 				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
@@ -79,8 +82,6 @@ func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCl
 			}
 		}
 	}
-
-	instance.Status.CephBlockPoolsCreated = true
 
 	return nil
 }

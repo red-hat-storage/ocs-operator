@@ -15,9 +15,6 @@ func TestCephFileSystem(t *testing.T) {
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 			t, cp, nil)
 		assertCephFileSystem(t, reconciler, cr, request)
-		t, reconciler, cr, request = initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, createUpdateRuntimeObjects(cp))
-		assertCephFileSystem(t, reconciler, cr, request)
 	}
 
 }
