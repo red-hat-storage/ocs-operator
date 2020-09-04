@@ -553,6 +553,7 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 		if err != nil {
 			return fmt.Errorf("Uninstall: Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
 		}
+		reqLogger.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set")
 	}
 
 	return nil
