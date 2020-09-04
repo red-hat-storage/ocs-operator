@@ -714,7 +714,7 @@ metadata:
     olm.skipRange: '>=0.0.1 <4.6.0'
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-storage
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclusterinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephblockpools.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","noobaas.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephblockpools.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","noobaas.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
     repository: https://github.com/openshift/ocs-operator
     support: Red Hat
   labels:
@@ -732,12 +732,6 @@ spec:
       displayName: OCS Initialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
-      version: v1
-    - description: StorageCluster Initialization represents a set of tasks the OCS
-        operator wants to implement for every StorageCluster it encounters.
-      displayName: StorageCluster Initialization
-      kind: StorageClusterInitialization
-      name: storageclusterinitializations.ocs.openshift.io
       version: v1
     - description: Storage Cluster represents a OpenShift Container Storage Cluster
         including Ceph Cluster, NooBaa and all the storage and compute resources required.
