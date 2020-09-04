@@ -15,9 +15,6 @@ func TestCephObjectStoreUsers(t *testing.T) {
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 			t, cp, nil)
 		assertCephObjectStoreUsers(t, reconciler, cr, request)
-		t, reconciler, cr, request = initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, createUpdateRuntimeObjects(cp))
-		assertCephObjectStoreUsers(t, reconciler, cr, request)
 	}
 
 }
