@@ -58,14 +58,6 @@ metadata:
               }
             ]
           }
-        },
-        {
-          "apiVersion": "ocs.openshift.io/v1",
-          "kind": "StorageClusterInitialization",
-          "metadata": {
-            "name": "example-storageclusterinitialization"
-          },
-          "spec": {}
         }
       ]
     capabilities: Basic Install
@@ -78,11 +70,6 @@ spec:
     - description: OCSInitialization is the Schema for the ocsinitialization API
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
-      version: v1
-    - description: StorageClusterInitialization is the Schema for the storageclusterinitializations
-        API
-      kind: StorageClusterInitialization
-      name: storageclusterinitializations.ocs.openshift.io
       version: v1
     - description: StorageCluster is the Schema for the storageclusters API
       kind: StorageCluster
