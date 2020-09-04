@@ -35,8 +35,8 @@ type StorageClusterSpec struct {
 	MultiCloudGateway  *MultiCloudGatewaySpec                 `json:"multiCloudGateway,omitempty"`
 	// Version specifies the version of StorageCluster
 	Version string `json:"version,omitempty"`
-   // Network represents cluster network settings
-	Network  *rook.NetworkSpec `json:"network,omitempty"`
+	// Network represents cluster network settings
+	Network *rook.NetworkSpec `json:"network,omitempty"`
 }
 
 // ExternalStorageClusterSpec defines the spec of the external Storage Cluster
@@ -129,9 +129,8 @@ type StorageClusterStatus struct {
 	// +optional
 	FailureDomain string `json:"failureDomain,omitempty"`
 
-	// ExternalSecretFound indicates whether a Secret containing information
-	// about an external CephCluster was found or not
-	ExternalSecretFound bool `json:"externalSecretFound,omitempty"`
+	// ExternalSecretHash holds the checksum value of external secret data.
+	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
 
 	StorageClassesCreated       bool `json:"storageClassesCreated,omitempty"`
 	CephObjectStoresCreated     bool `json:"cephObjectStoresCreated,omitempty"`

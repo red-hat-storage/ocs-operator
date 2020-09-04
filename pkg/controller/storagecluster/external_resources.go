@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"crypto/sha512"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -75,16 +76,52 @@ func checkRGWEndpoint(endpoint string, timeout time.Duration) error {
 	return nil
 }
 
-// retrieveExternalSecretData function retrieves the external secret and returns the data it contains
-func (r *ReconcileStorageCluster) retrieveExternalSecretData(
-	instance *ocsv1.StorageCluster, reqLogger logr.Logger) ([]ExternalResource, error) {
+func sha512sum(tobeHashed []byte) (string, error) {
+	h := sha512.New()
+	if _, err := h.Write(tobeHashed); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+func (r *ReconcileStorageCluster) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
+	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
+	if err != nil {
+		return "", err
+	}
+	return sha512sum(found.Data[externalClusterDetailsKey])
+}
+
+func (r *ReconcileStorageCluster) sameExternalSecretData(instance *ocsv1.StorageCluster) bool {
+	extSecretChecksum, err := r.externalSecretDataChecksum(instance)
+	if err != nil {
+		return false
+	}
+	// if the 'ExternalSecretHash' and fetched hash are same, then return true
+	if instance.Status.ExternalSecretHash == extSecretChecksum {
+		return true
+	}
+	// at this point the checksums are different, so update it
+	instance.Status.ExternalSecretHash = extSecretChecksum
+	return false
+}
+
+// retrieveSecret function retrieves the secret object with the specified name
+func (r *ReconcileStorageCluster) retrieveSecret(secretName string, instance *ocsv1.StorageCluster) (*corev1.Secret, error) {
 	found := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      externalClusterDetailsSecret,
+			Name:      secretName,
 			Namespace: instance.Namespace,
 		},
 	}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: found.Name, Namespace: found.Namespace}, found)
+	return found, err
+}
+
+// retrieveExternalSecretData function retrieves the external secret and returns the data it contains
+func (r *ReconcileStorageCluster) retrieveExternalSecretData(
+	instance *ocsv1.StorageCluster, reqLogger logr.Logger) ([]ExternalResource, error) {
+	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
 		reqLogger.Error(err, "could not find the external secret resource")
 		return nil, err
@@ -161,8 +198,7 @@ func (r *ReconcileStorageCluster) newExternalCephObjectStoreInstances(
 // ensureExternalStorageClusterResources ensures that requested resources for the external cluster
 // being created
 func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	// check for the status boolean value accepted or not
-	if instance.Status.ExternalSecretFound {
+	if r.sameExternalSecretData(instance) {
 		return nil
 	}
 	err := r.createExternalStorageClusterResources(instance, reqLogger)
@@ -170,7 +206,6 @@ func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance
 		reqLogger.Error(err, "could not create ExternalStorageClusterResource")
 		return err
 	}
-	instance.Status.ExternalSecretFound = true
 	return nil
 }
 
@@ -193,7 +228,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 	var availableSCs []*storagev1.StorageClass
 	data, err := r.retrieveExternalSecretData(instance, reqLogger)
 	if err != nil {
-		reqLogger.Error(err, "Failed to retrieve external resources")
+		reqLogger.Error(err, "failed to retrieve external resources")
 		return err
 	}
 	var extCephObjectStores []*cephv1.CephObjectStore
