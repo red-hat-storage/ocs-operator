@@ -521,10 +521,10 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("CephCluster not found, can't set the cleanup policy and uninstall mode")
+			reqLogger.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
 			return nil
 		}
-		return fmt.Errorf("Unable to retrive the cephCluster: %v", err)
+		return fmt.Errorf("Uninstall: Unable to retrive the cephCluster: %v", err)
 	}
 
 	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
@@ -550,7 +550,7 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 	if updateRequired {
 		err := r.client.Update(context.TODO(), cephCluster)
 		if err != nil {
-			return fmt.Errorf("Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
+			return fmt.Errorf("Uninstall: Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
 		}
 	}
 
@@ -643,7 +643,7 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Setting uninstall mode annotation to default", "UninstallMode", UninstallModeGraceful)
+		reqLogger.Info("Uninstall: setting uninstall mode annotation to default", UninstallModeGraceful)
 	} else if found && v != string(UninstallModeGraceful) && v != string(UninstallModeForced) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
@@ -652,7 +652,7 @@ func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.Storag
 
 	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Setting uninstall cleanup policy annotation to default", "DefaultCleanupPolicy", CleanupPolicyDelete)
+		reqLogger.Info("Uninstall: setting uninstall cleanup policy annotation to default", CleanupPolicyDelete)
 	} else if found && v != string(CleanupPolicyDelete) && v != string(CleanupPolicyRetain) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
@@ -660,7 +660,7 @@ func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.Storag
 	}
 
 	if err := r.client.Update(context.TODO(), sc); err != nil {
-		reqLogger.Error(err, "Failed to update the storagecluster with uninstall defaults")
+		reqLogger.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
 		return err
 	}
 	return nil
