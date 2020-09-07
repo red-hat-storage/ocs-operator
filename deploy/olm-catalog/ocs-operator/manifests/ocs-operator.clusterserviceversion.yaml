@@ -972,7 +972,7 @@ spec:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
     - description: Storage target spec such as aws-s3, s3-compatible, ibm-cos, PV's
-        and more. Used in BacketClass to construct data placement policies.
+        and more. Used in BucketClass to construct data placement policies.
       displayName: Backing Store
       kind: BackingStore
       name: backingstores.noobaa.io
