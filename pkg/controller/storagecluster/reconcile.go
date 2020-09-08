@@ -525,7 +525,7 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 			reqLogger.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
 			return nil
 		}
-		return fmt.Errorf("Uninstall: Unable to retrive the cephCluster: %v", err)
+		return fmt.Errorf("Uninstall: Unable to retrieve the cephCluster: %v", err)
 	}
 
 	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
