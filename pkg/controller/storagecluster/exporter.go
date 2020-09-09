@@ -90,7 +90,8 @@ func CreateOrUpdateService(r *ReconcileStorageCluster, instance *ocsv1.StorageCl
 	service := getMetricsExporterService(instance)
 	namespacedName := types.NamespacedName{Namespace: service.GetNamespace(), Name: service.GetName()}
 
-	r.reqLogger.Info("reconciling metrics exporter service %v", namespacedName)
+	r.reqLogger.Info("Reconciling metrics exporter service", "NamespacedName", namespacedName)
+
 	oldService := &corev1.Service{}
 	err := r.client.Get(context.TODO(), namespacedName, oldService)
 	if err != nil {
@@ -155,7 +156,8 @@ func CreateOrUpdateServiceMonitor(r *ReconcileStorageCluster, instance *ocsv1.St
 	serviceMonitor := getMetricsExporterServiceMonitor(instance)
 	namespacedName := types.NamespacedName{Name: serviceMonitor.Name, Namespace: serviceMonitor.Namespace}
 
-	r.reqLogger.Info("reconciling metrics exporter service monitor %v", namespacedName)
+	r.reqLogger.Info("Reconciling metrics exporter service monitor", "NamespacedName", namespacedName)
+
 	oldSm := &monitoringv1.ServiceMonitor{}
 	err := r.client.Get(context.TODO(), namespacedName, oldSm)
 	if err != nil {
