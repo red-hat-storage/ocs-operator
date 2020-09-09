@@ -17,8 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 const (
@@ -98,7 +98,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 
 	for _, c := range cases {
 		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
-		reconciler.client.Create(context.TODO(), &cephCluster)
+		reconciler.client.Create(context.TODO(), &cephCluster)//nolint //ignoring err check as causes failure
 
 		if c.isCreate {
 			err := reconciler.client.Get(context.TODO(), namespacedName, &c.noobaa)
@@ -110,7 +110,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		err := reconciler.ensureNoobaaSystem(&sc, noobaaReconcileTestLogger)
 		assert.NoError(t, err)
 
-		err = reconciler.client.Get(context.TODO(), namespacedName, &noobaa)
+		_ = reconciler.client.Get(context.TODO(), namespacedName, &noobaa)
 		assert.Equal(t, noobaa.Name, namespacedName.Name)
 		assert.Equal(t, noobaa.Namespace, namespacedName.Namespace)
 		if !c.isCreate {
@@ -202,6 +202,9 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		err = reconciler.ensureNoobaaSystem(&c.sc, noobaaReconcileTestLogger)
 		assert.NoError(t, err)
 
+		err = reconciler.ensureNoobaaSystem(&c.sc, noobaaReconcileTestLogger)
+		assert.NoError(t, err)
+
 		noobaa := v1alpha1.NooBaa{}
 		err = reconciler.client.Get(context.TODO(), namespacedName, &noobaa)
 		if c.isCreate {
@@ -262,7 +265,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		}
 
 		reconciler := ReconcileStorageCluster{}
-		reconciler.initializeImageVars()
+		_ = reconciler.initializeImageVars()
 
 		noobaa := v1alpha1.NooBaa{
 			TypeMeta: metav1.TypeMeta{
@@ -340,12 +343,12 @@ func assertNoobaaResource(t *testing.T, reconciler ReconcileStorageCluster) {
 	fNoobaa := &v1alpha1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is not to get any Noobaa object
-	err = reconciler.client.Get(nil, request.NamespacedName, fNoobaa)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, fNoobaa)
 	assert.Error(t, err)
 
 	// now setting the state to 'ClusterStateConnected' (to mock a successful external cluster connection)
 	foundCeph.Status.State = cephv1.ClusterStateConnected
-	err = reconciler.client.Update(nil, foundCeph)
+	err = reconciler.client.Update(context.TODO(), foundCeph)
 	assert.NoError(t, err)
 	// call 'ensureNoobaaSystem()' to make sure it takes appropriate action
 	// when ceph cluster is connected to an external cluster
@@ -354,7 +357,7 @@ func assertNoobaaResource(t *testing.T, reconciler ReconcileStorageCluster) {
 	fNoobaa = &v1alpha1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is to get an appropriate Noobaa object
-	err = reconciler.client.Get(nil, request.NamespacedName, fNoobaa)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, fNoobaa)
 	assert.NoError(t, err)
 }
 
