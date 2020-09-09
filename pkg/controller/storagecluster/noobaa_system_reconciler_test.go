@@ -324,18 +324,18 @@ func assertNoobaaResource(t *testing.T, reconciler ReconcileStorageCluster) {
 	}
 
 	cr := &v1.StorageCluster{}
-	err := reconciler.client.Get(nil, request.NamespacedName, cr)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, cr)
 	assert.NoError(t, err)
 
 	// get the ceph cluster
 	request.Name = generateNameForCephCluster(cr)
 	foundCeph := &cephv1.CephCluster{}
-	err = reconciler.client.Get(nil, request.NamespacedName, foundCeph)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, foundCeph)
 	assert.NoError(t, err)
 
 	// set the state to 'ClusterStateConnecting' (to mock a state where external cluster is still trying to connect)
 	foundCeph.Status.State = cephv1.ClusterStateConnecting
-	err = reconciler.client.Update(nil, foundCeph)
+	err = reconciler.client.Update(context.TODO(), foundCeph)
 	assert.NoError(t, err)
 	// calling 'ensureNoobaaSystem()' function and the expectation is that 'Noobaa' system is not be created
 	err = reconciler.ensureNoobaaSystem(cr, reconciler.reqLogger)
