@@ -16,7 +16,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 	in, ok := sc.Spec.Placement[rookv1.KeyType(component)]
 	if ok {
 		(&in).DeepCopyInto(&placement)
-	} else if !ok && (len(sc.Spec.Placement) == 0) {
+	} else {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
 	}
