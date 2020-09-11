@@ -6,15 +6,38 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// CleanupPolicyType is a string representing cleanup policy
+type CleanupPolicyType string
+
+// UninstallModeType is a string representing cleanup mode, it decides whether the deletion is graceful or forced
+type UninstallModeType string
+
+const (
+	// CleanupPolicyAnnotation defines the cleanup policy for data and metadata during uninstall
+	CleanupPolicyAnnotation = "uninstall.ocs.openshift.io/cleanup-policy"
+	// CleanupPolicyDelete when set, modifies the cleanup policy for Rook to delete the DataDirHostPath on uninstall
+	CleanupPolicyDelete CleanupPolicyType = "delete"
+	// CleanupPolicyRetain when set, modifies the cleanup policy for Rook to not cleanup the DataDirHostPath and the disks on uninstall
+	CleanupPolicyRetain CleanupPolicyType = "retain"
+	// UninstallModeAnnotation defines the uninstall mode
+	UninstallModeAnnotation = "uninstall.ocs.openshift.io/mode"
+	// UninstallModeForced when set, sets the uninstall mode for Rook and Noobaa to forced.
+	UninstallModeForced UninstallModeType = "forced"
+	// UninstallModeGraceful when set, sets the uninstall mode for Rook and Noobaa to graceful.
+	UninstallModeGraceful UninstallModeType = "graceful"
 )
 
 // deleteStorageClasses deletes the storageClasses that the ocs-operator created
@@ -175,4 +198,170 @@ func (r *ReconcileStorageCluster) deleteCephCluster(sc *ocsv1.StorageCluster, re
 	}
 	return fmt.Errorf("Uninstall: Waiting for cephCluster to be deleted")
 
+}
+
+// setRookUninstallandCleanupPolicy sets the uninstall mode and cleanup policy for rook based on the annotation on the StorageCluster
+func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+
+	cephCluster := &cephv1.CephCluster{}
+	var updateRequired bool
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
+			return nil
+		}
+		return fmt.Errorf("Uninstall: Unable to retrieve the cephCluster: %v", err)
+	}
+
+	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
+		if (v == string(CleanupPolicyDelete)) && (cephCluster.Spec.CleanupPolicy.Confirmation != cephv1.DeleteDataDirOnHostsConfirmation) {
+			cephCluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
+			updateRequired = true
+		} else if (v == string(CleanupPolicyRetain)) && (cephCluster.Spec.CleanupPolicy.Confirmation != "") {
+			cephCluster.Spec.CleanupPolicy.Confirmation = ""
+			updateRequired = true
+		}
+	}
+
+	if v, found := instance.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
+		if (v == string(UninstallModeForced)) && (cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes != true) {
+			cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = true
+			updateRequired = true
+		} else if (v == string(UninstallModeGraceful)) && (cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes != false) {
+			cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = false
+			updateRequired = true
+		}
+	}
+
+	if updateRequired {
+		err := r.client.Update(context.TODO(), cephCluster)
+		if err != nil {
+			return fmt.Errorf("Uninstall: Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
+		}
+		reqLogger.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set")
+	}
+
+	return nil
+}
+
+// setNoobaaUninstallMode sets the uninstall mode for Noobaa based on the annotation on the StorageCluster
+func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+
+	noobaa := &nbv1.NooBaa{}
+	var updateRequired bool
+
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Uninstall: NooBaa not found, can't set UninstallModeForced")
+			return nil
+		}
+		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
+	}
+
+	// The CleanupPolicy attribute in the Noobaa spec decides the uninstall mode.
+	// Unlike the Rook CleanupPolicy which decides whether the data needs to be erased.
+	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
+		if (v == string(UninstallModeForced)) && (noobaa.Spec.CleanupPolicy.Confirmation != nbv1.DeleteOBCConfirmation) {
+			noobaa.Spec.CleanupPolicy.Confirmation = nbv1.DeleteOBCConfirmation
+			updateRequired = true
+		} else if (v == string(UninstallModeGraceful)) && (noobaa.Spec.CleanupPolicy.Confirmation != "") {
+			noobaa.Spec.CleanupPolicy.Confirmation = ""
+			updateRequired = true
+		}
+	}
+
+	if updateRequired {
+		err = r.client.Update(context.TODO(), noobaa)
+		if err != nil {
+			return fmt.Errorf("Uninstall: Unable to update NooBaa uninstall mode: %v", err)
+		}
+		reqLogger.Info("Uninstall: NooBaa uninstall mode has been set")
+	}
+
+	return nil
+}
+
+// reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none or unrecognized ones are set.
+func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	var updateRequired bool
+
+	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
+		reqLogger.Info("Uninstall: Setting uninstall mode annotation to default", UninstallModeGraceful)
+		updateRequired = true
+	} else if found && v != string(UninstallModeGraceful) && v != string(UninstallModeForced) {
+		// if wrong value found
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
+		reqLogger.Info("Uninstall: Found unrecognized uninstall mode annotation. Changing it to default",
+			"CurrentUninstallMode", v, "DefaultUninstallMode", UninstallModeGraceful)
+		updateRequired = true
+	}
+
+	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
+		reqLogger.Info("Uninstall: Setting uninstall cleanup policy annotation to default", CleanupPolicyDelete)
+		updateRequired = true
+	} else if found && v != string(CleanupPolicyDelete) && v != string(CleanupPolicyRetain) {
+		// if wrong value found
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
+		reqLogger.Info("Uninstall: Found unrecognized uninstall cleanup policy annotation.Changing it to default",
+			"CurrentCleanupPolicy", v, "DefaultCleanupPolicy", CleanupPolicyDelete)
+		updateRequired = true
+	}
+
+	if updateRequired {
+		if err := r.client.Update(context.TODO(), sc); err != nil {
+			reqLogger.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
+			return err
+		}
+		reqLogger.Info("Uninstall: Default uninstall annotations has been set on storagecluster")
+	}
+	return nil
+}
+
+// deleteResources is the function where the storageClusterFinalizer is handled
+// Every function that is called within this function should be idempotent
+func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+
+	err := r.setRookUninstallandCleanupPolicy(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
+	err = r.setNoobaaUninstallMode(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
+	err = r.deleteNoobaaSystems(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
+	err = r.deleteCephCluster(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
+	err = r.deleteStorageClasses(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
+	// TODO: skip the deletion of these labels till we figure out a way to wait
+	// for the cleanup jobs
+	//err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
+	//if err != nil {
+	//	return err
+	//}
+
+	err = r.deleteNodeTaint(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
