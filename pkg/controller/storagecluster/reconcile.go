@@ -417,7 +417,7 @@ func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageClu
 			}
 		}
 		if ds.DeviceType != "" {
-			if ( DeviceTypeSSD == strings.ToLower(ds.DeviceType )) || ( DeviceTypeHDD == strings.ToLower(ds.DeviceType )) || ( DeviceTypeNVMe == strings.ToLower(ds.DeviceType )) {
+			if (DeviceTypeSSD == strings.ToLower(ds.DeviceType)) || (DeviceTypeHDD == strings.ToLower(ds.DeviceType)) || (DeviceTypeNVMe == strings.ToLower(ds.DeviceType)) {
 				metav1.SetMetaDataAnnotation(&sc.ObjectMeta, "crushDeviceClass", ds.DeviceType)
 			} else {
 				return fmt.Errorf("failed to validate DeviceType %q: no Device of this type", ds.DeviceType)
@@ -468,7 +468,7 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 		}
 	}
 	val, ok := found.Data["config"]
-	if ok != true || val != rookConfigData || ownerRefFound != true {
+	if !ok || val != rookConfigData || !ownerRefFound {
 		reqLogger.Info("Updating Ceph ConfigMap")
 		return r.client.Update(context.TODO(), cm)
 	}
