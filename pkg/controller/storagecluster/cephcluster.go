@@ -117,7 +117,10 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	if err != nil {
 		return err
 	}
-	objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
+	err = objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
+	if err != nil {
+		return err
+	}
 
 	// Handle CephCluster resource status
 	if found.Status.State == "" {
@@ -184,8 +187,8 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			},
 			Mgr: cephv1.MgrSpec{
 				Modules: []cephv1.Module{
-					cephv1.Module{Name: "pg_autoscaler", Enabled: true},
-					cephv1.Module{Name: "balancer", Enabled: true},
+					{Name: "pg_autoscaler", Enabled: true},
+					{Name: "balancer", Enabled: true},
 				},
 			},
 			DataDirHostPath: "/var/lib/rook",
