@@ -1,23 +1,42 @@
 package storagecluster
 
 import (
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"testing"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
+
+	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 )
 
 func TestCephFileSystem(t *testing.T) {
+	var cases = []struct {
+		label                string
+		createRuntimeObjects bool
+	}{
+		{
+			label:                "case 1",
+			createRuntimeObjects: false,
+		},
+		{
+			label:                "case 2",
+			createRuntimeObjects: true,
+		},
+	}
 	for _, eachPlatform := range allPlatforms {
 		cp := &CloudPlatform{platform: eachPlatform}
-		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, nil)
-		assertCephFileSystem(t, reconciler, cr, request)
-		t, reconciler, cr, request = initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, createUpdateRuntimeObjects(cp))
-		assertCephFileSystem(t, reconciler, cr, request)
+		for _, c := range cases {
+			var objects []runtime.Object
+			if c.createRuntimeObjects {
+				objects = createUpdateRuntimeObjects(cp)
+			}
+			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
+				t, cp, objects)
+			assertCephFileSystem(t, reconciler, cr, request)
+		}
 	}
 
 }
