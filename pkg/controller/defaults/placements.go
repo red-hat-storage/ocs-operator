@@ -90,6 +90,36 @@ var (
 			},
 		},
 
+		"osd-prepare": rook.Placement{
+			Tolerations: []corev1.Toleration{
+				corev1.Toleration{
+					Key:      NodeTolerationKey,
+					Operator: corev1.TolerationOpEqual,
+					Value:    "true",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			},
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					corev1.WeightedPodAffinityTerm{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									metav1.LabelSelectorRequirement{
+										Key:      appLabelSelectorKey,
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"rook-ceph-osd-prepare"},
+									},
+								},
+							},
+							TopologyKey: corev1.LabelHostname,
+						},
+					},
+				},
+			},
+		},
+
 		"rgw": rook.Placement{
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{

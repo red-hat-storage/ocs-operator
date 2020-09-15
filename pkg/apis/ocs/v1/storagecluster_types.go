@@ -72,6 +72,7 @@ type StorageDeviceSet struct {
 
 	Name                string                        `json:"name"`
 	Resources           corev1.ResourceRequirements   `json:"resources,omitempty"`
+	PreparePlacement    rook.Placement                `json:"preparePlacement,omitempty"`
 	Placement           rook.Placement                `json:"placement,omitempty"`
 	Config              StorageDeviceSetConfig        `json:"config,omitempty"`
 	DataPVCTemplate     corev1.PersistentVolumeClaim  `json:"dataPVCTemplate"`
