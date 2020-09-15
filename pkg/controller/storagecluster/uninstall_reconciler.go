@@ -46,7 +46,7 @@ func (r *ReconcileStorageCluster) deleteStorageClasses(instance *ocsv1.StorageCl
 
 	scs, err := r.newStorageClasses(instance)
 	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to determine the StorageClass names"))
+		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to determine the StorageClass names")) //nolint:gosimple
 		return nil
 	}
 	for _, sc := range scs {
@@ -77,6 +77,7 @@ func (r *ReconcileStorageCluster) deleteStorageClasses(instance *ocsv1.StorageCl
 	return nil
 }
 
+//nolint:unused // func deleteNodeAffinityKeyFromNodes is not used. For Future usuage func is created.
 // deleteNodeAffinityKeyFromNodes deletes the default NodeAffinityKey from the OCS nodes
 func (r *ReconcileStorageCluster) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
 
@@ -84,7 +85,7 @@ func (r *ReconcileStorageCluster) deleteNodeAffinityKeyFromNodes(sc *ocsv1.Stora
 	if sc.Spec.LabelSelector == nil {
 		nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster"))
+			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
 			return nil
 		}
 		for _, node := range nodes.Items {
@@ -127,7 +128,7 @@ func (r *ReconcileStorageCluster) deleteNodeTaint(sc *ocsv1.StorageCluster, reqL
 
 	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
 	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster"))
+		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
 		return nil
 	}
 	for _, node := range nodes.Items {
@@ -227,10 +228,10 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 	}
 
 	if v, found := instance.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
-		if (v == string(UninstallModeForced)) && (cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes != true) {
+		if (v == string(UninstallModeForced)) && (!cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes) {
 			cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = true
 			updateRequired = true
-		} else if (v == string(UninstallModeGraceful)) && (cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes != false) {
+		} else if (v == string(UninstallModeGraceful)) && (cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes) {
 			cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = false
 			updateRequired = true
 		}
