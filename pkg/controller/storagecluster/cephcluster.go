@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -63,7 +64,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	if sc.Spec.ExternalStorage.Enable {
 		cephCluster = newExternalCephCluster(sc, r.cephImage, r.monitoringIP)
 	} else {
-		cephCluster = newCephCluster(sc, r.cephImage, r.nodeCount, reqLogger)
+		cephCluster = newCephCluster(sc, r.cephImage, r.nodeCount, r.serverVersion, reqLogger)
 	}
 
 	// Set StorageCluster instance as the owner and controller
@@ -161,7 +162,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, reqLogger logr.Logger) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, reqLogger logr.Logger) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -201,7 +202,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, r
 				RulesNamespace: "openshift-storage",
 			},
 			Storage: rook.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc),
+				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
 			},
 			Placement: rook.PlacementSpec{
 				"all": getPlacement(sc, "all"),
@@ -322,11 +323,15 @@ func getMonCount(nodeCount int) int {
 }
 
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
-func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDeviceSet {
+func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.Info) []rook.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
 	topologyMap := sc.Status.NodeTopologies
 
 	var storageClassDeviceSets []rook.StorageClassDeviceSet
+
+	// For kube server version 1.19 and above, topology spread constraints are used for OSD placements.
+	// For kube server version below 1.19, NodeAffinity and PodAntiAffinity are used for OSD placements.
+	supportTSC := serverVersion.Major >= defaults.KubeMajorTopologySpreadConstraints && serverVersion.Minor >= defaults.KubeMinorTopologySpreadConstraints
 
 	for _, ds := range storageDeviceSets {
 		resources := ds.Resources
@@ -338,6 +343,11 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 		topologyKeyValues := []string{}
 		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil
 		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil
+
+		if supportTSC {
+			noPlacement = noPlacement && ds.Placement.TopologySpreadConstraints == nil
+			noPreparePlacement = noPreparePlacement && ds.PreparePlacement.TopologySpreadConstraints == nil
+		}
 
 		if noPlacement {
 			if topologyKey == "" {
@@ -370,19 +380,33 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 			preparePlacement := rook.Placement{}
 
 			if noPlacement {
-				in := getPlacement(sc, "osd")
-				(&in).DeepCopyInto(&placement)
+				if supportTSC {
+					in := getPlacement(sc, "osd-tsc")
+					(&in).DeepCopyInto(&placement)
 
-				if noPreparePlacement {
-					in := getPlacement(sc, "osd-prepare")
-					(&in).DeepCopyInto(&preparePlacement)
-				}
-
-				if len(topologyKeyValues) >= replica {
-					topologyIndex := i % len(topologyKeyValues)
-					setTopologyForAffinity(&placement, topologyKeyValues[topologyIndex], topologyKey)
 					if noPreparePlacement {
-						setTopologyForAffinity(&preparePlacement, topologyKeyValues[topologyIndex], topologyKey)
+						in := getPlacement(sc, "osd-prepare-tsc")
+						(&in).DeepCopyInto(&preparePlacement)
+
+						if len(topologyKeyValues) >= replica {
+							preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+						}
+					}
+				} else {
+					in := getPlacement(sc, "osd")
+					(&in).DeepCopyInto(&placement)
+
+					if noPreparePlacement {
+						in := getPlacement(sc, "osd-prepare")
+						(&in).DeepCopyInto(&preparePlacement)
+					}
+
+					if len(topologyKeyValues) >= replica {
+						topologyIndex := i % len(topologyKeyValues)
+						setTopologyForAffinity(&placement, topologyKeyValues[topologyIndex], topologyKey)
+						if noPreparePlacement {
+							setTopologyForAffinity(&preparePlacement, topologyKeyValues[topologyIndex], topologyKey)
+						}
 					}
 				}
 

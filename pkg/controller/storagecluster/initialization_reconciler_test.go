@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -200,10 +201,11 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	}
 
 	return ReconcileStorageCluster{
-		client:    client,
-		scheme:    scheme,
-		reqLogger: logf.Log.WithName("controller_storagecluster_test"),
-		platform:  platform,
+		client:        client,
+		scheme:        scheme,
+		serverVersion: &version.Info{},
+		reqLogger:     logf.Log.WithName("controller_storagecluster_test"),
+		platform:      platform,
 	}
 }
 

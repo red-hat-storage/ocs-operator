@@ -11,9 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 func TestEnsureCephCluster(t *testing.T) {
+	serverVersion := &version.Info{}
 	// cases for testing
 	cases := []struct {
 		label     string
@@ -51,7 +53,7 @@ func TestEnsureCephCluster(t *testing.T) {
 				c.cc.ObjectMeta.Name = "doesn't exist"
 			}
 		} else {
-			c.cc = newCephCluster(mockStorageCluster, "", 3, log)
+			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, log)
 			c.cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 			if c.condition == "negativeCondition" {
 				c.cc.Status.State = rookCephv1.ClusterStateCreated
@@ -62,8 +64,8 @@ func TestEnsureCephCluster(t *testing.T) {
 		err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 		assert.NoError(t, err)
 		if c.condition == "" {
-			expected := newCephCluster(mockStorageCluster, "", 3, log)
-			actual := newCephCluster(mockStorageCluster, "", 3, log)
+			expected := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
+			actual := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
 			err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
 			assert.NoError(t, err)
 			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -95,6 +97,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
+	serverVersion := &version.Info{}
 	topologyMap := &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{},
 	}
@@ -142,7 +145,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonPVCTemplate = c.monPVCTemplate
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 
-		actual := newCephCluster(c.sc, "", 3, log)
+		actual := newCephCluster(c.sc, "", 3, serverVersion, log)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
@@ -204,6 +207,11 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 	sc3.Spec.LabelSelector = &emptyLabelSelector
 
+	// Testing StorageClassDeviceSetCreation for kube version below 1.19
+	serverVersion := &version.Info{
+		Major: "1",
+		Minor: "18",
+	}
 	cases := []struct {
 		label                string
 		sc                   *api.StorageCluster
@@ -231,7 +239,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 	for _, c := range cases {
 
-		actual := newStorageClassDeviceSets(c.sc)
+		actual := newStorageClassDeviceSets(c.sc, serverVersion)
 		assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
 

@@ -120,6 +120,30 @@ var (
 			},
 		},
 
+		"osd-tsc": rook.Placement{
+			Tolerations: []corev1.Toleration{
+				corev1.Toleration{
+					Key:      NodeTolerationKey,
+					Operator: corev1.TolerationOpEqual,
+					Value:    "true",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			},
+			TopologySpreadConstraints: getTopologySpreadConstraintsSpec("rook-ceph-osd"),
+		},
+
+		"osd-prepare-tsc": rook.Placement{
+			Tolerations: []corev1.Toleration{
+				corev1.Toleration{
+					Key:      NodeTolerationKey,
+					Operator: corev1.TolerationOpEqual,
+					Value:    "true",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			},
+			TopologySpreadConstraints: getTopologySpreadConstraintsSpec("rook-ceph-osd-prepare"),
+		},
+
 		"rgw": rook.Placement{
 			Tolerations: []corev1.Toleration{
 				corev1.Toleration{
@@ -203,3 +227,24 @@ var (
 		},
 	}
 )
+
+func getTopologySpreadConstraintsSpec(selectorValue string) []corev1.TopologySpreadConstraint {
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		corev1.TopologySpreadConstraint{
+			MaxSkew:           1,
+			TopologyKey:       corev1.LabelHostname,
+			WhenUnsatisfiable: "ScheduleAnyway",
+			LabelSelector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					metav1.LabelSelectorRequirement{
+						Key:      appLabelSelectorKey,
+						Operator: metav1.LabelSelectorOpIn,
+						Values:   []string{selectorValue},
+					},
+				},
+			},
+		},
+	}
+
+	return topologySpreadConstraints
+}
