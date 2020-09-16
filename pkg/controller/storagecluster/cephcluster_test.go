@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -66,7 +67,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		if c.condition == "" {
 			expected := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
 			actual := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
-			err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
+			err = reconciler.client.Get(context.TODO(), mockCephClusterNamespacedName, actual)
 			assert.NoError(t, err)
 			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 			assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
