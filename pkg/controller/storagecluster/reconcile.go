@@ -513,6 +513,7 @@ func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.Storage
 	return true, nil
 }
 
+// setRookUninstallandCleanupPolicy sets the uninstall mode and cleanup policy for rook based on the annotation on the StorageCluster
 func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
 
 	cephCluster := &cephv1.CephCluster{}
@@ -521,10 +522,10 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("CephCluster not found, can't set the cleanup policy and uninstall mode")
+			reqLogger.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
 			return nil
 		}
-		return fmt.Errorf("Unable to retrive the cephCluster: %v", err)
+		return fmt.Errorf("Uninstall: Unable to retrieve the cephCluster: %v", err)
 	}
 
 	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
@@ -550,8 +551,9 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 	if updateRequired {
 		err := r.client.Update(context.TODO(), cephCluster)
 		if err != nil {
-			return fmt.Errorf("Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
+			return fmt.Errorf("Uninstall: Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
 		}
+		reqLogger.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set")
 	}
 
 	return nil
@@ -639,29 +641,40 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	return nil
 }
 
-// reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none are set.
+// reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none or unrecognized ones are set.
 func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	var updateRequired bool
+
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Setting uninstall mode annotation to default", "UninstallMode", UninstallModeGraceful)
+		reqLogger.Info("Uninstall: setting uninstall mode annotation to default", UninstallModeGraceful)
+		updateRequired = true
 	} else if found && v != string(UninstallModeGraceful) && v != string(UninstallModeForced) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Found unrecognized uninstall mode annotation. Changing it to default", "CurrentUninstallMode", v, "DefaultUninstallMode", UninstallModeGraceful)
+		reqLogger.Info("Uninstall: Found unrecognized uninstall mode annotation. Changing it to default",
+			"CurrentUninstallMode", v, "DefaultUninstallMode", UninstallModeGraceful)
+		updateRequired = true
 	}
 
 	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Setting uninstall cleanup policy annotation to default", "DefaultCleanupPolicy", CleanupPolicyDelete)
+		reqLogger.Info("Uninstall: setting uninstall cleanup policy annotation to default", CleanupPolicyDelete)
+		updateRequired = true
 	} else if found && v != string(CleanupPolicyDelete) && v != string(CleanupPolicyRetain) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Found unrecognized uninstall cleanup policy annotation.Changing it to default", "CurrentCleanupPolicy", v, "DefaultCleanupPolicy", CleanupPolicyDelete)
+		reqLogger.Info("Uninstall: Found unrecognized uninstall cleanup policy annotation.Changing it to default",
+			"CurrentCleanupPolicy", v, "DefaultCleanupPolicy", CleanupPolicyDelete)
+		updateRequired = true
 	}
 
-	if err := r.client.Update(context.TODO(), sc); err != nil {
-		reqLogger.Error(err, "Failed to update the storagecluster with uninstall defaults")
-		return err
+	if updateRequired {
+		if err := r.client.Update(context.TODO(), sc); err != nil {
+			reqLogger.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
+			return err
+		}
+		reqLogger.Info("Uninstall: Default uninstall annotations has been set on storagecluster")
 	}
 	return nil
 }
