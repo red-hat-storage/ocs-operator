@@ -44,6 +44,7 @@ $(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
 	gofmt \
 	golint \
 	govet \
+	golangci-lint \
 	update-generated \
 	ocs-operator-ci \
 	red-hat-storage-ocs-ci \
@@ -157,6 +158,10 @@ shellcheck-test:
 	@echo "Testing for shellcheck"
 	hack/shellcheck-test.sh
 
+golangci-lint:
+	@echo "Running golangci-lint run"
+	hack/golangci_lint.sh
+
 # ignoring the functest dir since it requires an active cluster
 # use 'make functest' to run just the functional tests
 unit-test:
@@ -173,7 +178,7 @@ verify-generated: update-generated
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
 
-ocs-operator-ci: shellcheck-test gofmt golint govet unit-test verify-generated verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test gofmt golint govet golangci-lint unit-test verify-generated verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"
