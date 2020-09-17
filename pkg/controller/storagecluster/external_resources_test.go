@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -22,7 +23,7 @@ import (
 )
 
 var ExternalResources = []ExternalResource{
-	ExternalResource{
+	{
 		Kind: "ConfigMap",
 		Data: map[string]string{
 			"maxMonId": "0",
@@ -31,7 +32,7 @@ var ExternalResources = []ExternalResource{
 		},
 		Name: "rook-ceph-mon-endpoints",
 	},
-	ExternalResource{
+	{
 		Kind: "Secret",
 		Data: map[string]string{
 			"userKey": "someUserKeyRBD==",
@@ -39,14 +40,14 @@ var ExternalResources = []ExternalResource{
 		},
 		Name: "rook-csi-rbd-node",
 	},
-	ExternalResource{
+	{
 		Kind: "StorageClass",
 		Data: map[string]string{
 			"pool": "device_health_metrics",
 		},
 		Name: "ceph-rbd",
 	},
-	ExternalResource{
+	{
 		Kind: "StorageClass",
 		Data: map[string]string{
 			"fsName": "myfs",
@@ -54,7 +55,7 @@ var ExternalResources = []ExternalResource{
 		},
 		Name: "cephfs",
 	},
-	ExternalResource{
+	{
 		Kind: "StorageClass",
 		Data: map[string]string{
 			"endpoint": fmt.Sprintf("127.0.0.1:%d", generateRandomPort(10000, 30000)),
@@ -140,7 +141,7 @@ func createExternalClusterReconcilerFromCustomResources(
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
 	runtimeObjs := []runtime.Object{cr, externalSecret, rookCephConfig}
 	for _, obj := range runtimeObjs {
-		if err = reconciler.client.Create(nil, obj); err != nil {
+		if err = reconciler.client.Create(context.TODO(), obj); err != nil {
 			t.Fatalf("failed to create a needed runtime object: %v", err)
 		}
 	}
@@ -155,12 +156,12 @@ func assertExpectedExternalResources(t *testing.T, reconciler ReconcileStorageCl
 		},
 	}
 	sc := &api.StorageCluster{}
-	err := reconciler.client.Get(nil, request.NamespacedName, sc)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, sc)
 	assert.NoError(t, err)
 
 	externalSecret := &corev1.Secret{}
 	request.Name = externalClusterDetailsSecret
-	err = reconciler.client.Get(nil, request.NamespacedName, externalSecret)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, externalSecret)
 	assert.NoError(t, err)
 
 	var data []ExternalResource
@@ -174,14 +175,14 @@ func assertExpectedExternalResources(t *testing.T, reconciler ReconcileStorageCl
 		switch expected.Kind {
 		case "ConfigMap":
 			actual := &corev1.ConfigMap{}
-			err := reconciler.client.Get(nil, request.NamespacedName, actual)
+			err := reconciler.client.Get(context.TODO(), request.NamespacedName, actual)
 			assert.NoError(t, err)
 			for er := range expected.Data {
 				assert.Equal(t, expected.Data[er], actual.Data[er])
 			}
 		case "Secret":
 			actual := &corev1.Secret{}
-			err := reconciler.client.Get(nil, request.NamespacedName, actual)
+			err := reconciler.client.Get(context.TODO(), request.NamespacedName, actual)
 			assert.NoError(t, err)
 			for er := range expected.Data {
 				assert.Equal(t, []byte(expected.Data[er]), actual.Data[er])
@@ -189,7 +190,7 @@ func assertExpectedExternalResources(t *testing.T, reconciler ReconcileStorageCl
 		case "StorageClass":
 			actual := &storagev1.StorageClass{}
 			request.Name = fmt.Sprintf("%s-%s", sc.Name, expected.Name)
-			err := reconciler.client.Get(nil, request.NamespacedName, actual)
+			err := reconciler.client.Get(context.TODO(), request.NamespacedName, actual)
 			assert.NoError(t, err)
 			// 'endpoint's are not required, as they are moved out to CephObjectStore
 			delete(expected.Data, "endpoint")
@@ -319,10 +320,10 @@ func assertRookCephOperatorConfigValue(t *testing.T, reconciler ReconcileStorage
 		},
 	}
 	sc := &api.StorageCluster{}
-	err := reconciler.client.Get(nil, request.NamespacedName, sc)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, sc)
 	assert.NoError(t, err)
 	rookCephOperatorConfig := &corev1.ConfigMap{}
-	err = reconciler.client.Get(nil,
+	err = reconciler.client.Get(context.TODO(),
 		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: sc.ObjectMeta.Namespace},
 		rookCephOperatorConfig)
 	assert.NoErrorf(t, err, "Unable to get '%s' config", rookCephOperatorConfigName)
@@ -339,12 +340,12 @@ func assertMissingExternalResource(t *testing.T, reconciler ReconcileStorageClus
 		},
 	}
 	sc := &api.StorageCluster{}
-	err := reconciler.client.Get(nil, request.NamespacedName, sc)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, sc)
 	assert.NoError(t, err)
 
 	externalSecret := &corev1.Secret{}
 	request.Name = externalClusterDetailsSecret
-	err = reconciler.client.Get(nil, request.NamespacedName, externalSecret)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, externalSecret)
 	assert.NoError(t, err)
 
 	var data []ExternalResource
@@ -354,7 +355,7 @@ func assertMissingExternalResource(t *testing.T, reconciler ReconcileStorageClus
 	}
 	actual := &storagev1.StorageClass{}
 	request.Name = fmt.Sprintf("%s-%s", sc.Name, resourceName)
-	err = reconciler.client.Get(nil, request.NamespacedName, actual)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actual)
 	// as the resource is missing, we are expecting an 'error'
 	assert.Error(t, err)
 }
@@ -367,7 +368,7 @@ func assertCephObjectStore(t *testing.T, reconciler ReconcileStorageCluster, rem
 		},
 	}
 	sc := &api.StorageCluster{}
-	err := reconciler.client.Get(nil, request.NamespacedName, sc)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, sc)
 	assert.NoError(t, err)
 	expectedName := fmt.Sprintf("%s-cephobjectstore", sc.Name)
 	request.Name = expectedName
@@ -376,7 +377,7 @@ func assertCephObjectStore(t *testing.T, reconciler ReconcileStorageCluster, rem
 			Name: expectedName,
 		},
 	}
-	err = reconciler.client.Get(nil, request.NamespacedName, cObjS)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, cObjS)
 	// if removed resource is 'ceph-rgw', we should not get CephObjectStore object
 	if removedResource == "ceph-rgw" {
 		assert.Error(t, err)
@@ -401,6 +402,7 @@ func TestExternalResourceReconcile(t *testing.T) {
 	assertReconciliationOfExternalResource(t, reconciler)
 }
 
+// nolint
 func assertReconciliationOfExternalResource(t *testing.T, reconciler ReconcileStorageCluster) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
