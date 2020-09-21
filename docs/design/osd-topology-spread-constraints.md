@@ -5,8 +5,6 @@
 Implement the use of [Topology Spread Constraints] to distribute the Ceph OSD
 Pods across the configured failure domains.
 
-[Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/)
-
 ## Motivation
 
 Currently, the primary mechanism for spreading the OSD Pods is to use Pod
@@ -114,3 +112,4 @@ None
 
 ## Alternatives
 
+[Topology Spread Constraints]: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
