@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/blang/semver"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	openshiftv1 "github.com/openshift/api/template/v1"
@@ -26,6 +27,8 @@ import (
 
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	"github.com/openshift/ocs-operator/version"
 )
 
 const (
@@ -82,6 +85,33 @@ var mockStorageClusterInit = &api.StorageClusterInitialization{
 
 var storageClassName = "gp2"
 var volMode = corev1.PersistentVolumeBlock
+
+var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
+	Spec: corev1.PersistentVolumeClaimSpec{
+		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("1Ti"),
+			},
+		},
+		StorageClassName: &storageClassName,
+		VolumeMode:       &volMode,
+	},
+}
+
+var mockMetaDataPVCTemplate = &corev1.PersistentVolumeClaim{
+	Spec: corev1.PersistentVolumeClaimSpec{
+		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("1Ti"),
+			},
+		},
+		StorageClassName: &storageClassName,
+		VolumeMode:       &volMode,
+	},
+}
+
 var mockDeviceSets = []api.StorageDeviceSet{
 	{
 		Name:  "mock-sds",
@@ -168,32 +198,227 @@ func TestReconcilerImplInterface(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func TestNonWatchedResourceNameNotFound(t *testing.T) {
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "doesn't exist",
-			Namespace: "storage-test-ns",
+func TestVersionCheck(t *testing.T) {
+	testcases := []struct {
+		label           string
+		storageCluster  *api.StorageCluster
+		expectedVersion string
+		errorExpected   bool
+	}{
+		{
+			label: "Case 1", // no version is provided in the storagecluster
+			storageCluster: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test",
+					Namespace: "storage-test-ns",
+				},
+			},
+			expectedVersion: version.Version,
+			errorExpected:   false,
+		},
+		{
+			label: "Case 2", // a lower version is provided in the storagecluster
+			storageCluster: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test",
+					Namespace: "storage-test-ns",
+				},
+				Spec: api.StorageClusterSpec{
+					Version: getSemVer(version.Version, 1, true),
+				},
+			},
+			expectedVersion: version.Version,
+			errorExpected:   false,
+		},
+		{
+			label: "Case 3", // a higher version is provided in the storagecluster
+			storageCluster: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test",
+					Namespace: "storage-test-ns",
+				},
+				Spec: api.StorageClusterSpec{
+					Version: getSemVer(version.Version, 1, false),
+				},
+			},
+			expectedVersion: version.Version,
+			errorExpected:   true,
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster)
-	result, err := reconciler.Reconcile(request)
-	assert.NoError(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
+
+	for _, tc := range testcases {
+		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster)
+		err := versionCheck(tc.storageCluster, reconciler.reqLogger)
+		if tc.errorExpected {
+			assert.Errorf(t, err, "[%q]: failed to assert error when higher version is provided in the storagecluster spec", tc.label)
+			continue
+		}
+		assert.NoError(t, err)
+		assert.Equalf(t, tc.expectedVersion, tc.storageCluster.Spec.Version, "[%q]: failed to get correct version", tc.label)
+	}
+
 }
 
-func TestNonWatchedResourceNamespaceNotFound(t *testing.T) {
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "storage-test",
-			Namespace: "doesn't exist",
+func TestThrottleStorageDevices(t *testing.T) {
+	testcases := []struct {
+		label          string
+		storageClass   *storagev1.StorageClass
+		storageCluster *api.StorageCluster
+		expected       bool
+	}{
+		{
+			label: "Case 1", // storageclass is gp2 or io1
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gp2",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "gp2",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expected:       true,
+		},
+		{
+			label: "Case 2", // storageclass is neither gp2 nor io1
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "st1",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "st1",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expected:       false,
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster)
-	result, err := reconciler.Reconcile(request)
-	assert.NoError(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
+
+	for _, tc := range testcases {
+		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.storageClass)
+		actual, err := reconciler.throttleStorageDevices(tc.storageClass.Name)
+		assert.NoError(t, err)
+		assert.Equalf(t, tc.expected, actual, "[%q]: failed to get expected output", tc.label)
+	}
 }
 
+func TestIsActiveStorageCluster(t *testing.T) {
+	testcases := []struct {
+		label           string
+		storageCluster1 *api.StorageCluster
+		storageCluster2 *api.StorageCluster
+		isActive        bool
+	}{
+		{
+			label: "Case 1", // storageCluster1 has phase ignored. So storageCluster2 should be active
+			storageCluster1: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-a",
+					Namespace: "storage-test-ns",
+				},
+				Status: api.StorageClusterStatus{
+					Phase: statusutil.PhaseIgnored,
+				},
+			},
+			storageCluster2: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-b",
+					Namespace: "storage-test-ns",
+				},
+			},
+			isActive: true,
+		},
+		{
+			// storageCluster1 and storageCluster2 have same creationTimeStamp. So storageCluster2 is not active
+			// based on the alphabetic order of the object name (storage-test-a < storage-test-b)
+			label: "Case 2",
+			storageCluster1: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-a",
+					Namespace: "storage-test-ns",
+				},
+			},
+			storageCluster2: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-b",
+					Namespace: "storage-test-ns",
+				},
+			},
+			isActive: false,
+		},
+		{
+			// storageCluster1 and storageCluster2 have same creationTimeStamp. So storageCluster2 is active
+			// based on the alphabetic order of the object name. (storage-test-z > storage-test-b)
+			label: "Case 3",
+			storageCluster1: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-z",
+					Namespace: "storage-test-ns",
+				},
+			},
+			storageCluster2: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-b",
+					Namespace: "storage-test-ns",
+				},
+			},
+			isActive: true,
+		},
+		{
+			label:           "Case 4", // storageCluster2 should be active as there are no other storageClusters available
+			storageCluster1: &api.StorageCluster{},
+			storageCluster2: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-b",
+					Namespace: "storage-test-ns",
+				},
+			},
+			isActive: true,
+		},
+	}
+
+	for _, tc := range testcases {
+		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster1, tc.storageCluster2)
+		actual, err := reconciler.isActiveStorageCluster(tc.storageCluster2)
+		assert.NoError(t, err)
+		assert.Equalf(t, tc.isActive, actual, "[%q] failed to assert if current storagecluster is active or not", tc.label)
+	}
+
+}
+func TestReconcileWithNonWatchedResource(t *testing.T) {
+	testcases := []struct {
+		label     string
+		name      string
+		namespace string
+	}{
+		{
+			label:     "case 1", // resource with non-watched name
+			name:      "doesn't exist",
+			namespace: "storage-test-ns",
+		},
+		{
+			label:     "case 1", // resource with non-watched namespace
+			name:      "storage-test",
+			namespace: "doesn't exist",
+		},
+	}
+
+	for _, tc := range testcases {
+		request := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      tc.name,
+				Namespace: tc.namespace,
+			},
+		}
+		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster)
+		result, err := reconciler.Reconcile(request)
+		assert.NoError(t, err)
+		assert.Equalf(t, reconcile.Result{}, result, "[%s]: reconcile failed with non-watched resource", tc.label)
+
+	}
+}
 func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
@@ -231,130 +456,9 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	assertExpectedCondition(t, actual.Status.Conditions)
 }
 
-func TestNodeTopologyMapNoNodes(t *testing.T) {
-	nodeList := &corev1.NodeList{}
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, nodeList)
-	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
-	assert.Equal(t, err, fmt.Errorf("Not enough nodes found: Expected %d, found %d", defaults.DeviceSetReplica, len(nodeList.Items)))
-	assert.Equal(t, reconciler.nodeCount, 0)
-}
-
-func TestNodeTopologyMapPreexistingRack(t *testing.T) {
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	nodeList := &corev1.NodeList{}
-	mockNodeList.DeepCopyInto(nodeList)
-	sc.Status.FailureDomain = "rack"
-
-	nodeTopologyMap := &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
-			zoneTopologyLabel: []string{
-				"zone1",
-				"zone2",
-				"zone3",
-			},
-			defaults.RackTopologyKey: []string{
-				"rack0",
-				"rack1",
-				"rack2",
-			},
-		},
-	}
-
-	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
-	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
-	assert.NoError(t, err)
-	assert.Equal(t, reconciler.nodeCount, 3)
-
-	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, nodeTopologyMap, actual.Status.NodeTopologies)
-}
-
-func TestNodeTopologyMapTwoAZ(t *testing.T) {
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	nodeList := &corev1.NodeList{}
-	mockNodeList.DeepCopyInto(nodeList)
-	nodeList.Items[2].Labels[zoneTopologyLabel] = "zone2"
-
-	nodeTopologyMap := &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
-			zoneTopologyLabel: []string{
-				"zone1",
-				"zone2",
-			},
-		},
-	}
-
-	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
-	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
-	assert.NoError(t, err)
-
-	nodeTopologyMap.Add(defaults.RackTopologyKey, "rack0")
-	nodeTopologyMap.Add(defaults.RackTopologyKey, "rack1")
-	nodeTopologyMap.Add(defaults.RackTopologyKey, "rack2")
-
-	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, nodeTopologyMap, actual.Status.NodeTopologies)
-}
-
-func TestNodeTopologyMapThreeAZ(t *testing.T) {
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	nodeList := &corev1.NodeList{}
-	mockNodeList.DeepCopyInto(nodeList)
-
-	nodeTopologyMap := &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
-			zoneTopologyLabel: []string{
-				"zone1",
-				"zone2",
-				"zone3",
-			},
-		},
-	}
-
-	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
-	err := reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
-	assert.NoError(t, err)
-
-	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
-	assert.NoError(t, err)
-	assert.Equal(t, nodeTopologyMap, actual.Status.NodeTopologies)
-}
-
-func TestFailureDomain(t *testing.T) {
-	sc := &api.StorageCluster{}
-	nodeTopologyMap := &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{},
-	}
-	sc.Status.NodeTopologies = nodeTopologyMap
-
-	failureDomain := determineFailureDomain(sc)
-	assert.Equal(t, "rack", failureDomain)
-
-	nodeTopologyMap.Labels[zoneTopologyLabel] = []string{
-		"zone1",
-		"zone2",
-		"zone3",
-	}
-
-	failureDomain = determineFailureDomain(sc)
-	assert.Equal(t, "zone", failureDomain)
-}
-
 func TestStorageDeviceSets(t *testing.T) {
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	sc.Spec.StorageDeviceSets = mockDeviceSets
-
+	scName := ""
+	metadataScName := ""
 	storageClassEBS := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "gp2",
@@ -366,26 +470,96 @@ func TestStorageDeviceSets(t *testing.T) {
 	}
 
 	reconciler := createFakeStorageClusterReconciler(t, storageClassEBS)
-	err := reconciler.validateStorageDeviceSets(sc)
-	assert.NoError(t, err)
 
-	metadataScName := ""
-	sc.Spec.StorageDeviceSets[0].MetadataPVCTemplate.Spec.StorageClassName = &metadataScName
-	err = reconciler.validateStorageDeviceSets(sc)
-	assert.Contains(t, err.Error(), "no StorageClass specified for metadataPVCTemplate")
+	testcases := []struct {
+		label          string
+		storageCluster *api.StorageCluster
+		deviceSets     []api.StorageDeviceSet
+		expectedError  error
+	}{
+		{
+			label:          "Case 1",
+			storageCluster: &api.StorageCluster{},
+			deviceSets:     mockDeviceSets,
+			expectedError:  nil,
+		},
+		{
+			label:          "Case 2",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:                "mock-sds",
+					Count:               3,
+					DataPVCTemplate:     corev1.PersistentVolumeClaim{},
+					MetadataPVCTemplate: mockMetaDataPVCTemplate,
+					Portable:            true,
+				},
+			},
+			expectedError: fmt.Errorf("no StorageClass specified"),
+		},
+		{
+			label:          "Case 3",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &scName,
+						},
+					},
+					MetadataPVCTemplate: mockMetaDataPVCTemplate,
+					Portable:            true,
+				},
+			},
+			expectedError: fmt.Errorf("no StorageClass specified"),
+		},
 
-	sc.Spec.StorageDeviceSets[0].MetadataPVCTemplate.Spec.StorageClassName = nil
-	err = reconciler.validateStorageDeviceSets(sc)
-	assert.Contains(t, err.Error(), "no StorageClass specified for metadataPVCTemplate")
+		{
+			label:          "Case 4",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:                "mock-sds",
+					Count:               3,
+					DataPVCTemplate:     mockDataPVCTemplate,
+					MetadataPVCTemplate: &corev1.PersistentVolumeClaim{},
+					Portable:            true,
+				},
+			},
+			expectedError: fmt.Errorf("no StorageClass specified for metadataPVCTemplate"),
+		},
+		{
+			label:          "Case 5",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:            "mock-sds",
+					Count:           3,
+					DataPVCTemplate: mockDataPVCTemplate,
+					MetadataPVCTemplate: &corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &metadataScName,
+						},
+					},
+					Portable: true,
+				},
+			},
+			expectedError: fmt.Errorf("no StorageClass specified"),
+		},
+	}
 
-	scName := ""
-	sc.Spec.StorageDeviceSets[0].DataPVCTemplate.Spec.StorageClassName = &scName
-	err = reconciler.validateStorageDeviceSets(sc)
-	assert.Contains(t, err.Error(), "no StorageClass specified")
-
-	sc.Spec.StorageDeviceSets[0].DataPVCTemplate.Spec.StorageClassName = nil
-	err = reconciler.validateStorageDeviceSets(sc)
-	assert.Contains(t, err.Error(), "no StorageClass specified")
+	for _, tc := range testcases {
+		tc.storageCluster.Spec.StorageDeviceSets = tc.deviceSets
+		err := reconciler.validateStorageDeviceSets(tc.storageCluster)
+		if tc.expectedError == nil {
+			assert.NoError(t, err)
+			continue
+		}
+		assert.Error(t, err)
+		assert.Containsf(t, err.Error(), tc.expectedError.Error(), "[%s]: failed to validate deviceSets", tc.label)
+	}
 }
 
 func TestStorageClusterInitConditions(t *testing.T) {
@@ -546,43 +720,7 @@ func TestMonCountChange(t *testing.T) {
 		}
 		monCountActual := getMonCount(nodeCount)
 		assert.Equal(t, monCountExpected, monCountActual)
-
 	}
-
-}
-
-func TestNodeTopologyMapLabelSelector(t *testing.T) {
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	sc.Spec.LabelSelector = &metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			metav1.LabelSelectorRequirement{
-				Key:      WorkerAffinityKey,
-				Operator: metav1.LabelSelectorOpExists,
-			},
-		},
-	}
-	nodeList := &corev1.NodeList{}
-	mockNodeList.DeepCopyInto(nodeList)
-	for i := 0; i < len(nodeList.Items); i++ {
-		_, ok := nodeList.Items[i].ObjectMeta.Labels[defaults.NodeAffinityKey]
-		if ok {
-			delete(nodeList.Items[i].ObjectMeta.Labels, defaults.NodeAffinityKey)
-		}
-		nodeList.Items[i].ObjectMeta.Labels[WorkerAffinityKey] = ""
-	}
-	reconciler := createFakeStorageClusterReconciler(t, sc, nodeList)
-	reconciler.reconcileNodeTopologyMap(sc, reconciler.reqLogger)
-	nodeTopologyMap := &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
-			zoneTopologyLabel: []string{
-				"zone1",
-				"zone2",
-				"zone3",
-			},
-		},
-	}
-	assert.Equal(t, nodeTopologyMap, sc.Status.NodeTopologies)
 }
 
 // TestStorageClusterOnMultus tests if multus configurations in StorageCluster are successfully applied to CephClusterCR
@@ -668,4 +806,18 @@ func assertCephClusterNetwork(t assert.TestingT, reconciler ReconcileStorageClus
 	} else {
 		assert.Equal(t, *cr.Spec.Network, cephCluster.Spec.Network.NetworkSpec)
 	}
+}
+
+func getSemVer(version string, majorDiff uint64, islower bool) string {
+	sv, err := semver.Make(version)
+	if err != nil {
+		return version
+	}
+	if islower {
+		sv.Major = sv.Major - majorDiff
+	} else {
+		sv.Major = sv.Major + majorDiff
+	}
+
+	return sv.String()
 }
