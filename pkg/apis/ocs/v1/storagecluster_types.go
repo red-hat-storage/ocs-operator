@@ -40,6 +40,10 @@ type StorageClusterSpec struct {
 	// ManagedResources specifies how to deal with auxiliary resources reconciled
 	// with the StorageCluster
 	ManagedResources ManagedResourcesSpec `json:"managedResources,omitempty"`
+	// If enabled, sets the failureDomain to host, allowing devices to be
+	// distributed evenly across all nodes, regardless of distribution in zones
+	// or racks.
+	FlexibleScaling  bool     `json:"flexibleScaling,omitempty"`
 }
 
 // ManagedResourcesSpec defines how to reconcile auxiliary resources

@@ -56,6 +56,11 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 						"zone2",
 						"zone3",
 					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
+					},
 					defaults.RackTopologyKey: []string{
 						"rack0",
 						"rack1",
@@ -76,6 +81,11 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 						"zone1",
 						"zone2",
 						"zone3",
+					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
 					},
 				},
 			},
@@ -117,6 +127,11 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 					zoneTopologyLabel: []string{
 						"zone1",
 					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
+					},
 					defaults.RackTopologyKey: []string{
 						"rack0",
 						"rack1",
@@ -135,6 +150,11 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
+					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
 					},
 					defaults.RackTopologyKey: []string{
 						"rack0",
@@ -155,6 +175,11 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 						"zone1",
 						"zone2",
 						"zone3",
+					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
 					},
 				},
 			},
@@ -277,6 +302,24 @@ func TestFailureDomain(t *testing.T) {
 				},
 			},
 			expectedFailureDomain: "rack",
+		},
+		{
+			label: "Case 5", // storagecluster has predefined failure domain of `host`
+			storageCluster: &api.StorageCluster{
+				Status: api.StorageClusterStatus{
+					FailureDomain: "host",
+				},
+			},
+			expectedFailureDomain: "host",
+		},
+		{
+			label: "Case 6", // storagecluster with FlexibleScaling enabled
+			storageCluster: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					FlexibleScaling: true,
+				},
+			},
+			expectedFailureDomain: "host",
 		},
 	}
 
