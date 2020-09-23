@@ -641,14 +641,22 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 
 // reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none are set.
 func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if _, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
+	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
 		reqLogger.Info("setting uninstall mode annotation to default", UninstallModeGraceful)
+	} else if found && v != string(UninstallModeGraceful) && v != string(UninstallModeForced) {
+		// if wrong value found
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
+		reqLogger.Info("Found unrecognized uninstall mode annotation %v Changing it to default", v, UninstallModeGraceful)
 	}
 
-	if _, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
+	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
 		reqLogger.Info("setting uninstall cleanup policy annotation to default", CleanupPolicyDelete)
+	} else if found && v != string(CleanupPolicyDelete) && v != string(CleanupPolicyRetain) {
+		// if wrong value found
+		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
+		reqLogger.Info("Found unrecognized uninstall cleanup policy annotation %v Changing it to default", v, CleanupPolicyDelete)
 	}
 
 	if err := r.client.Update(context.TODO(), sc); err != nil {
