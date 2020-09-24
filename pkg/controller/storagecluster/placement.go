@@ -16,7 +16,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 	in, ok := sc.Spec.Placement[rookv1.KeyType(component)]
 	if ok {
 		(&in).DeepCopyInto(&placement)
-	} else if !ok && (len(sc.Spec.Placement) == 0) {
+	} else {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
 	}
@@ -44,10 +44,17 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 
 	topologyKey := determineFailureDomain(sc)
 	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-	if component == "mon" {
-		placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey = topologyKey
-	} else if component == "mds" {
-		placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey = topologyKey
+	if component == "mon" || component == "mds" {
+		if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, weightedPodAffinityTerm := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+				weightedPodAffinityTerm.PodAffinityTerm.TopologyKey = topologyKey
+			}
+		}
+		if placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, podAffinityTerm := range placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+				podAffinityTerm.TopologyKey = topologyKey
+			}
+		}
 	}
 
 	return placement
