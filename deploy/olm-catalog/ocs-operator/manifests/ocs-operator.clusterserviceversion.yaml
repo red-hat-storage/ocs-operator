@@ -710,7 +710,7 @@ metadata:
     external.features.ocs.openshift.io/validation: '{"secrets":["rook-ceph-operator-creds",
       "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints",
       "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}'
-    features.ocs.openshift.io/enabled: '["external"]'
+    features.ocs.openshift.io/enabled: '["external", "minimal_deployment", "encryption"]'
     olm.skipRange: '>=0.0.1 <4.6.0'
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-storage
