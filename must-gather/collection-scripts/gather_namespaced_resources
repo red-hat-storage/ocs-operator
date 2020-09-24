@@ -7,6 +7,9 @@ if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
 
+# Expect time option as an arguement 
+SINCE_TIME=$2
+
 # Make a globle variable for namespace
 INSTALL_NAMESPACE=openshift-storage
 
@@ -52,11 +55,11 @@ oc_yamls+=("csv")
 oc_yamls+=("installplan")
 
 echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${INSTALL_NAMESPACE}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 echo "collecting dump of clusterresourceversion" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
 for oc_yaml in "${oc_yamls[@]}"; do
    # shellcheck disable=SC2129
-   oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect "${oc_yaml}" -n "${INSTALL_NAMESPACE}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+   oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect "${oc_yaml}" -n "${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
 
 # Create the dir for oc_output
@@ -87,11 +90,11 @@ mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
 # Run the Collection of Resources using must-gather
 for resource in "${resources[@]}"; do
     echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
-    { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect "${resource}" --all-namespaces; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+    { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect "${resource}" --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
 done
 
 
 # For pvc of all namesspaces 
 echo "collecting dump of oc get pvc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/pvc_all_namespaces"
-{ oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+{ oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect pvc --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
