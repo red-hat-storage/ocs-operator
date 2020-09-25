@@ -452,6 +452,7 @@ func (in *StorageClusterStatus) DeepCopy() *StorageClusterStatus {
 func (in *StorageDeviceSet) DeepCopyInto(out *StorageDeviceSet) {
 	*out = *in
 	in.Resources.DeepCopyInto(&out.Resources)
+	in.PreparePlacement.DeepCopyInto(&out.PreparePlacement)
 	in.Placement.DeepCopyInto(&out.Placement)
 	out.Config = in.Config
 	in.DataPVCTemplate.DeepCopyInto(&out.DataPVCTemplate)

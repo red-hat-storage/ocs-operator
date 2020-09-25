@@ -11,7 +11,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -56,6 +59,20 @@ func (r *ReconcileStorageCluster) initializeImageVars() error {
 	return nil
 }
 
+func (r *ReconcileStorageCluster) initializeServerVersion() error {
+	clientset, err := kubernetes.NewForConfig(config.GetConfigOrDie())
+	if err != nil {
+		log.Error(err, "failed creation of clientset for determining serverversion")
+		return err
+	}
+	r.serverVersion, err = clientset.Discovery().ServerVersion()
+	if err != nil {
+		log.Error(err, "failed getting the serverversion")
+		return err
+	}
+	return nil
+}
+
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
@@ -67,6 +84,11 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	}
 
 	err := r.initializeImageVars()
+	if err != nil {
+		panic(err)
+	}
+
+	err = r.initializeServerVersion()
 	if err != nil {
 		panic(err)
 	}
@@ -138,6 +160,7 @@ type ReconcileStorageCluster struct {
 	// that reads objects from the cache and writes to the apiserver
 	client          client.Client
 	scheme          *runtime.Scheme
+	serverVersion   *version.Info
 	reqLogger       logr.Logger
 	conditions      []conditionsv1.Condition
 	phase           string

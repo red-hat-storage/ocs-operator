@@ -11,6 +11,12 @@ const (
 	// RackTopologyKey is the node label used to distribute storage nodes
 	// when there are not enough AZs presnet across the nodes
 	RackTopologyKey = "topology.rook.io/rack"
+	// KubeMajorTopologySpreadConstraints is the minimum major kube version to support TSC
+	// used along with KubeMinorTSC for version comparison
+	KubeMajorTopologySpreadConstraints = "1"
+	// KubeMinorTopologySpreadConstraints is the minimum minor kube version to support TSC
+	// used along with KubeMajorTSC for version comparison
+	KubeMinorTopologySpreadConstraints = "19"
 )
 
 var (

@@ -11,9 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 func TestEnsureCephCluster(t *testing.T) {
+	serverVersion := &version.Info{}
 	// cases for testing
 	cases := []struct {
 		label     string
@@ -51,7 +53,7 @@ func TestEnsureCephCluster(t *testing.T) {
 				c.cc.ObjectMeta.Name = "doesn't exist"
 			}
 		} else {
-			c.cc = newCephCluster(mockStorageCluster, "", 3, log)
+			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, log)
 			c.cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 			if c.condition == "negativeCondition" {
 				c.cc.Status.State = rookCephv1.ClusterStateCreated
@@ -62,8 +64,8 @@ func TestEnsureCephCluster(t *testing.T) {
 		err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
 		assert.NoError(t, err)
 		if c.condition == "" {
-			expected := newCephCluster(mockStorageCluster, "", 3, log)
-			actual := newCephCluster(mockStorageCluster, "", 3, log)
+			expected := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
+			actual := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
 			err = reconciler.client.Get(nil, mockCephClusterNamespacedName, actual)
 			assert.NoError(t, err)
 			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -95,6 +97,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
+	serverVersion := &version.Info{}
 	topologyMap := &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{},
 	}
@@ -142,7 +145,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonPVCTemplate = c.monPVCTemplate
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 
-		actual := newCephCluster(c.sc, "", 3, log)
+		actual := newCephCluster(c.sc, "", 3, serverVersion, log)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
@@ -199,11 +202,28 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			},
 		},
 	}
+
+	sc4 := &api.StorageCluster{}
+	sc4.Spec.StorageDeviceSets = mockDeviceSets
+	sc4.Status.NodeTopologies = &api.NodeTopologyMap{
+		Labels: map[string]api.TopologyLabelValues{
+			defaults.RackTopologyKey: []string{
+				"rack1",
+				"rack2",
+				"rack3",
+			},
+		},
+	}
 	var emptyLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{},
 	}
 	sc3.Spec.LabelSelector = &emptyLabelSelector
 
+	// Testing StorageClassDeviceSetCreation for kube version below 1.19
+	serverVersion := &version.Info{
+		Major: "1",
+		Minor: "18",
+	}
 	cases := []struct {
 		label                string
 		sc                   *api.StorageCluster
@@ -231,7 +251,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 	for _, c := range cases {
 
-		actual := newStorageClassDeviceSets(c.sc)
+		actual := newStorageClassDeviceSets(c.sc, serverVersion)
 		assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
 
@@ -253,6 +273,76 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 				nodeSelector := matchExpressions[c.lenOfMatchExpression-1]
 				assert.Equal(t, zoneTopologyLabel, nodeSelector.Key)
 				assert.Equal(t, c.sc.Status.NodeTopologies.Labels[zoneTopologyLabel][i], nodeSelector.Values[0])
+			}
+		}
+
+	}
+
+	// Testing StorageClassDeviceSetCreation for kube version 1.19 and above
+	serverVersion = &version.Info{
+		Major: defaults.KubeMajorTopologySpreadConstraints,
+		Minor: defaults.KubeMinorTopologySpreadConstraints,
+	}
+	cases = []struct {
+		label                string
+		sc                   *api.StorageCluster
+		topologyKey          string
+		lenOfMatchExpression int
+	}{
+		{
+			label:                "case 1",
+			sc:                   sc1,
+			topologyKey:          "zone",
+			lenOfMatchExpression: 1,
+		},
+		{
+			label:                "case 2",
+			sc:                   sc2,
+			topologyKey:          "zone",
+			lenOfMatchExpression: 1,
+		},
+		{
+			label:                "case 3",
+			sc:                   sc3,
+			topologyKey:          "zone",
+			lenOfMatchExpression: 0,
+		},
+		{
+			label:                "case 4",
+			sc:                   sc4,
+			topologyKey:          "rack",
+			lenOfMatchExpression: 1,
+		},
+	}
+
+	for _, c := range cases {
+
+		actual := newStorageClassDeviceSets(c.sc, serverVersion)
+		assert.Equal(t, defaults.DeviceSetReplica, len(actual))
+		deviceSet := c.sc.Spec.StorageDeviceSets[0]
+
+		for i, scds := range actual {
+			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
+			assert.Equal(t, deviceSet.Count/3, scds.Count)
+			assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
+			assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+			assert.Equal(t, true, scds.Portable)
+			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
+			assert.Equal(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
+			if c.lenOfMatchExpression == 0 {
+				assert.Nil(t, scds.Placement.NodeAffinity)
+			} else {
+				matchExpressions := scds.Placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
+				assert.Equal(t, c.lenOfMatchExpression, len(matchExpressions))
+			}
+			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
+
+			if c.topologyKey == "rack" {
+				assert.Equal(t, defaults.RackTopologyKey, topologyKey)
+			} else if len(c.sc.Status.NodeTopologies.Labels[zoneTopologyLabel]) >= defaults.DeviceSetReplica {
+				assert.Equal(t, zoneTopologyLabel, topologyKey)
+			} else {
+				assert.Equal(t, hostnameLabel, topologyKey)
 			}
 		}
 
