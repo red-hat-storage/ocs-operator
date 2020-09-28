@@ -351,6 +351,11 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	err = r.deleteCephFilesystems(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
 	err = r.deleteCephCluster(sc, reqLogger)
 	if err != nil {
 		return err
@@ -373,6 +378,45 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	return nil
+}
+
+// deleteCephFilesystems deletes the CephFilesystems owned by the StorageCluster
+func (r *ReconcileStorageCluster) deleteCephFilesystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	foundCephFilesystem := &cephv1.CephFilesystem{}
+	cephFilesystems, err := r.newCephFilesystemInstances(sc)
+	if err != nil {
+		return err
+	}
+
+	for _, cephFilesystem := range cephFilesystems {
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Uninstall: CephFilesystem not found", "CephFilesystem Name", cephFilesystem.Name)
+				continue
+			}
+			return fmt.Errorf("Uninstall: Unable to retrive cephFilesystem %v: %v", cephFilesystem.Name, err)
+		}
+
+		if cephFilesystem.GetDeletionTimestamp().IsZero() {
+			reqLogger.Info("Uninstall: Deleting cephFilesystem", "CephFilesystem Name", cephFilesystem.Name)
+			err = r.client.Delete(context.TODO(), foundCephFilesystem)
+			if err != nil {
+				return fmt.Errorf("Uninstall: Failed to delete cephFilesystem %v: %v", foundCephFilesystem.Name, err)
+			}
+		}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Uninstall: CephFilesystem is deleted", "CephFilesystem Name", cephFilesystem.Name)
+				continue
+			}
+		}
+		return fmt.Errorf("Uninstall: Waiting for cephFilesystem %v to be deleted", cephFilesystem.Name)
+
+	}
 	return nil
 }
 
