@@ -356,6 +356,11 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	err = r.deleteCephBlockPools(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
 	err = r.deleteCephCluster(sc, reqLogger)
 	if err != nil {
 		return err
@@ -415,6 +420,45 @@ func (r *ReconcileStorageCluster) deleteCephFilesystems(sc *ocsv1.StorageCluster
 			}
 		}
 		return fmt.Errorf("Uninstall: Waiting for cephFilesystem %v to be deleted", cephFilesystem.Name)
+
+	}
+	return nil
+}
+
+// deleteCephBlockPools deletes the CephBlockPools owned by the StorageCluster
+func (r *ReconcileStorageCluster) deleteCephBlockPools(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	foundCephBlockPool := &cephv1.CephBlockPool{}
+	cephBlockPools, err := r.newCephBlockPoolInstances(sc)
+	if err != nil {
+		return err
+	}
+
+	for _, cephBlockPool := range cephBlockPools {
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Uninstall: CephBlockPool not found", "CephBlockPool Name", cephBlockPool.Name)
+				continue
+			}
+			return fmt.Errorf("Uninstall: Unable to retrive cephBlockPool %v: %v", cephBlockPool.Name, err)
+		}
+
+		if cephBlockPool.GetDeletionTimestamp().IsZero() {
+			reqLogger.Info("Uninstall: Deleting cephBlockPool", "CephBlockPool Name", cephBlockPool.Name)
+			err = r.client.Delete(context.TODO(), foundCephBlockPool)
+			if err != nil {
+				return fmt.Errorf("Uninstall: Failed to delete cephBlockPool %v: %v", foundCephBlockPool.Name, err)
+			}
+		}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Uninstall: CephBlockPool is deleted", "CephBlockPool Name", cephBlockPool.Name)
+				continue
+			}
+		}
+		return fmt.Errorf("Uninstall: Waiting for cephBlockPool %v to be deleted", cephBlockPool.Name)
 
 	}
 	return nil
