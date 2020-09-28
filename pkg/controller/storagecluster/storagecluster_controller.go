@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/openshift/ocs-operator/pkg/controller/util"
+
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -104,8 +106,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Compose a predicate that is an OR of the specified predicates
+	scPredicate := util.ComposePredicates(
+		predicate.GenerationChangedPredicate{},
+		util.MetadataChangedPredicate{},
+	)
+
 	// Watch for changes to primary resource StorageCluster
-	err = c.Watch(&source.Kind{Type: &ocsv1.StorageCluster{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &ocsv1.StorageCluster{}}, &handler.EnqueueRequestForObject{}, scPredicate)
 	if err != nil {
 		return err
 	}
