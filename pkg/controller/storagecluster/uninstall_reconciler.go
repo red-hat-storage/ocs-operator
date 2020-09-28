@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
@@ -366,6 +367,11 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	err = r.deleteSnapshotClasses(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
 	err = r.deleteStorageClasses(sc, reqLogger)
 	if err != nil {
 		return err
@@ -538,6 +544,38 @@ func (r *ReconcileStorageCluster) deleteCephObjectStores(sc *ocsv1.StorageCluste
 		}
 		return fmt.Errorf("Uninstall: Waiting for cephObjectStore %v to be deleted", cephObjectStore.Name)
 
+	}
+	return nil
+}
+
+// deleteSnapshotClasses deletes the storageClasses that the ocs-operator created
+func (r *ReconcileStorageCluster) deleteSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+
+	scs := newSnapshotClasses(instance)
+	for _, sc := range scs {
+		existing := snapapi.VolumeSnapshotClass{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
+
+		switch {
+		case err == nil:
+			if existing.DeletionTimestamp != nil {
+				reqLogger.Info(fmt.Sprintf("Uninstall: SnapshotClass %s is already marked for deletion", existing.Name))
+				break
+			}
+
+			reqLogger.Info(fmt.Sprintf("Uninstall: Deleting SnapshotClass %s", sc.Name))
+			existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
+			sc.ObjectMeta = existing.ObjectMeta
+
+			err = r.client.Delete(context.TODO(), sc)
+			if err != nil {
+				reqLogger.Error(err, fmt.Sprintf("Uninstall: Ignoring error deleting the SnapshotClass %s", existing.Name))
+			}
+		case errors.IsNotFound(err):
+			reqLogger.Info(fmt.Sprintf("Uninstall: SnapshotClass %s not found, nothing to do", sc.Name))
+		default:
+			reqLogger.Info(fmt.Sprintf("Uninstall: Error while getting SnapshotClass %s: %v", sc.Name, err))
+		}
 	}
 	return nil
 }
