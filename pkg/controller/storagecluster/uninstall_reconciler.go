@@ -290,7 +290,7 @@ func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.Storag
 
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Uninstall: Setting uninstall mode annotation to default", UninstallModeGraceful)
+		reqLogger.Info("Uninstall: Setting uninstall mode annotation to default", "UninstallMode", UninstallModeGraceful)
 		updateRequired = true
 	} else if found && v != string(UninstallModeGraceful) && v != string(UninstallModeForced) {
 		// if wrong value found
@@ -302,7 +302,7 @@ func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.Storag
 
 	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Uninstall: Setting uninstall cleanup policy annotation to default", CleanupPolicyDelete)
+		reqLogger.Info("Uninstall: Setting uninstall cleanup policy annotation to default", "CleanupPolicy", CleanupPolicyDelete)
 		updateRequired = true
 	} else if found && v != string(CleanupPolicyDelete) && v != string(CleanupPolicyRetain) {
 		// if wrong value found
