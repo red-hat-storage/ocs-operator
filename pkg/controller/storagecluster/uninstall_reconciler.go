@@ -341,6 +341,11 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	err = r.deleteCephObjectStoreUsers(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
 	err = r.deleteCephCluster(sc, reqLogger)
 	if err != nil {
 		return err
@@ -363,5 +368,44 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	return nil
+}
+
+// deleteCephObjectStoreUsers deletes the CephObjectStoreUsers owned by the StorageCluster
+func (r *ReconcileStorageCluster) deleteCephObjectStoreUsers(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	foundCephObjectStoreUser := &cephv1.CephObjectStoreUser{}
+	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(sc)
+	if err != nil {
+		return err
+	}
+
+	for _, cephObjectStoreUser := range cephObjectStoreUsers {
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Uninstall: CephObjectStoreUser not found", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+				continue
+			}
+			return fmt.Errorf("Uninstall: Unable to retrive cephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
+		}
+
+		if cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
+			reqLogger.Info("Uninstall: Deleting cephObjectStoreUser", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+			err = r.client.Delete(context.TODO(), foundCephObjectStoreUser)
+			if err != nil {
+				return fmt.Errorf("Uninstall: Failed to delete cephObjectStoreUser %v: %v", foundCephObjectStoreUser.Name, err)
+			}
+		}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Uninstall: CephObjectStoreUser is deleted", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+				continue
+			}
+		}
+		return fmt.Errorf("Uninstall: Waiting for cephObjectStoreUser %v to be deleted", cephObjectStoreUser.Name)
+
+	}
 	return nil
 }
