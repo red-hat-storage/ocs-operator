@@ -135,7 +135,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	pred := predicate.Funcs{
+	pvcPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			// Evaluates to false if the object has been confirmed deleted.
 			return !e.DeleteStateUnknown
@@ -144,7 +144,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(&source.Kind{Type: &corev1.PersistentVolumeClaim{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &ocsv1.StorageCluster{},
-	}, pred)
+	}, pvcPredicate)
 	if err != nil {
 		return err
 	}
