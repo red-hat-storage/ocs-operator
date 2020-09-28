@@ -273,6 +273,17 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitori
 	labels := map[string]string{
 		"app": sc.Name,
 	}
+
+	var monitoringSpec = cephv1.MonitoringSpec{Enabled: false}
+
+	if monitoringIP != "" {
+		monitoringSpec = cephv1.MonitoringSpec{
+			Enabled:              true,
+			RulesNamespace:       sc.Namespace,
+			ExternalMgrEndpoints: []corev1.EndpointAddress{{IP: monitoringIP}},
+		}
+	}
+
 	externalCephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNameForCephCluster(sc),
@@ -290,11 +301,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitori
 				ManagePodBudgets:               false,
 				ManageMachineDisruptionBudgets: false,
 			},
-			Monitoring: cephv1.MonitoringSpec{
-				Enabled:              true,
-				RulesNamespace:       sc.Namespace,
-				ExternalMgrEndpoints: []corev1.EndpointAddress{{IP: monitoringIP}},
-			},
+			Monitoring: monitoringSpec,
 		},
 	}
 
