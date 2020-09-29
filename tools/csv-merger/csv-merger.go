@@ -648,7 +648,7 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	// Feature gating for Console. The array values are unique identifiers provided by the console.
 	// This can be used to enable/disable console support for any supported feature
 	// Example: "features.ocs.openshift.io/enabled": `["external", "foo1", "foo2", ...]`
-	ocsCSV.Annotations["features.ocs.openshift.io/enabled"] = `["external"]`
+	ocsCSV.Annotations["features.ocs.openshift.io/enabled"] = `["external", "minimal_deployment", "encryption"]`
 	// Used by UI to validate user uploaded metdata
 	// Metadata is used to connect to an external cluster
 	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}`
