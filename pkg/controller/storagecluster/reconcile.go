@@ -530,8 +530,15 @@ func (r *ReconcileStorageCluster) ensureJobTemplates(sc *ocsv1.StorageCluster, r
 		}
 		osdCleanUpTemplate.Parameters = []openshiftv1.Parameter{
 			{
-				Name:     "FAILED_OSD_ID",
-				Required: true,
+				Name:        "FAILED_OSD_IDS",
+				DisplayName: "OSD IDs",
+				Required:    true,
+				Description: `
+The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs 
+when a single job removes multiple OSDs. 
+If the expected comma-separated format is not used, 
+or an ID cannot be converted to an int, 
+or if an OSD ID is not found, errors will be generated in the log and no OSDs would be removed.`,
 			},
 		}
 		return controllerutil.SetControllerReference(sc, osdCleanUpTemplate, r.scheme)
@@ -544,7 +551,7 @@ func (r *ReconcileStorageCluster) ensureJobTemplates(sc *ocsv1.StorageCluster, r
 
 func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 	labels := map[string]string{
-		"app": "ceph-toolbox-job-${FAILED_OSD_ID}",
+		"app": "ceph-toolbox-job-${FAILED_OSD_IDS}",
 	}
 
 	// Annotation template.alpha.openshift.io/wait-for-ready ensures template readiness
@@ -552,31 +559,13 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 		"template.alpha.openshift.io/wait-for-ready": "true",
 	}
 
-	// The purgeOSDScript finds osd status for given FAILED_OSD_ID whether it's up or down. The action will be taken according to osd status. If osd is up and running, it won't be marked out. If osd is down it can be taken out of the cluster and purged.
-	// HOST_TO_REMOVE variable contains the host name associated with the failed osd. When all osds are removed from the host, the host will be removed from crush map
-	const purgeOSDScript = `
-set -x
-
-HOST_TO_REMOVE=$(ceph osd find osd.${FAILED_OSD_ID} | grep "host" | tail -n 1 | awk '{print $2}' | cut -d'"' -f 2)
-osd_status=$(ceph osd tree | grep "osd.${FAILED_OSD_ID} " | awk '{print $5}')
-if [[ "$osd_status" == "up" ]]; then
-  echo "OSD ${FAILED_OSD_ID} is up and running."
-  echo "Please check if you entered correct ID of failed osd!"
-else
-  echo "OSD ${FAILED_OSD_ID} is down. Proceeding to mark out and purge"
-  ceph osd out osd.${FAILED_OSD_ID}
-  ceph osd purge osd.${FAILED_OSD_ID} --force --yes-i-really-mean-it
-  echo "Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host"
-  ceph osd crush rm $HOST_TO_REMOVE || true
-fi`
-
 	job := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Job",
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "ocs-osd-removal-${FAILED_OSD_ID}",
+			Name:        "ocs-osd-removal-${FAILED_OSD_IDS}",
 			Namespace:   sc.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
@@ -584,74 +573,18 @@ fi`
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "mon-endpoint-volume",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "rook-ceph-mon-endpoints",
-									},
-									Items: []corev1.KeyToPath{
-										{
-											Key:  "data",
-											Path: "mon-endpoints",
-										},
-									},
-								},
-							},
-						},
-						{
-							Name:         "ceph-config",
-							VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-						},
-					},
-					RestartPolicy: corev1.RestartPolicyNever,
+					RestartPolicy:      corev1.RestartPolicyNever,
+					ServiceAccountName: "rook-ceph-system",
 					Containers: []corev1.Container{
 						{
-							Name:  "script",
+							Name:  "operator",
 							Image: os.Getenv("ROOK_CEPH_IMAGE"),
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									MountPath: "/etc/ceph",
-									Name:      "ceph-config",
-									ReadOnly:  true,
-								},
-							},
 							Command: []string{
-								"/bin/bash",
-								"-c",
-								purgeOSDScript,
-							},
-						},
-					},
-					InitContainers: []corev1.Container{
-						{
-							Name:            "config-init",
-							Image:           os.Getenv("ROOK_CEPH_IMAGE"),
-							Command:         []string{"/usr/local/bin/toolbox.sh"},
-							Args:            []string{"--skip-watch"},
-							ImagePullPolicy: corev1.PullIfNotPresent,
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									MountPath: "/etc/ceph",
-									Name:      "ceph-config",
-								},
-								{
-									Name:      "mon-endpoint-volume",
-									MountPath: "/etc/rook",
-								},
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name: "ROOK_ADMIN_SECRET",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											Key:                  "admin-secret",
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-										},
-									},
-								},
+								"ceph",
+								"osd",
+								"remove",
+								"--osd-ids=${FAILED_OSD_IDS}",
+								"--namespace=" + sc.Namespace,
 							},
 						},
 					},
