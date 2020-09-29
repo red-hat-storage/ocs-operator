@@ -256,7 +256,7 @@ func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluste
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: NooBaa not found, can't set UninstallModeForced")
+			reqLogger.Info("Uninstall: NooBaa not found, can't set uninstall mode")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
