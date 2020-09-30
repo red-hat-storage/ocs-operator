@@ -2445,10 +2445,10 @@ spec:
                 - type
                 type: object
               type: array
-            externalSecretFound:
-              description: ExternalSecretFound indicates whether a Secret containing
-                information about an external CephCluster was found or not
-              type: boolean
+            externalSecretHash:
+              description: ExternalSecretHash holds the checksum value of external
+                secret data.
+              type: string
             failureDomain:
               description: FailureDomain is the base CRUSH element Ceph will use to
                 distribute its data replicas for the default CephBlockPool
