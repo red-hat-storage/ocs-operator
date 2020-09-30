@@ -179,7 +179,7 @@ func (r *ReconcileStorageCluster) deleteCephCluster(sc *ocsv1.StorageCluster, re
 			reqLogger.Info("Uninstall: CephCluster not found")
 			return nil
 		}
-		return fmt.Errorf("Uninstall: Unable to retrive cephCluster: %v", err)
+		return fmt.Errorf("Uninstall: Unable to retrieve cephCluster: %v", err)
 	}
 
 	if cephCluster.GetDeletionTimestamp().IsZero() {
@@ -256,7 +256,7 @@ func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluste
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: NooBaa not found, can't set UninstallModeForced")
+			reqLogger.Info("Uninstall: NooBaa not found, can't set uninstall mode")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
@@ -407,7 +407,7 @@ func (r *ReconcileStorageCluster) deleteCephFilesystems(sc *ocsv1.StorageCluster
 				reqLogger.Info("Uninstall: CephFilesystem not found", "CephFilesystem Name", cephFilesystem.Name)
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrive cephFilesystem %v: %v", cephFilesystem.Name, err)
+			return fmt.Errorf("Uninstall: Unable to retrieve cephFilesystem %v: %v", cephFilesystem.Name, err)
 		}
 
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
@@ -446,7 +446,7 @@ func (r *ReconcileStorageCluster) deleteCephBlockPools(sc *ocsv1.StorageCluster,
 				reqLogger.Info("Uninstall: CephBlockPool not found", "CephBlockPool Name", cephBlockPool.Name)
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrive cephBlockPool %v: %v", cephBlockPool.Name, err)
+			return fmt.Errorf("Uninstall: Unable to retrieve cephBlockPool %v: %v", cephBlockPool.Name, err)
 		}
 
 		if cephBlockPool.GetDeletionTimestamp().IsZero() {
@@ -485,7 +485,7 @@ func (r *ReconcileStorageCluster) deleteCephObjectStoreUsers(sc *ocsv1.StorageCl
 				reqLogger.Info("Uninstall: CephObjectStoreUser not found", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrive cephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
+			return fmt.Errorf("Uninstall: Unable to retrieve cephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
 		}
 
 		if cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -524,7 +524,7 @@ func (r *ReconcileStorageCluster) deleteCephObjectStores(sc *ocsv1.StorageCluste
 				reqLogger.Info("Uninstall: CephObjectStore not found", "CephObjectStore Name", cephObjectStore.Name)
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrive cephObjectStore %v: %v", cephObjectStore.Name, err)
+			return fmt.Errorf("Uninstall: Unable to retrieve cephObjectStore %v: %v", cephObjectStore.Name, err)
 		}
 
 		if cephObjectStore.GetDeletionTimestamp().IsZero() {
