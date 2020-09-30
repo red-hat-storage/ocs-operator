@@ -8,3 +8,4 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal
 
 COPY --from=builder /ocs-operator/build/_output/bin/ocs-operator /usr/local/bin/ocs-operator
 COPY --from=builder /ocs-operator/build/_output/bin/metrics-exporter /usr/local/bin/metrics-exporter
+COPY --from=builder /ocs-operator/build/_output/*rules*.yaml /ocs-prometheus-rules/

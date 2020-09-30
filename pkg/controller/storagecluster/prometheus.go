@@ -1,33 +1,41 @@
 package storagecluster
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
 )
 
 const (
-	ruleName = "ocs-prometheus-rules"
+	internalPrometheusRuleFilepath = "/ocs-prometheus-rules/prometheus-ocs-rules.yaml"
+	externalPrometheusRuleFilepath = "/ocs-prometheus-rules/prometheus-ocs-rules-external.yaml"
+	ruleName                       = "ocs-prometheus-rules"
+	ruleNamespace                  = "openshift-storage"
 )
 
 // enablePrometheusRules is a wrapper around CreateOrUpdatePrometheusRule()
-func (r *ReconcileStorageCluster) enablePrometheusRules(sc *ocsv1.StorageCluster) error {
-	rule := newPrometheusRule(sc)
-	err := r.CreateOrUpdatePrometheusRules(rule)
+func (r *ReconcileStorageCluster) enablePrometheusRules(isExternal bool) error {
+	rule, err := getPrometheusRules(isExternal)
+	if err != nil {
+		r.reqLogger.Error(err, "prometheus rules file not found")
+	}
+	err = r.CreateOrUpdatePrometheusRules(rule)
 	if err != nil {
 		r.reqLogger.Error(err, "unable to deploy Prometheus rules")
 	}
 	return nil
 }
 
-func newPrometheusRule(sc *ocsv1.StorageCluster) *monitoringv1.PrometheusRule {
+func getPrometheusRules(isExternal bool) (*monitoringv1.PrometheusRule, error) {
 	rule := &monitoringv1.PrometheusRule{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       monitoringv1.PrometheusRuleKind,
@@ -35,40 +43,51 @@ func newPrometheusRule(sc *ocsv1.StorageCluster) *monitoringv1.PrometheusRule {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ruleName,
-			Namespace: sc.Namespace,
-		},
-		Spec: monitoringv1.PrometheusRuleSpec{
-			Groups: []monitoringv1.RuleGroup{
-				{
-					Name: "cluster-service-alert.rules",
-					Rules: []monitoringv1.Rule{
-						{
-							Alert: "ClusterObjectStoreState",
-							Annotations: map[string]string{
-								"description":    "Cluster Object Store is in unhealthy state for more than 15s. Please check Ceph cluster health or RGW connection.",
-								"message":        "Cluster Object Store is in unhealthy state for more than 15s. Please check Ceph cluster health or RGW connection.",
-								"severity_level": "error",
-								"storage_type":   "RGW",
-							},
-							Expr: intstr.FromString("ocs_rgw_health_status{job=\"ocs-metrics-exporter\"} > 1"),
-							For:  "15s",
-							Labels: map[string]string{
-								"severity": "critical",
-							},
-						},
-					},
-				},
-			},
+			Namespace: ruleNamespace,
 		},
 	}
-	if !sc.Spec.ExternalStorage.Enable {
-		ocsRules := monitoringv1.RuleGroup{
-			Name:  "ocs.rules",
-			Rules: []monitoringv1.Rule{},
+	var err error
+	ruleSpec := &monitoringv1.PrometheusRuleSpec{}
+	if isExternal {
+		ruleSpec, err = getPrometheusRuleSpecFrom(externalPrometheusRuleFilepath)
+		if err != nil {
+			return nil, err
 		}
-		rule.Spec.Groups = append(rule.Spec.Groups, ocsRules)
+	} else {
+		ruleSpec, err = getPrometheusRuleSpecFrom(internalPrometheusRuleFilepath)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return rule
+	rule.Spec = *ruleSpec
+	return rule, nil
+}
+
+func getPrometheusRuleSpecFrom(filePath string) (*monitoringv1.PrometheusRuleSpec, error) {
+	if err := CheckFileExists(filePath); err != nil {
+		return nil, err
+	}
+	fileContent, err := ioutil.ReadFile(filepath.Clean(filePath))
+	if err != nil {
+		return nil, fmt.Errorf("'%s' not readable", filePath)
+	}
+	ruleSpec := monitoringv1.PrometheusRuleSpec{}
+	if err := k8sYAML.NewYAMLOrJSONDecoder(bytes.NewBufferString(string(fileContent)), 1000).Decode(&ruleSpec); err != nil {
+		return nil, err
+	}
+	return &ruleSpec, nil
+}
+
+// CheckFileExists checks for existence of file in given filepath
+func CheckFileExists(filePath string) error {
+	_, err := os.Stat(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("'%s' not found", filePath)
+		}
+		return err
+	}
+	return nil
 }
 
 // CreateOrUpdatePrometheusRules creates or updates Prometheus Rule
