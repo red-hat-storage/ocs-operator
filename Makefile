@@ -135,7 +135,7 @@ build-functest:
 
 functest: build-functest
 	@echo "Running ocs developer functional test suite"
-	hack/functest.sh
+	hack/functest.sh $(ARGS)
 gofmt:
 	@echo "Running gofmt"
 	gofmt -s -l `find . -path ./vendor -prune -o -type f -name '*.go' -print`

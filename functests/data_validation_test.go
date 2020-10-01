@@ -6,26 +6,21 @@ import (
 
 	tests "github.com/openshift/ocs-operator/functests"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var _ = Describe("job creation", DataValidationTest)
 
 func DataValidationTest() {
-	var k8sClient *kubernetes.Clientset
-	var deployManager *deploymanager.DeployManager
-
-	BeforeEach(func() {
-		RegisterFailHandler(Fail)
-		deployManager, err := deploymanager.NewDeployManager()
-		Expect(err).To(BeNil())
-
-		k8sClient = deployManager.GetK8sClient()
-	})
+	deployManager, err := deploymanager.NewDeployManager()
+	if err != nil {
+		panic("failed to initialize DeployManager")
+	}
+	k8sClient := deployManager.GetK8sClient()
 
 	Describe("rbd", func() {
 		var namespace string
@@ -51,18 +46,12 @@ func DataValidationTest() {
 		Context("Create job with pvc", func() {
 			It("and verify the data integrity", func() {
 				By("Creating PVC")
-				_, err := k8sClient.CoreV1().PersistentVolumeClaims(namespace).Create(pvc)
+				err := deployManager.WaitForPVCBound(pvc, namespace)
 				Expect(err).To(BeNil())
 
-				By("Verifying PVC reaches BOUND phase")
-				deployManager.WaitForPVCBound(pvc.Name, namespace)
-
-				By("Creating job")
-				_, err = k8sClient.BatchV1().Jobs(namespace).Create(job)
+				By("Running Job")
+				err = deployManager.WaitForJobSucceeded(job, namespace)
 				Expect(err).To(BeNil())
-
-				By("Verifying job succeeds in data validation")
-				deployManager.WaitForJobSucceeded(job.GetName(), namespace)
 
 				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(job.GetName(), metav1.GetOptions{})
 				Expect(err).To(BeNil())

@@ -1,6 +1,9 @@
 package functests
 
 import (
+	"fmt"
+
+	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 
 	k8sbatchv1 "k8s.io/api/batch/v1"
@@ -9,6 +12,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
+
+func debug(msg string, args ...interface{}) {
+	ginkgo.GinkgoWriter.Write([]byte(fmt.Sprintf(msg, args...)))
+}
 
 // GetRandomPVC returns a pvc with a randomized name
 func GetRandomPVC(storageClass string, quantity string) *k8sv1.PersistentVolumeClaim {
