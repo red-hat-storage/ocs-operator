@@ -1,21 +1,38 @@
 package storagecluster
 
 import (
+	"testing"
+
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
 )
 
 func TestCephObjectStores(t *testing.T) {
+	var cases = []struct {
+		label                string
+		createRuntimeObjects bool
+	}{
+		{
+			label:                "case 1", // Ensure that cephObjectStores are created on non-cloud Platform
+			createRuntimeObjects: false,
+		},
+	}
 	for _, eachPlatform := range allPlatforms {
 		cp := &CloudPlatform{platform: eachPlatform}
-		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, nil)
-		assertCephObjectStores(t, reconciler, cr, request)
+		for _, c := range cases {
+			var objects []runtime.Object
+			if c.createRuntimeObjects {
+				objects = createUpdateRuntimeObjects(cp)
+			}
+			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
+				t, cp, objects)
+			assertCephObjectStores(t, reconciler, cr, request)
+		}
 	}
 }
 func assertCephObjectStores(t *testing.T, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
