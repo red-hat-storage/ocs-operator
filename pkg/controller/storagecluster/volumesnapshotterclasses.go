@@ -54,7 +54,7 @@ func newSnapshotClasses(instance *ocsv1.StorageCluster) []*snapapi.VolumeSnapsho
 	return scs
 }
 
-func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSnapshotClass, reqLogger logr.Logger) error {
+func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSnapshotClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	for _, vsc := range vscs {
 		existing := &snapapi.VolumeSnapshotClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
@@ -73,6 +73,10 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 				reqLogger.Error(err, fmt.Sprintf("failed to 'Get' SnapshotClass %q", vsc.Name))
 				return err
 			}
+		}
+		reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+		if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+			return nil
 		}
 		if existing.DeletionTimestamp != nil {
 			return fmt.Errorf("failed to restore snapshotclass %q because it is marked for deletion", existing.Name)
@@ -94,13 +98,17 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 
 // ensureSnapshotClasses functions ensures that snpashotter classes are created
 func (r *ReconcileStorageCluster) ensureSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if instance.Status.SnapshotClassesCreated {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
-	var err error
+
 	scs := newSnapshotClasses(instance)
-	if err = r.createSnapshotClasses(scs, reqLogger); err == nil {
-		instance.Status.SnapshotClassesCreated = true
+
+	err := r.createSnapshotClasses(scs, instance, reqLogger)
+	if err != nil {
+		return nil
 	}
-	return err
+
+	return nil
 }

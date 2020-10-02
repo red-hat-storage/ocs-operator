@@ -111,14 +111,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to secondary resource Pods and requeue the owner StorageCluster
-	err = c.Watch(&source.Kind{Type: &ocsv1.StorageClusterInitialization{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &ocsv1.StorageCluster{},
-	})
-	if err != nil {
-		return err
-	}
-
 	err = c.Watch(&source.Kind{Type: &cephv1.CephCluster{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &ocsv1.StorageCluster{},

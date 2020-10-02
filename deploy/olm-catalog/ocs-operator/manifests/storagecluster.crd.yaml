@@ -51,6 +51,23 @@ spec:
         spec:
           description: StorageClusterSpec defines the desired state of StorageCluster
           properties:
+            defaultResources:
+              description: DefaultResources specifies how to deal with other resources
+                reconciled with the StorageCluster
+              properties:
+                ignoreCephBlockPools:
+                  type: boolean
+                ignoreCephFilesystems:
+                  type: boolean
+                ignoreCephObjectStoreUsers:
+                  type: boolean
+                ignoreCephObjectStores:
+                  type: boolean
+                ignoreSnapshotClasses:
+                  type: boolean
+                ignoreStorageClasses:
+                  type: boolean
+              type: object
             encryption:
               description: EncryptionSpec defines if encryption should be enabled
                 for the Storage Cluster It is optional and defaults to false.
@@ -3166,14 +3183,6 @@ spec:
         status:
           description: StorageClusterStatus defines the observed state of StorageCluster
           properties:
-            cephBlockPoolsCreated:
-              type: boolean
-            cephFilesystemsCreated:
-              type: boolean
-            cephObjectStoreUsersCreated:
-              type: boolean
-            cephObjectStoresCreated:
-              type: boolean
             conditions:
               description: Conditions describes the state of the StorageCluster resource.
               items:
@@ -3271,10 +3280,6 @@ spec:
                     type: string
                 type: object
               type: array
-            snapshotClassesCreated:
-              type: boolean
-            storageClassesCreated:
-              type: boolean
           type: object
       type: object
   version: v1

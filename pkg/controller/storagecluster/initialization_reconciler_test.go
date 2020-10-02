@@ -25,52 +25,6 @@ import (
 
 var logt = logf.Log.WithName("controller_storageclusterinitialization_test")
 
-func TestRecreatingStorageClusterInitialization(t *testing.T) {
-	cr := &api.StorageClusterInitialization{}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
-	}
-	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
-	result, err := reconciler.Reconcile(request)
-	assert.NoError(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
-}
-
-func TestStorageClusterInitializationWithUnExpectedNamespace(t *testing.T) {
-	cr := &api.StorageClusterInitialization{}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit-test-not-found",
-			Namespace: "ocsinit-test-not-found",
-		},
-	}
-	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
-	result, err := reconciler.Reconcile(request)
-	assert.NoError(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
-}
-
-func TestInitStorageClusterWithOutResources(t *testing.T) {
-	cr := &api.StorageClusterInitialization{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ocsinit",
-		},
-	}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
-	}
-	reconciler := createFakeInitializationStorageClusterReconciler(t, cr)
-	result, err := reconciler.Reconcile(request)
-	assert.Equal(t, nil, err)
-	assert.Equal(t, reconcile.Result{}, result)
-}
-
 func createDefaultStorageCluster() *api.StorageCluster {
 	return createStorageCluster("ocsinit", "zone", []string{"zone1", "zone2", "zone3"})
 }
