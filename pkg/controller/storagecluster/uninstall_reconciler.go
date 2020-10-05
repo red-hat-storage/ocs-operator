@@ -377,17 +377,17 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	err = r.deleteNodeTaint(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
 	// TODO: skip the deletion of these labels till we figure out a way to wait
 	// for the cleanup jobs
 	//err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
 	//if err != nil {
 	//	return err
 	//}
-
-	err = r.deleteNodeTaint(sc, reqLogger)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
