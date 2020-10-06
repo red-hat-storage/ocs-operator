@@ -10,7 +10,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/go-openapi/spec v0.19.4
-	github.com/noobaa/noobaa-operator/v2 v2.1.1
+	github.com/noobaa/noobaa-operator/v2 v2.3.0
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
