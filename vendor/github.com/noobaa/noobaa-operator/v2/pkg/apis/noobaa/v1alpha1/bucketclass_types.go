@@ -97,7 +97,7 @@ type Tier struct {
 	// Placement specifies the type of placement for the tier
 	// If empty it should have a single backing store.
 	// +optional
-	// +kubebuilder:validation:Enum=Spread,Mirror
+	// +kubebuilder:validation:Enum=Spread;Mirror
 	Placement TierPlacement `json:"placement,omitempty"`
 
 	// BackingStores is an unordered list of backing store names.
