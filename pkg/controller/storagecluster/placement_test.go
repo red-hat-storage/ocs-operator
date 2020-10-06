@@ -66,6 +66,42 @@ var emptyPlacements = map[rookv1.KeyType]rookv1.Placement{
 	"all": rookv1.Placement{},
 }
 
+var customPlacement = rookv1.Placement{
+	PodAntiAffinity: &corev1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "app",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{"rook-ceph-mon"},
+						},
+					},
+				},
+				TopologyKey: "failure-domain.beta.kubernetes.io/zone",
+			},
+		},
+		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+			{
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      "app",
+								Operator: metav1.LabelSelectorOpIn,
+								Values:   []string{"rook-ceph-mon"},
+							},
+						},
+					},
+					TopologyKey: "failure-domain.beta.kubernetes.io/zone",
+				},
+				Weight: 100,
+			},
+		},
+	},
+}
+
 func TestGetPlacement(t *testing.T) {
 	cases := []struct {
 		label             string
@@ -136,15 +172,31 @@ func TestGetPlacement(t *testing.T) {
 				Tolerations: defaults.DaemonPlacements["all"].Tolerations,
 			},
 		},
+		{
+			label: "Case 7: Custom placement is applied without failure",
+			placements: rookv1.PlacementSpec{
+				"mon": customPlacement,
+			},
+			labelSelector: nil,
+			expectedPlacement: rookv1.Placement{
+				NodeAffinity:    defaults.DefaultNodeAffinity,
+				PodAntiAffinity: customPlacement.PodAntiAffinity,
+			},
+		},
 	}
 
 	for _, c := range cases {
+		actualPlacement := rookv1.Placement{}
 		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Spec.Placement = c.placements
 		sc.Spec.LabelSelector = c.labelSelector
 		expectedPlacement := c.expectedPlacement
-		actualPlacement := getPlacement(sc, "all")
+		if _, ok := c.placements["mon"]; ok {
+			actualPlacement = getPlacement(sc, "mon")
+		} else {
+			actualPlacement = getPlacement(sc, "all")
+		}
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
 	}
 }
