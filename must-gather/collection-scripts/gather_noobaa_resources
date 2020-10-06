@@ -22,6 +22,7 @@ noobaa_resources+=(bucketclass)
 
 noobaa_cli=()
 noobaa_cli+=("obc list")
+noobaa_cli+=("status")
 
 /templates/noobaa.template
 
@@ -33,6 +34,8 @@ for cli in "${noobaa_cli[@]}"; do
     COMMAND_OUTPUT_FILE="${NOOBAA_COLLLECTION_PATH}"/raw_output/${cli// /_}
     { timeout 180 noobaa "${cli}" --namespace openshift-storage >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
+
+noobaa diagnose --dir "${NOOBAA_COLLLECTION_PATH}"/raw_output/ --namespace openshift-storage ;  >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 
 # Run the Collection of NooBaa Resources using must-gather
 for resource in "${noobaa_resources[@]}"; do
