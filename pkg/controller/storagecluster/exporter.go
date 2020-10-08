@@ -105,6 +105,7 @@ func CreateOrUpdateService(r *ReconcileStorageCluster, instance *ocsv1.StorageCl
 		return nil, fmt.Errorf("failed to retrieve metrics exporter service %v. %v", namespacedName, err)
 	}
 	service.ResourceVersion = oldService.ResourceVersion
+	service.Spec.ClusterIP = oldService.Spec.ClusterIP
 	err = r.client.Update(context.TODO(), service)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update service %v. %v", namespacedName, err)
