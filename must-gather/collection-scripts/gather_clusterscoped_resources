@@ -16,6 +16,7 @@ commands_get=()
 # collect oc output of OC get commands
 commands_get+=("pv")
 commands_get+=("sc")
+commands_get+=("nodes --show-labels")
 commands_get+=("clusterversion")
 commands_get+=("infrastructures.config")
 commands_get+=("clusterrole")
