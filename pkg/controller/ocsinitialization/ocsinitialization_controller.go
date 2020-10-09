@@ -174,6 +174,14 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 							},
 						},
 					},
+					Tolerations: []corev1.Toleration{
+						corev1.Toleration{
+							Key:      defaults.NodeTolerationKey,
+							Operator: corev1.TolerationOpEqual,
+							Value:    "true",
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
 					// if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
 					HostNetwork: true,
 					Volumes: []corev1.Volume{
