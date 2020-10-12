@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	olmclient "github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned"
-	rookv1 "github.com/rook/rook/pkg/client/clientset/versioned"
+	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
@@ -30,13 +32,15 @@ const MinOSDsCount = 3
 
 func init() {
 	ocsv1.SchemeBuilder.AddToScheme(scheme.Scheme)
+	rookcephv1.SchemeBuilder.AddToScheme(scheme.Scheme)
+	nbv1.SchemeBuilder.AddToScheme(scheme.Scheme)
 }
 
 // DeployManager is a util tool used by the functional tests
 type DeployManager struct {
 	olmClient      *olmclient.Clientset
 	k8sClient      *kubernetes.Clientset
-	rookClient     *rookv1.Clientset
+	rookClient     *rookclient.Clientset
 	ocsClient      *rest.RESTClient
 	crClient       crclient.Client
 	parameterCodec runtime.ParameterCodec
@@ -58,7 +62,7 @@ func (t *DeployManager) GetOcsClient() *rest.RESTClient {
 }
 
 // GetRookClient is the function used to retrieve the rook client
-func (t *DeployManager) GetRookClient() *rookv1.Clientset {
+func (t *DeployManager) GetRookClient() *rookclient.Clientset {
 	return t.rookClient
 }
 
@@ -112,7 +116,7 @@ func NewDeployManager() (*DeployManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	rookClient, err := rookv1.NewForConfig(rookConfig)
+	rookClient, err := rookclient.NewForConfig(rookConfig)
 	if err != nil {
 		return nil, err
 	}
