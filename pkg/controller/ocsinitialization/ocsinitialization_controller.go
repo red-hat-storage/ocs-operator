@@ -7,11 +7,11 @@ import (
 	"reflect"
 
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	"github.com/openshift/ocs-operator/pkg/controller/util"
 
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -73,7 +73,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// set the watchNamespace so we know where to create the OCSInitialization resource
-	ns, err := k8sutil.GetWatchNamespace()
+	ns, err := util.GetWatchNamespace()
 	if err != nil {
 		return err
 	}

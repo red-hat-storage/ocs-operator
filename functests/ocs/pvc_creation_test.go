@@ -1,6 +1,8 @@
 package ocs_test
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -33,7 +35,7 @@ func PVCCreationTest() {
 		})
 
 		AfterEach(func() {
-			err := k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
+			err := k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvc.Name, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				Expect(err).To(BeNil())
 			}
@@ -46,7 +48,7 @@ func PVCCreationTest() {
 				Expect(err).To(BeNil())
 
 				By("Deleting PVC")
-				err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
+				err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvc.Name, metav1.DeleteOptions{})
 				Expect(err).To(BeNil())
 			})
 		})

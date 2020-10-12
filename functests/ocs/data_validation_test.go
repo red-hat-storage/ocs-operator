@@ -1,6 +1,8 @@
 package ocs_test
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -36,11 +38,11 @@ func DataValidationTest() {
 		})
 
 		AfterEach(func() {
-			err := k8sClient.BatchV1().Jobs(namespace).Delete(job.GetName(), &metav1.DeleteOptions{})
+			err := k8sClient.BatchV1().Jobs(namespace).Delete(context.TODO(), job.GetName(), metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				Expect(err).To(BeNil())
 			}
-			err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
+			err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvc.Name, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				Expect(err).To(BeNil())
 			}
@@ -55,7 +57,7 @@ func DataValidationTest() {
 				err = dm.WaitForJobSucceeded(job, namespace)
 				Expect(err).To(BeNil())
 
-				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(job.GetName(), metav1.GetOptions{})
+				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(context.TODO(), job.GetName(), metav1.GetOptions{})
 				Expect(err).To(BeNil())
 				Expect(finalJob.Status.Succeeded).NotTo(BeZero())
 			})
