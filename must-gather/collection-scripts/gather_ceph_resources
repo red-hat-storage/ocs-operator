@@ -137,6 +137,39 @@ for ns in $namespaces; do
         for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
             { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
         done
+
+        # Collecting snapshot info for ceph rbd volumes
+        printf "collecting snapshot info for ceph rbd volumes \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/rbd_snap_info.log
+        JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/rbd_snap_info_format_json-pretty.log
+        # Inspecting ceph block pools for ceph rbd
+        blockpools=$(oc get cephblockpools.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
+        for bp in $blockpools; do
+            images=$(oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $bp")
+            for image in $images; do
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd info $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+            done
+        done
+
+        # Collecting snapshot information for ceph subvolumes
+        printf "collecting snapshot info for ceph subvolumes \n" | tee -a "${BASE_COLLECTION_PATH}"/gather-debug.log
+        COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/cephfs_snap_info.log
+
+        # Inspecting CephFS filesystems
+        filesystems=$(oc get cephfilesystems.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
+        for fs in $filesystems; do
+            subvols=$(oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume ls $fs | jq --raw-output '.[].name' ")
+            for subvol in $subvols; do
+                { printf "Information for subvolume: %s\n" "${subvol}" >> "${COMMAND_OUTPUT_FILE}"; }
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume info $fs $subvol --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+                snaps=$(oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot ls $fs $subvol | jq --raw-output '.[].name'")
+                for snap in $snaps; do
+                    { printf "Information for snapshot: %s\n" "${snap}" >> "${COMMAND_OUTPUT_FILE}"; }
+                    { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot info $fs $subvol $snap --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+                done
+            done
+        done
     fi
 
     # Collecting output of ceph volume commands
