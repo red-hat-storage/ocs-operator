@@ -51,23 +51,6 @@ spec:
         spec:
           description: StorageClusterSpec defines the desired state of StorageCluster
           properties:
-            defaultResources:
-              description: DefaultResources specifies how to deal with other resources
-                reconciled with the StorageCluster
-              properties:
-                ignoreCephBlockPools:
-                  type: boolean
-                ignoreCephFilesystems:
-                  type: boolean
-                ignoreCephObjectStoreUsers:
-                  type: boolean
-                ignoreCephObjectStores:
-                  type: boolean
-                ignoreSnapshotClasses:
-                  type: boolean
-                ignoreStorageClasses:
-                  type: boolean
-              type: object
             encryption:
               description: EncryptionSpec defines if encryption should be enabled
                 for the Storage Cluster It is optional and defaults to false.
@@ -134,6 +117,48 @@ spec:
               type: object
             manageNodes:
               type: boolean
+            managedResources:
+              description: ManagedResources specifies how to deal with auxiliary resources
+                reconciled with the StorageCluster
+              properties:
+                cephBlockPools:
+                  description: ManageCephBlockPools defines how to reconcilea CephBlockPools
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                cephFilesystems:
+                  description: ManageCephFilesystems defines how to reconcile CephFilesystems
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                cephObjectStoreUsers:
+                  description: ManageCephObjectStoreUsers defines how to reconcile
+                    CephObjectStoreUsers
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                cephObjectStores:
+                  description: ManageCephObjectStores defines how to reconcile CephObjectStores
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                snapshotClasses:
+                  description: ManageSnapshotClasses defines how to reconcile SnapshotClasses
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                storageClasses:
+                  description: ManageStorageClasses defines how to reconcile StorageClasses
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+              type: object
             monDataDirHostPath:
               type: string
             monPVCTemplate:
