@@ -342,6 +342,11 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 		return err
 	}
 
+	err = r.deleteCephCluster(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
 	err = r.deleteCephObjectStoreUsers(sc, reqLogger)
 	if err != nil {
 		return err
@@ -358,11 +363,6 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 	}
 
 	err = r.deleteCephBlockPools(sc, reqLogger)
-	if err != nil {
-		return err
-	}
-
-	err = r.deleteCephCluster(sc, reqLogger)
 	if err != nil {
 		return err
 	}
