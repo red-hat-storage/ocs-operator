@@ -379,7 +379,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			// enable the new behavior while the console is waiting
 			// to be updated.
 			// TODO: Remove this behavior when OCP console is updated
-			count = count / 3
+			count = count / defaults.DeviceSetReplica
 		}
 
 		for i := 0; i < replica; i++ {
