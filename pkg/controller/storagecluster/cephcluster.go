@@ -346,8 +346,11 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			resources = defaults.DaemonResources["osd"]
 		}
 
+		portable := ds.Portable
+
 		topologyKey := ds.TopologyKey
 		topologyKeyValues := []string{}
+
 		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil
 		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil
 
@@ -360,6 +363,11 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			if topologyKey == "" {
 				topologyKey = determineFailureDomain(sc)
 			}
+
+			if topologyKey == "host" {
+				portable = false
+			}
+
 			if topologyMap != nil {
 				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
 			}
@@ -436,7 +444,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 				PreparePlacement:     &preparePlacement,
 				Config:               ds.Config.ToMap(),
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
-				Portable:             ds.Portable,
+				Portable:             portable,
 				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
 				Encrypted:            sc.Spec.Encryption.Enable,
 			}

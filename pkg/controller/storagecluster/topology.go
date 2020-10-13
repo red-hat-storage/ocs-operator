@@ -42,6 +42,11 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) string {
 	if sc.Status.FailureDomain != "" {
 		return sc.Status.FailureDomain
 	}
+
+	if sc.Spec.FlexibleScaling == true {
+		return "host"
+	}
+
 	topologyMap := sc.Status.NodeTopologies
 	failureDomain := "rack"
 	for label, labelValues := range topologyMap.Labels {

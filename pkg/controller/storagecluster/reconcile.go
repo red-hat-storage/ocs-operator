@@ -66,6 +66,7 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 var validTopologyLabelKeys = []string{
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
+	"kubernetes.io/hostname",
 	"topology.rook.io",
 }
 
