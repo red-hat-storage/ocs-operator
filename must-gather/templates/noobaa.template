@@ -1,0 +1,7 @@
+pod=$(oc get pods -n openshift-storage| grep noobaa-operator|  awk '{print $1}')
+if [ -z  $pod ]; then
+   echo "noobaa operator pod does not exist"
+else
+   oc rsync -n  openshift-storage $pod:/usr/local/bin/noobaa-operator /usr/bin
+   mv /usr/bin/noobaa-operator /usr/bin/noobaa
+fi

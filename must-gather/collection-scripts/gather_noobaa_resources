@@ -21,14 +21,21 @@ noobaa_resources+=(backingstore)
 noobaa_resources+=(bucketclass)
 
 noobaa_cli=()
-noobaa_cli+=(noobaa obc list)
+noobaa_cli+=("obc list")
+noobaa_cli+=("status")
+
+/templates/noobaa.template
+
+mkdir -p ${NOOBAA_COLLLECTION_PATH}/raw_output/}
 
 # Run the Collection of Noobaa cli using must-gather
 for cli in "${noobaa_cli[@]}"; do
     echo "collecting dump of ${cli}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
     COMMAND_OUTPUT_FILE="${NOOBAA_COLLLECTION_PATH}"/raw_output/${cli// /_}
-    { timeout 180 "${cli}" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    { timeout 180 noobaa "${cli}" --namespace openshift-storage >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
+
+noobaa diagnose --dir "${NOOBAA_COLLLECTION_PATH}"/raw_output/ --namespace openshift-storage ;  >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 
 # Run the Collection of NooBaa Resources using must-gather
 for resource in "${noobaa_resources[@]}"; do
