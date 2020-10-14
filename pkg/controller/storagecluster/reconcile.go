@@ -246,6 +246,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		ensureFs = []ensureFunc{
 			r.ensureExternalStorageClusterResources,
 			r.ensureCephCluster,
+			r.ensureSnapshotClasses,
 			r.ensureNoobaaSystem,
 		}
 	}
