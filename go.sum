@@ -1005,6 +1005,8 @@ github.com/rollbar/rollbar-go v1.0.2/go.mod h1:AcFs5f0I+c71bpHlXNNDbOWJiKwjFDtIS
 github.com/rook/rook v1.1.2/go.mod h1:r2r56HUT9OJw4APhDhfOfqnzrCgl+YB1i+gfHb+gr64=
 github.com/rook/rook v1.4.3-0.20200901124914-0b665e6e3315 h1:LiCL20h47pVgTDbzhFUZSc/UiH2lScLIQFhbJDFFP+U=
 github.com/rook/rook v1.4.3-0.20200901124914-0b665e6e3315/go.mod h1:FQt7I3fXmOE5f/FEAnNWhB75JPTpJCf3MzXrwj9QjPw=
+github.com/rook/rook v1.4.6 h1:QfmXuM4qSkzU3clODng6HJqB49+6xo+9bU9Z3xCX4M0=
+github.com/rook/rook v1.4.6/go.mod h1:FQt7I3fXmOE5f/FEAnNWhB75JPTpJCf3MzXrwj9QjPw=
 github.com/rs/cors v1.6.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/rubenv/sql-migrate v0.0.0-20191025130928-9355dd04f4b3/go.mod h1:WS0rl9eEliYI8DPnr3TOwz4439pay+qNgzJoVya/DmY=
 github.com/rubiojr/go-vhd v0.0.0-20160810183302-0bfd3b39853c/go.mod h1:DM5xW0nvfNNm2uytzsvhI3OnX8uzaRAg8UX/CnDqbto=
