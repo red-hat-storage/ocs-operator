@@ -60,8 +60,8 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 // ensureCephFilesystems ensures that cephFilesystem resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-
-	if instance.Status.CephFilesystemsCreated {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
 
@@ -74,6 +74,9 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
 		switch {
 		case err == nil:
+			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+				return nil
+			}
 			if existing.DeletionTimestamp != nil {
 				reqLogger.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
 				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
@@ -94,8 +97,6 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 			}
 		}
 	}
-
-	instance.Status.CephFilesystemsCreated = true
 
 	return nil
 }

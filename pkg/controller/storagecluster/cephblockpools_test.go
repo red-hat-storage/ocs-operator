@@ -15,9 +15,6 @@ func TestCephBlockPools(t *testing.T) {
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 			t, cp, nil)
 		assertCephBlockPools(t, reconciler, cr, request)
-		t, reconciler, cr, request = initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, createUpdateRuntimeObjects(cp))
-		assertCephBlockPools(t, reconciler, cr, request)
 	}
 }
 

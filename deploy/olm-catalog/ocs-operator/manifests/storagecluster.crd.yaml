@@ -117,6 +117,48 @@ spec:
               type: object
             manageNodes:
               type: boolean
+            managedResources:
+              description: ManagedResources specifies how to deal with auxiliary resources
+                reconciled with the StorageCluster
+              properties:
+                cephBlockPools:
+                  description: ManageCephBlockPools defines how to reconcilea CephBlockPools
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                cephFilesystems:
+                  description: ManageCephFilesystems defines how to reconcile CephFilesystems
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                cephObjectStoreUsers:
+                  description: ManageCephObjectStoreUsers defines how to reconcile
+                    CephObjectStoreUsers
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                cephObjectStores:
+                  description: ManageCephObjectStores defines how to reconcile CephObjectStores
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                snapshotClasses:
+                  description: ManageSnapshotClasses defines how to reconcile SnapshotClasses
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+                storageClasses:
+                  description: ManageStorageClasses defines how to reconcile StorageClasses
+                  properties:
+                    reconcileStrategy:
+                      type: string
+                  type: object
+              type: object
             monDataDirHostPath:
               type: string
             monPVCTemplate:
@@ -2410,14 +2452,6 @@ spec:
         status:
           description: StorageClusterStatus defines the observed state of StorageCluster
           properties:
-            cephBlockPoolsCreated:
-              type: boolean
-            cephFilesystemsCreated:
-              type: boolean
-            cephObjectStoreUsersCreated:
-              type: boolean
-            cephObjectStoresCreated:
-              type: boolean
             conditions:
               description: Conditions describes the state of the StorageCluster resource.
               items:
@@ -2515,10 +2549,6 @@ spec:
                     type: string
                 type: object
               type: array
-            snapshotClassesCreated:
-              type: boolean
-            storageClassesCreated:
-              type: boolean
           type: object
       type: object
   version: v1

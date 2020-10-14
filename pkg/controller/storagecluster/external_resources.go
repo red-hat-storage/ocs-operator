@@ -329,7 +329,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 		}
 	}
 	// creating only the available storageClasses
-	err = r.createStorageClasses(availableSCs, reqLogger)
+	err = r.createStorageClasses(availableSCs, instance, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "failed to create needed StorageClasses")
 		return err
@@ -340,7 +340,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 		return err
 	}
 	if extCephObjectStores != nil {
-		if err = r.createCephObjectStores(extCephObjectStores, reqLogger); err != nil {
+		if err = r.createCephObjectStores(extCephObjectStores, instance, reqLogger); err != nil {
 			return err
 		}
 	}

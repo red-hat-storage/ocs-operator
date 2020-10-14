@@ -40,7 +40,8 @@ func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv
 // ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if instance.Status.CephObjectStoreUsersCreated {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
 	platform, err := r.platform.GetPlatform(r.client)
@@ -61,8 +62,6 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 		return err
 	}
 
-	instance.Status.CephObjectStoreUsersCreated = true
-
 	return err
 }
 
@@ -73,6 +72,10 @@ func (r *ReconcileStorageCluster) createCephObjectStoreUsers(cephObjectStoreUser
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
 		switch {
 		case err == nil:
+			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+				return nil
+			}
 			if existing.DeletionTimestamp != nil {
 				reqLogger.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
 				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
