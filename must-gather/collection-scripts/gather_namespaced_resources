@@ -34,7 +34,6 @@ commands_get=()
 
 # collect oc output of OC get commands
 commands_get+=("pods -owide")
-commands_get+=("nodes --show-labels")
 commands_get+=("subscription")
 commands_get+=("csv")
 commands_get+=("installplan")
@@ -48,7 +47,6 @@ commands_get+=("volumesnapshotcontent")
 
 # collect oc output of OC desc commands
 commands_desc=()
-commands_desc+=("nodes")
 commands_desc+=("pods")
 commands_desc+=("storagecluster")
 commands_desc+=("volumesnapshot -A")
