@@ -59,6 +59,8 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	ReconcileStrategyIgnore ReconcileStrategy = "ignore"
 	// ReconcileStrategyManage means always reconcile
 	ReconcileStrategyManage ReconcileStrategy = "manage"
+	// ReconcileStrategyStandalone also means never reconcile (NooBaa)
+	ReconcileStrategyStandalone ReconcileStrategy = "standalone"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
