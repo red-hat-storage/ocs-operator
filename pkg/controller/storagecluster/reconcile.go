@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/blang/semver"
 	"github.com/go-logr/logr"
@@ -187,7 +188,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			err = r.deleteResources(instance, reqLogger)
 			if err != nil {
-				return reconcile.Result{}, err
+				reqLogger.Info("Uninstall in progress", "Status", err)
+				return reconcile.Result{RequeueAfter: time.Second * time.Duration(1)}, nil
 			}
 			reqLogger.Info("Removing finalizer")
 			// Once all finalizers have been removed, the object will be deleted
