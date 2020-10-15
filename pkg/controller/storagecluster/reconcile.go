@@ -594,16 +594,90 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyNever,
 					ServiceAccountName: "rook-ceph-system",
+					Volumes: []corev1.Volume{
+						{
+							Name:         "ceph-conf-emptydir",
+							VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+						},
+						{
+							Name:         "rook-config",
+							VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+						},
+					},
+
 					Containers: []corev1.Container{
 						{
 							Name:  "operator",
 							Image: os.Getenv("ROOK_CEPH_IMAGE"),
-							Command: []string{
+							Args: []string{
 								"ceph",
 								"osd",
 								"remove",
 								"--osd-ids=${FAILED_OSD_IDS}",
-								"--namespace=" + sc.Namespace,
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "ceph-conf-emptydir",
+									MountPath: "/etc/ceph",
+								},
+								{
+									Name:      "rook-config",
+									MountPath: "/var/lib/rook",
+								},
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name: "ROOK_MON_ENDPOINTS",
+									ValueFrom: &corev1.EnvVarSource{
+										ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+											Key:                  "data",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
+										},
+									},
+								},
+								{
+									Name:  "POD_NAMESPACE",
+									Value: sc.Namespace,
+								},
+								{
+									Name: "ROOK_CEPH_USERNAME",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key:                  "ceph-username",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+										},
+									},
+								},
+								{
+									Name: "ROOK_CEPH_SECRET",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key:                  "ceph-secret",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+										},
+									},
+								},
+								{
+									Name: "ROOK_FSID",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key:                  "fsid",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+										},
+									},
+								},
+								{
+									Name:  "ROOK_CONFIG_DIR",
+									Value: "/var/lib/rook",
+								},
+								{
+									Name:  "ROOK_CEPH_CONFIG_OVERRIDE",
+									Value: "/etc/rook/config/override.conf",
+								},
+								{
+									Name:  "ROOK_LOG_LEVEL",
+									Value: "DEBUG",
+								},
 							},
 						},
 					},
