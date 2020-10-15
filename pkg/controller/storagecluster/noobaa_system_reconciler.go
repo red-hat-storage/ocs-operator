@@ -26,6 +26,14 @@ const (
 )
 
 func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	// Everything other than ReconcileStrategyIgnore means we reconcile
+	if sc.Spec.MultiCloudGateway != nil {
+		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
+		if reconcileStrategy == ReconcileStrategyIgnore || reconcileStrategy == ReconcileStrategyStandalone {
+			return nil
+		}
+	}
+
 	// find cephCluster
 	foundCeph := &cephv1.CephCluster{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)

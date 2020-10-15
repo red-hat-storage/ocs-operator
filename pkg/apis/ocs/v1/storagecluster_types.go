@@ -131,6 +131,11 @@ type StorageDeviceSetConfig struct {
 
 // MultiCloudGatewaySpec defines specific multi-cloud gateway configuration options
 type MultiCloudGatewaySpec struct {
+	// ReconcileStrategy specifies whether to reconcile NooBaa CRs. Valid
+	// values are "manage", "standalone", "ignore" (same as "standalone"),
+	// and "" (same as "manage").
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+
 	// Endpoints (optional) sets configuration info for the noobaa endpoint
 	// deployment.
 	// +optional
