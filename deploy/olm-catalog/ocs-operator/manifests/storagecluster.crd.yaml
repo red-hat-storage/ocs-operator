@@ -422,6 +422,11 @@ spec:
                           type: object
                       type: object
                   type: object
+                reconcileStrategy:
+                  description: ReconcileStrategy specifies whether to reconcile NooBaa
+                    CRs. Valid values are "manage", "standalone", "ignore" (same as
+                    "standalone"), and "" (same as "manage").
+                  type: string
               type: object
             network:
               description: Network represents cluster network settings

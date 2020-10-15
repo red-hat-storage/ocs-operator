@@ -424,6 +424,11 @@ spec:
                             - type: integer
                             - type: string
                             x-kubernetes-int-or-string: true
+                reconcileStrategy:
+                  description: ReconcileStrategy specifies whether to reconcile NooBaa
+                    CRs. Valid values are "manage", "standalone", "ignore" (same as
+                    "standalone"), and "" (same as "manage").
+                  type: string
             network:
               description: Network represents cluster network settings
               type: object
