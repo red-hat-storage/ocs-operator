@@ -7,6 +7,8 @@ import (
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -101,4 +103,57 @@ func assertCephClusterCleanupPolicy(
 
 	assert.Equal(t, CleanupPolicyConfirmation, cephCluster.Spec.CleanupPolicy.Confirmation)
 	assert.Equal(t, AllowUninstallWithVolumes, cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes)
+}
+
+func TestDeleteStorageClasses(t *testing.T) {
+
+	testList := []struct {
+		label              string
+		storageClassExists bool
+	}{
+		{
+			label:              "case 1", // verify storage classes are present and delete them
+			storageClassExists: true,
+		},
+		{
+			label:              "case 2", // verify storage classes does not exist and delete should not get error out
+			storageClassExists: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			assertTestDeleteStorageClasses(t, reconciler, sc, obj.storageClassExists)
+		}
+	}
+}
+
+func assertTestDeleteStorageClasses(t *testing.T, reconciler ReconcileStorageCluster,
+	sc *api.StorageCluster, storageClassExists bool) {
+
+	if !storageClassExists {
+		err := reconciler.deleteStorageClasses(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+	}
+
+	scs, err := reconciler.newStorageClasses(sc)
+	assert.NoError(t, err)
+
+	for _, storageClass := range scs {
+		existing := storagev1.StorageClass{}
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
+		assert.Equal(t, !storageClassExists, errors.IsNotFound(err))
+	}
+
+	err = reconciler.deleteStorageClasses(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	for _, storageClass := range scs {
+		existing := storagev1.StorageClass{}
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
+		assert.True(t, errors.IsNotFound(err))
+	}
 }
