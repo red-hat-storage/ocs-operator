@@ -95,6 +95,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 					FailureDomain: initData.Status.FailureDomain,
 					Replicated: cephv1.ReplicatedSpec{
 						Size: 3,
+						TargetSizeRatio: .49,
 					},
 				},
 				MetadataPool: cephv1.PoolSpec{
