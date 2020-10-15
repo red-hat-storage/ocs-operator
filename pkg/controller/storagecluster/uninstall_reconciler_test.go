@@ -2,12 +2,18 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestReconcileUninstallAnnotations(t *testing.T) {
@@ -101,4 +107,95 @@ func assertCephClusterCleanupPolicy(
 
 	assert.Equal(t, CleanupPolicyConfirmation, cephCluster.Spec.CleanupPolicy.Confirmation)
 	assert.Equal(t, AllowUninstallWithVolumes, cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes)
+}
+
+func TestDeleteNodeAffinityKeyFromNodes(t *testing.T) {
+
+	testList := []struct {
+		label                string
+		createUserDefinedKey bool
+	}{
+		{
+			label:                "case 1", // verify deleteNodeAffinityKeyFromNodes deletes default NodeAffinityKey only
+			createUserDefinedKey: false,
+		},
+		{
+			label:                "case 2", // verify deleteNodeAffinityKeyFromNodes does not deletes user defined NodeAffinityKey
+			createUserDefinedKey: true,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+
+			assertTestDeleteNodeAffinityKeyFromNodes(t, reconciler, sc, obj.createUserDefinedKey)
+		}
+	}
+}
+
+func assertTestDeleteNodeAffinityKeyFromNodes(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, createUserDefinedKey bool) {
+
+	if createUserDefinedKey {
+		addFakeNodeAffinityKeyOnNodesAndSC(t, reconciler, sc)
+	}
+
+	// verify there are eligible nodes
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, len(nodes.Items))
+
+	if !createUserDefinedKey {
+		// verify default NodeAffinityKey present on nodes
+		for _, node := range nodes.Items {
+			_, ok := node.ObjectMeta.Labels[defaults.NodeAffinityKey]
+			assert.Equal(t, ok, true)
+		}
+	}
+
+	// delete NodeAffinityKey
+	err = reconciler.deleteNodeAffinityKeyFromNodes(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	nodes, err = reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	if !createUserDefinedKey {
+		assert.Equal(t, 0, len(nodes.Items))
+	} else {
+		assert.NotEqual(t, 0, len(nodes.Items))
+	}
+}
+
+func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster) {
+	// create user defined key and val and apply it on SC
+	fakeKey, fakeVal := "fakeKey", "fakeVal"
+	sc.Spec.LabelSelector = metav1.AddLabelToSelector(&metav1.LabelSelector{}, fakeKey, fakeVal)
+
+	// get all nodes
+	nodes := &corev1.NodeList{}
+	err := reconciler.client.List(context.TODO(), nodes)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, len(nodes.Items))
+
+	// Add labels on nodes
+	for _, node := range nodes.Items {
+		new := node.DeepCopy()
+		new.ObjectMeta.Labels[fakeKey] = fakeVal
+
+		oldJSON, err := json.Marshal(node)
+		assert.NoError(t, err)
+
+		newJSON, err := json.Marshal(new)
+		assert.NoError(t, err)
+
+		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
+		assert.NoError(t, err)
+
+		err = reconciler.client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		assert.NoError(t, err)
+	}
 }
