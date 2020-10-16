@@ -60,9 +60,9 @@ done
 # Add important notfications to a notifications.txt file at the root of the noobaa collection path
 UNMANAGED_NOOBAA_NOTIF="The noobaa deployed on this cluster is not managed by the storagecluster CR and will not react to configuration changes made to storagecluster CR"
 
-NOOBAA_RECONCILE_STRATEGY=$( oc -n ${ns} get storagecluster -o jsonpath='{.items[0].spec.multiCloudGateway.reconcileStrategy}' 2> /dev/null)
+NOOBAA_RECONCILE_STRATEGY=$( oc -n "${ns}" get storagecluster -o jsonpath='{.items[0].spec.multiCloudGateway.reconcileStrategy}' 2> /dev/null)
 if [ "${NOOBAA_RECONCILE_STRATEGY}" = "ignore" ] || [ "${NOOBAA_RECONCILE_STRATEGY}" = "standalone" ]; then 
-    if [ "$(oc -n ${ns} get noobaa -o name 2> /dev/null) " ]; then 
-        echo "- ${UNMANAGED_NOOBAA_NOTIF}" >> ${NOOBAA_COLLLECTION_PATH}/notifications.txt
+    if [ "$(oc -n "${ns}" get noobaa -o name 2> /dev/null)" ]; then
+        echo "- ${UNMANAGED_NOOBAA_NOTIF}" >> "${NOOBAA_COLLLECTION_PATH}/notifications.txt"
     fi
 fi
