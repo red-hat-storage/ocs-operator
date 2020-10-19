@@ -102,7 +102,6 @@ spec:
                 required:
                 - name
                 - spec
-              nullable: true
               type: array
             external:
               properties:

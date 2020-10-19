@@ -60,13 +60,10 @@ spec:
                 placement: {}
                 port:
                   maximum: 65535
-                  minimum: 0
+                  minimum: 1
                   type: integer
                 resources: {}
-                securePort:
-                  maximum: 65535
-                  minimum: 0
-                  type: integer
+                securePort: {}
                 sslCertificateRef: {}
                 type:
                   type: string
