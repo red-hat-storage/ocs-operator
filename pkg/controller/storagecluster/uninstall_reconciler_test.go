@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -160,6 +161,59 @@ func assertTestDeleteStorageClasses(t *testing.T, reconciler ReconcileStorageClu
 	for _, storageClass := range scs {
 		existing := storagev1.StorageClass{}
 		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
+		assert.True(t, errors.IsNotFound(err))
+	}
+}
+
+func TestDeleteSnapshotClasses(t *testing.T) {
+
+	testList := []struct {
+		label               string
+		SnapshotClassExists bool
+	}{
+		{
+			label:               "case 1", // verify SnapshotClass are present and delete them
+			SnapshotClassExists: true,
+		},
+		{
+			label:               "case 2", // verify SnapshotClass does not exist and delete should not get error out
+			SnapshotClassExists: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			assertTestDeleteStorageClasses(t, reconciler, sc, obj.SnapshotClassExists)
+		}
+	}
+}
+
+func assertTestDeleteSnapshotClasses(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, SnapshotClassExists bool) {
+
+	if !SnapshotClassExists {
+		err := reconciler.deleteSnapshotClasses(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+	}
+
+	sscs := newSnapshotClasses(sc)
+
+	for _, ssc := range sscs {
+		existing := snapapi.VolumeSnapshotClass{}
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
+		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
+	}
+
+	err := reconciler.deleteSnapshotClasses(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	for _, ssc := range sscs {
+		existing := snapapi.VolumeSnapshotClass{}
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
+		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
 		assert.True(t, errors.IsNotFound(err))
 	}
 }
