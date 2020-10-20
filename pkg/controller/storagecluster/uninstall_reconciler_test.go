@@ -14,6 +14,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -554,6 +555,86 @@ func assertTestDeleteCephBlockPools(
 		foundCephBlockPool := &cephv1.CephBlockPool{}
 		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
 			Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+		assert.True(t, errors.IsNotFound(err))
+	}
+}
+
+func getFakeCephObjectStoreUser() *cephv1.CephObjectStoreUser {
+
+	sc := createDefaultStorageCluster()
+
+	return &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephObjectStoreUser(sc),
+			Namespace: sc.Namespace,
+		},
+		Spec: cephv1.ObjectStoreUserSpec{
+			DisplayName: sc.Name,
+			Store:       generateNameForCephObjectStore(sc),
+		},
+	}
+}
+
+func TestDeleteCephObjectStoreUsers(t *testing.T) {
+
+	testList := []struct {
+		label                     string
+		CephObjectStoreUsersExist bool
+	}{
+		{
+			label:                     "case 1", // verify deleteCephObjectStoreUsers deletes the CephObjectStoreUsers
+			CephObjectStoreUsersExist: true,
+		},
+		{
+			label:                     "case 2", // verify does not get error out when CephObjectStoreUsers does not exist
+			CephObjectStoreUsersExist: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			fakeCephObjectStoreUser := getFakeCephObjectStoreUser()
+			runtimeObjs := []runtime.Object{fakeCephObjectStoreUser}
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
+
+			assertTestDeleteCephObjectStoreUsers(t, reconciler, sc, obj.CephObjectStoreUsersExist)
+		}
+	}
+}
+
+func assertTestDeleteCephObjectStoreUsers(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, CephObjectStoreUsersExist bool) {
+
+	if !CephObjectStoreUsersExist {
+		err := reconciler.deleteCephObjectStoreUsers(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+	}
+
+	cephStoreUsers, err := reconciler.newCephObjectStoreUserInstances(sc)
+	assert.NoError(t, err)
+
+	for _, cephStoreUser := range cephStoreUsers {
+		foundCephStoreUser := &cephv1.CephObjectStoreUser{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephStoreUser.Name, Namespace: sc.Namespace}, foundCephStoreUser)
+
+		if CephObjectStoreUsersExist {
+			assert.NoError(t, err)
+		} else {
+			assert.True(t, errors.IsNotFound(err))
+		}
+	}
+
+	err = reconciler.deleteCephObjectStoreUsers(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	for _, cephStoreUser := range cephStoreUsers {
+		foundCephStoreUser := &cephv1.CephObjectStoreUser{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephStoreUser.Name, Namespace: sc.Namespace}, foundCephStoreUser)
+
 		assert.True(t, errors.IsNotFound(err))
 	}
 }
