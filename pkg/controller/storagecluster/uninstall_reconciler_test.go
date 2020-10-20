@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -734,4 +735,71 @@ func assertTestDeleteCephObjectStores(
 
 		assert.True(t, errors.IsNotFound(err))
 	}
+}
+
+func getFakeNoobaa() *nbv1.NooBaa {
+
+	sc := createDefaultStorageCluster()
+
+	return &nbv1.NooBaa{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "NooBaa",
+			APIVersion: "noobaa.io/v1alpha1'",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "noobaa",
+			Namespace: sc.Namespace,
+		},
+	}
+}
+
+func TestSetNoobaaUninstallMode(t *testing.T) {
+
+	testList := []struct {
+		label               string
+		UninstallMode       UninstallModeType
+		NoobaaUninstallMode nbv1.CleanupConfirmationProperty
+	}{
+		{
+			label:               "case 1", // verify setNoobaaUninstallMode set NooBaa cleanup policy to ""
+			UninstallMode:       UninstallModeGraceful,
+			NoobaaUninstallMode: "",
+		},
+		{
+			label:               "case 2", // verify setNoobaaUninstallMode set NooBaa cleanup policy to nbv1.DeleteOBCConfirmation
+			UninstallMode:       UninstallModeForced,
+			NoobaaUninstallMode: nbv1.DeleteOBCConfirmation,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			fakeNoobaa := getFakeNoobaa()
+			runtimeObjs := []runtime.Object{fakeNoobaa}
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
+
+			assertTestSetNoobaaUninstallMode(t, reconciler, sc, obj.UninstallMode, obj.NoobaaUninstallMode)
+		}
+	}
+}
+
+func assertTestSetNoobaaUninstallMode(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster,
+	UninstallMode UninstallModeType, NoobaaUninstallMode nbv1.CleanupConfirmationProperty) {
+
+	err := reconciler.reconcileUninstallAnnotations(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallMode)
+
+	err = reconciler.setNoobaaUninstallMode(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	noobaa := &nbv1.NooBaa{}
+	err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	assert.NoError(t, err)
+
+	assert.Equal(t, NoobaaUninstallMode, noobaa.Spec.CleanupPolicy.Confirmation)
 }
