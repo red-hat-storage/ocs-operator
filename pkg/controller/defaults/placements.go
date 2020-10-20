@@ -141,7 +141,7 @@ var (
 					Effect:   corev1.TaintEffectNoSchedule,
 				},
 			},
-			TopologySpreadConstraints: getTopologySpreadConstraintsSpec("rook-ceph-osd-prepare"),
+			TopologySpreadConstraints: getTopologySpreadConstraintsSpec("rook-ceph-osd-prepare", "rook-ceph-osd"),
 		},
 
 		"rgw": rook.Placement{
@@ -228,7 +228,7 @@ var (
 	}
 )
 
-func getTopologySpreadConstraintsSpec(selectorValue string) []corev1.TopologySpreadConstraint {
+func getTopologySpreadConstraintsSpec(selectorValue ...string) []corev1.TopologySpreadConstraint {
 	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
 		corev1.TopologySpreadConstraint{
 			MaxSkew:           1,
@@ -239,7 +239,7 @@ func getTopologySpreadConstraintsSpec(selectorValue string) []corev1.TopologySpr
 					metav1.LabelSelectorRequirement{
 						Key:      appLabelSelectorKey,
 						Operator: metav1.LabelSelectorOpIn,
-						Values:   []string{selectorValue},
+						Values:   selectorValue,
 					},
 				},
 			},
