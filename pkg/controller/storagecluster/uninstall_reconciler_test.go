@@ -327,3 +327,57 @@ func addDefaultNodeTaintOnNodes(t *testing.T, reconciler ReconcileStorageCluster
 		assert.NoError(t, err)
 	}
 }
+
+func TestDeleteCephCluster(t *testing.T) {
+
+	testList := []struct {
+		label            string
+		cephClusterExist bool
+	}{
+		{
+			label:            "case 1", // verify deleteCephCluster deletes the CephCluster
+			cephClusterExist: true,
+		},
+		{
+			label:            "case 2", // verify does not get error out when CephCluster does not exist
+			cephClusterExist: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+
+			assertTestDeleteCephCluster(t, reconciler, sc, obj.cephClusterExist)
+		}
+	}
+}
+
+func assertTestDeleteCephCluster(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, cephClusterExist bool) {
+
+	if !cephClusterExist {
+		err := reconciler.deleteCephCluster(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+	}
+
+	cephCluster := &cephv1.CephCluster{}
+	err := reconciler.client.Get(context.TODO(), types.NamespacedName{
+		Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+
+	if cephClusterExist {
+		assert.NoError(t, err)
+	} else {
+		assert.True(t, errors.IsNotFound(err))
+	}
+
+	err = reconciler.deleteCephCluster(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	cephCluster = &cephv1.CephCluster{}
+	err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	assert.True(t, errors.IsNotFound(err))
+}
