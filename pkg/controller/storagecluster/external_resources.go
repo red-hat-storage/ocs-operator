@@ -394,10 +394,10 @@ func validateMonitoringEndpoint(monitoringIP string, monitoringPort string, reqL
 	}
 	endpoint := net.JoinHostPort(monitoringIP, monitoringPort)
 	con, err := net.DialTimeout("tcp", endpoint, 5*time.Second)
-	defer con.Close()
 	if err != nil {
 		reqLogger.Error(err, fmt.Sprintf("Monitoring Endpoint (%s) is not reachable", endpoint))
 		return err
 	}
+	con.Close()
 	return nil
 }
