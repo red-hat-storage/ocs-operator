@@ -164,12 +164,12 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 				return err
 			}
 			if len(pvcs.Items) > 0 {
-				return fmt.Errorf("Waiting on NooBaa system and PVCs to be deleted")
+				return fmt.Errorf("Uninstall: Waiting on NooBaa system and PVCs to be deleted")
 			}
-			reqLogger.Info("NooBaa and noobaa-core PVC not found.")
+			reqLogger.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
 			return nil
 		}
-		return fmt.Errorf("Failed to retrieve NooBaa system: %v", err)
+		return fmt.Errorf("Uninstall: Failed to retrieve NooBaa system: %v", err)
 	}
 
 	isOwned := false
@@ -181,17 +181,17 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 	}
 	if !isOwned {
 		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
-		reqLogger.Info("NooBaa object found, but ownerReference not set to storagecluster. Skipping")
+		reqLogger.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping")
 		return nil
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
-		reqLogger.Info("Deleting NooBaa system")
+		reqLogger.Info("Uninstall: Deleting NooBaa system")
 		err = r.client.Delete(context.TODO(), noobaa)
 		if err != nil {
-			reqLogger.Error(err, "Failed to delete NooBaa system")
-			return fmt.Errorf("Failed to delete NooBaa system: %v", err)
+			reqLogger.Error(err, "Uninstall: Failed to delete NooBaa system")
+			return fmt.Errorf("Uninstall: Failed to delete NooBaa system: %v", err)
 		}
 	}
-	return fmt.Errorf("Waiting on NooBaa system to be deleted")
+	return fmt.Errorf("Uninstall: Waiting on NooBaa system to be deleted")
 }
