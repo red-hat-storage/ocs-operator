@@ -166,7 +166,7 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 			if len(pvcs.Items) > 0 {
 				return fmt.Errorf("Uninstall: Waiting on NooBaa system and PVCs to be deleted")
 			}
-			reqLogger.Info("Uninstall: NooBaa and noobaa-core PVC not found.")
+			reqLogger.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Failed to retrieve NooBaa system: %v", err)
