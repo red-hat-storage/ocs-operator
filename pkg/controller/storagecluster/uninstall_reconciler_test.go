@@ -638,3 +638,100 @@ func assertTestDeleteCephObjectStoreUsers(
 		assert.True(t, errors.IsNotFound(err))
 	}
 }
+
+func getFakeCephObjectStore() *cephv1.CephObjectStore {
+
+	sc := createDefaultStorageCluster()
+
+	return &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephObjectStore(sc),
+			Namespace: sc.Namespace,
+		},
+		Spec: cephv1.ObjectStoreSpec{
+			PreservePoolsOnDelete: false,
+			DataPool: cephv1.PoolSpec{
+				FailureDomain: sc.Status.FailureDomain,
+				Replicated: cephv1.ReplicatedSpec{
+					Size: 3,
+				},
+			},
+			MetadataPool: cephv1.PoolSpec{
+				FailureDomain: sc.Status.FailureDomain,
+				Replicated: cephv1.ReplicatedSpec{
+					Size: 3,
+				},
+			},
+			Gateway: cephv1.GatewaySpec{
+				Port:      80,
+				Instances: 2,
+				Placement: defaults.DaemonPlacements["rgw"],
+				Resources: defaults.GetDaemonResources("rgw", sc.Spec.Resources),
+			},
+		},
+	}
+}
+
+func TestDeleteCephObjectStores(t *testing.T) {
+
+	testList := []struct {
+		label                string
+		CephObjectStoreExist bool
+	}{
+		{
+			label:                "case 1", // verify deleteCephObjectStore deletes the CephObjectStore
+			CephObjectStoreExist: true,
+		},
+		{
+			label:                "case 2", // verify does not get error out when CephObjectStore does not exist
+			CephObjectStoreExist: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			fakeCephObjectStore := getFakeCephObjectStore()
+			runtimeObjs := []runtime.Object{fakeCephObjectStore}
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
+
+			assertTestDeleteCephObjectStores(t, reconciler, sc, obj.CephObjectStoreExist)
+		}
+	}
+}
+
+func assertTestDeleteCephObjectStores(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, CephObjectStoreExist bool) {
+
+	if !CephObjectStoreExist {
+		err := reconciler.deleteCephObjectStores(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+	}
+
+	cephStores, err := reconciler.newCephObjectStoreInstances(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	for _, cephStore := range cephStores {
+		foundCephStore := &cephv1.CephObjectStore{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephStore.Name, Namespace: sc.Namespace}, foundCephStore)
+
+		if CephObjectStoreExist {
+			assert.NoError(t, err)
+		} else {
+			assert.True(t, errors.IsNotFound(err))
+		}
+	}
+
+	err = reconciler.deleteCephObjectStores(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	for _, cephStore := range cephStores {
+		foundCephStore := &cephv1.CephObjectStore{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephStore.Name, Namespace: sc.Namespace}, foundCephStore)
+
+		assert.True(t, errors.IsNotFound(err))
+	}
+}
