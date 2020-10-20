@@ -381,3 +381,64 @@ func assertTestDeleteCephCluster(
 		Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	assert.True(t, errors.IsNotFound(err))
 }
+
+func TestDeleteCephFilesystems(t *testing.T) {
+
+	testList := []struct {
+		label                string
+		cephFilesystemsExist bool
+	}{
+		{
+			label:                "case 1", // verify deleteCephFilesystems deletes the CephFilesystem
+			cephFilesystemsExist: true,
+		},
+		{
+			label:                "case 2", // verify does not get error out when CephFilesystem does not exist
+			cephFilesystemsExist: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+
+			assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephFilesystemsExist)
+		}
+	}
+}
+
+func assertTestDeleteCephFilesystems(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, cephFilesystemsExist bool) {
+
+	if !cephFilesystemsExist {
+		err := reconciler.deleteCephFilesystems(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+	}
+
+	cephFilesystems, err := reconciler.newCephFilesystemInstances(sc)
+	assert.NoError(t, err)
+
+	for _, cephFilesystem := range cephFilesystems {
+		foundCephFilesystem := &cephv1.CephFilesystem{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+
+		if cephFilesystemsExist {
+			assert.NoError(t, err)
+		} else {
+			assert.True(t, errors.IsNotFound(err))
+		}
+	}
+
+	err = reconciler.deleteCephFilesystems(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	for _, cephFilesystem := range cephFilesystems {
+		foundCephFilesystem := &cephv1.CephFilesystem{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+		assert.True(t, errors.IsNotFound(err))
+	}
+}
