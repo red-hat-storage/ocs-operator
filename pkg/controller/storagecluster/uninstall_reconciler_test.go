@@ -442,3 +442,64 @@ func assertTestDeleteCephFilesystems(
 		assert.True(t, errors.IsNotFound(err))
 	}
 }
+
+func TestDeleteCephBlockPools(t *testing.T) {
+
+	testList := []struct {
+		label               string
+		cephBlockPoolsExist bool
+	}{
+		{
+			label:               "case 1", // verify deleteCephBlockPools deletes the CephBlockPools
+			cephBlockPoolsExist: true,
+		},
+		{
+			label:               "case 2", // verify does not get error out when CephBlockPools does not exist
+			cephBlockPoolsExist: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+
+			assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephBlockPoolsExist)
+		}
+	}
+}
+
+func assertTestDeleteCephBlockPools(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, cephBlockPoolsExist bool) {
+
+	if !cephBlockPoolsExist {
+		err := reconciler.deleteCephBlockPools(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+	}
+
+	cephBlockPools, err := reconciler.newCephBlockPoolInstances(sc)
+	assert.NoError(t, err)
+
+	for _, cephBlockPool := range cephBlockPools {
+		foundCephBlockPool := &cephv1.CephBlockPool{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+
+		if cephBlockPoolsExist {
+			assert.NoError(t, err)
+		} else {
+			assert.True(t, errors.IsNotFound(err))
+		}
+	}
+
+	err = reconciler.deleteCephBlockPools(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	for _, cephBlockPool := range cephBlockPools {
+		foundCephBlockPool := &cephv1.CephBlockPool{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+			Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+		assert.True(t, errors.IsNotFound(err))
+	}
+}
