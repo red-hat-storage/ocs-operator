@@ -254,3 +254,76 @@ func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler ReconcileStorag
 		assert.NoError(t, err)
 	}
 }
+
+func TestDeleteNodeTaint(t *testing.T) {
+	testList := []struct {
+		label                  string
+		createDefaultNodeTaint bool
+	}{
+		{
+			label:                  "case 1", // verify deleteNodeTaint deletes the default NodeTaint
+			createDefaultNodeTaint: true,
+		},
+		{
+			label:                  "case 2", // verify does not get error out when default node taints does not exist
+			createDefaultNodeTaint: false,
+		},
+	}
+
+	for _, eachPlatform := range allPlatforms {
+		cp := &CloudPlatform{platform: eachPlatform}
+
+		for _, obj := range testList {
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+
+			assertTestDeleteNodeTaint(t, reconciler, sc, obj.createDefaultNodeTaint)
+		}
+	}
+}
+
+func assertTestDeleteNodeTaint(
+	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, createDefaultNodeTaint bool) {
+
+	if createDefaultNodeTaint {
+		addDefaultNodeTaintOnNodes(t, reconciler, sc)
+	}
+
+	// delete node taints
+	err := reconciler.deleteNodeTaint(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, len(nodes.Items))
+
+	// verify deleteNodeTaint deleted the default node taint
+	for _, node := range nodes.Items {
+		for _, taint := range node.Spec.Taints {
+			assert.NotEqual(t, defaults.NodeTolerationKey, taint.Key)
+		}
+	}
+}
+
+func addDefaultNodeTaintOnNodes(t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster) {
+
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, len(nodes.Items))
+
+	for _, node := range nodes.Items {
+		new := node.DeepCopy()
+		new.Spec.Taints = append(new.Spec.Taints, corev1.Taint{Key: defaults.NodeTolerationKey, Effect: corev1.TaintEffectNoSchedule})
+
+		oldJSON, err := json.Marshal(node)
+		assert.NoError(t, err)
+
+		newJSON, err := json.Marshal(new)
+		assert.NoError(t, err)
+
+		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
+		assert.NoError(t, err)
+
+		err = reconciler.client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		assert.NoError(t, err)
+	}
+}
