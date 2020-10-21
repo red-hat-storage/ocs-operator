@@ -105,8 +105,9 @@ func (r *ReconcileStorageCluster) CreateOrUpdatePrometheusRules(rule *monitoring
 			if err != nil {
 				return fmt.Errorf("failed while updating PrometheusRule: %v", err)
 			}
+		} else {
+			return fmt.Errorf("failed while creating PrometheusRule: %v", err)
 		}
-		return fmt.Errorf("failed while creating PrometheusRule: %v", err)
 	}
 	return nil
 }
