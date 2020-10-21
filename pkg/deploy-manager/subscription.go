@@ -23,7 +23,6 @@ import (
 )
 
 const marketplaceNamespace = "openshift-marketplace"
-const defaultOcsRegistryImage = "quay.io/ocs-dev/ocs-registry:latest"
 
 type clusterObjects struct {
 	namespaces     []k8sv1.Namespace
@@ -201,19 +200,31 @@ func (t *DeployManager) DumpYAML(ocsRegistryImage string, subscriptionChannel st
 	writer := strings.Builder{}
 
 	for _, namespace := range co.namespaces {
-		marshallObject(namespace, &writer)
+		err := marshallObject(namespace, &writer)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	for _, operatorGroup := range co.operatorGroups {
-		marshallObject(operatorGroup, &writer)
+		err := marshallObject(operatorGroup, &writer)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	for _, catalogSource := range co.catalogSources {
-		marshallObject(catalogSource, &writer)
+		err := marshallObject(catalogSource, &writer)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	for _, subscription := range co.subscriptions {
-		marshallObject(subscription, &writer)
+		err := marshallObject(subscription, &writer)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return writer.String()
@@ -398,6 +409,9 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
 	for _, catalogSource := range co.catalogSources {
 		cs, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Get(context.TODO(), catalogSource.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
 		cs.Spec.Image = catalogSource.Spec.Image
 		_, err = t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Update(context.TODO(), cs, metav1.UpdateOptions{})
 		if err != nil {
@@ -416,6 +430,9 @@ func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
 
 	for _, subscription := range co.subscriptions {
 		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Get(context.TODO(), subscription.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
 		sub.Spec.Channel = subscription.Spec.Channel
 		_, err = t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Update(context.TODO(), sub, metav1.UpdateOptions{})
 		if err != nil {
@@ -439,11 +456,17 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 	lastReason := ""
 	waitErr := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
 		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(InstallNamespace).Get(context.TODO(), subscription, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
 		if sub.Spec.Channel != subscriptionChannel {
 			lastReason = fmt.Sprintf("waiting on subscription channel to be updated to %s ", subscriptionChannel)
 			return false, nil
 		}
 		csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return false, err
+		}
 		for _, csv := range csvs.Items {
 			// If the csvName doesn't match, it means a new csv has appeared
 			if csv.Name != csvName && strings.Contains(csv.Name, operatorName) {
@@ -453,7 +476,7 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 				}
 			}
 		}
-		lastReason = fmt.Sprintf("waiting on csv to be created and installed")
+		lastReason = fmt.Sprintf("waiting on csv to be created and installed") //nolint:gosimple
 		return false, nil
 	})
 
