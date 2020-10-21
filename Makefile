@@ -1,171 +1,120 @@
-# Set minimum required Golang version to v1.13.3
-GO_REQUIRED_MIN_VERSION=1.13.3
-# Export GO111MODULE=on to enable project to be built from within GOPATH/src
-export GO111MODULE=on
-# Enable GOPROXY. This speeds up a lot of vendoring operations.
-export GOPROXY=https://proxy.golang.org
-# Export GOROOT. Required for OPERATOR_SDK to work correctly for generate commands.
-export GOROOT=$(shell go env GOROOT)
+# Current Operator version
+VERSION ?= 0.0.1
+# Default bundle image tag
+BUNDLE_IMG ?= controller-bundle:$(VERSION)
+# Options for 'bundle-build'
+ifneq ($(origin CHANNELS), undefined)
+BUNDLE_CHANNELS := --channels=$(CHANNELS)
+endif
+ifneq ($(origin DEFAULT_CHANNEL), undefined)
+BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
+endif
+BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
-# Explicitly set controller-gen to v0.2.5 as build-machinery-go only supports v0.2.1 currently
-export CONTROLLER_GEN_VERSION=v0.2.5
+# Image URL to use all building/pushing image targets
+IMG ?= controller:latest
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-all: ocs-operator ocs-registry ocs-must-gather
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
 
-include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
-  targets/openshift/crd-schema-gen.mk \
-)
+all: manager
 
-$(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
+# Run tests
+test: generate fmt vet manifests
+	go test ./... -coverprofile cover.out
 
-.PHONY: \
-	build \
-	build-go \
-	build-container \
-	clean \
-	ocs-operator \
-	ocs-must-gather \
-	operator-bundle \
-	verify-operator-bundle \
-	operator-index \
-	ocs-registry \
-	gen-release-csv \
-	gen-latest-csv \
-	gen-latest-deploy-yaml \
-	gen-latest-prometheus-rules-yamls \
-	verify-latest-deploy-yaml \
-	verify-latest-csv \
-	source-manifests \
-	cluster-deploy \
-	cluster-clean \
-	ocs-operator-openshift-ci-build \
-	functest \
-	shellcheck-test \
-	golangci-lint \
-	update-generated \
-	ocs-operator-ci \
-	red-hat-storage-ocs-ci \
-	unit-test \
-	deps-update
+# Build manager binary
+manager: generate fmt vet
+	go build -o bin/manager main.go
 
-deps-update:
-	@echo "Running deps-update"
-	go mod tidy && go mod vendor
+# Run against the configured Kubernetes cluster in ~/.kube/config
+run: generate fmt vet manifests
+	go run ./main.go
 
-operator-sdk:
-	@echo "Ensuring operator-sdk"
-	hack/ensure-operator-sdk.sh
+# Install CRDs into a cluster
+install: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-ocs-operator-openshift-ci-build: build
+# Uninstall CRDs from a cluster
+uninstall: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
-build: build-go
+# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
+deploy: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-build-go: deps-update
-	@echo "Building the ocs-operator binary"
-	hack/go-build.sh
+# Generate manifests e.g. CRD, RBAC etc.
+manifests: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-build-container:
-	@echo "Building the ocs-operator binary (containerized)"
-	hack/build-container.sh
+# Run go fmt against code
+fmt:
+	go fmt ./...
 
-ocs-operator: build
-	@echo "Building the ocs-operator image"
-	hack/build-operator.sh
+# Run go vet against code
+vet:
+	go vet ./...
 
-ocs-must-gather:
-	@echo "Building the ocs-must-gather image"
-	hack/build-must-gather.sh
+# Generate code
+generate: controller-gen
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-source-manifests: operator-sdk
-	@echo "Sourcing CSV and CRD manifests from component-level operators"
-	hack/source-manifests.sh
+# Build the docker image
+docker-build: test
+	docker build . -t ${IMG}
 
-gen-latest-csv: operator-sdk
-	@echo "Generating latest development CSV version using predefined ENV VARs."
-	hack/generate-latest-csv.sh
+# Push the docker image
+docker-push:
+	docker push ${IMG}
 
-gen-latest-deploy-yaml:
-	@echo "Generating latest deployment yaml file"
-	hack/gen-deployment-yaml.sh
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen:
+ifeq (, $(shell which controller-gen))
+	@{ \
+	set -e ;\
+	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONTROLLER_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
+	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif
 
-gen-latest-prometheus-rules-yamls:
-	@echo "Generating latest Prometheus rules yamls"
-	hack/gen-promethues-rules.sh
-	
-verify-latest-deploy-yaml: gen-latest-deploy-yaml
-	@echo "Verifying deployment yaml changes"
-	hack/verify-latest-deploy-yaml.sh
+kustomize:
+ifeq (, $(shell which kustomize))
+	@{ \
+	set -e ;\
+	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
+	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
+	}
+KUSTOMIZE=$(GOBIN)/kustomize
+else
+KUSTOMIZE=$(shell which kustomize)
+endif
 
-gen-release-csv: operator-sdk
-	@echo "Generating unified CSV from sourced component-level operators"
-	hack/generate-unified-csv.sh
+# Generate bundle manifests and metadata, then validate generated files.
+.PHONY: bundle
+bundle: manifests
+	operator-sdk generate kustomize manifests -q
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	operator-sdk bundle validate ./bundle
 
-verify-latest-csv: gen-latest-csv
-	@echo "Verifying latest CSV"
-	hack/verify-latest-csv.sh
-
-verify-operator-bundle:
-	@echo "Verifying operator bundle"
-	hack/verify-operator-bundle.sh
-
-operator-bundle:
-	@echo "Building ocs-operator-bundle image"
-	hack/build-operator-bundle.sh
-
-operator-index:
-	@echo "Building ocs-operator-index image"
-	hack/build-operator-index.sh
-
-ocs-registry:
-	@echo "Building ocs-registry image in appregistry format"
-	hack/build-appregistry.sh
-
-clean:
-	@echo "cleaning previous outputs"
-	hack/clean.sh
-
-cluster-deploy: cluster-clean
-	@echo "Deploying ocs to cluster"
-	hack/cluster-deploy.sh
-
-cluster-clean:
-	@echo "Removing ocs install from cluster"
-	hack/cluster-clean.sh
-
-build-functest:
-	@echo "Building functional tests"
-	hack/build-functest.sh
-
-functest: build-functest
-	@echo "Running ocs developer functional test suite"
-	hack/functest.sh $(ARGS)
-
-shellcheck-test:
-	@echo "Testing for shellcheck"
-	hack/shellcheck-test.sh
-
-golangci-lint:
-	@echo "Running golangci-lint run"
-	hack/golangci_lint.sh
-
-# ignoring the functest dir since it requires an active cluster
-# use 'make functest' to run just the functional tests
-unit-test:
-	@echo "Executing unit tests"
-	go test -v -cover `go list ./... | grep -v "functest"`
-
-update-generated: operator-sdk
-	@echo Updating generated files
-	hack/generate-k8s-openapi.sh
-	@echo Running update-codegen-crds
-	@make update-codegen-crds
-
-verify-generated: update-generated
-	@echo "Verifying generated code"
-	hack/verify-generated.sh
-
-ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-generated verify-latest-deploy-yaml
-
-red-hat-storage-ocs-ci:
-	@echo "Running red-hat-storage ocs-ci test suite"
-	hack/red-hat-storage-ocs-ci-tests.sh
+# Build the bundle image.
+.PHONY: bundle-build
+bundle-build:
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
