@@ -74,7 +74,7 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 				return err
 			}
 		}
-		reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+		reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.SnapshotClasses.ReconcileStrategy)
 		if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
 			return nil
 		}
@@ -98,7 +98,7 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 
 // ensureSnapshotClasses functions ensures that snpashotter classes are created
 func (r *ReconcileStorageCluster) ensureSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.SnapshotClasses.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
