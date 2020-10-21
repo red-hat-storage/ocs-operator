@@ -66,8 +66,6 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 					return err
 				}
 				reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
-				existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
-				sc.ObjectMeta = existing.ObjectMeta
 				err = r.client.Create(context.TODO(), sc)
 				if err != nil {
 					return err
