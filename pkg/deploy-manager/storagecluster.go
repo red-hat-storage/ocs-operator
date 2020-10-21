@@ -7,7 +7,7 @@ import (
 	"time"
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -157,7 +157,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			Arbiter:        arbiter,
 		},
 	}
-	storageCluster.SetGroupVersionKind(schema.GroupVersionKind{Group: ocsv1.SchemeGroupVersion.Group, Kind: "StorageCluster", Version: ocsv1.SchemeGroupVersion.Version})
+	storageCluster.SetGroupVersionKind(schema.GroupVersionKind{Group: ocsv1.GroupVersion.Group, Kind: "StorageCluster", Version: ocsv1.GroupVersion.Version})
 
 	return storageCluster, nil
 }

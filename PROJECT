@@ -1,0 +1,14 @@
+domain: openshift.io
+layout: go.kubebuilder.io/v2
+projectName: ocs-operator
+repo: github.com/openshift/ocs-operator
+resources:
+- group: ocs
+  kind: OCSInitialization
+  version: v1
+- group: ocs
+  kind: StorageCluster
+  version: v1
+version: 3-alpha
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}
