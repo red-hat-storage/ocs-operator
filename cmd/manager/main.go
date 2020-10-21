@@ -30,10 +30,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	kzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 var log = logf.Log.WithName("cmd")
@@ -77,7 +77,10 @@ func main() {
 	}
 
 	// Become the leader before proceeding
-	leader.Become(context.TODO(), "ocs-operator-lock")
+	err = leader.Become(context.TODO(), "ocs-operator-lock")
+	if err != nil {
+		log.Error(err, "")
+	}
 
 	// TODO: Remove once migrated to new project structure based on Kubebuilder
 	// The way Readiness is handled is different in newer version.
@@ -87,7 +90,12 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
-	defer r.Unset()
+	defer func() {
+		err := r.Unset()
+		if err != nil {
+			log.Error(err, "")
+		}
+	}()
 
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{Namespace: namespace})
