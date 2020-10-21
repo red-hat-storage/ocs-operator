@@ -24,14 +24,18 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 )
 
 // OCSInitializationReconciler reconciles a OCSInitialization object
 type OCSInitializationReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	secClient secv1client.SecurityV1Interface
+
+	Log       logr.Logger
+	Scheme    *runtime.Scheme
+	rookImage string
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=ocsinitializations,verbs=get;list;watch;create;update;patch;delete

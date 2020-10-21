@@ -21,9 +21,11 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/version"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 )
 
@@ -32,6 +34,16 @@ type StorageClusterReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	serverVersion   *version.Info
+	conditions      []conditionsv1.Condition
+	phase           string
+	cephImage       string
+	monitoringIP    string
+	noobaaDBImage   string
+	noobaaCoreImage string
+	nodeCount       int
+	platform        *CloudPlatform
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters,verbs=get;list;watch;create;update;patch;delete
