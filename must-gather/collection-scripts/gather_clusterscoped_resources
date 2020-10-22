@@ -50,7 +50,7 @@ for command_get in "${commands_get[@]}"; do
      echo "collecting oc command ${command_get}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
      COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/get_${command_get// /_}
      # shellcheck disable=SC2086
-     { oc get "${command_get}"; } >> "${COMMAND_OUTPUT_FILE}"
+     { oc get ${command_get}; } >> "${COMMAND_OUTPUT_FILE}"
 done
 
 # Run the Collection of Resources oc yaml to list
