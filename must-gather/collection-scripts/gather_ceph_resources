@@ -126,6 +126,10 @@ for ns in $namespaces; do
            sleep 5
         done
 
+        # add jq command to the helper pod
+        timeout 120 oc -n "$ns" exec "${HOSTNAME}"-helper -- bash -c "wget 'http://stedolan.github.io/jq/download/linux64/jq' && chmod 755 jq"
+        timeout 120 oc -n "$ns" exec "${HOSTNAME}"-helper -- bash -c "mv jq /usr/bin/"
+
         # Collecting output of ceph commands
         for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
             printf "collecting command output for: %s\n"  "${ceph_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
