@@ -163,6 +163,55 @@ func TestNonWatchedResourceNameNotFound(t *testing.T) {
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
+func TestThrottleStorageDevices(t *testing.T) {
+	testcases := []struct {
+		label          string
+		storageClass   *storagev1.StorageClass
+		storageCluster *api.StorageCluster
+		expectedSlow   bool
+		expectedFast   bool
+	}{
+		{
+			label: "Case 1", // storageclass is gp2 or io1
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gp2",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "gp2",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSlow:   true,
+			expectedFast:   false,
+		},
+		{
+			label: "Case 2", // storageclass is neither gp2 nor io1
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "st1",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "st1",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSlow:   false,
+			expectedFast:   false,
+		},
+	}
+
+	for _, tc := range testcases {
+		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.storageClass)
+		actualSlow, actualFast, err := reconciler.throttleStorageDevices(tc.storageClass.Name)
+		assert.NoError(t, err)
+		assert.Equalf(t, tc.expectedSlow, actualSlow, "[%q]: failed to get expected output", tc.label)
+		assert.Equalf(t, tc.expectedFast, actualFast, "[%q]: failed to get expected output", tc.label)
+	}
+}
+
 func TestNonWatchedResourceNamespaceNotFound(t *testing.T) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
