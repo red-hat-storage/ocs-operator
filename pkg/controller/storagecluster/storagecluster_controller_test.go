@@ -253,7 +253,8 @@ func TestThrottleStorageDevices(t *testing.T) {
 		label          string
 		storageClass   *storagev1.StorageClass
 		storageCluster *api.StorageCluster
-		expected       bool
+		expectedSlow   bool
+		expectedFast   bool
 	}{
 		{
 			label: "Case 1", // storageclass is gp2 or io1
@@ -267,7 +268,8 @@ func TestThrottleStorageDevices(t *testing.T) {
 				},
 			},
 			storageCluster: &api.StorageCluster{},
-			expected:       true,
+			expectedSlow:   true,
+			expectedFast:   false,
 		},
 		{
 			label: "Case 2", // storageclass is neither gp2 nor io1
@@ -281,15 +283,17 @@ func TestThrottleStorageDevices(t *testing.T) {
 				},
 			},
 			storageCluster: &api.StorageCluster{},
-			expected:       false,
+			expectedSlow:   false,
+			expectedFast:   false,
 		},
 	}
 
 	for _, tc := range testcases {
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.storageClass)
-		actual, err := reconciler.throttleStorageDevices(tc.storageClass.Name)
+		actualSlow, actualFast, err := reconciler.throttleStorageDevices(tc.storageClass.Name)
 		assert.NoError(t, err)
-		assert.Equalf(t, tc.expected, actual, "[%q]: failed to get expected output", tc.label)
+		assert.Equalf(t, tc.expectedSlow, actualSlow, "[%q]: failed to get expected output", tc.label)
+		assert.Equalf(t, tc.expectedFast, actualFast, "[%q]: failed to get expected output", tc.label)
 	}
 }
 
