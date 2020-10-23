@@ -196,11 +196,12 @@ for ns in $namespaces; do
         mkdir -p "${NODE_OUTPUT_DIR}"
         { timeout 120 oc debug nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
     done
-    oc delete -f pod_helper.yaml
 
     for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash ls --connect-timeout=15"| awk '{print $1}'); do
         { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash info $i --connect-timeout=15" >> "${COMMAND_OUTPUT_DIR}"/crash_"${i}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
     done
+
+    oc delete -f pod_helper.yaml
 
     # Collecting ceph crash dump
     for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/Ready/{print $1}'); do
