@@ -40,7 +40,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv
 // ensureCephObjectStoreUsers ensures that cephObjectStoreUser resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStoreUsers.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
@@ -72,7 +72,7 @@ func (r *ReconcileStorageCluster) createCephObjectStoreUsers(cephObjectStoreUser
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
 		switch {
 		case err == nil:
-			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStoreUsers.ReconcileStrategy)
 			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
 				return nil
 			}
