@@ -82,6 +82,22 @@ var (
 					getWeightedPodAffinityTerm(100, "rook-ceph-rgw"),
 				},
 			},
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: getOcsNodeSelector(),
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
+					corev1.PreferredSchedulingTerm{
+						Weight: 100,
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								corev1.NodeSelectorRequirement{
+									Key:      NodeAffinityKey,
+									Operator: corev1.NodeSelectorOpExists,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 
 		"mds": rook.Placement{
