@@ -65,6 +65,15 @@ var (
 		"backingstores.noobaa.io",
 		"bucketclasses.noobaa.io",
 	}
+
+	ocsNodeToleration = []corev1.Toleration{
+		{
+			Key:      "node.ocs.openshift.io/storage",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "true",
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+	}
 )
 
 type templateData struct {
@@ -499,25 +508,19 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		}
 	}
 
-	// Add tolerations to deployments
-	for i := range templateStrategySpec.DeploymentSpecs {
-		d := &templateStrategySpec.DeploymentSpecs[i]
-		d.Spec.Template.Spec.Tolerations = []corev1.Toleration{
-			{
-				Key:      "node.ocs.openshift.io/storage",
-				Operator: corev1.TolerationOpEqual,
-				Value:    "true",
-				Effect:   corev1.TaintEffectNoSchedule,
-			},
-		}
-	}
-
 	// Add metrics exporter deployment to CSV
 	metricExporterStrategySpec := csvv1.StrategyDeploymentSpec{
 		Name: "ocs-metrics-exporter",
 		Spec: getMetricsExporterDeployment(),
 	}
 	templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, metricExporterStrategySpec)
+
+	// Add tolerations to deployments
+	for i := range templateStrategySpec.DeploymentSpecs {
+		d := &templateStrategySpec.DeploymentSpecs[i]
+		d.Spec.Template.Spec.Tolerations = ocsNodeToleration
+	}
+
 	templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, csvv1.StrategyDeploymentPermissions{
 		ServiceAccountName: "ocs-metrics-exporter",
 		Rules: []rbac.PolicyRule{
