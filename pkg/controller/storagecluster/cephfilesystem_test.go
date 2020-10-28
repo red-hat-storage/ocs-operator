@@ -23,7 +23,7 @@ func TestCephFileSystem(t *testing.T) {
 		},
 	}
 	for _, eachPlatform := range allPlatforms {
-		cp := &CloudPlatform{platform: eachPlatform}
+		cp := &Platform{platform: eachPlatform}
 		for _, c := range cases {
 			var objects []runtime.Object
 			if c.createRuntimeObjects {

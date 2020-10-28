@@ -7,6 +7,7 @@ import (
 	"github.com/blang/semver"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	configv1 "github.com/openshift/api/config/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
@@ -171,6 +172,18 @@ var mockNodeList = &corev1.NodeList{
 				},
 			},
 		},
+	},
+}
+
+var mockInfrastructure = &configv1.Infrastructure{
+	TypeMeta: metav1.TypeMeta{
+		Kind: "Infrastructure",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "cluster",
+	},
+	Status: configv1.InfrastructureStatus{
+		Platform: "",
 	},
 }
 
@@ -405,6 +418,8 @@ func TestReconcileWithNonWatchedResource(t *testing.T) {
 func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
+	infra := &configv1.Infrastructure{}
+	mockInfrastructure.DeepCopyInto(infra)
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "storage-test",
@@ -412,7 +427,7 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList)
+	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, infra)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -424,8 +439,12 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	cc := &rookCephv1.CephCluster{}
 	mockCephCluster.DeepCopyInto(cc)
 	cc.Status.State = rookCephv1.ClusterStateCreated
+	infra := &configv1.Infrastructure{}
+	mockInfrastructure.DeepCopyInto(infra)
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc, nodeList)
+	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, infra)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -551,8 +570,10 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
 	cc.Status.State = rookCephv1.ClusterStateCreated
+	infra := &configv1.Infrastructure{}
+	mockInfrastructure.DeepCopyInto(infra)
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc, nodeList)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc, nodeList, infra)
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -569,6 +590,8 @@ func TestStorageClusterInitConditions(t *testing.T) {
 func TestStorageClusterFinalizer(t *testing.T) {
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
+	infra := &configv1.Infrastructure{}
+	mockInfrastructure.DeepCopyInto(infra)
 	namespacedName := types.NamespacedName{
 		Name:      "noobaa",
 		Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
@@ -580,7 +603,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, noobaaMock, nodeList)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, noobaaMock, nodeList, infra)
 
 	result, err := reconciler.Reconcile(mockStorageClusterRequest)
 	assert.NoError(t, err)
@@ -660,7 +683,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Rec
 		scheme:        scheme,
 		serverVersion: &k8sVersion.Info{},
 		reqLogger:     logf.Log.WithName("controller_storagecluster_test"),
-		platform:      &CloudPlatform{},
+		platform:      &Platform{},
 	}
 }
 
@@ -693,6 +716,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	if err != nil {
 		assert.Fail(t, "failed to add monitoringv1 scheme")
 	}
+	err = configv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add configv1 scheme")
+	}
 	return scheme
 }
 
@@ -715,7 +742,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 			Namespace: "",
 		},
 	}
-	platform := &CloudPlatform{platform: PlatformUnknown}
+	platform := &Platform{platform: configv1.NonePlatformType}
 	cases := []struct {
 		testCase  string
 		publicNW  string

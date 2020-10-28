@@ -9,13 +9,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/go-logr/zapr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/go-logr/zapr"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	nbapis "github.com/noobaa/noobaa-operator/v2/pkg/apis"
+	openshiftConfigv1 "github.com/openshift/api/config/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	"github.com/openshift/ocs-operator/pkg/apis"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -26,6 +24,8 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/ready"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -137,6 +137,11 @@ func main() {
 
 	if err := snapapi.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding volume-snapshot apis to scheme")
+		os.Exit(1)
+	}
+
+	if err := openshiftConfigv1.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding openshift/api/config/v1 to scheme")
 		os.Exit(1)
 	}
 

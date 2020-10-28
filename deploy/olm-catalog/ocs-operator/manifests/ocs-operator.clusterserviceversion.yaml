@@ -1426,6 +1426,14 @@ spec:
           - templates
           verbs:
           - '*'
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - infrastructures
+          verbs:
+          - get
+          - list
+          - watch
         serviceAccountName: ocs-operator
       - rules:
         - apiGroups:

@@ -48,7 +48,7 @@ func (r *ReconcileStorageCluster) ensureCephObjectStoreUsers(instance *ocsv1.Sto
 	if err != nil {
 		return err
 	}
-	if isValidCloudPlatform(platform) {
+	if avoidObjectStore(platform) {
 		return nil
 	}
 
