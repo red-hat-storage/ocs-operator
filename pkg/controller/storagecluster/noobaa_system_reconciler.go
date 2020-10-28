@@ -150,6 +150,14 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 
 // Delete noobaa system in the namespace
 func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	// Delete only if this is being managed by the OCS operator
+	if sc.Spec.MultiCloudGateway != nil {
+		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
+		if reconcileStrategy == ReconcileStrategyIgnore || reconcileStrategy == ReconcileStrategyStandalone {
+			return nil
+		}
+	}
+
 	noobaa := &nbv1.NooBaa{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
