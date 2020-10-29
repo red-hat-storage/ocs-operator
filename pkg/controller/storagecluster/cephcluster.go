@@ -206,8 +206,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, r
 			Placement: rook.PlacementSpec{
 				"all": getPlacement(sc, "all"),
 				"mon": getPlacement(sc, "mon"),
-				"rgw": getPlacement(sc, "rgw"),
-				"mds": getPlacement(sc, "mds"),
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
