@@ -71,6 +71,11 @@ func (t *DeployManager) GetParameterCodec() runtime.ParameterCodec {
 	return t.parameterCodec
 }
 
+// GetNamespace is the function used to retrieve the installation namespace
+func (t *DeployManager) GetNamespace() string {
+	return InstallNamespace
+}
+
 // NewDeployManager is the way to create a DeployManager struct
 func NewDeployManager() (*DeployManager, error) {
 	codecs := serializer.NewCodecFactory(scheme.Scheme)

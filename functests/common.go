@@ -2,6 +2,8 @@ package functests
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
@@ -15,6 +17,19 @@ import (
 
 func debug(msg string, args ...interface{}) {
 	ginkgo.GinkgoWriter.Write([]byte(fmt.Sprintf(msg, args...)))
+}
+
+//RunMustGather runs the OCS must-gather container image
+func RunMustGather() error {
+	gopath := os.Getenv("GOPATH")
+	cmd := exec.Command("/bin/bash", gopath+"/src/github.com/openshift/ocs-operator/hack/dump-debug-info.sh")
+	cmd.Env = os.Environ()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error dumping debug info: %v", string(output))
+	}
+
+	return nil
 }
 
 // GetRandomPVC returns a pvc with a randomized name

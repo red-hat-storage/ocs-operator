@@ -42,6 +42,8 @@ REDHAT_OCS_CI_TEST_EXPRESSION="${REDHAT_OCS_CI_TEST_EXPRESSION:-$REDHAT_OCS_CI_D
 REDHAT_OCS_CI_PYTHON_BINARY="${REDHAT_OCS_CI_PYTHON_BINARY:-python3.7}"
 REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL="${REDHAT_OCS_CI_FORCE_TOOL_POD_INSTALL:-false}"
 
+GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
+
 # This env var allows developers to point to a custom oc tool that isn't in $PATH
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"

@@ -1,4 +1,4 @@
-package functests_test
+package must_gather_test
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ import (
 
 func TestTests(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Tests Suite")
+	RunSpecs(t, "must-gather Test Suite")
 }
 
 var _ = BeforeSuite(func() {
@@ -21,3 +21,13 @@ var _ = BeforeSuite(func() {
 var _ = AfterSuite(func() {
 	tests.AfterTestSuiteCleanup()
 })
+
+var _ = PDescribe("Must Gather", MustGatherTest)
+
+func MustGatherTest() {
+	It("Ensures that a valid cluster dump is collected", func() {
+		By("Running oc adm must-gather")
+		err := tests.RunMustGather()
+		Expect(err).To(BeNil())
+	})
+}

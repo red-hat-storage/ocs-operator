@@ -1,4 +1,4 @@
-package functests_test
+package ocs_test
 
 import (
 	"fmt"
@@ -7,8 +7,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	tests "github.com/openshift/ocs-operator/functests"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,17 +27,15 @@ type RookCephTools struct {
 	k8sClient      *kubernetes.Clientset
 	ocsClient      *rest.RESTClient
 	parameterCodec runtime.ParameterCodec
+	namespace      string
 }
 
 func newRookCephTools() (*RookCephTools, error) {
-	deployManager, err := deploymanager.NewDeployManager()
-	if err != nil {
-		return nil, err
-	}
 	retOCSObj := &RookCephTools{
-		k8sClient:      deployManager.GetK8sClient(),
-		ocsClient:      deployManager.GetOcsClient(),
-		parameterCodec: deployManager.GetParameterCodec(),
+		k8sClient:      tests.DeployManager.GetK8sClient(),
+		ocsClient:      tests.DeployManager.GetOcsClient(),
+		parameterCodec: tests.DeployManager.GetParameterCodec(),
+		namespace:      tests.DeployManager.GetNamespace(),
 	}
 	return retOCSObj, nil
 }
@@ -45,7 +44,7 @@ func (rctObj *RookCephTools) patchOCSInit(patch string) error {
 	init := &ocsv1.OCSInitialization{}
 	return rctObj.ocsClient.Patch(types.JSONPatchType).
 		Resource("ocsinitializations").
-		Namespace(deploymanager.InstallNamespace).
+		Namespace(rctObj.namespace).
 		Name("ocsinit").
 		Body([]byte(patch)).
 		VersionedParams(&metav1.GetOptions{}, rctObj.parameterCodec).
@@ -54,7 +53,7 @@ func (rctObj *RookCephTools) patchOCSInit(patch string) error {
 }
 
 func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
-	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	pods, err := rctObj.k8sClient.CoreV1().Pods(rctObj.namespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
 	if err != nil {
 		return err
 	}
@@ -70,7 +69,7 @@ func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
 }
 
 func (rctObj *RookCephTools) toolsRemove() error {
-	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	pods, err := rctObj.k8sClient.CoreV1().Pods(rctObj.namespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
 	if err != nil {
 		return err
 	}
@@ -88,9 +87,14 @@ func rookCephToolsTest() {
 	var err error
 
 	BeforeEach(func() {
-		RegisterFailHandler(Fail)
 		rctObj, err = newRookCephTools()
 		Expect(err).To(BeNil())
+	})
+
+	AfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			tests.SuiteFailed = tests.SuiteFailed || true
+		}
 	})
 
 	Describe("Deployment", func() {
@@ -98,6 +102,7 @@ func rookCephToolsTest() {
 			err = rctObj.patchOCSInit(disableToolsPatch)
 			Expect(err).To(BeNil())
 		})
+
 		It("Ensure enable tools works", func() {
 			By("Setting enableCephTools=true")
 			err = rctObj.patchOCSInit(enableToolsPatch)
