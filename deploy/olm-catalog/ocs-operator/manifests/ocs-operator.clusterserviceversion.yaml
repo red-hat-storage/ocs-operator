@@ -2263,6 +2263,11 @@ spec:
                 securityContext:
                   runAsNonRoot: true
               serviceAccountName: ocs-metrics-exporter
+              tolerations:
+              - effect: NoSchedule
+                key: node.ocs.openshift.io/storage
+                operator: Equal
+                value: "true"
       permissions:
       - rules:
         - apiGroups:
