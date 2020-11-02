@@ -107,7 +107,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 				Gateway: cephv1.GatewaySpec{
 					Port:      80,
 					Instances: 2,
-					Placement: defaults.DaemonPlacements["rgw"],
+					Placement: getPlacement(initData, "rgw"),
 					Resources: defaults.GetDaemonResources("rgw", initData.Spec.Resources),
 				},
 			},
