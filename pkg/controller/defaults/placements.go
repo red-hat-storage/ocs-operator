@@ -66,7 +66,7 @@ var (
 				getOcsToleration(),
 			},
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1, "rook-ceph-osd-prepare"),
+				getTopologySpreadConstraintsSpec(1, "rook-ceph-osd-prepare", "rook-ceph-osd"),
 			},
 		},
 
