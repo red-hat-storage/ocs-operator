@@ -249,7 +249,13 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 
 // setNoobaaUninstallMode sets the uninstall mode for Noobaa based on the annotation on the StorageCluster
 func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-
+	// Do this if Noobaa is being managed by the OCS operator
+	if sc.Spec.MultiCloudGateway != nil {
+		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
+		if reconcileStrategy == ReconcileStrategyIgnore || reconcileStrategy == ReconcileStrategyStandalone {
+			return nil
+		}
+	}
 	noobaa := &nbv1.NooBaa{}
 	var updateRequired bool
 
