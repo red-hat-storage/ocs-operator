@@ -1341,6 +1341,16 @@ spec:
           verbs:
           - get
         - apiGroups:
+          - ""
+          resources:
+          - persistentvolumes
+          verbs:
+          - get
+          - list
+          - watch
+          - update
+          - patch
+        - apiGroups:
           - apps
           resources:
           - deployments
