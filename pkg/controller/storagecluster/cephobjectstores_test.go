@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +40,7 @@ func assertCephObjectStores(t *testing.T, reconciler ReconcileStorageCluster, cr
 			t, func() bool { return expectedCos[0].Spec.Gateway.Instances > 1 },
 			"there should be multiple 'Spec.Gateway.Instances'")
 		assert.Equal(
-			t, expectedCos[0].Spec.Gateway.Placement, defaults.DaemonPlacements["rgw"])
+			t, expectedCos[0].Spec.Gateway.Placement, getPlacement(cr, "rgw"))
 	}
 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
