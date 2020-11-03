@@ -91,9 +91,9 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	var cephCluster *cephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		cephCluster = newExternalCephCluster(sc, r.cephImage, r.monitoringIP)
+		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP)
 	} else {
-		cephCluster = newCephCluster(sc, r.cephImage, r.nodeCount, r.serverVersion, reqLogger)
+		cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, reqLogger)
 	}
 
 	// Set StorageCluster instance as the owner and controller

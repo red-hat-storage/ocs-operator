@@ -107,8 +107,8 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	nb.Spec.Tolerations = placement.Tolerations
 	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
 	nb.Spec.DBVolumeResources = &dBVolumeResources
-	nb.Spec.Image = &r.noobaaCoreImage
-	nb.Spec.DBImage = &r.noobaaDBImage
+	nb.Spec.Image = &r.images.NooBaaCore
+	nb.Spec.DBImage = &r.images.NooBaaDB
 
 	// Default endpoint spec.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
