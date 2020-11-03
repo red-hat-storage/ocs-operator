@@ -206,14 +206,31 @@ for ns in $namespaces; do
 
     oc delete -f pod_helper.yaml
 
+    crash_collection(){
+        oc debug nodes/"${node}" --to-namespace="${ns}" -- bash -c "sleep 5m" &
+        while [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; do
+            sleep 3
+            echo "waiting for the debug pod to be in ready state"
+        done
+        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
+    }
+
+    # creating a counter variable for collecting PID in array
+    idx=0
     # Collecting ceph crash dump
     for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/Ready/{print $1}'); do
         printf "collecting crash logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         CRASH_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/crash_${node}
         mkdir -p "${CRASH_OUTPUT_DIR}"
-        oc debug nodes/"${node}" --to-namespace="${ns}" -- bash -c "sleep 5m" &
-        sleep 60
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| awk '/debug/{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
-        wait
+        crash_collection &
+        # collecting PID for bg jobs
+        pids[${idx}]=$!
+        idx=$idx+1
     done
+
+    # wait for all pids
+    echo "waiting for ${pids[*]} to terminate"
+    wait "${pids[@]}"
+
+    echo "ceph core dump collection completed"
 done
