@@ -183,11 +183,6 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 		} else {
 			sc.Status.Phase = statusutil.PhaseNotReady
 		}
-
-		if err = r.client.Status().Update(context.TODO(), sc); err != nil {
-			reqLogger.Error(err, "Failed to update external cluster status")
-			return err
-		}
 	}
 
 	return nil

@@ -97,8 +97,8 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	reqLogger := r.reqLogger.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
 	// Fetch the StorageCluster instance
-	instance := &ocsv1.StorageCluster{}
-	if err := r.client.Get(context.TODO(), request.NamespacedName, instance); err != nil {
+	sc := &ocsv1.StorageCluster{}
+	if err := r.client.Get(context.TODO(), request.NamespacedName, sc); err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("No StorageCluster resource")
 			// Request object not found, could have been deleted after reconcile request.
@@ -109,6 +109,30 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+
+	// Reconcile changes to the cluster
+	result, reconcileError := r.reconcilePhases(reqLogger, sc, request)
+
+	// Apply status changes to the storagecluster
+	statusError := r.client.Status().Update(context.TODO(), sc)
+	if statusError != nil {
+		reqLogger.Info("Status Update Error", "StatusUpdateErr", "Could not update storagecluster status")
+	}
+
+	// Reconcile errors have higher priority than status update errors
+	if reconcileError != nil {
+		return result, reconcileError
+	} else if statusError != nil {
+		return result, statusError
+	} else {
+		return result, nil
+	}
+}
+
+func (r *ReconcileStorageCluster) reconcilePhases(
+	reqLogger logr.Logger,
+	instance *ocsv1.StorageCluster,
+	request reconcile.Request) (reconcile.Result, error) {
 
 	if instance.Spec.ExternalStorage.Enable {
 		reqLogger.Info("Reconciling external StorageCluster")
@@ -132,11 +156,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		}
 		if !isActive {
 			instance.Status.Phase = statusutil.PhaseIgnored
-			phaseErr := r.client.Status().Update(context.TODO(), instance)
-			if phaseErr != nil {
-				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
-				return reconcile.Result{}, phaseErr
-			}
 			return reconcile.Result{}, nil
 		}
 	} else if instance.Status.Phase == statusutil.PhaseIgnored {
@@ -155,10 +174,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		instance.Status.Phase != statusutil.PhaseDeleting &&
 		instance.Status.Phase != statusutil.PhaseConnecting {
 		instance.Status.Phase = statusutil.PhaseProgressing
-		phaseErr := r.client.Status().Update(context.TODO(), instance)
-		if phaseErr != nil {
-			reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
-		}
 	}
 
 	// Add conditions if there are none
@@ -166,10 +181,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		reason := ocsv1.ReconcileInit
 		message := "Initializing StorageCluster"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
-		if err := r.client.Status().Update(context.TODO(), instance); err != nil {
-			reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to add conditions to status")
-			return reconcile.Result{}, err
-		}
 	}
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
@@ -190,10 +201,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	} else {
 		// The object is marked for deletion
 		instance.Status.Phase = statusutil.PhaseDeleting
-		phaseErr := r.client.Status().Update(context.TODO(), instance)
-		if phaseErr != nil {
-			reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseDeleting")
-		}
 
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			if err := r.deleteResources(instance, reqLogger); err != nil {
@@ -221,10 +228,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 		if instance.Status.FailureDomain == "" {
 			instance.Status.FailureDomain = determineFailureDomain(instance)
-			if err := r.client.Update(context.TODO(), instance); err != nil {
-				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set failure domain")
-				return reconcile.Result{}, err
-			}
 		}
 	}
 
@@ -262,19 +265,9 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 		err := f(instance, reqLogger)
 		if r.phase == statusutil.PhaseClusterExpanding {
 			instance.Status.Phase = statusutil.PhaseClusterExpanding
-			phaseErr := r.client.Status().Update(context.TODO(), instance)
-			if phaseErr != nil {
-				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseClusterExpanding")
-			}
-		} else {
-			if instance.Status.Phase != statusutil.PhaseReady &&
-				instance.Status.Phase != statusutil.PhaseConnecting {
-				instance.Status.Phase = statusutil.PhaseProgressing
-				phaseErr := r.client.Status().Update(context.TODO(), instance)
-				if phaseErr != nil {
-					reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
-				}
-			}
+		} else if instance.Status.Phase != statusutil.PhaseReady &&
+			instance.Status.Phase != statusutil.PhaseConnecting {
+			instance.Status.Phase = statusutil.PhaseProgressing
 		}
 		if err != nil {
 			reason := ocsv1.ReconcileFailed
@@ -282,9 +275,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 			instance.Status.Phase = statusutil.PhaseError
 			// don't want to overwrite the actual reconcile failure
-			if uErr := r.client.Status().Update(context.TODO(), instance); uErr != nil {
-				reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to update status")
-			}
 			return reconcile.Result{}, err
 		}
 	}
@@ -346,11 +336,6 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 				instance.Status.Phase = statusutil.PhaseError
 			}
 		}
-	}
-	phaseErr := r.client.Status().Update(context.TODO(), instance)
-	if phaseErr != nil {
-		reqLogger.Info("Status Update Error", "StatusUpdateErr", "Failed to set PhaseProgressing")
-		return reconcile.Result{}, phaseErr
 	}
 
 	// enable metrics exporter at the end of reconcile
