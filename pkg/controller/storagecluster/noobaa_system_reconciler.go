@@ -75,6 +75,9 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 		reqLogger.Error(err, "Failed to create or update NooBaa system")
 		return err
 	}
+	// Need to happen after the noobaa CR update was confirmed
+	sc.Status.Images.NooBaaCore.ActualImage = *nb.Spec.Image
+	sc.Status.Images.NooBaaDB.ActualImage = *nb.Spec.DBImage
 
 	objectRef, err := reference.GetReference(r.scheme, nb)
 	if err != nil {

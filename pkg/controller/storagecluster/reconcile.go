@@ -129,6 +129,24 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 	}
 }
 
+func (r *ReconcileStorageCluster) initializeImagesStatus(sc *ocsv1.StorageCluster) {
+	images := &sc.Status.Images
+	if images.Ceph == nil {
+		images.Ceph = &ocsv1.ComponentImageStatus{}
+	}
+	images.Ceph.DesiredImage = r.images.Ceph
+
+	if images.NooBaaCore == nil {
+		images.NooBaaCore = &ocsv1.ComponentImageStatus{}
+	}
+	images.NooBaaCore.DesiredImage = r.images.Ceph
+
+	if images.NooBaaDB == nil {
+		images.NooBaaDB = &ocsv1.ComponentImageStatus{}
+	}
+	images.NooBaaDB.DesiredImage = r.images.NooBaaDB
+}
+
 func (r *ReconcileStorageCluster) reconcilePhases(
 	reqLogger logr.Logger,
 	instance *ocsv1.StorageCluster,
@@ -139,6 +157,9 @@ func (r *ReconcileStorageCluster) reconcilePhases(
 	} else {
 		reqLogger.Info("Reconciling StorageCluster")
 	}
+
+	// Initalize the StatusImages section of the storageclsuter CR
+	r.initializeImagesStatus(instance)
 
 	if err := versionCheck(instance, reqLogger); err != nil {
 		return reconcile.Result{}, err

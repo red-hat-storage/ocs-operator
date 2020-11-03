@@ -111,7 +111,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 			} else {
 				reqLogger.Info("Creating CephCluster")
 			}
-			return r.client.Create(context.TODO(), cephCluster)
+			if err := r.client.Create(context.TODO(), cephCluster); err != nil {
+				return err
+			}
+			// Need to happen after the ceph cluster CR creation was confirmed
+			sc.Status.Images.Ceph.ActualImage = cephCluster.Spec.CephVersion.Image
+			return nil
 		}
 		return err
 	}
@@ -138,7 +143,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 			}
 		}
 		found.Spec = cephCluster.Spec
-		return r.client.Update(context.TODO(), found)
+		if err := r.client.Update(context.TODO(), found); err != nil {
+			return err
+		}
+		// Need to happen after the ceph cluster CR update was confirmed
+		sc.Status.Images.Ceph.ActualImage = cephCluster.Spec.CephVersion.Image
+		return nil
 	}
 
 	// Add it to the list of RelatedObjects if found
