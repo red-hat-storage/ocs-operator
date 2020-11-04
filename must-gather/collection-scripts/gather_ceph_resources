@@ -224,6 +224,7 @@ for ns in $namespaces; do
         crash_collection &
         # collecting PID for bg jobs
         pids[${idx}]=$!
+        # shellcheck disable=SC2046
         idx=$idx+1
     done
 
