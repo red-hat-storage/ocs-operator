@@ -34,12 +34,6 @@ const (
 	rookEnableCephFSCSIKey     = "ROOK_CSI_ENABLE_CEPHFS"
 )
 
-var (
-	// externalRgwEndpoint is the rgw endpoint as discovered in the Secret externalClusterDetailsSecret
-	// It is used for independent mode only. It will be passed to the Noobaa CR as a label
-	externalRgwEndpoint string
-)
-
 // ExternalResource containes a list of External Cluster Resources
 type ExternalResource struct {
 	Kind string            `json:"kind"`
@@ -313,9 +307,6 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				// created an issue in rook to add `CephObjectStore` type directly in the JSON output
 				// https://github.com/rook/rook/issues/6165
 				delete(d.Data, externalCephRgwEndpointKey)
-				// Set the external rgw endpoint variable for later use on the Noobaa CR (as a label)
-				// Replace the colon with an underscore, otherwise the label will be invalid
-				externalRgwEndpoint = strings.Replace(rgwEndpoint, ":", "_", -1)
 
 				// 'sc' points to OBC StorageClass
 				sc = scs[2]
