@@ -99,6 +99,13 @@ type StorageDeviceSet struct {
 	// +optional
 	Replica int `json:"replica,omitempty"`
 
+	// DeviceType is the value of device type in
+	// this StorageDeviceSet. It can have one of the
+	// three values (SSD, HDD, NVMe)
+	// +kubebuilder:validation:Enum=SSD;ssd;HDD;hdd;NVMe;NVME;nvme
+	// +optional
+	DeviceType string `json:"deviceType,omitempty"`
+
 	// TopologyKey is the Kubernetes topology label that the
 	// StorageClassDeviceSets will be distributed across. Ignored if
 	// Placement is set

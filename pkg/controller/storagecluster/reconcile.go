@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/blang/semver"
@@ -62,6 +63,15 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	ReconcileStrategyManage ReconcileStrategy = "manage"
 	// ReconcileStrategyStandalone also means never reconcile (NooBaa)
 	ReconcileStrategyStandalone ReconcileStrategy = "standalone"
+
+	// DeviceTypeSSD represents the DeviceType SSD
+	DeviceTypeSSD = "ssd"
+
+	// DeviceTypeHDD represents the DeviceType HDD
+	DeviceTypeHDD = "hdd"
+
+	// DeviceTypeNVMe represents the DeviceType NVMe
+	DeviceTypeNVMe = "nvme"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -405,6 +415,13 @@ func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageClu
 		if ds.MetadataPVCTemplate != nil {
 			if ds.MetadataPVCTemplate.Spec.StorageClassName == nil || *ds.MetadataPVCTemplate.Spec.StorageClassName == "" {
 				return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified for metadataPVCTemplate", i)
+			}
+		}
+		if ds.DeviceType != "" {
+			if ( DeviceTypeSSD == strings.ToLower(ds.DeviceType )) || ( DeviceTypeHDD == strings.ToLower(ds.DeviceType )) || ( DeviceTypeNVMe == strings.ToLower(ds.DeviceType )) {
+				metav1.SetMetaDataAnnotation(&sc.ObjectMeta, "crushDeviceClass", ds.DeviceType)
+			} else {
+				return fmt.Errorf("failed to validate DeviceType %q: no Device of this type", ds.DeviceType)
 			}
 		}
 	}
