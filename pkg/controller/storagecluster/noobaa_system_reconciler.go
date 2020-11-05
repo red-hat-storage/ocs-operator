@@ -20,11 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const (
-	// externalRgwEndpointLabelName is the name of the label that will be used by Noobaa to configure the S3 endpoint
-	externalRgwEndpointLabelName = "rgw-endpoint"
-)
-
 func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	// Everything other than ReconcileStrategyIgnore means we reconcile
 	if sc.Spec.MultiCloudGateway != nil {
@@ -100,11 +95,6 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 
 	nb.Labels = map[string]string{
 		"app": "noobaa",
-	}
-	// If independent mode, we pass the endpoint value as a label to Noobaa
-	// so it can connect to the RGW S3 endpoint
-	if sc.Spec.ExternalStorage.Enable {
-		nb.Labels[externalRgwEndpointLabelName] = externalRgwEndpoint
 	}
 	nb.Spec.DBStorageClass = &storageClassName
 	nb.Spec.PVPoolDefaultStorageClass = &storageClassName
