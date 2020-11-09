@@ -16,8 +16,6 @@ here.](https://github.com/operator-framework/operator-sdk#quick-start)
 Once the SDK is installed, the operator can be built via:
 
 ```console
-$ dep ensure --vendor-only
-
 $ make ocs-operator
 ```
 
@@ -137,6 +135,9 @@ kind: OperatorGroup
 metadata:
   name: openshift-storage-operatorgroup
   namespace: openshift-storage
+spec:
+  targetNamespaces:
+    - openshift-storage
 EOF
 ```
 
