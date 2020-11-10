@@ -28,13 +28,7 @@ fi
 rm -rf $OCS_FINAL_DIR
 rm -rf $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_TEMPLATES
-mkdir -p $OUTDIR_CRDS $OUTDIR_BUNDLEMANIFESTS
-# operator-sdk 0.17.x recursively finds roles/rolebindings in bundlemanifests/
-# directory which causes issues in Permissions spec of CSV. So,
-# removing depoy/bundlemanifests/ while generating CSV and keeping a
-# backup in $OUTDIR_BUNDLEMANIFESTS
-cp $BUNDLEMANIFESTS_DIR/*.yaml $OUTDIR_BUNDLEMANIFESTS/
-rm $BUNDLEMANIFESTS_DIR/*.yaml
+mkdir -p $OUTDIR_CRDS
 mkdir -p $OUTDIR_TOOLS
 
 # ==== DUMP NOOBAA YAMLS ====
@@ -88,9 +82,4 @@ cp deploy/crds/* $OUTDIR_CRDS/
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
-# operator-sdk 0.17.x recursively finds roles/rolebindings in bundlemanifests/
-# directory which causes issues in Permissions spec of CSV. So,
-# removing depoy/bundlemanifests/ before generating CSV and restoring it
-# (from $OUTDIR_BUNDLEMANIFESTS) afterwards to bypass the recursive check
-cp $OUTDIR_BUNDLEMANIFESTS/*.yaml $BUNDLEMANIFESTS_DIR
 mv $OUTDIR_TEMPLATES/manifests/ $OCS_FINAL_DIR
