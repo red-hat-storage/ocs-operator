@@ -73,7 +73,7 @@ func (r *ReconcileStorageCluster) createCephObjectStoreUsers(cephObjectStoreUser
 		switch {
 		case err == nil:
 			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStoreUsers.ReconcileStrategy)
-			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+			if reconcileStrategy == ReconcileStrategyInit {
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
