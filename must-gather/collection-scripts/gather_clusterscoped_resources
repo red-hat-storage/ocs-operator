@@ -67,3 +67,19 @@ for command_desc in "${commands_desc[@]}"; do
      COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/desc_${command_desc// /_}
     { oc describe "${command_desc}"; } >> "${COMMAND_OUTPUT_FILE}"
 done
+
+# Add ocs ready nodes to the list
+nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
+
+# collecting journal logs
+for node in ${nodes}; do
+    printf "collecting crash and journal logs  from node %s \n"  "${node}"
+    oc debug nodes/"${node}" << CMDS
+       chroot /host
+       cd var/log
+       journalctl -o verbose >> journal.log &
+       wait $!
+       exit
+CMDS
+    printf "collecting logs completed \n"
+done

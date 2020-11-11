@@ -191,20 +191,30 @@ for ns in $namespaces; do
         done
     done
 
-    # Add Ready nodes to the list
+    # Add ocs ready nodes to the list
     nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
-
-    # Collecting ceph prepare volume logs
-    volume_collection(){
-        printf "collecting prepare volume logs from node %s \n"  "${node}"
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/log "${NODE_OUTPUT_DIR}"
-    }
 
     for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash ls --connect-timeout=15"| awk '{print $1}'); do
         { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash info $i --connect-timeout=15" >> "${COMMAND_OUTPUT_DIR}"/crash_"${i}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
     done
 
     oc delete -f pod_helper.yaml
+
+    # Collecting ceph prepare volume logs
+    volume_collection(){
+        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/volume_collection_${node}
+        mkdir -p "${NODE_OUTPUT_DIR}"
+        printf "collecting prepare volume logs from node %s \n"  "${node}"
+        { oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/log "${NODE_OUTPUT_DIR}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    }
+
+    # Collecting kernel level logs
+    kernel_collection(){
+        KERNEL_LOGS=${CEPH_COLLECTION_PATH}/kernel_log_${node}
+        mkdir -p "${KERNEL_LOGS}"
+        printf "collecting kernel logs from %s \n" "${node}"
+        { oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/log "${KERNEL_LOGS}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+    }
 
     crash_collection(){
         oc debug nodes/"${node}" --to-namespace="${ns}" -- bash -c "sleep 5m" &
@@ -222,6 +232,7 @@ for ns in $namespaces; do
         if $debug_pod_ready; then
             echo "debug pod is ready"
             volume_collection
+            kernel_collection
             oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
         fi
     }
@@ -230,11 +241,9 @@ for ns in $namespaces; do
     idx=0
     # Collecting ceph crash dump
     for node in ${nodes}; do
-        printf "collecting crash logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        printf "collecting crash and journal logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         CRASH_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/crash_${node}
         mkdir -p "${CRASH_OUTPUT_DIR}"
-        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/volume_collection_${node}
-        mkdir -p "${NODE_OUTPUT_DIR}"
         crash_collection &
         # collecting PID for bg jobs
         pids[${idx}]=$!
