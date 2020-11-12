@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
@@ -20,7 +19,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *StorageClusterReconciler) ensureNoobaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+type ocsNoobaaSystem struct{}
+
+func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
 	// Everything other than ReconcileStrategyIgnore means we reconcile
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
@@ -34,19 +35,19 @@ func (r *StorageClusterReconciler) ensureNoobaaSystem(sc *ocsv1.StorageCluster, 
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Waiting on ceph cluster to be created before starting noobaa")
+			r.Log.Info("Waiting on ceph cluster to be created before starting noobaa")
 			return nil
 		}
 		return err
 	}
 	if !sc.Spec.ExternalStorage.Enable {
 		if foundCeph.Status.State != cephv1.ClusterStateCreated {
-			reqLogger.Info("Waiting on ceph cluster to initialize before starting noobaa")
+			r.Log.Info("Waiting on ceph cluster to initialize before starting noobaa")
 			return nil
 		}
 	} else {
 		if foundCeph.Status.State != cephv1.ClusterStateConnected {
-			reqLogger.Info("Waiting for the external ceph cluster to be connected before starting noobaa")
+			r.Log.Info("Waiting for the external ceph cluster to be connected before starting noobaa")
 			return nil
 		}
 	}
@@ -72,7 +73,7 @@ func (r *StorageClusterReconciler) ensureNoobaaSystem(sc *ocsv1.StorageCluster, 
 		return r.setNooBaaDesiredState(nb, sc)
 	})
 	if err != nil {
-		reqLogger.Error(err, "Failed to create or update NooBaa system")
+		r.Log.Error(err, "Failed to create or update NooBaa system")
 		return err
 	}
 	// Need to happen after the noobaa CR update was confirmed
@@ -154,8 +155,8 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	return nil
 }
 
-// Delete noobaa system in the namespace
-func (r *StorageClusterReconciler) deleteNoobaaSystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+// ensureDeleted Delete noobaa system in the namespace
+func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
 	// Delete only if this is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
@@ -179,7 +180,7 @@ func (r *StorageClusterReconciler) deleteNoobaaSystems(sc *ocsv1.StorageCluster,
 			if len(pvcs.Items) > 0 {
 				return fmt.Errorf("Uninstall: Waiting on NooBaa system and PVCs to be deleted")
 			}
-			reqLogger.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
+			r.Log.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Failed to retrieve NooBaa system: %v", err)
@@ -194,15 +195,15 @@ func (r *StorageClusterReconciler) deleteNoobaaSystems(sc *ocsv1.StorageCluster,
 	}
 	if !isOwned {
 		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
-		reqLogger.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping")
+		r.Log.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping")
 		return nil
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
-		reqLogger.Info("Uninstall: Deleting NooBaa system")
+		r.Log.Info("Uninstall: Deleting NooBaa system")
 		err = r.Client.Delete(context.TODO(), noobaa)
 		if err != nil {
-			reqLogger.Error(err, "Uninstall: Failed to delete NooBaa system")
+			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system")
 			return fmt.Errorf("Uninstall: Failed to delete NooBaa system: %v", err)
 		}
 	}
