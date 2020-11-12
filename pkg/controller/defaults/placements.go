@@ -66,6 +66,8 @@ var (
 				getOcsToleration(),
 			},
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				// getTopologySpreadConstraintsSpec populates values required for topology spread constraints.
+				// TopologyKey gets updated in newStorageClassDeviceSets after determining it from determineFailureDomain.
 				getTopologySpreadConstraintsSpec(1, "rook-ceph-osd-prepare", "rook-ceph-osd"),
 			},
 		},
