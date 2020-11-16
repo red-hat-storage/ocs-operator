@@ -54,8 +54,8 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 
 	// ReconcileStrategyUnknown is the same as default
 	ReconcileStrategyUnknown ReconcileStrategy = ""
-	// ReconcileStrategyDefault means reconcile once and ignore if it exists
-	ReconcileStrategyDefault ReconcileStrategy = "default"
+	// ReconcileStrategyInit means reconcile once and ignore if it exists
+	ReconcileStrategyInit ReconcileStrategy = "init"
 	// ReconcileStrategyIgnore means never reconcile
 	ReconcileStrategyIgnore ReconcileStrategy = "ignore"
 	// ReconcileStrategyManage means always reconcile

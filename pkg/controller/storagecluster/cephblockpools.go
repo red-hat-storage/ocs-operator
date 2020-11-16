@@ -59,7 +59,7 @@ func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCl
 
 		switch {
 		case err == nil:
-			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+			if reconcileStrategy == ReconcileStrategyInit {
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
