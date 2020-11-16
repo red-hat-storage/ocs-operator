@@ -74,7 +74,7 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
 		switch {
 		case err == nil:
-			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+			if reconcileStrategy == ReconcileStrategyInit {
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {

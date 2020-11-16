@@ -75,7 +75,7 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 			}
 		}
 		reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.SnapshotClasses.ReconcileStrategy)
-		if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+		if reconcileStrategy == ReconcileStrategyInit {
 			return nil
 		}
 		if existing.DeletionTimestamp != nil {

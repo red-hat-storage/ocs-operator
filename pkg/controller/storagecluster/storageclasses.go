@@ -51,7 +51,7 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 			return err
 		} else {
 			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.StorageClasses.ReconcileStrategy)
-			if reconcileStrategy == ReconcileStrategyDefault || reconcileStrategy == ReconcileStrategyUnknown {
+			if reconcileStrategy == ReconcileStrategyInit {
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
