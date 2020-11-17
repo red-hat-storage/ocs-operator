@@ -210,11 +210,19 @@ for ns in $namespaces; do
 
     crash_collection(){
         oc debug nodes/"${node}" --to-namespace="${ns}" -- bash -c "sleep 5m" &
-        while [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; do
-            sleep 3
-            echo "waiting for the debug pod to be in ready state"
+        debug_pod_ready=false
+        for i in {0..300..3}; do
+            if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; then
+                debug_pod_ready=true
+                break
+            else
+                sleep 3
+                echo "waiting for the debug pod to be in ready state"
+            fi
         done
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
+        if $debug_pod_ready; then
+            oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
+        fi
     }
 
     # creating a counter variable for collecting PID in array
