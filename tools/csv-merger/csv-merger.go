@@ -668,7 +668,7 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:" + ocsversion.Version
 	ocsCSV.Annotations["description"] = "Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster."
 	ocsCSV.Annotations["support"] = "Red Hat"
-	ocsCSV.Annotations["capabilities"] = "Full Lifecycle"
+	ocsCSV.Annotations["capabilities"] = "Deep Insights"
 	ocsCSV.Annotations["categories"] = "Storage"
 	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
 	ocsCSV.Annotations["operatorframework.io/cluster-monitoring"] = "true"
