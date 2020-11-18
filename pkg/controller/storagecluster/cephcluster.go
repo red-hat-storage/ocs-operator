@@ -402,6 +402,12 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 						(&in).DeepCopyInto(&preparePlacement)
 
 						if len(topologyKeyValues) >= replica {
+							// If topologyKey is not host, append additional topology spread constarint to the
+							// default preparePlacement. This serves even distribution at the host level
+							// within a failure domain (zone/rack).
+							if topologyKey != corev1.LabelHostname {
+								preparePlacement.TopologySpreadConstraints = append(preparePlacement.TopologySpreadConstraints, preparePlacement.TopologySpreadConstraints[0])
+							}
 							preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
 						}
 					}
