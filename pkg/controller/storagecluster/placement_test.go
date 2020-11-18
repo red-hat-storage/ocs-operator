@@ -79,7 +79,7 @@ var customPlacement = rookv1.Placement{
 						},
 					},
 				},
-				TopologyKey: "failure-domain.beta.kubernetes.io/zone",
+				TopologyKey: "topology.rook.io/rack",
 			},
 		},
 		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
@@ -94,7 +94,7 @@ var customPlacement = rookv1.Placement{
 							},
 						},
 					},
-					TopologyKey: "failure-domain.beta.kubernetes.io/zone",
+					TopologyKey: "topology.rook.io/rack",
 				},
 				Weight: 100,
 			},
@@ -108,6 +108,7 @@ func TestGetPlacement(t *testing.T) {
 		placements         rookv1.PlacementSpec
 		labelSelector      *metav1.LabelSelector
 		expectedPlacements rookv1.PlacementSpec
+		topologyMap        *ocsv1.NodeTopologyMap
 	}{
 		{
 			label:         "Test Case 1: Defaults are preserved i.e no placement and no label selector",
@@ -251,6 +252,47 @@ func TestGetPlacement(t *testing.T) {
 				"mon": {
 					NodeAffinity:    &workerNodeAffinity,
 					PodAntiAffinity: customPlacement.PodAntiAffinity,
+				},
+			},
+		},
+		{
+			label:      "Case 9: NodeTopologyMap modifies default mon placement",
+			placements: rookv1.PlacementSpec{},
+			expectedPlacements: rookv1.PlacementSpec{
+				"all": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
+				},
+				"mon": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					PodAntiAffinity: &corev1.PodAntiAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+							{
+								Weight: 100,
+								PodAffinityTerm: corev1.PodAffinityTerm{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "app",
+												Operator: metav1.LabelSelectorOpIn,
+												Values:   []string{"rook-ceph-mon"},
+											},
+										},
+									},
+									TopologyKey: zoneTopologyLabel,
+								},
+							},
+						},
+					},
+				},
+			},
+			topologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
+					zoneTopologyLabel: []string{
+						"zone1",
+						"zone2",
+						"zone3",
+					},
 				},
 			},
 		},
