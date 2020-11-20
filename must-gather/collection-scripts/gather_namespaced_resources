@@ -33,7 +33,6 @@ mkdir -p "${BASE_COLLECTION_PATH}/oc_output/"
 commands_get=()
 
 # collect oc output of OC get commands
-commands_get+=("obc")
 commands_get+=("pods -owide")
 commands_get+=("subscription")
 commands_get+=("csv")
@@ -48,7 +47,6 @@ commands_get+=("volumesnapshotcontent")
 
 # collect oc output of OC desc commands
 commands_desc=()
-commands_desc+=("obc")
 commands_desc+=("pods")
 commands_desc+=("storagecluster")
 commands_desc+=("volumesnapshot -A")
@@ -57,7 +55,6 @@ commands_desc+=("volumesnapshotcontent")
 
 # collect yaml output of OC commands
 oc_yamls=()
-oc_yamls+=("obc")
 oc_yamls+=("csv")
 oc_yamls+=("installplan")
 oc_yamls+=("volumesnapshot -A")
@@ -108,3 +105,8 @@ done
 echo "collecting dump of oc get pvc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/pvc_all_namespaces"
 { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect pvc --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+
+# For obc of all namespaces
+echo "collecting dump of oc get obc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+{ oc get obc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/obc_all_namespaces"
+{ oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect obc --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
