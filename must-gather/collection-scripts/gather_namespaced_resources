@@ -7,7 +7,7 @@ if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
 
-# Expect time option as an arguement 
+# Expect time option as an arguement
 SINCE_TIME=$2
 
 # Make a globle variable for namespace
@@ -33,6 +33,7 @@ mkdir -p "${BASE_COLLECTION_PATH}/oc_output/"
 commands_get=()
 
 # collect oc output of OC get commands
+commands_get+=("obc")
 commands_get+=("pods -owide")
 commands_get+=("subscription")
 commands_get+=("csv")
@@ -47,6 +48,7 @@ commands_get+=("volumesnapshotcontent")
 
 # collect oc output of OC desc commands
 commands_desc=()
+commands_desc+=("obc")
 commands_desc+=("pods")
 commands_desc+=("storagecluster")
 commands_desc+=("volumesnapshot -A")
@@ -55,6 +57,7 @@ commands_desc+=("volumesnapshotcontent")
 
 # collect yaml output of OC commands
 oc_yamls=()
+oc_yamls+=("obc")
 oc_yamls+=("csv")
 oc_yamls+=("installplan")
 oc_yamls+=("volumesnapshot -A")
@@ -101,7 +104,7 @@ for resource in "${resources[@]}"; do
 done
 
 
-# For pvc of all namesspaces 
+# For pvc of all namesspaces
 echo "collecting dump of oc get pvc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/pvc_all_namespaces"
 { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect pvc --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
