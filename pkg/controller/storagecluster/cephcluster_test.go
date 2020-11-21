@@ -54,7 +54,7 @@ func TestEnsureCephCluster(t *testing.T) {
 				c.cc.ObjectMeta.Name = "doesn't exist"
 			}
 		} else {
-			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, log)
+			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, nil, log)
 			c.cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 			if c.condition == "negativeCondition" {
 				c.cc.Status.State = rookCephv1.ClusterStateCreated
@@ -69,8 +69,8 @@ func TestEnsureCephCluster(t *testing.T) {
 		err := reconciler.ensureCephCluster(sc, reconciler.reqLogger)
 		assert.NoError(t, err)
 		if c.condition == "" {
-			expected := newCephCluster(sc, "", 3, reconciler.serverVersion, log)
-			actual := newCephCluster(sc, "", 3, reconciler.serverVersion, log)
+			expected := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+			actual := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
 			err = reconciler.client.Get(context.TODO(), mockCephClusterNamespacedName, actual)
 			assert.NoError(t, err)
 			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -151,7 +151,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 		c.sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		actual := newCephCluster(c.sc, "", 3, serverVersion, log)
+		actual := newCephCluster(c.sc, "", 3, serverVersion, nil, log)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
