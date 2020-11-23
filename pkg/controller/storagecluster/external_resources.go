@@ -219,7 +219,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 	// this flag sets the 'ROOK_CSI_ENABLE_CEPHFS' flag
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
-	var availableSCs []*storagev1.StorageClass
+	var availableSCs = make([]*storagev1.StorageClass, 3)
 	data, err := r.retrieveExternalSecretData(instance, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "failed to retrieve external resources")
@@ -284,14 +284,17 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				return err
 			}
 		case "StorageClass":
+			index := 0
 			var sc *storagev1.StorageClass
 			if d.Name == cephFsStorageClassName {
 				// 'sc' points to CephFS StorageClass
-				sc = scs[0]
+				index = cephFileSystemIndex
+				sc = scs[index]
 				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
 				// 'sc' points to RBD StorageClass
-				sc = scs[1]
+				index = cephBlockPoolIndex
+				sc = scs[index]
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkRGWEndpoint(rgwEndpoint, 5*time.Second); err != nil {
@@ -309,14 +312,15 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				delete(d.Data, externalCephRgwEndpointKey)
 
 				// 'sc' points to OBC StorageClass
-				sc = scs[2]
+				index = cephObjectStoreIndex
+				sc = scs[index]
 			}
 			// now sc is pointing to appropriate StorageClass,
 			// whose parameters have to be updated
 			for k, v := range d.Data {
 				sc.Parameters[k] = v
 			}
-			availableSCs = append(availableSCs, sc)
+			availableSCs[index] = sc
 		}
 	}
 	// creating only the available storageClasses

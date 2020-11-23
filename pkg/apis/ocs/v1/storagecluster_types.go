@@ -52,37 +52,30 @@ type ManagedResourcesSpec struct {
 	CephFilesystems      ManageCephFilesystems      `json:"cephFilesystems,omitempty"`
 	CephObjectStores     ManageCephObjectStores     `json:"cephObjectStores,omitempty"`
 	CephObjectStoreUsers ManageCephObjectStoreUsers `json:"cephObjectStoreUsers,omitempty"`
-	SnapshotClasses      ManageSnapshotClasses      `json:"snapshotClasses,omitempty"`
-	StorageClasses       ManageStorageClasses       `json:"storageClasses,omitempty"`
 }
 
 // ManageCephBlockPools defines how to reconcilea CephBlockPools
 type ManageCephBlockPools struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
+	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
+	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
 }
 
 // ManageCephFilesystems defines how to reconcile CephFilesystems
 type ManageCephFilesystems struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
+	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
+	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
 }
 
 // ManageCephObjectStores defines how to reconcile CephObjectStores
 type ManageCephObjectStores struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	ReconcileStrategy   string `json:"reconcileStrategy,omitempty"`
+	DisableStorageClass bool   `json:"disableStorageClass,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
 type ManageCephObjectStoreUsers struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-}
-
-// ManageSnapshotClasses defines how to reconcile SnapshotClasses
-type ManageSnapshotClasses struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-}
-
-// ManageStorageClasses defines how to reconcile StorageClasses
-type ManageStorageClasses struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
