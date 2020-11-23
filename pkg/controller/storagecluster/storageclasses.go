@@ -103,6 +103,9 @@ func (r *ReconcileStorageCluster) newOBCStorageClass(initData *ocsv1.StorageClus
 	retSC := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: generateNameForCephRgwSC(initData),
+			Annotations: map[string]string{
+				"description": "Provides Object Bucket Claims (OBCs)",
+			},
 		},
 		Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", initData.Namespace),
 		ReclaimPolicy: &reclaimPolicy,
@@ -124,6 +127,9 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: generateNameForCephFilesystemSC(initData),
+				Annotations: map[string]string{
+					"description": "Provides RWO and RWX Filesystem volumes",
+				},
 			},
 			Provisioner:   fmt.Sprintf("%s.cephfs.csi.ceph.com", initData.Namespace),
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
@@ -143,6 +149,9 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: generateNameForCephBlockPoolSC(initData),
+				Annotations: map[string]string{
+					"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+				},
 			},
 			Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
