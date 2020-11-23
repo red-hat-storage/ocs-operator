@@ -1463,6 +1463,19 @@ spec:
                             phase:
                               description: Phase represents the current phase of PersistentVolumeClaim.
                               type: string
+                    deviceType:
+                      description: DeviceType is the value of device type in this
+                        StorageDeviceSet. It can have one of the three values (SSD,
+                        HDD, NVMe)
+                      type: string
+                      enum:
+                      - SSD
+                      - ssd
+                      - HDD
+                      - hdd
+                      - NVMe
+                      - NVME
+                      - nvme
                     metadataPVCTemplate:
                       description: PersistentVolumeClaim is a user's request for and
                         claim to a persistent volume
