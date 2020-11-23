@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ -n "$(git status --porcelain pkg/apis deploy/crds)" ]]; then
-	git diff -u pkgs/apis deploy/crds
+	git diff -u pkg/apis deploy/crds
 	echo "uncommitted generated files. run 'make update-generated' and commit results."
 	exit 1
 fi
