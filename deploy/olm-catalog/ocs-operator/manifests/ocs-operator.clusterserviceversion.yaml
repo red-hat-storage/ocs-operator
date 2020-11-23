@@ -56,7 +56,7 @@ metadata:
       ]
     capabilities: Deep Insights
     categories: Storage
-    containerImage: quay.io/ocs-dev/ocs-operator:4.6.0
+    containerImage: quay.io/ocs-dev/ocs-operator:4.7.0
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/export-script: |-
@@ -798,7 +798,7 @@ metadata:
       "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints",
       "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}'
     features.ocs.openshift.io/enabled: '["external", "minimal_deployment", "encryption"]'
-    olm.skipRange: '>=0.0.1 <4.6.0'
+    olm.skipRange: '>=0.0.1 <4.7.0'
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephblockpools.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","noobaas.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
@@ -808,7 +808,7 @@ metadata:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.ppc64le: supported
     operatorframework.io/arch.s390x: supported
-  name: ocs-operator.v4.6.0
+  name: ocs-operator.v4.7.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -2608,4 +2608,4 @@ spec:
     name: noobaa-db
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
-  version: 4.6.0
+  version: 4.7.0
