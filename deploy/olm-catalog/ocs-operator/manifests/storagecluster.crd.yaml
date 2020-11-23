@@ -124,6 +124,8 @@ spec:
                 cephBlockPools:
                   description: ManageCephBlockPools defines how to reconcilea CephBlockPools
                   properties:
+                    disableSnapshotClass:
+                      type: boolean
                     disableStorageClass:
                       type: boolean
                     reconcileStrategy:
@@ -132,6 +134,8 @@ spec:
                 cephFilesystems:
                   description: ManageCephFilesystems defines how to reconcile CephFilesystems
                   properties:
+                    disableSnapshotClass:
+                      type: boolean
                     disableStorageClass:
                       type: boolean
                     reconcileStrategy:
@@ -149,12 +153,6 @@ spec:
                   properties:
                     disableStorageClass:
                       type: boolean
-                    reconcileStrategy:
-                      type: string
-                  type: object
-                snapshotClasses:
-                  description: ManageSnapshotClasses defines how to reconcile SnapshotClasses
-                  properties:
                     reconcileStrategy:
                       type: string
                   type: object

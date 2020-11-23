@@ -48,14 +48,28 @@ func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType Snap
 
 func newSnapshotClasses(instance *ocsv1.StorageCluster) []*snapapi.VolumeSnapshotClass {
 	scs := []*snapapi.VolumeSnapshotClass{
-		newVolumeSnapshotClass(instance, rbdSnapshotter),
 		newVolumeSnapshotClass(instance, cephfsSnapshotter),
+		newVolumeSnapshotClass(instance, rbdSnapshotter),
 	}
 	return scs
 }
 
 func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSnapshotClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	for _, vsc := range vscs {
+	for index, vsc := range vscs {
+		reconcileStrategy := ReconcileStrategyIgnore
+		disableSnapshotClass := false
+		switch index {
+		case cephFileSystemIndex:
+			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy)
+			disableSnapshotClass = instance.Spec.ManagedResources.CephFilesystems.DisableSnapshotClass
+		case cephBlockPoolIndex:
+			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy)
+			disableSnapshotClass = instance.Spec.ManagedResources.CephBlockPools.DisableSnapshotClass
+		}
+		if reconcileStrategy == ReconcileStrategyIgnore || disableSnapshotClass {
+			continue
+		}
+
 		existing := &snapapi.VolumeSnapshotClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
 		if err != nil {
@@ -74,7 +88,6 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 				return err
 			}
 		}
-		reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.SnapshotClasses.ReconcileStrategy)
 		if reconcileStrategy == ReconcileStrategyInit {
 			return nil
 		}
@@ -98,11 +111,6 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 
 // ensureSnapshotClasses functions ensures that snpashotter classes are created
 func (r *ReconcileStorageCluster) ensureSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.SnapshotClasses.ReconcileStrategy)
-	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
-	}
-
 	scs := newSnapshotClasses(instance)
 
 	err := r.createSnapshotClasses(scs, instance, reqLogger)
