@@ -148,21 +148,21 @@ func assertTestDeleteStorageClasses(t *testing.T, reconciler ReconcileStorageClu
 		assert.NoError(t, err)
 	}
 
-	scs, err := reconciler.newStorageClasses(sc)
+	sccs, err := reconciler.newStorageClassConfigurations(sc)
 	assert.NoError(t, err)
 
-	for _, storageClass := range scs {
+	for _, scc := range sccs {
 		existing := storagev1.StorageClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: scc.storageClass.Name}, &existing)
 		assert.Equal(t, !storageClassExists, errors.IsNotFound(err))
 	}
 
 	err = reconciler.deleteStorageClasses(sc, reconciler.reqLogger)
 	assert.NoError(t, err)
 
-	for _, storageClass := range scs {
+	for _, scc := range sccs {
 		existing := storagev1.StorageClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: scc.storageClass.Name}, &existing)
 		assert.True(t, errors.IsNotFound(err))
 	}
 }

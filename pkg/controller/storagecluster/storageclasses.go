@@ -17,20 +17,26 @@ import (
 const (
 	// The following constants are the indices at which StorageClasses are returned from newStorageClasses and in
 	// which they should be passed to createStorageClasses.
-	cephFileSystemIndex  = 0
-	cephBlockPoolIndex   = 1
-	cephObjectStoreIndex = 2
+	cephFileSystemIndex = 0
+	cephBlockPoolIndex  = 1
 )
+
+// StorageClassConfiguration provides configuration options for a StorageClass.
+type StorageClassConfiguration struct {
+	storageClass      *storagev1.StorageClass
+	reconcileStrategy ReconcileStrategy
+	disable           bool
+}
 
 // ensureStorageClasses ensures that StorageClass resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	scs, err := r.newStorageClasses(instance)
+	scs, err := r.newStorageClassConfigurations(instance)
 	if err != nil {
 		return err
 	}
 
-	err = r.createStorageClasses(scs, instance, reqLogger)
+	err = r.createStorageClasses(scs, reqLogger)
 	if err != nil {
 		return err
 	}
@@ -38,28 +44,12 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 	return nil
 }
 
-func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	for index, sc := range scs {
-		// In the case of an external cluster, some scs may be unavailable. In this case we should move on.
-		if sc == nil {
+func (r *ReconcileStorageCluster) createStorageClasses(sccs []StorageClassConfiguration, reqLogger logr.Logger) error {
+	for _, scc := range sccs {
+		if scc.reconcileStrategy == ReconcileStrategyIgnore || scc.disable {
 			continue
 		}
-		reconcileStrategy := ReconcileStrategyIgnore
-		disableStorageClass := false
-		switch index {
-		case cephFileSystemIndex:
-			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy)
-			disableStorageClass = instance.Spec.ManagedResources.CephFilesystems.DisableStorageClass
-		case cephBlockPoolIndex:
-			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy)
-			disableStorageClass = instance.Spec.ManagedResources.CephBlockPools.DisableStorageClass
-		case cephObjectStoreIndex:
-			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
-			disableStorageClass = instance.Spec.ManagedResources.CephObjectStores.DisableStorageClass
-		}
-		if reconcileStrategy == ReconcileStrategyIgnore || disableStorageClass {
-			continue
-		}
+		sc := scc.storageClass
 		existing := &storagev1.StorageClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 
@@ -73,7 +63,7 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 		} else if err != nil {
 			return err
 		} else {
-			if reconcileStrategy == ReconcileStrategyInit {
+			if scc.reconcileStrategy == ReconcileStrategyInit {
 				continue
 			}
 			if existing.DeletionTimestamp != nil {
@@ -98,89 +88,106 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 	return nil
 }
 
-func newCephFilesystemStorageClass(initData *ocsv1.StorageCluster) *storagev1.StorageClass {
+// newCephFilesystemStorageClassConfiguration generates configuration options for a Ceph Filesystem StorageClass.
+func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
-	return &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: generateNameForCephFilesystemSC(initData),
-			Annotations: map[string]string{
-				"description": "Provides RWO and RWX Filesystem volumes",
+	managementSpec := initData.Spec.ManagedResources.CephFilesystems
+	return StorageClassConfiguration{
+		storageClass: &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: generateNameForCephFilesystemSC(initData),
+				Annotations: map[string]string{
+					"description": "Provides RWO and RWX Filesystem volumes",
+				},
+			},
+			Provisioner:   fmt.Sprintf("%s.cephfs.csi.ceph.com", initData.Namespace),
+			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
+			AllowVolumeExpansion: &allowVolumeExpansion,
+			Parameters: map[string]string{
+				"clusterID": initData.Namespace,
+				"fsName":    fmt.Sprintf("%s-cephfilesystem", initData.Name),
+				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
+				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
+				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
-		Provisioner:   fmt.Sprintf("%s.cephfs.csi.ceph.com", initData.Namespace),
-		ReclaimPolicy: &persistentVolumeReclaimDelete,
-		// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
-		AllowVolumeExpansion: &allowVolumeExpansion,
-		Parameters: map[string]string{
-			"clusterID": initData.Namespace,
-			"fsName":    fmt.Sprintf("%s-cephfilesystem", initData.Name),
-			"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
-			"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
-			"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
-			"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
-			"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-cephfs-provisioner",
-			"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
-		},
+		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
+		disable:           managementSpec.DisableStorageClass,
 	}
 }
 
-func newCephBlockPoolStorageClass(initData *ocsv1.StorageCluster) *storagev1.StorageClass {
+// newCephBlockPoolStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass.
+func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
-	return &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: generateNameForCephBlockPoolSC(initData),
-			Annotations: map[string]string{
-				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+	managementSpec := initData.Spec.ManagedResources.CephBlockPools
+	return StorageClassConfiguration{
+		storageClass: &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: generateNameForCephBlockPoolSC(initData),
+				Annotations: map[string]string{
+					"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+				},
+			},
+			Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
+			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
+			AllowVolumeExpansion: &allowVolumeExpansion,
+			Parameters: map[string]string{
+				"clusterID":                 initData.Namespace,
+				"pool":                      generateNameForCephBlockPool(initData),
+				"imageFeatures":             "layering",
+				"csi.storage.k8s.io/fstype": "ext4",
+				"imageFormat":               "2",
+				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
+				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
+				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
-		Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
-		ReclaimPolicy: &persistentVolumeReclaimDelete,
-		// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
-		AllowVolumeExpansion: &allowVolumeExpansion,
-		Parameters: map[string]string{
-			"clusterID":                 initData.Namespace,
-			"pool":                      generateNameForCephBlockPool(initData),
-			"imageFeatures":             "layering",
-			"csi.storage.k8s.io/fstype": "ext4",
-			"imageFormat":               "2",
-			"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
-			"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
-			"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
-			"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
-			"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-rbd-provisioner",
-			"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
-		},
+		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
+		disable:           managementSpec.DisableStorageClass,
 	}
 }
 
-func newCephOBCStorageClass(initData *ocsv1.StorageCluster) *storagev1.StorageClass {
+// newCephOBCStorageClassConfiguration generates configuration options for a Ceph Object Store StorageClass.
+func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	reclaimPolicy := corev1.PersistentVolumeReclaimDelete
-	retSC := &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: generateNameForCephRgwSC(initData),
-			Annotations: map[string]string{
-				"description": "Provides Object Bucket Claims (OBCs)",
+	managementSpec := initData.Spec.ManagedResources.CephObjectStores
+	return StorageClassConfiguration{
+		storageClass: &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: generateNameForCephRgwSC(initData),
+				Annotations: map[string]string{
+					"description": "Provides Object Bucket Claims (OBCs)",
+				},
+			},
+			Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", initData.Namespace),
+			ReclaimPolicy: &reclaimPolicy,
+			Parameters: map[string]string{
+				"objectStoreNamespace": initData.Namespace,
+				"region":               "us-east-1",
+				"objectStoreName":      generateNameForCephObjectStore(initData),
 			},
 		},
-		Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", initData.Namespace),
-		ReclaimPolicy: &reclaimPolicy,
-		Parameters: map[string]string{
-			"objectStoreNamespace": initData.Namespace,
-			"region":               "us-east-1",
-			"objectStoreName":      generateNameForCephObjectStore(initData),
-		},
+		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
+		disable:           managementSpec.DisableStorageClass,
 	}
-	return retSC
 }
 
-// newStorageClasses returns the StorageClass instances that should be created
+// newStorageClassConfigurations returns the StorageClassConfiguration instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
-	ret := []*storagev1.StorageClass{
-		newCephFilesystemStorageClass(initData),
-		newCephBlockPoolStorageClass(initData),
+func (r *ReconcileStorageCluster) newStorageClassConfigurations(initData *ocsv1.StorageCluster) ([]StorageClassConfiguration, error) {
+	ret := []StorageClassConfiguration{
+		newCephFilesystemStorageClassConfiguration(initData),
+		newCephBlockPoolStorageClassConfiguration(initData),
 	}
 	// OBC storageclass will be returned only in TWO conditions,
 	// a. either 'externalStorage' is enabled
@@ -188,7 +195,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 	// b. current platform is not a cloud-based platform
 	platform, err := r.platform.GetPlatform(r.client)
 	if initData.Spec.ExternalStorage.Enable || err == nil && !avoidObjectStore(platform) {
-		ret = append(ret, newCephOBCStorageClass(initData))
+		ret = append(ret, newCephOBCStorageClassConfiguration(initData))
 	}
 	return ret, nil
 }

@@ -44,12 +44,13 @@ const (
 // deleteStorageClasses deletes the storageClasses that the ocs-operator created
 func (r *ReconcileStorageCluster) deleteStorageClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
-	scs, err := r.newStorageClasses(instance)
+	sccs, err := r.newStorageClassConfigurations(instance)
 	if err != nil {
 		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to determine the StorageClass names")) //nolint:gosimple
 		return nil
 	}
-	for _, sc := range scs {
+	for _, scc := range sccs {
+		sc := scc.storageClass
 		existing := storagev1.StorageClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
 

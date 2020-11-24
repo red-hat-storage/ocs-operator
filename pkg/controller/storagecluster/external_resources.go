@@ -14,7 +14,6 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -211,15 +210,10 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 		Kind:       instance.Kind,
 		Name:       instance.Name,
 	}
-	scs, err := r.newStorageClasses(instance)
-	if err != nil {
-		reqLogger.Error(err, "failed to create StorageClasses")
-		return err
-	}
 	// this flag sets the 'ROOK_CSI_ENABLE_CEPHFS' flag
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
-	var availableSCs = make([]*storagev1.StorageClass, 3)
+	availableSCCs := []StorageClassConfiguration{}
 	data, err := r.retrieveExternalSecretData(instance, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "failed to retrieve external resources")
@@ -284,17 +278,12 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				return err
 			}
 		case "StorageClass":
-			index := 0
-			var sc *storagev1.StorageClass
+			var scc StorageClassConfiguration
 			if d.Name == cephFsStorageClassName {
-				// 'sc' points to CephFS StorageClass
-				index = cephFileSystemIndex
-				sc = scs[index]
+				scc = newCephFilesystemStorageClassConfiguration(instance)
 				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
-				// 'sc' points to RBD StorageClass
-				index = cephBlockPoolIndex
-				sc = scs[index]
+				scc = newCephBlockPoolStorageClassConfiguration(instance)
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkRGWEndpoint(rgwEndpoint, 5*time.Second); err != nil {
@@ -311,20 +300,18 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				// https://github.com/rook/rook/issues/6165
 				delete(d.Data, externalCephRgwEndpointKey)
 
-				// 'sc' points to OBC StorageClass
-				index = cephObjectStoreIndex
-				sc = scs[index]
+				scc = newCephOBCStorageClassConfiguration(instance)
 			}
 			// now sc is pointing to appropriate StorageClass,
 			// whose parameters have to be updated
 			for k, v := range d.Data {
-				sc.Parameters[k] = v
+				scc.storageClass.Parameters[k] = v
 			}
-			availableSCs[index] = sc
+			availableSCCs = append(availableSCCs, scc)
 		}
 	}
 	// creating only the available storageClasses
-	err = r.createStorageClasses(availableSCs, instance, reqLogger)
+	err = r.createStorageClasses(availableSCCs, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "failed to create needed StorageClasses")
 		return err
