@@ -202,20 +202,20 @@ func assertTestDeleteSnapshotClasses(
 		assert.NoError(t, err)
 	}
 
-	sscs := newSnapshotClasses(sc)
+	vsscs := newSnapshotClassConfigurations(sc)
 
-	for _, ssc := range sscs {
+	for _, vssc := range vsscs {
 		existing := snapapi.VolumeSnapshotClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: vssc.snapshotClass.Name}, &existing)
 		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
 	}
 
 	err := reconciler.deleteSnapshotClasses(sc, reconciler.reqLogger)
 	assert.NoError(t, err)
 
-	for _, ssc := range sscs {
+	for _, vssc := range vsscs {
 		existing := snapapi.VolumeSnapshotClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
+		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: vssc.snapshotClass.Name}, &existing)
 		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
 		assert.True(t, errors.IsNotFound(err))
 	}

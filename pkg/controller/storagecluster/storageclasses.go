@@ -14,13 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	// The following constants are the indices at which StorageClasses are returned from newStorageClasses and in
-	// which they should be passed to createStorageClasses.
-	cephFileSystemIndex = 0
-	cephBlockPoolIndex  = 1
-)
-
 // StorageClassConfiguration provides configuration options for a StorageClass.
 type StorageClassConfiguration struct {
 	storageClass      *storagev1.StorageClass

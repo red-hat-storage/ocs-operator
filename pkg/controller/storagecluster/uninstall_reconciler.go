@@ -566,8 +566,9 @@ func (r *ReconcileStorageCluster) deleteCephObjectStores(sc *ocsv1.StorageCluste
 // deleteSnapshotClasses deletes the storageClasses that the ocs-operator created
 func (r *ReconcileStorageCluster) deleteSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
-	scs := newSnapshotClasses(instance)
-	for _, sc := range scs {
+	vsccs := newSnapshotClassConfigurations(instance)
+	for _, vscc := range vsccs {
+		sc := vscc.snapshotClass
 		existing := snapapi.VolumeSnapshotClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
 
