@@ -191,8 +191,11 @@ for ns in $namespaces; do
         done
     done
 
+    # Add Ready nodes to the list
+    nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
+
     # Collecting ceph prepare volume logs
-    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | grep -w 'Ready' | awk '{print $1}'); do
+    for node in ${nodes}; do
         printf "collecting prepare volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
         mkdir -p "${NODE_OUTPUT_DIR}"
@@ -207,17 +210,25 @@ for ns in $namespaces; do
 
     crash_collection(){
         oc debug nodes/"${node}" --to-namespace="${ns}" -- bash -c "sleep 5m" &
-        while [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; do
-            sleep 3
-            echo "waiting for the debug pod to be in ready state"
+        debug_pod_ready=false
+        for i in {0..300..3}; do
+            if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; then
+                debug_pod_ready=true
+                break
+            else
+                sleep 3
+                echo "waiting for the debug pod to be in ready state"
+            fi
         done
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
+        if $debug_pod_ready; then
+            oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
+        fi
     }
 
     # creating a counter variable for collecting PID in array
     idx=0
     # Collecting ceph crash dump
-    for node in $(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/Ready/{print $1}'); do
+    for node in ${nodes}; do
         printf "collecting crash logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         CRASH_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/crash_${node}
         mkdir -p "${CRASH_OUTPUT_DIR}"
