@@ -195,12 +195,10 @@ for ns in $namespaces; do
     nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
 
     # Collecting ceph prepare volume logs
-    for node in ${nodes}; do
-        printf "collecting prepare volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/namespaces/${ns}/osd_prepare_volume_logs/${node}
-        mkdir -p "${NODE_OUTPUT_DIR}"
-        { timeout 120 oc debug nodes/"${node}" -- bash -c "test -f /host/var/lib/rook/log/${ns}/ceph-volume.log && cat /host/var/lib/rook/log/${ns}/ceph-volume.log" > "${NODE_OUTPUT_DIR}"/ceph-volume.log; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-    done
+    volume_collection(){
+        printf "collecting prepare volume logs from node %s \n"  "${node}"
+        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/log "${NODE_OUTPUT_DIR}"
+    }
 
     for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash ls --connect-timeout=15"| awk '{print $1}'); do
         { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash info $i --connect-timeout=15" >> "${COMMAND_OUTPUT_DIR}"/crash_"${i}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
@@ -210,6 +208,7 @@ for ns in $namespaces; do
 
     crash_collection(){
         oc debug nodes/"${node}" --to-namespace="${ns}" -- bash -c "sleep 5m" &
+        printf "debugging node %s \n" "${node}"
         debug_pod_ready=false
         for i in {0..300..3}; do
             if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; then
@@ -221,6 +220,8 @@ for ns in $namespaces; do
             fi
         done
         if $debug_pod_ready; then
+            echo "debug pod is ready"
+            volume_collection
             oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
         fi
     }
@@ -232,6 +233,8 @@ for ns in $namespaces; do
         printf "collecting crash logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         CRASH_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/crash_${node}
         mkdir -p "${CRASH_OUTPUT_DIR}"
+        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/volume_collection_${node}
+        mkdir -p "${NODE_OUTPUT_DIR}"
         crash_collection &
         # collecting PID for bg jobs
         pids[${idx}]=$!
