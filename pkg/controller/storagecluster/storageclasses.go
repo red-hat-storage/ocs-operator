@@ -14,14 +14,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const(
+	// The following constants are the indices at which StorageClasses are returned from newStorageClasses and in
+	// which they should be passed to createStorageClasses.
+	cephFileSystemIndex  = 0
+	cephBlockPoolIndex   = 1
+	cephObjectStoreIndex = 2
+)
+
 // ensureStorageClasses ensures that StorageClass resources exist in the desired
 // state.
 func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.StorageClasses.ReconcileStrategy)
-	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
-	}
-
 	scs, err := r.newStorageClasses(instance)
 	if err != nil {
 		return err
@@ -36,7 +39,27 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 }
 
 func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	for _, sc := range scs {
+	for index, sc := range scs {
+		// In the case of an external cluster, some scs may be unavailable. In this case we should move on.
+		if sc == nil {
+			continue
+		}
+		reconcileStrategy := ReconcileStrategyIgnore
+		disableStorageClass := false
+		switch index {
+		case cephFileSystemIndex:
+			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy)
+			disableStorageClass = instance.Spec.ManagedResources.CephFilesystems.DisableStorageClass
+		case cephBlockPoolIndex:
+			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy)
+			disableStorageClass = instance.Spec.ManagedResources.CephBlockPools.DisableStorageClass
+		case cephObjectStoreIndex:
+			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+			disableStorageClass = instance.Spec.ManagedResources.CephObjectStores.DisableStorageClass
+		}
+		if reconcileStrategy == ReconcileStrategyIgnore || disableStorageClass {
+			continue
+		}
 		existing := &storagev1.StorageClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 
@@ -50,9 +73,8 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 		} else if err != nil {
 			return err
 		} else {
-			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.StorageClasses.ReconcileStrategy)
 			if reconcileStrategy == ReconcileStrategyInit {
-				return nil
+				continue
 			}
 			if existing.DeletionTimestamp != nil {
 				return fmt.Errorf("failed to restore storageclass  %s because it is marked for deletion", existing.Name)
