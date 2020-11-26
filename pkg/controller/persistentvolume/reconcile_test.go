@@ -1,6 +1,7 @@
 package persistentvolume
 
 import (
+	"context"
 	"testing"
 
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -12,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var mockStorageClass = &storagev1.StorageClass{
@@ -82,7 +83,7 @@ func TestEnsureExpansionSecret(t *testing.T) {
 		assert.Equal(t, reconcile.Result{}, result)
 
 		actual := &corev1.PersistentVolume{}
-		err = reconciler.client.Get(nil, request.NamespacedName, actual)
+		err = reconciler.client.Get(context.TODO(), request.NamespacedName, actual)
 		assert.NoError(t, err)
 
 		actualSecretRef := actual.Spec.PersistentVolumeSource.CSI.ControllerExpandSecretRef
