@@ -843,7 +843,14 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 		}
 
 		fmt.Printf("reading CRD file %s\n", inputFile)
-
+		// CRDs that refer to 'ObjectReference' fetches
+		// spec description from K8s in incorrect YAML format.
+		// This can not be prevented and documentation needs to
+		// be updated in Kubernetes. Until then the work around is
+		// to remove all occurences of ' --- ' in description.
+		// "---" is used as YAML separator and should not be replaced.
+		// https://github.com/kubernetes/api/blob/master/core/v1/types.go#L5287-L5301
+		crdBytes = []byte(strings.ReplaceAll(string(crdBytes), " --- ", " "))
 		entries := strings.Split(string(crdBytes), "---")
 		for _, entry := range entries {
 			crd := extv1beta1.CustomResourceDefinition{}
