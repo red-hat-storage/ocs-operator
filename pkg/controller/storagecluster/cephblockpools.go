@@ -17,7 +17,7 @@ import (
 // on first run.
 func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
 	ret := []*cephv1.CephBlockPool{
-		&cephv1.CephBlockPool{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephBlockPool(initData),
 				Namespace: initData.Namespace,
