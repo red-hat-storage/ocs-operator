@@ -16,13 +16,13 @@ var (
 	// DaemonPlacements map contains the default placement configs for the
 	// various OCS daemons
 	DaemonPlacements = map[string]rook.Placement{
-		"all": rook.Placement{
+		"all": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
 		},
 
-		"mon": rook.Placement{
+		"mon": {
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 					getWeightedPodAffinityTerm(100, "rook-ceph-mon"),
@@ -30,7 +30,7 @@ var (
 			},
 		},
 
-		"osd": rook.Placement{
+		"osd": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
@@ -41,7 +41,7 @@ var (
 			},
 		},
 
-		"osd-prepare": rook.Placement{
+		"osd-prepare": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
@@ -52,7 +52,7 @@ var (
 			},
 		},
 
-		"osd-tsc": rook.Placement{
+		"osd-tsc": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
@@ -61,7 +61,7 @@ var (
 			},
 		},
 
-		"osd-prepare-tsc": rook.Placement{
+		"osd-prepare-tsc": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
@@ -72,7 +72,7 @@ var (
 			},
 		},
 
-		"rgw": rook.Placement{
+		"rgw": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
@@ -86,7 +86,7 @@ var (
 			},
 		},
 
-		"mds": rook.Placement{
+		"mds": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
@@ -97,7 +97,7 @@ var (
 			},
 		},
 
-		"noobaa-core": rook.Placement{
+		"noobaa-core": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
@@ -112,7 +112,7 @@ func getTopologySpreadConstraintsSpec(maxSkew int32, selectorValue ...string) co
 		WhenUnsatisfiable: "ScheduleAnyway",
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
-				metav1.LabelSelectorRequirement{
+				{
 					Key:      appLabelSelectorKey,
 					Operator: metav1.LabelSelectorOpIn,
 					Values:   selectorValue,
@@ -130,7 +130,7 @@ func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.We
 		PodAffinityTerm: corev1.PodAffinityTerm{
 			LabelSelector: &metav1.LabelSelector{
 				MatchExpressions: []metav1.LabelSelectorRequirement{
-					metav1.LabelSelectorRequirement{
+					{
 						Key:      appLabelSelectorKey,
 						Operator: metav1.LabelSelectorOpIn,
 						Values:   selectorValue,
@@ -147,7 +147,7 @@ func getPodAffinityTerm(selectorValue ...string) corev1.PodAffinityTerm {
 	podAffinityTerm := corev1.PodAffinityTerm{
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
-				metav1.LabelSelectorRequirement{
+				{
 					Key:      appLabelSelectorKey,
 					Operator: metav1.LabelSelectorOpIn,
 					Values:   selectorValue,
@@ -172,9 +172,9 @@ func getOcsToleration() corev1.Toleration {
 func getOcsNodeSelector() *corev1.NodeSelector {
 	nodeSelector := &corev1.NodeSelector{
 		NodeSelectorTerms: []corev1.NodeSelectorTerm{
-			corev1.NodeSelectorTerm{
+			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
-					corev1.NodeSelectorRequirement{
+					{
 						Key:      NodeAffinityKey,
 						Operator: corev1.NodeSelectorOpExists,
 					},
