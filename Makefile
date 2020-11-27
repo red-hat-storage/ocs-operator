@@ -41,9 +41,6 @@ $(call add-crd-gen,ocsv1,./pkg/apis/ocs/v1,./deploy/crds,./deploy/crds)
 	ocs-operator-openshift-ci-build \
 	functest \
 	shellcheck-test \
-	gofmt \
-	golint \
-	govet \
 	golangci-lint \
 	update-generated \
 	ocs-operator-ci \
@@ -142,17 +139,6 @@ build-functest:
 functest: build-functest
 	@echo "Running ocs developer functional test suite"
 	hack/functest.sh $(ARGS)
-gofmt:
-	@echo "Running gofmt"
-	gofmt -s -l `find . -path ./vendor -prune -o -type f -name '*.go' -print`
-
-golint:
-	@echo "Running go lint"
-	hack/lint.sh
-
-govet:
-	@echo "Running go vet"
-	go vet ./...
 
 shellcheck-test:
 	@echo "Testing for shellcheck"
@@ -178,7 +164,7 @@ verify-generated: update-generated
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
 
-ocs-operator-ci: shellcheck-test gofmt golint govet golangci-lint unit-test verify-generated verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-generated verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"
