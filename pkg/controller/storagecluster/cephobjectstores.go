@@ -84,7 +84,7 @@ func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cep
 // on first run.
 func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, reqLogger logr.Logger) ([]*cephv1.CephObjectStore, error) {
 	ret := []*cephv1.CephObjectStore{
-		&cephv1.CephObjectStore{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephObjectStore(initData),
 				Namespace: initData.Namespace,
