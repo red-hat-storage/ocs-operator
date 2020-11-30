@@ -212,7 +212,7 @@ for ns in $namespaces; do
         oc debug nodes/"${node}" --to-namespace="${ns}" -- bash -c "sleep 5m" &
         debug_pod_ready=false
         for i in {0..300..3}; do
-            if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; then
+            if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" == "1/1" ] ; then
                 debug_pod_ready=true
                 break
             else
