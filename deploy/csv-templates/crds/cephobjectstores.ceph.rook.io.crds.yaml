@@ -1,0 +1,172 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cephobjectstores.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephObjectStore
+    listKind: CephObjectStoreList
+    plural: cephobjectstores
+    singular: cephobjectstore
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                gateway:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    sslCertificateRef:
+                      type: string
+                      nullable: true
+                    port:
+                      type: integer
+                      minimum: 0
+                      maximum: 65535
+                    securePort:
+                      type: integer
+                      minimum: 0
+                      maximum: 65535
+                    instances:
+                      type: integer
+                    externalRgwEndpoints:
+                      type: array
+                      nullable: true
+                      items:
+                        type: object
+                        properties:
+                          ip:
+                            type: string
+                    annotations:
+                      type: object
+                      nullable: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    placement:
+                      type: object
+                      nullable: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    resources:
+                      type: object
+                      nullable: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    labels:
+                      type: object
+                      nullable: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    priorityClassName:
+                      type: string
+                metadataPool:
+                  type: object
+                  nullable: true
+                  properties:
+                    failureDomain:
+                      type: string
+                    crushRoot:
+                      type: string
+                    replicated:
+                      type: object
+                      nullable: true
+                      properties:
+                        size:
+                          type: integer
+                        requireSafeReplicaSize:
+                          type: boolean
+                        replicasPerFailureDomain:
+                          type: integer
+                        subFailureDomain:
+                          type: string
+                    erasureCoded:
+                      type: object
+                      nullable: true
+                      properties:
+                        dataChunks:
+                          type: integer
+                        codingChunks:
+                          type: integer
+                    compressionMode:
+                      type: string
+                      enum:
+                        - ""
+                        - none
+                        - passive
+                        - aggressive
+                        - force
+                    parameters:
+                      type: object
+                      nullable: true
+                      x-kubernetes-preserve-unknown-fields: true
+                zone:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                dataPool:
+                  type: object
+                  nullable: true
+                  properties:
+                    failureDomain:
+                      type: string
+                    crushRoot:
+                      type: string
+                    replicated:
+                      type: object
+                      nullable: true
+                      properties:
+                        size:
+                          type: integer
+                        requireSafeReplicaSize:
+                          type: boolean
+                        replicasPerFailureDomain:
+                          type: integer
+                        subFailureDomain:
+                          type: string
+                    erasureCoded:
+                      type: object
+                      nullable: true
+                      properties:
+                        dataChunks:
+                          type: integer
+                        codingChunks:
+                          type: integer
+                    compressionMode:
+                      type: string
+                      enum:
+                        - ""
+                        - none
+                        - passive
+                        - aggressive
+                        - force
+                    parameters:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                preservePoolsOnDelete:
+                  type: boolean
+                healthCheck:
+                  type: object
+                  nullable: true
+                  properties:
+                    bucket:
+                      type: object
+                      nullable: true
+                      properties:
+                        enabled:
+                          type: boolean
+                        interval:
+                          type: string
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      subresources:
+        status: {}
+

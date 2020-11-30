@@ -1,0 +1,109 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cephblockpools.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephBlockPool
+    listKind: CephBlockPoolList
+    plural: cephblockpools
+    singular: cephblockpool
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                failureDomain:
+                  type: string
+                deviceClass:
+                  type: string
+                crushRoot:
+                  type: string
+                replicated:
+                  type: object
+                  nullable: true
+                  properties:
+                    size:
+                      type: integer
+                      minimum: 0
+                      maximum: 9
+                    targetSizeRatio:
+                      type: number
+                    requireSafeReplicaSize:
+                      type: boolean
+                    replicasPerFailureDomain:
+                      type: integer
+                    subFailureDomain:
+                      type: string
+                erasureCoded:
+                  type: object
+                  nullable: true
+                  properties:
+                    dataChunks:
+                      type: integer
+                      minimum: 0
+                      maximum: 9
+                    codingChunks:
+                      type: integer
+                      minimum: 0
+                      maximum: 9
+                compressionMode:
+                  type: string
+                  enum:
+                    - ""
+                    - none
+                    - passive
+                    - aggressive
+                    - force
+                enableRBDStats:
+                  description:
+                    EnableRBDStats is used to enable gathering of statistics
+                    for all RBD images in the pool
+                  type: boolean
+                parameters:
+                  type: object
+                  nullable: true
+                  x-kubernetes-preserve-unknown-fields: true
+                mirroring:
+                  type: object
+                  nullable: true
+                  properties:
+                    enabled:
+                      type: boolean
+                    mode:
+                      type: string
+                      enum:
+                        - image
+                        - pool
+                    snapshotSchedules:
+                      type: array
+                      items:
+                        type: object
+                        nullable: true
+                        properties:
+                          interval:
+                            type: string
+                          startTime:
+                            type: string
+                statusCheck:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                annotations:
+                  type: object
+                  nullable: true
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      subresources:
+        status: {}
+

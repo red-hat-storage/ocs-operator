@@ -13,22 +13,22 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - JSONPath: .metadata.creationTimestamp
+    - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    - JSONPath: .status.phase
-      description: Current Phase
+    - description: Current Phase
+      jsonPath: .status.phase
       name: Phase
       type: string
-    - JSONPath: .spec.externalStorage.enable
-      description: External Storage Cluster
+    - description: External Storage Cluster
+      jsonPath: .spec.externalStorage.enable
       name: External
       type: boolean
-    - JSONPath: .metadata.creationTimestamp
+    - jsonPath: .metadata.creationTimestamp
       name: Created At
       type: string
-    - JSONPath: .spec.version
-      description: Storage Cluster Version
+    - description: Storage Cluster Version
+      jsonPath: .spec.version
       name: Version
       type: string
     name: v1
@@ -954,9 +954,7 @@ spec:
                           type: object
                       type: object
                     deviceType:
-                      description: DeviceType is the value of device type in this
-                        StorageDeviceSet. It can have one of the three values (SSD,
-                        HDD, NVMe)
+                      description: DeviceType is the value of device type in this StorageDeviceSet. It can have one of the three values (SSD, HDD, NVMe)
                       enum:
                       - SSD
                       - ssd

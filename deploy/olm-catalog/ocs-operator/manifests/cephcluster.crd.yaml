@@ -1,214 +1,372 @@
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: cephclusters.ceph.rook.io
 spec:
-  additionalPrinterColumns:
-  - JSONPath: .spec.dataDirHostPath
-    description: Directory used on the K8s nodes
-    name: DataDirHostPath
-    type: string
-  - JSONPath: .spec.mon.count
-    description: Number of MONs
-    name: MonCount
-    type: string
-  - JSONPath: .metadata.creationTimestamp
-    name: Age
-    type: date
-  - JSONPath: .status.phase
-    description: Phase
-    name: Phase
-    type: string
-  - JSONPath: .status.message
-    description: Message
-    name: Message
-    type: string
-  - JSONPath: .status.ceph.health
-    description: Ceph Health
-    name: Health
-    type: string
   group: ceph.rook.io
   names:
     kind: CephCluster
-    listKind: CephClusterList
     plural: cephclusters
     singular: cephcluster
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      properties:
-        spec:
-          properties:
-            annotations: {}
-            cephVersion:
-              properties:
-                allowUnsupported:
-                  type: boolean
-                image:
-                  type: string
-            cleanupPolicy:
-              properties:
-                confirmation:
-                  pattern: ^$|^yes-really-destroy-data$
-                  type: string
-                sanitizeDisks:
-                  properties:
-                    dataSource:
-                      pattern: ^(zero|random)$
-                      type: string
-                    iteration:
-                      format: int32
-                      type: integer
-                    method:
-                      pattern: ^(complete|quick)$
-                      type: string
-            continueUpgradeAfterChecksEvenIfNotHealthy:
-              type: boolean
-            dashboard:
-              properties:
-                enabled:
-                  type: boolean
-                port:
-                  maximum: 65535
-                  minimum: 0
-                  type: integer
-                ssl:
-                  type: boolean
-                urlPrefix:
-                  type: string
-            dataDirHostPath:
-              pattern: ^/(\S+)
-              type: string
-            disruptionManagement:
-              properties:
-                machineDisruptionBudgetNamespace:
-                  type: string
-                manageMachineDisruptionBudgets:
-                  type: boolean
-                managePodBudgets:
-                  type: boolean
-                osdMaintenanceTimeout:
-                  type: integer
-            driveGroups:
-              items:
+  versions:
+  - additionalPrinterColumns:
+    - description: Directory used on the K8s nodes
+      jsonPath: .spec.dataDirHostPath
+      name: DataDirHostPath
+      type: string
+    - description: Number of MONs
+      jsonPath: .spec.mon.count
+      name: MonCount
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: Phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - description: Message
+      jsonPath: .status.message
+      name: Message
+      type: string
+    - description: Ceph Health
+      jsonPath: .status.ceph.health
+      name: Health
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              annotations:
+                nullable: true
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              cephVersion:
                 properties:
-                  name:
+                  allowUnsupported:
+                    type: boolean
+                  image:
                     type: string
-                  placement: {}
-                  spec: {}
-                required:
-                - name
-                - spec
-              type: array
-            external:
-              properties:
-                enable:
-                  type: boolean
-            healthCheck: {}
-            mgr:
-              properties:
-                modules:
-                  items:
+                type: object
+              cleanupPolicy:
+                properties:
+                  allowUninstallWithVolumes:
+                    type: boolean
+                  confirmation:
+                    pattern: ^$|^yes-really-destroy-data$
+                    type: string
+                  sanitizeDisks:
                     properties:
-                      enabled:
-                        type: boolean
-                      name:
+                      dataSource:
+                        pattern: ^(zero|random)$
                         type: string
-            mon:
-              properties:
-                allowMultiplePerNode:
-                  type: boolean
-                count:
-                  maximum: 9
-                  minimum: 0
-                  type: integer
-                volumeClaimTemplate: {}
-            monitoring:
-              properties:
-                enabled:
-                  type: boolean
-                externalMgrEndpoints:
-                  items:
-                    properties:
-                      ip:
+                      iteration:
+                        format: int32
+                        type: integer
+                      method:
+                        pattern: ^(complete|quick)$
                         type: string
-                  type: array
-                rulesNamespace:
-                  type: string
-            network:
-              properties:
-                hostNetwork:
-                  type: boolean
-                provider:
-                  type: string
-                selectors: {}
-            placement: {}
-            removeOSDsIfOutAndSafeToRemove:
-              type: boolean
-            resources: {}
-            skipUpgradeChecks:
-              type: boolean
-            storage:
-              properties:
-                config: {}
-                deviceFilter:
-                  type: string
-                devicePathFilter:
-                  type: string
-                disruptionManagement:
+                    type: object
+                type: object
+              continueUpgradeAfterChecksEvenIfNotHealthy:
+                type: boolean
+              crashCollector:
+                properties:
+                  disable:
+                    type: boolean
+                type: object
+              dashboard:
+                properties:
+                  enabled:
+                    type: boolean
+                  port:
+                    maximum: 65535
+                    minimum: 0
+                    type: integer
+                  ssl:
+                    type: boolean
+                  urlPrefix:
+                    type: string
+                type: object
+              dataDirHostPath:
+                pattern: ^/(\S+)
+                type: string
+              disruptionManagement:
+                properties:
+                  machineDisruptionBudgetNamespace:
+                    type: string
+                  manageMachineDisruptionBudgets:
+                    type: boolean
+                  managePodBudgets:
+                    type: boolean
+                  osdMaintenanceTimeout:
+                    type: integer
+                  pgHealthCheckTimeout:
+                    type: integer
+                type: object
+              driveGroups:
+                items:
                   properties:
-                    machineDisruptionBudgetNamespace:
+                    name:
                       type: string
-                    manageMachineDisruptionBudgets:
-                      type: boolean
-                    managePodBudgets:
-                      type: boolean
-                    osdMaintenanceTimeout:
-                      type: integer
-                nodes:
-                  items:
+                    placement:
+                      nullable: true
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    spec:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  required:
+                  - name
+                  - spec
+                  type: object
+                nullable: true
+                type: array
+              external:
+                properties:
+                  enable:
+                    type: boolean
+                type: object
+              healthCheck:
+                nullable: true
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              labels:
+                nullable: true
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              mgr:
+                properties:
+                  modules:
+                    items:
+                      properties:
+                        enabled:
+                          type: boolean
+                        name:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              mon:
+                properties:
+                  allowMultiplePerNode:
+                    type: boolean
+                  count:
+                    maximum: 9
+                    minimum: 0
+                    type: integer
+                  stretchCluster:
+                    nullable: true
                     properties:
-                      config:
-                        properties:
-                          databaseSizeMB:
-                            type: string
-                          encryptedDevice:
-                            pattern: ^(true|false)$
-                            type: string
-                          journalSizeMB:
-                            type: string
-                          metadataDevice:
-                            type: string
-                          osdsPerDevice:
-                            type: string
-                          storeType:
-                            pattern: ^(bluestore)$
-                            type: string
-                          walSizeMB:
-                            type: string
-                      deviceFilter:
+                      failureDomainLabel:
                         type: string
-                      devicePathFilter:
+                      subFailureDomain:
                         type: string
-                      devices:
+                      zones:
                         items:
                           properties:
-                            config: {}
+                            arbiter:
+                              type: boolean
                             name:
                               type: string
+                            volumeClaimTemplate:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
+                          type: object
                         type: array
-                      name:
+                    type: object
+                  volumeClaimTemplate:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
+              monitoring:
+                properties:
+                  enabled:
+                    type: boolean
+                  externalMgrEndpoints:
+                    items:
+                      properties:
+                        ip:
+                          type: string
+                      type: object
+                    type: array
+                  rulesNamespace:
+                    type: string
+                type: object
+              network:
+                nullable: true
+                properties:
+                  hostNetwork:
+                    type: boolean
+                  ipFamily:
+                    type: string
+                  provider:
+                    type: string
+                  selectors:
+                    nullable: true
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
+              placement:
+                nullable: true
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              priorityClassNames:
+                nullable: true
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              removeOSDsIfOutAndSafeToRemove:
+                type: boolean
+              resources:
+                nullable: true
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              security:
+                properties:
+                  kms:
+                    properties:
+                      connectionDetails:
+                        nullable: true
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      tokenSecretName:
                         type: string
-                      resources: {}
-                      useAllDevices:
+                    type: object
+                type: object
+              skipUpgradeChecks:
+                type: boolean
+              storage:
+                properties:
+                  config:
+                    nullable: true
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  deviceFilter:
+                    nullable: true
+                    type: string
+                  devicePathFilter:
+                    type: string
+                  disruptionManagement:
+                    nullable: true
+                    properties:
+                      machineDisruptionBudgetNamespace:
+                        type: string
+                      manageMachineDisruptionBudgets:
                         type: boolean
-                  type: array
-                storageClassDeviceSets: {}
-                useAllDevices:
-                  type: boolean
-                useAllNodes:
-                  type: boolean
-  version: v1
+                      managePodBudgets:
+                        type: boolean
+                      osdMaintenanceTimeout:
+                        type: integer
+                      pgHealthCheckTimeout:
+                        type: integer
+                    type: object
+                  nodes:
+                    items:
+                      properties:
+                        config:
+                          nullable: true
+                          properties:
+                            databaseSizeMB:
+                              type: string
+                            encryptedDevice:
+                              pattern: ^(true|false)$
+                              type: string
+                            journalSizeMB:
+                              type: string
+                            metadataDevice:
+                              type: string
+                            osdsPerDevice:
+                              type: string
+                            storeType:
+                              pattern: ^(bluestore)$
+                              type: string
+                            walSizeMB:
+                              type: string
+                          type: object
+                        deviceFilter:
+                          nullable: true
+                          type: string
+                        devicePathFilter:
+                          type: string
+                        devices:
+                          items:
+                            properties:
+                              config:
+                                nullable: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              name:
+                                type: string
+                            type: object
+                          type: array
+                        name:
+                          type: string
+                        resources:
+                          nullable: true
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        useAllDevices:
+                          type: boolean
+                      type: object
+                    nullable: true
+                    type: array
+                  storageClassDeviceSets:
+                    items:
+                      properties:
+                        config:
+                          nullable: true
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        count:
+                          format: int32
+                          type: integer
+                        encrypted:
+                          type: boolean
+                        name:
+                          type: string
+                        placement:
+                          nullable: true
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        portable:
+                          type: boolean
+                        preparePlacement:
+                          nullable: true
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        resources:
+                          nullable: true
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        schedulerName:
+                          type: string
+                        tuneDeviceClass:
+                          type: boolean
+                        tuneFastDeviceClass:
+                          type: boolean
+                        volumeClaimTemplates:
+                          items:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          type: array
+                      type: object
+                    nullable: true
+                    type: array
+                  useAllDevices:
+                    type: boolean
+                  useAllNodes:
+                    type: boolean
+                type: object
+            type: object
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
