@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"testing"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
@@ -31,7 +32,7 @@ func assertVolumeSnapshotterClasses(t *testing.T, reconciler ReconcileStorageClu
 			},
 		}
 		request.Name = eachVSCName
-		err := reconciler.client.Get(nil, request.NamespacedName, actualVSC)
+		err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualVSC)
 		assert.NoError(t, err)
 	}
 }
