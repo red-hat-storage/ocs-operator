@@ -96,12 +96,26 @@ var mockMetaDataPVCTemplate = &corev1.PersistentVolumeClaim{
 	},
 }
 
+var mockWalPVCTemplate = &corev1.PersistentVolumeClaim{
+	Spec: corev1.PersistentVolumeClaimSpec{
+		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("1Ti"),
+			},
+		},
+		StorageClassName: &storageClassName,
+		VolumeMode:       &volMode,
+	},
+}
+
 var mockDeviceSets = []api.StorageDeviceSet{
 	{
 		Name:                "mock-sds",
 		Count:               3,
 		DataPVCTemplate:     mockDataPVCTemplate,
 		MetadataPVCTemplate: mockMetaDataPVCTemplate,
+		WalPVCTemplate:      mockWalPVCTemplate,
 		Portable:            true,
 	},
 }
@@ -439,6 +453,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 func TestStorageDeviceSets(t *testing.T) {
 	scName := ""
 	metadataScName := ""
+	walScName := ""
 	storageClassEBS := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "gp2",
@@ -527,6 +542,38 @@ func TestStorageDeviceSets(t *testing.T) {
 				},
 			},
 			expectedError: fmt.Errorf("no StorageClass specified"),
+		},
+		{
+			label:          "Case 6",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:            "mock-sds",
+					Count:           3,
+					DataPVCTemplate: mockDataPVCTemplate,
+					WalPVCTemplate: &corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &walScName,
+						},
+					},
+					Portable: true,
+				},
+			},
+			expectedError: fmt.Errorf("no StorageClass specified for walPVCTemplate"),
+		},
+		{
+			label:          "Case 7",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:            "mock-sds",
+					Count:           3,
+					DataPVCTemplate: mockDataPVCTemplate,
+					WalPVCTemplate:  &corev1.PersistentVolumeClaim{},
+					Portable:        true,
+				},
+			},
+			expectedError: fmt.Errorf("no StorageClass specified for walPVCTemplate"),
 		},
 	}
 
