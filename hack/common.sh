@@ -12,6 +12,7 @@ GOARCH="${GOARCH:-amd64}"
 # Current DEV version of the CSV
 DEFAULT_CSV_VERSION="4.7.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
+GEN_OSD=${GEN_OSD:-"false"}
 
 IMAGE_BUILD_CMD="${IMAGE_BUILD_CMD}"
 if [ -z "$IMAGE_BUILD_CMD" ]; then
@@ -58,6 +59,7 @@ LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:2.3.0"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.5.0"
 LATEST_NOOBAA_DB_IMAGE="centos/mongodb-36-centos7"
 LATEST_CEPH_IMAGE="ceph/ceph:v14.2"
+LATEST_OSD_IMAGE="quay.io/johnstrunk/ocs-osd-deployer:latest"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"

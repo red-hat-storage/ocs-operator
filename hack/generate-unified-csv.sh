@@ -66,4 +66,6 @@ $CSV_MERGER \
 	--crds-directory="$OUTDIR_CRDS" \
 	--manifests-directory=$BUNDLEMANIFESTS_DIR \
 	--olm-bundle-directory="$OCS_FINAL_DIR" \
-	--timestamp="$TIMESTAMP"
+	--timestamp="$TIMESTAMP" \
+	--gen-osd="$GEN_OSD" \
+	--osd-image="$OSD_IMAGE"

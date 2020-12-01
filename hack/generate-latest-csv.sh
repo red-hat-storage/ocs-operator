@@ -15,6 +15,7 @@ export NOOBAA_DB_IMAGE=${NOOBAA_DB_IMAGE:-${LATEST_NOOBAA_DB_IMAGE}}
 export CEPH_IMAGE=${CEPH_IMAGE:-${LATEST_CEPH_IMAGE}}
 export OCS_IMAGE=${OCS_IMAGE:-"${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${OPERATOR_IMAGE_NAME}:${IMAGE_TAG}"}
 export OCS_MUST_GATHER_IMAGE=${OCS_MUST_GATHER_IMAGE:-"${MUST_GATHER_FULL_IMAGE_NAME}"}
+export OSD_IMAGE=${OSD_IMAGE:-${LATEST_OSD_IMAGE}}
 
 echo "=== Generating DEV CSV with the following vars ==="
 echo -e "\tCSV_VERSION=$CSV_VERSION"
@@ -24,5 +25,8 @@ echo -e "\tNOOBAA_CORE_IMAGE=$NOOBAA_CORE_IMAGE"
 echo -e "\tNOOBAA_DB_IMAGE=$NOOBAA_DB_IMAGE"
 echo -e "\tCEPH_IMAGE=$CEPH_IMAGE"
 echo -e "\tOCS_IMAGE=$OCS_IMAGE"
+if [ "$GEN_OSD" = "true" ]; then
+    echo -e "\tOSD_IMAGE=$OSD_IMAGE"
+fi
 
 hack/generate-unified-csv.sh

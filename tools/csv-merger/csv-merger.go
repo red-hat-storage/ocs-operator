@@ -40,6 +40,7 @@ var (
 	noobaaCSVStr       = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
 	timestamp          = flag.String("timestamp", "false", "bool value to enable/disable timestamp changes in CSV")
+	osd                = flag.String("gen-osd", "false", "bool value to generate CSV for OSD")
 
 	rookContainerImage       = flag.String("rook-image", "", "rook operator container image")
 	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
@@ -54,6 +55,7 @@ var (
 	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
+	osdImage                 = flag.String("osd-image", "", "optional - ocs-osd-deployer image")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -532,6 +534,25 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			},
 		},
 	})
+
+	// Add ocs-osd-deployer deployment, RBACs to CSV
+	if strings.Compare(*osd, "true") == 0 {
+		osdStrategySpec := csvv1.StrategyDeploymentSpec{
+			Name: "ocs-osd-deployer",
+			Spec: getOpenshiftDedicatedDeployment(),
+		}
+		templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, osdStrategySpec)
+		templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, csvv1.StrategyDeploymentPermissions{
+			ServiceAccountName: "ocs-osd-deployer",
+			Rules: []rbac.PolicyRule{
+				{
+					APIGroups: []string{"ocs.openshift.io"},
+					Resources: []string{"storageclusters"},
+					Verbs:     []string{"*"},
+				},
+			},
+		})
+	}
 	fmt.Println(templateStrategySpec.DeploymentSpecs)
 
 	ocsCSV.Spec.InstallStrategy.StrategySpec = *templateStrategySpec
@@ -969,6 +990,45 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 					},
 				},
 				ServiceAccountName: "ocs-metrics-exporter",
+			},
+		},
+	}
+	return deployment
+}
+
+func getOpenshiftDedicatedDeployment() appsv1.DeploymentSpec {
+	replica := int32(1)
+	deployment := appsv1.DeploymentSpec{
+		Replicas: &replica,
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "ocs-osd-deployer",
+			},
+		},
+		Strategy: appsv1.DeploymentStrategy{
+			Type: appsv1.RecreateDeploymentStrategyType,
+		},
+		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"app": "ocs-osd-deployer",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:            "deployer",
+						Image:           *osdImage,
+						ImagePullPolicy: corev1.PullAlways,
+						Env: []corev1.EnvVar{
+							{
+								Name:  "QUOTA_COUNT",
+								Value: "1",
+							},
+						},
+					},
+				},
+				ServiceAccountName: "ocs-osd-deployer",
 			},
 		},
 	}
