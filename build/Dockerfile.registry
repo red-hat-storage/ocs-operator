@@ -1,11 +1,13 @@
-FROM quay.io/openshift/origin-operator-registry:latest
+FROM quay.io/operator-framework/upstream-registry-builder as builder
 
-COPY build/_output/appregistry/olm-catalog /registry/ocs-catalog
+COPY build/_output/appregistry/olm-catalog manifests
+RUN /bin/initializer -o /bundles.db
 
-# Initialize the database
-RUN initializer --manifests /registry/ocs-catalog --output bundles.db
-
-# There are multiple binaries in the origin-operator-registry
-# We want the registry-server
-ENTRYPOINT ["registry-server"]
+FROM scratch
+COPY ["nsswitch.conf", "/etc/nsswitch.conf"]
+COPY --from=builder /bundles.db /bundles.db
+COPY --from=builder /bin/registry-server /registry-server
+COPY --from=builder /bin/grpc_health_probe /bin/grpc_health_probe
+EXPOSE 50051
+ENTRYPOINT ["/registry-server"]
 CMD ["--database", "bundles.db"]
