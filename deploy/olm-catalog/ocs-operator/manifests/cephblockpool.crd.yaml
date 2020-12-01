@@ -29,8 +29,7 @@ spec:
             crushRoot:
               type: string
             enableRBDStats:
-              description: EnableRBDStats is used to enable gathering of statistics
-                for all RBD images in the pool
+              description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
               type: boolean
             erasureCoded:
               properties:

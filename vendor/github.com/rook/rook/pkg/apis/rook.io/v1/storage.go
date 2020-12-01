@@ -129,16 +129,6 @@ func resolveString(setting *string, parent, defaultVal string) {
 	}
 }
 
-func resolveInt(setting *int, parent, defaultVal int) {
-	if *setting == 0 {
-		if parent != 0 {
-			*setting = parent
-		} else {
-			*setting = defaultVal
-		}
-	}
-}
-
 func newBool(val bool) *bool {
 	return &val
 }
@@ -156,4 +146,15 @@ func (s NodesByName) Swap(i, j int) {
 
 func (s NodesByName) Less(i, j int) bool {
 	return s[i].Name < s[j].Name
+}
+
+// IsOnPVCEncrypted returns whether a Ceph Cluster on PVC will be encrypted
+func (s *StorageScopeSpec) IsOnPVCEncrypted() bool {
+	for _, storageClassDeviceSet := range s.StorageClassDeviceSets {
+		if storageClassDeviceSet.Encrypted {
+			return true
+		}
+	}
+
+	return false
 }

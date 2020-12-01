@@ -1,6 +1,7 @@
 package ocsinitialization
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -14,18 +15,18 @@ import (
 func (r *ReconcileOCSInitialization) ensureSCCs(initialData *ocsv1.OCSInitialization, reqLogger logr.Logger) error {
 	sccs := getAllSCCs(initialData.Namespace)
 	for _, scc := range sccs {
-		found, err := r.secClient.SecurityContextConstraints().Get(scc.Name, metav1.GetOptions{})
+		found, err := r.secClient.SecurityContextConstraints().Get(context.TODO(), scc.Name, metav1.GetOptions{})
 
 		if err != nil && errors.IsNotFound(err) {
 			reqLogger.Info(fmt.Sprintf("Creating %s SecurityContextConstraint", scc.Name))
-			_, err := r.secClient.SecurityContextConstraints().Create(scc)
+			_, err := r.secClient.SecurityContextConstraints().Create(context.TODO(), scc, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("unable to create SCC %+v: %v", scc, err)
 			}
 		} else if err == nil {
 			scc.ObjectMeta = found.ObjectMeta
 			reqLogger.Info(fmt.Sprintf("Updating %s SecurityContextConstraint", scc.Name))
-			_, err := r.secClient.SecurityContextConstraints().Update(scc)
+			_, err := r.secClient.SecurityContextConstraints().Update(context.TODO(), scc, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("unable to update SCC %+v: %v", scc, err)
 			}

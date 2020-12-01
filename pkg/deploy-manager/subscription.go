@@ -1,6 +1,7 @@
 package deploymanager
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,8 +9,8 @@ import (
 	"time"
 
 	yaml "github.com/ghodss/yaml"
-	v1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1"
-	v1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	v1 "github.com/operator-framework/api/pkg/operators/v1"
+	v1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install"
 	appsv1 "k8s.io/api/apps/v1"
 	k8sv1 "k8s.io/api/core/v1"
@@ -41,7 +42,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, operatorGroup := range co.operatorGroups {
-		_, err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Create(&operatorGroup)
+		_, err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Create(context.TODO(), &operatorGroup, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -49,7 +50,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, catalogSource := range co.catalogSources {
-		_, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Create(&catalogSource)
+		_, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Create(context.TODO(), &catalogSource, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -62,7 +63,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, subscription := range co.subscriptions {
-		_, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Create(&subscription)
+		_, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Create(context.TODO(), &subscription, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -230,7 +231,7 @@ func (t *DeployManager) waitForOCSCatalogSource() error {
 	}
 
 	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		pods, err := t.k8sClient.CoreV1().Pods(marketplaceNamespace).List(metav1.ListOptions{
+		pods, err := t.k8sClient.CoreV1().Pods(marketplaceNamespace).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: labelSelector.String(),
 		})
 		if err != nil {
@@ -311,7 +312,7 @@ func (t *DeployManager) WaitForOCSOperator() error {
 
 	err := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
 		for _, name := range deployments {
-			deployment, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).Get(name, metav1.GetOptions{})
+			deployment, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
 				lastReason = fmt.Sprintf("waiting on deployment %s to be created", name)
 				return false, nil
@@ -370,7 +371,7 @@ func (t *DeployManager) UninstallOCS(ocsRegistryImage string, subscriptionChanne
 func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 
 	for _, operatorGroup := range co.operatorGroups {
-		err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Delete(operatorGroup.Name, &metav1.DeleteOptions{})
+		err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Delete(context.TODO(), operatorGroup.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -378,14 +379,14 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, catalogSource := range co.catalogSources {
-		err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Delete(catalogSource.Name, &metav1.DeleteOptions{})
+		err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Delete(context.TODO(), catalogSource.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}
 
 	for _, subscription := range co.subscriptions {
-		err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Delete(subscription.Name, &metav1.DeleteOptions{})
+		err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Delete(context.TODO(), subscription.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -396,9 +397,9 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 
 func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
 	for _, catalogSource := range co.catalogSources {
-		cs, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Get(catalogSource.Name, metav1.GetOptions{})
+		cs, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Get(context.TODO(), catalogSource.Name, metav1.GetOptions{})
 		cs.Spec.Image = catalogSource.Spec.Image
-		_, err = t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Update(cs)
+		_, err = t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Update(context.TODO(), cs, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -414,9 +415,9 @@ func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, subscription := range co.subscriptions {
-		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Get(subscription.Name, metav1.GetOptions{})
+		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Get(context.TODO(), subscription.Name, metav1.GetOptions{})
 		sub.Spec.Channel = subscription.Spec.Channel
-		_, err = t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Update(sub)
+		_, err = t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Update(context.TODO(), sub, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -437,12 +438,12 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 
 	lastReason := ""
 	waitErr := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(InstallNamespace).Get(subscription, metav1.GetOptions{})
+		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(InstallNamespace).Get(context.TODO(), subscription, metav1.GetOptions{})
 		if sub.Spec.Channel != subscriptionChannel {
 			lastReason = fmt.Sprintf("waiting on subscription channel to be updated to %s ", subscriptionChannel)
 			return false, nil
 		}
-		csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(metav1.ListOptions{})
+		csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(context.TODO(), metav1.ListOptions{})
 		for _, csv := range csvs.Items {
 			// If the csvName doesn't match, it means a new csv has appeared
 			if csv.Name != csvName && strings.Contains(csv.Name, operatorName) {
@@ -467,7 +468,7 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 func (t *DeployManager) GetCsv() (v1alpha1.ClusterServiceVersion, error) {
 	csvName := "ocs-operator"
 	csv := v1alpha1.ClusterServiceVersion{}
-	csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(metav1.ListOptions{})
+	csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(context.TODO(), metav1.ListOptions{})
 	for _, csv := range csvs.Items {
 		if strings.Contains(csv.Name, csvName) {
 			return csv, err

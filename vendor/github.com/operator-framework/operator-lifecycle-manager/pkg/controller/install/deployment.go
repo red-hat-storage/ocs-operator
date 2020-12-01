@@ -4,25 +4,27 @@ import (
 	"fmt"
 	"hash/fnv"
 
-	hashutil "github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/pkg/util/hash"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	"github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/api/wrappers"
+	hashutil "github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/pkg/util/hash"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/ownerutil"
 )
 
 const DeploymentSpecHashLabelKey = "olm.deployment-spec-hash"
 
 type StrategyDeploymentInstaller struct {
-	strategyClient      wrappers.InstallStrategyDeploymentInterface
-	owner               ownerutil.Owner
-	previousStrategy    Strategy
-	templateAnnotations map[string]string
-	initializers        DeploymentInitializerFuncChain
+	strategyClient         wrappers.InstallStrategyDeploymentInterface
+	owner                  ownerutil.Owner
+	previousStrategy       Strategy
+	templateAnnotations    map[string]string
+	initializers           DeploymentInitializerFuncChain
+	apiServiceDescriptions []certResource
+	webhookDescriptions    []certResource
 }
 
 var _ Strategy = &v1alpha1.StrategyDetailsDeployment{}
@@ -59,13 +61,25 @@ func (c DeploymentInitializerFuncChain) Apply(deployment *appsv1.Deployment) (er
 // the given context.
 type DeploymentInitializerBuilderFunc func(owner ownerutil.Owner) DeploymentInitializerFunc
 
-func NewStrategyDeploymentInstaller(strategyClient wrappers.InstallStrategyDeploymentInterface, templateAnnotations map[string]string, owner ownerutil.Owner, previousStrategy Strategy, initializers DeploymentInitializerFuncChain) StrategyInstaller {
+func NewStrategyDeploymentInstaller(strategyClient wrappers.InstallStrategyDeploymentInterface, templateAnnotations map[string]string, owner ownerutil.Owner, previousStrategy Strategy, initializers DeploymentInitializerFuncChain, apiServiceDescriptions []v1alpha1.APIServiceDescription, webhookDescriptions []v1alpha1.WebhookDescription) StrategyInstaller {
+	apiDescs := make([]certResource, len(apiServiceDescriptions))
+	for i := range apiServiceDescriptions {
+		apiDescs[i] = &apiServiceDescriptionsWithCAPEM{apiServiceDescriptions[i], []byte{}}
+	}
+
+	webhookDescs := make([]certResource, len(webhookDescriptions))
+	for i := range webhookDescs {
+		webhookDescs[i] = &webhookDescriptionWithCAPEM{webhookDescriptions[i], []byte{}}
+	}
+
 	return &StrategyDeploymentInstaller{
-		strategyClient:      strategyClient,
-		owner:               owner,
-		previousStrategy:    previousStrategy,
-		templateAnnotations: templateAnnotations,
-		initializers:        initializers,
+		strategyClient:         strategyClient,
+		owner:                  owner,
+		previousStrategy:       previousStrategy,
+		templateAnnotations:    templateAnnotations,
+		initializers:           initializers,
+		apiServiceDescriptions: apiDescs,
+		webhookDescriptions:    webhookDescs,
 	}
 }
 
@@ -79,8 +93,37 @@ func (i *StrategyDeploymentInstaller) installDeployments(deps []v1alpha1.Strateg
 		if _, err := i.strategyClient.CreateOrUpdateDeployment(deployment); err != nil {
 			return err
 		}
-	}
 
+		if err := i.createOrUpdateCertResourcesForDeployment(deployment.GetName()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (i *StrategyDeploymentInstaller) createOrUpdateCertResourcesForDeployment(deploymentName string) error {
+	for _, desc := range i.getCertResources() {
+		switch d := desc.(type) {
+		case *apiServiceDescriptionsWithCAPEM:
+			err := i.createOrUpdateAPIService(d.caPEM, d.apiServiceDescription)
+			if err != nil {
+				return err
+			}
+
+			// Cleanup legacy APIService resources
+			err = i.deleteLegacyAPIServiceResources(*d)
+			if err != nil {
+				return err
+			}
+		case *webhookDescriptionWithCAPEM:
+			err := i.createOrUpdateWebhook(d.caPEM, d.webhookDescription)
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("Unsupported CA Resource")
+		}
+	}
 	return nil
 }
 
@@ -107,8 +150,16 @@ func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1
 		return
 	}
 
+	// OLM does not support Rollbacks.
+	// By default, each deployment created by OLM could spawn up to 10 replicaSets.
+	// By setting the deployments revisionHistoryLimit to 1, OLM will only create up
+	// to 2 ReplicaSets per deployment it manages, saving memory.
+	revisionHistoryLimit := int32(1)
+	dep.Spec.RevisionHistoryLimit = &revisionHistoryLimit
+
 	hash = HashDeploymentSpec(dep.Spec)
 	dep.Labels[DeploymentSpecHashLabelKey] = hash
+
 	deployment = dep
 	return
 }
@@ -136,7 +187,13 @@ func (i *StrategyDeploymentInstaller) Install(s Strategy) error {
 		return fmt.Errorf("attempted to install %s strategy with deployment installer", strategy.GetStrategyName())
 	}
 
-	if err := i.installDeployments(strategy.DeploymentSpecs); err != nil {
+	// Install owned APIServices and update strategy with serving cert data
+	updatedStrategy, err := i.installCertRequirements(strategy)
+	if err != nil {
+		return err
+	}
+
+	if err := i.installDeployments(updatedStrategy.DeploymentSpecs); err != nil {
 		if k8serrors.IsForbidden(err) {
 			return StrategyError{Reason: StrategyErrInsufficientPermissions, Message: fmt.Sprintf("install strategy failed: %s", err)}
 		}
@@ -144,7 +201,7 @@ func (i *StrategyDeploymentInstaller) Install(s Strategy) error {
 	}
 
 	// Clean up orphaned deployments
-	return i.cleanupOrphanedDeployments(strategy.DeploymentSpecs)
+	return i.cleanupOrphanedDeployments(updatedStrategy.DeploymentSpecs)
 }
 
 // CheckInstalled can return nil (installed), or errors
@@ -204,8 +261,10 @@ func (i *StrategyDeploymentInstaller) checkForDeployments(deploymentSpecs []v1al
 			return StrategyError{Reason: StrategyErrReasonAnnotationsMissing, Message: fmt.Sprintf("no annotations found on deployment")}
 		}
 		for key, value := range i.templateAnnotations {
-			if dep.Spec.Template.Annotations[key] != value {
-				return StrategyError{Reason: StrategyErrReasonAnnotationsMissing, Message: fmt.Sprintf("annotations on deployment don't match. couldn't find %s: %s", key, value)}
+			if actualValue, ok := dep.Spec.Template.Annotations[key]; !ok {
+				return StrategyError{Reason: StrategyErrReasonAnnotationsMissing, Message: fmt.Sprintf("annotations on deployment does not contain expected key: %s", key)}
+			} else if dep.Spec.Template.Annotations[key] != value {
+				return StrategyError{Reason: StrategyErrReasonAnnotationsMissing, Message: fmt.Sprintf("unexpected annotation on deployment. Expected %s:%s, found %s:%s", key, value, key, actualValue)}
 			}
 		}
 

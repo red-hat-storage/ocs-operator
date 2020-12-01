@@ -1,6 +1,7 @@
 package ocs_test
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	tests "github.com/openshift/ocs-operator/functests"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,12 +50,12 @@ func (rctObj *RookCephTools) patchOCSInit(patch string) error {
 		Name("ocsinit").
 		Body([]byte(patch)).
 		VersionedParams(&metav1.GetOptions{}, rctObj.parameterCodec).
-		Do().
+		Do(context.TODO()).
 		Into(init)
 }
 
 func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
-	pods, err := rctObj.k8sClient.CoreV1().Pods(rctObj.namespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
 	if err != nil {
 		return err
 	}
@@ -69,7 +71,7 @@ func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
 }
 
 func (rctObj *RookCephTools) toolsRemove() error {
-	pods, err := rctObj.k8sClient.CoreV1().Pods(rctObj.namespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
 	if err != nil {
 		return err
 	}

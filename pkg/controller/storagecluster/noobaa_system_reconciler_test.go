@@ -110,7 +110,6 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		err := reconciler.ensureNoobaaSystem(&sc, noobaaReconcileTestLogger)
 		assert.NoError(t, err)
 
-		noobaa = v1alpha1.NooBaa{}
 		err = reconciler.client.Get(context.TODO(), namespacedName, &noobaa)
 		assert.Equal(t, noobaa.Name, namespacedName.Name)
 		assert.Equal(t, noobaa.Namespace, namespacedName.Namespace)
@@ -121,25 +120,16 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	}
 }
 
-func TestNooBaaReconcileStratgy(t *testing.T) {
+func TestNooBaaReconcileStrategy(t *testing.T) {
 	namespacedName := types.NamespacedName{
 		Name:      "noobaa",
 		Namespace: "test_ns",
 	}
 
-	cephCluster := cephv1.CephCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephClusterFromString(namespacedName.Name),
-			Namespace: namespacedName.Namespace,
-		},
-	}
-	cephCluster.Status.State = cephv1.ClusterStateCreated
-
 	cases := []struct {
 		label          string
 		namespacedName types.NamespacedName
 		sc             v1.StorageCluster
-		noobaa         v1alpha1.NooBaa
 		isCreate       bool
 	}{
 		{
@@ -201,12 +191,19 @@ func TestNooBaaReconcileStratgy(t *testing.T) {
 
 	for _, c := range cases {
 		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
-		reconciler.client.Create(context.TODO(), &cephCluster)
 
-		err := reconciler.ensureNoobaaSystem(&c.sc, noobaaReconcileTestLogger)
+		cephCluster := cephv1.CephCluster{}
+		cephCluster.Name = generateNameForCephClusterFromString(namespacedName.Name)
+		cephCluster.Namespace = namespacedName.Namespace
+		cephCluster.Status.State = cephv1.ClusterStateCreated
+		err := reconciler.client.Create(context.TODO(), &cephCluster)
 		assert.NoError(t, err)
 
-		err = reconciler.client.Get(context.TODO(), namespacedName, &v1alpha1.NooBaa{})
+		err = reconciler.ensureNoobaaSystem(&c.sc, noobaaReconcileTestLogger)
+		assert.NoError(t, err)
+
+		noobaa := v1alpha1.NooBaa{}
+		err = reconciler.client.Get(context.TODO(), namespacedName, &noobaa)
 		if c.isCreate {
 			assert.NoError(t, err)
 		} else {

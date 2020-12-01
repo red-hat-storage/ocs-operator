@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"testing"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	secv1 "github.com/openshift/api/security/v1"
 	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

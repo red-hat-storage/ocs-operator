@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/blang/semver"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"

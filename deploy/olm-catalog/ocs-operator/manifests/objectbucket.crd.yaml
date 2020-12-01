@@ -44,14 +44,10 @@ spec:
     openAPIV3Schema:
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
           type: string
         metadata:
           description: Standard object metadata.
@@ -62,21 +58,18 @@ spec:
             additionalState:
               additionalProperties:
                 type: string
-              description: additionalState gives providers a location to set proprietary
-                config values (tenant, namespace, etc)
+              description: additionalState gives providers a location to set proprietary config values (tenant, namespace, etc)
               type: object
             claimRef:
               description: ObjectReference to ObjectBucketClaim
               type: object
             endpoint:
-              description: Endpoint contains all connection relevant data that an
-                app may require for accessing the bucket
+              description: Endpoint contains all connection relevant data that an app may require for accessing the bucket
               properties:
                 additionalConfig:
                   additionalProperties:
                     type: string
-                  description: AdditionalConfig gives providers a location to set
-                    proprietary config values (tenant, namespace, etc)
+                  description: AdditionalConfig gives providers a location to set proprietary config values (tenant, namespace, etc)
                   type: object
                 bucketHost:
                   description: Bucket address hostname
@@ -102,8 +95,7 @@ spec:
               - Recycle
               type: string
             storageClassName:
-              description: StorageClass names the StorageClass object representing
-                the desired provisioner and parameters
+              description: StorageClass names the StorageClass object representing the desired provisioner and parameters
               type: string
           required:
           - storageClassName
@@ -112,8 +104,7 @@ spec:
           description: Most recently observed status of the bucket.
           properties:
             phase:
-              description: ObjectBucketStatusPhase is set by the controller to save
-                the state of the provisioning process
+              description: ObjectBucketStatusPhase is set by the controller to save the state of the provisioning process
               enum:
               - Bound
               - Released

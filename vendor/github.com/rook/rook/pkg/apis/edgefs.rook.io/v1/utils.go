@@ -40,7 +40,6 @@ func ByteCountBinary(b uint64) string {
 func GetModifiedRookImagePath(originRookImage, addon string) string {
 	imageParts := strings.Split(originRookImage, "/")
 	latestImagePartIndex := len(imageParts) - 1
-	modifiedImageName := "edgefs"
 	modifiedImageTag := "latest"
 
 	latestImagePart := imageParts[latestImagePartIndex]
@@ -49,10 +48,11 @@ func GetModifiedRookImagePath(originRookImage, addon string) string {
 		modifiedImageTag = imageVersionParts[1]
 	}
 
+	var modifiedImageName string
 	if len(addon) > 0 {
 		modifiedImageName = fmt.Sprintf("%s-%s", imageVersionParts[0], addon)
 	} else {
-		modifiedImageName = fmt.Sprintf("%s", imageVersionParts[0])
+		modifiedImageName = imageVersionParts[0]
 	}
 
 	imageParts[latestImagePartIndex] = fmt.Sprintf("%s:%s", modifiedImageName, modifiedImageTag)

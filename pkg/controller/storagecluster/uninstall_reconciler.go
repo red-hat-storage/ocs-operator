@@ -320,6 +320,13 @@ func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.Storag
 	}
 
 	if updateRequired {
+		oldSc := ocsv1.StorageCluster{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &oldSc)
+		if err != nil {
+			reqLogger.Error(err, "Uninstall: Failed to get storagecluster")
+			return err
+		}
+		sc.ObjectMeta.ResourceVersion = oldSc.ObjectMeta.ResourceVersion
 		if err := r.client.Update(context.TODO(), sc); err != nil {
 			reqLogger.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
 			return err

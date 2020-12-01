@@ -1,6 +1,7 @@
 package ocs_test
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -69,7 +70,7 @@ func StorageClusterCreationTest() {
 				Namespace(sccObj.duplicateStorageCluster.Namespace).
 				Name(sccObj.duplicateStorageCluster.Name).
 				VersionedParams(&metav1.GetOptions{}, sccObj.parameterCodec).
-				Do().
+				Do(context.TODO()).
 				Error()
 			Expect(err).To(BeNil())
 		})
@@ -84,7 +85,7 @@ func StorageClusterCreationTest() {
 					Namespace(sccObj.duplicateStorageCluster.Namespace).
 					Name(sccObj.duplicateStorageCluster.Name).
 					Body(sccObj.duplicateStorageCluster).
-					Do().
+					Do(context.TODO()).
 					Into(newSc)
 				Expect(err).To(BeNil())
 
@@ -97,7 +98,7 @@ func StorageClusterCreationTest() {
 						Namespace(sccObj.duplicateStorageCluster.Namespace).
 						Name(sccObj.duplicateStorageCluster.Name).
 						VersionedParams(&metav1.GetOptions{}, sccObj.parameterCodec).
-						Do().
+						Do(context.TODO()).
 						Into(sc)
 					if err != nil {
 						return err

@@ -57,8 +57,7 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:4.7.0
-    description: Red Hat OpenShift Container Storage provides hyperconverged storage
-      for applications within an OpenShift cluster.
+    description: Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/export-script: |-
       JycnCkNvcHlyaWdodCAyMDIwIFRoZSBSb29rIEF1dGhvcnMuIEFsbCByaWdodHMgcmVzZXJ2ZWQu
       CgpMaWNlbnNlZCB1bmRlciB0aGUgQXBhY2hlIExpY2Vuc2UsIFZlcnNpb24gMi4wICh0aGUgIkxp
@@ -794,9 +793,7 @@ metadata:
       cm93biIpCiAgICAgICAgZXhjZXB0IEV4ZWN1dGlvbkZhaWx1cmVFeGNlcHRpb24gYXMgZXJyOgog
       ICAgICAgICAgICBwcmludCgiU3VjY2Vzc2Z1bGx5IHRocm93biBlcnJvcjoge30iLmZvcm1hdChl
       cnIpKQo=
-    external.features.ocs.openshift.io/validation: '{"secrets":["rook-ceph-operator-creds",
-      "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints",
-      "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}'
+    external.features.ocs.openshift.io/validation: '{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}'
     features.ocs.openshift.io/enabled: '["external", "minimal_deployment", "encryption"]'
     olm.skipRange: '>=0.0.1 <4.7.0'
     operatorframework.io/cluster-monitoring: "true"
@@ -814,14 +811,12 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: OCS Initialization represents the initial data to be created when
-        the OCS operator is installed.
+    - description: OCS Initialization represents the initial data to be created when the OCS operator is installed.
       displayName: OCS Initialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
-    - description: Storage Cluster represents a OpenShift Container Storage Cluster
-        including Ceph Cluster, NooBaa and all the storage and compute resources required.
+    - description: Storage Cluster represents a OpenShift Container Storage Cluster including Ceph Cluster, NooBaa and all the storage and compute resources required.
       displayName: Storage Cluster
       kind: StorageCluster
       name: storageclusters.ocs.openshift.io
@@ -1007,53 +1002,38 @@ spec:
         path: dbImage
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: CoreResources (optional) overrides the default resource requirements
-          for the server container.
+      - description: CoreResources (optional) overrides the default resource requirements for the server container.
         displayName: Core Resources
         path: coreResources
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
-      - description: DBResources (optional) overrides the default resource requirements
-          for the db container.
+      - description: DBResources (optional) overrides the default resource requirements for the db container.
         displayName: DB Resources
         path: dbResources
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
-      - description: 'DBVolumeResources (optional) overrides the default PVC resource
-          requirements for the database volume. For the time being this field is immutable
-          and can only be set on system creation. This is because volume size updates
-          are only supported for increasing the size, and only if the storage class
-          specifies `allowVolumeExpansion: true`, +immutable.'
+      - description: 'DBVolumeResources (optional) overrides the default PVC resource requirements for the database volume. For the time being this field is immutable and can only be set on system creation. This is because volume size updates are only supported for increasing the size, and only if the storage class specifies `allowVolumeExpansion: true`, +immutable.'
         displayName: Image
         path: dbVolumeResources
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
-      - description: DBStorageClass (optional) overrides the default cluster StorageClass
-          for the database volume. For the time being this field is immutable and
-          can only be set on system creation. This affects where the system stores
-          its database which contains system config, buckets, objects meta-data and
-          mapping file parts to storage locations. +immutable.
+      - description: DBStorageClass (optional) overrides the default cluster StorageClass for the database volume. For the time being this field is immutable and can only be set on system creation. This affects where the system stores its database which contains system config, buckets, objects meta-data and mapping file parts to storage locations. +immutable.
         displayName: DB StorageClass
         path: dbStorageClass
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: PVPoolDefaultStorageClass (optional) overrides the default cluster
-          StorageClass for the pv-pool volumes. This affects where the system stores
-          data chunks (encrypted). Updates to this field will only affect new pv-pools,
-          but updates to existing pools are not supported by the operator.
+      - description: PVPoolDefaultStorageClass (optional) overrides the default cluster StorageClass for the pv-pool volumes. This affects where the system stores data chunks (encrypted). Updates to this field will only affect new pv-pools, but updates to existing pools are not supported by the operator.
         displayName: PV Pool DefaultStorageClass
         path: pvPoolDefaultStorageClass
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: ImagePullSecret (optional) sets a pull secret for the system
-          image.
+      - description: ImagePullSecret (optional) sets a pull secret for the system image.
         displayName: Image Pull Secret
         path: imagePullSecret
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
-    - description: Storage target spec such as aws-s3, s3-compatible, ibm-cos, PV's
-        and more. Used in BacketClass to construct data placement policies.
+    - description: Storage target spec such as aws-s3, s3-compatible, ibm-cos, PV's and more. Used in BacketClass to construct data placement policies.
       displayName: Backing Store
       kind: BackingStore
       name: backingstores.noobaa.io
@@ -1077,8 +1057,7 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Secret refers to a secret that provides the credentials. The
-          secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+      - description: Secret refers to a secret that provides the credentials. The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
         displayName: Secret
         path: awsS3.secret.name
         x-descriptors:
@@ -1130,15 +1109,13 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:pvPool
         - urn:alm:descriptor:com.tectonic.ui:number
-      - description: VolumeResources represents the minimum resources each volume
-          should have.
+      - description: VolumeResources represents the minimum resources each volume should have.
         displayName: Resources
         path: pvPool.resources
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:pvPool
         - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
-      - description: StorageClass is the name of the storage class to use for the
-          PV's.
+      - description: StorageClass is the name of the storage class to use for the PV's.
         displayName: Storage Class
         path: pvPool.storageClass
         x-descriptors:
@@ -1150,15 +1127,13 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Secret refers to a secret that provides the credentials. The
-          secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+      - description: Secret refers to a secret that provides the credentials. The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
         displayName: Secret
         path: s3Compatible.secret.name
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
         - urn:alm:descriptor:io.kubernetes:Secret
-      - description: SignatureVersion specifies the client signature version to use
-          when signing requests.
+      - description: SignatureVersion specifies the client signature version to use when signing requests.
         displayName: Signature Version
         path: s3Compatible.signatureVersion
         x-descriptors:
@@ -1176,15 +1151,13 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Secret refers to a secret that provides the credentials. The
-          secret should define IBM_COS_ACCESS_KEY_ID and IBM_COS_SECRET_ACCESS_KEY.
+      - description: Secret refers to a secret that provides the credentials. The secret should define IBM_COS_ACCESS_KEY_ID and IBM_COS_SECRET_ACCESS_KEY.
         displayName: Secret
         path: IBMCos.secret.name
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
         - urn:alm:descriptor:io.kubernetes:Secret
-      - description: SignatureVersion specifies the client signature version to use
-          when signing requests.
+      - description: SignatureVersion specifies the client signature version to use when signing requests.
         displayName: Signature Version
         path: IBMCos.signatureVersion
         x-descriptors:
@@ -1197,8 +1170,7 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
-    - description: Storage policy spec  tiering, mirroring, spreading. Combines BackingStores.
-        Referenced by ObjectBucketClaims.
+    - description: Storage policy spec  tiering, mirroring, spreading. Combines BackingStores. Referenced by ObjectBucketClaims.
       displayName: Bucket Class
       kind: BucketClass
       name: bucketclasses.noobaa.io
@@ -1216,24 +1188,20 @@ spec:
         name: statefulsets.apps
         version: v1
       specDescriptors:
-      - description: BackingStores is an unordered list of backing store names. The
-          meaning of the list depends on the placement.
+      - description: BackingStores is an unordered list of backing store names. The meaning of the list depends on the placement.
         displayName: Backing Stores
         path: placementPolicy.tiers[0].backingStores[0]
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:placementPolicy
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Placement specifies the type of placement for the tier If empty
-          it should have a single backing store.
+      - description: Placement specifies the type of placement for the tier If empty it should have a single backing store.
         displayName: Placement
         path: placementPolicy.tiers[0].placement
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:placementPolicy
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
-    - description: Claim a bucket just like claiming a PV. Automate you app bucket
-        provisioning by creating OBC with your app deployment. A secret and configmap
-        (name=claim) will be created with access details for the app pods.
+    - description: Claim a bucket just like claiming a PV. Automate you app bucket provisioning by creating OBC with your app deployment. A secret and configmap (name=claim) will be created with access details for the app pods.
       displayName: Object Bucket Claim
       kind: ObjectBucketClaim
       name: objectbucketclaims.objectbucket.io
@@ -1251,8 +1219,7 @@ spec:
         name: statefulsets.apps
         version: v1
       version: v1alpha1
-    - description: Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning
-        information.
+    - description: Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning information.
       displayName: Object Bucket
       kind: ObjectBucket
       name: objectbuckets.objectbucket.io

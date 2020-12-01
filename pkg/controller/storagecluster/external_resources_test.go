@@ -432,6 +432,10 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler ReconcileSt
 	// create and update external secret with new changes
 	extSecret, err := createExternalCephClusterSecret(extRsrcs)
 	assert.NoError(t, err)
+	secret := corev1.Secret{}
+	reconciler.client.Get(nil, types.NamespacedName{Name: externalClusterDetailsSecret, Namespace: ""}, &secret)
+	assert.NoError(t, err)
+	extSecret.ObjectMeta = secret.ObjectMeta
 	err = reconciler.client.Update(nil, extSecret)
 	assert.NoError(t, err)
 

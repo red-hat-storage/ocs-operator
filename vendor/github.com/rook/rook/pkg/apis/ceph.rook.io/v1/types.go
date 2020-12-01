@@ -129,11 +129,25 @@ type ClusterSpec struct {
 
 	// Internal daemon healthchecks and liveness probe
 	HealthCheck CephClusterHealthCheckSpec `json:"healthCheck"`
+
+	// Security represents security settings
+	Security SecuritySpec `json:"security,omitempty"`
 }
 
-// VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
+// SecuritySpec is security spec to include various security items such as kms
+type SecuritySpec struct {
+	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+}
+
+// KeyManagementServiceSpec represent various details of the KMS server
+type KeyManagementServiceSpec struct {
+	ConnectionDetails map[string]string `json:"connectionDetails,omitempty"`
+	TokenSecretName   string            `json:"tokenSecretName,omitempty"`
+}
+
+// CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.4
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.5
 	Image string `json:"image,omitempty"`
 
 	// Whether to allow unsupported versions (do not set to true in production)
@@ -201,6 +215,14 @@ type CephStatus struct {
 	LastChecked    string                       `json:"lastChecked,omitempty"`
 	LastChanged    string                       `json:"lastChanged,omitempty"`
 	PreviousHealth string                       `json:"previousHealth,omitempty"`
+	Capacity       Capacity                     `json:"capacity,omitempty"`
+}
+
+type Capacity struct {
+	TotalBytes     uint64 `json:"bytesTotal,omitempty"`
+	UsedBytes      uint64 `json:"bytesUsed,omitempty"`
+	AvailableBytes uint64 `json:"bytesAvailable,omitempty"`
+	LastUpdated    string `json:"lastUpdated,omitempty"`
 }
 
 type CephStorage struct {
@@ -242,8 +264,6 @@ const (
 	ConditionFailure     ConditionType = "Failure"
 	ConditionUpgrading   ConditionType = "Upgrading"
 	ConditionDeleting    ConditionType = "Deleting"
-	// DefaultFailureDomain for PoolSpec
-	DefaultFailureDomain = "host"
 )
 
 type ClusterState string
@@ -260,7 +280,20 @@ const (
 type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
 	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
+	StretchCluster       *StretchClusterSpec       `json:"stretchCluster,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+type StretchClusterSpec struct {
+	FailureDomainLabel string                   `json:"failureDomainLabel,omitempty"`
+	SubFailureDomain   string                   `json:"subFailureDomain,omitempty"`
+	Zones              []StretchClusterZoneSpec `json:"zones,omitempty"`
+}
+
+type StretchClusterZoneSpec struct {
+	Name                string                    `json:"name,omitempty"`
+	Arbiter             bool                      `json:"arbiter,omitempty"`
+	VolumeClaimTemplate *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 
 // MgrSpec represents options to configure a ceph mgr
@@ -291,8 +324,8 @@ type CrashCollectorSpec struct {
 type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              PoolSpec `json:"spec"`
-	Status            *Status  `json:"status"`
+	Spec              PoolSpec             `json:"spec"`
+	Status            *CephBlockPoolStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -301,6 +334,13 @@ type CephBlockPoolList struct {
 	metav1.ListMeta `json:"metadata"`
 	Items           []CephBlockPool `json:"items"`
 }
+
+const (
+	// DefaultFailureDomain for PoolSpec
+	DefaultFailureDomain = "host"
+	// DefaultCRUSHRoot is the default name of the CRUSH root bucket
+	DefaultCRUSHRoot = "default"
+)
 
 // PoolSpec represents the spec of ceph pool
 type PoolSpec struct {
@@ -327,6 +367,51 @@ type PoolSpec struct {
 
 	// EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
 	EnableRBDStats bool `json:"enableRBDStats"`
+
+	// The mirroring settings
+	Mirroring MirroringSpec `json:"mirroring"`
+
+	// The mirroring statusCheck
+	StatusCheck MirrorHealthCheckSpec `json:"statusCheck"`
+}
+
+type MirrorHealthCheckSpec struct {
+	Mirror HealthCheckSpec `json:"mirror,omitempty"`
+}
+
+type CephBlockPoolStatus struct {
+	Phase                  ConditionType               `json:"phase,omitempty"`
+	MirroringStatus        *MirroringStatusSpec        `json:"mirroringStatus,omitempty"`
+	MirroringInfo          *MirroringInfoSpec          `json:"mirroringInfo,omitempty"`
+	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
+	// Use only info and put mirroringStatus in it?
+	Info map[string]string `json:"info,omitempty"`
+}
+
+// MirroringStatusSpec is the status of the pool mirroring
+type MirroringStatusSpec struct {
+	Summary     SummarySpec `json:"summary,omitempty"`
+	LastChecked string      `json:"lastChecked,omitempty"`
+	LastChanged string      `json:"lastChanged,omitempty"`
+	Details     string      `json:"details,omitempty"`
+}
+
+type SummarySpec map[string]interface{}
+
+// MirroringInfoSpec is the status of the pool mirroring
+type MirroringInfoSpec struct {
+	Summary     SummarySpec `json:"summary,omitempty"`
+	LastChecked string      `json:"lastChecked,omitempty"`
+	LastChanged string      `json:"lastChanged,omitempty"`
+	Details     string      `json:"details,omitempty"`
+}
+
+// SnapshotScheduleStatus is the status of the snapshot schedule
+type SnapshotScheduleStatusSpec struct {
+	Summary     SummarySpec `json:"summary,omitempty"`
+	LastChecked string      `json:"lastChecked,omitempty"`
+	LastChanged string      `json:"lastChanged,omitempty"`
+	Details     string      `json:"details,omitempty"`
 }
 
 type Status struct {
@@ -343,6 +428,33 @@ type ReplicatedSpec struct {
 
 	// RequireSafeReplicaSize if false allows you to set replica 1
 	RequireSafeReplicaSize bool `json:"requireSafeReplicaSize"`
+
+	// ReplicasPerFailureDomain the number of replica in the specified failure domain
+	ReplicasPerFailureDomain uint `json:"replicasPerFailureDomain,omitempty"`
+
+	// SubFailureDomain the name of the sub-failure domain
+	SubFailureDomain string `json:"subFailureDomain,omitempty"`
+}
+
+// MirroringSpec represents the setting for a mirrored pool
+type MirroringSpec struct {
+	// Enabled whether this pool is mirrored or not
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Mode is the mirroring mode: either "pool" or "image"
+	Mode string `json:"mode,omitempty"`
+
+	// SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
+	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+}
+
+// SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
+type SnapshotScheduleSpec struct {
+	// Interval represent the periodicity of the snapshot.
+	Interval string `json:"interval,omitempty"`
+
+	// StartTime indicates when to start the snapshot
+	StartTime string `json:"startTime,omitempty"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool
@@ -386,6 +498,9 @@ type FilesystemSpec struct {
 
 	// Preserve pools on filesystem deletion
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
+
+	// Preserve the fs in the cluster on CephFilesystem CR deletion. Setting this to true automatically implies PreservePoolsOnDelete is true.
+	PreserveFilesystemOnDelete bool `json:"preserveFilesystemOnDelete"`
 
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
@@ -475,9 +590,6 @@ type GatewaySpec struct {
 
 	// The number of pods in the rgw replicaset. If "allNodes" is specified, a daemonset is created.
 	Instances int32 `json:"instances"`
-
-	// Whether the rgw pods should be started as a daemonset on all nodes
-	AllNodes bool `json:"allNodes"`
 
 	// The name of the secret that stores the ssl certificate for secure rgw connections
 	SSLCertificateRef string `json:"sslCertificateRef"`
@@ -688,6 +800,9 @@ type GaneshaServerSpec struct {
 
 	// PriorityClassName sets the priority class on the pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// LogLevel set logging level
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code
@@ -708,9 +823,15 @@ type DisruptionManagementSpec struct {
 	ManagePodBudgets bool `json:"managePodBudgets,omitempty"`
 
 	// OSDMaintenanceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
-	// it only works if managePodBudgetss is true.
+	// it only works if managePodBudgets is true.
 	// the default is 30 minutes
 	OSDMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
+
+	// PGHealthCheckTimeout is the time (in minutes) that the operator will wait for the placement groups to become
+	// healthy (active+clean) after a drain was completed and OSDs came back up. Rook will continue with the next drain
+	// if the timeout exceeds. It only works if managePodBudgets is true.
+	// No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.
+	PGHealthCheckTimeout time.Duration `json:"pgHealthCheckTimeout,omitempty"`
 
 	// This enables management of machinedisruptionbudgets
 	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`
@@ -783,6 +904,9 @@ type RBDMirroringSpec struct {
 	// Count represents the number of rbd mirror instance to run
 	Count int `json:"count"`
 
+	// RBDMirroringPeerSpec represents the peers spec
+	Peers RBDMirroringPeerSpec `json:"peers,omitempty"`
+
 	// The affinity to place the rgw pods (default is to place on any available node)
 	Placement rookv1.Placement `json:"placement"`
 
@@ -797,6 +921,11 @@ type RBDMirroringSpec struct {
 
 	// PriorityClassName sets priority class on the rbd mirror pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+type RBDMirroringPeerSpec struct {
+	// SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
+	SecretNames []string `json:"secretNames,omitempty"`
 }
 
 // IPFamilyType represents the single stack Ipv4 or Ipv6 protocol.

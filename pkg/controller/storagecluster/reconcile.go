@@ -14,7 +14,6 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
 	"github.com/openshift/ocs-operator/version"
-	"github.com/operator-framework/operator-sdk/pkg/ready"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -300,7 +299,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 		// If no operator whose conditions we are watching reports an error, then it is safe
 		// to set readiness.
-		r := ready.NewFileReady()
+		r := statusutil.NewFileReady()
 		err = r.Set()
 		if err != nil {
 			reqLogger.Error(err, "Failed to mark operator ready")
@@ -333,7 +332,7 @@ func (r *ReconcileStorageCluster) Reconcile(request reconcile.Request) (reconcil
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-			r := ready.NewFileReady()
+			r := statusutil.NewFileReady()
 			err = r.Unset()
 			if err != nil {
 				reqLogger.Error(err, "Failed to mark operator unready")

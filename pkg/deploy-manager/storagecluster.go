@@ -1,6 +1,7 @@
 package deploymanager
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -159,7 +160,7 @@ func (t *DeployManager) getStorageCluster() (*ocsv1.StorageCluster, error) {
 		Namespace(InstallNamespace).
 		Name(DefaultStorageClusterName).
 		VersionedParams(&metav1.GetOptions{}, t.parameterCodec).
-		Do().
+		Do(context.TODO()).
 		Into(sc)
 
 	if err != nil {
@@ -183,7 +184,7 @@ func (t *DeployManager) createStorageCluster() (*ocsv1.StorageCluster, error) {
 		Namespace(InstallNamespace).
 		Name(sc.Name).
 		Body(sc).
-		Do().
+		Do(context.TODO()).
 		Into(newSc)
 
 	if err != nil {
@@ -207,7 +208,7 @@ func (t *DeployManager) deleteStorageCluster() error {
 		Name(sc.GetName()).
 		Namespace(sc.GetNamespace()).
 		VersionedParams(&metav1.GetOptions{}, t.GetParameterCodec()).
-		DoRaw()
+		DoRaw(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -216,7 +217,7 @@ func (t *DeployManager) deleteStorageCluster() error {
 		Resource("storageclusters").
 		Name(sc.GetName()).
 		Namespace(sc.GetNamespace()).
-		DoRaw()
+		DoRaw(context.TODO())
 	return err
 }
 
@@ -292,7 +293,7 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 		}
 
 		// We expect at least 3 osd deployments to be online and available
-		deployments, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
+		deployments, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
@@ -314,13 +315,13 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 		}
 
 		// We expect a canary pod for each osd deployment
-		pods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-drain-canary"})
+		pods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-drain-canary"})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
 		}
 
-		osdPods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
+		osdPods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
@@ -346,7 +347,7 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 		}
 
 		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running
-		pods, err = t.k8sClient.CoreV1().Pods(InstallNamespace).List(metav1.ListOptions{LabelSelector: "noobaa-core=noobaa"})
+		pods, err = t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "noobaa-core=noobaa"})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
@@ -375,7 +376,7 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 }
 
 func (t *DeployManager) labelWorkerNodes() error {
-	nodes, err := t.k8sClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
+	nodes, err := t.k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
 	if err != nil {
 		return err
 	}
@@ -400,7 +401,7 @@ func (t *DeployManager) labelWorkerNodes() error {
 			return err
 		}
 
-		_, err = t.k8sClient.CoreV1().Nodes().Patch(node.Name, types.StrategicMergePatchType, patch)
+		_, err = t.k8sClient.CoreV1().Nodes().Patch(context.TODO(), node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}

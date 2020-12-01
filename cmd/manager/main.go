@@ -19,10 +19,8 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller"
 	"github.com/openshift/ocs-operator/pkg/controller/ocsinitialization"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-	"github.com/operator-framework/operator-sdk/pkg/leader"
-	"github.com/operator-framework/operator-sdk/pkg/ready"
-	sdkVersion "github.com/operator-framework/operator-sdk/version"
+	"github.com/openshift/ocs-operator/pkg/controller/util"
+	"github.com/operator-framework/operator-lib/leader"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -48,7 +46,6 @@ var isDevelopmentEnv bool
 func printVersion() {
 	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
-	log.Info(fmt.Sprintf("operator-sdk Version: %v", sdkVersion.Version))
 }
 
 func main() {
@@ -64,7 +61,9 @@ func main() {
 	printVersion()
 	log.Info(fmt.Sprintf("Running in development mode: %v", isDevelopmentEnv))
 
-	namespace, err := k8sutil.GetWatchNamespace()
+	// TODO: Remove once migrated to new project structure based on Kubebuilder
+	// The way operator namespace is handled is different in newer version.
+	namespace, err := util.GetWatchNamespace()
 	if err != nil {
 		log.Error(err, "failed to get watch namespace")
 		os.Exit(1)
@@ -80,7 +79,9 @@ func main() {
 	// Become the leader before proceeding
 	leader.Become(context.TODO(), "ocs-operator-lock")
 
-	r := ready.NewFileReady()
+	// TODO: Remove once migrated to new project structure based on Kubebuilder
+	// The way Readiness is handled is different in newer version.
+	r := util.NewFileReady()
 	err = r.Set()
 	if err != nil {
 		log.Error(err, "")

@@ -1,4 +1,4 @@
-//go:generate mockgen -source client.go -destination operatorclientmocks/mock_client.go -package operatorclientmocks
+//go:generate go run github.com/golang/mock/mockgen -source client.go -destination operatorclientmocks/mock_client.go -package operatorclientmocks
 package operatorclient
 
 import (
@@ -19,7 +19,7 @@ import (
 
 type ClientInterface interface {
 	KubernetesInterface() kubernetes.Interface
-	ApiextensionsV1beta1Interface() apiextensions.Interface
+	ApiextensionsInterface() apiextensions.Interface
 	ApiregistrationV1Interface() apiregistration.Interface
 	APIServiceClient
 	CustomResourceClient
@@ -31,6 +31,7 @@ type ClientInterface interface {
 	ClusterRoleBindingClient
 	ClusterRoleClient
 	DeploymentClient
+	ConfigMapClient
 }
 
 // CustomResourceClient contains methods for the Custom Resource.
@@ -127,6 +128,14 @@ type DeploymentClient interface {
 	ListDeploymentsWithLabels(namespace string, labels labels.Set) (*appsv1.DeploymentList, error)
 }
 
+// ConfigMapClient contains methods for the ConfigMap resource
+type ConfigMapClient interface {
+	CreateConfigMap(*v1.ConfigMap) (*v1.ConfigMap, error)
+	GetConfigMap(namespace, name string) (*v1.ConfigMap, error)
+	UpdateConfigMap(modified *v1.ConfigMap) (*v1.ConfigMap, error)
+	DeleteConfigMap(namespace, name string, options *metav1.DeleteOptions) error
+}
+
 // Interface assertion.
 var _ ClientInterface = &Client{}
 
@@ -192,8 +201,8 @@ func (c *Client) KubernetesInterface() kubernetes.Interface {
 	return c.Interface
 }
 
-// ApiextensionsV1beta1Interface returns the API extension interface.
-func (c *Client) ApiextensionsV1beta1Interface() apiextensions.Interface {
+// ApiextensionsInterface returns the API extension interface.
+func (c *Client) ApiextensionsInterface() apiextensions.Interface {
 	return c.extInterface
 }
 
