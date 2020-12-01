@@ -1456,6 +1456,19 @@ spec:
                               type: string
                           type: object
                       type: object
+                    deviceType:
+                      description: DeviceType is the value of device type in this
+                        StorageDeviceSet. It can have one of the three values (SSD,
+                        HDD, NVMe)
+                      enum:
+                      - SSD
+                      - ssd
+                      - HDD
+                      - hdd
+                      - NVMe
+                      - NVME
+                      - nvme
+                      type: string
                     metadataPVCTemplate:
                       description: PersistentVolumeClaim is a user's request for and
                         claim to a persistent volume
