@@ -455,7 +455,11 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 
 			if ds.MetadataPVCTemplate != nil {
 				ds.MetadataPVCTemplate.ObjectMeta.Name = metadataPVCName
-				set.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{ds.DataPVCTemplate, *ds.MetadataPVCTemplate}
+				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, *ds.MetadataPVCTemplate)
+			}
+			if ds.WalPVCTemplate != nil {
+				ds.WalPVCTemplate.ObjectMeta.Name = walPVCName
+				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, *ds.WalPVCTemplate)
 			}
 
 			storageClassDeviceSets = append(storageClassDeviceSets, set)

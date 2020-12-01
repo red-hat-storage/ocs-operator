@@ -51,6 +51,8 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
 	//Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
+	// Name of WalPVCTemplate
+	walPVCName = "wal"
 
 	// ReconcileStrategyUnknown is the same as default
 	ReconcileStrategyUnknown ReconcileStrategy = ""
@@ -414,6 +416,11 @@ func (r *ReconcileStorageCluster) validateStorageDeviceSets(sc *ocsv1.StorageClu
 		if ds.MetadataPVCTemplate != nil {
 			if ds.MetadataPVCTemplate.Spec.StorageClassName == nil || *ds.MetadataPVCTemplate.Spec.StorageClassName == "" {
 				return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified for metadataPVCTemplate", i)
+			}
+		}
+		if ds.WalPVCTemplate != nil {
+			if ds.WalPVCTemplate.Spec.StorageClassName == nil || *ds.WalPVCTemplate.Spec.StorageClassName == "" {
+				return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified for walPVCTemplate", i)
 			}
 		}
 		if ds.DeviceType != "" {

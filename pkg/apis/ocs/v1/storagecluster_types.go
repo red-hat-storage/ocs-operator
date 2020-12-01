@@ -124,6 +124,7 @@ type StorageDeviceSet struct {
 	Config              StorageDeviceSetConfig        `json:"config,omitempty"`
 	DataPVCTemplate     corev1.PersistentVolumeClaim  `json:"dataPVCTemplate"`
 	MetadataPVCTemplate *corev1.PersistentVolumeClaim `json:"metadataPVCTemplate,omitempty"`
+	WalPVCTemplate      *corev1.PersistentVolumeClaim `json:"walPVCTemplate,omitempty"`
 }
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
