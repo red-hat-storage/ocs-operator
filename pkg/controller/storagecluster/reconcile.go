@@ -49,7 +49,7 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
 	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
-	//Name of MetadataPVCTemplate
+	// Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
 	// Name of WalPVCTemplate
 	walPVCName = "wal"
