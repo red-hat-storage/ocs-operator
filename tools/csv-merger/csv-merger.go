@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -854,59 +853,30 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 		crdBytes = []byte(strings.ReplaceAll(string(crdBytes), " --- ", " "))
 		entries := strings.Split(string(crdBytes), "---")
 		for _, entry := range entries {
-			switch {
-			case strings.Contains(crdFile.Name(), "noobaa-crd"):
-				crd := extv1beta1.CustomResourceDefinition{}
-				err = yaml.Unmarshal([]byte(entry), &crd)
-				if err != nil {
-					panic(err)
-				}
-				if crd.Spec.Names.Singular == "" {
-					// filters out empty entries caused by starting file with '---' separator
-					continue
-				}
-				if requiredCrds[crd.Name] != nil {
-					// filter out required entries
-					continue
-				}
-				if ownedCrds[crd.Name] == nil {
-					fmt.Printf("WARNING: CRD is not owned and not required %s\n", crd.Name)
-				}
-				outputFile := filepath.Join(*outputDir, fmt.Sprintf("%s.crd.yaml", crd.Spec.Names.Singular))
-				writer := strings.Builder{}
-				marshallObject(crd, &writer, nil)
-				err := ioutil.WriteFile(outputFile, []byte(writer.String()), 0644)
-				if err != nil {
-					panic(err)
-				}
-				fmt.Printf("CRD written to %s\n", outputFile)
-
-			default:
-				crd := extv1.CustomResourceDefinition{}
-				err = yaml.Unmarshal([]byte(entry), &crd)
-				if err != nil {
-					panic(err)
-				}
-				if crd.Spec.Names.Singular == "" {
-					// filters out empty entries caused by starting file with '---' separator
-					continue
-				}
-				if requiredCrds[crd.Name] != nil {
-					// filter out required entries
-					continue
-				}
-				if ownedCrds[crd.Name] == nil {
-					fmt.Printf("WARNING: CRD is not owned and not required %s\n", crd.Name)
-				}
-				outputFile := filepath.Join(*outputDir, fmt.Sprintf("%s.crd.yaml", crd.Spec.Names.Singular))
-				writer := strings.Builder{}
-				marshallObject(crd, &writer, nil)
-				err := ioutil.WriteFile(outputFile, []byte(writer.String()), 0644)
-				if err != nil {
-					panic(err)
-				}
-				fmt.Printf("CRD written to %s\n", outputFile)
+			crd := extv1.CustomResourceDefinition{}
+			err = yaml.Unmarshal([]byte(entry), &crd)
+			if err != nil {
+				panic(err)
 			}
+			if crd.Spec.Names.Singular == "" {
+				// filters out empty entries caused by starting file with '---' separator
+				continue
+			}
+			if requiredCrds[crd.Name] != nil {
+				// filter out required entries
+				continue
+			}
+			if ownedCrds[crd.Name] == nil {
+				fmt.Printf("WARNING: CRD is not owned and not required %s\n", crd.Name)
+			}
+			outputFile := filepath.Join(*outputDir, fmt.Sprintf("%s.crd.yaml", crd.Spec.Names.Singular))
+			writer := strings.Builder{}
+			marshallObject(crd, &writer, nil)
+			err := ioutil.WriteFile(outputFile, []byte(writer.String()), 0644)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("CRD written to %s\n", outputFile)
 		}
 	}
 }

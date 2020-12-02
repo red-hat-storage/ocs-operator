@@ -18,7 +18,7 @@ github.com/cespare/xxhash/v2
 github.com/coreos/go-systemd/journal
 # github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 github.com/coreos/pkg/capnslog
-# github.com/coreos/prometheus-operator v0.38.0
+# github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc
 github.com/coreos/prometheus-operator/pkg/apis/monitoring
 github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1
 # github.com/davecgh/go-spew v1.1.1
@@ -111,7 +111,7 @@ github.com/mitchellh/mapstructure
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
-# github.com/noobaa/noobaa-operator/v2 v2.3.0
+# github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201201135513-296cf67a20c9
 github.com/noobaa/noobaa-operator/v2/pkg/apis
 github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1
 # github.com/nxadm/tail v1.4.4
@@ -176,13 +176,13 @@ github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fa
 # github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
 github.com/openshift/custom-resource-status/conditions/v1
 github.com/openshift/custom-resource-status/objectreferences/v1
-# github.com/operator-framework/api v0.3.20
+# github.com/operator-framework/api v0.3.22
 github.com/operator-framework/api/pkg/lib/version
 github.com/operator-framework/api/pkg/operators
 github.com/operator-framework/api/pkg/operators/v1
 github.com/operator-framework/api/pkg/operators/v1alpha1
 github.com/operator-framework/api/pkg/operators/v1alpha2
-# github.com/operator-framework/operator-lib v0.1.0
+# github.com/operator-framework/operator-lib v0.2.0
 github.com/operator-framework/operator-lib/leader
 # github.com/operator-framework/operator-lifecycle-manager v0.17.0
 github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned

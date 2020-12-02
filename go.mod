@@ -4,15 +4,14 @@ go 1.13
 
 require (
 	github.com/RHsyseng/operator-utils v1.4.2
-	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/coreos/prometheus-operator v0.38.0
+	github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.2.0
 	github.com/go-openapi/spec v0.19.8
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2
-	github.com/noobaa/noobaa-operator/v2 v2.3.0
+	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201201135513-296cf67a20c9
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.14.0
 	github.com/onsi/gomega v1.10.1
@@ -20,8 +19,8 @@ require (
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
 	github.com/openshift/client-go v0.0.0-20200929181438-91d71ef2122c
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
-	github.com/operator-framework/api v0.3.20
-	github.com/operator-framework/operator-lib v0.1.0
+	github.com/operator-framework/api v0.3.22
+	github.com/operator-framework/operator-lib v0.2.0
 	github.com/operator-framework/operator-lifecycle-manager v0.17.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.43.0
 	github.com/prometheus/client_golang v1.8.0
