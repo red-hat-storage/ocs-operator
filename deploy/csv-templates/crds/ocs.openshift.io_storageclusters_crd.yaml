@@ -388,7 +388,7 @@ spec:
                     properties:
                       additionalVirtualHosts:
                         description: 'AdditionalVirtualHosts (optional) provide a
-                          list of additional hostnames (on top of the buildin names
+                          list of additional hostnames (on top of the builtin names
                           defined by the cluster: service name, elb name, route name)
                           to be used as virtual hosts by the the endpoints in the
                           endpoint deployment'

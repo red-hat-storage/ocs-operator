@@ -1244,7 +1244,7 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
-    - description: Storage target spec such as aws-s3, s3-compatible, ibm-cos, PV's and more. Used in BacketClass to construct data placement policies.
+    - description: Storage target spec such as aws-s3, s3-compatible, ibm-cos, PV's and more. Used in BucketClass to construct data placement policies.
       displayName: Backing Store
       kind: BackingStore
       name: backingstores.noobaa.io
@@ -2292,7 +2292,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: ceph/ceph:v14.2
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.5.0
+                  value: noobaa/noobaa-core:master-20201130
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
@@ -2436,10 +2436,10 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.5.0
+                  value: noobaa/noobaa-core:master-20201130
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
-                image: noobaa/noobaa-operator:2.3.0
+                image: noobaa/noobaa-operator:master-20201201
                 name: noobaa-operator
                 resources:
                   limits:
@@ -2794,9 +2794,9 @@ spec:
     name: rook-container
   - image: ceph/ceph:v14.2
     name: ceph-container
-  - image: noobaa/noobaa-operator:2.3.0
+  - image: noobaa/noobaa-operator:master-20201201
     name: noobaa-operator
-  - image: noobaa/noobaa-core:5.5.0
+  - image: noobaa/noobaa-core:master-20201130
     name: noobaa-core
   - image: centos/mongodb-36-centos7
     name: noobaa-db
