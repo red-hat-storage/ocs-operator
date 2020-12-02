@@ -314,40 +314,8 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 			lastReason = fmt.Sprintf("%d/%d expected OSDs are online", osdsOnline, MinOSDsCount)
 		}
 
-		// We expect a canary pod for each osd deployment
-		pods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-drain-canary"})
-		if err != nil {
-			lastReason = fmt.Sprintf("%v", err)
-			return false, nil
-		}
-
-		osdPods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
-		if err != nil {
-			lastReason = fmt.Sprintf("%v", err)
-			return false, nil
-		}
-
-		// ensure we have a canary pod for every node an OSD runs on
-		for _, osdPod := range osdPods.Items {
-			if osdPod.Status.Phase != k8sv1.PodRunning {
-				continue
-			}
-			nodeName := osdPod.Spec.NodeName
-			canaryOnline := false
-			for _, pod := range pods.Items {
-				if pod.Status.Phase == k8sv1.PodRunning && pod.Spec.NodeName == nodeName {
-					canaryOnline = true
-					break
-				}
-			}
-			if !canaryOnline {
-				lastReason = fmt.Sprintf("Waiting on canary pod for node %s", nodeName)
-				return false, nil
-			}
-		}
-
 		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running
-		pods, err = t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "noobaa-core=noobaa"})
+		pods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "noobaa-core=noobaa"})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil

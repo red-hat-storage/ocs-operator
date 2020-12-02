@@ -13,14 +13,14 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - JSONPath: .metadata.creationTimestamp
+    - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    - JSONPath: .status.phase
-      description: Current Phase
+    - description: Current Phase
+      jsonPath: .status.phase
       name: Phase
       type: string
-    - JSONPath: .metadata.creationTimestamp
+    - jsonPath: .metadata.creationTimestamp
       name: Created At
       type: string
     name: v1
