@@ -453,6 +453,11 @@ func (in *StorageDeviceSet) DeepCopyInto(out *StorageDeviceSet) {
 		*out = new(corev1.PersistentVolumeClaim)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.WalPVCTemplate != nil {
+		in, out := &in.WalPVCTemplate, &out.WalPVCTemplate
+		*out = new(corev1.PersistentVolumeClaim)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

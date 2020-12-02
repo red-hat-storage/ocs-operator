@@ -43,7 +43,7 @@ type StorageClusterSpec struct {
 	// If enabled, sets the failureDomain to host, allowing devices to be
 	// distributed evenly across all nodes, regardless of distribution in zones
 	// or racks.
-	FlexibleScaling  bool     `json:"flexibleScaling,omitempty"`
+	FlexibleScaling bool `json:"flexibleScaling,omitempty"`
 }
 
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
@@ -124,6 +124,7 @@ type StorageDeviceSet struct {
 	Config              StorageDeviceSetConfig        `json:"config,omitempty"`
 	DataPVCTemplate     corev1.PersistentVolumeClaim  `json:"dataPVCTemplate"`
 	MetadataPVCTemplate *corev1.PersistentVolumeClaim `json:"metadataPVCTemplate,omitempty"`
+	WalPVCTemplate      *corev1.PersistentVolumeClaim `json:"walPVCTemplate,omitempty"`
 }
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet

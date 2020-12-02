@@ -30,6 +30,7 @@ const (
 	pathLabelSelector        = "/spec/labelSelector"
 	pathPlacement            = "/spec/placement"
 	pathMetadataPVCTemplate  = "/spec/storageDeviceSets/metadataPVCTemplate/"
+	pathWalPVCTemplate       = "/spec/storageDeviceSets/walPVCTemplate/"
 )
 
 func TestSampleCustomResources(t *testing.T) {
@@ -90,6 +91,7 @@ func TestCompleteCRD(t *testing.T) {
 			pathLabelSelector,
 			pathPlacement,
 			pathMetadataPVCTemplate,
+			pathWalPVCTemplate,
 		}
 		for _, missing := range missingEntries {
 			skipAsOmission := false
