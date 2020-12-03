@@ -21,7 +21,7 @@ var (
 		},
 		"mon": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("500m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Limits: corev1.ResourceList{
@@ -31,7 +31,7 @@ var (
 		},
 		"mds": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceCPU:    resource.MustParse("1"),
 				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 			Limits: corev1.ResourceList{
@@ -41,7 +41,7 @@ var (
 		},
 		"rgw": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 			Limits: corev1.ResourceList{
@@ -51,7 +51,7 @@ var (
 		},
 		"mgr": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("500m"),
 				corev1.ResourceMemory: resource.MustParse("3Gi"),
 			},
 			Limits: corev1.ResourceList{
@@ -61,7 +61,7 @@ var (
 		},
 		"noobaa-core": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("500m"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 			Limits: corev1.ResourceList{
@@ -71,7 +71,7 @@ var (
 		},
 		"noobaa-db": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("500m"),
+				corev1.ResourceCPU:    resource.MustParse("250m"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 			Limits: corev1.ResourceList{
@@ -86,7 +86,7 @@ var (
 		},
 		"noobaa-endpoint": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("500m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Limits: corev1.ResourceList{
