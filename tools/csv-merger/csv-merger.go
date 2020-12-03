@@ -648,6 +648,11 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	if *skipRange != "" {
 		ocsCSV.Annotations["olm.skipRange"] = *skipRange
 	}
+
+	// apiextensions/v1 is available only on Kubernetes 1.16+
+	// This ensures that we don't try to install on lower versions ok K8s
+	ocsCSV.Spec.MinKubeVersion = "1.16.0"
+
 	// Feature gating for Console. The array values are unique identifiers provided by the console.
 	// This can be used to enable/disable console support for any supported feature
 	// Example: "features.ocs.openshift.io/enabled": `["external", "foo1", "foo2", ...]`
