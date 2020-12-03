@@ -35,6 +35,7 @@ var DeployManager *deploymanager.DeployManager
 var SuiteFailed = false
 
 var ocsClusterUninstall bool
+var arbiterEnabled bool
 
 func init() {
 	flag.StringVar(&OcsRegistryImage, "ocs-registry-image", "", "The ocs-registry container image to use in the deployment")
@@ -42,6 +43,7 @@ func init() {
 	flag.StringVar(&UpgradeFromOcsRegistryImage, "upgrade-from-ocs-registry-image", "", "The ocs-registry container image to upgrade from in the deployment")
 	flag.StringVar(&UpgradeFromOcsSubscriptionChannel, "upgrade-from-ocs-subscription-channel", "", "The subscription channel to upgrade from")
 	flag.BoolVar(&ocsClusterUninstall, "ocs-cluster-uninstall", true, "Uninstall the ocs cluster after tests completion")
+	flag.BoolVar(&arbiterEnabled, "arbiter", false, "Deploy the StorageCluster with arbiter enabled")
 
 	flag.Parse()
 
@@ -49,5 +51,9 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize DeployManager: %v", err))
 	}
+
 	DeployManager = dm
+	if arbiterEnabled {
+		DeployManager.EnableArbiter()
+	}
 }
