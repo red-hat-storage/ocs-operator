@@ -8,7 +8,7 @@ metadata:
   namespace: openshift-storage
 spec:
   groups:
-  - name: ocs_telemetry.rules
+  - name: ocs-telemeter.rules
     rules:
     - expr: "sum(\n  max(\n    (\n      kube_pod_container_resource_requests_cpu_cores{namespace=\"openshift-storage\",
         pod =~\"(noobaa-core.*|noobaa-db.*|rook-ceph-(mon|osd|mgr|mds|rgw).*)\"} *
