@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -60,7 +61,10 @@ func (r *ReconcileStorageCluster) setRookCSICephFS(
 	return r.client.Update(context.TODO(), rookCephOperatorConfig)
 }
 
-func checkRGWEndpoint(endpoint string, timeout time.Duration) error {
+func checkEndpointReachable(endpoint string, timeout time.Duration) error {
+	rxp := regexp.MustCompile(`^http[s]?://`)
+	// remove any http or https protocols from the endpoint string
+	endpoint = rxp.ReplaceAllString(endpoint, "")
 	con, err := net.DialTimeout("tcp", endpoint, timeout)
 	if err != nil {
 		return err
@@ -286,7 +290,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				scc = newCephBlockPoolStorageClassConfiguration(instance)
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
-				if err := checkRGWEndpoint(rgwEndpoint, 5*time.Second); err != nil {
+				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
 					reqLogger.Error(err, fmt.Sprintf("RGW endpoint, %q, is not reachable", rgwEndpoint))
 					return err
 				}
