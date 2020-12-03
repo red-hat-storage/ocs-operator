@@ -9,8 +9,7 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // Ingress holds cluster-wide information about ingress, including the default ingress domain
 // used for routes. The canonical name is `cluster`.
 type Ingress struct {
-	metav1.TypeMeta `json:",inline"`
-	// Standard object's metadata.
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec holds user settable values for configuration
@@ -32,6 +31,16 @@ type IngressSpec struct {
 	//
 	// Once set, changing domain is not currently supported.
 	Domain string `json:"domain"`
+
+	// appsDomain is an optional domain to use instead of the one specified
+	// in the domain field when a Route is created without specifying an explicit
+	// host. If appsDomain is nonempty, this value is used to generate default
+	// host values for Route. Unlike domain, appsDomain may be modified after
+	// installation.
+	// This assumes a new ingresscontroller has been setup with a wildcard
+	// certificate.
+	// +optional
+	AppsDomain string `json:"appsDomain,omitempty"`
 }
 
 type IngressStatus struct {
@@ -41,7 +50,7 @@ type IngressStatus struct {
 
 type IngressList struct {
 	metav1.TypeMeta `json:",inline"`
-	// Standard object's metadata.
 	metav1.ListMeta `json:"metadata"`
-	Items           []Ingress `json:"items"`
+
+	Items []Ingress `json:"items"`
 }
