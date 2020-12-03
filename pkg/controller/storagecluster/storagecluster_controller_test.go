@@ -286,6 +286,21 @@ func TestThrottleStorageDevices(t *testing.T) {
 			expectedSlow:   false,
 			expectedFast:   false,
 		},
+		{
+			label: "Case 3", // storageclass is managed-premium
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "managed-premium",
+				},
+				Provisioner: string(AzureDisk),
+				Parameters: map[string]string{
+					"type": "managed-premium",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSlow:   false,
+			expectedFast:   true,
+		},
 	}
 
 	for _, tc := range testcases {
