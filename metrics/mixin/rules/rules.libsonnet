@@ -2,7 +2,7 @@
   prometheusRules+:: {
     groups+: [
       {
-        name: 'ocs_telemetry.rules',
+        name: 'ocs-telemeter.rules',
         rules: [
           {
             record: 'ocs:node_num_cpu:sum',
