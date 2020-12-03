@@ -43,6 +43,8 @@ func init() {
 	flag.StringVar(&UpgradeFromOcsSubscriptionChannel, "upgrade-from-ocs-subscription-channel", "", "The subscription channel to upgrade from")
 	flag.BoolVar(&ocsClusterUninstall, "ocs-cluster-uninstall", true, "Uninstall the ocs cluster after tests completion")
 
+	flag.Parse()
+
 	dm, err := deploymanager.NewDeployManager()
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize DeployManager: %v", err))

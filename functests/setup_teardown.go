@@ -1,14 +1,11 @@
 package functests
 
 import (
-	"flag"
-
 	"github.com/onsi/gomega"
 )
 
 // BeforeTestSuiteSetup is the function called to initialize the test environment
 func BeforeTestSuiteSetup() {
-	flag.Parse()
 
 	debug("BeforeTestSuite: deploying OCS\n")
 	err := DeployManager.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
@@ -28,7 +25,6 @@ func BeforeTestSuiteSetup() {
 
 // AfterTestSuiteCleanup is the function called to tear down the test environment
 func AfterTestSuiteCleanup() {
-	flag.Parse()
 
 	debug("\n------------------------------\n")
 
@@ -52,7 +48,6 @@ func AfterTestSuiteCleanup() {
 
 // AfterUpgradeTestSuiteCleanup is the function called to tear down the test environment after upgrade failure
 func AfterUpgradeTestSuiteCleanup() {
-	flag.Parse()
 
 	err := DeployManager.DeleteNamespaceAndWait(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
@@ -64,7 +59,6 @@ func AfterUpgradeTestSuiteCleanup() {
 
 // BeforeUpgradeTestSuiteSetup is the function called to initialize the test environment to the upgrade_from version
 func BeforeUpgradeTestSuiteSetup() {
-	flag.Parse()
 
 	err := DeployManager.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())

@@ -1,8 +1,6 @@
 package ocs_test
 
 import (
-	"flag"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -12,7 +10,6 @@ import (
 var _ = PDescribe("Cluster upgrade", ClusterUpgradeTest)
 
 func ClusterUpgradeTest() {
-	flag.Parse()
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
