@@ -10,8 +10,8 @@ GINKGO=$GOBIN/ginkgo
 
 if ! [ -x "$GINKGO" ]; then
 	echo "Retrieving ginkgo and gomega build dependencies"
-	go get github.com/onsi/ginkgo/ginkgo
-	go get github.com/onsi/gomega/...
+	go install github.com/onsi/ginkgo/ginkgo
+	go install github.com/onsi/gomega/...
 else
 	echo "GINKO binary found at $GINKGO"
 fi
