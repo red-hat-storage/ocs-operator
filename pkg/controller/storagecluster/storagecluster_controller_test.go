@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -24,8 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sVersion "k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
@@ -125,7 +126,7 @@ var mockNodeList = &corev1.NodeList{
 		Kind: "NodeList",
 	},
 	Items: []corev1.Node{
-		corev1.Node{
+		{
 			TypeMeta: metav1.TypeMeta{
 				Kind: "Node",
 			},
@@ -138,7 +139,7 @@ var mockNodeList = &corev1.NodeList{
 				},
 			},
 		},
-		corev1.Node{
+		{
 			TypeMeta: metav1.TypeMeta{
 				Kind: "Node",
 			},
@@ -151,7 +152,7 @@ var mockNodeList = &corev1.NodeList{
 				},
 			},
 		},
-		corev1.Node{
+		{
 			TypeMeta: metav1.TypeMeta{
 				Kind: "Node",
 			},
@@ -442,7 +443,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	assert.Equal(t, reconcile.Result{}, result)
 
 	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
+	err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
 	assert.Len(t, actual.Status.Conditions, 5)
@@ -604,7 +605,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	assert.Equal(t, reconcile.Result{}, result)
 
 	actual := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
+	err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
 	assert.Len(t, actual.Status.Conditions, 5)
@@ -636,27 +637,27 @@ func TestStorageClusterFinalizer(t *testing.T) {
 
 	// Ensure finalizer exists in the beginning
 	sc := &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, sc)
+	err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
 	assert.NoError(t, err)
 	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 1)
 
 	noobaa := &v1alpha1.NooBaa{}
-	err = reconciler.client.Get(nil, namespacedName, noobaa)
+	err = reconciler.client.Get(context.TODO(), namespacedName, noobaa)
 	assert.NoError(t, err)
 	assert.Equal(t, noobaa.Name, noobaaMock.Name)
 
 	// Issue a delete
 	now := metav1.Now()
 	sc.SetDeletionTimestamp(&now)
-	err = reconciler.client.Update(nil, sc)
+	err = reconciler.client.Update(context.TODO(), sc)
 	assert.NoError(t, err)
 
 	sc = &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, sc)
+	err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
 	assert.NoError(t, err)
 	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 1)
 
-	err = reconciler.client.Delete(nil, noobaa)
+	err = reconciler.client.Delete(context.TODO(), noobaa)
 	assert.NoError(t, err)
 
 	result, err = reconciler.Reconcile(mockStorageClusterRequest)
@@ -665,12 +666,12 @@ func TestStorageClusterFinalizer(t *testing.T) {
 
 	// Finalizer is removed
 	sc = &api.StorageCluster{}
-	err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, sc)
+	err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
 	assert.NoError(t, err)
 	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 0)
 
 	noobaa = &v1alpha1.NooBaa{}
-	err = reconciler.client.Get(nil, namespacedName, noobaa)
+	err = reconciler.client.Get(context.TODO(), namespacedName, noobaa)
 	assert.True(t, errors.IsNotFound(err))
 }
 
@@ -748,6 +749,7 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
+//nolint //ignoring err checks as causing failures
 func TestMonCountChange(t *testing.T) {
 	for nodeCount := 0; nodeCount <= 10; nodeCount++ {
 		monCountExpected := defaults.MonCountMin
@@ -816,7 +818,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 			}
 		}
 		reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(t, platform)
-		_ = reconciler.client.Create(nil, c.cr)
+		_ = reconciler.client.Create(context.TODO(), c.cr)
 		result, err := reconciler.Reconcile(request)
 		if c.testCase != "default" {
 			validMultus := validateMultusSelectors(c.cr.Spec.Network.Selectors)
@@ -835,7 +837,7 @@ func assertCephClusterNetwork(t assert.TestingT, reconciler ReconcileStorageClus
 	serverVersion := &k8sVersion.Info{}
 	request.Name = "ocsinit-cephcluster"
 	cephCluster := newCephCluster(cr, "", 3, serverVersion, log)
-	err := reconciler.client.Get(nil, request.NamespacedName, cephCluster)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
 	if cr.Spec.Network == nil {
 		assert.Equal(t, "", cephCluster.Spec.Network.NetworkSpec.Provider)

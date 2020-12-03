@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"testing"
 
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -46,7 +47,7 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler ReconcileStorageCluster
 		},
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
-	err = reconciler.client.Get(nil, request.NamespacedName, actualCosu)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualCosu)
 	if avoidObjectStore(reconciler.platform.platform) {
 		assert.Error(t, err)
 	} else {

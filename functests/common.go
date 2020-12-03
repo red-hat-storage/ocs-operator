@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
+//nolint:errcheck
 func debug(msg string, args ...interface{}) {
 	ginkgo.GinkgoWriter.Write([]byte(fmt.Sprintf(msg, args...)))
 }
@@ -74,11 +75,11 @@ func GetDataValidatorJob(pvc string) *k8sbatchv1.Job {
 				Spec: k8sv1.PodSpec{
 					RestartPolicy: k8sv1.RestartPolicyNever,
 					Containers: []k8sv1.Container{
-						k8sv1.Container{
+						{
 							Name:  randomName,
 							Image: "busybox",
 							VolumeMounts: []k8sv1.VolumeMount{
-								k8sv1.VolumeMount{
+								{
 									MountPath: "/data",
 									Name:      "volume-to-debug",
 								},
@@ -94,7 +95,7 @@ func GetDataValidatorJob(pvc string) *k8sbatchv1.Job {
 						},
 					},
 					Volumes: []k8sv1.Volume{
-						k8sv1.Volume{
+						{
 							Name: "volume-to-debug",
 							VolumeSource: k8sv1.VolumeSource{
 								PersistentVolumeClaim: &k8sv1.PersistentVolumeClaimVolumeSource{

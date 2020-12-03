@@ -80,7 +80,10 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 	if err != nil {
 		return err
 	}
-	objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
+	err = objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
+	if err != nil {
+		return err
+	}
 
 	statusutil.MapNoobaaNegativeConditions(&r.conditions, nb)
 	return nil

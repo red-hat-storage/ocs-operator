@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"testing"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
@@ -20,11 +21,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
-
-var logt = logf.Log.WithName("controller_storageclusterinitialization_test")
 
 func createDefaultStorageCluster() *api.StorageCluster {
 	return createStorageCluster("ocsinit", "zone", []string{"zone1", "zone2", "zone3"})
@@ -128,9 +127,9 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 	reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(
 		t, platform, rtObjsToCreateReconciler...)
 
-	_ = reconciler.client.Create(nil, cr)
+	_ = reconciler.client.Create(context.TODO(), cr)
 	for _, rtObj := range runtimeObjs {
-		_ = reconciler.client.Create(nil, rtObj)
+		_ = reconciler.client.Create(context.TODO(), rtObj)
 	}
 
 	result, err := reconciler.Reconcile(request)
@@ -166,7 +165,7 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 
 func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtime.Scheme {
 	registerObjs := obj
-	registerObjs = append(registerObjs)
+	registerObjs = append(registerObjs) //nolint:staticcheck
 	api.SchemeBuilder.Register(registerObjs...)
 	scheme, err := api.SchemeBuilder.Build()
 	if err != nil {

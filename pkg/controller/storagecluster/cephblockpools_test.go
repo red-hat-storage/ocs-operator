@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -44,7 +45,7 @@ func assertCephBlockPools(t *testing.T, reconciler ReconcileStorageCluster, cr *
 		},
 	}
 	request.Name = "ocsinit-cephblockpool"
-	err := reconciler.client.Get(nil, request.NamespacedName, actualCbp)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualCbp)
 	assert.NoError(t, err)
 
 	expectedCbp, err := reconciler.newCephBlockPoolInstances(cr)

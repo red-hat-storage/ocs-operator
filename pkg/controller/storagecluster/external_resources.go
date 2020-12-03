@@ -393,6 +393,11 @@ func validateMonitoringEndpoint(monitoringIP string, monitoringPort string, reqL
 		reqLogger.Error(err, fmt.Sprintf("Monitoring Endpoint (%s) is not reachable", endpoint))
 		return err
 	}
-	con.Close()
+	defer func() {
+		err := con.Close()
+		if err != nil {
+			log.Error(err, "")
+		}
+	}()
 	return nil
 }

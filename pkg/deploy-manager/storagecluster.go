@@ -270,16 +270,16 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 
 		// we have to wait for all of these conditions to exist as well as be set
 		if available == nil {
-			lastReason = fmt.Sprintf("Waiting on 'available' condition to be set")
+			lastReason = fmt.Sprintf("Waiting on 'available' condition to be set") //nolint:gosimple
 			return false, nil
 		} else if upgradeable == nil {
-			lastReason = fmt.Sprintf("Waiting on 'upgradeable' condition to be set")
+			lastReason = fmt.Sprintf("Waiting on 'upgradeable' condition to be set") //nolint:gosimple
 			return false, nil
 		} else if progressing == nil {
-			lastReason = fmt.Sprintf("Waiting on 'progressing' condition to be set")
+			lastReason = fmt.Sprintf("Waiting on 'progressing' condition to be set") //nolint:gosimple
 			return false, nil
 		} else if degraded == nil {
-			lastReason = fmt.Sprintf("Waiting on 'degraded' condition to be set")
+			lastReason = fmt.Sprintf("Waiting on 'degraded' condition to be set") //nolint:gosimple
 			return false, nil
 		}
 

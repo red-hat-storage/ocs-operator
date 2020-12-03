@@ -18,7 +18,7 @@ const (
 
 var masterLabelSelector = metav1.LabelSelector{
 	MatchExpressions: []metav1.LabelSelectorRequirement{
-		metav1.LabelSelectorRequirement{
+		{
 			Key:      MasterAffinityKey,
 			Operator: metav1.LabelSelectorOpExists,
 		},
@@ -31,7 +31,7 @@ var masterSelectorRequirement = corev1.NodeSelectorRequirement{
 
 var workerLabelSelector = metav1.LabelSelector{
 	MatchExpressions: []metav1.LabelSelectorRequirement{
-		metav1.LabelSelectorRequirement{
+		{
 			Key:      WorkerAffinityKey,
 			Operator: metav1.LabelSelectorOpExists,
 		},
@@ -43,7 +43,7 @@ var workerSelectorRequirement = corev1.NodeSelectorRequirement{
 }
 var workerNodeSelector = corev1.NodeSelector{
 	NodeSelectorTerms: []corev1.NodeSelectorTerm{
-		corev1.NodeSelectorTerm{
+		{
 			MatchExpressions: []corev1.NodeSelectorRequirement{
 				workerSelectorRequirement,
 			},
@@ -54,7 +54,7 @@ var workerNodeAffinity = corev1.NodeAffinity{
 	RequiredDuringSchedulingIgnoredDuringExecution: &workerNodeSelector,
 }
 var workerPlacements = map[rookv1.KeyType]rookv1.Placement{
-	"all": rookv1.Placement{
+	"all": {
 		NodeAffinity: &workerNodeAffinity,
 	},
 }
@@ -63,7 +63,7 @@ var emptyLabelSelector = metav1.LabelSelector{
 	MatchExpressions: []metav1.LabelSelectorRequirement{},
 }
 var emptyPlacements = map[rookv1.KeyType]rookv1.Placement{
-	"all": rookv1.Placement{},
+	"all": {},
 }
 
 var customPlacement = rookv1.Placement{
@@ -299,7 +299,7 @@ func TestGetPlacement(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		actualPlacement := rookv1.Placement{}
+		actualPlacement := rookv1.Placement{} //nolint:ineffassign
 		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Spec.Placement = c.placements

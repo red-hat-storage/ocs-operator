@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const(
+const (
 	// The following constants are the indices at which StorageClasses are returned from newStorageClasses and in
 	// which they should be passed to createStorageClasses.
 	cephFileSystemIndex  = 0
@@ -121,7 +121,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	ret := []*storagev1.StorageClass{
-		&storagev1.StorageClass{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: generateNameForCephFilesystemSC(initData),
 			},
@@ -140,7 +140,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
-		&storagev1.StorageClass{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: generateNameForCephBlockPoolSC(initData),
 			},

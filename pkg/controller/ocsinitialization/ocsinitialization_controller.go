@@ -21,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -138,13 +138,13 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 				Spec: corev1.PodSpec{
 					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
 					Containers: []corev1.Container{
-						corev1.Container{
+						{
 							Name:    name,
 							Image:   rookImage,
 							Command: []string{"/tini"},
 							Args:    []string{"-g", "--", "/usr/local/bin/toolbox.sh"},
 							Env: []corev1.EnvVar{
-								corev1.EnvVar{
+								{
 									Name: "ROOK_CEPH_USERNAME",
 									ValueFrom: &corev1.EnvVarSource{
 										SecretKeyRef: &corev1.SecretKeySelector{
@@ -153,7 +153,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 										},
 									},
 								},
-								corev1.EnvVar{
+								{
 									Name: "ROOK_CEPH_SECRET",
 									ValueFrom: &corev1.EnvVarSource{
 										SecretKeyRef: &corev1.SecretKeySelector{
@@ -167,15 +167,15 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 								Privileged: &privilegedContainer,
 							},
 							VolumeMounts: []corev1.VolumeMount{
-								corev1.VolumeMount{Name: "dev", MountPath: "/dev"},
-								corev1.VolumeMount{Name: "sysbus", MountPath: "/sys/bus"},
-								corev1.VolumeMount{Name: "libmodules", MountPath: "/lib/modules"},
-								corev1.VolumeMount{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
+								{Name: "dev", MountPath: "/dev"},
+								{Name: "sysbus", MountPath: "/sys/bus"},
+								{Name: "libmodules", MountPath: "/lib/modules"},
+								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
 							},
 						},
 					},
 					Tolerations: []corev1.Toleration{
-						corev1.Toleration{
+						{
 							Key:      defaults.NodeTolerationKey,
 							Operator: corev1.TolerationOpEqual,
 							Value:    "true",
@@ -185,13 +185,13 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 					// if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
 					HostNetwork: true,
 					Volumes: []corev1.Volume{
-						corev1.Volume{Name: "dev", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/dev"}}},
-						corev1.Volume{Name: "sysbus", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/sys/bus"}}},
-						corev1.Volume{Name: "libmodules", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/lib/modules"}}},
-						corev1.Volume{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
+						{Name: "dev", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/dev"}}},
+						{Name: "sysbus", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/sys/bus"}}},
+						{Name: "libmodules", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/lib/modules"}}},
+						{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
 								Items: []corev1.KeyToPath{
-									corev1.KeyToPath{Key: "data", Path: "mon-endpoints"},
+									{Key: "data", Path: "mon-endpoints"},
 								},
 							},
 						},

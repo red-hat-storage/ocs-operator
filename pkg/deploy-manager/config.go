@@ -30,6 +30,7 @@ const DefaultStorageClassRBD = DefaultStorageClusterName + "-ceph-rbd"
 // MinOSDsCount represents the minimum number of OSDs required for this testsuite to run.
 const MinOSDsCount = 3
 
+//nolint:errcheck // ignoring err check as causing failures
 func init() {
 	ocsv1.SchemeBuilder.AddToScheme(scheme.Scheme)
 	rookcephv1.SchemeBuilder.AddToScheme(scheme.Scheme)
@@ -128,6 +129,9 @@ func NewDeployManager() (*DeployManager, error) {
 
 	// controller-runtime client
 	crClient, err := crclient.New(config, crclient.Options{Scheme: scheme.Scheme})
+	if err != nil {
+		return nil, err
+	}
 
 	// olm client
 	olmConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)

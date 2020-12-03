@@ -103,7 +103,7 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 		assert.Equalf(t, tc.expectedNodeCount, reconciler.nodeCount, "[%s]: failed to get correct node count", tc.label)
 
 		actual := &api.StorageCluster{}
-		err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
+		err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
 	}
@@ -201,7 +201,7 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 		assert.NoError(t, err)
 
 		actual := &api.StorageCluster{}
-		err = reconciler.client.Get(nil, mockStorageClusterRequest.NamespacedName, actual)
+		err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
 
@@ -350,7 +350,7 @@ func TestStorageClusterEligibleNodes(t *testing.T) {
 			},
 			labelSelectors: &metav1.LabelSelector{
 				MatchExpressions: []metav1.LabelSelectorRequirement{
-					metav1.LabelSelectorRequirement{
+					{
 						Key:      WorkerAffinityKey,
 						Operator: metav1.LabelSelectorOpExists,
 					},
@@ -508,7 +508,8 @@ func TestEnsureNodeRack(t *testing.T) {
 		assert.NoError(t, err)
 
 		actualNodeList := &corev1.NodeList{}
-		reconciler.client.List(context.TODO(), actualNodeList)
+		err = reconciler.client.List(context.TODO(), actualNodeList)
+		assert.NoError(t, err)
 		for i, node := range actualNodeList.Items {
 			for key, value := range node.Labels {
 				assert.Containsf(t, key, defaults.RackTopologyKey, "[%s]: failed to added rack label", tc.label)

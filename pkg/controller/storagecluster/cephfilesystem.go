@@ -18,7 +18,7 @@ import (
 // on first run.
 func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
 	ret := []*cephv1.CephFilesystem{
-		&cephv1.CephFilesystem{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephFilesystem(initData),
 				Namespace: initData.Namespace,
@@ -31,7 +31,7 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 					FailureDomain: initData.Status.FailureDomain,
 				},
 				DataPools: []cephv1.PoolSpec{
-					cephv1.PoolSpec{
+					{
 						Replicated: cephv1.ReplicatedSpec{
 							Size:            3,
 							TargetSizeRatio: .49,

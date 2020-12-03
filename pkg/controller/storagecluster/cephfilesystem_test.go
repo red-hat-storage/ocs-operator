@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -44,7 +45,7 @@ func assertCephFileSystem(t *testing.T, reconciler ReconcileStorageCluster, cr *
 		},
 	}
 	request.Name = "ocsinit-cephfilesystem"
-	err := reconciler.client.Get(nil, request.NamespacedName, actualFs)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualFs)
 	assert.NoError(t, err)
 
 	expectedAf, err := reconciler.newCephFilesystemInstances(cr)

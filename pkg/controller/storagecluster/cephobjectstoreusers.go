@@ -17,7 +17,7 @@ import (
 // on first run.
 func (r *ReconcileStorageCluster) newCephObjectStoreUserInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephObjectStoreUser, error) {
 	ret := []*cephv1.CephObjectStoreUser{
-		&cephv1.CephObjectStoreUser{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNameForCephObjectStoreUser(initData),
 				Namespace: initData.Namespace,

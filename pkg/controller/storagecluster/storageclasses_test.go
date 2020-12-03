@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -29,17 +30,17 @@ func assertStorageClasses(t *testing.T, reconciler ReconcileStorageCluster, cr *
 	actualSc3 := &storagev1.StorageClass{}
 
 	request.Name = "ocsinit-cephfs"
-	err := reconciler.client.Get(nil, request.NamespacedName, actualSc1)
+	err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc1)
 	assert.NoError(t, err)
 
 	request.Name = "ocsinit-ceph-rbd"
-	err = reconciler.client.Get(nil, request.NamespacedName, actualSc2)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc2)
 	assert.NoError(t, err)
 
 	expected, err := reconciler.newStorageClasses(cr)
 	assert.NoError(t, err)
 	request.Name = "ocsinit-ceph-rgw"
-	err = reconciler.client.Get(nil, request.NamespacedName, actualSc3)
+	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc3)
 	// on a cloud platform, 'Get' should throw an error,
 	// as OBC StorageClass won't be created
 	if avoidObjectStore(reconciler.platform.platform) {

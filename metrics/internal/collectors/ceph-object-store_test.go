@@ -69,20 +69,16 @@ func getMockCephObjectStoreCollector(t *testing.T, mockOpts *options.Options) (m
 }
 
 func setInformerStore(t *testing.T, objs []*cephv1.CephObjectStore, mockCephObjectStoreCollector *CephObjectStoreCollector) {
-	if objs != nil {
-		for _, obj := range objs {
-			err := mockCephObjectStoreCollector.Informer.GetStore().Add(obj)
-			assert.Nil(t, err)
-		}
+	for _, obj := range objs {
+		err := mockCephObjectStoreCollector.Informer.GetStore().Add(obj)
+		assert.Nil(t, err)
 	}
 }
 
 func resetInformerStore(t *testing.T, objs []*cephv1.CephObjectStore, mockCephObjectStoreCollector *CephObjectStoreCollector) {
-	if objs != nil {
-		for _, obj := range objs {
-			err := mockCephObjectStoreCollector.Informer.GetStore().Delete(obj)
-			assert.Nil(t, err)
-		}
+	for _, obj := range objs {
+		err := mockCephObjectStoreCollector.Informer.GetStore().Delete(obj)
+		assert.Nil(t, err)
 	}
 }
 
@@ -272,7 +268,8 @@ func TestCollectObjectStoreHealth(t *testing.T) {
 		for m := range ch {
 			assert.Contains(t, m.Desc().String(), "health_status")
 			metric.Reset()
-			m.Write(&metric)
+			err := m.Write(&metric)
+			assert.Nil(t, err)
 			labels := metric.GetLabel()
 			for _, label := range labels {
 				if *label.Name == "name" {

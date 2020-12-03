@@ -31,6 +31,9 @@ func (r *ReconcileStorageCluster) getStorageClusterEligibleNodes(sc *ocsv1.Stora
 	}
 
 	selector, err = metav1.LabelSelectorAsSelector(labelSelector)
+	if err != nil {
+		return nodes, err
+	}
 	err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
 
 	return nodes, err
@@ -43,7 +46,7 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) string {
 		return sc.Status.FailureDomain
 	}
 
-	if sc.Spec.FlexibleScaling == true {
+	if sc.Spec.FlexibleScaling {
 		return "host"
 	}
 
@@ -163,7 +166,7 @@ func generateStrategicPatch(oldObj, newObj interface{}) (client.Patch, error) {
 		return nil, err
 	}
 
-	return client.ConstantPatch(types.StrategicMergePatchType, patch), nil
+	return client.RawPatch(types.StrategicMergePatchType, patch), nil
 }
 
 // ensureNodeRacks iterates through the list of storage nodes and ensures
