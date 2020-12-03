@@ -13,6 +13,7 @@ var (
 	ocsRegistryImage       = flag.String("ocs-registry-image", "", "The ocs-registry container image to use in the deployment")
 	ocsSubscriptionChannel = flag.String("ocs-subscription-channel", "", "The subscription channel to receive upgades from in the deployment")
 	yamlOutputPath         = flag.String("yaml-output-path", "", "Just generate the yaml for the OCS olm deployment and dump it to a file")
+	arbiterEnabled         = flag.Bool("arbiter", false, "Deploy the StorageCluster with arbiter enabled")
 )
 
 func main() {
@@ -25,6 +26,10 @@ func main() {
 	}
 
 	t, _ := deploymanager.NewDeployManager()
+
+	if *arbiterEnabled {
+		t.EnableArbiter()
+	}
 
 	if *yamlOutputPath != "" {
 		yaml := t.DumpYAML(*ocsRegistryImage, *ocsSubscriptionChannel)
