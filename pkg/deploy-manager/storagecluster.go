@@ -55,6 +55,13 @@ func (t *DeployManager) StartDefaultStorageCluster() error {
 
 // DefaultStorageCluster returns a default StorageCluster manifest
 func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
+	arbiter := ocsv1.ArbiterSpec{}
+	nodeTopologies := &ocsv1.NodeTopologyMap{}
+	if t.ArbiterEnabled() {
+		arbiter.Enable = true
+		nodeTopologies.ArbiterLocation = t.GetArbiterZone()
+	}
+
 	monQuantity, err := resource.ParseQuantity("10Gi")
 	if err != nil {
 		return nil, err
@@ -119,7 +126,8 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
 					Name:     "example-deviceset",
-					Count:    t.getMinOSDsCount(),
+					Count:    1,
+					Replica:  t.getMinOSDsCount(),
 					Portable: true,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -145,6 +153,8 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					},
 				},
 			},
+			NodeTopologies: nodeTopologies,
+			Arbiter:        arbiter,
 		},
 	}
 	storageCluster.SetGroupVersionKind(schema.GroupVersionKind{Group: ocsv1.SchemeGroupVersion.Group, Kind: "StorageCluster", Version: ocsv1.SchemeGroupVersion.Version})
@@ -344,12 +354,25 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 }
 
 func (t *DeployManager) labelWorkerNodes() error {
+	labeledCount := 0
+	arbiterNodeCount := 0
+	var arbiterZone string
+
+	if t.ArbiterEnabled() {
+		err := t.electArbiterZone()
+		if err != nil {
+			return err
+		}
+		arbiterZone = t.GetArbiterZone()
+		if arbiterZone == "" {
+			return fmt.Errorf("Arbiter zone is not set")
+		}
+	}
+
 	nodes, err := t.k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
 	if err != nil {
 		return err
 	}
-
-	labeledCount := 0
 
 	for _, node := range nodes.Items {
 		old, err := json.Marshal(node)
@@ -357,6 +380,12 @@ func (t *DeployManager) labelWorkerNodes() error {
 			return err
 		}
 		new := node.DeepCopy()
+
+		if t.ArbiterEnabled() && node.GetLabels()[corev1.LabelZoneFailureDomainStable] == arbiterZone {
+			// don't label the nodes in the arbiter zone
+			arbiterNodeCount++
+			continue
+		}
 		new.Labels["cluster.ocs.openshift.io/openshift-storage"] = ""
 
 		newJSON, err := json.Marshal(new)
@@ -379,6 +408,9 @@ func (t *DeployManager) labelWorkerNodes() error {
 
 	if labeledCount < t.getMinOSDsCount() {
 		return fmt.Errorf("Only %d worker nodes found when we need %d to deploy", labeledCount, t.getMinOSDsCount())
+	}
+	if t.ArbiterEnabled() && arbiterNodeCount < 1 {
+		return fmt.Errorf("No arbiter nodes found, we need atleast 1")
 	}
 
 	return nil

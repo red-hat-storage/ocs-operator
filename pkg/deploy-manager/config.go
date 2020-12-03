@@ -28,8 +28,12 @@ const DefaultStorageClusterName = "test-storagecluster"
 const DefaultStorageClassRBD = DefaultStorageClusterName + "-ceph-rbd"
 
 const minOSDsCount = 3
+const minOSDsCountArbiter = 4
 
 func (t *DeployManager) getMinOSDsCount() int {
+	if t.ArbiterEnabled() {
+		return minOSDsCountArbiter
+	}
 	return minOSDsCount
 }
 
@@ -38,6 +42,11 @@ func init() {
 	ocsv1.SchemeBuilder.AddToScheme(scheme.Scheme)
 	rookcephv1.SchemeBuilder.AddToScheme(scheme.Scheme)
 	nbv1.SchemeBuilder.AddToScheme(scheme.Scheme)
+}
+
+type arbiterConfig struct {
+	Enabled bool
+	Zone    string
 }
 
 // storageClusterConfig stores the configuration of the Storage Cluster that is/will be
@@ -56,6 +65,8 @@ type storageClusterConfig struct {
 
 	// TODO: Move all the in-built defaults to this struct. These defaults are
 	// either hardcoded or are defined as globals in the deploy manager.
+
+	arbiterConf *arbiterConfig
 }
 
 // DeployManager is a util tool used by the functional tests
@@ -182,5 +193,7 @@ func NewDeployManager() (*DeployManager, error) {
 }
 
 func getDefaultStorageClusterConfig() *storageClusterConfig {
-	return &storageClusterConfig{}
+	return &storageClusterConfig{
+		arbiterConf: &arbiterConfig{},
+	}
 }
