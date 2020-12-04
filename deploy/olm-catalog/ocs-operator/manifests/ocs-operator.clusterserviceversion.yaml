@@ -2787,6 +2787,7 @@ spec:
   - email: ocs-support@redhat.com
     name: Red Hat Support
   maturity: alpha
+  minKubeVersion: 1.16.0
   provider:
     name: Red Hat
   relatedImages:
