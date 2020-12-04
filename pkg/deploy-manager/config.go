@@ -27,8 +27,11 @@ const DefaultStorageClusterName = "test-storagecluster"
 // DefaultStorageClassRBD is the name of the ceph rbd storage class the test suite installs
 const DefaultStorageClassRBD = DefaultStorageClusterName + "-ceph-rbd"
 
-// MinOSDsCount represents the minimum number of OSDs required for this testsuite to run.
-const MinOSDsCount = 3
+const minOSDsCount = 3
+
+func (t *DeployManager) getMinOSDsCount() int {
+	return minOSDsCount
+}
 
 //nolint:errcheck // ignoring err check as causing failures
 func init() {
@@ -37,14 +40,33 @@ func init() {
 	nbv1.SchemeBuilder.AddToScheme(scheme.Scheme)
 }
 
+// storageClusterConfig stores the configuration of the Storage Cluster that is/will be
+// created by the deploy manager.
+type storageClusterConfig struct {
+	// As deploy manager is mainly used as a replacement for openshift/console,
+	// this should capture the options that are presented in the console for OCS
+	// installation.
+	// For example Encryption, Arbiter etc
+	// Eligibility Check:
+	// Is this option presented in the console and/or does this option cause a
+	// change in the inital Storage Cluster CR provided to the ocs-operator? Yes, it belongs here.
+
+	// Functional tests also use the deploy manager for deployment and if any
+	// state needs to be stored for the storageCluster, it belongs here.
+
+	// TODO: Move all the in-built defaults to this struct. These defaults are
+	// either hardcoded or are defined as globals in the deploy manager.
+}
+
 // DeployManager is a util tool used by the functional tests
 type DeployManager struct {
-	olmClient      *olmclient.Clientset
-	k8sClient      *kubernetes.Clientset
-	rookClient     *rookclient.Clientset
-	ocsClient      *rest.RESTClient
-	crClient       crclient.Client
-	parameterCodec runtime.ParameterCodec
+	olmClient          *olmclient.Clientset
+	k8sClient          *kubernetes.Clientset
+	rookClient         *rookclient.Clientset
+	ocsClient          *rest.RESTClient
+	crClient           crclient.Client
+	parameterCodec     runtime.ParameterCodec
+	storageClusterConf *storageClusterConfig
 }
 
 // GetCrClient is the function used to retrieve the controller-runtime client
@@ -77,7 +99,7 @@ func (t *DeployManager) GetNamespace() string {
 	return InstallNamespace
 }
 
-// NewDeployManager is the way to create a DeployManager struct
+// NewDeployManager creates a DeployManager struct with default configuration
 func NewDeployManager() (*DeployManager, error) {
 	codecs := serializer.NewCodecFactory(scheme.Scheme)
 	parameterCodec := runtime.NewParameterCodec(scheme.Scheme)
@@ -146,12 +168,19 @@ func NewDeployManager() (*DeployManager, error) {
 		return nil, err
 	}
 
+	storageClusterConf := getDefaultStorageClusterConfig()
+
 	return &DeployManager{
-		olmClient:      olmClient,
-		k8sClient:      k8sClient,
-		rookClient:     rookClient,
-		ocsClient:      ocsClient,
-		crClient:       crClient,
-		parameterCodec: parameterCodec,
+		olmClient:          olmClient,
+		k8sClient:          k8sClient,
+		rookClient:         rookClient,
+		ocsClient:          ocsClient,
+		crClient:           crClient,
+		parameterCodec:     parameterCodec,
+		storageClusterConf: storageClusterConf,
 	}, nil
+}
+
+func getDefaultStorageClusterConfig() *storageClusterConfig {
+	return &storageClusterConfig{}
 }

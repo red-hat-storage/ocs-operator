@@ -11,7 +11,6 @@ import (
 	tests "github.com/openshift/ocs-operator/functests"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/util"
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,7 +31,7 @@ func initSCCreation() (*SCCreation, error) {
 }
 
 func (sccObj *SCCreation) populateDuplicateSC() error {
-	defaultStorageCluster, err := deploymanager.DefaultStorageCluster()
+	defaultStorageCluster, err := tests.DeployManager.DefaultStorageCluster()
 	if err != nil {
 		return err
 	}

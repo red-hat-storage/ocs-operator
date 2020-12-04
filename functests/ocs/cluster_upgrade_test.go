@@ -1,20 +1,15 @@
 package ocs_test
 
 import (
-	"flag"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	tests "github.com/openshift/ocs-operator/functests"
-
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
 )
 
 var _ = PDescribe("Cluster upgrade", ClusterUpgradeTest)
 
 func ClusterUpgradeTest() {
-	flag.Parse()
 
 	BeforeEach(func() {
 		RegisterFailHandler(Fail)
@@ -43,8 +38,7 @@ func ClusterUpgradeTest() {
 
 		Context("upgrade cluster", func() {
 			It("and verify deployment status", func() {
-				deployManager, err := deploymanager.NewDeployManager()
-				Expect(err).To(BeNil())
+				deployManager := tests.DeployManager
 
 				By("Getting the current csv before the upgrade")
 				csv, err := deployManager.GetCsv()
