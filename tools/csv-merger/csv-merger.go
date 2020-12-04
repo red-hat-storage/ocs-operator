@@ -678,6 +678,56 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	ocsCSV.Annotations["categories"] = "Storage"
 	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
 	ocsCSV.Annotations["operatorframework.io/cluster-monitoring"] = "true"
+	// Make Storage cluster the initialization resource
+	ocsCSV.Annotations["operatorframework.io/initialization-resource"] = `
+    {
+        "apiVersion": "ocs.openshift.io/v1",
+        "kind": "StorageCluster",
+        "metadata": {
+            "name": "example-storagecluster",
+            "namespace": "openshift-storage"
+        },
+        "spec": {
+            "manageNodes": false,
+            "monPVCTemplate": {
+                "spec": {
+                    "accessModes": [
+                        "ReadWriteOnce"
+                    ],
+                    "resources": {
+                        "requests": {
+                            "storage": "10Gi"
+                        }
+                    },
+                    "storageClassName": "gp2"
+                }
+            },
+            "storageDeviceSets": [
+                {
+                    "count": 3,
+                    "dataPVCTemplate": {
+                        "spec": {
+                            "accessModes": [
+                                "ReadWriteOnce"
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "storage": "1Ti"
+                                }
+                            },
+                            "storageClassName": "gp2",
+                            "volumeMode": "Block"
+                        }
+                    },
+                    "name": "example-deviceset",
+                    "placement": {},
+                    "portable": true,
+                    "resources": {}
+                }
+            ]
+        }
+    }
+	`
 	ocsCSV.Annotations["alm-examples"] = `
 [
     {
