@@ -27,8 +27,11 @@ const DefaultStorageClusterName = "test-storagecluster"
 // DefaultStorageClassRBD is the name of the ceph rbd storage class the test suite installs
 const DefaultStorageClassRBD = DefaultStorageClusterName + "-ceph-rbd"
 
-// MinOSDsCount represents the minimum number of OSDs required for this testsuite to run.
-const MinOSDsCount = 3
+const minOSDsCount = 3
+
+func (t *DeployManager) getMinOSDsCount() int {
+	return minOSDsCount
+}
 
 //nolint:errcheck // ignoring err check as causing failures
 func init() {

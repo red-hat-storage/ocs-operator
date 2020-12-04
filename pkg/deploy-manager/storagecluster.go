@@ -54,7 +54,7 @@ func (t *DeployManager) StartDefaultStorageCluster() error {
 }
 
 // DefaultStorageCluster returns a default StorageCluster manifest
-func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
+func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 	monQuantity, err := resource.ParseQuantity("10Gi")
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
 					Name:     "example-deviceset",
-					Count:    MinOSDsCount,
+					Count:    t.getMinOSDsCount(),
 					Portable: true,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -174,7 +174,7 @@ func (t *DeployManager) getStorageCluster() (*ocsv1.StorageCluster, error) {
 func (t *DeployManager) createStorageCluster() (*ocsv1.StorageCluster, error) {
 	newSc := &ocsv1.StorageCluster{}
 
-	sc, err := DefaultStorageCluster()
+	sc, err := t.DefaultStorageCluster()
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (t *DeployManager) createStorageCluster() (*ocsv1.StorageCluster, error) {
 
 // deleteStorageCluster is used to delete the test suite storage cluster
 func (t *DeployManager) deleteStorageCluster() error {
-	sc, err := DefaultStorageCluster()
+	sc, err := t.DefaultStorageCluster()
 	if err != nil {
 		return err
 	}
@@ -310,8 +310,8 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 			}
 		}
 
-		if osdsOnline < MinOSDsCount {
-			lastReason = fmt.Sprintf("%d/%d expected OSDs are online", osdsOnline, MinOSDsCount)
+		if osdsOnline < t.getMinOSDsCount() {
+			lastReason = fmt.Sprintf("%d/%d expected OSDs are online", osdsOnline, t.getMinOSDsCount())
 		}
 
 		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running
@@ -377,8 +377,8 @@ func (t *DeployManager) labelWorkerNodes() error {
 		labeledCount++
 	}
 
-	if labeledCount < MinOSDsCount {
-		return fmt.Errorf("Only %d worker nodes found when we need %d to deploy", labeledCount, MinOSDsCount)
+	if labeledCount < t.getMinOSDsCount() {
+		return fmt.Errorf("Only %d worker nodes found when we need %d to deploy", labeledCount, t.getMinOSDsCount())
 	}
 
 	return nil
