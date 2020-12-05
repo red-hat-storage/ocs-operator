@@ -39,6 +39,12 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			Name:      namespacedName.Name,
 			Namespace: namespacedName.Namespace,
 		},
+		Status: v1.StorageClusterStatus{
+			Images: v1.ImagesStatus{
+				NooBaaCore: &v1.ComponentImageStatus{},
+				NooBaaDB:   &v1.ComponentImageStatus{},
+			},
+		},
 	}
 	noobaa := v1alpha1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
@@ -98,7 +104,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 
 	for _, c := range cases {
 		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
-		reconciler.client.Create(context.TODO(), &cephCluster)//nolint //ignoring err check as causes failure
+		reconciler.client.Create(context.TODO(), &cephCluster) //nolint //ignoring err check as causes failure
 
 		if c.isCreate {
 			err := reconciler.client.Get(context.TODO(), namespacedName, &c.noobaa)
@@ -190,6 +196,9 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		c.sc.Status.Images.NooBaaCore = &v1.ComponentImageStatus{}
+		c.sc.Status.Images.NooBaaDB = &v1.ComponentImageStatus{}
+
 		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
 
 		cephCluster := cephv1.CephCluster{}
