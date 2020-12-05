@@ -2167,6 +2167,34 @@ spec:
               failureDomain:
                 description: FailureDomain is the base CRUSH element Ceph will use to distribute its data replicas for the default CephBlockPool
                 type: string
+              images:
+                description: Images holds the image reconclie status for all images reconciled by the operator
+                properties:
+                  ceph:
+                    description: ComponentImageStatus holds image status information for a specific component image
+                    properties:
+                      actualImage:
+                        type: string
+                      desiredImage:
+                        type: string
+                    type: object
+                  noobaaCore:
+                    description: ComponentImageStatus holds image status information for a specific component image
+                    properties:
+                      actualImage:
+                        type: string
+                      desiredImage:
+                        type: string
+                    type: object
+                  noobaaDB:
+                    description: ComponentImageStatus holds image status information for a specific component image
+                    properties:
+                      actualImage:
+                        type: string
+                      desiredImage:
+                        type: string
+                    type: object
+                type: object
               nodeTopologies:
                 description: NodeTopologies is a list of topology labels on all nodes matching the StorageCluster's placement selector.
                 properties:
