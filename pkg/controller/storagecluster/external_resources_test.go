@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"regexp"
 	"testing"
 	"time"
 
@@ -250,8 +251,11 @@ func updateNamedResourceInArray(extArr []ExternalResource, extRsrc ExternalResou
 
 func startServerAt(endpoint string) <-chan error {
 	var doneChan = make(chan error)
-	go func(doneChan chan<- error) {
+	go func(doneChan chan<- error, endpoint string) {
 		defer close(doneChan)
+		rxp := regexp.MustCompile(`^http[s]?://`)
+		// remove any http or https protocols from the endpoint string
+		endpoint = rxp.ReplaceAllString(endpoint, "")
 		ln, err := net.Listen("tcp4", endpoint)
 		if err != nil {
 			doneChan <- err
@@ -265,7 +269,7 @@ func startServerAt(endpoint string) <-chan error {
 		}
 		defer conn.Close()
 		doneChan <- nil
-	}(doneChan)
+	}(doneChan, endpoint)
 	return doneChan
 }
 
