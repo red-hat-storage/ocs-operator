@@ -59,7 +59,7 @@ var ExternalResources = []ExternalResource{
 	{
 		Kind: "StorageClass",
 		Data: map[string]string{
-			"endpoint": fmt.Sprintf("127.0.0.1:%d", generateRandomPort(10000, 30000)),
+			"endpoint": fmt.Sprintf("localhost:%d", generateRandomPort(10000, 30000)),
 		},
 		Name: "ceph-rgw",
 	},
@@ -431,7 +431,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler ReconcileSt
 	rgwRsrc, err := findNamedResourceFromArray(extRsrcs, cephRgwStorageClassName)
 	assert.NoError(t, err)
 	// change 'rgw-endpoint'
-	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("127.0.0.1:%d", generateRandomPort(20000, 30000))
+	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("localhost:%d", generateRandomPort(20000, 30000))
 	// start a dummy / local server at the endpoint
 	startServerAt(rgwRsrc.Data[externalCephRgwEndpointKey])
 	extRsrcs = updateNamedResourceInArray(extRsrcs, rgwRsrc)
