@@ -61,9 +61,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
-	// if StorageClass is "gp2" or "io1" based, set tuneSlowDeviceClass to true
-	// this is for performance optimization of slow device class
-	//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
+
 	for i, ds := range sc.Spec.StorageDeviceSets {
 		tuneSlow, tuneFast, err := r.checkTuneStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
 		if err != nil {
