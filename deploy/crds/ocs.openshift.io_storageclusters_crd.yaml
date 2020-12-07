@@ -1251,6 +1251,10 @@ spec:
                         rook-ceph'
                       type: object
                       properties:
+                        tuneFastDeviceClass:
+                          description: TuneFastDeviceClass tunes the OSD when running
+                            on a fast Device Class
+                          type: boolean
                         tuneSlowDeviceClass:
                           description: TuneSlowDeviceClass tunes the OSD when running
                             on a slow Device Class

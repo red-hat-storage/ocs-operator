@@ -133,6 +133,10 @@ type StorageDeviceSetConfig struct {
 	// TuneSlowDeviceClass tunes the OSD when running on a slow Device Class
 	// +optional
 	TuneSlowDeviceClass bool `json:"tuneSlowDeviceClass,omitempty"`
+
+	// TuneFastDeviceClass tunes the OSD when running on a fast Device Class
+	// +optional
+	TuneFastDeviceClass bool `json:"tuneFastDeviceClass,omitempty"`
 }
 
 // MultiCloudGatewaySpec defines specific multi-cloud gateway configuration options

@@ -16,7 +16,6 @@ import (
 	"github.com/openshift/ocs-operator/version"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,8 +46,7 @@ mon_osd_nearfull_ratio = .75
 osd_memory_target_cgroup_limit_ratio = 0.5
 `
 	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
-	// EBS represents AWS EBS provisioner for StorageClass
-	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
+
 	// Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
 	// Name of WalPVCTemplate
@@ -73,6 +71,12 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 
 	// DeviceTypeNVMe represents the DeviceType NVMe
 	DeviceTypeNVMe = "nvme"
+
+	// AzureDisk represents Azure Premium Managed Disks provisioner for StorageClass
+	AzureDisk StorageClassProvisionerType = "kubernetes.io/azure-disk"
+
+	// EBS represents AWS EBS provisioner for StorageClass
+	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -83,8 +87,6 @@ var validTopologyLabelKeys = []string{
 	"kubernetes.io/hostname",
 	"topology.rook.io",
 }
-
-var throttleDiskTypes = []string{"gp2", "io1"}
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -480,21 +482,6 @@ func (r *ReconcileStorageCluster) ensureCephConfig(sc *ocsv1.StorageCluster, req
 		return r.client.Update(context.TODO(), cm)
 	}
 	return nil
-}
-
-func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string) (bool, error) {
-	storageClass := &storagev1.StorageClass{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
-	if err != nil {
-		return false, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
-	}
-	switch storageClass.Provisioner {
-	case string(EBS):
-		if contains(throttleDiskTypes, storageClass.Parameters["type"]) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 func (r *ReconcileStorageCluster) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {
