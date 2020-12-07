@@ -9,9 +9,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	api "github.com/openshift/ocs-operator/api/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
 )
 
 var rack0 = "rack0"
@@ -98,12 +98,12 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 		mockNodeList.DeepCopyInto(tc.nodeList)
 		tc.storageCluster.Status.FailureDomain = tc.failureDomain
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
-		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster, reconciler.reqLogger)
+		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.NoError(t, err)
-		assert.Equalf(t, tc.expectedNodeCount, reconciler.nodeCount, "[%s]: failed to get correct node count", tc.label)
+		assert.Equalf(t, tc.expectedNodeCount, reconciler.NodeCount, "[%s]: failed to get correct node count", tc.label)
 
 		actual := &api.StorageCluster{}
-		err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
+		err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
 	}
@@ -197,11 +197,11 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 		}
 
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
-		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster, reconciler.reqLogger)
+		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.NoError(t, err)
 
 		actual := &api.StorageCluster{}
-		err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
+		err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
 
@@ -240,7 +240,7 @@ func TestReconcileNodeTopologyMapFailure(t *testing.T) {
 		}
 		tc.storageCluster.Spec.StorageDeviceSets[0].Replica = tc.repilcaCount
 		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, tc.nodeList)
-		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster, reconciler.reqLogger)
+		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.Errorf(t, err, "[%s]: failed to test ReconcileNodeTopologyMap failure condition", tc.label)
 	}
 }
@@ -393,7 +393,7 @@ func TestStorageClusterEligibleNodes(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(tc.storageCluster)
 		tc.storageCluster.Spec.LabelSelector = tc.labelSelectors
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
-		actualNodes, err := reconciler.getStorageClusterEligibleNodes(tc.storageCluster, reconciler.reqLogger)
+		actualNodes, err := reconciler.getStorageClusterEligibleNodes(tc.storageCluster)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeCount, len(actualNodes.Items), "[%s]: failed to get eligible nodes", tc.label)
 	}
@@ -504,11 +504,11 @@ func TestEnsureNodeRack(t *testing.T) {
 
 	for _, tc := range testcases {
 		reconciler := createFakeStorageClusterReconciler(t, tc.nodeList)
-		err := reconciler.ensureNodeRacks(tc.nodeList, tc.minRacks, tc.nodeRacks, tc.topologyMap, reconciler.reqLogger)
+		err := reconciler.ensureNodeRacks(tc.nodeList, tc.minRacks, tc.nodeRacks, tc.topologyMap)
 		assert.NoError(t, err)
 
 		actualNodeList := &corev1.NodeList{}
-		err = reconciler.client.List(context.TODO(), actualNodeList)
+		err = reconciler.Client.List(context.TODO(), actualNodeList)
 		assert.NoError(t, err)
 		for i, node := range actualNodeList.Items {
 			for key, value := range node.Labels {

@@ -3,9 +3,8 @@ package persistentvolume
 import (
 	"strings"
 
-	"github.com/openshift/ocs-operator/pkg/controller/util"
-
 	"github.com/go-logr/logr"
+	"github.com/openshift/ocs-operator/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

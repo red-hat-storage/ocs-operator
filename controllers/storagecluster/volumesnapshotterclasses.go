@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // SnapshotterType represents a snapshotter type
@@ -54,7 +52,7 @@ func newSnapshotClasses(instance *ocsv1.StorageCluster) []*snapapi.VolumeSnapsho
 	return scs
 }
 
-func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSnapshotClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) createSnapshotClasses(vscs []*snapapi.VolumeSnapshotClass, instance *ocsv1.StorageCluster) error {
 	for index, vsc := range vscs {
 		reconcileStrategy := ReconcileStrategyIgnore
 		disableSnapshotClass := false
@@ -71,20 +69,20 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 		}
 
 		existing := &snapapi.VolumeSnapshotClass{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Since the SnapshotClass is not found, we will create a new one
-				reqLogger.Info(fmt.Sprintf("creating SnapshotClass %q", vsc.Name))
-				err = r.client.Create(context.TODO(), vsc)
+				r.Log.Info(fmt.Sprintf("creating SnapshotClass %q", vsc.Name))
+				err = r.Client.Create(context.TODO(), vsc)
 				if err != nil {
-					reqLogger.Error(err, fmt.Sprintf("failed to create SnapshotClass %q", vsc.Name))
+					r.Log.Error(err, fmt.Sprintf("failed to create SnapshotClass %q", vsc.Name))
 					return err
 				}
 				// no error, continue with the next iteration
 				continue
 			} else {
-				reqLogger.Error(err, fmt.Sprintf("failed to 'Get' SnapshotClass %q", vsc.Name))
+				r.Log.Error(err, fmt.Sprintf("failed to 'Get' SnapshotClass %q", vsc.Name))
 				return err
 			}
 		}
@@ -97,11 +95,11 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 		// if there is a mis-match in the parameters of existing vs created resources,
 		if !reflect.DeepEqual(vsc.Parameters, existing.Parameters) {
 			// we have to update the existing SnapshotClass
-			reqLogger.Info(fmt.Sprintf("SnapshotClass %q needs to be updated", existing.Name))
+			r.Log.Info(fmt.Sprintf("SnapshotClass %q needs to be updated", existing.Name))
 			existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
 			vsc.ObjectMeta = existing.ObjectMeta
-			if err := r.client.Update(context.TODO(), vsc); err != nil {
-				reqLogger.Error(err, fmt.Sprintf("SnapshotClass %q updation failed", existing.Name))
+			if err := r.Client.Update(context.TODO(), vsc); err != nil {
+				r.Log.Error(err, fmt.Sprintf("SnapshotClass %q updation failed", existing.Name))
 				return err
 			}
 		}
@@ -110,10 +108,10 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 }
 
 // ensureSnapshotClasses functions ensures that snpashotter classes are created
-func (r *ReconcileStorageCluster) ensureSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) ensureSnapshotClasses(instance *ocsv1.StorageCluster) error {
 	scs := newSnapshotClasses(instance)
 
-	err := r.createSnapshotClasses(scs, instance, reqLogger)
+	err := r.createSnapshotClasses(scs, instance)
 	if err != nil {
 		return nil
 	}

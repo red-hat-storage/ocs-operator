@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	api "github.com/openshift/ocs-operator/api/v1"
 )
 
 func TestCephBlockPools(t *testing.T) {
@@ -38,14 +38,14 @@ func TestCephBlockPools(t *testing.T) {
 	}
 }
 
-func assertCephBlockPools(t *testing.T, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	actualCbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
 		},
 	}
 	request.Name = "ocsinit-cephblockpool"
-	err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualCbp)
+	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCbp)
 	assert.NoError(t, err)
 
 	expectedCbp, err := reconciler.newCephBlockPoolInstances(cr)

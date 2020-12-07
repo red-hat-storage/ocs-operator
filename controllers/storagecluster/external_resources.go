@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -42,14 +42,14 @@ type ExternalResource struct {
 }
 
 // setRookCSICephFS function enables or disables the 'ROOK_CSI_ENABLE_CEPHFS' key
-func (r *ReconcileStorageCluster) setRookCSICephFS(
-	enableDisableFlag bool, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) setRookCSICephFS(
+	enableDisableFlag bool, instance *ocsv1.StorageCluster) error {
 	rookCephOperatorConfig := &corev1.ConfigMap{}
-	err := r.client.Get(context.TODO(),
+	err := r.Client.Get(context.TODO(),
 		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: instance.ObjectMeta.Namespace},
 		rookCephOperatorConfig)
 	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Unable to get '%s' config", rookCephOperatorConfigName))
+		r.Log.Error(err, fmt.Sprintf("Unable to get '%s' config", rookCephOperatorConfigName))
 		return err
 	}
 	enableDisableFlagStr := fmt.Sprintf("%v", enableDisableFlag)
@@ -58,7 +58,7 @@ func (r *ReconcileStorageCluster) setRookCSICephFS(
 		return nil
 	}
 	rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] = enableDisableFlagStr
-	return r.client.Update(context.TODO(), rookCephOperatorConfig)
+	return r.Client.Update(context.TODO(), rookCephOperatorConfig)
 }
 
 func checkRGWEndpoint(endpoint string, timeout time.Duration) error {
@@ -78,7 +78,7 @@ func sha512sum(tobeHashed []byte) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-func (r *ReconcileStorageCluster) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
+func (r *StorageClusterReconciler) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
 	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
 		return "", err
@@ -86,7 +86,7 @@ func (r *ReconcileStorageCluster) externalSecretDataChecksum(instance *ocsv1.Sto
 	return sha512sum(found.Data[externalClusterDetailsKey])
 }
 
-func (r *ReconcileStorageCluster) sameExternalSecretData(instance *ocsv1.StorageCluster) bool {
+func (r *StorageClusterReconciler) sameExternalSecretData(instance *ocsv1.StorageCluster) bool {
 	extSecretChecksum, err := r.externalSecretDataChecksum(instance)
 	if err != nil {
 		return false
@@ -101,29 +101,29 @@ func (r *ReconcileStorageCluster) sameExternalSecretData(instance *ocsv1.Storage
 }
 
 // retrieveSecret function retrieves the secret object with the specified name
-func (r *ReconcileStorageCluster) retrieveSecret(secretName string, instance *ocsv1.StorageCluster) (*corev1.Secret, error) {
+func (r *StorageClusterReconciler) retrieveSecret(secretName string, instance *ocsv1.StorageCluster) (*corev1.Secret, error) {
 	found := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: instance.Namespace,
 		},
 	}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: found.Name, Namespace: found.Namespace}, found)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: found.Name, Namespace: found.Namespace}, found)
 	return found, err
 }
 
 // retrieveExternalSecretData function retrieves the external secret and returns the data it contains
-func (r *ReconcileStorageCluster) retrieveExternalSecretData(
-	instance *ocsv1.StorageCluster, reqLogger logr.Logger) ([]ExternalResource, error) {
+func (r *StorageClusterReconciler) retrieveExternalSecretData(
+	instance *ocsv1.StorageCluster) ([]ExternalResource, error) {
 	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
-		reqLogger.Error(err, "could not find the external secret resource")
+		r.Log.Error(err, "could not find the external secret resource")
 		return nil, err
 	}
 	var data []ExternalResource
 	err = json.Unmarshal(found.Data[externalClusterDetailsKey], &data)
 	if err != nil {
-		reqLogger.Error(err, "could not parse json blob")
+		r.Log.Error(err, "could not parse json blob")
 		return nil, err
 	}
 	return data, nil
@@ -155,14 +155,14 @@ func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger) (*cephv1.
 
 // newExternalCephObjectStoreInstances returns a set of CephObjectStores
 // needed for external cluster mode
-func (r *ReconcileStorageCluster) newExternalCephObjectStoreInstances(
-	initData *ocsv1.StorageCluster, rgwEndpoint string, reqLogger logr.Logger) ([]*cephv1.CephObjectStore, error) {
+func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
+	initData *ocsv1.StorageCluster, rgwEndpoint string) ([]*cephv1.CephObjectStore, error) {
 	// check whether the provided rgw endpoint is empty
 	if rgwEndpoint = strings.TrimSpace(rgwEndpoint); rgwEndpoint == "" {
-		reqLogger.Info("WARNING: Empty RGW Endpoint specified, external CephObjectStore won't be created")
+		r.Log.Info("WARNING: Empty RGW Endpoint specified, external CephObjectStore won't be created")
 		return nil, nil
 	}
-	gatewaySpec, err := newExternalGatewaySpec(rgwEndpoint, reqLogger)
+	gatewaySpec, err := newExternalGatewaySpec(rgwEndpoint, r.Log)
 	if err != nil {
 		return nil, err
 	}
@@ -191,20 +191,20 @@ func (r *ReconcileStorageCluster) newExternalCephObjectStoreInstances(
 
 // ensureExternalStorageClusterResources ensures that requested resources for the external cluster
 // being created
-func (r *ReconcileStorageCluster) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster) error {
 	if r.sameExternalSecretData(instance) {
 		return nil
 	}
-	err := r.createExternalStorageClusterResources(instance, reqLogger)
+	err := r.createExternalStorageClusterResources(instance)
 	if err != nil {
-		reqLogger.Error(err, "could not create ExternalStorageClusterResource")
+		r.Log.Error(err, "could not create ExternalStorageClusterResource")
 		return err
 	}
 	return nil
 }
 
 // createExternalStorageClusterResources creates external cluster resources
-func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) createExternalStorageClusterResources(instance *ocsv1.StorageCluster) error {
 	ownerRef := metav1.OwnerReference{
 		UID:        instance.UID,
 		APIVersion: instance.APIVersion,
@@ -213,16 +213,16 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 	}
 	scs, err := r.newStorageClasses(instance)
 	if err != nil {
-		reqLogger.Error(err, "failed to create StorageClasses")
+		r.Log.Error(err, "failed to create StorageClasses")
 		return err
 	}
 	// this flag sets the 'ROOK_CSI_ENABLE_CEPHFS' flag
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
 	var availableSCs = make([]*storagev1.StorageClass, 3)
-	data, err := r.retrieveExternalSecretData(instance, reqLogger)
+	data, err := r.retrieveExternalSecretData(instance)
 	if err != nil {
-		reqLogger.Error(err, "failed to retrieve external resources")
+		r.Log.Error(err, "failed to retrieve external resources")
 		return err
 	}
 	var extCephObjectStores []*cephv1.CephObjectStore
@@ -240,7 +240,7 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				err := fmt.Errorf(
 					"Monitoring Endpoint not present in the external cluster secret %s",
 					externalClusterDetailsSecret)
-				reqLogger.Error(err, "Failed to get Monitoring IP.")
+				r.Log.Error(err, "Failed to get Monitoring IP.")
 				return err
 			}
 			monitoringPort, ok := d.Data["MonitoringPort"]
@@ -248,25 +248,25 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				err := fmt.Errorf(
 					"Monitoring Port not present in the external cluster secret %s",
 					externalClusterDetailsSecret)
-				reqLogger.Error(err, "Failed to get Monitoring Port.")
+				r.Log.Error(err, "Failed to get Monitoring Port.")
 				return err
 			}
-			err := validateMonitoringEndpoint(monitoringIP, monitoringPort, reqLogger)
+			err := validateMonitoringEndpoint(monitoringIP, monitoringPort, r.Log)
 			if err != nil {
-				reqLogger.Error(err, "Monitoring validation failed")
+				r.Log.Error(err, "Monitoring validation failed")
 				return err
 			}
-			reqLogger.Info("Monitoring Information found. Monitoring will be enabled on the external cluster")
-			r.monitoringIP = monitoringIP
+			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster")
+			r.MonitoringIP = monitoringIP
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{
 				ObjectMeta: objectMeta,
 				Data:       d.Data,
 			}
 			found := &corev1.ConfigMap{ObjectMeta: objectMeta}
-			err := r.createExternalStorageClusterConfigMap(cm, found, reqLogger, objectKey)
+			err := r.createExternalStorageClusterConfigMap(cm, found, objectKey)
 			if err != nil {
-				reqLogger.Error(err, "could not create ExternalStorageClusterConfigMap")
+				r.Log.Error(err, "could not create ExternalStorageClusterConfigMap")
 				return err
 			}
 		case "Secret":
@@ -278,9 +278,9 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 				sec.Data[k] = []byte(v)
 			}
 			found := &corev1.Secret{ObjectMeta: objectMeta}
-			err := r.createExternalStorageClusterSecret(sec, found, reqLogger, objectKey)
+			err := r.createExternalStorageClusterSecret(sec, found, objectKey)
 			if err != nil {
-				reqLogger.Error(err, "could not create ExternalStorageClusterSecret")
+				r.Log.Error(err, "could not create ExternalStorageClusterSecret")
 				return err
 			}
 		case "StorageClass":
@@ -298,10 +298,10 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkRGWEndpoint(rgwEndpoint, 5*time.Second); err != nil {
-					reqLogger.Error(err, fmt.Sprintf("RGW endpoint, %q, is not reachable", rgwEndpoint))
+					r.Log.Error(err, fmt.Sprintf("RGW endpoint, %q, is not reachable", rgwEndpoint))
 					return err
 				}
-				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint, reqLogger)
+				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint)
 				if err != nil {
 					return err
 				}
@@ -324,18 +324,18 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 		}
 	}
 	// creating only the available storageClasses
-	err = r.createStorageClasses(availableSCs, instance, reqLogger)
+	err = r.createStorageClasses(availableSCs, instance)
 	if err != nil {
-		reqLogger.Error(err, "failed to create needed StorageClasses")
+		r.Log.Error(err, "failed to create needed StorageClasses")
 		return err
 	}
-	if err = r.setRookCSICephFS(enableRookCSICephFS, instance, reqLogger); err != nil {
-		reqLogger.Error(err,
+	if err = r.setRookCSICephFS(enableRookCSICephFS, instance); err != nil {
+		r.Log.Error(err,
 			fmt.Sprintf("failed to set '%s' to %v", rookEnableCephFSCSIKey, enableRookCSICephFS))
 		return err
 	}
 	if extCephObjectStores != nil {
-		if err = r.createCephObjectStores(extCephObjectStores, instance, reqLogger); err != nil {
+		if err = r.createCephObjectStores(extCephObjectStores, instance); err != nil {
 			return err
 		}
 	}
@@ -343,18 +343,18 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterResources(instance
 }
 
 // createExternalStorageClusterConfigMap creates configmap for external cluster
-func (r *ReconcileStorageCluster) createExternalStorageClusterConfigMap(cm *corev1.ConfigMap, found *corev1.ConfigMap, reqLogger logr.Logger, objectKey types.NamespacedName) error {
-	err := r.client.Get(context.TODO(), objectKey, found)
+func (r *StorageClusterReconciler) createExternalStorageClusterConfigMap(cm *corev1.ConfigMap, found *corev1.ConfigMap, objectKey types.NamespacedName) error {
+	err := r.Client.Get(context.TODO(), objectKey, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info(fmt.Sprintf("creating configmap: %s", cm.Name))
-			err = r.client.Create(context.TODO(), cm)
+			r.Log.Info(fmt.Sprintf("creating configmap: %s", cm.Name))
+			err = r.Client.Create(context.TODO(), cm)
 			if err != nil {
-				reqLogger.Error(err, "creation of configmap failed")
+				r.Log.Error(err, "creation of configmap failed")
 				return err
 			}
 		} else {
-			reqLogger.Error(err, "unable the get the configmap")
+			r.Log.Error(err, "unable the get the configmap")
 			return err
 		}
 	}
@@ -362,18 +362,18 @@ func (r *ReconcileStorageCluster) createExternalStorageClusterConfigMap(cm *core
 }
 
 // createExternalStorageClusterSecret creates secret for external cluster
-func (r *ReconcileStorageCluster) createExternalStorageClusterSecret(sec *corev1.Secret, found *corev1.Secret, reqLogger logr.Logger, objectKey types.NamespacedName) error {
-	err := r.client.Get(context.TODO(), objectKey, found)
+func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev1.Secret, found *corev1.Secret, objectKey types.NamespacedName) error {
+	err := r.Client.Get(context.TODO(), objectKey, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info(fmt.Sprintf("creating secret: %s", sec.Name))
-			err = r.client.Create(context.TODO(), sec)
+			r.Log.Info(fmt.Sprintf("creating secret: %s", sec.Name))
+			err = r.Client.Create(context.TODO(), sec)
 			if err != nil {
-				reqLogger.Error(err, "creation of secret failed")
+				r.Log.Error(err, "creation of secret failed")
 				return err
 			}
 		} else {
-			reqLogger.Error(err, "unable the get the secret")
+			r.Log.Error(err, "unable the get the secret")
 			return err
 		}
 	}
@@ -396,7 +396,7 @@ func validateMonitoringEndpoint(monitoringIP string, monitoringPort string, reqL
 	defer func() {
 		err := con.Close()
 		if err != nil {
-			log.Error(err, "")
+			reqLogger.Error(err, "")
 		}
 	}()
 	return nil

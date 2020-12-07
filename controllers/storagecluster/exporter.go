@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,7 +28,7 @@ var exporterLabels = map[string]string{
 
 // enableMetricsExporter is a wrapper around CreateOrUpdateService()
 // and CreateOrUpdateServiceMonitor()
-func (r *ReconcileStorageCluster) enableMetricsExporter(instance *ocsv1.StorageCluster) error {
+func (r *StorageClusterReconciler) enableMetricsExporter(instance *ocsv1.StorageCluster) error {
 	_, err := CreateOrUpdateService(r, instance)
 	if err != nil {
 		return err
@@ -86,17 +86,17 @@ func getMetricsExporterService(instance *ocsv1.StorageCluster) *corev1.Service {
 }
 
 // CreateOrUpdateService creates service object or an error
-func CreateOrUpdateService(r *ReconcileStorageCluster, instance *ocsv1.StorageCluster) (*corev1.Service, error) {
+func CreateOrUpdateService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (*corev1.Service, error) {
 	service := getMetricsExporterService(instance)
 	namespacedName := types.NamespacedName{Namespace: service.GetNamespace(), Name: service.GetName()}
 
-	r.reqLogger.Info("Reconciling metrics exporter service", "NamespacedName", namespacedName)
+	r.Log.Info("Reconciling metrics exporter service", "NamespacedName", namespacedName)
 
 	oldService := &corev1.Service{}
-	err := r.client.Get(context.TODO(), namespacedName, oldService)
+	err := r.Client.Get(context.TODO(), namespacedName, oldService)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			err = r.client.Create(context.TODO(), service)
+			err = r.Client.Create(context.TODO(), service)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create metrics exporter service %v. %v", namespacedName, err)
 			}
@@ -106,7 +106,7 @@ func CreateOrUpdateService(r *ReconcileStorageCluster, instance *ocsv1.StorageCl
 	}
 	service.ResourceVersion = oldService.ResourceVersion
 	service.Spec.ClusterIP = oldService.Spec.ClusterIP
-	err = r.client.Update(context.TODO(), service)
+	err = r.Client.Update(context.TODO(), service)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update service %v. %v", namespacedName, err)
 	}
@@ -153,17 +153,17 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 }
 
 // CreateOrUpdateServiceMonitor creates serviceMonitor object or an error
-func CreateOrUpdateServiceMonitor(r *ReconcileStorageCluster, instance *ocsv1.StorageCluster) (*monitoringv1.ServiceMonitor, error) {
+func CreateOrUpdateServiceMonitor(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (*monitoringv1.ServiceMonitor, error) {
 	serviceMonitor := getMetricsExporterServiceMonitor(instance)
 	namespacedName := types.NamespacedName{Name: serviceMonitor.Name, Namespace: serviceMonitor.Namespace}
 
-	r.reqLogger.Info("Reconciling metrics exporter service monitor", "NamespacedName", namespacedName)
+	r.Log.Info("Reconciling metrics exporter service monitor", "NamespacedName", namespacedName)
 
 	oldSm := &monitoringv1.ServiceMonitor{}
-	err := r.client.Get(context.TODO(), namespacedName, oldSm)
+	err := r.Client.Get(context.TODO(), namespacedName, oldSm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			err = r.client.Create(context.TODO(), serviceMonitor)
+			err = r.Client.Create(context.TODO(), serviceMonitor)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create metrics exporter servicemonitor %v. %v", namespacedName, err)
 			}
@@ -172,7 +172,7 @@ func CreateOrUpdateServiceMonitor(r *ReconcileStorageCluster, instance *ocsv1.St
 		return nil, fmt.Errorf("failed to retrieve metrics exporter servicemonitor %v. %v", namespacedName, err)
 	}
 	serviceMonitor.ResourceVersion = oldSm.ResourceVersion
-	err = r.client.Update(context.TODO(), serviceMonitor)
+	err = r.Client.Update(context.TODO(), serviceMonitor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update metrics exporter servicemonitor %v. %v", namespacedName, err)
 	}

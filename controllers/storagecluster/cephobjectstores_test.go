@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	api "github.com/openshift/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,8 +35,8 @@ func TestCephObjectStores(t *testing.T) {
 		}
 	}
 }
-func assertCephObjectStores(t *testing.T, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
-	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, reconciler.reqLogger)
+func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+	expectedCos, err := reconciler.newCephObjectStoreInstances(cr)
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{
@@ -45,10 +45,10 @@ func assertCephObjectStores(t *testing.T, reconciler ReconcileStorageCluster, cr
 		},
 	}
 	request.Name = "ocsinit-cephobjectstore"
-	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualCos)
+	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCos)
 	// for any cloud platform, 'cephobjectstore' should not be created
 	// 'Get' should have thrown an error
-	if avoidObjectStore(reconciler.platform.platform) {
+	if avoidObjectStore(reconciler.Platform.platform) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)

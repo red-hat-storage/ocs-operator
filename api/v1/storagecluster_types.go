@@ -24,10 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
 	ManageNodes  bool   `json:"manageNodes,omitempty"`
@@ -67,37 +63,30 @@ type ManagedResourcesSpec struct {
 	CephFilesystems      ManageCephFilesystems      `json:"cephFilesystems,omitempty"`
 	CephObjectStores     ManageCephObjectStores     `json:"cephObjectStores,omitempty"`
 	CephObjectStoreUsers ManageCephObjectStoreUsers `json:"cephObjectStoreUsers,omitempty"`
-	SnapshotClasses      ManageSnapshotClasses      `json:"snapshotClasses,omitempty"`
-	StorageClasses       ManageStorageClasses       `json:"storageClasses,omitempty"`
 }
 
 // ManageCephBlockPools defines how to reconcilea CephBlockPools
 type ManageCephBlockPools struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
+	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
+	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
 }
 
 // ManageCephFilesystems defines how to reconcile CephFilesystems
 type ManageCephFilesystems struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
+	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
+	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
 }
 
 // ManageCephObjectStores defines how to reconcile CephObjectStores
 type ManageCephObjectStores struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	ReconcileStrategy   string `json:"reconcileStrategy,omitempty"`
+	DisableStorageClass bool   `json:"disableStorageClass,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
 type ManageCephObjectStoreUsers struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-}
-
-// ManageSnapshotClasses defines how to reconcile SnapshotClasses
-type ManageSnapshotClasses struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-}
-
-// ManageStorageClasses defines how to reconcile StorageClasses
-type ManageStorageClasses struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
@@ -121,6 +110,13 @@ type StorageDeviceSet struct {
 	// +optional
 	Replica int `json:"replica,omitempty"`
 
+	// DeviceType is the value of device type in
+	// this StorageDeviceSet. It can have one of the
+	// three values (SSD, HDD, NVMe)
+	// +kubebuilder:validation:Enum=SSD;ssd;HDD;hdd;NVMe;NVME;nvme
+	// +optional
+	DeviceType string `json:"deviceType,omitempty"`
+
 	// TopologyKey is the Kubernetes topology label that the
 	// StorageClassDeviceSets will be distributed across. Ignored if
 	// Placement is set
@@ -139,6 +135,7 @@ type StorageDeviceSet struct {
 	Config              StorageDeviceSetConfig        `json:"config,omitempty"`
 	DataPVCTemplate     corev1.PersistentVolumeClaim  `json:"dataPVCTemplate"`
 	MetadataPVCTemplate *corev1.PersistentVolumeClaim `json:"metadataPVCTemplate,omitempty"`
+	WalPVCTemplate      *corev1.PersistentVolumeClaim `json:"walPVCTemplate,omitempty"`
 }
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet

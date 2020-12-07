@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	api "github.com/openshift/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +37,7 @@ func TestCephObjectStoreUsers(t *testing.T) {
 
 }
 
-func assertCephObjectStoreUsers(t *testing.T, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephObjectStoreUsers(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	expectedCosu, err := reconciler.newCephObjectStoreUserInstances(cr)
 	assert.NoError(t, err)
 
@@ -47,8 +47,8 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler ReconcileStorageCluster
 		},
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
-	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualCosu)
-	if avoidObjectStore(reconciler.platform.platform) {
+	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCosu)
+	if avoidObjectStore(reconciler.Platform.platform) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)

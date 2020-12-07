@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	api "github.com/openshift/ocs-operator/api/v1"
 	"github.com/stretchr/testify/assert"
 	storagev1 "k8s.io/api/storage/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -24,26 +24,26 @@ func TestStorageClasses(t *testing.T) {
 
 }
 
-func assertStorageClasses(t *testing.T, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
+func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	actualSc1 := &storagev1.StorageClass{}
 	actualSc2 := &storagev1.StorageClass{}
 	actualSc3 := &storagev1.StorageClass{}
 
 	request.Name = "ocsinit-cephfs"
-	err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc1)
+	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualSc1)
 	assert.NoError(t, err)
 
 	request.Name = "ocsinit-ceph-rbd"
-	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc2)
+	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualSc2)
 	assert.NoError(t, err)
 
 	expected, err := reconciler.newStorageClasses(cr)
 	assert.NoError(t, err)
 	request.Name = "ocsinit-ceph-rgw"
-	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc3)
+	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualSc3)
 	// on a cloud platform, 'Get' should throw an error,
 	// as OBC StorageClass won't be created
-	if avoidObjectStore(reconciler.platform.platform) {
+	if avoidObjectStore(reconciler.Platform.platform) {
 		// we should be expecting only 2 storage classes
 		assert.Equal(t, len(expected), 2)
 		assert.Error(t, err)

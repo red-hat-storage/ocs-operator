@@ -889,11 +889,6 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 	}
 
 	for _, crdFile := range crdFiles {
-		// only copy crd manifests, this will ignore cr manifests
-		if !strings.Contains(crdFile.Name(), "crd.yaml") && !strings.Contains(crdFile.Name(), "crds.yaml") {
-			continue
-		}
-
 		inputFile := filepath.Join(*inputCrdsDir, crdFile.Name())
 		crdBytes, err := ioutil.ReadFile(inputFile)
 		if err != nil {

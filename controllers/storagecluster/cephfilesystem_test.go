@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	api "github.com/openshift/ocs-operator/api/v1"
 )
 
 func TestCephFileSystem(t *testing.T) {
@@ -38,14 +38,14 @@ func TestCephFileSystem(t *testing.T) {
 
 }
 
-func assertCephFileSystem(t *testing.T, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephFileSystem(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	actualFs := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfilesystem",
 		},
 	}
 	request.Name = "ocsinit-cephfilesystem"
-	err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualFs)
+	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualFs)
 	assert.NoError(t, err)
 
 	expectedAf, err := reconciler.newCephFilesystemInstances(cr)

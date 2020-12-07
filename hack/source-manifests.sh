@@ -25,7 +25,8 @@ if [ -z "$NOOBAA_IMAGE" ] || [ -z "$ROOK_IMAGE" ]; then
 fi
 
 # always start fresh and remove any previous artifacts that may exist.
-rm -rf $OCS_FINAL_DIR
+rm -rf $(dirname $OCS_FINAL_DIR)
+mkdir -p $(dirname $OCS_FINAL_DIR)
 rm -rf $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_CRDS
@@ -60,26 +61,19 @@ rm -f "$crd_list"
 # ==== DUMP OCS YAMLS ====
 # Generate an OCS CSV using the operator-sdk.
 # This is the base CSV everything else gets merged into later on.
-TMP_CSV_VERSION=9999.9999.9999
-gen_args="generate csv --csv-version=$TMP_CSV_VERSION --output-dir=$OUTDIR_TEMPLATES"
-if [ -n "$CSV_REPLACES_VERSION" ]; then
-	gen_args="$gen_args --from-version=$CSV_REPLACES_VERSION"
-fi
+gen_args="generate kustomize manifests -q"
 # shellcheck disable=SC2086
 $OPERATOR_SDK $gen_args
-mv $OUTDIR_TEMPLATES/manifests/ocs-operator.clusterserviceversion.yaml $OCS_CSV
-# Make variables templated for csv-merger tool
-if [ "$OS_TYPE" == "Darwin" ]; then
-	sed -i '' "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
-	sed -i '' "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
-	sed -i '' "/replaces:/d" $OCS_CSV
-else
-	sed -i "s/$TMP_CSV_VERSION/{{.OcsOperatorCsvVersion}}/g" $OCS_CSV
-	sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
-	sed -i "/replaces:/d" $OCS_CSV
-fi
-cp deploy/crds/* $OUTDIR_CRDS/
+pushd config/manager
+$KUSTOMIZE edit set image ocs-dev/ocs-operator=$OPERATOR_FULL_IMAGE_NAME
+popd
+$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --version $CSV_VERSION
+mv $GOPATH/src/github.com/openshift/ocs-operator/bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
+cp config/crd/bases/* $OUTDIR_CRDS/
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
-mv $OUTDIR_TEMPLATES/manifests/ $OCS_FINAL_DIR
+mv $GOPATH/src/github.com/openshift/ocs-operator/bundle/manifests $OCS_FINAL_DIR
+mv $GOPATH/src/github.com/openshift/ocs-operator/bundle/metadata $(dirname $OCS_FINAL_DIR)/metadata
+rm -rf $GOPATH/src/github.com/openshift/ocs-operator/bundle
+rm $GOPATH/src/github.com/openshift/ocs-operator/bundle.Dockerfile

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -42,36 +42,36 @@ const (
 )
 
 // deleteStorageClasses deletes the storageClasses that the ocs-operator created
-func (r *ReconcileStorageCluster) deleteStorageClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteStorageClasses(instance *ocsv1.StorageCluster) error {
 
 	scs, err := r.newStorageClasses(instance)
 	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to determine the StorageClass names")) //nolint:gosimple
+		r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to determine the StorageClass names")) //nolint:gosimple
 		return nil
 	}
 	for _, sc := range scs {
 		existing := storagev1.StorageClass{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
 
 		switch {
 		case err == nil:
 			if existing.DeletionTimestamp != nil {
-				reqLogger.Info(fmt.Sprintf("Uninstall: StorageClass %s is already marked for deletion", existing.Name))
+				r.Log.Info(fmt.Sprintf("Uninstall: StorageClass %s is already marked for deletion", existing.Name))
 				break
 			}
 
-			reqLogger.Info(fmt.Sprintf("Uninstall: Deleting StorageClass %s", sc.Name))
+			r.Log.Info(fmt.Sprintf("Uninstall: Deleting StorageClass %s", sc.Name))
 			existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
 			sc.ObjectMeta = existing.ObjectMeta
 
-			err = r.client.Delete(context.TODO(), sc)
+			err = r.Client.Delete(context.TODO(), sc)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Ignoring error deleting the StorageClass %s", existing.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Ignoring error deleting the StorageClass %s", existing.Name))
 			}
 		case errors.IsNotFound(err):
-			reqLogger.Info(fmt.Sprintf("Uninstall: StorageClass %s not found, nothing to do", sc.Name))
+			r.Log.Info(fmt.Sprintf("Uninstall: StorageClass %s not found, nothing to do", sc.Name))
 		default:
-			reqLogger.Info(fmt.Sprintf("Uninstall: Error while getting StorageClass %s: %v", sc.Name, err))
+			r.Log.Info(fmt.Sprintf("Uninstall: Error while getting StorageClass %s: %v", sc.Name, err))
 		}
 	}
 	return nil
@@ -79,41 +79,41 @@ func (r *ReconcileStorageCluster) deleteStorageClasses(instance *ocsv1.StorageCl
 
 //nolint:unused // func deleteNodeAffinityKeyFromNodes is not used. For Future usuage func is created.
 // deleteNodeAffinityKeyFromNodes deletes the default NodeAffinityKey from the OCS nodes
-func (r *ReconcileStorageCluster) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster) (err error) {
 
 	// We should delete the label only when the StorageCluster is using the default NodeAffinityKey
 	if sc.Spec.LabelSelector == nil {
-		nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
+		nodes, err := r.getStorageClusterEligibleNodes(sc)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
 			return nil
 		}
 		for _, node := range nodes.Items {
-			reqLogger.Info(fmt.Sprintf("Uninstall: Deleting OCS label from node %s", node.Name))
+			r.Log.Info(fmt.Sprintf("Uninstall: Deleting OCS label from node %s", node.Name))
 			new := node.DeepCopy()
 			delete(new.ObjectMeta.Labels, defaults.NodeAffinityKey)
 
 			oldJSON, err := json.Marshal(node)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
 			newJSON, err := json.Marshal(new)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
 			patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
-			err = r.client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+			err = r.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
@@ -124,15 +124,15 @@ func (r *ReconcileStorageCluster) deleteNodeAffinityKeyFromNodes(sc *ocsv1.Stora
 }
 
 // deleteNodeTaint deletes the default NodeTolerationKey from the OCS nodes
-func (r *ReconcileStorageCluster) deleteNodeTaint(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (err error) {
 
-	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
+	nodes, err := r.getStorageClusterEligibleNodes(sc)
 	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
+		r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
 		return nil
 	}
 	for _, node := range nodes.Items {
-		reqLogger.Info(fmt.Sprintf("Uninstall: Deleting OCS NodeTolerationKey from the node %s", node.Name))
+		r.Log.Info(fmt.Sprintf("Uninstall: Deleting OCS NodeTolerationKey from the node %s", node.Name))
 		new := node.DeepCopy()
 		new.Spec.Taints = make([]corev1.Taint, 0)
 		for _, taint := range node.Spec.Taints {
@@ -144,25 +144,25 @@ func (r *ReconcileStorageCluster) deleteNodeTaint(sc *ocsv1.StorageCluster, reqL
 
 		oldJSON, err := json.Marshal(node)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
 		newJSON, err := json.Marshal(new)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
-		err = r.client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		err = r.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
@@ -172,29 +172,29 @@ func (r *ReconcileStorageCluster) deleteNodeTaint(sc *ocsv1.StorageCluster, reqL
 }
 
 // deleteCephCluster deletes the CephCluster owned by the StorageCluster
-func (r *ReconcileStorageCluster) deleteCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteCephCluster(sc *ocsv1.StorageCluster) error {
 	cephCluster := &cephv1.CephCluster{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: CephCluster not found")
+			r.Log.Info("Uninstall: CephCluster not found")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Unable to retrieve cephCluster: %v", err)
 	}
 
 	if cephCluster.GetDeletionTimestamp().IsZero() {
-		reqLogger.Info("Uninstall: Deleting cephCluster")
-		err = r.client.Delete(context.TODO(), cephCluster)
+		r.Log.Info("Uninstall: Deleting cephCluster")
+		err = r.Client.Delete(context.TODO(), cephCluster)
 		if err != nil {
 			return fmt.Errorf("Uninstall: Failed to delete cephCluster: %v", err)
 		}
 	}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: CephCluster is deleted")
+			r.Log.Info("Uninstall: CephCluster is deleted")
 			return nil
 		}
 	}
@@ -203,15 +203,15 @@ func (r *ReconcileStorageCluster) deleteCephCluster(sc *ocsv1.StorageCluster, re
 }
 
 // setRookUninstallandCleanupPolicy sets the uninstall mode and cleanup policy for rook based on the annotation on the StorageCluster
-func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster) (err error) {
 
 	cephCluster := &cephv1.CephCluster{}
 	var updateRequired bool
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
+			r.Log.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Unable to retrieve the cephCluster: %v", err)
@@ -238,18 +238,18 @@ func (r *ReconcileStorageCluster) setRookUninstallandCleanupPolicy(instance *ocs
 	}
 
 	if updateRequired {
-		err := r.client.Update(context.TODO(), cephCluster)
+		err := r.Client.Update(context.TODO(), cephCluster)
 		if err != nil {
 			return fmt.Errorf("Uninstall: Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
 		}
-		reqLogger.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set")
+		r.Log.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set")
 	}
 
 	return nil
 }
 
 // setNoobaaUninstallMode sets the uninstall mode for Noobaa based on the annotation on the StorageCluster
-func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageCluster) error {
 	// Do this if Noobaa is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
@@ -260,10 +260,10 @@ func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluste
 	noobaa := &nbv1.NooBaa{}
 	var updateRequired bool
 
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: NooBaa not found, can't set uninstall mode")
+			r.Log.Info("Uninstall: NooBaa not found, can't set uninstall mode")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
@@ -282,123 +282,123 @@ func (r *ReconcileStorageCluster) setNoobaaUninstallMode(sc *ocsv1.StorageCluste
 	}
 
 	if updateRequired {
-		err = r.client.Update(context.TODO(), noobaa)
+		err = r.Client.Update(context.TODO(), noobaa)
 		if err != nil {
 			return fmt.Errorf("Uninstall: Unable to update NooBaa uninstall mode: %v", err)
 		}
-		reqLogger.Info("Uninstall: NooBaa uninstall mode has been set")
+		r.Log.Info("Uninstall: NooBaa uninstall mode has been set")
 	}
 
 	return nil
 }
 
 // reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none or unrecognized ones are set.
-func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster) error {
 	var updateRequired bool
 
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Uninstall: Setting uninstall mode annotation to default", "UninstallMode", UninstallModeGraceful)
+		r.Log.Info("Uninstall: Setting uninstall mode annotation to default", "UninstallMode", UninstallModeGraceful)
 		updateRequired = true
 	} else if found && v != string(UninstallModeGraceful) && v != string(UninstallModeForced) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Uninstall: Found unrecognized uninstall mode annotation. Changing it to default",
+		r.Log.Info("Uninstall: Found unrecognized uninstall mode annotation. Changing it to default",
 			"CurrentUninstallMode", v, "DefaultUninstallMode", UninstallModeGraceful)
 		updateRequired = true
 	}
 
 	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Uninstall: Setting uninstall cleanup policy annotation to default", "CleanupPolicy", CleanupPolicyDelete)
+		r.Log.Info("Uninstall: Setting uninstall cleanup policy annotation to default", "CleanupPolicy", CleanupPolicyDelete)
 		updateRequired = true
 	} else if found && v != string(CleanupPolicyDelete) && v != string(CleanupPolicyRetain) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Uninstall: Found unrecognized uninstall cleanup policy annotation.Changing it to default",
+		r.Log.Info("Uninstall: Found unrecognized uninstall cleanup policy annotation.Changing it to default",
 			"CurrentCleanupPolicy", v, "DefaultCleanupPolicy", CleanupPolicyDelete)
 		updateRequired = true
 	}
 
 	if updateRequired {
 		oldSc := ocsv1.StorageCluster{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &oldSc)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &oldSc)
 		if err != nil {
-			reqLogger.Error(err, "Uninstall: Failed to get storagecluster")
+			r.Log.Error(err, "Uninstall: Failed to get storagecluster")
 			return err
 		}
 		sc.ObjectMeta.ResourceVersion = oldSc.ObjectMeta.ResourceVersion
-		if err := r.client.Update(context.TODO(), sc); err != nil {
-			reqLogger.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
+		if err := r.Client.Update(context.TODO(), sc); err != nil {
+			r.Log.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
 			return err
 		}
-		reqLogger.Info("Uninstall: Default uninstall annotations has been set on storagecluster")
+		r.Log.Info("Uninstall: Default uninstall annotations has been set on storagecluster")
 	}
 	return nil
 }
 
 // deleteResources is the function where the storageClusterFinalizer is handled
 // Every function that is called within this function should be idempotent
-func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) error {
 
-	err := r.setRookUninstallandCleanupPolicy(sc, reqLogger)
+	err := r.setRookUninstallandCleanupPolicy(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.setNoobaaUninstallMode(sc, reqLogger)
+	err = r.setNoobaaUninstallMode(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteNoobaaSystems(sc, reqLogger)
+	err = r.deleteNoobaaSystems(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteCephCluster(sc, reqLogger)
+	err = r.deleteCephCluster(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteCephObjectStoreUsers(sc, reqLogger)
+	err = r.deleteCephObjectStoreUsers(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteCephObjectStores(sc, reqLogger)
+	err = r.deleteCephObjectStores(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteCephFilesystems(sc, reqLogger)
+	err = r.deleteCephFilesystems(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteCephBlockPools(sc, reqLogger)
+	err = r.deleteCephBlockPools(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteSnapshotClasses(sc, reqLogger)
+	err = r.deleteSnapshotClasses(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteStorageClasses(sc, reqLogger)
+	err = r.deleteStorageClasses(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.deleteNodeTaint(sc, reqLogger)
+	err = r.deleteNodeTaint(sc)
 	if err != nil {
 		return err
 	}
 
 	// TODO: skip the deletion of these labels till we figure out a way to wait
 	// for the cleanup jobs
-	//err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
+	//err = r.deleteNodeAffinityKeyFromNodes(sc)
 	//if err != nil {
 	//	return err
 	//}
@@ -407,7 +407,7 @@ func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqL
 }
 
 // deleteCephFilesystems deletes the CephFilesystems owned by the StorageCluster
-func (r *ReconcileStorageCluster) deleteCephFilesystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteCephFilesystems(sc *ocsv1.StorageCluster) error {
 	foundCephFilesystem := &cephv1.CephFilesystem{}
 	cephFilesystems, err := r.newCephFilesystemInstances(sc)
 	if err != nil {
@@ -415,27 +415,27 @@ func (r *ReconcileStorageCluster) deleteCephFilesystems(sc *ocsv1.StorageCluster
 	}
 
 	for _, cephFilesystem := range cephFilesystems {
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephFilesystem not found", "CephFilesystem Name", cephFilesystem.Name)
+				r.Log.Info("Uninstall: CephFilesystem not found", "CephFilesystem Name", cephFilesystem.Name)
 				continue
 			}
 			return fmt.Errorf("Uninstall: Unable to retrieve cephFilesystem %v: %v", cephFilesystem.Name, err)
 		}
 
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
-			reqLogger.Info("Uninstall: Deleting cephFilesystem", "CephFilesystem Name", cephFilesystem.Name)
-			err = r.client.Delete(context.TODO(), foundCephFilesystem)
+			r.Log.Info("Uninstall: Deleting cephFilesystem", "CephFilesystem Name", cephFilesystem.Name)
+			err = r.Client.Delete(context.TODO(), foundCephFilesystem)
 			if err != nil {
 				return fmt.Errorf("Uninstall: Failed to delete cephFilesystem %v: %v", foundCephFilesystem.Name, err)
 			}
 		}
 
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephFilesystem is deleted", "CephFilesystem Name", cephFilesystem.Name)
+				r.Log.Info("Uninstall: CephFilesystem is deleted", "CephFilesystem Name", cephFilesystem.Name)
 				continue
 			}
 		}
@@ -446,7 +446,7 @@ func (r *ReconcileStorageCluster) deleteCephFilesystems(sc *ocsv1.StorageCluster
 }
 
 // deleteCephBlockPools deletes the CephBlockPools owned by the StorageCluster
-func (r *ReconcileStorageCluster) deleteCephBlockPools(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteCephBlockPools(sc *ocsv1.StorageCluster) error {
 	foundCephBlockPool := &cephv1.CephBlockPool{}
 	cephBlockPools, err := r.newCephBlockPoolInstances(sc)
 	if err != nil {
@@ -454,27 +454,27 @@ func (r *ReconcileStorageCluster) deleteCephBlockPools(sc *ocsv1.StorageCluster,
 	}
 
 	for _, cephBlockPool := range cephBlockPools {
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephBlockPool not found", "CephBlockPool Name", cephBlockPool.Name)
+				r.Log.Info("Uninstall: CephBlockPool not found", "CephBlockPool Name", cephBlockPool.Name)
 				continue
 			}
 			return fmt.Errorf("Uninstall: Unable to retrieve cephBlockPool %v: %v", cephBlockPool.Name, err)
 		}
 
 		if cephBlockPool.GetDeletionTimestamp().IsZero() {
-			reqLogger.Info("Uninstall: Deleting cephBlockPool", "CephBlockPool Name", cephBlockPool.Name)
-			err = r.client.Delete(context.TODO(), foundCephBlockPool)
+			r.Log.Info("Uninstall: Deleting cephBlockPool", "CephBlockPool Name", cephBlockPool.Name)
+			err = r.Client.Delete(context.TODO(), foundCephBlockPool)
 			if err != nil {
 				return fmt.Errorf("Uninstall: Failed to delete cephBlockPool %v: %v", foundCephBlockPool.Name, err)
 			}
 		}
 
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephBlockPool is deleted", "CephBlockPool Name", cephBlockPool.Name)
+				r.Log.Info("Uninstall: CephBlockPool is deleted", "CephBlockPool Name", cephBlockPool.Name)
 				continue
 			}
 		}
@@ -485,7 +485,7 @@ func (r *ReconcileStorageCluster) deleteCephBlockPools(sc *ocsv1.StorageCluster,
 }
 
 // deleteCephObjectStoreUsers deletes the CephObjectStoreUsers owned by the StorageCluster
-func (r *ReconcileStorageCluster) deleteCephObjectStoreUsers(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteCephObjectStoreUsers(sc *ocsv1.StorageCluster) error {
 	foundCephObjectStoreUser := &cephv1.CephObjectStoreUser{}
 	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(sc)
 	if err != nil {
@@ -493,27 +493,27 @@ func (r *ReconcileStorageCluster) deleteCephObjectStoreUsers(sc *ocsv1.StorageCl
 	}
 
 	for _, cephObjectStoreUser := range cephObjectStoreUsers {
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephObjectStoreUser not found", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+				r.Log.Info("Uninstall: CephObjectStoreUser not found", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
 				continue
 			}
 			return fmt.Errorf("Uninstall: Unable to retrieve cephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
 		}
 
 		if cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
-			reqLogger.Info("Uninstall: Deleting cephObjectStoreUser", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
-			err = r.client.Delete(context.TODO(), foundCephObjectStoreUser)
+			r.Log.Info("Uninstall: Deleting cephObjectStoreUser", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+			err = r.Client.Delete(context.TODO(), foundCephObjectStoreUser)
 			if err != nil {
 				return fmt.Errorf("Uninstall: Failed to delete cephObjectStoreUser %v: %v", foundCephObjectStoreUser.Name, err)
 			}
 		}
 
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephObjectStoreUser is deleted", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+				r.Log.Info("Uninstall: CephObjectStoreUser is deleted", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
 				continue
 			}
 		}
@@ -524,35 +524,35 @@ func (r *ReconcileStorageCluster) deleteCephObjectStoreUsers(sc *ocsv1.StorageCl
 }
 
 // deleteCephObjectStores deletes the CephObjectStores owned by the StorageCluster
-func (r *ReconcileStorageCluster) deleteCephObjectStores(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteCephObjectStores(sc *ocsv1.StorageCluster) error {
 	foundCephObjectStore := &cephv1.CephObjectStore{}
-	cephObjectStores, err := r.newCephObjectStoreInstances(sc, reqLogger)
+	cephObjectStores, err := r.newCephObjectStoreInstances(sc)
 	if err != nil {
 		return err
 	}
 
 	for _, cephObjectStore := range cephObjectStores {
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephObjectStore not found", "CephObjectStore Name", cephObjectStore.Name)
+				r.Log.Info("Uninstall: CephObjectStore not found", "CephObjectStore Name", cephObjectStore.Name)
 				continue
 			}
 			return fmt.Errorf("Uninstall: Unable to retrieve cephObjectStore %v: %v", cephObjectStore.Name, err)
 		}
 
 		if cephObjectStore.GetDeletionTimestamp().IsZero() {
-			reqLogger.Info("Uninstall: Deleting cephObjectStore", "CephObjectStore Name", cephObjectStore.Name)
-			err = r.client.Delete(context.TODO(), foundCephObjectStore)
+			r.Log.Info("Uninstall: Deleting cephObjectStore", "CephObjectStore Name", cephObjectStore.Name)
+			err = r.Client.Delete(context.TODO(), foundCephObjectStore)
 			if err != nil {
 				return fmt.Errorf("Uninstall: Failed to delete cephObjectStore %v: %v", foundCephObjectStore.Name, err)
 			}
 		}
 
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Uninstall: CephObjectStore is deleted", "CephObjectStore Name", cephObjectStore.Name)
+				r.Log.Info("Uninstall: CephObjectStore is deleted", "CephObjectStore Name", cephObjectStore.Name)
 				continue
 			}
 		}
@@ -563,32 +563,32 @@ func (r *ReconcileStorageCluster) deleteCephObjectStores(sc *ocsv1.StorageCluste
 }
 
 // deleteSnapshotClasses deletes the storageClasses that the ocs-operator created
-func (r *ReconcileStorageCluster) deleteSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteSnapshotClasses(instance *ocsv1.StorageCluster) error {
 
 	scs := newSnapshotClasses(instance)
 	for _, sc := range scs {
 		existing := snapapi.VolumeSnapshotClass{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &existing)
 
 		switch {
 		case err == nil:
 			if existing.DeletionTimestamp != nil {
-				reqLogger.Info(fmt.Sprintf("Uninstall: SnapshotClass %s is already marked for deletion", existing.Name))
+				r.Log.Info(fmt.Sprintf("Uninstall: SnapshotClass %s is already marked for deletion", existing.Name))
 				break
 			}
 
-			reqLogger.Info(fmt.Sprintf("Uninstall: Deleting SnapshotClass %s", sc.Name))
+			r.Log.Info(fmt.Sprintf("Uninstall: Deleting SnapshotClass %s", sc.Name))
 			existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
 			sc.ObjectMeta = existing.ObjectMeta
 
-			err = r.client.Delete(context.TODO(), sc)
+			err = r.Client.Delete(context.TODO(), sc)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Ignoring error deleting the SnapshotClass %s", existing.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Ignoring error deleting the SnapshotClass %s", existing.Name))
 			}
 		case errors.IsNotFound(err):
-			reqLogger.Info(fmt.Sprintf("Uninstall: SnapshotClass %s not found, nothing to do", sc.Name))
+			r.Log.Info(fmt.Sprintf("Uninstall: SnapshotClass %s not found, nothing to do", sc.Name))
 		default:
-			reqLogger.Info(fmt.Sprintf("Uninstall: Error while getting SnapshotClass %s: %v", sc.Name, err))
+			r.Log.Info(fmt.Sprintf("Uninstall: Error while getting SnapshotClass %s: %v", sc.Name, err))
 		}
 	}
 	return nil

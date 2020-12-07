@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
-	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
+	statusutil "github.com/openshift/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -20,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) ensureNoobaaSystem(sc *ocsv1.StorageCluster) error {
 	// Everything other than ReconcileStrategyIgnore means we reconcile
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
@@ -31,22 +30,22 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 
 	// find cephCluster
 	foundCeph := &cephv1.CephCluster{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Waiting on ceph cluster to be created before starting noobaa")
+			r.Log.Info("Waiting on ceph cluster to be created before starting noobaa")
 			return nil
 		}
 		return err
 	}
 	if !sc.Spec.ExternalStorage.Enable {
 		if foundCeph.Status.State != cephv1.ClusterStateCreated {
-			reqLogger.Info("Waiting on ceph cluster to initialize before starting noobaa")
+			r.Log.Info("Waiting on ceph cluster to initialize before starting noobaa")
 			return nil
 		}
 	} else {
 		if foundCeph.Status.State != cephv1.ClusterStateConnected {
-			reqLogger.Info("Waiting for the external ceph cluster to be connected before starting noobaa")
+			r.Log.Info("Waiting for the external ceph cluster to be connected before starting noobaa")
 			return nil
 		}
 	}
@@ -62,21 +61,21 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 			Namespace: sc.Namespace,
 		},
 	}
-	err = controllerutil.SetControllerReference(sc, nb, r.scheme)
+	err = controllerutil.SetControllerReference(sc, nb, r.Scheme)
 	if err != nil {
 		return err
 	}
 
 	// Reconcile the noobaa state, creating or updating if needed
-	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.client, nb, func() error {
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, nb, func() error {
 		return r.setNooBaaDesiredState(nb, sc)
 	})
 	if err != nil {
-		reqLogger.Error(err, "Failed to create or update NooBaa system")
+		r.Log.Error(err, "Failed to create or update NooBaa system")
 		return err
 	}
 
-	objectRef, err := reference.GetReference(r.scheme, nb)
+	objectRef, err := reference.GetReference(r.Scheme, nb)
 	if err != nil {
 		return err
 	}
@@ -85,11 +84,11 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 		return err
 	}
 
-	statusutil.MapNoobaaNegativeConditions(&r.conditions, nb)
+	statusutil.MapNoobaaNegativeConditions(&r.Conditions, nb)
 	return nil
 }
 
-func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster) error {
+func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster) error {
 	storageClassName := generateNameForCephBlockPoolSC(sc)
 	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
 	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
@@ -107,8 +106,8 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	nb.Spec.Tolerations = placement.Tolerations
 	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
 	nb.Spec.DBVolumeResources = &dBVolumeResources
-	nb.Spec.Image = &r.noobaaCoreImage
-	nb.Spec.DBImage = &r.noobaaDBImage
+	nb.Spec.Image = &r.NoobaaCoreImage
+	nb.Spec.DBImage = &r.NoobaaDBImage
 
 	// Default endpoint spec.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
@@ -142,7 +141,7 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 }
 
 // Delete noobaa system in the namespace
-func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteNoobaaSystems(sc *ocsv1.StorageCluster) error {
 	// Delete only if this is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
@@ -151,7 +150,7 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 		}
 	}
 	noobaa := &nbv1.NooBaa{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			pvcs := &corev1.PersistentVolumeClaimList{}
@@ -159,14 +158,14 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 				client.InNamespace(sc.Namespace),
 				client.MatchingLabels(map[string]string{"noobaa-core": "noobaa"}),
 			}
-			err = r.client.List(context.TODO(), pvcs, opts...)
+			err = r.Client.List(context.TODO(), pvcs, opts...)
 			if err != nil {
 				return err
 			}
 			if len(pvcs.Items) > 0 {
 				return fmt.Errorf("Uninstall: Waiting on NooBaa system and PVCs to be deleted")
 			}
-			reqLogger.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
+			r.Log.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Failed to retrieve NooBaa system: %v", err)
@@ -181,15 +180,15 @@ func (r *ReconcileStorageCluster) deleteNoobaaSystems(sc *ocsv1.StorageCluster, 
 	}
 	if !isOwned {
 		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
-		reqLogger.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping")
+		r.Log.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping")
 		return nil
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
-		reqLogger.Info("Uninstall: Deleting NooBaa system")
-		err = r.client.Delete(context.TODO(), noobaa)
+		r.Log.Info("Uninstall: Deleting NooBaa system")
+		err = r.Client.Delete(context.TODO(), noobaa)
 		if err != nil {
-			reqLogger.Error(err, "Uninstall: Failed to delete NooBaa system")
+			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system")
 			return fmt.Errorf("Uninstall: Failed to delete NooBaa system: %v", err)
 		}
 	}

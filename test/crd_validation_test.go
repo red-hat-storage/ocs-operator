@@ -10,7 +10,7 @@ import (
 
 	"github.com/RHsyseng/operator-utils/pkg/validation"
 	"github.com/ghodss/yaml"
-	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	v1 "github.com/openshift/ocs-operator/api/v1"
 
 	"github.com/stretchr/testify/assert"
 )

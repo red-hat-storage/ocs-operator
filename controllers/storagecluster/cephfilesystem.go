@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +15,7 @@ import (
 
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
+func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
 	ret := []*cephv1.CephFilesystem{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -49,7 +48,7 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 		},
 	}
 	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
+		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +58,7 @@ func (r *ReconcileStorageCluster) newCephFilesystemInstances(initData *ocsv1.Sto
 
 // ensureCephFilesystems ensures that cephFilesystem resources exist in the desired
 // state.
-func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) ensureCephFilesystems(instance *ocsv1.StorageCluster) error {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
@@ -71,27 +70,27 @@ func (r *ReconcileStorageCluster) ensureCephFilesystems(instance *ocsv1.StorageC
 	}
 	for _, cephFilesystem := range cephFilesystems {
 		existing := cephv1.CephFilesystem{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
 		switch {
 		case err == nil:
 			if reconcileStrategy == ReconcileStrategyInit {
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
-				reqLogger.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
+				r.Log.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
 				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
 			}
 
-			reqLogger.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
+			r.Log.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
 			existing.ObjectMeta.OwnerReferences = cephFilesystem.ObjectMeta.OwnerReferences
 			cephFilesystem.ObjectMeta = existing.ObjectMeta
-			err = r.client.Update(context.TODO(), cephFilesystem)
+			err = r.Client.Update(context.TODO(), cephFilesystem)
 			if err != nil {
 				return err
 			}
 		case errors.IsNotFound(err):
-			reqLogger.Info(fmt.Sprintf("Creating cephFilesystem %s", cephFilesystem.Name))
-			err = r.client.Create(context.TODO(), cephFilesystem)
+			r.Log.Info(fmt.Sprintf("Creating cephFilesystem %s", cephFilesystem.Name))
+			err = r.Client.Create(context.TODO(), cephFilesystem)
 			if err != nil {
 				return err
 			}

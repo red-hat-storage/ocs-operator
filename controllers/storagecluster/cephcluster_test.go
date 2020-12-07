@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	api "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -54,6 +56,7 @@ func TestEnsureCephCluster(t *testing.T) {
 				c.cc.ObjectMeta.Name = "doesn't exist"
 			}
 		} else {
+			log := zap.New(zap.UseDevMode(false))
 			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, log)
 			c.cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 			if c.condition == "negativeCondition" {
@@ -62,20 +65,20 @@ func TestEnsureCephCluster(t *testing.T) {
 		}
 
 		reconciler := createFakeStorageClusterReconciler(t, c.cc)
-		err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
+		err := reconciler.ensureCephCluster(mockStorageCluster)
 		assert.NoError(t, err)
 		if c.condition == "" {
-			expected := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
-			actual := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
-			err = reconciler.client.Get(context.TODO(), mockCephClusterNamespacedName, actual)
+			expected := newCephCluster(mockStorageCluster, "", 3, reconciler.ServerVersion, reconciler.Log)
+			actual := newCephCluster(mockStorageCluster, "", 3, reconciler.ServerVersion, reconciler.Log)
+			err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, actual)
 			assert.NoError(t, err)
 			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 			assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
 			assert.Equal(t, expected.Spec, actual.Spec)
 		} else if c.condition == "noCondition" {
 
-			assert.NotEmpty(t, reconciler.conditions)
-			assert.Len(t, reconciler.conditions, 3)
+			assert.NotEmpty(t, reconciler.Conditions)
+			assert.Len(t, reconciler.Conditions, 3)
 
 			expectedConditions := map[conditionsv1.ConditionType]corev1.ConditionStatus{
 				conditionsv1.ConditionAvailable:   corev1.ConditionFalse,
@@ -83,12 +86,12 @@ func TestEnsureCephCluster(t *testing.T) {
 				conditionsv1.ConditionUpgradeable: corev1.ConditionFalse,
 			}
 			for cType, status := range expectedConditions {
-				found := assertCondition(reconciler.conditions, cType, status)
+				found := assertCondition(reconciler.Conditions, cType, status)
 				assert.True(t, found, "expected status condition not found", cType, status)
 			}
 
 		} else {
-			assert.Empty(t, reconciler.conditions)
+			assert.Empty(t, reconciler.Conditions)
 		}
 
 	}
@@ -146,7 +149,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonPVCTemplate = c.monPVCTemplate
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 
-		actual := newCephCluster(c.sc, "", 3, serverVersion, log)
+		actual := newCephCluster(c.sc, "", 3, serverVersion, nil)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)

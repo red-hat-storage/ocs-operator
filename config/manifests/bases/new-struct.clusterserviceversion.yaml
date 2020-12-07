@@ -1,0 +1,52 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.2.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: new-struct.vX.Y.Z
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: OCSInitialization is the Schema for the ocsinitialization API
+      displayName: OCSInitialization
+      kind: OCSInitialization
+      name: ocsinitializations.ocs.openshift.io
+      version: v1
+    - description: StorageCluster is the Schema for the storageclusters API
+      displayName: Storage Cluster
+      kind: StorageCluster
+      name: storageclusters.ocs.openshift.io
+      version: v1
+  description: '""'
+  displayName: ocs-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - '""'
+  links:
+  - name: New Struct
+    url: https://new-struct.domain
+  maturity: alpha
+  provider:
+    name: '""'
+    url: '""'
+  version: 0.0.0

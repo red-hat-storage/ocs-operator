@@ -23,14 +23,14 @@ const (
 )
 
 // enablePrometheusRules is a wrapper around CreateOrUpdatePrometheusRule()
-func (r *ReconcileStorageCluster) enablePrometheusRules(isExternal bool) error {
+func (r *StorageClusterReconciler) enablePrometheusRules(isExternal bool) error {
 	rule, err := getPrometheusRules(isExternal)
 	if err != nil {
-		r.reqLogger.Error(err, "prometheus rules file not found")
+		r.Log.Error(err, "prometheus rules file not found")
 	}
 	err = r.CreateOrUpdatePrometheusRules(rule)
 	if err != nil {
-		r.reqLogger.Error(err, "unable to deploy Prometheus rules")
+		r.Log.Error(err, "unable to deploy Prometheus rules")
 	}
 	return nil
 }
@@ -91,17 +91,17 @@ func CheckFileExists(filePath string) error {
 }
 
 // CreateOrUpdatePrometheusRules creates or updates Prometheus Rule
-func (r *ReconcileStorageCluster) CreateOrUpdatePrometheusRules(rule *monitoringv1.PrometheusRule) error {
-	err := r.client.Create(context.TODO(), rule)
+func (r *StorageClusterReconciler) CreateOrUpdatePrometheusRules(rule *monitoringv1.PrometheusRule) error {
+	err := r.Client.Create(context.TODO(), rule)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			oldRule := &monitoringv1.PrometheusRule{}
-			err = r.client.Get(context.TODO(), types.NamespacedName{Name: rule.Name, Namespace: rule.Namespace}, oldRule)
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: rule.Name, Namespace: rule.Namespace}, oldRule)
 			if err != nil {
 				return fmt.Errorf("failed while fetching PrometheusRule: %v", err)
 			}
 			oldRule.Spec = rule.Spec
-			err := r.client.Update(context.TODO(), oldRule)
+			err := r.Client.Update(context.TODO(), oldRule)
 			if err != nil {
 				return fmt.Errorf("failed while updating PrometheusRule: %v", err)
 			}

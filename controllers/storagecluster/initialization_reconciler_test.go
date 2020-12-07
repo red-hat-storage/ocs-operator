@@ -10,7 +10,7 @@ import (
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	openshiftv1 "github.com/openshift/api/template/v1"
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	api "github.com/openshift/ocs-operator/api/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -103,7 +103,7 @@ func createUpdateRuntimeObjects(cp *Platform) []runtime.Object {
 }
 
 func initStorageClusterResourceCreateUpdateTestWithPlatform(
-	t *testing.T, platform *Platform, runtimeObjs []runtime.Object) (*testing.T, ReconcileStorageCluster, *api.StorageCluster, reconcile.Request) {
+	t *testing.T, platform *Platform, runtimeObjs []runtime.Object) (*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -127,9 +127,9 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 	reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(
 		t, platform, rtObjsToCreateReconciler...)
 
-	_ = reconciler.client.Create(context.TODO(), cr)
+	_ = reconciler.Client.Create(context.TODO(), cr)
 	for _, rtObj := range runtimeObjs {
-		_ = reconciler.client.Create(context.TODO(), rtObj)
+		_ = reconciler.Client.Create(context.TODO(), rtObj)
 	}
 
 	result, err := reconciler.Reconcile(request)
@@ -139,14 +139,14 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 	return t, reconciler, cr, request
 }
 
-func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) ReconcileStorageCluster {
+func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
 	return createFakeInitializationStorageClusterReconcilerWithPlatform(
 		t, &Platform{platform: configv1.NonePlatformType}, obj...)
 }
 
 func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	platform *Platform,
-	obj ...runtime.Object) ReconcileStorageCluster {
+	obj ...runtime.Object) StorageClusterReconciler {
 	scheme := createFakeInitializationScheme(t, obj...)
 	obj = append(obj, mockNodeList)
 	client := fake.NewFakeClientWithScheme(scheme, obj...)
@@ -154,12 +154,12 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		platform = &Platform{platform: configv1.NonePlatformType}
 	}
 
-	return ReconcileStorageCluster{
-		client:        client,
-		scheme:        scheme,
-		serverVersion: &version.Info{},
-		reqLogger:     logf.Log.WithName("controller_storagecluster_test"),
-		platform:      platform,
+	return StorageClusterReconciler{
+		Client:        client,
+		Scheme:        scheme,
+		ServerVersion: &version.Info{},
+		Log:           logf.Log.WithName("controller_storagecluster_test"),
+		Platform:      platform,
 	}
 }
 

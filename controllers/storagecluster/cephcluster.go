@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-logr/logr"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
-	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
+	statusutil "github.com/openshift/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -58,7 +58,7 @@ const (
 
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
-func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) ensureCephCluster(sc *ocsv1.StorageCluster) error {
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
@@ -90,58 +90,58 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	var cephCluster *cephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		cephCluster = newExternalCephCluster(sc, r.cephImage, r.monitoringIP)
+		cephCluster = newExternalCephCluster(sc, r.CephImage, r.MonitoringIP)
 	} else {
-		cephCluster = newCephCluster(sc, r.cephImage, r.nodeCount, r.serverVersion, reqLogger)
+		cephCluster = newCephCluster(sc, r.CephImage, r.NodeCount, r.ServerVersion, r.Log)
 	}
 
 	// Set StorageCluster instance as the owner and controller
-	if err := controllerutil.SetControllerReference(sc, cephCluster, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(sc, cephCluster, r.Scheme); err != nil {
 		return err
 	}
 
 	// Check if this CephCluster already exists
 	found := &cephv1.CephCluster{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if sc.Spec.ExternalStorage.Enable {
-				reqLogger.Info("Creating external CephCluster")
+				r.Log.Info("Creating external CephCluster")
 			} else {
-				reqLogger.Info("Creating CephCluster")
+				r.Log.Info("Creating CephCluster")
 			}
-			return r.client.Create(context.TODO(), cephCluster)
+			return r.Client.Create(context.TODO(), cephCluster)
 		}
 		return err
 	}
 
 	// Update the CephCluster if it is not in the desired state
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
-		reqLogger.Info("Updating spec for CephCluster")
+		r.Log.Info("Updating spec for CephCluster")
 		if !sc.Spec.ExternalStorage.Enable {
 			// Check if Cluster is Expanding
 			if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
-				r.phase = statusutil.PhaseClusterExpanding
+				r.Phase = statusutil.PhaseClusterExpanding
 			} else if len(found.Spec.Storage.StorageClassDeviceSets) == len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
 				for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
 					for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
 						if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
-							r.phase = statusutil.PhaseClusterExpanding
+							r.Phase = statusutil.PhaseClusterExpanding
 							break
 						}
 					}
-					if r.phase == statusutil.PhaseClusterExpanding {
+					if r.Phase == statusutil.PhaseClusterExpanding {
 						break
 					}
 				}
 			}
 		}
 		found.Spec = cephCluster.Spec
-		return r.client.Update(context.TODO(), found)
+		return r.Client.Update(context.TODO(), found)
 	}
 
 	// Add it to the list of RelatedObjects if found
-	objectRef, err := reference.GetReference(r.scheme, found)
+	objectRef, err := reference.GetReference(r.Scheme, found)
 	if err != nil {
 		return err
 	}
@@ -152,17 +152,17 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 
 	// Handle CephCluster resource status
 	if found.Status.State == "" {
-		reqLogger.Info("CephCluster resource is not reporting status.")
+		r.Log.Info("CephCluster resource is not reporting status.")
 		// What does this mean to OCS status? Assuming progress.
 		reason := "CephClusterStatus"
 		message := "CephCluster resource is not reporting status"
-		statusutil.MapCephClusterNoConditions(&r.conditions, reason, message)
+		statusutil.MapCephClusterNoConditions(&r.Conditions, reason, message)
 	} else {
 		// Interpret CephCluster status and set any negative conditions
 		if sc.Spec.ExternalStorage.Enable {
-			statusutil.MapExternalCephClusterNegativeConditions(&r.conditions, found)
+			statusutil.MapExternalCephClusterNegativeConditions(&r.Conditions, found)
 		} else {
-			statusutil.MapCephClusterNegativeConditions(&r.conditions, found)
+			statusutil.MapCephClusterNegativeConditions(&r.Conditions, found)
 		}
 	}
 
@@ -171,7 +171,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	// else expansion is not yet triggered
 	if sc.Status.Phase == statusutil.PhaseClusterExpanding &&
 		found.Status.State != cephv1.ClusterStateUpdating {
-		r.phase = statusutil.PhaseClusterExpanding
+		r.Phase = statusutil.PhaseClusterExpanding
 	}
 
 	if sc.Spec.ExternalStorage.Enable {
@@ -183,8 +183,8 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 			sc.Status.Phase = statusutil.PhaseNotReady
 		}
 
-		if err = r.client.Status().Update(context.TODO(), sc); err != nil {
-			reqLogger.Error(err, "Failed to update external cluster status")
+		if err = r.Client.Status().Update(context.TODO(), sc); err != nil {
+			r.Log.Error(err, "Failed to update external cluster status")
 			return err
 		}
 	}
@@ -210,7 +210,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				AllowUnsupported: false,
 			},
 			Mon: cephv1.MonSpec{
-				Count:                getMonCount(nodeCount),
+				Count:                getMonCount(nodeCount, reqLogger),
 				AllowMultiplePerNode: false,
 			},
 			Mgr: cephv1.MgrSpec{
@@ -337,7 +337,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitori
 	return externalCephCluster
 }
 
-func getMonCount(nodeCount int) int {
+func getMonCount(nodeCount int, reqLogger logr.Logger) int {
 	count := defaults.MonCountMin
 
 	// return static value if overriden
@@ -345,7 +345,7 @@ func getMonCount(nodeCount int) int {
 	if override != "" {
 		count, err := strconv.Atoi(override)
 		if err != nil {
-			log.Error(err, "could not decode env var %s", monCountOverrideEnvVar)
+			reqLogger.Error(err, "could not decode env var %s. error", monCountOverrideEnvVar)
 		} else {
 			return count
 		}

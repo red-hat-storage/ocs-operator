@@ -23,6 +23,8 @@ fi
 
 IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-${IMAGE_BUILD_CMD} run --rm -it}"
 
+# KUSTOMIZE="${KUSTOMIZE}:-kustomize"
+
 OUTDIR="build/_output"
 OUTDIR_BIN="build/_output/bin"
 OUTDIR_OCS_CI="build/_output/ocs-ci-testsuite"
@@ -46,7 +48,7 @@ GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
 # This env var allows developers to point to a custom oc tool that isn't in $PATH
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"
-OCS_FINAL_DIR="deploy/olm-catalog/ocs-operator/manifests"
+OCS_FINAL_DIR="deploy/bundle/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
 NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"

@@ -3,7 +3,7 @@ package storagecluster
 import (
 	"fmt"
 
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 )
 
 func generateNameForCephCluster(initData *ocsv1.StorageCluster) string {

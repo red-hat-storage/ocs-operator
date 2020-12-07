@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	api "github.com/openshift/ocs-operator/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ func TestVolumeSnapshotterClasses(t *testing.T) {
 	}
 }
 
-func assertVolumeSnapshotterClasses(t *testing.T, reconciler ReconcileStorageCluster,
+func assertVolumeSnapshotterClasses(t *testing.T, reconciler StorageClusterReconciler,
 	cr *api.StorageCluster, request reconcile.Request) {
 	rbdVSCName := "ocsinit-rbdplugin-snapclass"
 	cephfsVSCName := "ocsinit-cephfsplugin-snapclass"
@@ -32,7 +32,7 @@ func assertVolumeSnapshotterClasses(t *testing.T, reconciler ReconcileStorageClu
 			},
 		}
 		request.Name = eachVSCName
-		err := reconciler.client.Get(context.TODO(), request.NamespacedName, actualVSC)
+		err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualVSC)
 		assert.NoError(t, err)
 	}
 }

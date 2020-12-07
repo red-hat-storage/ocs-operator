@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,13 +23,13 @@ const (
 
 // ensureStorageClasses ensures that StorageClass resources exist in the desired
 // state.
-func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) ensureStorageClasses(instance *ocsv1.StorageCluster) error {
 	scs, err := r.newStorageClasses(instance)
 	if err != nil {
 		return err
 	}
 
-	err = r.createStorageClasses(scs, instance, reqLogger)
+	err = r.createStorageClasses(scs, instance)
 	if err != nil {
 		return err
 	}
@@ -38,7 +37,7 @@ func (r *ReconcileStorageCluster) ensureStorageClasses(instance *ocsv1.StorageCl
 	return nil
 }
 
-func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) createStorageClasses(scs []*storagev1.StorageClass, instance *ocsv1.StorageCluster) error {
 	for index, sc := range scs {
 		// In the case of an external cluster, some scs may be unavailable. In this case we should move on.
 		if sc == nil {
@@ -61,12 +60,12 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 			continue
 		}
 		existing := &storagev1.StorageClass{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 
 		if errors.IsNotFound(err) {
 			// Since the StorageClass is not found, we will create a new one
-			reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
-			err = r.client.Create(context.TODO(), sc)
+			r.Log.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+			err = r.Client.Create(context.TODO(), sc)
 			if err != nil {
 				return err
 			}
@@ -82,13 +81,13 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) {
 				// Since we have to update the existing StorageClass
 				// So, we will delete the existing storageclass and create a new one
-				reqLogger.Info(fmt.Sprintf("StorageClass %s needs to be updated, deleting it", existing.Name))
-				err = r.client.Delete(context.TODO(), existing)
+				r.Log.Info(fmt.Sprintf("StorageClass %s needs to be updated, deleting it", existing.Name))
+				err = r.Client.Delete(context.TODO(), existing)
 				if err != nil {
 					return err
 				}
-				reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
-				err = r.client.Create(context.TODO(), sc)
+				r.Log.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+				err = r.Client.Create(context.TODO(), sc)
 				if err != nil {
 					return err
 				}
@@ -98,7 +97,7 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 	return nil
 }
 
-func (r *ReconcileStorageCluster) newOBCStorageClass(initData *ocsv1.StorageCluster) *storagev1.StorageClass {
+func (r *StorageClusterReconciler) newOBCStorageClass(initData *ocsv1.StorageCluster) *storagev1.StorageClass {
 	reclaimPolicy := corev1.PersistentVolumeReclaimDelete
 	retSC := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -120,7 +119,7 @@ func (r *ReconcileStorageCluster) newOBCStorageClass(initData *ocsv1.StorageClus
 
 // newStorageClasses returns the StorageClass instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
+func (r *StorageClusterReconciler) newStorageClasses(initData *ocsv1.StorageCluster) ([]*storagev1.StorageClass, error) {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	ret := []*storagev1.StorageClass{
@@ -176,7 +175,7 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 	// a. either 'externalStorage' is enabled
 	// OR
 	// b. current platform is not a cloud-based platform
-	platform, err := r.platform.GetPlatform(r.client)
+	platform, err := r.Platform.GetPlatform(r.Client)
 	if initData.Spec.ExternalStorage.Enable || err == nil && !avoidObjectStore(platform) {
 		ret = append(ret, r.newOBCStorageClass(initData))
 	}

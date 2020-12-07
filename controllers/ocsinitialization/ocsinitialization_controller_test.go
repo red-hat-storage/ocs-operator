@@ -8,8 +8,8 @@ import (
 	secv1 "github.com/openshift/api/security/v1"
 	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	statusutil "github.com/openshift/ocs-operator/pkg/controller/util"
+	v1 "github.com/openshift/ocs-operator/api/v1"
+	statusutil "github.com/openshift/ocs-operator/controllers/util"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	testingClient "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -30,7 +31,7 @@ var successfulReconcileConditions = map[conditionsv1.ConditionType]corev1.Condit
 	v1.ConditionReconcileComplete:     corev1.ConditionTrue,
 }
 
-func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reconcile.Request, ReconcileOCSInitialization) {
+func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reconcile.Request, OCSInitializationReconciler) {
 	var request reconcile.Request
 	if mockNamespace {
 		request = reconcile.Request{
@@ -52,15 +53,18 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 	return ocs, request, getReconciler(t, &ocs)
 }
 
-func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileOCSInitialization {
+func getReconciler(t *testing.T, objs ...runtime.Object) OCSInitializationReconciler {
 	scheme := createFakeScheme(t)
 	client := fake.NewFakeClientWithScheme(scheme, objs...)
 	secClient := &fakeSecClient.FakeSecurityV1{Fake: &testingClient.Fake{}}
+	log := zap.New(zap.UseDevMode(false))
 
-	return ReconcileOCSInitialization{
-		scheme:    scheme,
-		client:    client,
-		secClient: secClient,
+	return OCSInitializationReconciler{
+		Scheme:    scheme,
+		Client:    client,
+		SecClient: secClient,
+		Log:       log,
+		RookImage: "rook/ceph",
 	}
 }
 
@@ -94,7 +98,7 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 }
 
 func TestReconcilerImplementsInterface(t *testing.T) {
-	reconciler := ReconcileOCSInitialization{}
+	reconciler := OCSInitializationReconciler{}
 	var i interface{} = &reconciler
 	_, ok := i.(reconcile.Reconciler)
 	assert.True(t, ok)
@@ -152,11 +156,11 @@ func TestNonWatchedResourceFound(t *testing.T) {
 		request.Namespace = tc.namespace
 		ocs.Name = tc.name
 		ocs.Namespace = tc.namespace
-		reconciler.client.Create(nil, &ocs)
+		reconciler.Client.Create(nil, &ocs)
 		_, err := reconciler.Reconcile(request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile with non watched resource", tc.label)
 		actual := &v1.OCSInitialization{}
-		reconciler.client.Get(nil, request.NamespacedName, actual)
+		reconciler.Client.Get(nil, request.NamespacedName, actual)
 		assert.Equalf(t, statusutil.PhaseIgnored, actual.Status.Phase, "[%s]: failed to update phase of non watched resource that already exists", tc.label)
 	}
 }
@@ -180,18 +184,18 @@ func TestCreateWatchedResource(t *testing.T) {
 	for _, tc := range testcases {
 		ocs, request, reconciler := getTestParams(false, t)
 		if tc.alreadyCreated {
-			reconciler.client.Create(nil, &ocs)
+			reconciler.Client.Create(nil, &ocs)
 		} else {
-			err := reconciler.client.Delete(nil, &ocs)
+			err := reconciler.Client.Delete(nil, &ocs)
 			assert.NoError(t, err)
 
-			err = reconciler.client.Get(nil, request.NamespacedName, &ocs)
+			err = reconciler.Client.Get(nil, request.NamespacedName, &ocs)
 			assert.Error(t, err)
 		}
 		_, err := reconciler.Reconcile(request)
 		assert.NoError(t, err)
 		obj := v1.OCSInitialization{}
-		_ = reconciler.client.Get(nil, request.NamespacedName, &obj)
+		_ = reconciler.Client.Get(nil, request.NamespacedName, &obj)
 		assert.Equalf(t, obj.Name, request.Name, "[%s]: failed to create ocsInit resource with correct name", tc.label)
 		assert.Equalf(t, obj.Namespace, request.Namespace, "[%s]: failed to create ocsInit resource with correct namespace", tc.label)
 	}
@@ -217,14 +221,14 @@ func TestCreateSCCs(t *testing.T) {
 
 		if tc.sscCreated {
 			ocs.Status.SCCsCreated = false
-			err := reconciler.client.Update(context.TODO(), &ocs)
+			err := reconciler.Client.Update(context.TODO(), &ocs)
 			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
 
 		_, err := reconciler.Reconcile(request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
 		obj := v1.OCSInitialization{}
-		_ = reconciler.client.Get(context.TODO(), request.NamespacedName, &obj)
+		_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
 		for cType, status := range successfulReconcileConditions {
 			found := assertCondition(obj, cType, status)
 			if !found {
@@ -240,7 +244,7 @@ func TestReconcileCompleteConditions(t *testing.T) {
 	_, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	obj := v1.OCSInitialization{}
-	_ = reconciler.client.Get(context.TODO(), request.NamespacedName, &obj)
+	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
 	assert.NotEmpty(t, obj.Status.Conditions)
 	assert.Len(t, obj.Status.Conditions, 5)
 	for cType, status := range successfulReconcileConditions {
@@ -285,7 +289,7 @@ func TestEnsureToolsDeployment(t *testing.T) {
 		assert.NoErrorf(t, err, "[%s] failed to create ceph tools", tc.label)
 		if tc.enableCephTools {
 			cephtoolsDeployment := &appsv1.Deployment{}
-			err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
+			err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
 			assert.NoErrorf(t, err, "[%s] failed to create ceph tools", tc.label)
 		}
 	}
@@ -320,13 +324,13 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 				Replicas: &replicaTwo,
 			},
 		}
-		err := reconciler.client.Create(context.TODO(), cephTools)
+		err := reconciler.Client.Create(context.TODO(), cephTools)
 		assert.NoError(t, err)
 		err = reconciler.ensureToolsDeployment(&ocs)
 		assert.NoErrorf(t, err, "[%s] failed to create ceph tools deployment", tc.label)
 
 		cephtoolsDeployment := &appsv1.Deployment{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
 		if tc.enableCephTools {
 			assert.NoErrorf(t, err, "[%s] failed to get ceph tools deployment", tc.label)
 			assert.Equalf(t, int32(1), *cephtoolsDeployment.Spec.Replicas, "[%s] failed to update the ceph tools pod", tc.label)
@@ -349,7 +353,7 @@ func TestEnsureRookCephOperatorConfig(t *testing.T) {
 	ocsinitTrue.Status.RookCephOperatorConfigCreated = true
 
 	type args struct {
-		reconciler  ReconcileOCSInitialization
+		reconciler  OCSInitializationReconciler
 		initialData *v1.OCSInitialization
 	}
 	testcases := []struct {

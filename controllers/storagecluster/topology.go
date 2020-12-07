@@ -7,19 +7,17 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-logr/logr"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *ReconcileStorageCluster) getStorageClusterEligibleNodes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (nodes *corev1.NodeList, err error) {
+func (r *StorageClusterReconciler) getStorageClusterEligibleNodes(sc *ocsv1.StorageCluster) (nodes *corev1.NodeList, err error) {
 	nodes = &corev1.NodeList{}
 	var selector labels.Selector
 
@@ -34,7 +32,7 @@ func (r *ReconcileStorageCluster) getStorageClusterEligibleNodes(sc *ocsv1.Stora
 	if err != nil {
 		return nodes, err
 	}
-	err = r.client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
+	err = r.Client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
 
 	return nodes, err
 }
@@ -171,10 +169,10 @@ func generateStrategicPatch(oldObj, newObj interface{}) (client.Patch, error) {
 
 // ensureNodeRacks iterates through the list of storage nodes and ensures
 // all nodes have a rack topology label.
-func (r *ReconcileStorageCluster) ensureNodeRacks(
+func (r *StorageClusterReconciler) ensureNodeRacks(
 	nodes *corev1.NodeList, minRacks int,
 	nodeRacks, topologyMap *ocsv1.NodeTopologyMap,
-	reqLogger logr.Logger) error {
+) error {
 
 	for _, node := range nodes.Items {
 		hasRack := false
@@ -195,18 +193,18 @@ func (r *ReconcileStorageCluster) ensureNodeRacks(
 			rack := determinePlacementRack(nodes, node, minRacks, nodeRacks)
 			nodeRacks.Add(rack, node.Name)
 			if !topologyMap.Contains(defaults.RackTopologyKey, rack) {
-				reqLogger.Info("Adding rack label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+				r.Log.Info("Adding rack label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
 				topologyMap.Add(defaults.RackTopologyKey, rack)
 			}
 
-			reqLogger.Info("Labeling node with rack label", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+			r.Log.Info("Labeling node with rack label", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
 			newNode := node.DeepCopy()
 			newNode.Labels[defaults.RackTopologyKey] = rack
 			patch, err := generateStrategicPatch(node, newNode)
 			if err != nil {
 				return err
 			}
-			err = r.client.Patch(context.TODO(), &node, patch)
+			err = r.Client.Patch(context.TODO(), &node, patch)
 			if err != nil {
 				return err
 			}
@@ -218,7 +216,7 @@ func (r *ReconcileStorageCluster) ensureNodeRacks(
 
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
-func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster) error {
 	minNodes := defaults.DeviceSetReplica
 	for _, deviceSet := range sc.Spec.StorageDeviceSets {
 		if deviceSet.Replica > minNodes {
@@ -226,7 +224,7 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 		}
 	}
 
-	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
+	nodes, err := r.getStorageClusterEligibleNodes(sc)
 	if err != nil {
 		return err
 	}
@@ -238,10 +236,10 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	updated := false
 	nodeRacks := ocsv1.NewNodeTopologyMap()
 
-	r.nodeCount = len(nodes.Items)
+	r.NodeCount = len(nodes.Items)
 
-	if r.nodeCount < minNodes {
-		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, r.nodeCount)
+	if r.NodeCount < minNodes {
+		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, r.NodeCount)
 	}
 
 	for _, node := range nodes.Items {
@@ -250,7 +248,7 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 			for _, key := range validTopologyLabelKeys {
 				if strings.Contains(label, key) {
 					if !topologyMap.Contains(label, value) {
-						reqLogger.Info("Adding topology label from node", "Node", node.Name, "Label", label, "Value", value)
+						r.Log.Info("Adding topology label from node", "Node", node.Name, "Label", label, "Value", value)
 						topologyMap.Add(label, value)
 						updated = true
 					}
@@ -266,15 +264,15 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 	}
 
 	if determineFailureDomain(sc) == "rack" {
-		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap, reqLogger)
+		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap)
 		if err != nil {
 			return err
 		}
 	}
 
 	if updated {
-		reqLogger.Info("Updating node topology map for StorageCluster")
-		err = r.client.Status().Update(context.TODO(), sc)
+		r.Log.Info("Updating node topology map for StorageCluster")
+		err = r.Client.Status().Update(context.TODO(), sc)
 		if err != nil {
 			return err
 		}

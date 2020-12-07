@@ -7,8 +7,9 @@ import (
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
-	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/defaults"
+	api "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -45,10 +46,10 @@ func TestReconcileUninstallAnnotations(t *testing.T) {
 }
 
 func assertStorageClusterUninstallAnnotation(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster,
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
 	CleanupPolicy CleanupPolicyType, UninstallMode UninstallModeType) {
 
-	err := reconciler.reconcileUninstallAnnotations(sc, reconciler.reqLogger)
+	err := reconciler.reconcileUninstallAnnotations(sc)
 	assert.NoError(t, err)
 
 	if val, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
@@ -73,7 +74,7 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 		// there are two annotations which will be 4 combinations, test all 4 combinations
 
 		// set default uninstall annotations
-		err := reconciler.reconcileUninstallAnnotations(sc, reconciler.reqLogger)
+		err := reconciler.reconcileUninstallAnnotations(sc)
 		assert.NoError(t, err)
 
 		combinationsList := []struct {
@@ -99,15 +100,15 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 }
 
 func assertCephClusterCleanupPolicy(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster,
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
 	CleanupPolicyConfirmation cephv1.CleanupConfirmationProperty, AllowUninstallWithVolumes bool) {
 
 	// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
-	err := reconciler.setRookUninstallandCleanupPolicy(sc, reconciler.reqLogger)
+	err := reconciler.setRookUninstallandCleanupPolicy(sc)
 	assert.NoError(t, err)
 
 	cephCluster := &cephv1.CephCluster{}
-	err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	assert.NoError(t, err)
 
 	assert.Equal(t, CleanupPolicyConfirmation, cephCluster.Spec.CleanupPolicy.Confirmation)
@@ -140,11 +141,11 @@ func TestDeleteStorageClasses(t *testing.T) {
 	}
 }
 
-func assertTestDeleteStorageClasses(t *testing.T, reconciler ReconcileStorageCluster,
+func assertTestDeleteStorageClasses(t *testing.T, reconciler StorageClusterReconciler,
 	sc *api.StorageCluster, storageClassExists bool) {
 
 	if !storageClassExists {
-		err := reconciler.deleteStorageClasses(sc, reconciler.reqLogger)
+		err := reconciler.deleteStorageClasses(sc)
 		assert.NoError(t, err)
 	}
 
@@ -153,16 +154,16 @@ func assertTestDeleteStorageClasses(t *testing.T, reconciler ReconcileStorageClu
 
 	for _, storageClass := range scs {
 		existing := storagev1.StorageClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
+		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
 		assert.Equal(t, !storageClassExists, errors.IsNotFound(err))
 	}
 
-	err = reconciler.deleteStorageClasses(sc, reconciler.reqLogger)
+	err = reconciler.deleteStorageClasses(sc)
 	assert.NoError(t, err)
 
 	for _, storageClass := range scs {
 		existing := storagev1.StorageClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
+		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: storageClass.Name}, &existing)
 		assert.True(t, errors.IsNotFound(err))
 	}
 }
@@ -195,10 +196,10 @@ func TestDeleteSnapshotClasses(t *testing.T) {
 
 //nolint // func assertTestDeleteSnapshotClasses is not used. For Future usuage func is created.
 func assertTestDeleteSnapshotClasses(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, SnapshotClassExists bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, SnapshotClassExists bool) {
 
 	if !SnapshotClassExists {
-		err := reconciler.deleteSnapshotClasses(sc, reconciler.reqLogger)
+		err := reconciler.deleteSnapshotClasses(sc)
 		assert.NoError(t, err)
 	}
 
@@ -206,16 +207,16 @@ func assertTestDeleteSnapshotClasses(
 
 	for _, ssc := range sscs {
 		existing := snapapi.VolumeSnapshotClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
+		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
 		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
 	}
 
-	err := reconciler.deleteSnapshotClasses(sc, reconciler.reqLogger)
+	err := reconciler.deleteSnapshotClasses(sc)
 	assert.NoError(t, err)
 
 	for _, ssc := range sscs {
 		existing := snapapi.VolumeSnapshotClass{}
-		err := reconciler.client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
+		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: ssc.Name}, &existing)
 		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
 		assert.True(t, errors.IsNotFound(err))
 	}
@@ -249,14 +250,14 @@ func TestDeleteNodeAffinityKeyFromNodes(t *testing.T) {
 }
 
 func assertTestDeleteNodeAffinityKeyFromNodes(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, createUserDefinedKey bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, createUserDefinedKey bool) {
 
 	if createUserDefinedKey {
 		addFakeNodeAffinityKeyOnNodesAndSC(t, reconciler, sc)
 	}
 
 	// verify there are eligible nodes
-	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
@@ -269,10 +270,10 @@ func assertTestDeleteNodeAffinityKeyFromNodes(
 	}
 
 	// delete NodeAffinityKey
-	err = reconciler.deleteNodeAffinityKeyFromNodes(sc, reconciler.reqLogger)
+	err = reconciler.deleteNodeAffinityKeyFromNodes(sc)
 	assert.NoError(t, err)
 
-	nodes, err = reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	nodes, err = reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 
 	if !createUserDefinedKey {
@@ -282,14 +283,14 @@ func assertTestDeleteNodeAffinityKeyFromNodes(
 	}
 }
 
-func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster) {
+func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster) {
 	// create user defined key and val and apply it on SC
 	fakeKey, fakeVal := "fakeKey", "fakeVal"
 	sc.Spec.LabelSelector = metav1.AddLabelToSelector(&metav1.LabelSelector{}, fakeKey, fakeVal)
 
 	// get all nodes
 	nodes := &corev1.NodeList{}
-	err := reconciler.client.List(context.TODO(), nodes)
+	err := reconciler.Client.List(context.TODO(), nodes)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
@@ -307,7 +308,7 @@ func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler ReconcileStorag
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 		assert.NoError(t, err)
 
-		err = reconciler.client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		err = reconciler.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 		assert.NoError(t, err)
 	}
 }
@@ -339,17 +340,17 @@ func TestDeleteNodeTaint(t *testing.T) {
 }
 
 func assertTestDeleteNodeTaint(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, createDefaultNodeTaint bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, createDefaultNodeTaint bool) {
 
 	if createDefaultNodeTaint {
 		addDefaultNodeTaintOnNodes(t, reconciler, sc)
 	}
 
 	// delete node taints
-	err := reconciler.deleteNodeTaint(sc, reconciler.reqLogger)
+	err := reconciler.deleteNodeTaint(sc)
 	assert.NoError(t, err)
 
-	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
@@ -361,9 +362,9 @@ func assertTestDeleteNodeTaint(
 	}
 }
 
-func addDefaultNodeTaintOnNodes(t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster) {
+func addDefaultNodeTaintOnNodes(t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster) {
 
-	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.reqLogger)
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
@@ -380,7 +381,7 @@ func addDefaultNodeTaintOnNodes(t *testing.T, reconciler ReconcileStorageCluster
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 		assert.NoError(t, err)
 
-		err = reconciler.client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		err = reconciler.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 		assert.NoError(t, err)
 	}
 }
@@ -413,15 +414,15 @@ func TestDeleteCephCluster(t *testing.T) {
 }
 
 func assertTestDeleteCephCluster(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, cephClusterExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, cephClusterExist bool) {
 
 	if !cephClusterExist {
-		err := reconciler.deleteCephCluster(sc, reconciler.reqLogger)
+		err := reconciler.deleteCephCluster(sc)
 		assert.NoError(t, err)
 	}
 
 	cephCluster := &cephv1.CephCluster{}
-	err := reconciler.client.Get(context.TODO(), types.NamespacedName{
+	err := reconciler.Client.Get(context.TODO(), types.NamespacedName{
 		Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 
 	if cephClusterExist {
@@ -430,11 +431,11 @@ func assertTestDeleteCephCluster(
 		assert.True(t, errors.IsNotFound(err))
 	}
 
-	err = reconciler.deleteCephCluster(sc, reconciler.reqLogger)
+	err = reconciler.deleteCephCluster(sc)
 	assert.NoError(t, err)
 
 	cephCluster = &cephv1.CephCluster{}
-	err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 		Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	assert.True(t, errors.IsNotFound(err))
 }
@@ -467,10 +468,10 @@ func TestDeleteCephFilesystems(t *testing.T) {
 }
 
 func assertTestDeleteCephFilesystems(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, cephFilesystemsExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, cephFilesystemsExist bool) {
 
 	if !cephFilesystemsExist {
-		err := reconciler.deleteCephFilesystems(sc, reconciler.reqLogger)
+		err := reconciler.deleteCephFilesystems(sc)
 		assert.NoError(t, err)
 	}
 
@@ -479,7 +480,7 @@ func assertTestDeleteCephFilesystems(
 
 	for _, cephFilesystem := range cephFilesystems {
 		foundCephFilesystem := &cephv1.CephFilesystem{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 
 		if cephFilesystemsExist {
@@ -489,12 +490,12 @@ func assertTestDeleteCephFilesystems(
 		}
 	}
 
-	err = reconciler.deleteCephFilesystems(sc, reconciler.reqLogger)
+	err = reconciler.deleteCephFilesystems(sc)
 	assert.NoError(t, err)
 
 	for _, cephFilesystem := range cephFilesystems {
 		foundCephFilesystem := &cephv1.CephFilesystem{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		assert.True(t, errors.IsNotFound(err))
 	}
@@ -529,10 +530,10 @@ func TestDeleteCephBlockPools(t *testing.T) {
 
 //nolint // func assertTestDeleteCephBlockPools is not used. For Future usuage func is created.
 func assertTestDeleteCephBlockPools(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, cephBlockPoolsExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, cephBlockPoolsExist bool) {
 
 	if !cephBlockPoolsExist {
-		err := reconciler.deleteCephBlockPools(sc, reconciler.reqLogger)
+		err := reconciler.deleteCephBlockPools(sc)
 		assert.NoError(t, err)
 	}
 
@@ -541,7 +542,7 @@ func assertTestDeleteCephBlockPools(
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
 
 		if cephBlockPoolsExist {
@@ -551,12 +552,12 @@ func assertTestDeleteCephBlockPools(
 		}
 	}
 
-	err = reconciler.deleteCephBlockPools(sc, reconciler.reqLogger)
+	err = reconciler.deleteCephBlockPools(sc)
 	assert.NoError(t, err)
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
 		assert.True(t, errors.IsNotFound(err))
 	}
@@ -608,10 +609,10 @@ func TestDeleteCephObjectStoreUsers(t *testing.T) {
 }
 
 func assertTestDeleteCephObjectStoreUsers(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, CephObjectStoreUsersExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, CephObjectStoreUsersExist bool) {
 
 	if !CephObjectStoreUsersExist {
-		err := reconciler.deleteCephObjectStoreUsers(sc, reconciler.reqLogger)
+		err := reconciler.deleteCephObjectStoreUsers(sc)
 		assert.NoError(t, err)
 	}
 
@@ -620,7 +621,7 @@ func assertTestDeleteCephObjectStoreUsers(
 
 	for _, cephStoreUser := range cephStoreUsers {
 		foundCephStoreUser := &cephv1.CephObjectStoreUser{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephStoreUser.Name, Namespace: sc.Namespace}, foundCephStoreUser)
 
 		if CephObjectStoreUsersExist {
@@ -630,12 +631,12 @@ func assertTestDeleteCephObjectStoreUsers(
 		}
 	}
 
-	err = reconciler.deleteCephObjectStoreUsers(sc, reconciler.reqLogger)
+	err = reconciler.deleteCephObjectStoreUsers(sc)
 	assert.NoError(t, err)
 
 	for _, cephStoreUser := range cephStoreUsers {
 		foundCephStoreUser := &cephv1.CephObjectStoreUser{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephStoreUser.Name, Namespace: sc.Namespace}, foundCephStoreUser)
 
 		assert.True(t, errors.IsNotFound(err))
@@ -705,19 +706,19 @@ func TestDeleteCephObjectStores(t *testing.T) {
 }
 
 func assertTestDeleteCephObjectStores(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster, CephObjectStoreExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, CephObjectStoreExist bool) {
 
 	if !CephObjectStoreExist {
-		err := reconciler.deleteCephObjectStores(sc, reconciler.reqLogger)
+		err := reconciler.deleteCephObjectStores(sc)
 		assert.NoError(t, err)
 	}
 
-	cephStores, err := reconciler.newCephObjectStoreInstances(sc, reconciler.reqLogger)
+	cephStores, err := reconciler.newCephObjectStoreInstances(sc)
 	assert.NoError(t, err)
 
 	for _, cephStore := range cephStores {
 		foundCephStore := &cephv1.CephObjectStore{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephStore.Name, Namespace: sc.Namespace}, foundCephStore)
 
 		if CephObjectStoreExist {
@@ -727,12 +728,12 @@ func assertTestDeleteCephObjectStores(
 		}
 	}
 
-	err = reconciler.deleteCephObjectStores(sc, reconciler.reqLogger)
+	err = reconciler.deleteCephObjectStores(sc)
 	assert.NoError(t, err)
 
 	for _, cephStore := range cephStores {
 		foundCephStore := &cephv1.CephObjectStore{}
-		err = reconciler.client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
 			Name: cephStore.Name, Namespace: sc.Namespace}, foundCephStore)
 
 		assert.True(t, errors.IsNotFound(err))
@@ -788,19 +789,19 @@ func TestSetNoobaaUninstallMode(t *testing.T) {
 }
 
 func assertTestSetNoobaaUninstallMode(
-	t *testing.T, reconciler ReconcileStorageCluster, sc *api.StorageCluster,
+	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
 	UninstallMode UninstallModeType, NoobaaUninstallMode nbv1.CleanupConfirmationProperty) {
 
-	err := reconciler.reconcileUninstallAnnotations(sc, reconciler.reqLogger)
+	err := reconciler.reconcileUninstallAnnotations(sc)
 	assert.NoError(t, err)
 
 	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallMode)
 
-	err = reconciler.setNoobaaUninstallMode(sc, reconciler.reqLogger)
+	err = reconciler.setNoobaaUninstallMode(sc)
 	assert.NoError(t, err)
 
 	noobaa := &nbv1.NooBaa{}
-	err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	assert.NoError(t, err)
 
 	assert.Equal(t, NoobaaUninstallMode, noobaa.Spec.CleanupPolicy.Confirmation)

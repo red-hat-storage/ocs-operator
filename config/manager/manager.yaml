@@ -1,39 +1,37 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  labels:
-    control-plane: controller-manager
-  name: system
+  name: openshift-storage
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
-  namespace: system
-  labels:
-    control-plane: controller-manager
+  name: ocs-operator
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      control-plane: controller-manager
-  replicas: 1
+      name: ocs-operator
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
-        control-plane: controller-manager
+        name: ocs-operator
     spec:
+      serviceAccountName: ocs-operator
       containers:
-      - command:
-        - /manager
-        args:
-        - --enable-leader-election
-        image: controller:latest
-        name: manager
-        resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
+        - name: ocs-operator
+          # Replace this with the built image name
+          image: ocs-dev/ocs-operator
+          ports:
+          - containerPort: 60000
+            name: metrics
+          command:
+          - ocs-operator
+          args:
+          - --enable-leader-election
+          imagePullPolicy: Always
       terminationGracePeriodSeconds: 10
+
+

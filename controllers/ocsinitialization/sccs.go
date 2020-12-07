@@ -6,27 +6,27 @@ import (
 
 	"github.com/go-logr/logr"
 	secv1 "github.com/openshift/api/security/v1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *ReconcileOCSInitialization) ensureSCCs(initialData *ocsv1.OCSInitialization, reqLogger logr.Logger) error {
+func (r *OCSInitializationReconciler) ensureSCCs(initialData *ocsv1.OCSInitialization, reqLogger logr.Logger) error {
 	sccs := getAllSCCs(initialData.Namespace)
 	for _, scc := range sccs {
-		found, err := r.secClient.SecurityContextConstraints().Get(context.TODO(), scc.Name, metav1.GetOptions{})
+		found, err := r.SecClient.SecurityContextConstraints().Get(context.TODO(), scc.Name, metav1.GetOptions{})
 
 		if err != nil && errors.IsNotFound(err) {
 			reqLogger.Info(fmt.Sprintf("Creating %s SecurityContextConstraint", scc.Name))
-			_, err := r.secClient.SecurityContextConstraints().Create(context.TODO(), scc, metav1.CreateOptions{})
+			_, err := r.SecClient.SecurityContextConstraints().Create(context.TODO(), scc, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("unable to create SCC %+v: %v", scc, err)
 			}
 		} else if err == nil {
 			scc.ObjectMeta = found.ObjectMeta
 			reqLogger.Info(fmt.Sprintf("Updating %s SecurityContextConstraint", scc.Name))
-			_, err := r.secClient.SecurityContextConstraints().Update(context.TODO(), scc, metav1.UpdateOptions{})
+			_, err := r.SecClient.SecurityContextConstraints().Update(context.TODO(), scc, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("unable to update SCC %+v: %v", scc, err)
 			}

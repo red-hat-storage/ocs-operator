@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +14,7 @@ import (
 
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
 // on first run.
-func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
+func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
 	ret := []*cephv1.CephBlockPool{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -33,7 +32,7 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 		},
 	}
 	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, obj, r.scheme)
+		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -43,7 +42,7 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 
 // ensureCephBlockPools ensures that cephBlockPool resources exist in the desired
 // state.
-func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) ensureCephBlockPools(instance *ocsv1.StorageCluster) error {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
@@ -55,7 +54,7 @@ func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCl
 	}
 	for _, cephBlockPool := range cephBlockPools {
 		existing := cephv1.CephBlockPool{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: cephBlockPool.Namespace}, &existing)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: cephBlockPool.Namespace}, &existing)
 
 		switch {
 		case err == nil:
@@ -63,20 +62,20 @@ func (r *ReconcileStorageCluster) ensureCephBlockPools(instance *ocsv1.StorageCl
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
-				reqLogger.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
+				r.Log.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
 				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
 			}
 
-			reqLogger.Info(fmt.Sprintf("Restoring original cephBlockPool %s", cephBlockPool.Name))
+			r.Log.Info(fmt.Sprintf("Restoring original cephBlockPool %s", cephBlockPool.Name))
 			existing.ObjectMeta.OwnerReferences = cephBlockPool.ObjectMeta.OwnerReferences
 			cephBlockPool.ObjectMeta = existing.ObjectMeta
-			err = r.client.Update(context.TODO(), cephBlockPool)
+			err = r.Client.Update(context.TODO(), cephBlockPool)
 			if err != nil {
 				return err
 			}
 		case errors.IsNotFound(err):
-			reqLogger.Info(fmt.Sprintf("Creating cephBlockPool %s", cephBlockPool.Name))
-			err = r.client.Create(context.TODO(), cephBlockPool)
+			r.Log.Info(fmt.Sprintf("Creating cephBlockPool %s", cephBlockPool.Name))
+			err = r.Client.Create(context.TODO(), cephBlockPool)
 			if err != nil {
 				return err
 			}
