@@ -25,9 +25,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var throttleDiskTypes = []string{"gp2", "io1"}
+type diskSpeed string
 
-var throttleFastDiskTypes = []string{"managed-premium"}
+const (
+	diskSpeedUnknown diskSpeed = "unknown"
+	diskSpeedSlow    diskSpeed = "slow"
+	diskSpeedFast    diskSpeed = "fast"
+)
+
+type knownDiskType struct {
+	speed            diskSpeed
+	provisioner      StorageClassProvisionerType
+	storageClassType string
+}
+
+// These are known disk types where we can't correctly detect the type of the
+// disk (rotational or ssd) automatically, so rook would apply wrong tunings.
+// This list allows to specify disks from which storage classes to tune for fast
+// or slow disk optimization.
+var knownDiskTypes = []knownDiskType{
+	{diskSpeedSlow, EBS, "gp2"},
+	{diskSpeedSlow, EBS, "io1"},
+	{diskSpeedFast, AzureDisk, "managed-premium"},
+}
 
 const (
 	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
@@ -42,16 +62,22 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
-	// if StorageClass is "gp2" or "io1" based, set tuneSlowDeviceClass to true
-	// this is for performance optimization of slow device class
-	//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
+
 	for i, ds := range sc.Spec.StorageDeviceSets {
-		throttleSlow, throttleFast, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = false
+
+		diskSpeed, err := r.checkTuneStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
 		if err != nil {
-			return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
+			return fmt.Errorf("Failed to check for known device types: %+v", err)
 		}
-		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = throttleSlow
-		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = throttleFast
+		switch diskSpeed {
+		case diskSpeedSlow:
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
+		case diskSpeedFast:
+			sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = true
+		default:
+		}
 	}
 
 	if isMultus(sc.Spec.Network) {
@@ -490,23 +516,28 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 	return resources
 }
 
-func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string) (bool, bool, error) {
+// The checkTuneStorageDevices function checks whether devices from the given
+// storage class are a known type that should expclitly be tuned for fast or
+// slow access.
+func (r *ReconcileStorageCluster) checkTuneStorageDevices(storageClassName string) (diskSpeed, error) {
 	storageClass := &storagev1.StorageClass{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
 	if err != nil {
-		return false, false, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
+		return diskSpeedUnknown, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
 	}
 
-	switch storageClass.Provisioner {
-	case string(EBS):
-		if contains(throttleDiskTypes, storageClass.Parameters["type"]) {
-			return true, false, nil
+	for _, dt := range knownDiskTypes {
+		if string(dt.provisioner) != storageClass.Provisioner {
+			continue
 		}
-	case string(AzureDisk):
-		if contains(throttleFastDiskTypes, storageClass.Parameters["type"]) {
-			return false, true, nil
+
+		if dt.storageClassType != storageClass.Parameters["type"] {
+			continue
 		}
+
+		return dt.speed, nil
 	}
 
-	return false, false, nil
+	// not a known disk type, don't tune
+	return diskSpeedUnknown, nil
 }
