@@ -25,9 +25,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var knownSlowDiskTypes = []string{"gp2", "io1"}
+type diskSpeed string
 
-var knownFastDiskTypes = []string{"managed-premium"}
+const (
+	diskSpeedSlow diskSpeed = "slow"
+	diskSpeedFast diskSpeed = "fast"
+)
+
+type knownDiskType struct {
+	speed            diskSpeed
+	provisioner      StorageClassProvisionerType
+	storageClassType string
+}
+
+// These are known disk types where we can't correctly detect the type of the
+// disk (rotational or ssd) automatically, so rook would apply wrong tunings.
+// This list allows to specify disks from which storage classes to tune for fast
+// or slow disk optimization.
+var knownDiskTypes = []knownDiskType{
+	{diskSpeedSlow, EBS, "gp2"},
+	{diskSpeedSlow, EBS, "io1"},
+	{diskSpeedFast, AzureDisk, "managed-premium"},
+}
 
 const (
 	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
@@ -497,16 +516,26 @@ func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string
 		return false, false, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
 	}
 
-	switch storageClass.Provisioner {
-	case string(EBS):
-		if contains(knownSlowDiskTypes, storageClass.Parameters["type"]) {
-			return true, false, nil
+	for _, dt := range knownDiskTypes {
+		if string(dt.provisioner) != storageClass.Provisioner {
+			continue
 		}
-	case string(AzureDisk):
-		if contains(knownFastDiskTypes, storageClass.Parameters["type"]) {
+
+		if dt.storageClassType != storageClass.Parameters["type"] {
+			continue
+		}
+
+		switch dt.speed {
+		case diskSpeedSlow:
+			return true, false, nil
+		case diskSpeedFast:
 			return false, true, nil
+		default:
+			// ignore unknown speed type
+			return false, false, nil
 		}
 	}
 
+	// not a known disk type, don't tune
 	return false, false, nil
 }
