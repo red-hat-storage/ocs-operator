@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
@@ -67,7 +68,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
 		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = false
 
-		diskSpeed, err := r.checkTuneStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+		diskSpeed, err := r.checkTuneStorageDevices(ds)
 		if err != nil {
 			return fmt.Errorf("Failed to check for known device types: %+v", err)
 		}
@@ -519,7 +520,18 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 // The checkTuneStorageDevices function checks whether devices from the given
 // storage class are a known type that should expclitly be tuned for fast or
 // slow access.
-func (r *ReconcileStorageCluster) checkTuneStorageDevices(storageClassName string) (diskSpeed, error) {
+func (r *ReconcileStorageCluster) checkTuneStorageDevices(ds ocsv1.StorageDeviceSet) (diskSpeed, error) {
+	deviceType := ds.DeviceType
+
+	if DeviceTypeHDD == strings.ToLower(deviceType) {
+		return diskSpeedSlow, nil
+	}
+
+	if DeviceTypeSSD == strings.ToLower(deviceType) || DeviceTypeNVMe == strings.ToLower(deviceType) {
+		return diskSpeedFast, nil
+	}
+
+	storageClassName := *ds.DataPVCTemplate.Spec.StorageClassName
 	storageClass := &storagev1.StorageClass{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
 	if err != nil {
