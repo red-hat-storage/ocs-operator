@@ -65,7 +65,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	for i, ds := range sc.Spec.StorageDeviceSets {
 		tuneSlow, tuneFast, err := r.checkTuneStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
 		if err != nil {
-			return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
+			return fmt.Errorf("Failed to check for known device types: %+v", err)
 		}
 		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = tuneSlow
 		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = tuneFast
