@@ -28,8 +28,9 @@ import (
 type diskSpeed string
 
 const (
-	diskSpeedSlow diskSpeed = "slow"
-	diskSpeedFast diskSpeed = "fast"
+	diskSpeedUnknown diskSpeed = "unknown"
+	diskSpeedSlow    diskSpeed = "slow"
+	diskSpeedFast    diskSpeed = "fast"
 )
 
 type knownDiskType struct {
@@ -63,12 +64,20 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	}
 
 	for i, ds := range sc.Spec.StorageDeviceSets {
-		tuneSlow, tuneFast, err := r.checkTuneStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
+		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = false
+
+		diskSpeed, err := r.checkTuneStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
 		if err != nil {
 			return fmt.Errorf("Failed to check for known device types: %+v", err)
 		}
-		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = tuneSlow
-		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = tuneFast
+		switch diskSpeed {
+		case diskSpeedSlow:
+			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
+		case diskSpeedFast:
+			sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = true
+		default:
+		}
 	}
 
 	if isMultus(sc.Spec.Network) {
@@ -510,11 +519,11 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 // The checkTuneStorageDevices function checks whether devices from the given
 // storage class are a known type that should expclitly be tuned for fast or
 // slow access.
-func (r *ReconcileStorageCluster) checkTuneStorageDevices(storageClassName string) (bool, bool, error) {
+func (r *ReconcileStorageCluster) checkTuneStorageDevices(storageClassName string) (diskSpeed, error) {
 	storageClass := &storagev1.StorageClass{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
 	if err != nil {
-		return false, false, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
+		return diskSpeedUnknown, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
 	}
 
 	for _, dt := range knownDiskTypes {
@@ -526,17 +535,9 @@ func (r *ReconcileStorageCluster) checkTuneStorageDevices(storageClassName strin
 			continue
 		}
 
-		switch dt.speed {
-		case diskSpeedSlow:
-			return true, false, nil
-		case diskSpeedFast:
-			return false, true, nil
-		default:
-			// ignore unknown speed type
-			return false, false, nil
-		}
+		return dt.speed, nil
 	}
 
 	// not a known disk type, don't tune
-	return false, false, nil
+	return diskSpeedUnknown, nil
 }
