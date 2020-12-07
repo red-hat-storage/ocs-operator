@@ -25,9 +25,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var throttleDiskTypes = []string{"gp2", "io1"}
+var knownSlowDiskTypes = []string{"gp2", "io1"}
 
-var throttleFastDiskTypes = []string{"managed-premium"}
+var knownFastDiskTypes = []string{"managed-premium"}
 
 const (
 	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
@@ -499,11 +499,11 @@ func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string
 
 	switch storageClass.Provisioner {
 	case string(EBS):
-		if contains(throttleDiskTypes, storageClass.Parameters["type"]) {
+		if contains(knownSlowDiskTypes, storageClass.Parameters["type"]) {
 			return true, false, nil
 		}
 	case string(AzureDisk):
-		if contains(throttleFastDiskTypes, storageClass.Parameters["type"]) {
+		if contains(knownFastDiskTypes, storageClass.Parameters["type"]) {
 			return false, true, nil
 		}
 	}
