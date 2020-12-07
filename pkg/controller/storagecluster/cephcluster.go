@@ -509,6 +509,9 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 	return resources
 }
 
+// The checkTuneStorageDevices function checks whether devices from the given
+// storage class are a known type that should expclitly be tuned for fast or
+// slow access.
 func (r *ReconcileStorageCluster) checkTuneStorageDevices(storageClassName string) (bool, bool, error) {
 	storageClass := &storagev1.StorageClass{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
