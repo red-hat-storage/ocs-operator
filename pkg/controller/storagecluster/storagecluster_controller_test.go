@@ -305,7 +305,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 
 	for _, tc := range testcases {
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.storageClass)
-		actualSlow, actualFast, err := reconciler.throttleStorageDevices(tc.storageClass.Name)
+		actualSlow, actualFast, err := reconciler.checkTuneStorageDevices(tc.storageClass.Name)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedSlow, actualSlow, "[%q]: failed to get expected output", tc.label)
 		assert.Equalf(t, tc.expectedFast, actualFast, "[%q]: failed to get expected output", tc.label)
