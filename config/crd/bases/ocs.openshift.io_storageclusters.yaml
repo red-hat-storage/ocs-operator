@@ -1247,10 +1247,6 @@ spec:
                         members when the actual configurable options are defined in
                         rook-ceph'
                       properties:
-                        tuneFastDeviceClass:
-                          description: TuneFastDeviceClass tunes the OSD when running
-                            on a fast Device Class
-                          type: boolean
                         tuneSlowDeviceClass:
                           description: TuneSlowDeviceClass tunes the OSD when running
                             on a slow Device Class
