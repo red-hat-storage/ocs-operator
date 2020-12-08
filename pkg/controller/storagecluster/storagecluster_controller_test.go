@@ -69,6 +69,8 @@ var mockCephClusterNamespacedName = types.NamespacedName{
 }
 
 var storageClassName = "gp2"
+var storageClassName2 = "managed-premium"
+var fakestorageClassName = "st1"
 var volMode = corev1.PersistentVolumeBlock
 
 var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
@@ -252,6 +254,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 	testcases := []struct {
 		label          string
 		storageClass   *storagev1.StorageClass
+		deviceSets     []api.StorageDeviceSet
 		storageCluster *api.StorageCluster
 		expectedSpeed  diskSpeed
 	}{
@@ -264,6 +267,18 @@ func TestThrottleStorageDevices(t *testing.T) {
 				Provisioner: string(EBS),
 				Parameters: map[string]string{
 					"type": "gp2",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageClassName,
+						},
+					},
+					Portable: true,
 				},
 			},
 			storageCluster: &api.StorageCluster{},
@@ -280,6 +295,18 @@ func TestThrottleStorageDevices(t *testing.T) {
 					"type": "st1",
 				},
 			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &fakestorageClassName,
+						},
+					},
+					Portable: true,
+				},
+			},
 			storageCluster: &api.StorageCluster{},
 			expectedSpeed:  diskSpeedUnknown,
 		},
@@ -294,6 +321,99 @@ func TestThrottleStorageDevices(t *testing.T) {
 					"type": "managed-premium",
 				},
 			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageClassName2,
+						},
+					},
+					Portable: true,
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSpeed:  diskSpeedFast,
+		},
+		{
+			label: "Case 4", // storageclass is managed-premium but deviceType hdd
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "managed-premium",
+				},
+				Provisioner: string(AzureDisk),
+				Parameters: map[string]string{
+					"type": "managed-premium",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageClassName2,
+						},
+					},
+					Portable:   true,
+					DeviceType: "hdd",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSpeed:  diskSpeedSlow,
+		},
+		{
+			label: "Case 5", // storageclass is gp2 but deviceType ssd
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gp2",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "gp2",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageClassName,
+						},
+					},
+					Portable:   true,
+					DeviceType: "ssd",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSpeed:  diskSpeedFast,
+		},
+		{
+			label: "Case 6", // storageclass is neither gp2 nor io1 but deviceType nvme
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "st1",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "st1",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &fakestorageClassName,
+						},
+					},
+					Portable:   true,
+					DeviceType: "nvme",
+				},
+			},
 			storageCluster: &api.StorageCluster{},
 			expectedSpeed:  diskSpeedFast,
 		},
@@ -301,9 +421,11 @@ func TestThrottleStorageDevices(t *testing.T) {
 
 	for _, tc := range testcases {
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.storageClass)
-		actualSpeed, err := reconciler.checkTuneStorageDevices(tc.storageClass.Name)
-		assert.NoError(t, err)
-		assert.Equalf(t, tc.expectedSpeed, actualSpeed, "[%q]: failed to get expected output", tc.label)
+		for _, ds := range tc.deviceSets {
+			actualSpeed, err := reconciler.checkTuneStorageDevices(ds)
+			assert.NoError(t, err)
+			assert.Equalf(t, tc.expectedSpeed, actualSpeed, "[%q]: failed to get expected output", tc.label)
+		}
 	}
 }
 
