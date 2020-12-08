@@ -336,6 +336,87 @@ func TestThrottleStorageDevices(t *testing.T) {
 			storageCluster: &api.StorageCluster{},
 			expectedSpeed:  diskSpeedFast,
 		},
+		{
+			label: "Case 4", // storageclass is managed-premium but deviceType hdd
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "managed-premium",
+				},
+				Provisioner: string(AzureDisk),
+				Parameters: map[string]string{
+					"type": "managed-premium",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageClassName2,
+						},
+					},
+					Portable:   true,
+					DeviceType: "hdd",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSpeed:  diskSpeedSlow,
+		},
+		{
+			label: "Case 5", // storageclass is gp2 but deviceType ssd
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gp2",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "gp2",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageClassName,
+						},
+					},
+					Portable:   true,
+					DeviceType: "ssd",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSpeed:  diskSpeedFast,
+		},
+		{
+			label: "Case 6", // storageclass is neither gp2 nor io1 but deviceType nvme
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "st1",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "st1",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &fakestorageClassName,
+						},
+					},
+					Portable:   true,
+					DeviceType: "nvme",
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			expectedSpeed:  diskSpeedFast,
+		},
 	}
 
 	for _, tc := range testcases {
