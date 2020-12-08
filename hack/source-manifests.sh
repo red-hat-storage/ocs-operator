@@ -25,8 +25,8 @@ if [ -z "$NOOBAA_IMAGE" ] || [ -z "$ROOK_IMAGE" ]; then
 fi
 
 # always start fresh and remove any previous artifacts that may exist.
-rm -rf $(dirname $OCS_FINAL_DIR)
-mkdir -p $(dirname $OCS_FINAL_DIR)
+rm -rf "$(dirname $OCS_FINAL_DIR)"
+mkdir -p "$(dirname $OCS_FINAL_DIR)"
 rm -rf $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_CRDS
@@ -65,15 +65,15 @@ gen_args="generate kustomize manifests -q"
 # shellcheck disable=SC2086
 $OPERATOR_SDK $gen_args
 pushd config/manager
-$KUSTOMIZE edit set image ocs-dev/ocs-operator=$OPERATOR_FULL_IMAGE_NAME
+$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OPERATOR_FULL_IMAGE_NAME"
 popd
-$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --version $CSV_VERSION
-mv $GOPATH/src/github.com/openshift/ocs-operator/bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
+$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --version "$CSV_VERSION"
+mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
 cp config/crd/bases/* $OUTDIR_CRDS/
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
-mv $GOPATH/src/github.com/openshift/ocs-operator/bundle/manifests $OCS_FINAL_DIR
-mv $GOPATH/src/github.com/openshift/ocs-operator/bundle/metadata $(dirname $OCS_FINAL_DIR)/metadata
-rm -rf $GOPATH/src/github.com/openshift/ocs-operator/bundle
-rm $GOPATH/src/github.com/openshift/ocs-operator/bundle.Dockerfile
+mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests $OCS_FINAL_DIR
+mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/metadata "$(dirname $OCS_FINAL_DIR)"/metadata
+rm -rf "$GOPATH"/src/github.com/openshift/ocs-operator/bundle
+rm "$GOPATH"/src/github.com/openshift/ocs-operator/bundle.Dockerfile
