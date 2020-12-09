@@ -852,7 +852,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		Scheme:        scheme,
 		serverVersion: &k8sVersion.Info{},
 		Log:           logf.Log.WithName("controller_storagecluster_test"),
-		platform:      &Platform{},
+		platform:      &Platform{platform: configv1.NonePlatformType},
 	}
 }
 
