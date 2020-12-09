@@ -13,6 +13,9 @@ SINCE_TIME=$2
 # Make a globle variable for namespace
 INSTALL_NAMESPACE=openshift-storage
 
+# Making a global variable for openshift-marketplace namespace
+MARKETPLACE_NAMESPACE=openshift-marketplace
+
 # Add general resources to list if necessary
 
 # Resource List
@@ -60,6 +63,13 @@ oc_yamls+=("installplan")
 oc_yamls+=("volumesnapshot -A")
 oc_yamls+=("volumesnapshotclass")
 oc_yamls+=("volumesnapshotcontent")
+
+printf "collecting ocs-catalogsource pod logs from namspace %s \n" "${MARKETPLACE_NAMESPACE}"
+    LOG_OUTPUT=${BASE_COLLECTION_PATH}/namespaces/${MARKETPLACE_NAMESPACE}/oc_output/describe
+    mkdir -p "${LOG_OUTPUT}"
+    oc describe pod -n "${MARKETPLACE_NAMESPACE}" $(oc get pod -n openshift-marketplace --no-headers| grep catalog | awk '{print $1}') >> "${LOG_OUTPUT}"/gather-debug.log
+printf "collection finished for ocs-catalogsource pod \n"
+
 
 echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
 oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
