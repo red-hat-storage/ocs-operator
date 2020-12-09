@@ -44,6 +44,18 @@ func (r *ReconcileStorageCluster) createStorageClasses(scs []*storagev1.StorageC
 		if sc == nil {
 			continue
 		}
+
+		if index == cephObjectStoreIndex {
+			platform, err := r.platform.GetPlatform(r.client)
+			if err != nil {
+				return err
+			}
+			if avoidObjectStore(platform) {
+				reqLogger.Info(fmt.Sprintf("not creating a OBC storage class because the platform is '%s'", platform))
+				continue
+			}
+		}
+
 		reconcileStrategy := ReconcileStrategyIgnore
 		disableStorageClass := false
 		switch index {
@@ -172,13 +184,8 @@ func (r *ReconcileStorageCluster) newStorageClasses(initData *ocsv1.StorageClust
 			},
 		},
 	}
-	// OBC storageclass will be returned only in TWO conditions,
-	// a. either 'externalStorage' is enabled
-	// OR
-	// b. current platform is not a cloud-based platform
-	platform, err := r.platform.GetPlatform(r.client)
-	if initData.Spec.ExternalStorage.Enable || err == nil && !avoidObjectStore(platform) {
-		ret = append(ret, r.newOBCStorageClass(initData))
-	}
+
+	ret = append(ret, r.newOBCStorageClass(initData))
+
 	return ret, nil
 }
