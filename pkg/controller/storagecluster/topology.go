@@ -235,7 +235,6 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 		sc.Status.NodeTopologies = ocsv1.NewNodeTopologyMap()
 	}
 	topologyMap := sc.Status.NodeTopologies
-	updated := false
 	nodeRacks := ocsv1.NewNodeTopologyMap()
 
 	r.nodeCount = len(nodes.Items)
@@ -252,7 +251,6 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 					if !topologyMap.Contains(label, value) {
 						reqLogger.Info("Adding topology label from node", "Node", node.Name, "Label", label, "Value", value)
 						topologyMap.Add(label, value)
-						updated = true
 					}
 				}
 			}
@@ -267,14 +265,6 @@ func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageClus
 
 	if determineFailureDomain(sc) == "rack" {
 		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap, reqLogger)
-		if err != nil {
-			return err
-		}
-	}
-
-	if updated {
-		reqLogger.Info("Updating node topology map for StorageCluster")
-		err = r.client.Status().Update(context.TODO(), sc)
 		if err != nil {
 			return err
 		}

@@ -62,11 +62,15 @@ func TestEnsureCephCluster(t *testing.T) {
 		}
 
 		reconciler := createFakeStorageClusterReconciler(t, c.cc)
-		err := reconciler.ensureCephCluster(mockStorageCluster, reconciler.reqLogger)
+		sc := &api.StorageCluster{}
+		mockStorageCluster.DeepCopyInto(sc)
+		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+
+		err := reconciler.ensureCephCluster(sc, reconciler.reqLogger)
 		assert.NoError(t, err)
 		if c.condition == "" {
-			expected := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
-			actual := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, log)
+			expected := newCephCluster(sc, "", 3, reconciler.serverVersion, log)
+			actual := newCephCluster(sc, "", 3, reconciler.serverVersion, log)
 			err = reconciler.client.Get(context.TODO(), mockCephClusterNamespacedName, actual)
 			assert.NoError(t, err)
 			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -145,6 +149,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Status.NodeTopologies = topologyMap
 		c.sc.Spec.MonPVCTemplate = c.monPVCTemplate
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
+		c.sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
 		actual := newCephCluster(c.sc, "", 3, serverVersion, log)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)

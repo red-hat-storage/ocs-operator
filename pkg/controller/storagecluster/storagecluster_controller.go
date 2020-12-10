@@ -41,19 +41,19 @@ func Add(mgr manager.Manager) error {
 }
 
 func (r *ReconcileStorageCluster) initializeImageVars() error {
-	r.cephImage = os.Getenv("CEPH_IMAGE")
-	r.noobaaCoreImage = os.Getenv("NOOBAA_CORE_IMAGE")
-	r.noobaaDBImage = os.Getenv("NOOBAA_DB_IMAGE")
+	r.images.Ceph = os.Getenv("CEPH_IMAGE")
+	r.images.NooBaaCore = os.Getenv("NOOBAA_CORE_IMAGE")
+	r.images.NooBaaDB = os.Getenv("NOOBAA_DB_IMAGE")
 
-	if r.cephImage == "" {
+	if r.images.Ceph == "" {
 		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
 		log.Error(err, "missing required environment variable for ocs initialization")
 		return err
-	} else if r.noobaaCoreImage == "" {
+	} else if r.images.NooBaaCore == "" {
 		err := fmt.Errorf("NOOBAA_CORE_IMAGE environment variable not found")
 		log.Error(err, "missing required environment variable for ocs initialization")
 		return err
-	} else if r.noobaaDBImage == "" {
+	} else if r.images.NooBaaDB == "" {
 		err := fmt.Errorf("NOOBAA_DB_IMAGE environment variable not found")
 		log.Error(err, "missing required environment variable for ocs initialization")
 		return err
@@ -154,20 +154,25 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 var _ reconcile.Reconciler = &ReconcileStorageCluster{}
 
+// ImageMap holds mapping information between component image name and the image url
+type ImageMap struct {
+	Ceph       string
+	NooBaaCore string
+	NooBaaDB   string
+}
+
 // ReconcileStorageCluster reconciles a StorageCluster object
 type ReconcileStorageCluster struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client          client.Client
-	scheme          *runtime.Scheme
-	serverVersion   *version.Info
-	reqLogger       logr.Logger
-	conditions      []conditionsv1.Condition
-	phase           string
-	cephImage       string
-	monitoringIP    string
-	noobaaDBImage   string
-	noobaaCoreImage string
-	nodeCount       int
-	platform        *Platform
+	client        client.Client
+	scheme        *runtime.Scheme
+	serverVersion *version.Info
+	reqLogger     logr.Logger
+	conditions    []conditionsv1.Condition
+	phase         string
+	monitoringIP  string
+	nodeCount     int
+	platform      *Platform
+	images        ImageMap
 }

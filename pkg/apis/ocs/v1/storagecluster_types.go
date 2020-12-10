@@ -189,6 +189,22 @@ type StorageClusterStatus struct {
 
 	// ExternalSecretHash holds the checksum value of external secret data.
 	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
+
+	// Images holds the image reconcile status for all images reconciled by the operator
+	Images ImagesStatus `json:"images,omitempty"`
+}
+
+// ImagesStatus maps every component image name it's reconciliation status information
+type ImagesStatus struct {
+	Ceph       *ComponentImageStatus `json:"ceph,omitempty"`
+	NooBaaCore *ComponentImageStatus `json:"noobaaCore,omitempty"`
+	NooBaaDB   *ComponentImageStatus `json:"noobaaDB,omitempty"`
+}
+
+// ComponentImageStatus holds image status information for a specific component image
+type ComponentImageStatus struct {
+	DesiredImage string `json:"desiredImage,omitempty"`
+	ActualImage  string `json:"actualImage,omitempty"`
 }
 
 // TopologyLabelValues is a list of values for a topology label

@@ -102,6 +102,9 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeCount, reconciler.nodeCount, "[%s]: failed to get correct node count", tc.label)
 
+		err = reconciler.client.Status().Update(context.TODO(), tc.storageCluster)
+		assert.NoError(t, err)
+
 		actual := &api.StorageCluster{}
 		err = reconciler.client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
@@ -198,6 +201,9 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
 		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster, reconciler.reqLogger)
+		assert.NoError(t, err)
+
+		err = reconciler.client.Status().Update(context.TODO(), tc.storageCluster)
 		assert.NoError(t, err)
 
 		actual := &api.StorageCluster{}

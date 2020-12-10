@@ -75,6 +75,9 @@ func (r *ReconcileStorageCluster) ensureNoobaaSystem(sc *ocsv1.StorageCluster, r
 		reqLogger.Error(err, "Failed to create or update NooBaa system")
 		return err
 	}
+	// Need to happen after the noobaa CR update was confirmed
+	sc.Status.Images.NooBaaCore.ActualImage = *nb.Spec.Image
+	sc.Status.Images.NooBaaDB.ActualImage = *nb.Spec.DBImage
 
 	objectRef, err := reference.GetReference(r.scheme, nb)
 	if err != nil {
@@ -107,8 +110,8 @@ func (r *ReconcileStorageCluster) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocs
 	nb.Spec.Tolerations = placement.Tolerations
 	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
 	nb.Spec.DBVolumeResources = &dBVolumeResources
-	nb.Spec.Image = &r.noobaaCoreImage
-	nb.Spec.DBImage = &r.noobaaDBImage
+	nb.Spec.Image = &r.images.NooBaaCore
+	nb.Spec.DBImage = &r.images.NooBaaDB
 
 	// Default endpoint spec.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{

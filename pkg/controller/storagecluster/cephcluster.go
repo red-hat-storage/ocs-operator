@@ -91,9 +91,9 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	var cephCluster *cephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		cephCluster = newExternalCephCluster(sc, r.cephImage, r.monitoringIP)
+		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP)
 	} else {
-		cephCluster = newCephCluster(sc, r.cephImage, r.nodeCount, r.serverVersion, reqLogger)
+		cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, reqLogger)
 	}
 
 	// Set StorageCluster instance as the owner and controller
@@ -111,7 +111,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 			} else {
 				reqLogger.Info("Creating CephCluster")
 			}
-			return r.client.Create(context.TODO(), cephCluster)
+			if err := r.client.Create(context.TODO(), cephCluster); err != nil {
+				return err
+			}
+			// Need to happen after the ceph cluster CR creation was confirmed
+			sc.Status.Images.Ceph.ActualImage = cephCluster.Spec.CephVersion.Image
+			return nil
 		}
 		return err
 	}
@@ -138,7 +143,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 			}
 		}
 		found.Spec = cephCluster.Spec
-		return r.client.Update(context.TODO(), found)
+		if err := r.client.Update(context.TODO(), found); err != nil {
+			return err
+		}
+		// Need to happen after the ceph cluster CR update was confirmed
+		sc.Status.Images.Ceph.ActualImage = cephCluster.Spec.CephVersion.Image
+		return nil
 	}
 
 	// Add it to the list of RelatedObjects if found
@@ -182,11 +192,6 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 			sc.Status.Phase = statusutil.PhaseReady
 		} else {
 			sc.Status.Phase = statusutil.PhaseNotReady
-		}
-
-		if err = r.client.Status().Update(context.TODO(), sc); err != nil {
-			reqLogger.Error(err, "Failed to update external cluster status")
-			return err
 		}
 	}
 
