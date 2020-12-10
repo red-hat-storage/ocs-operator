@@ -13,6 +13,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+func generateCephReplicatedSpec(initData *ocsv1.StorageCluster) cephv1.ReplicatedSpec {
+	return cephv1.ReplicatedSpec{
+		Size:            3,
+		TargetSizeRatio: .49,
+	}
+}
+
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
 // on first run.
 func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
@@ -23,11 +30,8 @@ func (r *ReconcileStorageCluster) newCephBlockPoolInstances(initData *ocsv1.Stor
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.PoolSpec{
-				FailureDomain: initData.Status.FailureDomain,
-				Replicated: cephv1.ReplicatedSpec{
-					Size:            3,
-					TargetSizeRatio: .49,
-				},
+				FailureDomain:  determineFailureDomain(initData),
+				Replicated:     generateCephReplicatedSpec(initData),
 				EnableRBDStats: true,
 			},
 		},
