@@ -139,6 +139,9 @@ spec:
                     properties:
                       disableStorageClass:
                         type: boolean
+                      gatewayInstances:
+                        format: int32
+                        type: integer
                       reconcileStrategy:
                         type: string
                     type: object

@@ -27,4 +27,6 @@ var (
 	// DeviceSetReplica is the default number of Rook-Ceph
 	// StorageClassDeviceSets per StorageCluster StorageDeviceSet
 	DeviceSetReplica = 3
+	// CephObjectStoreGatewayInstances is the default number of RGW instances to create
+	CephObjectStoreGatewayInstances = 1
 )

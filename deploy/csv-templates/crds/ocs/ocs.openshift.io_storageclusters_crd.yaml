@@ -169,6 +169,9 @@ spec:
                     properties:
                       disableStorageClass:
                         type: boolean
+                      gatewayInstances:
+                        type: integer
+                        format: int32
                       reconcileStrategy:
                         type: string
               monDataDirHostPath:
