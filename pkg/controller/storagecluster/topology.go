@@ -54,7 +54,7 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) string {
 	failureDomain := "rack"
 	for label, labelValues := range topologyMap.Labels {
 		if strings.Contains(label, "zone") {
-			if len(labelValues) >= 3 {
+			if (len(labelValues) >= 2 && arbiterEnabled(sc)) || (len(labelValues) >= 3) {
 				failureDomain = "zone"
 			}
 		}
@@ -219,7 +219,7 @@ func (r *ReconcileStorageCluster) ensureNodeRacks(
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
 func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	minNodes := getMinDeviceSetReplica(sc)
+	minNodes := getMinimumNodes(sc)
 
 	for _, deviceSet := range sc.Spec.StorageDeviceSets {
 		if deviceSet.Replica > minNodes {

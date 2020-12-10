@@ -14,6 +14,13 @@ import (
 )
 
 func generateCephReplicatedSpec(initData *ocsv1.StorageCluster) cephv1.ReplicatedSpec {
+	if arbiterEnabled(initData) {
+		return cephv1.ReplicatedSpec{
+			Size:                     4,
+			TargetSizeRatio:          .49,
+			ReplicasPerFailureDomain: 2,
+		}
+	}
 	return cephv1.ReplicatedSpec{
 		Size:            3,
 		TargetSizeRatio: .49,

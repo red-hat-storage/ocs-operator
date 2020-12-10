@@ -190,6 +190,10 @@ func (r *ReconcileStorageCluster) reconcilePhases(
 		}
 	}
 
+	if err := validateArbiterSpec(instance, reqLogger); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	if instance.Status.Phase != statusutil.PhaseReady &&
 		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 		instance.Status.Phase != statusutil.PhaseDeleting &&
@@ -698,4 +702,12 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 	}
 
 	return job
+}
+
+func validateArbiterSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+
+	if sc.Spec.Arbiter.Enable && sc.Spec.NodeTopologies.ArbiterLocation == "" {
+		return fmt.Errorf("arbiter is set to enable but no arbiterLocation has been provided in the Spec.NodeTopologies.ArbiterLocation")
+	}
+	return nil
 }

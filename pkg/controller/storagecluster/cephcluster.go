@@ -57,6 +57,10 @@ const (
 	clusterNetworkSelectorKey = "cluster"
 )
 
+func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
+	return sc.Spec.Arbiter.Enable
+}
+
 // ensureCephCluster ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
@@ -244,8 +248,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
 			},
 			Placement: rook.PlacementSpec{
-				"all": getPlacement(sc, "all"),
-				"mon": getPlacement(sc, "mon"),
+				"all":     getPlacement(sc, "all"),
+				"mon":     getPlacement(sc, "mon"),
+				"arbiter": getPlacement(sc, "arbiter"),
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
@@ -351,10 +356,45 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitori
 }
 
 func getMinDeviceSetReplica(sc *ocsv1.StorageCluster) int {
+	if arbiterEnabled(sc) {
+		return defaults.ArbiterModeDeviceSetReplica
+	}
 	return defaults.DeviceSetReplica
 }
 
-func getMonCount(nodeCount int) int {
+func getReplicasPerFailureDomain(sc *ocsv1.StorageCluster) int {
+	if arbiterEnabled(sc) {
+		return defaults.ArbiterReplicasPerFailureDomain
+	}
+	return defaults.ReplicasPerFailureDomain
+}
+
+// getMinimumNodes returns the minimum number of nodes that are required for the Storage Cluster of various configurations
+func getMinimumNodes(sc *ocsv1.StorageCluster) int {
+	// Case 1: When replicasPerFailureDomain is 1.
+	// A node is the smallest failure domain that is possible. We definitely
+	// want the devices in the same device set to be in different failure
+	// domains which also means different nodes. In this case, minimum number of
+	// nodes is getMinDeviceSetReplica() * 1.
+
+	// Case 2: When replicasPerFailureDomain is greater than 1
+	// In certain scenarios, it may be valid to place one or more replicas
+	// within the failure domain on the same node but it does not make much
+	// sense. It provides protection only against disk failures and not node
+	// failures.
+	// For example:
+	// a. FailureDomain=node, replicasPerFailureDomain>1
+	// b. FailureDomain=rack, numNodesInTheRack=2, replicasPerFailureDomain>2
+	// c. FailureDomain=zone, numNodesInTheZone=2, replicasPerFailureDomain>2
+	// Therefore, we make an assumption that the replicas must be placed on
+	// different nodes. This logic gets us to the equation below. If the user
+	// needs to override this assumption, we can provide a flag (like
+	// allowReplicasOnSameNode) in the future.
+
+	return getMinDeviceSetReplica(sc) * getReplicasPerFailureDomain(sc)
+}
+
+func getMonCount(nodeCount int, arbiter bool) int {
 	// return static value if overriden
 	override := os.Getenv(monCountOverrideEnvVar)
 	if override != "" {
@@ -366,6 +406,9 @@ func getMonCount(nodeCount int) int {
 		}
 	}
 
+	if arbiter {
+		return defaults.ArbiterModeMonCount
+	}
 	return defaults.DefaultMonCount
 }
 
@@ -574,9 +617,44 @@ func allowUnsupportedCephVersion() bool {
 	return defaults.IsUnsupportedCephVersionAllowed == "allowed"
 }
 
+func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *cephv1.StretchClusterSpec {
+	var zones []string
+	stretchClusterSpec := cephv1.StretchClusterSpec{}
+	stretchClusterSpec.FailureDomainLabel, zones = sc.Status.NodeTopologies.GetKeyValues(determineFailureDomain(sc))
+
+	for _, zone := range zones {
+		if zone == sc.Spec.NodeTopologies.ArbiterLocation {
+			continue
+		}
+		stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, cephv1.StretchClusterZoneSpec{
+			Name:    zone,
+			Arbiter: false,
+		})
+	}
+
+	arbiterZoneSpec := cephv1.StretchClusterZoneSpec{
+		Name:    sc.Spec.NodeTopologies.ArbiterLocation,
+		Arbiter: true,
+	}
+	if sc.Spec.Arbiter.ArbiterMonPVCTemplate != nil {
+		arbiterZoneSpec.VolumeClaimTemplate = sc.Spec.Arbiter.ArbiterMonPVCTemplate
+	}
+	stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, arbiterZoneSpec)
+
+	return &stretchClusterSpec
+}
+
 func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) cephv1.MonSpec {
+	if arbiterEnabled(sc) {
+		return cephv1.MonSpec{
+			Count:                getMonCount(nodeCount, true),
+			AllowMultiplePerNode: false,
+			StretchCluster:       generateStretchClusterSpec(sc),
+		}
+	}
+
 	return cephv1.MonSpec{
-		Count:                getMonCount(nodeCount),
+		Count:                getMonCount(nodeCount, false),
 		AllowMultiplePerNode: false,
 	}
 }
