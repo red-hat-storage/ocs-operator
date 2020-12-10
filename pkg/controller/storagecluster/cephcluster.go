@@ -472,6 +472,12 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 				placement = ds.Placement
 			}
 
+			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
+			annotations := map[string]string{
+				"crushDeviceClass": ds.DeviceType,
+			}
+			ds.DataPVCTemplate.Annotations = annotations
+
 			set := rook.StorageClassDeviceSet{
 				Name:                 fmt.Sprintf("%s-%d", ds.Name, i),
 				Count:                count,

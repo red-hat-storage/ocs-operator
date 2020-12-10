@@ -72,8 +72,14 @@ var storageClassName = "gp2"
 var storageClassName2 = "managed-premium"
 var fakestorageClassName = "st1"
 var volMode = corev1.PersistentVolumeBlock
+var annotations = map[string]string{
+	"crushDeviceClass": "",
+}
 
 var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
+	ObjectMeta: metav1.ObjectMeta{
+		Annotations: annotations,
+	},
 	Spec: corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 		Resources: corev1.ResourceRequirements{
