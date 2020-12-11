@@ -2168,7 +2168,7 @@ spec:
                 description: FailureDomain is the base CRUSH element Ceph will use to distribute its data replicas for the default CephBlockPool
                 type: string
               images:
-                description: Images holds the image reconclie status for all images reconciled by the operator
+                description: Images holds the image reconcile status for all images reconciled by the operator
                 properties:
                   ceph:
                     description: ComponentImageStatus holds image status information for a specific component image
