@@ -137,4 +137,10 @@ rules:
   verbs:
   - get
   - list
-  - watch  
+  - watch
+- apiGroups:
+    - console.openshift.io
+  resources:
+    - consolequickstarts
+  verbs:
+    - '*'

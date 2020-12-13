@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ghodss/yaml"
+	consolev1 "github.com/openshift/api/console/v1"
 
 	"github.com/go-logr/logr"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
@@ -341,7 +343,12 @@ func (r *ReconcileStorageCluster) reconcileUninstallAnnotations(sc *ocsv1.Storag
 // Every function that is called within this function should be idempotent
 func (r *ReconcileStorageCluster) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
-	err := r.setRookUninstallandCleanupPolicy(sc, reqLogger)
+	err := r.deleteQuickStarts(sc, reqLogger)
+	if err != nil {
+		return err
+	}
+
+	err = r.setRookUninstallandCleanupPolicy(sc, reqLogger)
 	if err != nil {
 		return err
 	}
@@ -590,6 +597,37 @@ func (r *ReconcileStorageCluster) deleteSnapshotClasses(instance *ocsv1.StorageC
 		default:
 			reqLogger.Info(fmt.Sprintf("Uninstall: Error while getting SnapshotClass %s: %v", sc.Name, err))
 		}
+	}
+	return nil
+}
+
+func (r *ReconcileStorageCluster) deleteQuickStarts(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	if len(AllQuickStarts) == 0 {
+		reqLogger.Info("No quickstarts found")
+		return nil
+	}
+	for _, qs := range AllQuickStarts {
+		cqs := consolev1.ConsoleQuickStart{}
+		err := yaml.Unmarshal(qs, &cqs)
+		if err != nil {
+			reqLogger.Error(err, "Failed to unmarshal ConsoleQuickStart", "ConsoleQuickStartString", string(qs))
+			continue
+		}
+		found := consolev1.ConsoleQuickStart{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: cqs.Name, Namespace: cqs.Namespace}, &found)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				continue
+			}
+			reqLogger.Error(err, "Uninstall: Failed to get QuickStart %s", "Name", cqs.Name, "Namespace", cqs.Namespace)
+			return nil
+		}
+		err = r.client.Delete(context.TODO(), &found)
+		if err != nil {
+			reqLogger.Error(err, "Uninstall: Failed to delete QuickStart %s", "Name", cqs.Name, "Namespace", cqs.Namespace)
+			return nil
+		}
+		reqLogger.Info("Uninstall: Deleting QuickStart", "Name", cqs.Name, "Namespace", cqs.Namespace)
 	}
 	return nil
 }

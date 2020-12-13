@@ -14,6 +14,7 @@ import (
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	nbapis "github.com/noobaa/noobaa-operator/v2/pkg/apis"
 	openshiftConfigv1 "github.com/openshift/api/config/v1"
+	consolev1 "github.com/openshift/api/console/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	"github.com/openshift/ocs-operator/pkg/apis"
 	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
@@ -151,6 +152,11 @@ func main() {
 
 	if err := openshiftConfigv1.AddToScheme(mgrScheme); err != nil {
 		log.Error(err, "Failed adding openshift/api/config/v1 to scheme")
+		os.Exit(1)
+	}
+
+	if err := consolev1.AddToScheme(mgrScheme); err != nil {
+		log.Error(err, "Failed adding openshift/api/console/v1 to scheme")
 		os.Exit(1)
 	}
 

@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	consolev1 "github.com/openshift/api/console/v1"
 	"testing"
 
 	"github.com/blang/semver"
@@ -887,6 +888,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = configv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add configv1 scheme")
+	}
+	err = consolev1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add consolev1 scheme")
 	}
 	return scheme
 }

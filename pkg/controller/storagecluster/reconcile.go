@@ -272,6 +272,7 @@ func (r *ReconcileStorageCluster) reconcilePhases(
 			r.ensureCephCluster,
 			r.ensureNoobaaSystem,
 			r.ensureJobTemplates,
+			r.ensureQuickStarts,
 		}
 	} else {
 		// for external cluster, we have a different set of ensure functions
@@ -280,6 +281,7 @@ func (r *ReconcileStorageCluster) reconcilePhases(
 			r.ensureCephCluster,
 			r.ensureSnapshotClasses,
 			r.ensureNoobaaSystem,
+			r.ensureQuickStarts,
 		}
 	}
 	for _, f := range ensureFs {
