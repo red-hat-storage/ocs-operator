@@ -193,6 +193,7 @@ func (r *ReconcileStorageCluster) reconcilePhases(
 	if err := validateArbiterSpec(instance, reqLogger); err != nil {
 		instance.Status.Phase = statusutil.PhaseError
 		_ = r.client.Update(context.TODO(), instance)
+		r.recorder.Event(instance, "Error", "FailedReconcile", err.Error())
 		return reconcile.Result{}, err
 	}
 
