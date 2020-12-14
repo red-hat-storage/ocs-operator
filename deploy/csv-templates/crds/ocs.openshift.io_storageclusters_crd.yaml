@@ -3562,7 +3562,7 @@ spec:
                   to distribute its data replicas for the default CephBlockPool
                 type: string
               images:
-                description: Images holds the image reconclie status for all images
+                description: Images holds the image reconcile status for all images
                   reconciled by the operator
                 type: object
                 properties:
