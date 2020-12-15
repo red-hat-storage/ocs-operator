@@ -134,6 +134,20 @@ type NooBaaSpec struct {
 	// CleanupPolicy (optional) Indicates user's policy for deletion
 	// +optional
 	CleanupPolicy CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
+
+	// Security represents security settings
+	Security SecuritySpec `json:"security,omitempty"`
+}
+
+// SecuritySpec is security spec to include various security items such as kms
+type SecuritySpec struct {
+	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+}
+
+// KeyManagementServiceSpec represent various details of the KMS server
+type KeyManagementServiceSpec struct {
+	ConnectionDetails map[string]string `json:"connectionDetails,omitempty"`
+	TokenSecretName   string            `json:"tokenSecretName,omitempty"`
 }
 
 // EndpointsSpec defines the desired state of noobaa endpoint deployment
@@ -197,6 +211,10 @@ type NooBaaStatus struct {
 	// and the virtual hosts list used recognized by the endpoints
 	// +optional
 	Endpoints *EndpointsStatus `json:"endpoints,omitempty"`
+
+	// Upgrade reports the status of the ongoing upgrade process
+	// +optional
+	UpgradePhase UpgradePhase `json:"upgradePhase,omitempty"`
 
 	// Readme is a user readable string with explanations on the system
 	// +optional
@@ -316,6 +334,22 @@ type EndpointsStatus struct {
 	ReadyCount   int32    `json:"readyCount"`
 	VirtualHosts []string `json:"virtualHosts"`
 }
+
+// UpgradePhase is a string enum type for upgrade phases
+type UpgradePhase string
+
+// These are the valid phases:
+const (
+	UpgradePhaseNone UpgradePhase = "NoUpgrade"
+
+	UpgradePhasePrepare UpgradePhase = "Preparing"
+
+	UpgradePhaseMigrate UpgradePhase = "Migrating"
+
+	UpgradePhaseClean UpgradePhase = "Cleanning"
+
+	UpgradePhaseFinished UpgradePhase = "DoneUpgrade"
+)
 
 // CleanupPolicySpec specifies the cleanup policy
 type CleanupPolicySpec struct {
