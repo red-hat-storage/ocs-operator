@@ -971,6 +971,7 @@ metadata:
       bGYuZmFpbCgiQW4gZXhjZXB0aW9uIHdhcyBleHBlY3RlZCIpCiAgICAgICAgICAgIGV4Y2VwdCBF
       eGVjdXRpb25GYWlsdXJlRXhjZXB0aW9uIGFzIGVycjoKICAgICAgICAgICAgICAgIHByaW50KCJF
       eGNlcHRpb24gdGhyb3duIHN1Y2Nlc3NmdWxseToge30iLmZvcm1hdChlcnIpKQo=
+    external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None", "VSphere", "OpenStack", "oVirt"]'
     external.features.ocs.openshift.io/validation: '{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}'
     features.ocs.openshift.io/enabled: '["external", "minimal_deployment", "encryption"]'
     olm.skipRange: '>=0.0.1 <4.7.0'

@@ -727,6 +727,9 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
         }
     }
 	`
+	// Used by UI to track platforms that support External Mode
+	// None is reported as the Infrastructure type for some UPI/Baremetal (non-automated) environment
+	ocsCSV.Annotations["external.features.ocs.openshift.io/supported-platforms"] = `["BareMetal", "None", "VSphere", "OpenStack", "oVirt"]`
 	ocsCSV.Annotations["alm-examples"] = `
 [
     {
