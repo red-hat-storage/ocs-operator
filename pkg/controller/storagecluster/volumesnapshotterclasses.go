@@ -28,6 +28,13 @@ const (
 	snapshotterSecretNamespace = "csi.storage.k8s.io/snapshotter-secret-namespace"
 )
 
+// SnapshotClassConfiguration provides configuration options for a SnapshotClass.
+type SnapshotClassConfiguration struct {
+	snapshotClass     *snapapi.VolumeSnapshotClass
+	reconcileStrategy ReconcileStrategy
+	disable           bool
+}
+
 // newVolumeSnapshotClass returns a new VolumeSnapshotter class backed by provided snapshotter type
 // available 'snapShotterType' values are 'rbd' and 'cephfs'
 func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType SnapshotterType) *snapapi.VolumeSnapshotClass {
@@ -46,30 +53,39 @@ func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType Snap
 	return retSC
 }
 
-func newSnapshotClasses(instance *ocsv1.StorageCluster) []*snapapi.VolumeSnapshotClass {
-	scs := []*snapapi.VolumeSnapshotClass{
-		newVolumeSnapshotClass(instance, cephfsSnapshotter),
-		newVolumeSnapshotClass(instance, rbdSnapshotter),
+func newCephFilesystemSnapshotClassConfiguration(instance *ocsv1.StorageCluster) SnapshotClassConfiguration {
+	return SnapshotClassConfiguration{
+		snapshotClass:     newVolumeSnapshotClass(instance, cephfsSnapshotter),
+		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
+		disable:           instance.Spec.ManagedResources.CephFilesystems.DisableSnapshotClass,
 	}
-	return scs
 }
 
-func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSnapshotClass, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	for index, vsc := range vscs {
-		reconcileStrategy := ReconcileStrategyIgnore
-		disableSnapshotClass := false
-		switch index {
-		case cephFileSystemIndex:
-			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy)
-			disableSnapshotClass = instance.Spec.ManagedResources.CephFilesystems.DisableSnapshotClass
-		case cephBlockPoolIndex:
-			reconcileStrategy = ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy)
-			disableSnapshotClass = instance.Spec.ManagedResources.CephBlockPools.DisableSnapshotClass
-		}
-		if reconcileStrategy == ReconcileStrategyIgnore || disableSnapshotClass {
+func newCephBlockPoolSnapshotClassConfiguration(instance *ocsv1.StorageCluster) SnapshotClassConfiguration {
+	return SnapshotClassConfiguration{
+		snapshotClass:     newVolumeSnapshotClass(instance, rbdSnapshotter),
+		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
+		disable:           instance.Spec.ManagedResources.CephFilesystems.DisableSnapshotClass,
+	}
+}
+
+// newSnapshotClassConfigurations generates configuration options for Ceph SnapshotClasses.
+func newSnapshotClassConfigurations(instance *ocsv1.StorageCluster) []SnapshotClassConfiguration {
+	vsccs := []SnapshotClassConfiguration{
+		newCephFilesystemSnapshotClassConfiguration(instance),
+		newCephBlockPoolSnapshotClassConfiguration(instance),
+	}
+	return vsccs
+}
+
+func (r *ReconcileStorageCluster) createSnapshotClasses(vsccs []SnapshotClassConfiguration, reqLogger logr.Logger) error {
+
+	for _, vscc := range vsccs {
+		if vscc.reconcileStrategy == ReconcileStrategyIgnore || vscc.disable {
 			continue
 		}
 
+		vsc := vscc.snapshotClass
 		existing := &snapapi.VolumeSnapshotClass{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
 		if err != nil {
@@ -88,7 +104,7 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 				return err
 			}
 		}
-		if reconcileStrategy == ReconcileStrategyInit {
+		if vscc.reconcileStrategy == ReconcileStrategyInit {
 			return nil
 		}
 		if existing.DeletionTimestamp != nil {
@@ -111,9 +127,9 @@ func (r *ReconcileStorageCluster) createSnapshotClasses(vscs []*snapapi.VolumeSn
 
 // ensureSnapshotClasses functions ensures that snpashotter classes are created
 func (r *ReconcileStorageCluster) ensureSnapshotClasses(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	scs := newSnapshotClasses(instance)
+	vsccs := newSnapshotClassConfigurations(instance)
 
-	err := r.createSnapshotClasses(scs, instance, reqLogger)
+	err := r.createSnapshotClasses(vsccs, reqLogger)
 	if err != nil {
 		return nil
 	}

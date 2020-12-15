@@ -37,7 +37,7 @@ func assertStorageClasses(t *testing.T, reconciler ReconcileStorageCluster, cr *
 	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc2)
 	assert.NoError(t, err)
 
-	expected, err := reconciler.newStorageClasses(cr)
+	expected, err := reconciler.newStorageClassConfigurations(cr)
 	assert.NoError(t, err)
 	request.Name = "ocsinit-ceph-rgw"
 	err = reconciler.client.Get(context.TODO(), request.NamespacedName, actualSc3)
@@ -51,11 +51,11 @@ func assertStorageClasses(t *testing.T, reconciler ReconcileStorageCluster, cr *
 		// if not a cloud platform, OBC Storage class should be created/updated
 		assert.Equal(t, len(expected), 3)
 		assert.NoError(t, err)
-		assert.Equal(t, len(expected[2].OwnerReferences), 0)
-		assert.Equal(t, expected[2].ObjectMeta.Name, actualSc3.ObjectMeta.Name)
-		assert.Equal(t, expected[2].Provisioner, actualSc3.Provisioner)
-		assert.Equal(t, expected[2].ReclaimPolicy, actualSc3.ReclaimPolicy)
-		assert.Equal(t, expected[2].Parameters, actualSc3.Parameters)
+		assert.Equal(t, len(expected[2].storageClass.OwnerReferences), 0)
+		assert.Equal(t, expected[2].storageClass.Name, actualSc3.ObjectMeta.Name)
+		assert.Equal(t, expected[2].storageClass.Provisioner, actualSc3.Provisioner)
+		assert.Equal(t, expected[2].storageClass.ReclaimPolicy, actualSc3.ReclaimPolicy)
+		assert.Equal(t, expected[2].storageClass.Parameters, actualSc3.Parameters)
 		// Doing a bit more validation for the RGW SC since some fields differ whether
 		// we do independent or converged mode, typically "objectStoreName" param must exist
 		assert.NotEmpty(t, actualSc3.Parameters["objectStoreName"], actualSc3.Parameters)
@@ -68,16 +68,16 @@ func assertStorageClasses(t *testing.T, reconciler ReconcileStorageCluster, cr *
 	// lead to other child resources getting GCd.
 	// Ref: https://bugzilla.redhat.com/show_bug.cgi?id=1755623
 	// Ref: https://bugzilla.redhat.com/show_bug.cgi?id=1691546
-	assert.Equal(t, len(expected[0].OwnerReferences), 0)
-	assert.Equal(t, len(expected[1].OwnerReferences), 0)
+	assert.Equal(t, len(expected[0].storageClass.OwnerReferences), 0)
+	assert.Equal(t, len(expected[1].storageClass.OwnerReferences), 0)
 
-	assert.Equal(t, expected[0].ObjectMeta.Name, actualSc1.ObjectMeta.Name)
-	assert.Equal(t, expected[0].Provisioner, actualSc1.Provisioner)
-	assert.Equal(t, expected[0].ReclaimPolicy, actualSc1.ReclaimPolicy)
-	assert.Equal(t, expected[0].Parameters, actualSc1.Parameters)
+	assert.Equal(t, expected[0].storageClass.ObjectMeta.Name, actualSc1.ObjectMeta.Name)
+	assert.Equal(t, expected[0].storageClass.Provisioner, actualSc1.Provisioner)
+	assert.Equal(t, expected[0].storageClass.ReclaimPolicy, actualSc1.ReclaimPolicy)
+	assert.Equal(t, expected[0].storageClass.Parameters, actualSc1.Parameters)
 
-	assert.Equal(t, expected[1].ObjectMeta.Name, actualSc2.ObjectMeta.Name)
-	assert.Equal(t, expected[1].Provisioner, actualSc2.Provisioner)
-	assert.Equal(t, expected[1].ReclaimPolicy, actualSc2.ReclaimPolicy)
-	assert.Equal(t, expected[1].Parameters, actualSc2.Parameters)
+	assert.Equal(t, expected[1].storageClass.ObjectMeta.Name, actualSc2.ObjectMeta.Name)
+	assert.Equal(t, expected[1].storageClass.Provisioner, actualSc2.Provisioner)
+	assert.Equal(t, expected[1].storageClass.ReclaimPolicy, actualSc2.ReclaimPolicy)
+	assert.Equal(t, expected[1].storageClass.Parameters, actualSc2.Parameters)
 }
