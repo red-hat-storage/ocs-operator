@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	v1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -394,4 +395,81 @@ func getReconciler(t *testing.T, objs ...runtime.Object) ReconcileStorageCluster
 		client:   client,
 		platform: &Platform{},
 	}
+}
+
+func TestNoobaaKMSConfiguration(t *testing.T) {
+	allKMSArgs := []struct {
+		testLabel       string
+		kmsProvider     string
+		kmsAddress      string
+		failureExpected bool
+	}{
+		{testLabel: "case 1", kmsProvider: "vault", kmsAddress: "http://localhost:3053"},
+		{testLabel: "case 2", kmsProvider: "vault", kmsAddress: "http://localhost:32123"},
+		// ocs-operator is agnostic to KMS Provider, here rook should be throwing error
+		{testLabel: "case 3", kmsProvider: "newKMSProvider", kmsAddress: "http://127.0.0.1:15851"},
+		// invalid test case, with an unreachable KMS address
+		{testLabel: "case 4", kmsProvider: "vault", kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
+	}
+	for _, kmsArgs := range allKMSArgs {
+		assertNoobaaKMSConfiguration(t, kmsArgs)
+	}
+}
+
+func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
+	testLabel       string
+	kmsProvider     string
+	kmsAddress      string
+	failureExpected bool
+}) {
+	ctxTodo := context.TODO()
+	cr := createDefaultStorageCluster()
+	// enable KMS to true
+	cr.Spec.Encryption.KeyManagementService.Enable = true
+	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress)
+	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
+	if err := reconciler.client.Create(ctxTodo, kmsCM); err != nil {
+		t.Errorf("Unable to create KMS configmap: %v, %v", err, kmsArgs.testLabel)
+		t.FailNow()
+	}
+	reconciler.initializeImagesStatus(cr)
+	// start a dummy server, if we are not expecting any errors
+	if !kmsArgs.failureExpected {
+		startServerAt(kmsArgs.kmsAddress)
+	}
+	err := reconciler.ensureCephCluster(cr, reconciler.reqLogger)
+	if kmsArgs.failureExpected && err == nil {
+		// case 1: if we are expecting a failure and returned error is 'nil'
+		t.Errorf("Expecting the cephcluster creation to fail")
+		t.FailNow()
+	} else if !kmsArgs.failureExpected && err != nil {
+		// case 2: if we are not expecting any failure, but received an error
+		t.Errorf("CephCluster creation is not expected to fail: %v, %v", err, kmsArgs.testLabel)
+		t.FailNow()
+	} else if kmsArgs.failureExpected && err != nil {
+		// case 3: if we are expecting a failure and an error is properly returned
+		return
+	}
+	cephCluster := &cephv1.CephCluster{}
+	err = reconciler.client.Get(ctxTodo,
+		types.NamespacedName{Name: generateNameForCephCluster(cr)},
+		cephCluster)
+	if err == nil {
+		cephCluster.Status.State = cephv1.ClusterStateCreated
+		err = reconciler.client.Update(context.TODO(), cephCluster)
+	}
+	if err != nil {
+		t.Errorf("CephCluster error: %v, %v", err, kmsArgs.testLabel)
+		t.FailNow()
+	}
+	err = reconciler.ensureNoobaaSystem(cr, noobaaReconcileTestLogger)
+	assert.NoError(t, err, fmt.Sprintf("Failed to ensure Noobaa system: %v, %v", err, kmsArgs.testLabel))
+	nb := &v1alpha1.NooBaa{}
+	err = reconciler.client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
+	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
+	// check the provided KMS ConfigMap data is passed on to CephCluster
+	for k, v := range kmsCM.Data {
+		assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+	}
+	assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
 }
