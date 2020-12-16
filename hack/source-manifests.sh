@@ -101,8 +101,11 @@ function gen_ocs_csv() {
 	cp deploy/crds/* $ocs_crds_outdir/
 }
 
-dump_noobaa_csv
-dump_rook_csv
+if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ]; then
+	dump_noobaa_csv
+	dump_rook_csv
+fi
+
 gen_ocs_csv
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
