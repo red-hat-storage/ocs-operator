@@ -111,7 +111,7 @@ github.com/mitchellh/mapstructure
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
-# github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201201135513-296cf67a20c9
+# github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
 github.com/noobaa/noobaa-operator/v2/pkg/apis
 github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1
 # github.com/nxadm/tail v1.4.4

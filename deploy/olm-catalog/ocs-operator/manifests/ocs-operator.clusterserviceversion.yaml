@@ -977,7 +977,7 @@ metadata:
     olm.skipRange: '>=0.0.1 <4.7.0'
     operatorframework.io/initialization-resource: "\n    {\n        \"apiVersion\": \"ocs.openshift.io/v1\",\n        \"kind\": \"StorageCluster\",\n        \"metadata\": {\n            \"name\": \"example-storagecluster\",\n            \"namespace\": \"openshift-storage\"\n        },\n        \"spec\": {\n            \"manageNodes\": false,\n            \"monPVCTemplate\": {\n                \"spec\": {\n                    \"accessModes\": [\n                        \"ReadWriteOnce\"\n                    ],\n                    \"resources\": {\n                        \"requests\": {\n                            \"storage\": \"10Gi\"\n                        }\n                    },\n                    \"storageClassName\": \"gp2\"\n                }\n            },\n            \"storageDeviceSets\": [\n                {\n                    \"count\": 3,\n                    \"dataPVCTemplate\": {\n                        \"spec\": {\n                            \"accessModes\": [\n                                \"ReadWriteOnce\"\n                            ],\n                            \"resources\": {\n                                \"requests\": {\n                                    \"storage\": \"1Ti\"\n                                }\n                            },\n                            \"storageClassName\": \"gp2\",\n                            \"volumeMode\": \"Block\"\n                        }\n                    },\n                    \"name\": \"example-deviceset\",\n                    \"placement\": {},\n                    \"portable\": true,\n                    \"resources\": {}\n                }\n            ]\n        }\n    }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephblockpools.ceph.rook.io","cephclients.ceph.rook.io","cephclusters.ceph.rook.io","cephfilesystems.ceph.rook.io","cephnfses.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephclusters.ceph.rook.io","cephblockpools.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","noobaas.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephblockpools.ceph.rook.io","cephclients.ceph.rook.io","cephclusters.ceph.rook.io","cephfilesystems.ceph.rook.io","cephnfses.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephclusters.ceph.rook.io","cephblockpools.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","noobaas.noobaa.io","namespacestores.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
     repository: https://github.com/openshift/ocs-operator
     support: Red Hat
   labels:
@@ -1382,7 +1382,112 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
-    - description: Storage policy spec  tiering, mirroring, spreading. Combines BackingStores. Referenced by ObjectBucketClaims.
+    - description: Storage target spec such as aws-s3, s3-compatible, ibm-cos and more. Used in BucketClass to construct namespace policies.
+      displayName: Namespace Store
+      kind: NamespaceStore
+      name: namespacestores.noobaa.io
+      resources:
+      - kind: Service
+        name: services
+        version: v1
+      - kind: Secret
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
+        version: v1
+      specDescriptors:
+      - description: Region is the AWS region.
+        displayName: Region
+        path: awsS3.region
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Secret refers to a secret that provides the credentials. The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+        displayName: Secret
+        path: awsS3.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: SSLDisabled allows to disable SSL and use plain http.
+        displayName: SSL Disabled
+        path: awsS3.sslDisabled
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - description: TargetBucket is the name of the target S3 bucket.
+        displayName: Target Bucket
+        path: awsS3.targetBucket
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: |2-
+           Secret refers to a secret that provides the credentials. The secret should define AccountName and AccountKey as provided
+          by Azure Blob.
+        displayName: Secret
+        path: azureBlob.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:azureBlob
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: TargetBlobContainer is the name of the target Azure Blob container.
+        displayName: Target Blob Container
+        path: azureBlob.targetBlobContainer
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:azureBlob
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: 'Endpoint is the S3 compatible endpoint: http(s)://host:port.'
+        displayName: End Point
+        path: s3Compatible.endpoint
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Secret refers to a secret that provides the credentials. The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+        displayName: Secret
+        path: s3Compatible.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: SignatureVersion specifies the client signature version to use when signing requests.
+        displayName: Signature Version
+        path: s3Compatible.signatureVersion
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: TargetBucket is the name of the target S3 bucket.
+        displayName: Target Bucket
+        path: s3Compatible.targetBucket
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: 'Endpoint is the IBM COS endpoint: http(s)://host:port.'
+        displayName: End Point
+        path: IBMCos.endpoint
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Secret refers to a secret that provides the credentials. The secret should define IBM_COS_ACCESS_KEY_ID and IBM_COS_SECRET_ACCESS_KEY.
+        displayName: Secret
+        path: IBMCos.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: SignatureVersion specifies the client signature version to use when signing requests.
+        displayName: Signature Version
+        path: IBMCos.signatureVersion
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: TargetBucket is the name of the target IBM COS bucket.
+        displayName: Target Bucket
+        path: IBMCos.targetBucket
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:com.tectonic.ui:text
+      version: v1alpha1
+    - description: Storage policy spec  tiering, mirroring, spreading, namespace policy. Combines BackingStores Or NamespaceStores. Referenced by ObjectBucketClaims.
       displayName: Bucket Class
       kind: BucketClass
       name: bucketclasses.noobaa.io
@@ -1411,6 +1516,36 @@ spec:
         path: placementPolicy.tiers[0].placement
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:placementPolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Namespace Policy type specifies the type of the namespace policy configuration.
+        displayName: Namespace Policy
+        path: namespacePolicy.type
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Resource specifies the namespace store configured by the bucket class to be read and write targets.
+        displayName: Resource
+        path: namespacePolicy.single.resource
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Read Resources specifies the namespace stores configured by the bucket class to be read targets.
+        displayName: Read Resources
+        path: namespacePolicy.Multi.readResources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Write Resource specifies the namespace store configured by the bucket class to be write target.
+        displayName: Write Resource
+        path: namespacePolicy.Multi.writeResource
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Hub Resource specifies the target namespace store configured by the bucket class to be read and write targets.
+        displayName: Hub Resource
+        path: namespacePolicy.Cache.hubResource
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
     - description: Claim a bucket just like claiming a PV. Automate you app bucket provisioning by creating OBC with your app deployment. A secret and configmap (name=claim) will be created with access details for the app pods.
@@ -2299,7 +2434,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: ceph/ceph:v14.2
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:master-20201130
+                  value: noobaa/noobaa-core:5.7.0-20201216
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
@@ -2443,10 +2578,10 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:master-20201130
+                  value: noobaa/noobaa-core:5.7.0-20201216
                 - name: NOOBAA_DB_IMAGE
                   value: centos/mongodb-36-centos7
-                image: noobaa/noobaa-operator:master-20201201
+                image: noobaa/noobaa-operator:5.7.0-20201216
                 name: noobaa-operator
                 resources:
                   limits:
@@ -2768,6 +2903,17 @@ spec:
           - patch
           - list
           - watch
+        - apiGroups:
+          - batch
+          resources:
+          - jobs
+          verbs:
+          - get
+          - create
+          - update
+          - patch
+          - list
+          - watch
         serviceAccountName: noobaa
     strategy: deployment
   installModes:
@@ -2802,9 +2948,9 @@ spec:
     name: rook-container
   - image: ceph/ceph:v14.2
     name: ceph-container
-  - image: noobaa/noobaa-operator:master-20201201
+  - image: noobaa/noobaa-operator:5.7.0-20201216
     name: noobaa-operator
-  - image: noobaa/noobaa-core:master-20201130
+  - image: noobaa/noobaa-core:5.7.0-20201216
     name: noobaa-core
   - image: centos/mongodb-36-centos7
     name: noobaa-db

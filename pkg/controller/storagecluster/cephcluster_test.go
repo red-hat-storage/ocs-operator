@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
 	"github.com/openshift/ocs-operator/pkg/controller/defaults"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 )
 
@@ -54,7 +56,7 @@ func TestEnsureCephCluster(t *testing.T) {
 				c.cc.ObjectMeta.Name = "doesn't exist"
 			}
 		} else {
-			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, log)
+			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, nil, log)
 			c.cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 			if c.condition == "negativeCondition" {
 				c.cc.Status.State = rookCephv1.ClusterStateCreated
@@ -69,8 +71,8 @@ func TestEnsureCephCluster(t *testing.T) {
 		err := reconciler.ensureCephCluster(sc, reconciler.reqLogger)
 		assert.NoError(t, err)
 		if c.condition == "" {
-			expected := newCephCluster(sc, "", 3, reconciler.serverVersion, log)
-			actual := newCephCluster(sc, "", 3, reconciler.serverVersion, log)
+			expected := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+			actual := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
 			err = reconciler.client.Get(context.TODO(), mockCephClusterNamespacedName, actual)
 			assert.NoError(t, err)
 			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -151,7 +153,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 		c.sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		actual := newCephCluster(c.sc, "", 3, serverVersion, log)
+		actual := newCephCluster(c.sc, "", 3, serverVersion, nil, log)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
@@ -354,4 +356,88 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 	}
 
+}
+
+func createDummyKMSConfigMap(kmsProvider, kmsAddr string) *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{}
+	cm.Name = KMSConfigMapName
+	cm.Data = make(map[string]string)
+	cm.Data["KMS_PROVIDER"] = kmsProvider
+	cm.Data[kmsProviderAddressKeyMap[kmsProvider]] = kmsAddr
+	cm.Data["VAULT_BACKEND_PATH"] = "ocs"
+	cm.Data["VAULT_NAMESPACE"] = "my-ocs-namespace"
+	return cm
+}
+
+func TestKMSConfigChanges(t *testing.T) {
+	validKMSArgs := []struct {
+		testLabel       string
+		kmsProvider     string
+		kmsAddress      string
+		failureExpected bool
+	}{
+		{testLabel: "case 1", kmsProvider: "vault", kmsAddress: "http://localhost:5050"},
+		{testLabel: "case 2", kmsProvider: "vault", kmsAddress: "http://localhost:12321"},
+		// ocs-operator is agnostic to KMS Provider, here rook should be throwing error
+		{testLabel: "case 3", kmsProvider: "newKMSProvider", kmsAddress: "http://127.0.0.1:1553"},
+		// invalid test cases, make sure label has a prefix 'invalid'
+		{testLabel: "case 4", kmsProvider: "vault", kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
+	}
+	for _, kmsArgs := range validKMSArgs {
+		assertCephClusterKMSConfiguration(t, kmsArgs)
+	}
+}
+
+func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
+	testLabel       string
+	kmsProvider     string
+	kmsAddress      string
+	failureExpected bool
+}) {
+	ctxTodo := context.TODO()
+	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress)
+	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
+	if err := reconciler.client.Create(ctxTodo, kmsCM); err != nil {
+		t.Errorf("Unable to create KMS configmap: %v", err)
+		t.FailNow()
+	}
+	// create a cephcluster CR and enable the KMS
+	cr := createDefaultStorageCluster()
+	cr.Spec.Encryption.KeyManagementService.Enable = true
+
+	// don't start dummy servers for invalid tests
+	if !kmsArgs.failureExpected {
+		startServerAt(kmsArgs.kmsAddress)
+	}
+	// have to initialize the image status,
+	// without which the code will throw a 'nil pointer' exception
+	reconciler.initializeImagesStatus(cr)
+	err := reconciler.ensureCephCluster(cr, reconciler.reqLogger)
+	if kmsArgs.failureExpected && err == nil {
+		// case 1: if a failure is expected and we don't receive any error
+		t.Errorf("Failed: %q. Expected an error", kmsArgs.testLabel)
+		t.FailNow()
+	} else if !kmsArgs.failureExpected && err != nil {
+		// case 2: if failure is not expected and we receive an error
+		t.Errorf("Failed: %q. Error: %v", kmsArgs.testLabel, err)
+		t.FailNow()
+	} else if kmsArgs.failureExpected && err != nil {
+		// case 3: if a failure was expected and we get the error
+		// nothing to check further
+		return
+	}
+	// following part of the tests are only for valid tests
+	cephCluster := &rookCephv1.CephCluster{}
+	err = reconciler.client.Get(ctxTodo,
+		types.NamespacedName{Name: generateNameForCephCluster(cr)},
+		cephCluster)
+	if err != nil {
+		t.Errorf("Get CephCluster Failed: %v", err)
+		t.FailNow()
+	}
+	// check the provided KMS ConfigMap data is passed on to CephCluster
+	for k, v := range kmsCM.Data {
+		assert.Equal(t, v, cephCluster.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+	}
+	assert.Equal(t, KMSTokenSecretName, cephCluster.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
 }

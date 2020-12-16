@@ -983,7 +983,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 func assertCephClusterNetwork(t assert.TestingT, reconciler ReconcileStorageCluster, cr *api.StorageCluster, request reconcile.Request) {
 	serverVersion := &k8sVersion.Info{}
 	request.Name = "ocsinit-cephcluster"
-	cephCluster := newCephCluster(cr, "", 3, serverVersion, log)
+	cephCluster := newCephCluster(cr, "", 3, serverVersion, nil, log)
 	err := reconciler.client.Get(context.TODO(), request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
 	if cr.Spec.Network == nil {

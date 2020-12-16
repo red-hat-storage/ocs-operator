@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"regexp"
 	"testing"
 	"time"
 
@@ -58,7 +59,7 @@ var ExternalResources = []ExternalResource{
 	{
 		Kind: "StorageClass",
 		Data: map[string]string{
-			"endpoint": fmt.Sprintf("127.0.0.1:%d", generateRandomPort(10000, 30000)),
+			"endpoint": fmt.Sprintf("localhost:%d", generateRandomPort(10000, 30000)),
 		},
 		Name: "ceph-rgw",
 	},
@@ -250,8 +251,11 @@ func updateNamedResourceInArray(extArr []ExternalResource, extRsrc ExternalResou
 
 func startServerAt(endpoint string) <-chan error {
 	var doneChan = make(chan error)
-	go func(doneChan chan<- error) {
+	go func(doneChan chan<- error, endpoint string) {
 		defer close(doneChan)
+		rxp := regexp.MustCompile(`^http[s]?://`)
+		// remove any http or https protocols from the endpoint string
+		endpoint = rxp.ReplaceAllString(endpoint, "")
 		ln, err := net.Listen("tcp4", endpoint)
 		if err != nil {
 			doneChan <- err
@@ -265,7 +269,7 @@ func startServerAt(endpoint string) <-chan error {
 		}
 		defer conn.Close()
 		doneChan <- nil
-	}(doneChan)
+	}(doneChan, endpoint)
 	return doneChan
 }
 
@@ -427,7 +431,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler ReconcileSt
 	rgwRsrc, err := findNamedResourceFromArray(extRsrcs, cephRgwStorageClassName)
 	assert.NoError(t, err)
 	// change 'rgw-endpoint'
-	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("127.0.0.1:%d", generateRandomPort(20000, 30000))
+	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("localhost:%d", generateRandomPort(20000, 30000))
 	// start a dummy / local server at the endpoint
 	startServerAt(rgwRsrc.Data[externalCephRgwEndpointKey])
 	extRsrcs = updateNamedResourceInArray(extRsrcs, rgwRsrc)

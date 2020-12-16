@@ -2,17 +2,17 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"placementPolicy":{"tiers":[{"backingStores":["aws1"]}]}},"status":{}}]'
+    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{},"security":{"kms":{}}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"NamespaceStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{},"status":{}}]'
     capabilities: Basic Install
     categories: Storage,Big Data
     certified: "false"
-    containerImage: noobaa/noobaa-operator:5.6.0
+    containerImage: noobaa/noobaa-operator:5.7.0
     createdAt: "2019-07-08T13:10:20.940Z"
     description: NooBaa is an object data service for hybrid and multi cloud environments.
     repository: https://github.com/noobaa/noobaa-operator
     support: Red Hat
   creationTimestamp: null
-  name: noobaa-operator.v5.6.0
+  name: noobaa-operator.v5.7.0
   namespace: noobaa
 spec:
   apiservicedefinitions: {}
@@ -214,7 +214,112 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
-    - description: Storage policy spec  tiering, mirroring, spreading. Combines BackingStores. Referenced by ObjectBucketClaims.
+    - description: Storage target spec such as aws-s3, s3-compatible, ibm-cos and more. Used in BucketClass to construct namespace policies.
+      displayName: Namespace Store
+      kind: NamespaceStore
+      name: namespacestores.noobaa.io
+      resources:
+      - kind: Service
+        name: services
+        version: v1
+      - kind: Secret
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
+        version: v1
+      specDescriptors:
+      - description: Region is the AWS region.
+        displayName: Region
+        path: awsS3.region
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Secret refers to a secret that provides the credentials. The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+        displayName: Secret
+        path: awsS3.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: SSLDisabled allows to disable SSL and use plain http.
+        displayName: SSL Disabled
+        path: awsS3.sslDisabled
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - description: TargetBucket is the name of the target S3 bucket.
+        displayName: Target Bucket
+        path: awsS3.targetBucket
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:awsS3
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: |2-
+           Secret refers to a secret that provides the credentials. The secret should define AccountName and AccountKey as provided
+          by Azure Blob.
+        displayName: Secret
+        path: azureBlob.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:azureBlob
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: TargetBlobContainer is the name of the target Azure Blob container.
+        displayName: Target Blob Container
+        path: azureBlob.targetBlobContainer
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:azureBlob
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: 'Endpoint is the S3 compatible endpoint: http(s)://host:port.'
+        displayName: End Point
+        path: s3Compatible.endpoint
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Secret refers to a secret that provides the credentials. The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+        displayName: Secret
+        path: s3Compatible.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: SignatureVersion specifies the client signature version to use when signing requests.
+        displayName: Signature Version
+        path: s3Compatible.signatureVersion
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: TargetBucket is the name of the target S3 bucket.
+        displayName: Target Bucket
+        path: s3Compatible.targetBucket
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:s3Compatible
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: 'Endpoint is the IBM COS endpoint: http(s)://host:port.'
+        displayName: End Point
+        path: IBMCos.endpoint
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Secret refers to a secret that provides the credentials. The secret should define IBM_COS_ACCESS_KEY_ID and IBM_COS_SECRET_ACCESS_KEY.
+        displayName: Secret
+        path: IBMCos.secret.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - description: SignatureVersion specifies the client signature version to use when signing requests.
+        displayName: Signature Version
+        path: IBMCos.signatureVersion
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:com.tectonic.ui:number
+      - description: TargetBucket is the name of the target IBM COS bucket.
+        displayName: Target Bucket
+        path: IBMCos.targetBucket
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:ibmCos
+        - urn:alm:descriptor:com.tectonic.ui:text
+      version: v1alpha1
+    - description: Storage policy spec  tiering, mirroring, spreading, namespace policy. Combines BackingStores Or NamespaceStores. Referenced by ObjectBucketClaims.
       displayName: Bucket Class
       kind: BucketClass
       name: bucketclasses.noobaa.io
@@ -243,6 +348,36 @@ spec:
         path: placementPolicy.tiers[0].placement
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:placementPolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Namespace Policy type specifies the type of the namespace policy configuration.
+        displayName: Namespace Policy
+        path: namespacePolicy.type
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Resource specifies the namespace store configured by the bucket class to be read and write targets.
+        displayName: Resource
+        path: namespacePolicy.single.resource
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Read Resources specifies the namespace stores configured by the bucket class to be read targets.
+        displayName: Read Resources
+        path: namespacePolicy.Multi.readResources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Write Resource specifies the namespace store configured by the bucket class to be write target.
+        displayName: Write Resource
+        path: namespacePolicy.Multi.writeResource
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: Hub Resource specifies the target namespace store configured by the bucket class to be read and write targets.
+        displayName: Hub Resource
+        path: namespacePolicy.Cache.hubResource
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
     required:
@@ -381,7 +516,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:5.6.0
+                image: noobaa/noobaa-operator:5.7.0
                 name: noobaa-operator
                 resources:
                   limits:
@@ -498,6 +633,17 @@ spec:
           - patch
           - list
           - watch
+        - apiGroups:
+          - batch
+          resources:
+          - jobs
+          verbs:
+          - get
+          - create
+          - update
+          - patch
+          - list
+          - watch
         serviceAccountName: noobaa
     strategy: deployment
   installModes:
@@ -541,5 +687,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: NooBaa
-  version: 5.6.0
+  version: 5.7.0
 status: {}

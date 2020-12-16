@@ -46,6 +46,12 @@ type StorageClusterSpec struct {
 	FlexibleScaling bool `json:"flexibleScaling,omitempty"`
 }
 
+// KeyManagementServiceSpec provides a way to enable KMS
+type KeyManagementServiceSpec struct {
+	// +optional
+	Enable bool `json:"enable,omitempty"`
+}
+
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
 type ManagedResourcesSpec struct {
 	CephBlockPools       ManageCephBlockPools       `json:"cephBlockPools,omitempty"`
@@ -156,7 +162,8 @@ type MultiCloudGatewaySpec struct {
 // It is optional and defaults to false.
 type EncryptionSpec struct {
 	// +optional
-	Enable bool `json:"enable,omitempty"`
+	Enable               bool                     `json:"enable,omitempty"`
+	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
 }
 
 // StorageClusterStatus defines the observed state of StorageCluster

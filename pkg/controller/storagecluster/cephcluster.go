@@ -93,7 +93,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	if sc.Spec.ExternalStorage.Enable {
 		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP)
 	} else {
-		cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, reqLogger)
+		kmsConfigMap, err := getKMSConfigMap(sc, r.client, reachKMSProvider)
+		if err != nil {
+			reqLogger.Error(err, "failed to procure KMS config")
+			return err
+		}
+		cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, reqLogger)
 	}
 
 	// Set StorageCluster instance as the owner and controller
@@ -199,7 +204,7 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, reqLogger logr.Logger) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -278,6 +283,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 	}
 	if isMultus(sc.Spec.Network) {
 		cephCluster.Spec.Network.NetworkSpec = *sc.Spec.Network
+	}
+	// if kmsConfig is not 'nil', add the KMS details to CephCluster spec
+	if kmsConfigMap != nil {
+		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
+		cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 	}
 	return cephCluster
 }

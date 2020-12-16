@@ -11,7 +11,7 @@ require (
 	github.com/go-logr/zapr v0.2.0
 	github.com/go-openapi/spec v0.19.8
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2
-	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201201135513-296cf67a20c9
+	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.14.0
 	github.com/onsi/gomega v1.10.1

@@ -52,6 +52,12 @@ spec:
                 properties:
                   enable:
                     type: boolean
+                  kms:
+                    description: KeyManagementServiceSpec provides a way to enable KMS
+                    properties:
+                      enable:
+                        type: boolean
+                    type: object
                 type: object
               externalStorage:
                 description: External Storage is optional and defaults to false. When set to true, OCS will connect to an external OCS Storage Cluster instead of provisioning one locally.
