@@ -217,6 +217,12 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - console.openshift.io
+          resources:
+          - consolequickstarts
+          verbs:
+          - '*'
         serviceAccountName: ocs-operator
       deployments:
       - name: ocs-operator
