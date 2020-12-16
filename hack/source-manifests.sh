@@ -26,7 +26,6 @@ fi
 
 # always start fresh and remove any previous artifacts that may exist.
 rm -rf $OCS_FINAL_DIR
-rm -rf $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_CRDS
 mkdir -p $OUTDIR_TOOLS
@@ -35,10 +34,15 @@ mkdir -p $OUTDIR_TOOLS
 function dump_noobaa_csv() {
 	noobaa_dump_crds_cmd="crd yaml"
 	noobaa_dump_csv_cmd="olm csv yaml"
+	noobaa_crds_outdir="$OUTDIR_CRDS/noobaa"
+	rm -rf $NOOBAA_CSV
+	rm -rf $noobaa_crds_outdir
+	mkdir -p $noobaa_crds_outdir
+
 	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
 	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_csv_cmd") > $NOOBAA_CSV
 	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
-	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_crds_cmd") > $OUTDIR_CRDS/noobaa-crd.yaml
+	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_crds_cmd") > $noobaa_crds_outdir/noobaa-crd.yaml
 }
 
 # ==== DUMP ROOK YAMLS ====
@@ -46,6 +50,11 @@ function dump_rook_csv() {
 	rook_template_dir="/etc/ceph-csv-templates"
 	rook_csv_template="rook-ceph-ocp.vVERSION.clusterserviceversion.yaml.in"
 	rook_crds_dir=$rook_template_dir/crds
+	rook_crds_outdir="$OUTDIR_CRDS/rook"
+	rm -rf $ROOK_CSV
+	rm -rf $rook_crds_outdir
+	mkdir -p $rook_crds_outdir
+
 	crd_list=$(mktemp)
 	echo "Dumping rook csv using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
 	$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template > $ROOK_CSV
@@ -56,7 +65,7 @@ function dump_rook_csv() {
 	        # shellcheck disable=SC2059
 		crd_file=$(printf ${rook_crds_dir}/"$i" | tr -d '[:space:]')
 		echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $crd_file"
-		($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $OUTDIR_CRDS/"$(basename "$crd_file")"
+		($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $rook_crds_outdir/"$(basename "$crd_file")"
 	done;
 	rm -f "$crd_list"
 }
@@ -65,6 +74,12 @@ function dump_rook_csv() {
 # Generate an OCS CSV using the operator-sdk.
 # This is the base CSV everything else gets merged into later on.
 function gen_ocs_csv() {
+	ocs_crds_outdir="$OUTDIR_CRDS/ocs"
+	rm -rf $OUTDIR_TEMPLATES/manifests/ocs-operator.clusterserviceversion.yaml
+	rm -rf $OCS_CSV
+	rm -rf $ocs_crds_outdir
+	mkdir -p $ocs_crds_outdir
+
 	TMP_CSV_VERSION=9999.9999.9999
 	gen_args="generate csv --csv-version=$TMP_CSV_VERSION --output-dir=$OUTDIR_TEMPLATES"
 	if [ -n "$CSV_REPLACES_VERSION" ]; then
@@ -83,7 +98,7 @@ function gen_ocs_csv() {
 		sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
 		sed -i "/replaces:/d" $OCS_CSV
 	fi
-	cp deploy/crds/* $OUTDIR_CRDS/
+	cp deploy/crds/* $ocs_crds_outdir/
 }
 
 dump_noobaa_csv

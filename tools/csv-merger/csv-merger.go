@@ -877,9 +877,18 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 }
 
 func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
-	crdFiles, err := ioutil.ReadDir(*inputCrdsDir)
-	if err != nil {
-		panic(err)
+	var crdFiles []string
+	crdDirs := []string{"ocs", "rook", "noobaa"}
+
+	for _, dir := range crdDirs {
+		crdDir := filepath.Join(*inputCrdsDir, dir)
+		files, err := ioutil.ReadDir(crdDir)
+		if err != nil {
+			panic(err)
+		}
+		for _, file := range files {
+			crdFiles = append(crdFiles, filepath.Join(crdDir, file.Name()))
+		}
 	}
 
 	ownedCrds := map[string]*csvv1.CRDDescription{}
@@ -893,17 +902,16 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 
 	for _, crdFile := range crdFiles {
 		// only copy crd manifests, this will ignore cr manifests
-		if !strings.Contains(crdFile.Name(), "crd.yaml") && !strings.Contains(crdFile.Name(), "crds.yaml") {
+		if !strings.Contains(crdFile, "crd.yaml") && !strings.Contains(crdFile, "crds.yaml") {
 			continue
 		}
 
-		inputFile := filepath.Join(*inputCrdsDir, crdFile.Name())
-		crdBytes, err := ioutil.ReadFile(inputFile)
+		crdBytes, err := ioutil.ReadFile(crdFile)
 		if err != nil {
 			panic(err)
 		}
 
-		fmt.Printf("reading CRD file %s\n", inputFile)
+		fmt.Printf("reading CRD file %s\n", crdFile)
 		// CRDs that refer to 'ObjectReference' fetches
 		// spec description from K8s in incorrect YAML format.
 		// This can not be prevented and documentation needs to
