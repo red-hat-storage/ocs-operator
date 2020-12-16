@@ -57,7 +57,11 @@ LATEST_ROOK_IMAGE="rook/ceph:v1.5.0.179.g8c0f70c"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:5.7.0-20201216"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.7.0-20201216"
 LATEST_NOOBAA_DB_IMAGE="centos/mongodb-36-centos7"
-LATEST_CEPH_IMAGE="ceph/ceph:v14.2"
+# The stretch cluster feature will come in ceph pacific(v16).  We don't have an
+# image for it yet. Meanwhile, we will use an image that has the required
+# patches. This is required for the CI and does not impact anything else.
+# TODO: revert to using ceph/ceph image once v16 is out.)
+LATEST_CEPH_IMAGE="travisn/ceph:stretch-demo-5"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
