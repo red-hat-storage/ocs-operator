@@ -350,6 +350,10 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitori
 	return externalCephCluster
 }
 
+func getMinDeviceSetReplica(sc *ocsv1.StorageCluster) int {
+	return defaults.DeviceSetReplica
+}
+
 func getMonCount(nodeCount int) int {
 	// return static value if overriden
 	override := os.Getenv(monCountOverrideEnvVar)

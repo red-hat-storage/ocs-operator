@@ -219,7 +219,8 @@ func (r *ReconcileStorageCluster) ensureNodeRacks(
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
 func (r *ReconcileStorageCluster) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	minNodes := defaults.DeviceSetReplica
+	minNodes := getMinDeviceSetReplica(sc)
+
 	for _, deviceSet := range sc.Spec.StorageDeviceSets {
 		if deviceSet.Replica > minNodes {
 			minNodes = deviceSet.Replica
