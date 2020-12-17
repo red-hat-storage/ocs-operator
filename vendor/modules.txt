@@ -225,7 +225,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rook/rook v1.5.0-alpha.0.0.20201119164518-f86f8300f924
+# github.com/rook/rook v1.5.0-alpha.0.0.20201209235452-8c0f70cf3709
 github.com/rook/rook/pkg/apis/cassandra.rook.io
 github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1
 github.com/rook/rook/pkg/apis/ceph.rook.io

@@ -13,7 +13,7 @@ metadata:
           },
           "spec": {
             "cephVersion": {
-              "image": "ceph/ceph:v15.2.5"
+              "image": "ceph/ceph:v15.2.7"
             },
             "dataDirHostPath": "/var/lib/rook",
             "mon": {
@@ -1376,6 +1376,7 @@ spec:
           - batch
           resources:
           - jobs
+          - cronjobs
           verbs:
           - get
           - list
@@ -1970,6 +1971,12 @@ spec:
           - watch
           - create
           - update
+          - delete
+        - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          verbs:
           - delete
         serviceAccountName: rook-ceph-system
       - rules:

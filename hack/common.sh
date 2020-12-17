@@ -53,11 +53,15 @@ NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
-LATEST_ROOK_IMAGE="rook/ceph:v1.5.1"
+LATEST_ROOK_IMAGE="rook/ceph:v1.5.0.179.g8c0f70c"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:5.7.0-20201216"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.7.0-20201216"
 LATEST_NOOBAA_DB_IMAGE="centos/mongodb-36-centos7"
-LATEST_CEPH_IMAGE="ceph/ceph:v14.2"
+# The stretch cluster feature will come in ceph pacific(v16).  We don't have an
+# image for it yet. Meanwhile, we will use an image that has the required
+# patches. This is required for the CI and does not impact anything else.
+# TODO: revert to using ceph/ceph image once v16 is out.)
+LATEST_CEPH_IMAGE="travisn/ceph:stretch-demo-5"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
@@ -84,6 +88,7 @@ MUST_GATHER_FULL_IMAGE_NAME="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUST_GATH
 
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-true}"
 OCS_SUBSCRIPTION_CHANNEL=${OCS_SUBSCRIPTION_CHANNEL:-alpha}
+OCS_ALLOW_UNSUPPORTED_CEPH_VERSION="${OCS_ALLOW_UNSUPPORTED_CEPH_VERSION:-allowed}"
 
 UPGRADE_FROM_OCS_REGISTRY_IMAGE="${UPGRADE_FROM_OCS_REGISTRY_IMAGE:-quay.io/ocs-dev/ocs-registry:4.2.0}"
 UPGRADE_FROM_OCS_SUBSCRIPTION_CHANNEL="${UPGRADE_FROM_OCS_SUBSCRIPTION_CHANNEL:-$OCS_SUBSCRIPTION_CHANNEL}"
