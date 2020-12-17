@@ -44,6 +44,16 @@ type StorageClusterSpec struct {
 	// distributed evenly across all nodes, regardless of distribution in zones
 	// or racks.
 	FlexibleScaling bool `json:"flexibleScaling,omitempty"`
+	// NodeTopologies specifies the nodes available for the storage cluster,
+	// preferred failure domain and location for the arbiter resources. This is
+	// optional for non-arbiter clusters. For arbiter clusters, the
+	// arbiterLocation is required; failure domain and the node labels are
+	// optional. When the failure domain and the node labels are missing, the
+	// ocs-operator makes a best effort to determine them automatically.
+	NodeTopologies *NodeTopologyMap `json:"nodeTopologies,omitempty"`
+	// ArbiterSpec specifies the storage cluster options related to arbiter.
+	// If Arbiter is enabled, ArbiterLocation in the NodeTopologies must be specified.
+	Arbiter ArbiterSpec `json:"arbiter,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS
@@ -227,6 +237,13 @@ type NodeTopologyMap struct {
 	// +optional
 	// +nullable
 	Labels map[string]TopologyLabelValues `json:"labels,omitempty"`
+
+	// TODO: Move the failureDomain from the status section to here
+	// FailureDomain string `json:"failureDomain,omitempty"`
+
+	// ArbiterLocation is the chosen location in the failure domain for placing the arbiter resources.
+	// When the failure domain is not provided as an input, ocs-operator determines the failure domain.
+	ArbiterLocation string `json:"arbiterLocation,omitempty"`
 }
 
 const (
@@ -278,6 +295,16 @@ type StorageClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []StorageCluster `json:"items"`
+}
+
+// ArbiterSpec defines if arbiter should be enabled for the Ceph Cluster.
+// It is optional and defaults to false.
+// If set to true, ArbiterLocation must be set in the NodeTopologies.
+type ArbiterSpec struct {
+	Enable bool `json:"enable,omitempty"`
+	// DisableMasterNodeToleration can be used to turn off the arbiter mon toleration for the master node taint.
+	DisableMasterNodeToleration bool                          `json:"disableMasterNodeToleration,omitempty"`
+	ArbiterMonPVCTemplate       *corev1.PersistentVolumeClaim `json:"arbiterMonPVCTemplate,omitempty"`
 }
 
 func init() {

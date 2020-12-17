@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -83,6 +84,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 		scheme:    mgr.GetScheme(),
 		reqLogger: log,
 		platform:  &Platform{},
+		recorder:  mgr.GetEventRecorderFor("controller_storagecluster"),
 	}
 
 	err := r.initializeImageVars()
@@ -175,4 +177,5 @@ type ReconcileStorageCluster struct {
 	nodeCount     int
 	platform      *Platform
 	images        ImageMap
+	recorder      record.EventRecorder
 }

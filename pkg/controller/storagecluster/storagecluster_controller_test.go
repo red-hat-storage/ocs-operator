@@ -3,12 +3,12 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-	consolev1 "github.com/openshift/api/console/v1"
 	"testing"
 
 	"github.com/blang/semver"
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
+	consolev1 "github.com/openshift/api/console/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -899,11 +899,8 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 //nolint //ignoring err checks as causing failures
 func TestMonCountChange(t *testing.T) {
 	for nodeCount := 0; nodeCount <= 10; nodeCount++ {
-		monCountExpected := defaults.MonCountMin
-		if nodeCount >= defaults.MonCountMax {
-			monCountExpected = defaults.MonCountMax
-		}
-		monCountActual := getMonCount(nodeCount)
+		monCountExpected := defaults.DefaultMonCount
+		monCountActual := getMonCount(nodeCount, false)
 		assert.Equal(t, monCountExpected, monCountActual)
 	}
 }

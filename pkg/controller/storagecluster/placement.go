@@ -21,6 +21,17 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 		(&in).DeepCopyInto(&placement)
 	}
 
+	if component == "arbiter" {
+		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
+			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
+				Key:      "node-role.kubernetes.io/master",
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoSchedule,
+			})
+		}
+		return placement
+	}
+
 	// If no placement is specified for the given component and the
 	// StorageCluster has no label selector, set the default node
 	// affinity.
