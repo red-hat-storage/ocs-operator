@@ -354,8 +354,6 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitori
 }
 
 func getMonCount(nodeCount int) int {
-	count := defaults.MonCountMin
-
 	// return static value if overriden
 	override := os.Getenv(monCountOverrideEnvVar)
 	if override != "" {
@@ -367,11 +365,7 @@ func getMonCount(nodeCount int) int {
 		}
 	}
 
-	if nodeCount >= defaults.MonCountMax {
-		count = defaults.MonCountMax
-	}
-
-	return count
+	return defaults.DefaultMonCount
 }
 
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
