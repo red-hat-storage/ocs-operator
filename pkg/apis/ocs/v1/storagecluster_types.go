@@ -78,6 +78,7 @@ type ManageCephFilesystems struct {
 type ManageCephObjectStores struct {
 	ReconcileStrategy   string `json:"reconcileStrategy,omitempty"`
 	DisableStorageClass bool   `json:"disableStorageClass,omitempty"`
+	GatewayInstances    int32  `json:"gatewayInstances,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers

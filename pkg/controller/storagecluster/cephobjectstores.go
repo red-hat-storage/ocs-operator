@@ -83,6 +83,10 @@ func (r *ReconcileStorageCluster) createCephObjectStores(cephObjectStores []*cep
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
 func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, reqLogger logr.Logger) ([]*cephv1.CephObjectStore, error) {
+	gatewayInstances := initData.Spec.ManagedResources.CephObjectStores.GatewayInstances
+	if gatewayInstances == 0 {
+		gatewayInstances = int32(defaults.CephObjectStoreGatewayInstances)
+	}
 	ret := []*cephv1.CephObjectStore{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -106,7 +110,7 @@ func (r *ReconcileStorageCluster) newCephObjectStoreInstances(initData *ocsv1.St
 				},
 				Gateway: cephv1.GatewaySpec{
 					Port:      80,
-					Instances: 2,
+					Instances: gatewayInstances,
 					Placement: getPlacement(initData, "rgw"),
 					Resources: defaults.GetDaemonResources("rgw", initData.Spec.Resources),
 				},

@@ -55,11 +55,15 @@ func assertCephObjectStores(t *testing.T, reconciler ReconcileStorageCluster, cr
 		assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
 		assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
 		assert.Condition(
-			t, func() bool { return expectedCos[0].Spec.Gateway.Instances > 1 },
-			"there should be multiple 'Spec.Gateway.Instances'")
+			t, func() bool { return expectedCos[0].Spec.Gateway.Instances == 1 },
+			"there should be one 'Spec.Gateway.Instances' by default")
 		assert.Equal(
 			t, expectedCos[0].Spec.Gateway.Placement, getPlacement(cr, "rgw"))
 	}
 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
+
+	cr.Spec.ManagedResources.CephObjectStores.GatewayInstances = 2
+	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, reconciler.reqLogger)
+	assert.Equal(t, expectedCos[0].Spec.Gateway.Instances, int32(2))
 }
