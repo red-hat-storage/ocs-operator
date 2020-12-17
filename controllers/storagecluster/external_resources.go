@@ -241,25 +241,21 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		switch d.Kind {
 		case "CephCluster":
 			monitoringIP, ok := d.Data["MonitoringEndpoint"]
-			if !ok {
+			if !ok || monitoringIP == "" {
 				err := fmt.Errorf(
 					"Monitoring Endpoint not present in the external cluster secret %s",
 					externalClusterDetailsSecret)
 				r.Log.Error(err, "Failed to get Monitoring IP.")
 				return err
 			}
-			monitoringPort, ok := d.Data["MonitoringPort"]
-			if !ok {
-				err := fmt.Errorf(
-					"Monitoring Port not present in the external cluster secret %s",
-					externalClusterDetailsSecret)
-				r.Log.Error(err, "Failed to get Monitoring Port.")
-				return err
-			}
-			err := checkEndpointReachable(net.JoinHostPort(monitoringIP, monitoringPort), 5*time.Second)
-			if err != nil {
-				r.Log.Error(err, "Monitoring validation failed")
-				return err
+			monitoringPort := d.Data["MonitoringPort"]
+			if monitoringPort != "" {
+				err := checkEndpointReachable(net.JoinHostPort(monitoringIP, monitoringPort), 5*time.Second)
+				if err != nil {
+					r.Log.Error(err, "Monitoring validation failed")
+					return err
+				}
+				r.monitoringPort = monitoringPort
 			}
 			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster")
 			r.monitoringIP = monitoringIP

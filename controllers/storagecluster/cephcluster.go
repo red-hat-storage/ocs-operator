@@ -96,7 +96,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	var cephCluster *cephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP)
+		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP, r.monitoringPort)
 	} else {
 		kmsConfigMap, err := getKMSConfigMap(sc, r.Client, reachKMSProvider)
 		if err != nil {
@@ -352,7 +352,7 @@ func validateMultusSelectors(selectors map[string]string) error {
 	return nil
 }
 
-func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitoringIP string) *cephv1.CephCluster {
+func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, monitoringPort string) *cephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -360,10 +360,13 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, monitori
 	var monitoringSpec = cephv1.MonitoringSpec{Enabled: false}
 
 	if monitoringIP != "" {
-		monitoringSpec = cephv1.MonitoringSpec{
-			Enabled:              true,
-			RulesNamespace:       sc.Namespace,
-			ExternalMgrEndpoints: []corev1.EndpointAddress{{IP: monitoringIP}},
+		monitoringSpec.Enabled = true
+		monitoringSpec.RulesNamespace = sc.Namespace
+		monitoringSpec.ExternalMgrEndpoints = []corev1.EndpointAddress{{IP: monitoringIP}}
+		if monitoringPort != "" {
+			if uint16Val, err := strconv.ParseUint(monitoringPort, 10, 16); err == nil {
+				monitoringSpec.ExternalMgrPrometheusPort = uint16(uint16Val)
+			}
 		}
 	}
 
