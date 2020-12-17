@@ -139,6 +139,13 @@ spec:
                 nullable: true
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+              logCollector:
+                properties:
+                  enabled:
+                    type: boolean
+                  periodicity:
+                    type: string
+                type: object
               mgr:
                 properties:
                   modules:
@@ -194,6 +201,10 @@ spec:
                           type: string
                       type: object
                     type: array
+                  externalMgrPrometheusPort:
+                    maximum: 65535
+                    minimum: 0
+                    type: integer
                   rulesNamespace:
                     type: string
                 type: object
