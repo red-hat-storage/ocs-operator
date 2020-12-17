@@ -218,7 +218,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 		Spec: cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
 				Image:            cephImage,
-				AllowUnsupported: false,
+				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
 			Mon: cephv1.MonSpec{
 				Count:                getMonCount(nodeCount),
@@ -573,4 +573,8 @@ func (r *ReconcileStorageCluster) checkTuneStorageDevices(ds ocsv1.StorageDevice
 
 	// not a known disk type, don't tune
 	return diskSpeedUnknown, nil
+}
+
+func allowUnsupportedCephVersion() bool {
+	return defaults.IsUnsupportedCephVersionAllowed == "allowed"
 }
