@@ -220,10 +220,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Image:            cephImage,
 				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
-			Mon: cephv1.MonSpec{
-				Count:                getMonCount(nodeCount),
-				AllowMultiplePerNode: false,
-			},
+			Mon: generateMonSpec(sc, nodeCount),
 			Mgr: cephv1.MgrSpec{
 				Modules: []cephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
@@ -571,4 +568,11 @@ func (r *ReconcileStorageCluster) checkTuneStorageDevices(ds ocsv1.StorageDevice
 
 func allowUnsupportedCephVersion() bool {
 	return defaults.IsUnsupportedCephVersionAllowed == "allowed"
+}
+
+func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) cephv1.MonSpec {
+	return cephv1.MonSpec{
+		Count:                getMonCount(nodeCount),
+		AllowMultiplePerNode: false,
+	}
 }
