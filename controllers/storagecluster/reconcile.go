@@ -631,7 +631,7 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "ocs-osd-removal-${FAILED_OSD_IDS}",
+			Name:        "ocs-osd-removal-job",
 			Namespace:   sc.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
