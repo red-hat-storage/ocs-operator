@@ -5,6 +5,9 @@ mkdir -p ${BASE_COLLECTION_PATH}
 # Command line argument
 SINCE_TIME=$1
 
+# Call pre-install.sh
+pre-install.sh
+
 # Call other gather scripts
 gather_namespaced_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 gather_clusterscoped_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
@@ -17,6 +20,10 @@ elif [ -z "$(oc get storagecluster -n openshift-storage -o go-template='{{range 
 else
     gather_ceph_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 fi
+
+# Call post-uninstall.sh
+post-uninstall.sh
+
 echo "deleting empty files" >> ${BASE_COLLECTION_PATH}/gather-debug.log
 find "${BASE_COLLECTION_PATH}" -empty -delete >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 exit 0
