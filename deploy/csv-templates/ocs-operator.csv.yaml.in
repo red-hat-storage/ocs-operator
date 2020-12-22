@@ -61,169 +61,31 @@ metadata:
         }
       ]
     capabilities: Basic Install
-  name: ocs-operator.v{{.OcsOperatorCsvVersion}}
+    operators.operatorframework.io/builder: operator-sdk-v1.2.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: ocs-operator.v4.7.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
     - description: OCSInitialization is the Schema for the ocsinitialization API
+      displayName: OCSInitialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
     - description: StorageCluster is the Schema for the storageclusters API
+      displayName: Storage Cluster
       kind: StorageCluster
       name: storageclusters.ocs.openshift.io
       version: v1
-  displayName: Ocs Operator
+  description: '""'
+  displayName: OpenShift Container Storage Operator
   icon:
   - base64data: ""
     mediatype: ""
   install:
     spec:
-      clusterPermissions:
-      - rules:
-        - apiGroups:
-          - storage.k8s.io
-          resources:
-          - storageclasses
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          - services
-          - endpoints
-          - persistentvolumeclaims
-          - events
-          - configmaps
-          - secrets
-          - nodes
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - get
-        - apiGroups:
-          - ""
-          resources:
-          - persistentvolumes
-          verbs:
-          - get
-          - list
-          - watch
-          - update
-          - patch
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          - daemonsets
-          - replicasets
-          - statefulsets
-          verbs:
-          - '*'
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          - prometheusrules
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
-          - '*'
-          - storageclusters
-          - ocsinitialization
-          - storageclusterinitializations
-          verbs:
-          - '*'
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephclusters
-          - cephblockpools
-          - cephfilesystems
-          - cephobjectstores
-          - cephobjectstoreusers
-          verbs:
-          - '*'
-        - apiGroups:
-          - noobaa.io
-          resources:
-          - noobaas
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - snapshot.storage.k8s.io
-          resources:
-          - volumesnapshots
-          - volumesnapshotclasses
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - delete
-        - apiGroups:
-          - security.openshift.io
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - get
-          - create
-          - update
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - privileged
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - get
-          - create
-          - update
-        - apiGroups:
-          - template.openshift.io
-          resources:
-          - templates
-          verbs:
-          - '*'
-        - apiGroups:
-          - config.openshift.io
-          resources:
-          - infrastructures
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - console.openshift.io
-          resources:
-          - consolequickstarts
-          verbs:
-          - '*'
-        serviceAccountName: ocs-operator
       deployments:
       - name: ocs-operator
         spec:
@@ -239,35 +101,21 @@ spec:
                 name: ocs-operator
             spec:
               containers:
-              - command:
+              - args:
+                - --enable-leader-election
+                command:
                 - ocs-operator
                 env:
                 - name: WATCH_NAMESPACE
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: OPERATOR_NAME
-                  value: ocs-operator
-                image: {{.OcsOperatorImage}}
+                image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: Always
                 name: ocs-operator
-                ports:
-                - containerPort: 60000
-                  name: metrics
-                readinessProbe:
-                  exec:
-                    command:
-                    - stat
-                    - /tmp/operator-sdk-ready
-                  failureThreshold: 1
-                  initialDelaySeconds: 4
-                  periodSeconds: 10
                 resources: {}
               serviceAccountName: ocs-operator
+              terminationGracePeriodSeconds: 10
     strategy: deployment
   installModes:
   - supported: true
@@ -276,12 +124,15 @@ spec:
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
-  - supported: true
+  - supported: false
     type: AllNamespaces
   keywords:
-  - ""
-  maintainers:
-  - {}
+  - '""'
+  links:
+  - name: Ocs Operator
+    url: https://ocs-operator.domain
   maturity: alpha
-  provider: {}
-  version: {{.OcsOperatorCsvVersion}}
+  provider:
+    name: '""'
+    url: '""'
+  version: 4.7.0
