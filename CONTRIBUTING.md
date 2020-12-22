@@ -72,7 +72,7 @@ sure each commit passes CI checks as above.
   - It must be capitalized.
   - It must not end with a period.
   - It must be <= 80 characters in length.
-  - *Recommendation*: It should be written in the imperative\ mood: "Fix bug x"
+  - *Recommendation*: It should be written in the *imperative mood*: "Fix bug x"
     rather than "Fixed bug x" or "Fixes bug x". (The sentence "If applied, this
     commit will \<your summary\>" should be grammatical.)
 - The message should continue with a longer description of the change.
