@@ -8,8 +8,7 @@ require (
 	github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.3.0
-	github.com/go-logr/zapr v0.2.0
-	github.com/go-openapi/spec v0.19.8
+	github.com/go-logr/zapr v0.2.0 // indirect
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2
 	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
 	github.com/oklog/run v1.1.0
@@ -20,7 +19,6 @@ require (
 	github.com/openshift/client-go v0.0.0-20200929181438-91d71ef2122c
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
 	github.com/operator-framework/api v0.3.22
-	github.com/operator-framework/operator-lib v0.2.0
 	github.com/operator-framework/operator-lifecycle-manager v0.17.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.43.0
 	github.com/prometheus/client_golang v1.8.0
@@ -28,13 +26,11 @@ require (
 	github.com/rook/rook v1.5.0-alpha.0.0.20201209235452-8c0f70cf3709
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
-	go.uber.org/zap v1.14.1
 	k8s.io/api v0.19.3
 	k8s.io/apiextensions-apiserver v0.19.3
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
-	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
 	sigs.k8s.io/controller-runtime v0.6.3
 )
 
