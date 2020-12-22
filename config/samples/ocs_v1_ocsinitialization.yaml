@@ -1,7 +1,5 @@
 apiVersion: ocs.openshift.io/v1
 kind: OCSInitialization
 metadata:
-  name: ocsinitialization-sample
-spec:
-  # Add fields here
-  foo: bar
+  name: example-ocsinitialization
+spec: {}
