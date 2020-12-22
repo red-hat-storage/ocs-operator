@@ -88,8 +88,18 @@ var validTopologyLabelKeys = []string{
 	"topology.rook.io",
 }
 
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephobjectstores;cephobjectstoreusers,verbs=*
+// +kubebuilder:rbac:groups=noobaa.io,resources=noobaas,verbs=*
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=*
+// +kubebuilder:rbac:groups=core,resources=pods;services;endpoints;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=*
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get
+// +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=*
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors;prometheusrules,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshots;volumesnapshotclasses,verbs=*
+// +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=*
+// +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
+// +kubebuilder:rbac:groups=console.openshift.io,resources=consolequickstarts,verbs=*
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec

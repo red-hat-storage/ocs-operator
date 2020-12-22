@@ -181,8 +181,9 @@ func (r *OCSInitializationReconciler) ensureToolsDeployment(initialData *ocsv1.O
 	return nil
 }
 
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=ocsinitializations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=ocsinitializations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;update
+// +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=get;create;update
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
 // and what is in the OCSInitialization.Spec

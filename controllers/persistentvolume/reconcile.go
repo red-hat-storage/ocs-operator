@@ -15,6 +15,9 @@ import (
 // ensureFunc which encapsulate all the 'ensure*' type functions
 type ensureFunc func(*corev1.PersistentVolume, logr.Logger) error
 
+// +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get
+
 // Reconcile ...
 func (r *PersistentVolumeReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
