@@ -7,9 +7,88 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - '*'
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephblockpools
+  - cephclusters
+  - cephfilesystems
+  - cephobjectstores
+  - cephobjectstoreusers
+  verbs:
+  - '*'
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - infrastructures
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - console.openshift.io
+  resources:
+  - consolequickstarts
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - nodes
+  - persistentvolumeclaims
+  - pods
+  - secrets
+  - services
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - prometheusrules
+  - servicemonitors
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - noobaa.io
+  resources:
+  - noobaas
+  verbs:
+  - '*'
+- apiGroups:
   - ocs.openshift.io
   resources:
-  - ocsinitializations
+  - '*'
   verbs:
   - create
   - delete
@@ -19,30 +98,40 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ocs.openshift.io
+  - security.openshift.io
   resources:
-  - ocsinitializations/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ocs.openshift.io
-  resources:
-  - storageclusters
+  - securitycontextconstraints
   verbs:
   - create
-  - delete
   - get
-  - list
-  - patch
   - update
-  - watch
 - apiGroups:
-  - ocs.openshift.io
+  - security.openshift.io
+  resourceNames:
+  - privileged
   resources:
-  - storageclusters/status
+  - securitycontextconstraints
   verbs:
+  - create
   - get
-  - patch
   - update
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotclasses
+  - volumesnapshots
+  verbs:
+  - '*'
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - '*'
+  - get
+- apiGroups:
+  - template.openshift.io
+  resources:
+  - templates
+  verbs:
+  - '*'
