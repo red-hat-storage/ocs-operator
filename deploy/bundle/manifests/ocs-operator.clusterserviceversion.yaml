@@ -1627,6 +1627,137 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          - deployments
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephblockpools
+          - cephclusters
+          - cephfilesystems
+          - cephobjectstores
+          - cephobjectstoreusers
+          verbs:
+          - '*'
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - infrastructures
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - console.openshift.io
+          resources:
+          - consolequickstarts
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - endpoints
+          - events
+          - nodes
+          - persistentvolumeclaims
+          - pods
+          - secrets
+          - services
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumes
+          verbs:
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - prometheusrules
+          - servicemonitors
+          verbs:
+          - create
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - noobaas
+          verbs:
+          - '*'
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - '*'
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - create
+          - get
+          - update
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - create
+          - get
+          - update
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshotclasses
+          - volumesnapshots
+          verbs:
+          - '*'
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - '*'
+          - get
+        - apiGroups:
+          - template.openshift.io
+          resources:
+          - templates
+          verbs:
+          - '*'
+        serviceAccountName: ocs-operator
+      - rules:
+        - apiGroups:
           - ceph.rook.io
           resources:
           - '*'
@@ -2279,6 +2410,7 @@ spec:
               containers:
               - args:
                 - --enable-leader-election
+                - --health-probe-bind-address=:8081
                 command:
                 - ocs-operator
                 env:
@@ -2297,6 +2429,12 @@ spec:
                 image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: Always
                 name: ocs-operator
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
                 resources: {}
               serviceAccountName: ocs-operator
               terminationGracePeriodSeconds: 10
