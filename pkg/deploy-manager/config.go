@@ -5,7 +5,7 @@ import (
 	"os"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	olmclient "github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
@@ -138,7 +138,7 @@ func NewDeployManager() (*DeployManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	ocsConfig.GroupVersion = &ocsv1.SchemeGroupVersion
+	ocsConfig.GroupVersion = &ocsv1.GroupVersion
 	ocsConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
 	ocsConfig.APIPath = "/apis"
 	ocsConfig.ContentType = runtime.ContentTypeJSON

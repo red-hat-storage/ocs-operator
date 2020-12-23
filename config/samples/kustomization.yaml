@@ -1,0 +1,5 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- ocs_v1_ocsinitialization.yaml
+- ocs_v1_storagecluster.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

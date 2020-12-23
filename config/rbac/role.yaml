@@ -1,0 +1,137 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - '*'
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephblockpools
+  - cephclusters
+  - cephfilesystems
+  - cephobjectstores
+  - cephobjectstoreusers
+  verbs:
+  - '*'
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - infrastructures
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - console.openshift.io
+  resources:
+  - consolequickstarts
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - nodes
+  - persistentvolumeclaims
+  - pods
+  - secrets
+  - services
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - prometheusrules
+  - servicemonitors
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - noobaa.io
+  resources:
+  - noobaas
+  verbs:
+  - '*'
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - privileged
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotclasses
+  - volumesnapshots
+  verbs:
+  - '*'
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - '*'
+  - get
+- apiGroups:
+  - template.openshift.io
+  resources:
+  - templates
+  verbs:
+  - '*'

@@ -7,8 +7,8 @@ LABEL operators.operatorframework.io.bundle.package.v1=ocs-operator
 LABEL operators.operatorframework.io.bundle.channels.v1=alpha
 LABEL operators.operatorframework.io.bundle.channel.default.v1=alpha
 
-COPY deploy/olm-catalog/ocs-operator/manifests /manifests/
-COPY deploy/olm-catalog/ocs-operator/metadata/annotations.yaml /metadata/annotations.yaml
+COPY deploy/bundle/manifests /manifests/
+COPY deploy/bundle/metadata/annotations.yaml /metadata/annotations.yaml
 
 # These are three labels needed to control how the pipeline should handle this container image
 # This first label tells the pipeline that this is a bundle image and should be

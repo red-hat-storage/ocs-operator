@@ -8,10 +8,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/util"
 	tests "github.com/openshift/ocs-operator/functests"
-	ocsv1 "github.com/openshift/ocs-operator/pkg/apis/ocs/v1"
-	"github.com/openshift/ocs-operator/pkg/controller/util"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
