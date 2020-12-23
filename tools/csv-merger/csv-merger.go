@@ -1049,10 +1049,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = os.MkdirAll(filepath.Join(*outputDir, "crds"), os.FileMode(0755))
-	if err != nil {
-		panic(err)
-	}
 	ocsCSV := generateUnifiedCSV()
 	copyCrds(ocsCSV)
 	copyManifests()
