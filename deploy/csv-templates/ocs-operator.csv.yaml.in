@@ -243,7 +243,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: {{.OcsOperatorImage}}
                 imagePullPolicy: Always
                 name: ocs-operator
                 readinessProbe:
