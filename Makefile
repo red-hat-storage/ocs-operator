@@ -168,7 +168,9 @@ manifests: controller-gen
 	@echo Updating generated manifests
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-verify-generated: generate manifests
+update-generated: generate manifests
+
+verify-generated: update-generated
 	@echo "Verifying generated code and manifests"
 	hack/verify-generated.sh
 
