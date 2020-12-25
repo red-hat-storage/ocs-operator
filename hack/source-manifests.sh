@@ -84,11 +84,14 @@ function gen_ocs_csv() {
 	gen_args="generate kustomize manifests -q"
 	# shellcheck disable=SC2086
 	$OPERATOR_SDK $gen_args
-	pushd config/manager
-	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OPERATOR_FULL_IMAGE_NAME"
-	popd
 	$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --version "$CSV_VERSION"
 	mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
+	# Make variables templated for csv-merger tool
+	if [ "$OS_TYPE" == "Darwin" ]; then
+		sed -i '' "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
+	else
+		sed -i "s/REPLACE_IMAGE/{{.OcsOperatorImage}}/g" $OCS_CSV
+	fi
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
