@@ -41,6 +41,8 @@ type ExternalResource struct {
 	Name string            `json:"name"`
 }
 
+type ocsExternalResources struct{}
+
 // setRookCSICephFS function enables or disables the 'ROOK_CSI_ENABLE_CEPHFS' key
 func (r *StorageClusterReconciler) setRookCSICephFS(
 	enableDisableFlag bool, instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
@@ -192,17 +194,22 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 	return retArrObj, nil
 }
 
-// ensureExternalStorageClusterResources ensures that requested resources for the external cluster
+// ensureCreated ensures that requested resources for the external cluster
 // being created
-func (r *StorageClusterReconciler) ensureExternalStorageClusterResources(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 	if r.sameExternalSecretData(instance) {
 		return nil
 	}
-	err := r.createExternalStorageClusterResources(instance, reqLogger)
+	err := r.createExternalStorageClusterResources(instance, r.Log)
 	if err != nil {
-		reqLogger.Error(err, "could not create ExternalStorageClusterResource")
+		r.Log.Error(err, "could not create ExternalStorageClusterResource")
 		return err
 	}
+	return nil
+}
+
+// ensureDeleted is dummy func for the ocsExternalResources
+func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 	return nil
 }
 

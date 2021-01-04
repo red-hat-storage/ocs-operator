@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+type ocsCephCluster struct{}
 type diskSpeed string
 
 const (
@@ -61,9 +62,9 @@ func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 	return sc.Spec.Arbiter.Enable
 }
 
-// ensureCephCluster ensures that a CephCluster resource exists with its Spec in
+// ensureCreated ensures that a CephCluster resource exists with its Spec in
 // the desired state.
-func (r *StorageClusterReconciler) ensureCephCluster(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
@@ -99,10 +100,10 @@ func (r *StorageClusterReconciler) ensureCephCluster(sc *ocsv1.StorageCluster, r
 	} else {
 		kmsConfigMap, err := getKMSConfigMap(sc, r.Client, reachKMSProvider)
 		if err != nil {
-			reqLogger.Error(err, "failed to procure KMS config")
+			r.Log.Error(err, "failed to procure KMS config")
 			return err
 		}
-		cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, reqLogger)
+		cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, r.Log)
 	}
 
 	// Set StorageCluster instance as the owner and controller
@@ -116,9 +117,9 @@ func (r *StorageClusterReconciler) ensureCephCluster(sc *ocsv1.StorageCluster, r
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if sc.Spec.ExternalStorage.Enable {
-				reqLogger.Info("Creating external CephCluster")
+				r.Log.Info("Creating external CephCluster")
 			} else {
-				reqLogger.Info("Creating CephCluster")
+				r.Log.Info("Creating CephCluster")
 			}
 			if err := r.Client.Create(context.TODO(), cephCluster); err != nil {
 				return err
@@ -132,7 +133,7 @@ func (r *StorageClusterReconciler) ensureCephCluster(sc *ocsv1.StorageCluster, r
 
 	// Update the CephCluster if it is not in the desired state
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
-		reqLogger.Info("Updating spec for CephCluster")
+		r.Log.Info("Updating spec for CephCluster")
 		if !sc.Spec.ExternalStorage.Enable {
 			// Check if Cluster is Expanding
 			if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
@@ -172,7 +173,7 @@ func (r *StorageClusterReconciler) ensureCephCluster(sc *ocsv1.StorageCluster, r
 
 	// Handle CephCluster resource status
 	if found.Status.State == "" {
-		reqLogger.Info("CephCluster resource is not reporting status.")
+		r.Log.Info("CephCluster resource is not reporting status.")
 		// What does this mean to OCS status? Assuming progress.
 		reason := "CephClusterStatus"
 		message := "CephCluster resource is not reporting status"
@@ -205,6 +206,37 @@ func (r *StorageClusterReconciler) ensureCephCluster(sc *ocsv1.StorageCluster, r
 	}
 
 	return nil
+}
+
+// ensureDeleted deletes the CephCluster owned by the StorageCluster
+func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	cephCluster := &cephv1.CephCluster{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			r.Log.Info("Uninstall: CephCluster not found")
+			return nil
+		}
+		return fmt.Errorf("Uninstall: Unable to retrieve cephCluster: %v", err)
+	}
+
+	if cephCluster.GetDeletionTimestamp().IsZero() {
+		r.Log.Info("Uninstall: Deleting cephCluster")
+		err = r.Client.Delete(context.TODO(), cephCluster)
+		if err != nil {
+			return fmt.Errorf("Uninstall: Failed to delete cephCluster: %v", err)
+		}
+	}
+
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			r.Log.Info("Uninstall: CephCluster is deleted")
+			return nil
+		}
+	}
+	return fmt.Errorf("Uninstall: Waiting for cephCluster to be deleted")
+
 }
 
 // newCephCluster returns a CephCluster object.

@@ -63,12 +63,14 @@ func TestEnsureCephCluster(t *testing.T) {
 			}
 		}
 
+		var obj ocsCephCluster
+
 		reconciler := createFakeStorageClusterReconciler(t, c.cc)
 		sc := &api.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		err := reconciler.ensureCephCluster(sc, reconciler.Log)
+		err := obj.ensureCreated(&reconciler, sc)
 		assert.NoError(t, err)
 		if c.condition == "" {
 			expected := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
@@ -409,10 +411,13 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	if !kmsArgs.failureExpected {
 		startServerAt(kmsArgs.kmsAddress)
 	}
+
+	var obj ocsCephCluster
+
 	// have to initialize the image status,
 	// without which the code will throw a 'nil pointer' exception
 	reconciler.initializeImagesStatus(cr)
-	err := reconciler.ensureCephCluster(cr, reconciler.Log)
+	err := obj.ensureCreated(&reconciler, cr)
 	if kmsArgs.failureExpected && err == nil {
 		// case 1: if a failure is expected and we don't receive any error
 		t.Errorf("Failed: %q. Expected an error", kmsArgs.testLabel)

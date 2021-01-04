@@ -40,11 +40,14 @@ func TestEnsureQuickStarts(t *testing.T) {
 		assert.NoError(t, err)
 		allExpectedQuickStarts = append(allExpectedQuickStarts, cqs)
 	}
+
+	var obj ocsQuickStarts
+
 	cqs := &consolev1.ConsoleQuickStart{}
 	reconciler := createFakeStorageClusterReconciler(t, cqs)
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	err := reconciler.ensureQuickStarts(sc, reconciler.Log)
+	err := obj.ensureCreated(&reconciler, sc)
 	assert.NoError(t, err)
 	for _, c := range cases {
 		qs := consolev1.ConsoleQuickStart{}

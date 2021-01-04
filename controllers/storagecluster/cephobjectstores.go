@@ -14,9 +14,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// ensureCephObjectStores ensures that CephObjectStore resources exist in the desired
+type ocsCephObjectStores struct{}
+
+// ensureCreated ensures that CephObjectStore resources exist in the desired
 // state.
-func (r *StorageClusterReconciler) ensureCephObjectStores(instance *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
@@ -26,20 +28,59 @@ func (r *StorageClusterReconciler) ensureCephObjectStores(instance *ocsv1.Storag
 		return err
 	}
 	if avoidObjectStore(platform) {
-		reqLogger.Info(fmt.Sprintf("not creating a CephObjectStore because the platform is '%s'", platform))
+		r.Log.Info(fmt.Sprintf("not creating a CephObjectStore because the platform is '%s'", platform))
 		return nil
 	}
 
-	cephObjectStores, err := r.newCephObjectStoreInstances(instance, reqLogger)
+	cephObjectStores, err := r.newCephObjectStoreInstances(instance, r.Log)
 	if err != nil {
 		return err
 	}
-	err = r.createCephObjectStores(cephObjectStores, instance, reqLogger)
+	err = r.createCephObjectStores(cephObjectStores, instance, r.Log)
 	if err != nil {
-		reqLogger.Error(err, "could not create CephObjectStores")
+		r.Log.Error(err, "could not create CephObjectStores")
 		return err
 	}
 
+	return nil
+}
+
+// ensureDeleted deletes the CephObjectStores owned by the StorageCluster
+func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	foundCephObjectStore := &cephv1.CephObjectStore{}
+	cephObjectStores, err := r.newCephObjectStoreInstances(sc, r.Log)
+	if err != nil {
+		return err
+	}
+
+	for _, cephObjectStore := range cephObjectStores {
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Uninstall: CephObjectStore not found", "CephObjectStore Name", cephObjectStore.Name)
+				continue
+			}
+			return fmt.Errorf("Uninstall: Unable to retrieve cephObjectStore %v: %v", cephObjectStore.Name, err)
+		}
+
+		if cephObjectStore.GetDeletionTimestamp().IsZero() {
+			r.Log.Info("Uninstall: Deleting cephObjectStore", "CephObjectStore Name", cephObjectStore.Name)
+			err = r.Client.Delete(context.TODO(), foundCephObjectStore)
+			if err != nil {
+				return fmt.Errorf("Uninstall: Failed to delete cephObjectStore %v: %v", foundCephObjectStore.Name, err)
+			}
+		}
+
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Uninstall: CephObjectStore is deleted", "CephObjectStore Name", cephObjectStore.Name)
+				continue
+			}
+		}
+		return fmt.Errorf("Uninstall: Waiting for cephObjectStore %v to be deleted", cephObjectStore.Name)
+
+	}
 	return nil
 }
 
