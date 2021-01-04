@@ -162,7 +162,7 @@ func newNooBaaSCC(namespace string) *secv1.SecurityContextConstraints {
 		"SETGID",
 	}
 	scc.RunAsUser = secv1.RunAsUserStrategyOptions{
-		Type: secv1.RunAsUserStrategyMustRunAsRange,
+		Type: secv1.RunAsUserStrategyRunAsAny,
 	}
 	scc.SELinuxContext = secv1.SELinuxContextStrategyOptions{
 		Type: secv1.SELinuxStrategyMustRunAs,
