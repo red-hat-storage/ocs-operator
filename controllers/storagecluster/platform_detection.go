@@ -134,3 +134,20 @@ func (r *StorageClusterReconciler) DevicesDefaultToFastForThisPlatform() (bool, 
 
 	return false, nil
 }
+
+// PlatformsShouldAvoidObjectStore determines whether an object store should be created
+// for the platform.
+func (r *StorageClusterReconciler) PlatformsShouldAvoidObjectStore() (bool, error) {
+	// Call GetPlatform to get platform
+	platform, err := r.platform.GetPlatform(r.Client)
+	if err != nil {
+		return false, err
+	}
+
+	// Call avoidObjectStore to avoid creation of objectstores
+	if avoidObjectStore(platform) {
+		return true, nil
+	}
+
+	return false, nil
+}
