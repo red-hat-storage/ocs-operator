@@ -85,7 +85,7 @@ function gen_ocs_csv() {
 	# shellcheck disable=SC2086
 	$OPERATOR_SDK $gen_args
 	pushd config/manager
-	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OPERATOR_FULL_IMAGE_NAME"
+	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
 	popd
 	$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --version "$CSV_VERSION"
 	mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
