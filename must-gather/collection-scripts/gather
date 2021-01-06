@@ -10,11 +10,11 @@ gather_namespaced_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 gather_clusterscoped_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 gather_noobaa_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 
-
-
 if [ "$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.externalStorage.enable}}{{"\n"}}{{end}}')" == true ]; then
     echo "Skipping the ceph collection as External Storage is enabled"
-else    
+elif [ -z "$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')" ]; then
+    echo "Skipping ceph collection as Storage Cluster is not present"
+else
     gather_ceph_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 fi
 echo "deleting empty files" >> ${BASE_COLLECTION_PATH}/gather-debug.log
