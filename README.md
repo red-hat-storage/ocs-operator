@@ -1,45 +1,45 @@
-# The OCS Meta Operator
+# Table of Contents
+
+- [OpenShift Container Storage Operator](#openshift-container-storage-operator)
+- [Deploying pre-built images](#deploying-pre-built-images)
+  - [Prerequisites](#prerequisites)
+  - [Dedicated nodes](#dedicated-nodes)
+  - [Installation](#installation)
+- [Development](#development)
+  - [Tools](#tools)
+  - [Build](#build)
+    1. [OCS Operator](#ocs-operator)
+    2. [Unified CSV](#unified-csv)
+    3. [OCS Operator Bundle](#ocs-operator-bundle)
+    4. [OCS Operator Index](#ocs-operator-index)
+  - [Deploying development builds](#deploying-development-builds)
+- [Initial Configuration](#initial-configuration)
+  - [Modifying Initial Configuration](#modifying-initial-configuration)
+- [Functional Tests](#functional-tests)
+  - [Prerequisites for running Functional Tests](#prerequisites-for-running-functional-tests)
+  - [Running functional test](#running-functional-test)
+  - [Functional test phases](#functional-test-phases)
+  - [Developing Functional Tests](#developing-functional-tests)
+  - [Running a single test](#running-a-single-test)
+  - [Debugging Functional Test Failures](#debugging-functional-test-failures)
+    - [Functional test stdout log](#functional-test-stdout-log)
+    - [PROW artifacts](#prow-artifacts)
+- [ocs-ci tests](#ocs-ci-tests)
+- [Ginkgo tests vs ocs-ci tests](#ginkgo-tests-vs-ocs-ci-tests)
+
+## OpenShift Container Storage Operator
 
 This is the primary operator for Red Hat OpenShift Container Storage (OCS). It
 is a "meta" operator, meaning it serves to facilitate the other operators in
 OCS by performing administrative tasks outside their scope as well as
 watching and configuring their CustomResources (CRs).
 
-## Build
+## Deploying pre-built images
 
-### OCS Operator
-The operator is based on the [Operator
-SDK](https://github.com/operator-framework/operator-sdk). In order to build the
-operator, you first need to install the SDK. [Instructions are
-here.](https://github.com/operator-framework/operator-sdk#quick-start)
+### Prerequisites
 
-Once the SDK is installed, the operator can be built via:
+OCS Operator will install its components only on nodes labelled for OCS with `cluster.ocs.openshift.io/openshift-storage=''`.
 
-```console
-$ make ocs-operator
-```
-
-### OLM catalog
-
-Update `hack/generate-latest-csv.sh` with the image versions to be used, and run
-
-```console
-$ make gen-latest-csv
-```
-
-to generate/update the OLM catalog for OCS-operator.
-
-A catalog registry image can be then generated using,
-
-```console
-$ make ocs-registry
-```
-
-More details on the catalog generation are avilable in [docs/catalog-generation.md](docs/catalog-generation.md).
-
-## Prerequisites
-
-OCS Operator will install its components only on nodes labelled for OCS with the key `cluster.ocs.openshift.io/openshift-storage=''`.
 To label the nodes from CLI,
 
 ```console
@@ -48,24 +48,22 @@ $ oc label nodes <NodeName> cluster.ocs.openshift.io/openshift-storage=''
 
 OCS requires at least 3 nodes labelled this way.
 
-When creating StorageCluster from the UI, the create wizard takes care of labelling the selected nodes.
+> Note: When deploying via Console, the creation wizard takes care of labelling the selected nodes.
 
 ### Dedicated nodes
 
 In case dedicated storage nodes are available, these can also be tainted to allow only OCS components to be scheduled on them.
-Nodes need to be tainted with `node.ocs.openshift.io/storage=true:NoSchedule` which can done from the CLI as follows,
+Nodes need to be tainted with `node.ocs.openshift.io/storage=true:NoSchedule` which can be done from the CLI as follows,
 
 ```console
 $ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
 ```
 
-> Note: The dedicated/tainted nodes will only run OCS components. The nodes will not run any apps. Therefore, if you taint, you need to have additional worker nodes that are untainted. If you don't, you will be unable to run any other apps in you Openshift cluster.
+> Note: The dedicated/tainted nodes will only run OCS components. The nodes will not run any apps. Therefore, if you taint, you need to have additional worker nodes that are untainted. If you don't, you will be unable to run any other apps in you OpenShift cluster.
 
-> Note: Currently not all OCS components have the right tolerations set. So if you taint nodes and do not have additional untainted nodes, OCS will fail to deploy.
+### Installation
 
-## Install
-
-The OCS operator can be installed into an OpenShift cluster using the OLM.
+The OCS operator can be installed into an OpenShift cluster using Operator Lifecycle Manager (OLM).
 
 For quick install using pre-built container images, deploy the [deploy-olm.yaml](deploy/deploy-with-olm.yaml) manifest.
 
@@ -75,30 +73,79 @@ $ oc create -f ./deploy/deploy-with-olm.yaml
 
 This creates:
 
-* a custom CatalogSource
-* a new `openshift-storage` Namespace
-* an OperatorGroup
-* a Subcription to the OCS catalog in the `openshift-storage`
-namespace
+- a custom CatalogSource
+- a new `openshift-storage` Namespace
+- an OperatorGroup
+- a Subscription to the OCS catalog in the `openshift-storage` namespace
 
 You can check the status of the CSV using the following command:
 
 ```console
 $ oc get csv -n openshift-storage
 NAME                  DISPLAY                                VERSION   REPLACES   PHASE
-ocs-operator.v0.0.1   Openshift Container Storage Operator   0.0.1                Succeeded
+ocs-operator.v0.0.1   OpenShift Container Storage Operator   0.0.1                Succeeded
 ```
-This can take a few minutes. Once PHASE says `Succeeded` you can create
-a StorageCluster.
 
-A StorageCluster resource can now be created from the console, using the StorageCluster creation wizard.
+This can take a few minutes. Once PHASE says `Succeeded` you can create a StorageCluster.
+
+StorageCluster can be created from the console, using the StorageCluster creation wizard.
 From the CLI, a StorageCluster resource can be created using the example CR as follows,
 
 ```console
-$ oc create -f ./deploy/crds/ocs_v1alpha1_storagecluster_cr.yaml
+$ oc create -f ./config/samples/ocs_v1_storagecluster.yaml
 ```
 
-### Installation of development builds
+## Development
+
+### Tools
+
+- [Operator SDK](https://github.com/operator-framework/operator-sdk)
+
+- [Kustomize](https://github.com/kubernetes-sigs/kustomize)
+
+- [controller-gen](https://github.com/kubernetes-sigs/controller-tools)
+
+### Build
+
+#### OCS Operator
+
+The operator image can be built via:
+
+```console
+$ make ocs-operator
+```
+
+#### Unified CSV
+
+Update `hack/common.sh` with the image versions to be used, and run
+
+```console
+$ make gen-latest-csv
+```
+
+to generate unified CSV.
+
+#### OCS Operator Bundle
+
+To create an operator bundle image with the bundle generated above, run
+
+```console
+$ make operator-bundle
+```
+
+> Note: Push the OCS Bundle image to image registry before moving to next step.
+
+#### OCS Operator Index
+
+An operator index image can then be built using,
+
+```console
+$ make operator-index
+```
+
+More details on the catalog generation are available in [docs/catalog-generation.md](docs/catalog-generation.md).
+
+### Deploying development builds
 
 To install own development builds of OCS, first build and push the ocs-operator image to your own image repository.
 
@@ -111,21 +158,32 @@ $ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG
 
 Once the ocs-operator image is pushed, edit the CSV to point to the new image.
 
-```
-$ OCS_OPERATOR_IMAGE="quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG"
-$ sed -i "s|quay.io/ocs-dev/ocs-operator:latest|$OCS_OPERATOR_IMAGE" ./deploy/olm-catalog/ocs-operator/0.0.1/ocs-operator.v0.0.1.clusterserviceversion.yaml
+```console
+$ export REGISTRY_NAMESPACE=<quay-username>
+$ export IMAGE_TAG=<some-tag>
+$ make gen-latest-csv
 ```
 
-Then build and upload the catalog registry image.
+Then build and push the operator bundle image.
 
 ```console
 $ export REGISTRY_NAMESPACE=<quay-username>
 $ export IMAGE_TAG=<some-tag>
-$ make ocs-registry
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-registry:$IMAGE_TAG
+$ make operator-bundle
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-bundle:$IMAGE_TAG
 ```
 
-Next create the namespace for OCS and create an OperatorGroup for OCS
+Next build and push the operator index image.
+
+```console
+$ export REGISTRY_NAMESPACE=<quay-username>
+$ export IMAGE_TAG=<some-tag>
+$ make operator-index
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-index:$IMAGE_TAG
+```
+
+Now create a namespace and an OperatorGroup for OCS
+
 ```console
 $ oc create ns openshift-storage
 
@@ -141,7 +199,8 @@ spec:
 EOF
 ```
 
-Next add a new CatalogSource using the newly built and pushed registry image.
+Then add a new CatalogSource using the newly built and pushed index image.
+
 ```console
 $ cat <<EOF | oc create -f -
 apiVersion: operators.coreos.com/v1alpha1
@@ -151,13 +210,14 @@ metadata:
   namespace: openshift-marketplace
 spec:
   sourceType: grpc
-  image: quay.io/$REGISTRY_NAMESPACE/ocs-registry:$IMAGE_TAG
+  image: quay.io/$REGISTRY_NAMESPACE/ocs-operator-index:$IMAGE_TAG
   displayName: OpenShift Container Storage
   publisher: Red Hat
 EOF
 ```
 
 Finally subscribe to the OCS catalog.
+
 ```console
 $ cat <<EOF | oc create -f -
 apiVersion: operators.coreos.com/v1alpha1
@@ -173,17 +233,17 @@ spec:
 EOF
 ```
 
-## Initial Data
+## Initial Configuration
 
 When the operator starts, it will create a single OCSInitialization resource. That
-will cause various initial data to be created, including default
+will cause various initial configuration to be created, including default
 StorageClasses.
 
 The OCSInitialization resource is a singleton. If the operator sees one that it
 did not create, it will write an error message to its status explaining that it
 is being ignored.
 
-### Modifying Initial Data
+### Modifying Initial Configuration
 
 You may modify or delete any of the operator's initial data. To reset and
 restore that data to its initial state, delete the OCSInitialization resource. It
@@ -194,11 +254,12 @@ restored to their original state.
 
 Our functional test suite uses the [ginkgo](https://onsi.github.io/ginkgo/) testing framework.
 
-**Prerequisites for running Functional Tests**
-- ocs must already be installed
+### Prerequisites for running Functional Tests
+
+- OCS must already be installed
 - KUBECONFIG env var must be set
 
-**Running functional test**
+### Running functional test
 
 ```make functest```
 
@@ -224,7 +285,7 @@ SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 0 Skipped
 PASS
 ```
 
-**Functional test phases**
+### Functional test phases
 
 There are 3 phases to the functional tests to be aware of.
 
@@ -252,7 +313,8 @@ The tests themselves should invoke simple to understand steps. Put any complex
 logic into separate helper files in the functests/ directory so test flows are
 easy to follow.
 
-**Running a single test**
+### Running a single test
+
 When developing a test, it's common to just want to run a single functional test
 rather than the whole suite. This can be done using ginkgo's "focus" feature.
 
@@ -269,7 +331,7 @@ Otherwise the test suite will fail in CI.
 If an e2e test fails, you have access to two sets of data to help debug why the
 error occurred.
 
-**Functional test stdout log**
+#### Functional test stdout log
 
 This will tell you what test failed and it also outputs some debug information
 pertaining to the test cluster's state after the test suite exits. In prow you
@@ -277,7 +339,7 @@ can find this log by clicking on the `details` link to the right of the
 `ci/prow/ocs-operator-e2e-aws` test entry on your PR. From there you can click
 the `Raw build-log.txt` link to view the full log.
 
-**PROW artifacts**
+#### PROW artifacts
 
 In addition to the raw test stdout, each e2e test result has a set of artifacts
 associated with it that you can view using prow. These artifacts let you
@@ -291,7 +353,7 @@ bring you to a directory tree. Follow the `artifacts/` directory to the
 `ocs-operator-e2e-aws/` directory. There you can find logs and information
 pertaining to ever object in the cluster.
 
-## Downstream ocs-ci tests
+## ocs-ci tests
 
 In addition to the `functest/*` in the ocs-operator source tree we also have
 the ability to run the tests developed in the [red-hat-storage/ocs-ci](https://github.com/red-hat-storage/ocs-ci) repo.
