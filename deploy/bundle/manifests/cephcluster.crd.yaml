@@ -76,8 +76,6 @@ spec:
                 type: boolean
               crashCollector:
                 properties:
-                  daysToRetain:
-                    type: integer
                   disable:
                     type: boolean
                 type: object

@@ -109,8 +109,6 @@ spec:
                   properties:
                     disable:
                       type: boolean
-                    daysToRetain:
-                      type: integer
                 network:
                   type: object
                   nullable: true
