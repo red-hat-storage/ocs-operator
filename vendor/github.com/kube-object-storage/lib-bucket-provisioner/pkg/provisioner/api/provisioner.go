@@ -26,7 +26,20 @@ import (
 // methods used to create and delete new buckets, and to grant or revoke access
 // to buckets within the object store.
 type Provisioner interface {
-	// Provision should be implemented to handle bucket creation
+	// Provision should be implemented to handle creation of object storage buckets.
+	// Provision should NOT create the ObjectBucket resource. ObjectBucket resource creation is done
+	// by this library's controller.
+	// The Provision implementation must return an ObjectBucket struct with at least the Connection
+	// spec filled in. All other ObjectBucket details will be filled in by this library's controller
+	// before the ObjectBucket resource is created.
+	// The Provision implementation may opt to specify the ObjectBucket spec's ReclaimPolicy in
+	// cases where the provisioner wishes to set a different value from the one specified in the
+	// ObjectBucketClaim's StorageClass.
+	// The Provision implementation should clean up its own resources and return a nil ObjectBucket
+	// struct when returning an error. However, if Provision returns an error, it may optionally
+	// return a non-nil, non-empty ObjectBucket struct. In this case, this library's controller will
+	// specify the ObjectBucket's Name, StorageClassName, ReclaimPolicy, and Labels and then call
+	// Delete() with the ObjectBucket to clean up resources.
 	Provision(options *BucketOptions) (*v1alpha1.ObjectBucket, error)
 	// Grant should be implemented to handle access to existing buckets
 	Grant(options *BucketOptions) (*v1alpha1.ObjectBucket, error)

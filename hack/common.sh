@@ -53,7 +53,7 @@ NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
-LATEST_ROOK_IMAGE="rook/ceph:v1.5.0.179.g8c0f70c"
+LATEST_ROOK_IMAGE="rook/ceph:v1.5.4"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:5.7.0-20201216"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.7.0-20201216"
 LATEST_NOOBAA_DB_IMAGE="centos/mongodb-36-centos7"
