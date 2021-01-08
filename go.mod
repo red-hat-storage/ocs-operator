@@ -5,7 +5,6 @@ go 1.13
 require (
 	github.com/RHsyseng/operator-utils v1.4.2
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.2.0 // indirect
