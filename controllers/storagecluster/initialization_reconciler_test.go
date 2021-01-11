@@ -105,6 +105,12 @@ func createUpdateRuntimeObjects(cp *Platform) []runtime.Object {
 func initStorageClusterResourceCreateUpdateTestWithPlatform(
 	t *testing.T, platform *Platform, runtimeObjs []runtime.Object) (*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
+	t, reconciler, request := initStorageClusterResourceCreateUpdateTestWithPlatformAndSC(t, platform, runtimeObjs, cr)
+	return t, reconciler, cr, request
+}
+
+func initStorageClusterResourceCreateUpdateTestWithPlatformAndSC(
+	t *testing.T, platform *Platform, runtimeObjs []runtime.Object, cr *api.StorageCluster) (*testing.T, StorageClusterReconciler, reconcile.Request) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -136,7 +142,7 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
-	return t, reconciler, cr, request
+	return t, reconciler, request
 }
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
