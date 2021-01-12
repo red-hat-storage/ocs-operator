@@ -112,13 +112,16 @@ var validTopologyLabelKeys = []string{
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *StorageClusterReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+
+	prevLogger := r.Log
+	defer func() { r.Log = prevLogger }()
+	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
 	// Fetch the StorageCluster instance
 	sc := &ocsv1.StorageCluster{}
 	if err := r.Client.Get(context.TODO(), request.NamespacedName, sc); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("No StorageCluster resource")
+			r.Log.Info("No StorageCluster resource")
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -129,12 +132,12 @@ func (r *StorageClusterReconciler) Reconcile(request reconcile.Request) (reconci
 	}
 
 	// Reconcile changes to the cluster
-	result, reconcileError := r.reconcilePhases(reqLogger, sc, request)
+	result, reconcileError := r.reconcilePhases(sc, request)
 
 	// Apply status changes to the storagecluster
 	statusError := r.Client.Status().Update(context.TODO(), sc)
 	if statusError != nil {
-		reqLogger.Info("Status Update Error", "StatusUpdateErr", "Could not update storagecluster status")
+		r.Log.Info("Status Update Error", "StatusUpdateErr", "Could not update storagecluster status")
 	}
 
 	// Reconcile errors have higher priority than status update errors
@@ -166,20 +169,19 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 }
 
 func (r *StorageClusterReconciler) reconcilePhases(
-	reqLogger logr.Logger,
 	instance *ocsv1.StorageCluster,
 	request reconcile.Request) (reconcile.Result, error) {
 
 	if instance.Spec.ExternalStorage.Enable {
-		reqLogger.Info("Reconciling external StorageCluster")
+		r.Log.Info("Reconciling external StorageCluster")
 	} else {
-		reqLogger.Info("Reconciling StorageCluster")
+		r.Log.Info("Reconciling StorageCluster")
 	}
 
 	// Initalize the StatusImages section of the storageclsuter CR
 	r.initializeImagesStatus(instance)
 
-	if err := versionCheck(instance, reqLogger); err != nil {
+	if err := versionCheck(instance, r.Log); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -190,7 +192,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	if instance.Status.Phase == "" {
 		isActive, err := r.isActiveStorageCluster(instance)
 		if err != nil {
-			reqLogger.Error(err, "StorageCluster could not be reconciled. Retrying")
+			r.Log.Error(err, "StorageCluster could not be reconciled. Retrying")
 			return reconcile.Result{}, err
 		}
 		if !isActive {
@@ -203,12 +205,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 	if !instance.Spec.ExternalStorage.Enable {
 		if err := r.validateStorageDeviceSets(instance); err != nil {
-			reqLogger.Error(err, "Failed to validate StorageDeviceSets")
+			r.Log.Error(err, "Failed to validate StorageDeviceSets")
 			return reconcile.Result{}, err
 		}
 	}
 
-	if err := validateArbiterSpec(instance, reqLogger); err != nil {
+	if err := validateArbiterSpec(instance, r.Log); err != nil {
 		instance.Status.Phase = statusutil.PhaseError
 		_ = r.Client.Update(context.TODO(), instance)
 		r.recorder.Event(instance, "Error", "FailedReconcile", err.Error())
@@ -232,15 +234,15 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if instance.GetDeletionTimestamp().IsZero() {
 		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
-			reqLogger.Info("Finalizer not found for storagecluster. Adding finalizer")
+			r.Log.Info("Finalizer not found for storagecluster. Adding finalizer")
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
 			if err := r.Client.Update(context.TODO(), instance); err != nil {
-				reqLogger.Info("Update Error", "MetaUpdateErr", "Failed to update storagecluster with finalizer")
+				r.Log.Info("Update Error", "MetaUpdateErr", "Failed to update storagecluster with finalizer")
 				return reconcile.Result{}, err
 			}
 		}
 
-		if err := r.reconcileUninstallAnnotations(instance, reqLogger); err != nil {
+		if err := r.reconcileUninstallAnnotations(instance); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -249,26 +251,26 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		instance.Status.Phase = statusutil.PhaseDeleting
 
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
-			if err := r.deleteResources(instance, reqLogger); err != nil {
-				reqLogger.Info("Uninstall in progress", "Status", err)
+			if err := r.deleteResources(instance); err != nil {
+				r.Log.Info("Uninstall in progress", "Status", err)
 				return reconcile.Result{RequeueAfter: time.Second * time.Duration(1)}, nil
 			}
-			reqLogger.Info("Removing finalizer")
+			r.Log.Info("Removing finalizer")
 			// Once all finalizers have been removed, the object will be deleted
 			instance.ObjectMeta.Finalizers = remove(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
 			if err := r.Client.Update(context.TODO(), instance); err != nil {
-				reqLogger.Info("Update Error", "MetaUpdateErr", "Failed to remove finalizer from storagecluster")
+				r.Log.Info("Update Error", "MetaUpdateErr", "Failed to remove finalizer from storagecluster")
 				return reconcile.Result{}, err
 			}
 		}
-		reqLogger.Info("Object is terminated, skipping reconciliation")
+		r.Log.Info("Object is terminated, skipping reconciliation")
 		return reconcile.Result{}, nil
 	}
 
 	if !instance.Spec.ExternalStorage.Enable {
 		// Get storage node topology labels
-		if err := r.reconcileNodeTopologyMap(instance, reqLogger); err != nil {
-			reqLogger.Error(err, "Failed to set node topology map")
+		if err := r.reconcileNodeTopologyMap(instance); err != nil {
+			r.Log.Error(err, "Failed to set node topology map")
 			return reconcile.Result{}, err
 		}
 
@@ -329,16 +331,16 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	}
 	// All component operators are in a happy state.
 	if r.conditions == nil {
-		reqLogger.Info("No component operator reported negatively")
+		r.Log.Info("No component operator reported negatively")
 		reason := ocsv1.ReconcileCompleted
 		message := ocsv1.ReconcileCompletedMessage
 		statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 
 		// If no operator whose conditions we are watching reports an error, then it is safe
 		// to set readiness.
-		r := statusutil.NewFileReady()
-		if err := r.Set(); err != nil {
-			reqLogger.Error(err, "Failed to mark operator ready")
+		readiness := statusutil.NewFileReady()
+		if err := readiness.Set(); err != nil {
+			r.Log.Error(err, "Failed to mark operator ready")
 			return reconcile.Result{}, err
 		}
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
@@ -369,9 +371,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-			r := statusutil.NewFileReady()
-			if err := r.Unset(); err != nil {
-				reqLogger.Error(err, "Failed to mark operator unready")
+			readiness := statusutil.NewFileReady()
+			if err := readiness.Unset(); err != nil {
+				r.Log.Error(err, "Failed to mark operator unready")
 				return reconcile.Result{}, err
 			}
 		}
@@ -391,12 +393,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	// this allows storagecluster to be instantiated before
 	// scraping metrics
 	if err := r.enableMetricsExporter(instance); err != nil {
-		reqLogger.Error(err, "failed to reconcile metrics exporter")
+		r.Log.Error(err, "failed to reconcile metrics exporter")
 		return reconcile.Result{}, err
 	}
 
 	if err := r.enablePrometheusRules(instance.Spec.ExternalStorage.Enable); err != nil {
-		reqLogger.Error(err, "failed to reconcile prometheus rules")
+		r.Log.Error(err, "failed to reconcile prometheus rules")
 		return reconcile.Result{}, err
 	}
 

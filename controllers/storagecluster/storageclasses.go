@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -31,7 +30,7 @@ func (obj *ocsStorageClass) ensureCreated(r *StorageClusterReconciler, instance 
 		return err
 	}
 
-	err = r.createStorageClasses(scs, r.Log)
+	err = r.createStorageClasses(scs)
 	if err != nil {
 		return err
 	}
@@ -76,7 +75,7 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 	return nil
 }
 
-func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration) error {
 	for _, scc := range sccs {
 		if scc.reconcileStrategy == ReconcileStrategyIgnore || scc.disable {
 			continue
@@ -87,7 +86,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 
 		if errors.IsNotFound(err) {
 			// Since the StorageClass is not found, we will create a new one
-			reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+			r.Log.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
 			err = r.Client.Create(context.TODO(), sc)
 			if err != nil {
 				return err
@@ -104,12 +103,12 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) {
 				// Since we have to update the existing StorageClass
 				// So, we will delete the existing storageclass and create a new one
-				reqLogger.Info(fmt.Sprintf("StorageClass %s needs to be updated, deleting it", existing.Name))
+				r.Log.Info(fmt.Sprintf("StorageClass %s needs to be updated, deleting it", existing.Name))
 				err = r.Client.Delete(context.TODO(), existing)
 				if err != nil {
 					return err
 				}
-				reqLogger.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+				r.Log.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
 				err = r.Client.Create(context.TODO(), sc)
 				if err != nil {
 					return err

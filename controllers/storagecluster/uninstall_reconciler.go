@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/defaults"
@@ -41,41 +40,41 @@ const (
 
 //nolint:unused // func deleteNodeAffinityKeyFromNodes is not used. For Future usuage func is created.
 // deleteNodeAffinityKeyFromNodes deletes the default NodeAffinityKey from the OCS nodes
-func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster) (err error) {
 
 	// We should delete the label only when the StorageCluster is using the default NodeAffinityKey
 	if sc.Spec.LabelSelector == nil {
-		nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
+		nodes, err := r.getStorageClusterEligibleNodes(sc)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
 			return nil
 		}
 		for _, node := range nodes.Items {
-			reqLogger.Info(fmt.Sprintf("Uninstall: Deleting OCS label from node %s", node.Name))
+			r.Log.Info(fmt.Sprintf("Uninstall: Deleting OCS label from node %s", node.Name))
 			new := node.DeepCopy()
 			delete(new.ObjectMeta.Labels, defaults.NodeAffinityKey)
 
 			oldJSON, err := json.Marshal(node)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
 			newJSON, err := json.Marshal(new)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
 			patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
 			err = r.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
+				r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeAffinityKey from the node %s", node.Name))
 				continue
 			}
 
@@ -86,15 +85,15 @@ func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.Stor
 }
 
 // deleteNodeTaint deletes the default NodeTolerationKey from the OCS nodes
-func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (err error) {
 
-	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
+	nodes, err := r.getStorageClusterEligibleNodes(sc)
 	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
+		r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster")) //nolint:gosimple
 		return nil
 	}
 	for _, node := range nodes.Items {
-		reqLogger.Info(fmt.Sprintf("Uninstall: Deleting OCS NodeTolerationKey from the node %s", node.Name))
+		r.Log.Info(fmt.Sprintf("Uninstall: Deleting OCS NodeTolerationKey from the node %s", node.Name))
 		new := node.DeepCopy()
 		new.Spec.Taints = make([]corev1.Taint, 0)
 		for _, taint := range node.Spec.Taints {
@@ -106,25 +105,25 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster, req
 
 		oldJSON, err := json.Marshal(node)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
 		newJSON, err := json.Marshal(new)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
 		err = r.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to remove the NodeTolerationKey from the node %s", node.Name))
 			continue
 		}
 
@@ -134,7 +133,7 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster, req
 }
 
 // setRookUninstallandCleanupPolicy sets the uninstall mode and cleanup policy for rook based on the annotation on the StorageCluster
-func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster, reqLogger logr.Logger) (err error) {
+func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster) (err error) {
 
 	cephCluster := &cephv1.CephCluster{}
 	var updateRequired bool
@@ -142,7 +141,7 @@ func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *oc
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
+			r.Log.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Unable to retrieve the cephCluster: %v", err)
@@ -173,14 +172,14 @@ func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *oc
 		if err != nil {
 			return fmt.Errorf("Uninstall: Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
 		}
-		reqLogger.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set")
+		r.Log.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set")
 	}
 
 	return nil
 }
 
 // setNoobaaUninstallMode sets the uninstall mode for Noobaa based on the annotation on the StorageCluster
-func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageCluster) error {
 	// Do this if Noobaa is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
@@ -194,7 +193,7 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Uninstall: NooBaa not found, can't set uninstall mode")
+			r.Log.Info("Uninstall: NooBaa not found, can't set uninstall mode")
 			return nil
 		}
 		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
@@ -217,36 +216,36 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 		if err != nil {
 			return fmt.Errorf("Uninstall: Unable to update NooBaa uninstall mode: %v", err)
 		}
-		reqLogger.Info("Uninstall: NooBaa uninstall mode has been set")
+		r.Log.Info("Uninstall: NooBaa uninstall mode has been set")
 	}
 
 	return nil
 }
 
 // reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none or unrecognized ones are set.
-func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster) error {
 	var updateRequired bool
 
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Uninstall: Setting uninstall mode annotation to default", "UninstallMode", UninstallModeGraceful)
+		r.Log.Info("Uninstall: Setting uninstall mode annotation to default", "UninstallMode", UninstallModeGraceful)
 		updateRequired = true
 	} else if found && v != string(UninstallModeGraceful) && v != string(UninstallModeForced) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
-		reqLogger.Info("Uninstall: Found unrecognized uninstall mode annotation. Changing it to default",
+		r.Log.Info("Uninstall: Found unrecognized uninstall mode annotation. Changing it to default",
 			"CurrentUninstallMode", v, "DefaultUninstallMode", UninstallModeGraceful)
 		updateRequired = true
 	}
 
 	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Uninstall: Setting uninstall cleanup policy annotation to default", "CleanupPolicy", CleanupPolicyDelete)
+		r.Log.Info("Uninstall: Setting uninstall cleanup policy annotation to default", "CleanupPolicy", CleanupPolicyDelete)
 		updateRequired = true
 	} else if found && v != string(CleanupPolicyDelete) && v != string(CleanupPolicyRetain) {
 		// if wrong value found
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
-		reqLogger.Info("Uninstall: Found unrecognized uninstall cleanup policy annotation.Changing it to default",
+		r.Log.Info("Uninstall: Found unrecognized uninstall cleanup policy annotation.Changing it to default",
 			"CurrentCleanupPolicy", v, "DefaultCleanupPolicy", CleanupPolicyDelete)
 		updateRequired = true
 	}
@@ -255,22 +254,22 @@ func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.Stora
 		oldSc := ocsv1.StorageCluster{}
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &oldSc)
 		if err != nil {
-			reqLogger.Error(err, "Uninstall: Failed to get storagecluster")
+			r.Log.Error(err, "Uninstall: Failed to get storagecluster")
 			return err
 		}
 		sc.ObjectMeta.ResourceVersion = oldSc.ObjectMeta.ResourceVersion
 		if err := r.Client.Update(context.TODO(), sc); err != nil {
-			reqLogger.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
+			r.Log.Error(err, "Uninstall: Failed to update the storagecluster with uninstall defaults")
 			return err
 		}
-		reqLogger.Info("Uninstall: Default uninstall annotations has been set on storagecluster")
+		r.Log.Info("Uninstall: Default uninstall annotations has been set on storagecluster")
 	}
 	return nil
 }
 
 // deleteResources is the function where the storageClusterFinalizer is handled
 // Every function that is called within this function should be idempotent
-func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) error {
 
 	var obj ocsQuickStarts
 	err := obj.ensureDeleted(r, sc)
@@ -278,12 +277,12 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster, req
 		return err
 	}
 
-	err = r.setRookUninstallandCleanupPolicy(sc, reqLogger)
+	err = r.setRookUninstallandCleanupPolicy(sc)
 	if err != nil {
 		return err
 	}
 
-	err = r.setNoobaaUninstallMode(sc, reqLogger)
+	err = r.setNoobaaUninstallMode(sc)
 	if err != nil {
 		return err
 	}
@@ -306,14 +305,14 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster, req
 		}
 	}
 
-	err = r.deleteNodeTaint(sc, reqLogger)
+	err = r.deleteNodeTaint(sc)
 	if err != nil {
 		return err
 	}
 
 	// TODO: skip the deletion of these labels till we figure out a way to wait
 	// for the cleanup jobs
-	//err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
+	//err = r.deleteNodeAffinityKeyFromNodes(sc)
 	//if err != nil {
 	//	return err
 	//}

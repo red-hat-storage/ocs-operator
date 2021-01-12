@@ -98,7 +98,7 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 		mockNodeList.DeepCopyInto(tc.nodeList)
 		tc.storageCluster.Status.FailureDomain = tc.failureDomain
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
-		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster, reconciler.Log)
+		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeCount, reconciler.nodeCount, "[%s]: failed to get correct node count", tc.label)
 
@@ -200,7 +200,7 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 		}
 
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
-		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster, reconciler.Log)
+		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.NoError(t, err)
 
 		err = reconciler.Client.Status().Update(context.TODO(), tc.storageCluster)
@@ -246,7 +246,7 @@ func TestReconcileNodeTopologyMapFailure(t *testing.T) {
 		}
 		tc.storageCluster.Spec.StorageDeviceSets[0].Replica = tc.repilcaCount
 		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, tc.nodeList)
-		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster, reconciler.Log)
+		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.Errorf(t, err, "[%s]: failed to test ReconcileNodeTopologyMap failure condition", tc.label)
 	}
 }
@@ -399,7 +399,7 @@ func TestStorageClusterEligibleNodes(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(tc.storageCluster)
 		tc.storageCluster.Spec.LabelSelector = tc.labelSelectors
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
-		actualNodes, err := reconciler.getStorageClusterEligibleNodes(tc.storageCluster, reconciler.Log)
+		actualNodes, err := reconciler.getStorageClusterEligibleNodes(tc.storageCluster)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeCount, len(actualNodes.Items), "[%s]: failed to get eligible nodes", tc.label)
 	}
@@ -510,7 +510,7 @@ func TestEnsureNodeRack(t *testing.T) {
 
 	for _, tc := range testcases {
 		reconciler := createFakeStorageClusterReconciler(t, tc.nodeList)
-		err := reconciler.ensureNodeRacks(tc.nodeList, tc.minRacks, tc.nodeRacks, tc.topologyMap, reconciler.Log)
+		err := reconciler.ensureNodeRacks(tc.nodeList, tc.minRacks, tc.nodeRacks, tc.topologyMap)
 		assert.NoError(t, err)
 
 		actualNodeList := &corev1.NodeList{}
