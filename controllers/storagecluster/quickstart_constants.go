@@ -31,7 +31,7 @@ spec:
  "
   tasks:
     -
-      title: "Connecting applications to vlock or file storage (persistent volumes)"
+      title: "Connecting applications to block or file storage (persistent volumes)"
       description: "If you want yours data to live longer than yours pods, you need persistent volumes.
 
 
@@ -50,13 +50,14 @@ spec:
 
    3. Click the Action menu (⋮)-> Add Storage
 
-   4. Select \"Create mew claim\". You would select \"Use existing claim\" here if you wanted to restore an existing persistent volume to a redeployed application.
+   4. Select \"Create new claim\". You would select \"Use existing claim\" here if you wanted to restore an existing persistent volume to a redeployed application.
 
-   5. Select the appropriate type of storage for your application/
+   5. Select the appropriate type of storage for your application.
 
-    - **For block storage**, select ocs-storagecluster-ceph-rbd.
+      **For block storage**, select ocs-storagecluster-ceph-rbd.
+   
+      **For file storage**, select ocs-storagecluster-cephfs.
 
-    - **For file storage**, select ocs-storagecluster-cephfs.
 
    6. Specify details of the storage you want to create.
 
@@ -64,7 +65,6 @@ spec:
    "
       review:
         instructions: "To verify that your application is using persistent volume claim:
-
 
     - Click the name of the deployment that you assigned storage to.
 
@@ -84,8 +84,13 @@ spec:
 
   2. Click Create Object Bucket Claim.
 
-  3. Specify a name for your claim and select an appropriate storage class for your application: - to use on-premises object storage, select ocs-storagecluster-ceph-rgw. - to use Multicloud Object Gateway, select openshift-storage.noobaa.io.
+  3. Specify a name for your claim and select an appropriate storage class for your application:  
 
+        **to use on-premises object storage,** select ocs-storagecluster-ceph-rgw.  
+
+        **to use Multicloud Object Gateway,** select openshift-storage.noobaa.io.  
+
+  
   4. Click Create.
 
   5. Click the Action menu (⋮) -> Attach to deployment.
