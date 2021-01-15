@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var ExternalResources = []ExternalResource{
+var globalTestExternalResources = []ExternalResource{
 	{
 		Kind: "ConfigMap",
 		Data: map[string]string{
@@ -116,7 +117,7 @@ func createExternalCephClusterSecret(extResources []ExternalResource) (*corev1.S
 }
 
 func createExternalClusterReconciler(t *testing.T) StorageClusterReconciler {
-	return createExternalClusterReconcilerFromCustomResources(t, ExternalResources)
+	return createExternalClusterReconcilerFromCustomResources(t, globalTestExternalResources)
 }
 
 func createExternalClusterReconcilerFromCustomResources(
@@ -131,8 +132,15 @@ func createExternalClusterReconcilerFromCustomResources(
 			},
 		},
 	}
-	if extResource, err := findNamedResourceFromArray(ExternalResources, "ceph-rgw"); err == nil {
+	if extResource, err := findNamedResourceFromArray(extResources, "ceph-rgw"); err == nil {
 		startServerAt(extResource.Data["endpoint"])
+	}
+	if extResource, err := findNamedResourceFromArray(extResources, "monitoring-endpoint"); err == nil {
+		monEndpointIP := extResource.Data["MonitoringEndpoint"]
+		monEndpointPort := extResource.Data["MonitoringPort"]
+		if monEndpointIP != "" && monEndpointPort != "" {
+			startServerAt(net.JoinHostPort(monEndpointIP, monEndpointPort))
+		}
 	}
 	externalSecret, err := createExternalCephClusterSecret(extResources)
 	if err != nil {
@@ -174,6 +182,17 @@ func assertExpectedExternalResources(t *testing.T, reconciler StorageClusterReco
 	for _, expected := range data {
 		request.Name = expected.Name
 		switch expected.Kind {
+		case "CephCluster":
+			actual := &cephv1.CephCluster{}
+			err := reconciler.Client.Get(context.TODO(),
+				types.NamespacedName{Name: generateNameForCephCluster(sc)}, actual)
+			assert.NoError(t, err)
+			assert.True(t, actual.Spec.Monitoring.Enabled, "Expecting 'Monitoring' to be enabled")
+			if uint16Port, err := strconv.ParseUint(expected.Data["MonitoringPort"], 10, 16); err == nil {
+				assert.Equal(t, actual.Spec.Monitoring.ExternalMgrPrometheusPort, uint16(uint16Port))
+			} else {
+				assert.Zero(t, actual.Spec.Monitoring.ExternalMgrPrometheusPort, "Expected the port to be ZERO")
+			}
 		case "ConfigMap":
 			actual := &corev1.ConfigMap{}
 			err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actual)
@@ -300,7 +319,7 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 	}
 
 	for _, testParam := range optionalTestParams {
-		extResources := removeNamedResourceFromArray(ExternalResources, testParam.resourceToBeRemoved)
+		extResources := removeNamedResourceFromArray(globalTestExternalResources, testParam.resourceToBeRemoved)
 		reconciler := createExternalClusterReconcilerFromCustomResources(t, extResources)
 		result, err := reconciler.Reconcile(request)
 		assert.NoError(t, err)
@@ -473,4 +492,71 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	// as there are no changes, second and third checksums should match
 	assert.Equal(t, secondExtSecretChecksum, thirdExtSecretChecksum)
 
+}
+
+func TestExternalMonitoringResources(t *testing.T) {
+	type testResources struct {
+		ExternalResource
+		Label                   string
+		ReconcileExpectedToFail bool
+	}
+	monAddedExternalResources := []testResources{
+		{
+			ExternalResource: ExternalResource{
+				Kind: "CephCluster",
+				Data: map[string]string{
+					"MonitoringEndpoint": "127.0.0.1",
+					"MonitoringPort":     fmt.Sprint(generateRandomPort(30000, 40000)),
+				},
+				Name: "monitoring-endpoint",
+			},
+			Label:                   "A passing case, with valid args",
+			ReconcileExpectedToFail: false,
+		},
+		{
+			ExternalResource: ExternalResource{
+				Kind: "CephCluster",
+				Data: map[string]string{
+					"MonitoringEndpoint": "127.0.0.1",
+				},
+				Name: "monitoring-endpoint",
+			},
+			Label:                   "Another passing case, without an explicit port, in which rook will provide a default port number",
+			ReconcileExpectedToFail: false,
+		},
+		{
+			ExternalResource: ExternalResource{
+				Kind: "CephCluster",
+				Data: map[string]string{
+					"MonitoringEndpoint": "127.0.0.1",
+					"MonitoringPort":     "abcde",
+				},
+				Name: "monitoring-endpoint",
+			},
+			Label:                   "A failing case, which has an invalid port",
+			ReconcileExpectedToFail: true,
+		},
+	}
+
+	request := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+
+	for _, extR := range monAddedExternalResources {
+		extRArr := updateNamedResourceInArray(globalTestExternalResources, extR.ExternalResource)
+
+		reconciler := createExternalClusterReconcilerFromCustomResources(t, extRArr)
+		result, err := reconciler.Reconcile(request)
+		if extR.ReconcileExpectedToFail && err != nil {
+			continue
+		}
+		if ok := assert.NoError(t, err); !ok {
+			t.Fatalf("Reconcile Error: %v", err)
+		}
+		assert.Equal(t, reconcile.Result{}, result)
+		assertExpectedExternalResources(t, reconciler)
+	}
 }
