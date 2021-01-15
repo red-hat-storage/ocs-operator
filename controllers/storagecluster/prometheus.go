@@ -47,7 +47,7 @@ func getPrometheusRules(isExternal bool) (*monitoringv1.PrometheusRule, error) {
 		},
 	}
 	var err error
-	ruleSpec := &monitoringv1.PrometheusRuleSpec{} //nolint //ruleSpec ineffassign
+	var ruleSpec *monitoringv1.PrometheusRuleSpec
 	if isExternal {
 		ruleSpec, err = getPrometheusRuleSpecFrom(externalPrometheusRuleFilepath)
 		if err != nil {
