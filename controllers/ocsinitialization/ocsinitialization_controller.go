@@ -190,14 +190,18 @@ func (r *OCSInitializationReconciler) ensureToolsDeployment(initialData *ocsv1.O
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling OCSInitialization")
+
+	prevLogger := r.Log
+	defer func() { r.Log = prevLogger }()
+	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+
+	r.Log.Info("Reconciling OCSInitialization")
 
 	initNamespacedName := InitNamespacedName()
 	instance := &ocsv1.OCSInitialization{}
 	if initNamespacedName.Name != request.Name || initNamespacedName.Namespace != request.Namespace {
 		// Ignoring this resource because it has the wrong name or namespace
-		reqLogger.Info(wrongNamespacedName)
+		r.Log.Info(wrongNamespacedName)
 		err := r.Client.Get(context.TODO(), request.NamespacedName, instance)
 		if err != nil {
 			// the resource probably got deleted
@@ -210,7 +214,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 		instance.Status.Phase = util.PhaseIgnored
 		err = r.Client.Status().Update(context.TODO(), instance)
 		if err != nil {
-			reqLogger.Error(err, "failed to update ignored resource")
+			r.Log.Error(err, "failed to update ignored resource")
 		}
 		return reconcile.Result{}, err
 	}
@@ -222,7 +226,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 			// Request object not found, could have been deleted after reconcile request.
 			// Recreating since we depend on this to exist. A user may delete it to
 			// induce a reset of all initial data.
-			reqLogger.Info("recreating OCSInitialization resource")
+			r.Log.Info("recreating OCSInitialization resource")
 			return reconcile.Result{}, r.Client.Create(context.TODO(), &ocsv1.OCSInitialization{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      initNamespacedName.Name,
@@ -242,12 +246,12 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 		instance.Status.Phase = util.PhaseProgressing
 		err = r.Client.Status().Update(context.TODO(), instance)
 		if err != nil {
-			reqLogger.Error(err, "Failed to add conditions to status")
+			r.Log.Error(err, "Failed to add conditions to status")
 			return reconcile.Result{}, err
 		}
 	}
 
-	err = r.ensureSCCs(instance, reqLogger)
+	err = r.ensureSCCs(instance)
 	if err != nil {
 		reason := ocsv1.ReconcileFailed
 		message := fmt.Sprintf("Error while reconciling: %v", err)
@@ -257,7 +261,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 		// don't want to overwrite the actual reconcile failure
 		uErr := r.Client.Status().Update(context.TODO(), instance)
 		if uErr != nil {
-			reqLogger.Error(uErr, "Failed to update conditions")
+			r.Log.Error(uErr, "Failed to update conditions")
 		}
 		return reconcile.Result{}, err
 	}
@@ -270,7 +274,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 
 	err = r.ensureToolsDeployment(instance)
 	if err != nil {
-		reqLogger.Error(err, "Failed to process ceph tools deployment")
+		r.Log.Error(err, "Failed to process ceph tools deployment")
 		return reconcile.Result{}, err
 	}
 
@@ -279,7 +283,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 		// if false, ensure ConfigMap and update the status
 		err = r.ensureRookCephOperatorConfig(instance)
 		if err != nil {
-			reqLogger.Error(err, "Failed to process %s Configmap", rookCephOperatorConfigName)
+			r.Log.Error(err, "Failed to process %s Configmap", rookCephOperatorConfigName)
 			return reconcile.Result{}, err
 		}
 		instance.Status.RookCephOperatorConfigCreated = true
