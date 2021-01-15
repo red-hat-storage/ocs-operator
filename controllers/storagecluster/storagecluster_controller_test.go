@@ -264,6 +264,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 		deviceSets     []api.StorageDeviceSet
 		storageCluster *api.StorageCluster
 		expectedSpeed  diskSpeed
+		platform       *Platform
 	}{
 		{
 			label: "Case 1", // storageclass is gp2 or io1
@@ -424,10 +425,40 @@ func TestThrottleStorageDevices(t *testing.T) {
 			storageCluster: &api.StorageCluster{},
 			expectedSpeed:  diskSpeedFast,
 		},
+		{
+			label: "Case 7", // storageclass is neither gp2 nor io1 but platform is Azure
+			storageClass: &storagev1.StorageClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "st1",
+				},
+				Provisioner: string(EBS),
+				Parameters: map[string]string{
+					"type": "st1",
+				},
+			},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &fakestorageClassName,
+						},
+					},
+					Portable: true,
+				},
+			},
+			platform:       &Platform{platform: configv1.AzurePlatformType},
+			storageCluster: &api.StorageCluster{},
+			expectedSpeed:  diskSpeedFast,
+		},
 	}
 
 	for _, tc := range testcases {
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.storageClass)
+		if tc.platform != nil {
+			reconciler.platform = tc.platform
+		}
 		for _, ds := range tc.deviceSets {
 			actualSpeed, err := reconciler.checkTuneStorageDevices(ds)
 			assert.NoError(t, err)
