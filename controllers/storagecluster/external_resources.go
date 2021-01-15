@@ -249,7 +249,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				reqLogger.Error(err, "Failed to get Monitoring Port.")
 				return err
 			}
-			err := validateMonitoringEndpoint(monitoringIP, monitoringPort, reqLogger)
+			err := checkEndpointReachable(net.JoinHostPort(monitoringIP, monitoringPort), 5*time.Second)
 			if err != nil {
 				reqLogger.Error(err, "Monitoring validation failed")
 				return err
@@ -368,27 +368,5 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 			return err
 		}
 	}
-	return nil
-}
-
-// To check if endpoint is a VALID ip and is REACHABLE or not
-func validateMonitoringEndpoint(monitoringIP string, monitoringPort string, reqLogger logr.Logger) error {
-	_, err := net.LookupIP(monitoringIP)
-	if err != nil {
-		reqLogger.Error(err, "Monitoring endpoint is not a valid IPv4 IP")
-		return err
-	}
-	endpoint := net.JoinHostPort(monitoringIP, monitoringPort)
-	con, err := net.DialTimeout("tcp", endpoint, 5*time.Second)
-	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Monitoring Endpoint (%s) is not reachable", endpoint))
-		return err
-	}
-	defer func() {
-		err := con.Close()
-		if err != nil {
-			reqLogger.Error(err, "")
-		}
-	}()
 	return nil
 }
