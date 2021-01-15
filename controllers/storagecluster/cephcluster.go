@@ -641,6 +641,14 @@ func (r *StorageClusterReconciler) checkTuneStorageDevices(ds ocsv1.StorageDevic
 		return dt.speed, nil
 	}
 
+	tuneFastDevices, err := r.DevicesDefaultToFastForThisPlatform()
+	if err != nil {
+		return diskSpeedUnknown, err
+	}
+	if tuneFastDevices {
+		return diskSpeedFast, nil
+	}
+
 	// not a known disk type, don't tune
 	return diskSpeedUnknown, nil
 }
