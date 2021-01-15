@@ -34,7 +34,7 @@ const (
 	rookEnableCephFSCSIKey     = "ROOK_CSI_ENABLE_CEPHFS"
 )
 
-// ExternalResource containes a list of External Cluster Resources
+// ExternalResource contains a list of External Cluster Resources
 type ExternalResource struct {
 	Kind string            `json:"kind"`
 	Data map[string]string `json:"data"`
