@@ -911,7 +911,7 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 		// spec description from K8s in incorrect YAML format.
 		// This can not be prevented and documentation needs to
 		// be updated in Kubernetes. Until then the work around is
-		// to remove all occurences of ' --- ' in description.
+		// to remove all occurrences of ' --- ' in description.
 		// "---" is used as YAML separator and should not be replaced.
 		// https://github.com/kubernetes/api/blob/master/core/v1/types.go#L5287-L5301
 		crdBytes = []byte(strings.ReplaceAll(string(crdBytes), " --- ", " "))

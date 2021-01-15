@@ -194,7 +194,7 @@ func TestGetPlacement(t *testing.T) {
 								{
 									MatchExpressions: []corev1.NodeSelectorRequirement{
 										// TODO: For this test, this is an expected result that
-										// will yield an undesireable CephCluster config. Since
+										// will yield an undesirable CephCluster config. Since
 										// NodeAffinity will be defined in the CephCluster, the
 										// "all" NodeAffinity will not apply, meaning mons will
 										// only run on master nodes. We should figure out a way

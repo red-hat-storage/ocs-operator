@@ -52,7 +52,7 @@ var knownDiskTypes = []knownDiskType{
 }
 
 const (
-	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
+	// Hardcoding networkProvider to multus and this can be changed later to accommodate other providers
 	networkProvider           = "multus"
 	publicNetworkSelectorKey  = "public"
 	clusterNetworkSelectorKey = "cluster"
@@ -427,7 +427,7 @@ func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 }
 
 func getMonCount(nodeCount int, arbiter bool) int {
-	// return static value if overriden
+	// return static value if overridden
 	override := os.Getenv(monCountOverrideEnvVar)
 	if override != "" {
 		count, err := strconv.Atoi(override)

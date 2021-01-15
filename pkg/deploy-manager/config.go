@@ -58,7 +58,7 @@ type storageClusterConfig struct {
 	// For example Encryption, Arbiter etc
 	// Eligibility Check:
 	// Is this option presented in the console and/or does this option cause a
-	// change in the inital Storage Cluster CR provided to the ocs-operator? Yes, it belongs here.
+	// change in the initial Storage Cluster CR provided to the ocs-operator? Yes, it belongs here.
 
 	// Functional tests also use the deploy manager for deployment and if any
 	// state needs to be stored for the storageCluster, it belongs here.

@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// ComposePredicates will compose a variable number of predicte and return a predicate that
+// ComposePredicates will compose a variable number of predicates and return a predicate that
 // will allow events that are allowed by any of the given predicates.
 func ComposePredicates(predicates ...predicate.Predicate) predicate.Predicate {
 	return predicate.Funcs{

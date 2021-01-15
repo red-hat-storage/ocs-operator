@@ -179,7 +179,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		r.Log.Info("Reconciling StorageCluster")
 	}
 
-	// Initalize the StatusImages section of the storageclsuter CR
+	// Initialize the StatusImages section of the storageclsuter CR
 	r.initializeImagesStatus(instance)
 
 	if err := versionCheck(instance, r.Log); err != nil {
