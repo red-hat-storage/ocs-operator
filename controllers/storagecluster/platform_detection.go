@@ -18,6 +18,13 @@ var AvoidObjectStorePlatforms = []configv1.PlatformType{
 	configv1.AzurePlatformType,
 }
 
+// TuneFastPlatforms is a list of all PlatformTypes where TuneFastDeviceClass has to be set True.
+var TuneFastPlatforms = []configv1.PlatformType{
+	configv1.OvirtPlatformType,
+	configv1.IBMCloudPlatformType,
+	configv1.AzurePlatformType,
+}
+
 // Platform is used to get the CloudPlatformType of the running cluster in a thread-safe manner
 type Platform struct {
 	platform configv1.PlatformType
@@ -54,4 +61,20 @@ func avoidObjectStore(p configv1.PlatformType) bool {
 		}
 	}
 	return false
+}
+
+func (r *StorageClusterReconciler) DevicesDefaultToFastForThisPlatform() (bool, error) {
+	c := r.Client
+	platform, err := r.platform.GetPlatform(c)
+	if err != nil {
+		return false, err
+	}
+
+	for _, tfplatform := range TuneFastPlatforms {
+		if platform == tfplatform {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
