@@ -3,7 +3,6 @@ package persistentvolume
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -13,20 +12,23 @@ import (
 )
 
 // ensureFunc which encapsulate all the 'ensure*' type functions
-type ensureFunc func(*corev1.PersistentVolume, logr.Logger) error
+type ensureFunc func(*corev1.PersistentVolume) error
 
 // +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get
 
 // Reconcile ...
 func (r *PersistentVolumeReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+
+	prevLogger := r.Log
+	defer func() { r.Log = prevLogger }()
+	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
 	pv := &corev1.PersistentVolume{}
 	err := r.Client.Get(context.TODO(), request.NamespacedName, pv)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("PersistentVolume not found")
+			r.Log.Info("PersistentVolume not found")
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -34,17 +36,17 @@ func (r *PersistentVolumeReconciler) Reconcile(request reconcile.Request) (recon
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if !pv.GetDeletionTimestamp().IsZero() {
-		reqLogger.Info("Object is terminated, skipping reconciliation")
+		r.Log.Info("Object is terminated, skipping reconciliation")
 		return reconcile.Result{}, nil
 	}
 
-	reqLogger.Info("Reconciling PersistentVolume")
+	r.Log.Info("Reconciling PersistentVolume")
 
 	ensureFs := []ensureFunc{
 		r.ensureExpansionSecret,
 	}
 	for _, f := range ensureFs {
-		err = f(pv, reqLogger)
+		err = f(pv)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -53,17 +55,17 @@ func (r *PersistentVolumeReconciler) Reconcile(request reconcile.Request) (recon
 	return reconcile.Result{}, nil
 }
 
-func (r *PersistentVolumeReconciler) ensureExpansionSecret(pv *corev1.PersistentVolume, reqLogger logr.Logger) error {
+func (r *PersistentVolumeReconciler) ensureExpansionSecret(pv *corev1.PersistentVolume) error {
 	scName := pv.Spec.StorageClassName
 	if scName == "" {
-		reqLogger.Info("PersistentVolume has no associated StorageClass")
+		r.Log.Info("PersistentVolume has no associated StorageClass")
 		return nil
 	}
 	sc := &storagev1.StorageClass{}
 
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: scName}, sc)
 	if err != nil {
-		reqLogger.Error(err, "Error getting StorageClass")
+		r.Log.Error(err, "Error getting StorageClass")
 		return err
 	}
 
@@ -84,10 +86,10 @@ func (r *PersistentVolumeReconciler) ensureExpansionSecret(pv *corev1.Persistent
 	newPV.Spec.CSI.ControllerExpandSecretRef = secretRef
 	err = r.Client.Patch(context.TODO(), newPV, patch)
 	if err != nil {
-		reqLogger.Error(err, "Error patching PersistentVolume")
+		r.Log.Error(err, "Error patching PersistentVolume")
 		return err
 	}
 
-	reqLogger.Info("PersistentVolume patched")
+	r.Log.Info("PersistentVolume patched")
 	return nil
 }

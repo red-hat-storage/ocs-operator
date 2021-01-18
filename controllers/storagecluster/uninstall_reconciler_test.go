@@ -50,7 +50,7 @@ func assertStorageClusterUninstallAnnotation(
 	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
 	CleanupPolicy CleanupPolicyType, UninstallMode UninstallModeType) {
 
-	err := reconciler.reconcileUninstallAnnotations(sc, reconciler.Log)
+	err := reconciler.reconcileUninstallAnnotations(sc)
 	assert.NoError(t, err)
 
 	if val, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
@@ -75,7 +75,7 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 		// there are two annotations which will be 4 combinations, test all 4 combinations
 
 		// set default uninstall annotations
-		err := reconciler.reconcileUninstallAnnotations(sc, reconciler.Log)
+		err := reconciler.reconcileUninstallAnnotations(sc)
 		assert.NoError(t, err)
 
 		combinationsList := []struct {
@@ -105,7 +105,7 @@ func assertCephClusterCleanupPolicy(
 	CleanupPolicyConfirmation cephv1.CleanupConfirmationProperty, AllowUninstallWithVolumes bool) {
 
 	// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
-	err := reconciler.setRookUninstallandCleanupPolicy(sc, reconciler.Log)
+	err := reconciler.setRookUninstallandCleanupPolicy(sc)
 	assert.NoError(t, err)
 
 	cephCluster := &cephv1.CephCluster{}
@@ -261,7 +261,7 @@ func assertTestDeleteNodeAffinityKeyFromNodes(
 	}
 
 	// verify there are eligible nodes
-	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.Log)
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
@@ -274,10 +274,10 @@ func assertTestDeleteNodeAffinityKeyFromNodes(
 	}
 
 	// delete NodeAffinityKey
-	err = reconciler.deleteNodeAffinityKeyFromNodes(sc, reconciler.Log)
+	err = reconciler.deleteNodeAffinityKeyFromNodes(sc)
 	assert.NoError(t, err)
 
-	nodes, err = reconciler.getStorageClusterEligibleNodes(sc, reconciler.Log)
+	nodes, err = reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 
 	if !createUserDefinedKey {
@@ -351,10 +351,10 @@ func assertTestDeleteNodeTaint(
 	}
 
 	// delete node taints
-	err := reconciler.deleteNodeTaint(sc, reconciler.Log)
+	err := reconciler.deleteNodeTaint(sc)
 	assert.NoError(t, err)
 
-	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.Log)
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
@@ -368,7 +368,7 @@ func assertTestDeleteNodeTaint(
 
 func addDefaultNodeTaintOnNodes(t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster) {
 
-	nodes, err := reconciler.getStorageClusterEligibleNodes(sc, reconciler.Log)
+	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
@@ -727,7 +727,7 @@ func assertTestDeleteCephObjectStores(
 		assert.NoError(t, err)
 	}
 
-	cephStores, err := reconciler.newCephObjectStoreInstances(sc, reconciler.Log)
+	cephStores, err := reconciler.newCephObjectStoreInstances(sc)
 	assert.NoError(t, err)
 
 	for _, cephStore := range cephStores {
@@ -806,12 +806,12 @@ func assertTestSetNoobaaUninstallMode(
 	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
 	UninstallMode UninstallModeType, NoobaaUninstallMode nbv1.CleanupConfirmationProperty) {
 
-	err := reconciler.reconcileUninstallAnnotations(sc, reconciler.Log)
+	err := reconciler.reconcileUninstallAnnotations(sc)
 	assert.NoError(t, err)
 
 	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallMode)
 
-	err = reconciler.setNoobaaUninstallMode(sc, reconciler.Log)
+	err = reconciler.setNoobaaUninstallMode(sc)
 	assert.NoError(t, err)
 
 	noobaa := &nbv1.NooBaa{}

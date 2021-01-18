@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -80,7 +79,7 @@ func newSnapshotClassConfigurations(instance *ocsv1.StorageCluster) []SnapshotCl
 	return vsccs
 }
 
-func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassConfiguration, reqLogger logr.Logger) error {
+func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassConfiguration) error {
 
 	for _, vscc := range vsccs {
 		if vscc.reconcileStrategy == ReconcileStrategyIgnore || vscc.disable {
@@ -93,16 +92,16 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Since the SnapshotClass is not found, we will create a new one
-				reqLogger.Info(fmt.Sprintf("creating SnapshotClass %q", vsc.Name))
+				r.Log.Info(fmt.Sprintf("creating SnapshotClass %q", vsc.Name))
 				err = r.Client.Create(context.TODO(), vsc)
 				if err != nil {
-					reqLogger.Error(err, fmt.Sprintf("failed to create SnapshotClass %q", vsc.Name))
+					r.Log.Error(err, fmt.Sprintf("failed to create SnapshotClass %q", vsc.Name))
 					return err
 				}
 				// no error, continue with the next iteration
 				continue
 			} else {
-				reqLogger.Error(err, fmt.Sprintf("failed to 'Get' SnapshotClass %q", vsc.Name))
+				r.Log.Error(err, fmt.Sprintf("failed to 'Get' SnapshotClass %q", vsc.Name))
 				return err
 			}
 		}
@@ -115,11 +114,11 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 		// if there is a mis-match in the parameters of existing vs created resources,
 		if !reflect.DeepEqual(vsc.Parameters, existing.Parameters) {
 			// we have to update the existing SnapshotClass
-			reqLogger.Info(fmt.Sprintf("SnapshotClass %q needs to be updated", existing.Name))
+			r.Log.Info(fmt.Sprintf("SnapshotClass %q needs to be updated", existing.Name))
 			existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
 			vsc.ObjectMeta = existing.ObjectMeta
 			if err := r.Client.Update(context.TODO(), vsc); err != nil {
-				reqLogger.Error(err, fmt.Sprintf("SnapshotClass %q updation failed", existing.Name))
+				r.Log.Error(err, fmt.Sprintf("SnapshotClass %q updation failed", existing.Name))
 				return err
 			}
 		}
@@ -131,7 +130,7 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 	vsccs := newSnapshotClassConfigurations(instance)
 
-	err := r.createSnapshotClasses(vsccs, r.Log)
+	err := r.createSnapshotClasses(vsccs)
 	if err != nil {
 		return nil
 	}

@@ -387,7 +387,7 @@ func assertCephObjectStore(t *testing.T, reconciler StorageClusterReconciler, re
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)
-		extRs, err := reconciler.retrieveExternalSecretData(sc, reconciler.Log)
+		extRs, err := reconciler.retrieveExternalSecretData(sc)
 		assert.NoError(t, err)
 		extR, err := findNamedResourceFromArray(extRs, "ceph-rgw")
 		assert.NoError(t, err)
@@ -426,7 +426,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	assert.NoError(t, err)
 	firstExtSecretChecksum := sc.Status.ExternalSecretHash
 
-	extRsrcs, err := reconciler.retrieveExternalSecretData(sc, reconciler.Log)
+	extRsrcs, err := reconciler.retrieveExternalSecretData(sc)
 	assert.NoError(t, err)
 	rgwRsrc, err := findNamedResourceFromArray(extRsrcs, cephRgwStorageClassName)
 	assert.NoError(t, err)
