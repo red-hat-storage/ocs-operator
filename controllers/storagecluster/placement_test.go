@@ -299,7 +299,7 @@ func TestGetPlacement(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		actualPlacement := rookv1.Placement{} //nolint:ineffassign
+		var actualPlacement rookv1.Placement
 		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Spec.Placement = c.placements
