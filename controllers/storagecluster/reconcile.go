@@ -751,6 +751,9 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 
 func validateArbiterSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 
+	if sc.Spec.Arbiter.Enable && sc.Spec.FlexibleScaling {
+		return fmt.Errorf("arbiter and flexibleScaling both can't be enabled")
+	}
 	if sc.Spec.Arbiter.Enable && sc.Spec.NodeTopologies.ArbiterLocation == "" {
 		return fmt.Errorf("arbiter is set to enable but no arbiterLocation has been provided in the Spec.NodeTopologies.ArbiterLocation")
 	}
