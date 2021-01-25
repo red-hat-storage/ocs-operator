@@ -124,6 +124,10 @@ func (r *StorageClusterReconciler) Reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, err
 	}
 
+	if err := r.validateStorageClusterSpec(sc, request); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases(reqLogger, sc, request)
 
@@ -161,6 +165,30 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 	images.NooBaaDB.DesiredImage = r.images.NooBaaDB
 }
 
+// validateStorageClusterSpec must be called before reconciling. Any syntactic and sematic errors in the CR must be caught here.
+func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.StorageCluster, request reconcile.Request) error {
+	if err := versionCheck(instance, r.Log); err != nil {
+		r.Log.Error(err, "Failed to validate version")
+		r.recorder.Event(instance, statusutil.EventTypeError, statusutil.EventReasonValidationFailed, err.Error())
+		return err
+	}
+
+	if !instance.Spec.ExternalStorage.Enable {
+		if err := r.validateStorageDeviceSets(instance); err != nil {
+			r.Log.Error(err, "Failed to validate StorageDeviceSets")
+			r.recorder.Event(instance, statusutil.EventTypeError, statusutil.EventReasonValidationFailed, err.Error())
+			return err
+		}
+	}
+
+	if err := validateArbiterSpec(instance, r.Log); err != nil {
+		r.Log.Error(err, "Failed to validate ArbiterSpec")
+		r.recorder.Event(instance, statusutil.EventTypeError, statusutil.EventReasonValidationFailed, err.Error())
+		return err
+	}
+	return nil
+}
+
 func (r *StorageClusterReconciler) reconcilePhases(
 	reqLogger logr.Logger,
 	instance *ocsv1.StorageCluster,
@@ -174,10 +202,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 	// Initalize the StatusImages section of the storageclsuter CR
 	r.initializeImagesStatus(instance)
-
-	if err := versionCheck(instance, reqLogger); err != nil {
-		return reconcile.Result{}, err
-	}
 
 	// Check for active StorageCluster only if Create request is made
 	// and ignore it if there's another active StorageCluster
@@ -195,20 +219,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		}
 	} else if instance.Status.Phase == statusutil.PhaseIgnored {
 		return reconcile.Result{}, nil
-	}
-
-	if !instance.Spec.ExternalStorage.Enable {
-		if err := r.validateStorageDeviceSets(instance); err != nil {
-			reqLogger.Error(err, "Failed to validate StorageDeviceSets")
-			return reconcile.Result{}, err
-		}
-	}
-
-	if err := validateArbiterSpec(instance, reqLogger); err != nil {
-		instance.Status.Phase = statusutil.PhaseError
-		_ = r.Client.Update(context.TODO(), instance)
-		r.recorder.Event(instance, "Error", "FailedReconcile", err.Error())
-		return reconcile.Result{}, err
 	}
 
 	if instance.Status.Phase != statusutil.PhaseReady &&
