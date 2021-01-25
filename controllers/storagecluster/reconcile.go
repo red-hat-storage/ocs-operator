@@ -88,6 +88,7 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
 var validTopologyLabelKeys = []string{
+	"topology.kubernetes.io",
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
 	"kubernetes.io/hostname",
