@@ -286,6 +286,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
+			LogCollector: cephv1.LogCollectorSpec{
+				Enabled:     true,
+				Periodicity: "24h",
+			},
 		},
 	}
 	monPVCTemplate := sc.Spec.MonPVCTemplate
