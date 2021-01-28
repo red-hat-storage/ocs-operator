@@ -389,7 +389,8 @@ func TestFailureDomain(t *testing.T) {
 			label: "Case 1", // storagecluster has predefined failure domain of `zone`
 			storageCluster: &api.StorageCluster{
 				Status: api.StorageClusterStatus{
-					FailureDomain: "zone",
+					FailureDomain:  "zone",
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
 			expectedFailureDomain: "zone",
@@ -398,7 +399,8 @@ func TestFailureDomain(t *testing.T) {
 			label: "Case 2", // storagecluster has predefined failure domain of `rack`
 			storageCluster: &api.StorageCluster{
 				Status: api.StorageClusterStatus{
-					FailureDomain: "rack",
+					FailureDomain:  "rack",
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
 			expectedFailureDomain: "rack",
@@ -440,7 +442,8 @@ func TestFailureDomain(t *testing.T) {
 			label: "Case 5", // storagecluster has predefined failure domain of `host`
 			storageCluster: &api.StorageCluster{
 				Status: api.StorageClusterStatus{
-					FailureDomain: "host",
+					FailureDomain:  "host",
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
 			expectedFailureDomain: "host",
@@ -451,13 +454,16 @@ func TestFailureDomain(t *testing.T) {
 				Spec: api.StorageClusterSpec{
 					FlexibleScaling: true,
 				},
+				Status: api.StorageClusterStatus{
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
+				},
 			},
 			expectedFailureDomain: "host",
 		},
 	}
 
 	for _, tc := range testcases {
-		failureDomain := determineFailureDomain(tc.storageCluster)
+		failureDomain := determineFailureDomain(tc.storageCluster).Type
 		assert.Equalf(t, tc.expectedFailureDomain, failureDomain, "[%s]: failed to get correct failure domain", tc.label)
 	}
 }

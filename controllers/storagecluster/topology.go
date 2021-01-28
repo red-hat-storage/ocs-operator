@@ -38,26 +38,44 @@ func (r *StorageClusterReconciler) getStorageClusterEligibleNodes(sc *ocsv1.Stor
 	return nodes, err
 }
 
-// determineFailureDomain determines the appropriate Ceph failure domain based
-// on the storage cluster's topology map
-func determineFailureDomain(sc *ocsv1.StorageCluster) string {
+type failureDomain struct {
+	Type   string
+	Key    string
+	Values []string
+}
+
+// determineFailureDomain determines the appropriate Ceph failure domain type,
+// key and values based on the storage cluster's topology map
+func determineFailureDomain(sc *ocsv1.StorageCluster) (failureDomain failureDomain) {
+
+	if sc.Status.NodeTopologies == nil || sc.Status.NodeTopologies.Labels == nil {
+		return failureDomain
+	}
+
 	if sc.Status.FailureDomain != "" {
-		return sc.Status.FailureDomain
+		failureDomain.Type = sc.Status.FailureDomain
+		failureDomain.Key, failureDomain.Values = sc.Status.NodeTopologies.GetKeyValues(failureDomain.Type)
+		return failureDomain
 	}
 
 	if sc.Spec.FlexibleScaling {
-		return "host"
+		failureDomain.Type = "host"
+		failureDomain.Key, failureDomain.Values = sc.Status.NodeTopologies.GetKeyValues(failureDomain.Type)
+		return failureDomain
 	}
 
-	topologyMap := sc.Status.NodeTopologies
-	failureDomain := "rack"
-	for label, labelValues := range topologyMap.Labels {
+	for label, labelValues := range sc.Status.NodeTopologies.Labels {
 		if strings.Contains(label, "zone") {
 			if (len(labelValues) >= 2 && arbiterEnabled(sc)) || (len(labelValues) >= 3) {
-				failureDomain = "zone"
+				failureDomain.Type = "zone"
+				failureDomain.Key, failureDomain.Values = sc.Status.NodeTopologies.GetKeyValues(failureDomain.Type)
+				return failureDomain
 			}
 		}
 	}
+
+	failureDomain.Type = "rack"
+	failureDomain.Key, failureDomain.Values = sc.Status.NodeTopologies.GetKeyValues(failureDomain.Type)
 	return failureDomain
 }
 
@@ -262,7 +280,7 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 
 	}
 
-	if determineFailureDomain(sc) == "rack" {
+	if determineFailureDomain(sc).Type == "rack" {
 		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap)
 		if err != nil {
 			return err

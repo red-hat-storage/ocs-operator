@@ -287,7 +287,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		}
 
 		if instance.Status.FailureDomain == "" {
-			instance.Status.FailureDomain = determineFailureDomain(instance)
+			instance.Status.FailureDomain = determineFailureDomain(instance).Type
 		}
 	}
 

@@ -451,7 +451,6 @@ func getMonCount(nodeCount int, arbiter bool) int {
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
 func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.Info) []rook.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
-	topologyMap := sc.Status.NodeTopologies
 
 	var storageClassDeviceSets []rook.StorageClassDeviceSet
 
