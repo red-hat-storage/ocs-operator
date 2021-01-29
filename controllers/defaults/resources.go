@@ -12,11 +12,11 @@ var (
 		"osd": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
-				corev1.ResourceMemory: resource.MustParse("5Gi"),
+				corev1.ResourceMemory: resource.MustParse("10Gi"),
 			},
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
-				corev1.ResourceMemory: resource.MustParse("5Gi"),
+				corev1.ResourceMemory: resource.MustParse("10Gi"),
 			},
 		},
 		"mon": {
