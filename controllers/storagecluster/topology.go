@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/openshift/ocs-operator/controllers/defaults"
+	utils "github.com/openshift/ocs-operator/controllers/util"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -51,6 +52,7 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) (failureDomain failureDoma
 	if sc.Status.NodeTopologies == nil || sc.Status.NodeTopologies.Labels == nil {
 		return failureDomain
 	}
+	filterDeprecatedLabels(sc.Status.NodeTopologies)
 
 	if sc.Status.FailureDomain != "" {
 		failureDomain.Type = sc.Status.FailureDomain
@@ -271,6 +273,7 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 					}
 				}
 			}
+
 			if strings.Contains(label, "rack") {
 				if !nodeRacks.Contains(value, node.Name) {
 					nodeRacks.Add(value, node.Name)
@@ -288,4 +291,30 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 	}
 
 	return nil
+}
+
+// filterDeprecatedLabels will remove the old labels from the TopologyMap if the list of values completely match with the list of values of the new label.
+func filterDeprecatedLabels(topologyMap *ocsv1.NodeTopologyMap) {
+
+	sort.Strings(topologyMap.Labels["failure-domain.beta.kubernetes.io/zone"])
+	sort.Strings(topologyMap.Labels["failure-domain.kubernetes.io/zone"])
+	sort.Strings(topologyMap.Labels["topology.kubernetes.io/zone"])
+	sort.Strings(topologyMap.Labels["failure-domain.beta.kubernetes.io/region"])
+	sort.Strings(topologyMap.Labels["failure-domain.kubernetes.io/region"])
+	sort.Strings(topologyMap.Labels["topology.kubernetes.io/region"])
+
+	if utils.CompareStringSlices(topologyMap.Labels["failure-domain.beta.kubernetes.io/zone"], topologyMap.Labels["topology.kubernetes.io/zone"]) {
+		delete(topologyMap.Labels, "failure-domain.beta.kubernetes.io/zone")
+	}
+	if utils.CompareStringSlices(topologyMap.Labels["failure-domain.beta.kubernetes.io/region"], topologyMap.Labels["topology.kubernetes.io/region"]) {
+		delete(topologyMap.Labels, "failure-domain.beta.kubernetes.io/region")
+	}
+
+	if utils.CompareStringSlices(topologyMap.Labels["failure-domain.kubernetes.io/zone"], topologyMap.Labels["topology.kubernetes.io/zone"]) {
+		delete(topologyMap.Labels, "failure-domain.kubernetes.io/zone")
+	}
+	if utils.CompareStringSlices(topologyMap.Labels["failure-domain.kubernetes.io/region"], topologyMap.Labels["topology.kubernetes.io/region"]) {
+		delete(topologyMap.Labels, "failure-domain.kubernetes.io/region")
+	}
+
 }

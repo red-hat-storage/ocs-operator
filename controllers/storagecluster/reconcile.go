@@ -88,10 +88,21 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
 var validTopologyLabelKeys = []string{
+	// This list is based on
+	// https://kubernetes.io/docs/concepts/services-networking/service-topology/
+
+	// This is the most preffered key as kubernetes recommends zone and region
+	// labels under this key.
 	"topology.kubernetes.io",
+
+	// These two are retained only to have backward compatibility; they are deprecated by kubernetes. If topology.kubernetes.io key has same label we will skip the next two from the topologyMap.
 	"failure-domain.beta.kubernetes.io",
 	"failure-domain.kubernetes.io",
+
+	// This is the kubernetes recommended label to select nodes.
 	"kubernetes.io/hostname",
+
+	// This label is used to assign rack based topology.
 	"topology.rook.io",
 }
 
