@@ -76,8 +76,6 @@ spec:
                 type: boolean
               crashCollector:
                 properties:
-                  daysToRetain:
-                    type: integer
                   disable:
                     type: boolean
                 type: object
@@ -263,6 +261,19 @@ spec:
                     type: string
                   devicePathFilter:
                     type: string
+                  devices:
+                    items:
+                      properties:
+                        config:
+                          nullable: true
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        fullPath:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    type: array
                   disruptionManagement:
                     nullable: true
                     properties:
@@ -312,6 +323,8 @@ spec:
                                 nullable: true
                                 type: object
                                 x-kubernetes-preserve-unknown-fields: true
+                              fullPath:
+                                type: string
                               name:
                                 type: string
                             type: object
@@ -374,6 +387,8 @@ spec:
                   useAllNodes:
                     type: boolean
                 type: object
+              waitTimeoutForHealthyOSDInMinutes:
+                type: integer
             type: object
           status:
             type: object
