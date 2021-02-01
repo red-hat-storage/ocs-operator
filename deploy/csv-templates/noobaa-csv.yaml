@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null,"labels":{"app":"noobaa"}},"spec":{"cleanupPolicy":{}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"aws1","creationTimestamp":null,"labels":{"app":"noobaa"},"finalizers":["noobaa.io/finalizer"]},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null,"labels":{"app":"noobaa"}},"spec":{"placementPolicy":{"tiers":[{"backingStores":["aws1"]}]}},"status":{}}]'
+    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"placementPolicy":{"tiers":[{"backingStores":["aws1"]}]}},"status":{}}]'
     capabilities: Basic Install
     categories: Storage,Big Data
     certified: "false"
