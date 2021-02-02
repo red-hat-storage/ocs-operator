@@ -6,6 +6,7 @@ import (
 	"github.com/ghodss/yaml"
 	consolev1 "github.com/openshift/api/console/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -13,6 +14,15 @@ import (
 type ocsQuickStarts struct{}
 
 func (obj *ocsQuickStarts) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	qscrd := extv1.CustomResourceDefinition{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "consolequickstarts.console.openshift.io", Namespace: ""}, &qscrd)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			r.Log.V(2).Info("No custom resource definition found for consolequickstart. Skipping quickstart initialization")
+			return nil
+		}
+		return err
+	}
 	if len(AllQuickStarts) == 0 {
 		r.Log.Info("No quickstarts found")
 		return nil
