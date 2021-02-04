@@ -30,6 +30,8 @@ var (
 	DeviceSetReplica = 3
 	// CephObjectStoreGatewayInstances is the default number of RGW instances to create
 	CephObjectStoreGatewayInstances = 1
+	// ArbiterCephObjectStoreGatewayInstances is the default number of RGW instances to create when arbiter is enabled
+	ArbiterCephObjectStoreGatewayInstances = 2
 	// IsUnsupportedCephVersionAllowed is a string that determines if the CephCluster should allow unsupported ceph version image
 	IsUnsupportedCephVersionAllowed = ""
 	// ArbiterModeDeviceSetReplica is the default number of Rook-Ceph
