@@ -3803,6 +3803,16 @@ spec:
                 description: FailureDomain is the base CRUSH element Ceph will use
                   to distribute its data replicas for the default CephBlockPool
                 type: string
+              failureDomainKey:
+                description: FailureDomainKey is the specific key used to find the
+                  locations available under a failure domain. For example topology.kubernetes.io/zone
+                type: string
+              failureDomainValues:
+                description: FailureDomainValues is the list of locations available
+                  for a failure domain under the failure domain key.
+                items:
+                  type: string
+                type: array
               images:
                 description: Images holds the image reconcile status for all images
                   reconciled by the operator
