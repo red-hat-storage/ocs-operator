@@ -221,12 +221,6 @@ func (r *StorageClusterReconciler) ensureNodeRacks(
 func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	minNodes := getMinimumNodes(sc)
 
-	for _, deviceSet := range sc.Spec.StorageDeviceSets {
-		if deviceSet.Replica > minNodes {
-			minNodes = deviceSet.Replica
-		}
-	}
-
 	nodes, err := r.getStorageClusterEligibleNodes(sc, reqLogger)
 	if err != nil {
 		return err
