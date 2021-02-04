@@ -1,5 +1,5 @@
 #!/bin/bash
-  
+
 # Expect base collection path as an argument
 BASE_COLLECTION_PATH=$1
 
@@ -57,11 +57,18 @@ do
     done
 done
 
+# Collecting noobaa db pod logs with postgres label
+NOOBAA_POSTGRES_LABEL='noobaa-db in (postgres)'
+for pod in $(oc -n "${ns}" get pods -l "${NOOBAA_POSTGRES_LABEL}" | grep -v NAME | awk '{print $1}'); do
+    echo "collecting noobaa db pod logs from ${ns}" | tee -a "${BASE_COLLECTION_PATH}"/gather-debug.log
+    { timeout 120 oc -n "${ns}" logs --all-containers "${pod}" &> "${LOG_DIR}"/"${pod}".log; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+done
+
 # Add important notfications to a notifications.txt file at the root of the noobaa collection path
 UNMANAGED_NOOBAA_NOTIF="The noobaa deployed on this cluster is not managed by the storagecluster CR and will not react to configuration changes made to storagecluster CR"
 
 NOOBAA_RECONCILE_STRATEGY=$( oc -n "${ns}" get storagecluster -o jsonpath='{.items[0].spec.multiCloudGateway.reconcileStrategy}' 2> /dev/null)
-if [ "${NOOBAA_RECONCILE_STRATEGY}" = "ignore" ] || [ "${NOOBAA_RECONCILE_STRATEGY}" = "standalone" ]; then 
+if [ "${NOOBAA_RECONCILE_STRATEGY}" = "ignore" ] || [ "${NOOBAA_RECONCILE_STRATEGY}" = "standalone" ]; then
     if [ "$(oc -n "${ns}" get noobaa -o name 2> /dev/null)" ]; then
         echo "- ${UNMANAGED_NOOBAA_NOTIF}" >> "${NOOBAA_COLLLECTION_PATH}/notifications.txt"
     fi
