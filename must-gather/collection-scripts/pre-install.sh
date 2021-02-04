@@ -47,36 +47,31 @@ labels(){
 }
 
 check_for_debug_pod(){
-    for node in ${nodes}; do
-            check_debug_pod=flase
-            if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" != "1/1" ] ; then
-                echo "waiting for the ${node//./}-debug pod to be in ready state"
-                break
-            else
-                pod_name=$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $1}')
-                oc label pod "$pod_name" "${node//./}"-debug='ready'
-                check_debug_pod=true
-            fi
-    done
+    debug_pod_name=$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $1}')
+    # sleep for 60 seconds giving time for debug pod to get created
+    sleep 60 
+    oc wait -n openshift-storage --for=condition=Ready pod/"$debug_pod_name" --timeout=200s
+    if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" == "1/1" ] ; then
+        oc label -n openshift-storage pod "$debug_pod_name" "${node//./}"-debug='ready'
+    fi
 }
 
 check_for_helper_pod(){
-    check_helper_pod=flase
-    if [ "$(oc get pods -n openshift-storage -l  must-gather-helper-pod='' | awk '{print $2}')" == "1/1" ] ; then
-        check_helper_pod=true
-    fi
+    # sleep for 60 seconds giving time for debug pod to get created
+    sleep 60
+    oc wait -n openshift-storage --for=condition=Ready pod/"${HOSTNAME}"-helper --timeout=200s
 }
 
 deploy
 labels
-for i in {0..300..3}; do
-    check_for_debug_pod
-    check_for_helper_pod
-    if [ $check_helper_pod = true ] && [ $check_debug_pod = true ] ; then
-        echo "helper pod and debug pod are ready"
-        break
-    else 
-       sleep 3
-       echo "waiting for helper pod and debug pod for $i seconds"
-    fi
+pids=()
+check_for_helper_pod &
+pids+=($!)
+for node in ${nodes}; do
+    check_for_debug_pod &
+    pids+=($!)
 done
+
+# wait for all pids
+echo "waiting for ${pids[*]} to terminate"
+wait "${pids[@]}"
