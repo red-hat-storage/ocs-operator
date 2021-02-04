@@ -709,3 +709,10 @@ func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) cephv1.MonSpec {
 		AllowMultiplePerNode: false,
 	}
 }
+
+func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int32 {
+	if arbiterEnabled(sc) {
+		return int32(defaults.ArbiterCephObjectStoreGatewayInstances)
+	}
+	return int32(defaults.CephObjectStoreGatewayInstances)
+}

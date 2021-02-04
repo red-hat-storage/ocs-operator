@@ -125,7 +125,7 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephObjectStore, error) {
 	gatewayInstances := initData.Spec.ManagedResources.CephObjectStores.GatewayInstances
 	if gatewayInstances == 0 {
-		gatewayInstances = int32(defaults.CephObjectStoreGatewayInstances)
+		gatewayInstances = getCephObjectStoreGatewayInstances(initData)
 	}
 	ret := []*cephv1.CephObjectStore{
 		{
