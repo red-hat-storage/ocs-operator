@@ -95,6 +95,10 @@ function gen_ocs_csv() {
 if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	dump_noobaa_csv
 	dump_rook_csv
+else
+	IMAGE_RUN_CMD="podman"
+	dump_noobaa_csv
+	dump_rook_csv
 fi
 
 gen_ocs_csv
