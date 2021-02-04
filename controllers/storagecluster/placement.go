@@ -53,7 +53,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 		return placement
 	}
 
-	topologyKey := determineFailureDomain(sc)
+	topologyKey := getFailureDomain(sc)
 	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
 	if component == "mon" || component == "mds" || (component == "rgw" && getCephObjectStoreGatewayInstances(sc) > 1) {
 		if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {

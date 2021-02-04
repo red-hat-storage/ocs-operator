@@ -39,19 +39,31 @@ func (r *StorageClusterReconciler) getStorageClusterEligibleNodes(sc *ocsv1.Stor
 	return nodes, err
 }
 
-// determineFailureDomain determines the appropriate Ceph failure domain based
+// getFailureDomain returns the failure domain that was determined at the time of node topology reconcilation
+func getFailureDomain(sc *ocsv1.StorageCluster) string {
+	return sc.Status.FailureDomain
+}
+
+// setFailureDomain determines the appropriate Ceph failure domain based
 // on the storage cluster's topology map
-func determineFailureDomain(sc *ocsv1.StorageCluster) string {
+func setFailureDomain(sc *ocsv1.StorageCluster) {
+
+	// We don't change the failure domain after it is determined
 	if sc.Status.FailureDomain != "" {
-		return sc.Status.FailureDomain
+		return
 	}
 
-	if sc.Spec.FlexibleScaling {
-		return "host"
-	}
-
-	topologyMap := sc.Status.NodeTopologies
+	// default is rack
 	failureDomain := "rack"
+
+	// But if FlexiableScaling is enabled then we select host as failure domain
+	// as we need +1 scaling
+	if sc.Spec.FlexibleScaling {
+		failureDomain = "host"
+	}
+
+	// If sufficient zones are available then we select zone as the failure domain
+	topologyMap := sc.Status.NodeTopologies
 	for label, labelValues := range topologyMap.Labels {
 		if strings.Contains(label, "zone") {
 			if (len(labelValues) >= 2 && arbiterEnabled(sc)) || (len(labelValues) >= 3) {
@@ -59,7 +71,8 @@ func determineFailureDomain(sc *ocsv1.StorageCluster) string {
 			}
 		}
 	}
-	return failureDomain
+
+	sc.Status.FailureDomain = failureDomain
 }
 
 // determinePlacementRack sorts the list of known racks in alphabetical order,
@@ -258,7 +271,9 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 
 	}
 
-	if determineFailureDomain(sc) == "rack" {
+	setFailureDomain(sc)
+
+	if getFailureDomain(sc) == "rack" {
 		err = r.ensureNodeRacks(nodes, minNodes, nodeRacks, topologyMap, reqLogger)
 		if err != nil {
 			return err

@@ -277,10 +277,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			reqLogger.Error(err, "Failed to set node topology map")
 			return reconcile.Result{}, err
 		}
-
-		if instance.Status.FailureDomain == "" {
-			instance.Status.FailureDomain = determineFailureDomain(instance)
-		}
 	}
 
 	// in-memory conditions should start off empty. It will only ever hold
