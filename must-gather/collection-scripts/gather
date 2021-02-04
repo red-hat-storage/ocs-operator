@@ -7,7 +7,7 @@ SINCE_TIME=$1
 
 # timestamp for starting of the script
 START_TIME=$(date +%r)
-date1=$(date +%s)
+start=$(date +%s)
 printf "collection started at: %s \n" "${START_TIME}" >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 
 # Call pre-install.sh
@@ -31,16 +31,13 @@ post-uninstall.sh
 
 # timestamp for ending of the script
 END_TIME=$(date +%r)
-date2=$(date +%s)
-diff=$(("${date2}"-"${date1}"))
-printf "collection ended at: %s \n" "${END_TIME}" >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+end=$(date +%s)
+totalTime=$((end-start))
+{
+    printf "total time taken by collection was %s seconds \n" ${totalTime}
+    printf "collection ended at: %s \n" "${END_TIME}"
+    echo "deleting empty files"
 
-# collecting the total time taken by the script script
-hrs=$(("${diff}" / 3600 ))
-mins=$((("${diff}" % 3600) / 60))
-secs=$(("${diff}" % 60))
-printf "Total Time is %s hours %s mins and %s seconds \n" "${hrs}" "${mins}" "${secs}" >> ${BASE_COLLECTION_PATH}/gather-debug 2>&1
-
-echo "deleting empty files" >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+} >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 find "${BASE_COLLECTION_PATH}" -empty -delete >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 exit 0
