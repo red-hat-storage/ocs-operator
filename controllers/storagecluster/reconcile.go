@@ -602,7 +602,7 @@ or if an OSD ID is not found, errors will be generated in the log and no OSDs wo
 
 func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 	labels := map[string]string{
-		"app": "ceph-toolbox-job-${FAILED_OSD_IDS}",
+		"app": "ceph-toolbox-job",
 	}
 
 	// Annotation template.alpha.openshift.io/wait-for-ready ensures template readiness
