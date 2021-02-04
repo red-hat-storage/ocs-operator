@@ -514,6 +514,11 @@ func (in *StorageClusterStatus) DeepCopyInto(out *StorageClusterStatus) {
 		*out = new(NodeTopologyMap)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.FailureDomainValues != nil {
+		in, out := &in.FailureDomainValues, &out.FailureDomainValues
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	in.Images.DeepCopyInto(&out.Images)
 }
 
