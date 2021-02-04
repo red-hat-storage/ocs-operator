@@ -408,6 +408,15 @@ func getReplicasPerFailureDomain(sc *ocsv1.StorageCluster) int {
 	return defaults.ReplicasPerFailureDomain
 }
 
+// getCephPoolReplicatedSize returns the default replica per cluster count for a
+// StorageCluster type
+func getCephPoolReplicatedSize(sc *ocsv1.StorageCluster) uint {
+	if arbiterEnabled(sc) {
+		return uint(4)
+	}
+	return uint(3)
+}
+
 // getMinimumNodes returns the minimum number of nodes that are required for the Storage Cluster of various configurations
 func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 	// Case 1: When replicasPerFailureDomain is 1.
