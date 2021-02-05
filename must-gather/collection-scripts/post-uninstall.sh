@@ -7,5 +7,5 @@ nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-heade
 
 for node in ${nodes}; do
     pod_name=$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $1}')
-    oc delete pod -l  "$pod_name" "${node//./}"-debug='ready'
+    oc delete -n openshift-storage pod "$pod_name"
 done
