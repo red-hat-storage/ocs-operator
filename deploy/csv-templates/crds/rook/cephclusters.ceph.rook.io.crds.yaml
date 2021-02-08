@@ -60,6 +60,8 @@ spec:
                   type: boolean
                 continueUpgradeAfterChecksEvenIfNotHealthy:
                   type: boolean
+                waitTimeoutForHealthyOSDInMinutes:
+                  type: integer
                 mon:
                   type: object
                   properties:
@@ -109,8 +111,6 @@ spec:
                   properties:
                     disable:
                       type: boolean
-                    daysToRetain:
-                      type: integer
                 network:
                   type: object
                   nullable: true
@@ -186,6 +186,8 @@ spec:
                               properties:
                                 name:
                                   type: string
+                                fullPath:
+                                  type: string
                                 config:
                                   type: object
                                   nullable: true
@@ -205,6 +207,19 @@ spec:
                       type: object
                       nullable: true
                       x-kubernetes-preserve-unknown-fields: true
+                    devices:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          fullPath:
+                            type: string
+                          config:
+                            type: object
+                            nullable: true
+                            x-kubernetes-preserve-unknown-fields: true
                     storageClassDeviceSets:
                       type: array
                       nullable: true

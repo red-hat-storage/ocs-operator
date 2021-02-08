@@ -13,7 +13,7 @@ metadata:
           },
           "spec": {
             "cephVersion": {
-              "image": "ceph/ceph:v15.2.7"
+              "image": "ceph/ceph:v15.2.8"
             },
             "dataDirHostPath": "/var/lib/rook",
             "mon": {
@@ -1119,39 +1119,6 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - kind: CephBlockPool
-      name: cephblockpools.ceph.rook.io
-      version: v1
-    - kind: CephClient
-      name: cephclients.ceph.rook.io
-      version: v1
-    - kind: CephCluster
-      name: cephclusters.ceph.rook.io
-      version: v1
-    - kind: CephFilesystem
-      name: cephfilesystems.ceph.rook.io
-      version: v1
-    - kind: CephNFS
-      name: cephnfses.ceph.rook.io
-      version: v1
-    - kind: CephObjectRealm
-      name: cephobjectrealms.ceph.rook.io
-      version: v1
-    - kind: CephObjectStore
-      name: cephobjectstores.ceph.rook.io
-      version: v1
-    - kind: CephObjectStoreUser
-      name: cephobjectstoreusers.ceph.rook.io
-      version: v1
-    - kind: CephObjectZoneGroup
-      name: cephobjectzonegroups.ceph.rook.io
-      version: v1
-    - kind: CephObjectZone
-      name: cephobjectzones.ceph.rook.io
-      version: v1
-    - kind: CephRBDMirror
-      name: cephrbdmirrors.ceph.rook.io
-      version: v1
     - kind: CephCluster
       name: cephclusters.ceph.rook.io
       version: v1
@@ -1376,7 +1343,6 @@ spec:
           - batch
           resources:
           - jobs
-          - cronjobs
           verbs:
           - get
           - list
@@ -1971,12 +1937,6 @@ spec:
           - watch
           - create
           - update
-          - delete
-        - apiGroups:
-          - batch
-          resources:
-          - cronjobs
-          verbs:
           - delete
         serviceAccountName: rook-ceph-system
       - rules:
