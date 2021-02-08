@@ -15,6 +15,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +23,10 @@ import (
 	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+var throttleDiskTypes = []string{"gp2", "io1"}
+
+var throttleFastDiskTypes = []string{"managed-premium"}
 
 const (
 	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
@@ -40,15 +45,12 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 	// this is for performance optimization of slow device class
 	//TODO: If for a StorageDeviceSet there is a separate metadata pvc template, check for StorageClass of data pvc template only
 	for i, ds := range sc.Spec.StorageDeviceSets {
-		throttle, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
+		throttleSlow, throttleFast, err := r.throttleStorageDevices(*ds.DataPVCTemplate.Spec.StorageClassName)
 		if err != nil {
 			return fmt.Errorf("Failed to verify StorageClass provisioner. %+v", err)
 		}
-		if throttle {
-			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = true
-		} else {
-			sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
-		}
+		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = throttleSlow
+		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = throttleFast
 	}
 
 	if isMultus(sc.Spec.Network) {
@@ -401,6 +403,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rook.StorageClassDevi
 				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
 				Portable:             ds.Portable,
 				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
+				TuneFastDeviceClass:  ds.Config.TuneFastDeviceClass,
 				Encrypted:            sc.Spec.Encryption.Enable,
 			}
 
@@ -429,4 +432,25 @@ func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[s
 	}
 
 	return resources
+}
+
+func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string) (bool, bool, error) {
+	storageClass := &storagev1.StorageClass{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
+	}
+
+	switch storageClass.Provisioner {
+	case string(EBS):
+		if contains(throttleDiskTypes, storageClass.Parameters["type"]) {
+			return true, false, nil
+		}
+	case string(AzureDisk):
+		if contains(throttleFastDiskTypes, storageClass.Parameters["type"]) {
+			return false, true, nil
+		}
+	}
+
+	return false, false, nil
 }
