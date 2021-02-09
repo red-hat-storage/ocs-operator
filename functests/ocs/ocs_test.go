@@ -3,21 +3,20 @@ package ocs_test
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 	tests "github.com/openshift/ocs-operator/functests"
 )
 
 func TestTests(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "OCS Test Suite")
+	gomega.RegisterFailHandler(ginkgo.Fail)
+	ginkgo.RunSpecs(t, "OCS Test Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = ginkgo.BeforeSuite(func() {
 	tests.BeforeTestSuiteSetup()
 })
 
-var _ = AfterSuite(func() {
+var _ = ginkgo.AfterSuite(func() {
 	tests.AfterTestSuiteCleanup()
 })
