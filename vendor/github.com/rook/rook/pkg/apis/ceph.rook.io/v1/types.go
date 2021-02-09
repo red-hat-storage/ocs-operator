@@ -98,6 +98,13 @@ type ClusterSpec struct {
 	// ContinueUpgradeAfterChecksEvenIfNotHealthy defines if an upgrade should continue even if PGs are not clean
 	ContinueUpgradeAfterChecksEvenIfNotHealthy bool `json:"continueUpgradeAfterChecksEvenIfNotHealthy,omitempty"`
 
+	// WaitTimeoutForHealthyOSDInMinutes defines the time the operator would wait before an OSD can be stopped for upgrade or restart.
+	// If the timeout exceeds and OSD is not ok to stop, then the operator would skip upgrade for the current OSD and proceed with the next one
+	// if `continueUpgradeAfterChecksEvenIfNotHealthy` is `false`. If `continueUpgradeAfterChecksEvenIfNotHealthy` is `true`, then opertor would
+	// continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`.
+	// The default wait timeout is 10 minutes.
+	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
+
 	// A spec for configuring disruption management.
 	DisruptionManagement DisruptionManagementSpec `json:"disruptionManagement,omitempty"`
 
@@ -156,7 +163,7 @@ type KeyManagementServiceSpec struct {
 
 // CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.7
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.8
 	Image string `json:"image,omitempty"`
 
 	// Whether to allow unsupported versions (do not set to true in production)
@@ -326,8 +333,7 @@ type ExternalSpec struct {
 
 // CrashCollectorSpec represents options to configure the crash controller
 type CrashCollectorSpec struct {
-	Disable      bool `json:"disable"`
-	DaysToRetain uint `json:"daysToRetain,omitempty"`
+	Disable bool `json:"disable"`
 }
 
 // +genclient

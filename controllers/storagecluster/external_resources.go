@@ -234,25 +234,21 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		switch d.Kind {
 		case "CephCluster":
 			monitoringIP, ok := d.Data["MonitoringEndpoint"]
-			if !ok {
+			if !ok || monitoringIP == "" {
 				err := fmt.Errorf(
 					"Monitoring Endpoint not present in the external cluster secret %s",
 					externalClusterDetailsSecret)
 				reqLogger.Error(err, "Failed to get Monitoring IP.")
 				return err
 			}
-			monitoringPort, ok := d.Data["MonitoringPort"]
-			if !ok {
-				err := fmt.Errorf(
-					"Monitoring Port not present in the external cluster secret %s",
-					externalClusterDetailsSecret)
-				reqLogger.Error(err, "Failed to get Monitoring Port.")
-				return err
-			}
-			err := validateMonitoringEndpoint(monitoringIP, monitoringPort, reqLogger)
-			if err != nil {
-				reqLogger.Error(err, "Monitoring validation failed")
-				return err
+			monitoringPort := d.Data["MonitoringPort"]
+			if monitoringPort != "" {
+				err := checkEndpointReachable(net.JoinHostPort(monitoringIP, monitoringPort), 5*time.Second)
+				if err != nil {
+					r.Log.Error(err, "Monitoring validation failed")
+					return err
+				}
+				r.monitoringPort = monitoringPort
 			}
 			reqLogger.Info("Monitoring Information found. Monitoring will be enabled on the external cluster")
 			r.monitoringIP = monitoringIP
@@ -368,27 +364,5 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 			return err
 		}
 	}
-	return nil
-}
-
-// To check if endpoint is a VALID ip and is REACHABLE or not
-func validateMonitoringEndpoint(monitoringIP string, monitoringPort string, reqLogger logr.Logger) error {
-	_, err := net.LookupIP(monitoringIP)
-	if err != nil {
-		reqLogger.Error(err, "Monitoring endpoint is not a valid IPv4 IP")
-		return err
-	}
-	endpoint := net.JoinHostPort(monitoringIP, monitoringPort)
-	con, err := net.DialTimeout("tcp", endpoint, 5*time.Second)
-	if err != nil {
-		reqLogger.Error(err, fmt.Sprintf("Monitoring Endpoint (%s) is not reachable", endpoint))
-		return err
-	}
-	defer func() {
-		err := con.Close()
-		if err != nil {
-			reqLogger.Error(err, "")
-		}
-	}()
 	return nil
 }
