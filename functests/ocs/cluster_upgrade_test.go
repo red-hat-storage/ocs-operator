@@ -1,73 +1,72 @@
 package ocs_test
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 	tests "github.com/openshift/ocs-operator/functests"
 )
 
-var _ = PDescribe("Cluster upgrade", ClusterUpgradeTest)
+var _ = ginkgo.XDescribe("Cluster upgrade", ClusterUpgradeTest)
 
 func ClusterUpgradeTest() {
 
-	BeforeEach(func() {
-		RegisterFailHandler(Fail)
+	ginkgo.BeforeEach(func() {
+		gomega.RegisterFailHandler(ginkgo.Fail)
 		if tests.UpgradeFromOcsRegistryImage == "" {
-			Skip("Condition not met for upgrade. Missing ocs registry image to upgrade from.")
+			ginkgo.Skip("Condition not met for upgrade. Missing ocs registry image to upgrade from.")
 		}
 	})
 
-	Describe("ocs", func() {
+	ginkgo.Describe("ocs", func() {
 
-		BeforeEach(func() {
-			By("Preparing for upgrade. Uninstall the current cluster")
+		ginkgo.BeforeEach(func() {
+			ginkgo.By("Preparing for upgrade. Uninstall the current cluster")
 			tests.AfterTestSuiteCleanup()
-			By("Reinstall a fresh cluster based on upgrade_from image")
+			ginkgo.By("Reinstall a fresh cluster based on upgrade_from image")
 			tests.BeforeUpgradeTestSuiteSetup()
 		})
 
-		AfterEach(func() {
-			if CurrentGinkgoTestDescription().Failed {
-				By("Detected upgrade failure. Cleanup the cluster")
+		ginkgo.AfterEach(func() {
+			if ginkgo.CurrentGinkgoTestDescription().Failed {
+				ginkgo.By("Detected upgrade failure. Cleanup the cluster")
 				tests.AfterUpgradeTestSuiteCleanup()
-				By("Reinstall a fresh cluster")
+				ginkgo.By("Reinstall a fresh cluster")
 				tests.BeforeTestSuiteSetup()
 			}
 		})
 
-		Context("upgrade cluster", func() {
-			It("and verify deployment status", func() {
+		ginkgo.Context("upgrade cluster", func() {
+			ginkgo.It("and verify deployment status", func() {
 				deployManager := tests.DeployManager
 
-				By("Getting the current csv before the upgrade")
+				ginkgo.By("Getting the current csv before the upgrade")
 				csv, err := deployManager.GetCsv()
-				Expect(err).To(BeNil())
+				gomega.Expect(err).To(gomega.BeNil())
 
-				By("Upgrading OCS with OLM to the current version from upgrade_from version")
+				ginkgo.By("Upgrading OCS with OLM to the current version from upgrade_from version")
 				err = deployManager.UpgradeOCSWithOLM(tests.OcsRegistryImage, tests.OcsSubscriptionChannel)
-				Expect(err).To(BeNil())
+				gomega.Expect(err).To(gomega.BeNil())
 
-				By("Waiting for OCS CSV to be posted and installed")
+				ginkgo.By("Waiting for OCS CSV to be posted and installed")
 				err = deployManager.WaitForCsvUpgrade(csv.Name, tests.OcsSubscriptionChannel)
-				Expect(err).To(BeNil())
+				gomega.Expect(err).To(gomega.BeNil())
 
-				By("Waiting for ocs-operator, rook-ceph-operator and noobaa-operator to come online.")
+				ginkgo.By("Waiting for ocs-operator, rook-ceph-operator and noobaa-operator to come online.")
 				err = deployManager.WaitForOCSOperator()
-				Expect(err).To(BeNil())
+				gomega.Expect(err).To(gomega.BeNil())
 
-				By("Verifying ocs-csv has been upgraded to the new version")
+				ginkgo.By("Verifying ocs-csv has been upgraded to the new version")
 				upgradedCsv, err := deployManager.GetCsv()
-				Expect(err).To(BeNil())
-				Expect(upgradedCsv.Name).ToNot(Equal(csv.Name))
+				gomega.Expect(err).To(gomega.BeNil())
+				gomega.Expect(upgradedCsv.Name).ToNot(gomega.Equal(csv.Name))
 
-				By("Verifying operators have been upgraded to the new images in the deployment")
+				ginkgo.By("Verifying operators have been upgraded to the new images in the deployment")
 				err = deployManager.VerifyComponentOperators()
-				Expect(err).To(BeNil())
+				gomega.Expect(err).To(gomega.BeNil())
 
-				By("Verifying StorageCluster previously created in the environment is still healthy")
+				ginkgo.By("Verifying StorageCluster previously created in the environment is still healthy")
 				err = deployManager.WaitOnStorageCluster()
-				Expect(err).To(BeNil())
+				gomega.Expect(err).To(gomega.BeNil())
 			})
 		})
 	})
