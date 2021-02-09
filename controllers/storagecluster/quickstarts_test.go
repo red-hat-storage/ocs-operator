@@ -8,7 +8,9 @@ import (
 	consolev1 "github.com/openshift/api/console/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
 	"github.com/stretchr/testify/assert"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -21,6 +23,13 @@ var (
 		},
 		{
 			quickstartName: "ocs-configuration",
+		},
+	}
+
+	testQuickStartCRD = extv1.CustomResourceDefinition{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "consolequickstarts.console.openshift.io",
+			Namespace: "",
 		},
 	}
 )
@@ -45,9 +54,11 @@ func TestEnsureQuickStarts(t *testing.T) {
 
 	cqs := &consolev1.ConsoleQuickStart{}
 	reconciler := createFakeStorageClusterReconciler(t, cqs)
+	err := reconciler.Client.Create(context.TODO(), &testQuickStartCRD)
+	assert.NoError(t, err)
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	err := obj.ensureCreated(&reconciler, sc)
+	err = obj.ensureCreated(&reconciler, sc)
 	assert.NoError(t, err)
 	for _, c := range cases {
 		qs := consolev1.ConsoleQuickStart{}

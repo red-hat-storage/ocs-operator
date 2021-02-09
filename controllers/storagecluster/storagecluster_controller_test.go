@@ -33,6 +33,7 @@ import (
 	"github.com/openshift/ocs-operator/controllers/defaults"
 	statusutil "github.com/openshift/ocs-operator/controllers/util"
 	"github.com/openshift/ocs-operator/version"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 const (
@@ -923,6 +924,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = consolev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add consolev1 scheme")
+	}
+	err = extv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add extv1 scheme")
 	}
 	return scheme
 }

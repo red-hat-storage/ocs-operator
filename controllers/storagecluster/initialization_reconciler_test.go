@@ -16,6 +16,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -198,6 +199,10 @@ func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtim
 	err = consolev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add consolev1 scheme")
+	}
+	err = extv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add extv1 scheme")
 	}
 
 	return scheme
