@@ -23,11 +23,16 @@ apply_latest_helper_pod() {
 # Add Ready nodes to the list
 nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
 
+# storing storagecluster name
+storageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
 deploy(){
      operatorImage=$(oc get pods -l app=rook-ceph-operator -n openshift-storage -o jsonpath="{range .items[*]}{@.spec.containers[0].image}+{end}" | tr "+" "\n" | head -n1)
-     if [ "${operatorImage}" = "" ]; then
-          echo "not able to find the rook's operator image. Skipping collection of ceph command output" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+     if [ -z "${storageClusterPresent}" ]; then
+        echo "not creating helper pod since storagecluster is not present" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+     elif [ "${operatorImage}" = "" ]; then
+        echo "not able to find the rook's operator image. Skipping collection of ceph command output" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
      else
+          echo "creating helper pod" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
           current_version=$(oc get csv -n "${ns}" --no-headers | awk '{print $5}' | tr -dc '0-9')
           if [[ $current_version -ge 460 ]]; then
               apply_latest_helper_pod "$ns" "$operatorImage"
@@ -43,7 +48,9 @@ deploy(){
 }
 
 labels(){
+    if [ -n "${storageClusterPresent}" ]; then
      oc label pod -n openshift-storage "${HOSTNAME}"-helper must-gather-helper-pod=''
+    fi
 }
 
 check_for_debug_pod(){
@@ -65,8 +72,10 @@ check_for_helper_pod(){
 deploy
 labels
 pids=()
-check_for_helper_pod &
-pids+=($!)
+if [ -n "${storageClusterPresent}" ]; then
+    check_for_helper_pod &
+    pids+=($!)
+fi
 for node in ${nodes}; do
     check_for_debug_pod &
     pids+=($!)
