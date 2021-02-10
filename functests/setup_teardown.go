@@ -7,6 +7,8 @@ import (
 // BeforeTestSuiteSetup is the function called to initialize the test environment
 func BeforeTestSuiteSetup() {
 
+	SuiteFailed = true
+
 	debug("BeforeTestSuite: deploying OCS\n")
 	err := DeployManager.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
@@ -19,6 +21,8 @@ func BeforeTestSuiteSetup() {
 	debug("BeforeTestSuite: creating Namespace %s\n", TestNamespace)
 	err = DeployManager.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
+
+	SuiteFailed = false
 
 	debug("------------------------------\n")
 }
