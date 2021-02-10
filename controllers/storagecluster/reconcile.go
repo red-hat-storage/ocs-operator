@@ -47,7 +47,7 @@ const (
 mon_osd_full_ratio = .85
 mon_osd_backfillfull_ratio = .8
 mon_osd_nearfull_ratio = .75
-mon_max_pg_per_osd = 300
+mon_max_pg_per_osd = 600
 [osd]
 osd_memory_target_cgroup_limit_ratio = 0.5
 `
