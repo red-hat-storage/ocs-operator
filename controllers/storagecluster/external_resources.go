@@ -83,6 +83,10 @@ func sha512sum(tobeHashed []byte) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+func parseMonitoringIPs(monIP string) []string {
+	return strings.Fields(strings.ReplaceAll(monIP, ",", " "))
+}
+
 func (r *StorageClusterReconciler) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
 	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
@@ -240,17 +244,28 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		objectKey := types.NamespacedName{Name: d.Name, Namespace: instance.Namespace}
 		switch d.Kind {
 		case "CephCluster":
-			monitoringIP, ok := d.Data["MonitoringEndpoint"]
-			if !ok || monitoringIP == "" {
+			monitoringIP := d.Data["MonitoringEndpoint"]
+			if monitoringIP == "" {
 				err := fmt.Errorf(
 					"Monitoring Endpoint not present in the external cluster secret %s",
 					externalClusterDetailsSecret)
 				r.Log.Error(err, "Failed to get Monitoring IP.")
 				return err
 			}
+			// replace any comma in the monitoring ip string with space
+			// and then collect individual (non-empty) items' array
+			monIPArr := parseMonitoringIPs(monitoringIP)
 			monitoringPort := d.Data["MonitoringPort"]
 			if monitoringPort != "" {
-				err := checkEndpointReachable(net.JoinHostPort(monitoringIP, monitoringPort), 5*time.Second)
+				var err error
+				for _, eachMonIP := range monIPArr {
+					err = checkEndpointReachable(net.JoinHostPort(eachMonIP, monitoringPort), 5*time.Second)
+					// if any one of the mon's IP:PORT combination is reachable,
+					// consider the whole set as valid
+					if err == nil {
+						break
+					}
+				}
 				if err != nil {
 					r.Log.Error(err, "Monitoring validation failed")
 					return err

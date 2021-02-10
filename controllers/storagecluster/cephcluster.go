@@ -367,7 +367,12 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 	if monitoringIP != "" {
 		monitoringSpec.Enabled = true
 		monitoringSpec.RulesNamespace = sc.Namespace
-		monitoringSpec.ExternalMgrEndpoints = []corev1.EndpointAddress{{IP: monitoringIP}}
+		// replace any comma with space and collect all the non-empty items
+		monIPArr := parseMonitoringIPs(monitoringIP)
+		monitoringSpec.ExternalMgrEndpoints = make([]corev1.EndpointAddress, len(monIPArr))
+		for idx, eachMonIP := range monIPArr {
+			monitoringSpec.ExternalMgrEndpoints[idx].IP = eachMonIP
+		}
 		if monitoringPort != "" {
 			if uint16Val, err := strconv.ParseUint(monitoringPort, 10, 16); err == nil {
 				monitoringSpec.ExternalMgrPrometheusPort = uint16(uint16Val)
