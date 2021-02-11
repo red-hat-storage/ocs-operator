@@ -445,7 +445,10 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	reconciler.initializeImagesStatus(cr)
 	// start a dummy server, if we are not expecting any errors
 	if !kmsArgs.failureExpected {
-		startServerAt(kmsArgs.kmsAddress)
+		if err := startServerAt(kmsArgs.kmsAddress); err != nil {
+			t.Errorf("Unable to create the server: %v", err)
+			t.FailNow()
+		}
 	}
 
 	var obj ocsCephCluster

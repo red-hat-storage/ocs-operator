@@ -409,7 +409,11 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 
 	// don't start dummy servers for invalid tests
 	if !kmsArgs.failureExpected {
-		startServerAt(kmsArgs.kmsAddress)
+		err := startServerAt(kmsArgs.kmsAddress)
+		if err != nil {
+			t.Errorf("Unable to start the server: %v", err)
+			t.FailNow()
+		}
 	}
 
 	var obj ocsCephCluster

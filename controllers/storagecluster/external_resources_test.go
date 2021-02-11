@@ -133,13 +133,20 @@ func createExternalClusterReconcilerFromCustomResources(
 		},
 	}
 	if extResource, err := findNamedResourceFromArray(extResources, "ceph-rgw"); err == nil {
-		startServerAt(extResource.Data["endpoint"])
+		err = startServerAt(extResource.Data["endpoint"])
+		if err != nil {
+			t.Fatalf("failed to create the server: %v", err)
+		}
 	}
 	if extResource, err := findNamedResourceFromArray(extResources, "monitoring-endpoint"); err == nil {
 		monEndpointIP := extResource.Data["MonitoringEndpoint"]
 		monEndpointPort := extResource.Data["MonitoringPort"]
 		if monEndpointIP != "" && monEndpointPort != "" {
-			startServerAt(net.JoinHostPort(monEndpointIP, monEndpointPort))
+			err = startServerAt(net.JoinHostPort(monEndpointIP, monEndpointPort))
+
+			if err != nil {
+				t.Fatalf("failed to create the server: %v", err)
+			}
 		}
 	}
 	externalSecret, err := createExternalCephClusterSecret(extResources)
@@ -268,18 +275,19 @@ func updateNamedResourceInArray(extArr []ExternalResource, extRsrc ExternalResou
 	return extArr
 }
 
-func startServerAt(endpoint string) <-chan error {
+func startServerAt(endpoint string) error {
 	var doneChan = make(chan error)
-	go func(doneChan chan<- error, endpoint string) {
+
+	rxp := regexp.MustCompile(`^http[s]?://`)
+	// remove any http or https protocols from the endpoint string
+	endpoint = rxp.ReplaceAllString(endpoint, "")
+	ln, err := net.Listen("tcp4", endpoint)
+	if err != nil {
+		return fmt.Errorf("Could not create a server %v", err)
+	}
+
+	go func(ln net.Listener, doneChan chan<- error, endpoint string) {
 		defer close(doneChan)
-		rxp := regexp.MustCompile(`^http[s]?://`)
-		// remove any http or https protocols from the endpoint string
-		endpoint = rxp.ReplaceAllString(endpoint, "")
-		ln, err := net.Listen("tcp4", endpoint)
-		if err != nil {
-			doneChan <- err
-			return
-		}
 		defer ln.Close()
 		conn, err := ln.Accept()
 		if err != nil {
@@ -288,8 +296,8 @@ func startServerAt(endpoint string) <-chan error {
 		}
 		defer conn.Close()
 		doneChan <- nil
-	}(doneChan, endpoint)
-	return doneChan
+	}(ln, doneChan, endpoint)
+	return nil
 }
 
 func generateRandomPort(minPort, maxPort int) int {
@@ -452,7 +460,8 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	// change 'rgw-endpoint'
 	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("localhost:%d", generateRandomPort(20000, 30000))
 	// start a dummy / local server at the endpoint
-	startServerAt(rgwRsrc.Data[externalCephRgwEndpointKey])
+	err = startServerAt(rgwRsrc.Data[externalCephRgwEndpointKey])
+	assert.NoError(t, err)
 	extRsrcs = updateNamedResourceInArray(extRsrcs, rgwRsrc)
 	// create and update external secret with new changes
 	extSecret, err := createExternalCephClusterSecret(extRsrcs)
