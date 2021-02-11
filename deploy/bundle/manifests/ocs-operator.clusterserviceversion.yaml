@@ -2391,7 +2391,7 @@ spec:
                 - name: NOOBAA_CORE_IMAGE
                   value: noobaa/noobaa-core:5.7.0-20201216
                 - name: NOOBAA_DB_IMAGE
-                  value: centos/mongodb-36-centos7
+                  value: centos/postgresql-12-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: Always
                 name: ocs-operator
@@ -2531,7 +2531,7 @@ spec:
                 - name: NOOBAA_CORE_IMAGE
                   value: noobaa/noobaa-core:5.7.0-20201216
                 - name: NOOBAA_DB_IMAGE
-                  value: centos/mongodb-36-centos7
+                  value: centos/postgresql-12-centos7
                 image: noobaa/noobaa-operator:5.7.0-20201216
                 name: noobaa-operator
                 resources:
@@ -2903,7 +2903,7 @@ spec:
     name: noobaa-operator
   - image: noobaa/noobaa-core:5.7.0-20201216
     name: noobaa-core
-  - image: centos/mongodb-36-centos7
+  - image: centos/postgresql-12-centos7
     name: noobaa-db
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
