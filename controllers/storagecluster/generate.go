@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 func generateNameForCephCluster(initData *ocsv1.StorageCluster) string {
@@ -54,4 +55,18 @@ func generateNameForSnapshotClassDriver(initData *ocsv1.StorageCluster, snapshot
 
 func generateNameForSnapshotClassSecret(snapshotType SnapshotterType) string {
 	return fmt.Sprintf("rook-csi-%s-provisioner", snapshotType)
+}
+
+// generateCephReplicatedSpec returns the ReplicatedSpec for the cephCluster
+// based on the StorageCluster configuration
+func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string) cephv1.ReplicatedSpec {
+	crs := cephv1.ReplicatedSpec{}
+
+	crs.Size = getCephPoolReplicatedSize(initData)
+	crs.ReplicasPerFailureDomain = uint(getReplicasPerFailureDomain(initData))
+	if "data" == poolType {
+		crs.TargetSizeRatio = .49
+	}
+
+	return crs
 }

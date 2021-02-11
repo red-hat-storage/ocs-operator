@@ -14,20 +14,6 @@ import (
 
 type ocsCephBlockPools struct{}
 
-func generateCephReplicatedSpec(initData *ocsv1.StorageCluster) cephv1.ReplicatedSpec {
-	if arbiterEnabled(initData) {
-		return cephv1.ReplicatedSpec{
-			Size:                     4,
-			TargetSizeRatio:          .49,
-			ReplicasPerFailureDomain: 2,
-		}
-	}
-	return cephv1.ReplicatedSpec{
-		Size:            3,
-		TargetSizeRatio: .49,
-	}
-}
-
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
@@ -39,7 +25,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 			},
 			Spec: cephv1.PoolSpec{
 				FailureDomain:  determineFailureDomain(initData),
-				Replicated:     generateCephReplicatedSpec(initData),
+				Replicated:     generateCephReplicatedSpec(initData, "data"),
 				EnableRBDStats: true,
 			},
 		},
