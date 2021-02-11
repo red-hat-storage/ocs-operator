@@ -71,7 +71,7 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 			expectedNodeCount: 3,
 		},
 		{
-			label:          "Case 2", // failure domain is not set
+			label:          "Case 2", // failure domain is not set and sufficient zones available
 			nodeList:       &corev1.NodeList{},
 			storageCluster: &api.StorageCluster{},
 			failureDomain:  "",
@@ -91,11 +91,133 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 			},
 			expectedNodeCount: 3,
 		},
+		{
+			label: "Case 3", // failure domain is not set and insufficient zones available
+			nodeList: &corev1.NodeList{
+				TypeMeta: metav1.TypeMeta{Kind: "NodeList"},
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node1",
+							Labels: map[string]string{
+								zoneTopologyLabel:        "zone1",
+								hostnameLabel:            "node1",
+								defaults.NodeAffinityKey: "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node2",
+							Labels: map[string]string{
+								zoneTopologyLabel:        "zone2",
+								hostnameLabel:            "node2",
+								defaults.NodeAffinityKey: "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node3",
+							Labels: map[string]string{
+								hostnameLabel:            "node3",
+								defaults.NodeAffinityKey: "",
+							},
+						},
+					},
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			failureDomain:  "",
+			expectedNodeTopologyMap: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					zoneTopologyLabel: []string{
+						"zone1",
+						"zone2",
+					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
+					},
+					defaults.RackTopologyKey: []string{
+						"rack0",
+						"rack1",
+						"rack2",
+					},
+				},
+			},
+			expectedNodeCount: 3,
+		},
+		{
+			label: "Case 4", // failure domain is not set and insufficient zones and regions available
+			nodeList: &corev1.NodeList{
+				TypeMeta: metav1.TypeMeta{Kind: "NodeList"},
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node1",
+							Labels: map[string]string{
+								zoneTopologyLabel:        "zone1",
+								hostnameLabel:            "node1",
+								defaults.NodeAffinityKey: "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node2",
+							Labels: map[string]string{
+								zoneTopologyLabel:        "zone2",
+								hostnameLabel:            "node2",
+								defaults.NodeAffinityKey: "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node3",
+							Labels: map[string]string{
+								regionTopologyLabel:      "region3",
+								hostnameLabel:            "node3",
+								defaults.NodeAffinityKey: "",
+							},
+						},
+					},
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			failureDomain:  "",
+			expectedNodeTopologyMap: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					zoneTopologyLabel: []string{
+						"zone1",
+						"zone2",
+					},
+					regionTopologyLabel: []string{
+						"region3",
+					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
+					},
+					defaults.RackTopologyKey: []string{
+						"rack0",
+						"rack1",
+						"rack2",
+					},
+				},
+			},
+			expectedNodeCount: 3,
+		},
 	}
 
 	for _, tc := range testcases {
 		mockStorageCluster.DeepCopyInto(tc.storageCluster)
-		mockNodeList.DeepCopyInto(tc.nodeList)
+		if len(tc.nodeList.Items) == 0 {
+			mockNodeList.DeepCopyInto(tc.nodeList)
+		}
 		tc.storageCluster.Status.FailureDomain = tc.failureDomain
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.nodeList)
 		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)

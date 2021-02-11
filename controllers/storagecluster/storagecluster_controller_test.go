@@ -37,8 +37,9 @@ import (
 )
 
 const (
-	zoneTopologyLabel = "failure-domain.kubernetes.io/zone"
-	hostnameLabel     = "kubernetes.io/hostname"
+	zoneTopologyLabel   = "failure-domain.kubernetes.io/zone"
+	regionTopologyLabel = "failure-domain.kubernetes.io/region"
+	hostnameLabel       = "kubernetes.io/hostname"
 )
 
 var mockStorageClusterRequest = reconcile.Request{
