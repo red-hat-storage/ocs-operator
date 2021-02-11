@@ -88,7 +88,7 @@ function gen_ocs_csv() {
 	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
 	popd
 	$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --version "$CSV_VERSION"
-	mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
+	mv bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
@@ -102,7 +102,7 @@ gen_ocs_csv
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
 
-mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests $OCS_FINAL_DIR
-mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/metadata "$(dirname $OCS_FINAL_DIR)"/metadata
-rm -rf "$GOPATH"/src/github.com/openshift/ocs-operator/bundle
-rm "$GOPATH"/src/github.com/openshift/ocs-operator/bundle.Dockerfile
+mv bundle/manifests $OCS_FINAL_DIR
+mv bundle/metadata "$(dirname $OCS_FINAL_DIR)"/metadata
+rm -rf bundle
+rm bundle.Dockerfile
