@@ -195,15 +195,15 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	}
 	if !isOwned {
 		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
-		r.Log.Info("Uninstall: NooBaa object %v found, but ownerReference not set to storagecluster. Skipping", noobaa.ObjectMeta.Name)
+		r.Log.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping", "Object", noobaa.ObjectMeta.Name)
 		return nil
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
-		r.Log.Info("Uninstall: Deleting NooBaa system %v", noobaa.ObjectMeta.Name)
+		r.Log.Info("Uninstall: Deleting NooBaa system", "Object", noobaa.ObjectMeta.Name)
 		err = r.Client.Delete(context.TODO(), noobaa)
 		if err != nil {
-			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system %v", noobaa.ObjectMeta.Name)
+			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system", "Object", noobaa.ObjectMeta.Name)
 			return fmt.Errorf("Uninstall: Failed to delete NooBaa system %v : %v", noobaa.ObjectMeta.Name, err)
 		}
 	}
