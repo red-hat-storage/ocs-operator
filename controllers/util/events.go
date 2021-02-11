@@ -6,4 +6,7 @@ const (
 
 	// EventReasonValidationFailed is used when the StorageCluster spec validation fails
 	EventReasonValidationFailed = "FailedValidation"
+
+	// EventReasonUninstallPending is used when the StorageCluster uninstall is Pending
+	EventReasonUninstallPending = "UninstallPending"
 )
