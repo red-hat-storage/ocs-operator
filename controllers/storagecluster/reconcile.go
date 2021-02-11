@@ -169,21 +169,21 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.StorageCluster, request reconcile.Request) error {
 	if err := versionCheck(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate version")
-		r.recorder.Event(instance, statusutil.EventTypeError, statusutil.EventReasonValidationFailed, err.Error())
+		r.recorder.Event(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		return err
 	}
 
 	if !instance.Spec.ExternalStorage.Enable {
 		if err := r.validateStorageDeviceSets(instance); err != nil {
 			r.Log.Error(err, "Failed to validate StorageDeviceSets")
-			r.recorder.Event(instance, statusutil.EventTypeError, statusutil.EventReasonValidationFailed, err.Error())
+			r.recorder.Event(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 			return err
 		}
 	}
 
 	if err := validateArbiterSpec(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate ArbiterSpec")
-		r.recorder.Event(instance, statusutil.EventTypeError, statusutil.EventReasonValidationFailed, err.Error())
+		r.recorder.Event(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		return err
 	}
 	return nil
