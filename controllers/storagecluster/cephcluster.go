@@ -407,14 +407,15 @@ func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 	// needs to override this assumption, we can provide a flag (like
 	// allowReplicasOnSameNode) in the future.
 
-	maxReplica := getMinDeviceSetReplica(sc)
+	maxReplica := getMinDeviceSetReplica(sc) * getReplicasPerFailureDomain(sc)
+
 	for _, deviceSet := range sc.Spec.StorageDeviceSets {
 		if deviceSet.Replica > maxReplica {
 			maxReplica = deviceSet.Replica
 		}
 	}
 
-	return maxReplica * getReplicasPerFailureDomain(sc)
+	return maxReplica
 }
 
 func getMonCount(nodeCount int, arbiter bool) int {
