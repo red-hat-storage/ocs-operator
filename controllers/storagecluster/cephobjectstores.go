@@ -97,16 +97,11 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 				PreservePoolsOnDelete: false,
 				DataPool: cephv1.PoolSpec{
 					FailureDomain: initData.Status.FailureDomain,
-					Replicated: cephv1.ReplicatedSpec{
-						Size:            3,
-						TargetSizeRatio: .49,
-					},
+					Replicated:    generateCephReplicatedSpec(initData, "data"),
 				},
 				MetadataPool: cephv1.PoolSpec{
 					FailureDomain: initData.Status.FailureDomain,
-					Replicated: cephv1.ReplicatedSpec{
-						Size: 3,
-					},
+					Replicated:    generateCephReplicatedSpec(initData, "metadata"),
 				},
 				Gateway: cephv1.GatewaySpec{
 					Port:      80,
