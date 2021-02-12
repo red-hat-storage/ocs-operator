@@ -27,8 +27,8 @@ var (
 
 		"mon": {
 			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					getWeightedPodAffinityTerm(100, "rook-ceph-mon"),
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					getPodAffinityTerm("rook-ceph-mon"),
 				},
 			},
 		},

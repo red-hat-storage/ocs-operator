@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"testing"
 
+	api "github.com/openshift/ocs-operator/api/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/defaults"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
@@ -105,15 +106,17 @@ var customPlacement = rookv1.Placement{
 func TestGetPlacement(t *testing.T) {
 	cases := []struct {
 		label              string
+		storageCluster     *api.StorageCluster
 		placements         rookv1.PlacementSpec
 		labelSelector      *metav1.LabelSelector
 		expectedPlacements rookv1.PlacementSpec
 		topologyMap        *ocsv1.NodeTopologyMap
 	}{
 		{
-			label:         "Test Case 1: Defaults are preserved i.e no placement and no label selector",
-			placements:    rookv1.PlacementSpec{},
-			labelSelector: nil,
+			label:          "Case 1: Defaults are preserved i.e no placement and no label selector",
+			storageCluster: mockStorageCluster,
+			placements:     rookv1.PlacementSpec{},
+			labelSelector:  nil,
 			expectedPlacements: rookv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
@@ -126,9 +129,10 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label:         "Case 2: The configured Placements override the defaults",
-			placements:    emptyPlacements,
-			labelSelector: nil,
+			label:          "Case 2: The configured Placements override the defaults",
+			storageCluster: mockStorageCluster,
+			placements:     emptyPlacements,
+			labelSelector:  nil,
 			expectedPlacements: rookv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
@@ -140,9 +144,10 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label:         "Case 3: LabelSelector to modify the default Placements correctly",
-			placements:    rookv1.PlacementSpec{},
-			labelSelector: &workerLabelSelector,
+			label:          "Case 3: LabelSelector to modify the default Placements correctly",
+			storageCluster: mockStorageCluster,
+			placements:     rookv1.PlacementSpec{},
+			labelSelector:  &workerLabelSelector,
 			expectedPlacements: rookv1.PlacementSpec{
 				"all": {
 					NodeAffinity: &workerNodeAffinity,
@@ -155,9 +160,10 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label:         "Case 4: LabelSelector modifies an empty NodeAffinity",
-			placements:    emptyPlacements,
-			labelSelector: &workerLabelSelector,
+			label:          "Case 4: LabelSelector modifies an empty NodeAffinity",
+			storageCluster: mockStorageCluster,
+			placements:     emptyPlacements,
+			labelSelector:  &workerLabelSelector,
 			expectedPlacements: rookv1.PlacementSpec{
 				"all": {
 					NodeAffinity: &workerNodeAffinity,
@@ -169,9 +175,10 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label:         "Case 5: LabelSelector modifies a configured NodeAffinity",
-			placements:    workerPlacements,
-			labelSelector: &masterLabelSelector,
+			label:          "Case 5: LabelSelector modifies a configured NodeAffinity",
+			storageCluster: mockStorageCluster,
+			placements:     workerPlacements,
+			labelSelector:  &masterLabelSelector,
 			expectedPlacements: rookv1.PlacementSpec{
 				"all": {
 					NodeAffinity: &corev1.NodeAffinity{
@@ -210,9 +217,10 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label:         "Case 6: Empty LabelSelector sets no NodeAffinity",
-			placements:    rookv1.PlacementSpec{},
-			labelSelector: &emptyLabelSelector,
+			label:          "Case 6: Empty LabelSelector sets no NodeAffinity",
+			storageCluster: mockStorageCluster,
+			placements:     rookv1.PlacementSpec{},
+			labelSelector:  &emptyLabelSelector,
 			expectedPlacements: rookv1.PlacementSpec{
 				"all": {
 					Tolerations: defaults.DaemonPlacements["all"].Tolerations,
@@ -223,7 +231,8 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label: "Case 7: Custom placement is applied without failure",
+			label:          "Case 7: Custom placement is applied without failure",
+			storageCluster: mockStorageCluster,
 			placements: rookv1.PlacementSpec{
 				"mon": customPlacement,
 			},
@@ -239,7 +248,8 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label: "Case 8: Custom placement is modified by labelSelector",
+			label:          "Case 8: Custom placement is modified by labelSelector",
+			storageCluster: mockStorageCluster,
 			placements: rookv1.PlacementSpec{
 				"mon": customPlacement,
 			},
@@ -256,8 +266,9 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label:      "Case 9: NodeTopologyMap modifies default mon placement",
-			placements: rookv1.PlacementSpec{},
+			label:          "Case 9: NodeTopologyMap modifies default mon placement",
+			storageCluster: mockStorageCluster,
+			placements:     rookv1.PlacementSpec{},
 			expectedPlacements: rookv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
@@ -266,21 +277,18 @@ func TestGetPlacement(t *testing.T) {
 				"mon": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					PodAntiAffinity: &corev1.PodAntiAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 							{
-								Weight: 100,
-								PodAffinityTerm: corev1.PodAffinityTerm{
-									LabelSelector: &metav1.LabelSelector{
-										MatchExpressions: []metav1.LabelSelectorRequirement{
-											{
-												Key:      "app",
-												Operator: metav1.LabelSelectorOpIn,
-												Values:   []string{"rook-ceph-mon"},
-											},
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{
+										{
+											Key:      "app",
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"rook-ceph-mon"},
 										},
 									},
-									TopologyKey: zoneTopologyLabel,
 								},
+								TopologyKey: zoneTopologyLabel,
 							},
 						},
 					},
@@ -296,12 +304,28 @@ func TestGetPlacement(t *testing.T) {
 				},
 			},
 		},
+		{
+			label:          "Case 10: skip podAntiAffinity in mon placement in case of stretched cluster",
+			storageCluster: mockStorageClusterWithArbiter,
+			placements:     rookv1.PlacementSpec{},
+			labelSelector:  nil,
+			expectedPlacements: rookv1.PlacementSpec{
+				"all": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
+				},
+				"mon": {
+					NodeAffinity:    defaults.DefaultNodeAffinity,
+					PodAntiAffinity: &corev1.PodAntiAffinity{},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
 		actualPlacement := rookv1.Placement{} //nolint:ineffassign
 		sc := &ocsv1.StorageCluster{}
-		mockStorageCluster.DeepCopyInto(sc)
+		c.storageCluster.DeepCopyInto(sc)
 		sc.Spec.Placement = c.placements
 		sc.Spec.LabelSelector = c.labelSelector
 		sc.Status.NodeTopologies = c.topologyMap
