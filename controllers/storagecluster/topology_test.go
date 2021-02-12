@@ -211,6 +211,183 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 			},
 			expectedNodeCount: 3,
 		},
+		{
+			label: "Case 5", // failure domain is not set and sufficient zones available with both old and new labels matching
+			nodeList: &corev1.NodeList{
+				TypeMeta: metav1.TypeMeta{Kind: "NodeList"},
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node1",
+							Labels: map[string]string{
+								zoneTopologyLabel:                   "zone1",
+								corev1.LabelZoneFailureDomainStable: "zone1",
+								hostnameLabel:                       "node1",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node2",
+							Labels: map[string]string{
+								zoneTopologyLabel:                   "zone2",
+								corev1.LabelZoneFailureDomainStable: "zone2",
+								hostnameLabel:                       "node2",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node3",
+							Labels: map[string]string{
+								zoneTopologyLabel:                   "zone3",
+								corev1.LabelZoneFailureDomainStable: "zone3",
+								hostnameLabel:                       "node3",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			failureDomain:  "",
+			expectedNodeTopologyMap: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					corev1.LabelZoneFailureDomainStable: []string{
+						"zone1",
+						"zone2",
+						"zone3",
+					},
+					hostnameLabel: []string{
+						"node1",
+						"node2",
+						"node3",
+					},
+				},
+			},
+			expectedNodeCount: 3,
+		},
+		{
+			label: "Case 6", // failure domain is set and sufficient zones available with 1 old and new label matching
+			nodeList: &corev1.NodeList{
+				TypeMeta: metav1.TypeMeta{Kind: "NodeList"},
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node1",
+							Labels: map[string]string{
+								labelZoneFailureDomainWithoutBeta:   "zone1",
+								corev1.LabelZoneFailureDomainStable: "zone1",
+								corev1.LabelHostname:                "node1",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node2",
+							Labels: map[string]string{
+								labelZoneFailureDomainWithoutBeta:   "zone2",
+								corev1.LabelZoneFailureDomainStable: "zone2",
+								corev1.LabelHostname:                "node2",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node3",
+							Labels: map[string]string{
+								labelZoneFailureDomainWithoutBeta:   "zone3",
+								corev1.LabelZoneFailureDomainStable: "zone3",
+								corev1.LabelHostname:                "node3",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			failureDomain:  "zone",
+			expectedNodeTopologyMap: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					labelZoneFailureDomainWithoutBeta: []string{
+						"zone1",
+						"zone2",
+						"zone3",
+					},
+					corev1.LabelHostname: []string{
+						"node1",
+						"node2",
+						"node3",
+					},
+				},
+			},
+			expectedNodeCount: 3,
+		},
+		{
+			label: "Case 7", // failure domain is set and sufficient zones available with 2 old and 1 new label matching
+			nodeList: &corev1.NodeList{
+				TypeMeta: metav1.TypeMeta{Kind: "NodeList"},
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node1",
+							Labels: map[string]string{
+								labelZoneFailureDomainWithoutBeta:   "zone1",
+								corev1.LabelZoneFailureDomain:       "zone1",
+								corev1.LabelZoneFailureDomainStable: "zone1",
+								corev1.LabelHostname:                "node1",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node2",
+							Labels: map[string]string{
+								labelZoneFailureDomainWithoutBeta:   "zone2",
+								corev1.LabelZoneFailureDomain:       "zone2",
+								corev1.LabelZoneFailureDomainStable: "zone2",
+								corev1.LabelHostname:                "node2",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node3",
+							Labels: map[string]string{
+								labelZoneFailureDomainWithoutBeta:   "zone3",
+								corev1.LabelZoneFailureDomain:       "zone3",
+								corev1.LabelZoneFailureDomainStable: "zone3",
+								corev1.LabelHostname:                "node3",
+								defaults.NodeAffinityKey:            "",
+							},
+						},
+					},
+				},
+			},
+			storageCluster: &api.StorageCluster{},
+			failureDomain:  "zone",
+			expectedNodeTopologyMap: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					corev1.LabelZoneFailureDomainStable: []string{
+						"zone1",
+						"zone2",
+						"zone3",
+					},
+					corev1.LabelHostname: []string{
+						"node1",
+						"node2",
+						"node3",
+					},
+				},
+			},
+			expectedNodeCount: 3,
+		},
 	}
 
 	for _, tc := range testcases {
@@ -384,7 +561,8 @@ func TestFailureDomain(t *testing.T) {
 			label: "Case 1", // storagecluster has predefined failure domain of `zone`
 			storageCluster: &api.StorageCluster{
 				Status: api.StorageClusterStatus{
-					FailureDomain: "zone",
+					FailureDomain:  "zone",
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
 			expectedFailureDomain: "zone",
@@ -393,7 +571,8 @@ func TestFailureDomain(t *testing.T) {
 			label: "Case 2", // storagecluster has predefined failure domain of `rack`
 			storageCluster: &api.StorageCluster{
 				Status: api.StorageClusterStatus{
-					FailureDomain: "rack",
+					FailureDomain:  "rack",
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
 			expectedFailureDomain: "rack",
@@ -435,7 +614,8 @@ func TestFailureDomain(t *testing.T) {
 			label: "Case 5", // storagecluster has predefined failure domain of `host`
 			storageCluster: &api.StorageCluster{
 				Status: api.StorageClusterStatus{
-					FailureDomain: "host",
+					FailureDomain:  "host",
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
 			expectedFailureDomain: "host",
@@ -446,13 +626,35 @@ func TestFailureDomain(t *testing.T) {
 				Spec: api.StorageClusterSpec{
 					FlexibleScaling: true,
 				},
+				Status: api.StorageClusterStatus{
+					NodeTopologies: ocsv1.NewNodeTopologyMap(),
+				},
 			},
 			expectedFailureDomain: "host",
+		},
+		{
+			label: "Case 7", // storagecluster has predefined failure domain of `zone` and newer labels have been added to the nodes
+			storageCluster: &api.StorageCluster{
+				Status: api.StorageClusterStatus{
+					FailureDomain: "zone",
+					NodeTopologies: &api.NodeTopologyMap{
+						Labels: map[string]api.TopologyLabelValues{
+							corev1.LabelZoneFailureDomainStable: []string{
+								"zone1",
+								"zone2",
+								"zone3",
+							},
+						},
+					},
+				},
+			},
+			expectedFailureDomain: "zone",
 		},
 	}
 
 	for _, tc := range testcases {
-		failureDomain := determineFailureDomain(tc.storageCluster)
+		setFailureDomain(tc.storageCluster)
+		failureDomain := getFailureDomain(tc.storageCluster)
 		assert.Equalf(t, tc.expectedFailureDomain, failureDomain, "[%s]: failed to get correct failure domain", tc.label)
 	}
 }
