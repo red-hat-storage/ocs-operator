@@ -350,11 +350,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		// If no operator whose conditions we are watching reports an error, then it is safe
 		// to set readiness.
-		readiness := statusutil.NewFileReady()
-		if err := readiness.Set(); err != nil {
-			r.Log.Error(err, "Failed to mark operator ready")
-			return reconcile.Result{}, err
-		}
+		ReadinessSet()
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 			!instance.Spec.ExternalStorage.Enable {
 			instance.Status.Phase = statusutil.PhaseReady
@@ -383,11 +379,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-			readiness := statusutil.NewFileReady()
-			if err := readiness.Unset(); err != nil {
-				r.Log.Error(err, "Failed to mark operator unready")
-				return reconcile.Result{}, err
-			}
+			ReadinessUnset()
 		}
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 			!instance.Spec.ExternalStorage.Enable {
