@@ -398,6 +398,10 @@ spec:
                         type: string
                     type: object
                 type: object
+              minimumNodes:
+                description: MinimumNodes explicitly defines the minimum number of
+                  nodes for the StorageCluster
+                type: integer
               monDataDirHostPath:
                 type: string
               monPVCTemplate:
