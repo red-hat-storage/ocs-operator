@@ -215,6 +215,16 @@ type StorageClusterStatus struct {
 	// +optional
 	FailureDomain string `json:"failureDomain,omitempty"`
 
+	// FailureDomainKey is the specific key used to find the locations available
+	// under a failure domain. For example topology.kubernetes.io/zone
+	// +optional
+	FailureDomainKey string `json:"failureDomainKey,omitempty"`
+
+	// FailureDomainValues is the list of locations available for a failure
+	// domain under the failure domain key.
+	// +optional
+	FailureDomainValues []string `json:"failureDomainValues,omitempty"`
+
 	// ExternalSecretHash holds the checksum value of external secret data.
 	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
 

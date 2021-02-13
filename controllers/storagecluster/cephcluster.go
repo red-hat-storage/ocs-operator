@@ -468,7 +468,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 
 		if noPlacement {
 			if topologyKey == "" {
-				topologyKey = determineFailureDomain(sc)
+				topologyKey = getFailureDomain(sc)
 			}
 
 			if topologyKey == "host" {
@@ -652,7 +652,7 @@ func allowUnsupportedCephVersion() bool {
 func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *cephv1.StretchClusterSpec {
 	var zones []string
 	stretchClusterSpec := cephv1.StretchClusterSpec{}
-	stretchClusterSpec.FailureDomainLabel, zones = sc.Status.NodeTopologies.GetKeyValues(determineFailureDomain(sc))
+	stretchClusterSpec.FailureDomainLabel, zones = sc.Status.NodeTopologies.GetKeyValues(getFailureDomain(sc))
 
 	for _, zone := range zones {
 		if zone == sc.Spec.NodeTopologies.ArbiterLocation {

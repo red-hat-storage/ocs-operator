@@ -41,6 +41,16 @@ func (m *NodeTopologyMap) Contains(topologyKey string, value string) bool {
 	return false
 }
 
+// ContainsKey checks whether the NodeTopologyMap contains any value for the
+// specified key
+func (m *NodeTopologyMap) ContainsKey(topologyKey string) bool {
+	if _, ok := m.Labels[topologyKey]; ok {
+		return true
+	}
+
+	return false
+}
+
 // Add adds a new value to the NodeTopologyMap under the specified key
 // USe it with Contains() to not allow duplicate values
 func (m *NodeTopologyMap) Add(topologyKey string, value string) {

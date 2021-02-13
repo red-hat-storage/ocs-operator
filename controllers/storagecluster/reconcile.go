@@ -82,11 +82,36 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
+const labelZoneRegionWithoutBeta = "failure-domain.kubernetes.io/region"
+const labelZoneFailureDomainWithoutBeta = "failure-domain.kubernetes.io/zone"
+const labelRookPrefix = "topology.rook.io"
+
 var validTopologyLabelKeys = []string{
-	"failure-domain.beta.kubernetes.io",
-	"failure-domain.kubernetes.io",
-	"kubernetes.io/hostname",
-	"topology.rook.io",
+	// This is the most preferred key as kubernetes recommends zone and region
+	// labels under this key.
+	corev1.LabelZoneRegionStable,
+
+	// These two are retained only to have backward compatibility; they are
+	// deprecated by kubernetes. If topology.kubernetes.io key has same label we
+	// will skip the next two from the topologyMap.
+	corev1.LabelZoneRegion,
+	labelZoneRegionWithoutBeta,
+
+	// This is the most preferred key as kubernetes recommends zone and region
+	// labels under this key.
+	corev1.LabelZoneFailureDomainStable,
+
+	// These two are retained only to have backward compatibility; they are
+	// deprecated by kubernetes. If topology.kubernetes.io key has same label we
+	// will skip the next two from the topologyMap.
+	corev1.LabelZoneFailureDomain,
+	labelZoneFailureDomainWithoutBeta,
+
+	// This is the kubernetes recommended label to select nodes.
+	corev1.LabelHostname,
+
+	// This label is used to assign rack based topology.
+	labelRookPrefix,
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -276,10 +301,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		if err := r.reconcileNodeTopologyMap(instance, reqLogger); err != nil {
 			reqLogger.Error(err, "Failed to set node topology map")
 			return reconcile.Result{}, err
-		}
-
-		if instance.Status.FailureDomain == "" {
-			instance.Status.FailureDomain = determineFailureDomain(instance)
 		}
 	}
 
