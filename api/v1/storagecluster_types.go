@@ -65,6 +65,9 @@ type StorageClusterSpec struct {
 	// ArbiterSpec specifies the storage cluster options related to arbiter.
 	// If Arbiter is enabled, ArbiterLocation in the NodeTopologies must be specified.
 	Arbiter ArbiterSpec `json:"arbiter,omitempty"`
+	// MinimumNodes explicitly defines the minimum number of nodes for the
+	// StorageCluster
+	MinimumNodes int `json:"minimumNodes,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS

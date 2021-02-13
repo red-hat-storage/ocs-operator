@@ -419,6 +419,10 @@ func getCephPoolReplicatedSize(sc *ocsv1.StorageCluster) uint {
 
 // getMinimumNodes returns the minimum number of nodes that are required for the Storage Cluster of various configurations
 func getMinimumNodes(sc *ocsv1.StorageCluster) int {
+	if sc.Spec.MinimumNodes != 0 {
+		return sc.Spec.MinimumNodes
+	}
+
 	// Case 1: When replicasPerFailureDomain is 1.
 	// A node is the smallest failure domain that is possible. We definitely
 	// want the devices in the same device set to be in different failure
