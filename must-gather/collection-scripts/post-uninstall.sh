@@ -1,6 +1,8 @@
 #!/bin/bash
 
-oc delete -f pod_helper.yaml
+if [ -n "$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')" ]; then
+    oc delete -f pod_helper.yaml
+fi
 
 # Add Ready nodes to the list
 nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
