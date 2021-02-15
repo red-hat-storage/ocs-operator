@@ -338,7 +338,19 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
-			assert.Equal(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
+			if scds.Portable && c.topologyKey == "rack" {
+				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].WhenUnsatisfiable, corev1.UnsatisfiableConstraintAction("DoNotSchedule"))
+				assert.Equal(t, len(scds.Placement.TopologySpreadConstraints), 2)
+				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].TopologyKey, defaults.RackTopologyKey)
+				placementOsd := getPlacement(c.sc, "osd-tsc")
+				newTSC := placementOsd.TopologySpreadConstraints[0]
+				newTSC.TopologyKey = defaults.RackTopologyKey
+				newTSC.WhenUnsatisfiable = corev1.UnsatisfiableConstraintAction("DoNotSchedule")
+				placementOsd.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{newTSC, placementOsd.TopologySpreadConstraints[0]}
+				assert.Equal(t, placementOsd, scds.Placement)
+			} else {
+				assert.Equal(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
+			}
 			if c.lenOfMatchExpression == 0 {
 				assert.Nil(t, scds.Placement.NodeAffinity)
 			} else {
