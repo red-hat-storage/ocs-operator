@@ -27,6 +27,7 @@ import (
 	nbapis "github.com/noobaa/noobaa-operator/v2/pkg/apis"
 	openshiftConfigv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
@@ -68,6 +69,7 @@ func init() {
 	utilruntime.Must(openshiftConfigv1.AddToScheme(scheme))
 	utilruntime.Must(consolev1.AddToScheme(scheme))
 	utilruntime.Must(extv1.AddToScheme(scheme))
+	utilruntime.Must(routev1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
