@@ -113,6 +113,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	nb.Spec.DBVolumeResources = &dBVolumeResources
 	nb.Spec.Image = &r.images.NooBaaCore
 	nb.Spec.DBImage = &r.images.NooBaaDB
+	nb.Spec.DBType = nbv1.DBTypePostgres
 
 	// Default endpoint spec.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
