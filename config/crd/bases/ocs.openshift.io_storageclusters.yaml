@@ -398,6 +398,13 @@ spec:
                         type: string
                     type: object
                 type: object
+              metricsExporter:
+                description: MetricsExporter controls the configuration of resources
+                  for exposing StorageCluster metrics
+                properties:
+                  reconcileStrategy:
+                    type: string
+                type: object
               monDataDirHostPath:
                 type: string
               monPVCTemplate:

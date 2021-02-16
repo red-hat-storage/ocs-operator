@@ -44,6 +44,9 @@ type StorageClusterSpec struct {
 	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
 	MultiCloudGateway  *MultiCloudGatewaySpec                 `json:"multiCloudGateway,omitempty"`
+	// MetricsExporter controls the configuration of resources for exposing
+	// StorageCluster metrics
+	MetricsExporter *MetricsExporterSpec `json:"metricsExporter,omitempty"`
 	// Version specifies the version of StorageCluster
 	Version string `json:"version,omitempty"`
 	// Network represents cluster network settings
@@ -178,6 +181,12 @@ type MultiCloudGatewaySpec struct {
 	// deployment.
 	// +optional
 	Endpoints *nbv1.EndpointsSpec `json:"endpoints,omitempty"`
+}
+
+// MetricsExporterSpec controls the configuration of resources for exposing
+// StorageCluster metrics
+type MetricsExporterSpec struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster

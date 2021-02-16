@@ -419,14 +419,16 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	// enable metrics exporter at the end of reconcile
 	// this allows storagecluster to be instantiated before
 	// scraping metrics
-	if err := r.enableMetricsExporter(instance); err != nil {
-		r.Log.Error(err, "failed to reconcile metrics exporter")
-		return reconcile.Result{}, err
-	}
+	if instance.Spec.MetricsExporter == nil || ReconcileStrategy(instance.Spec.MetricsExporter.ReconcileStrategy) != ReconcileStrategyIgnore {
+		if err := r.enableMetricsExporter(instance); err != nil {
+			r.Log.Error(err, "failed to reconcile metrics exporter")
+			return reconcile.Result{}, err
+		}
 
-	if err := r.enablePrometheusRules(instance.Spec.ExternalStorage.Enable); err != nil {
-		r.Log.Error(err, "failed to reconcile prometheus rules")
-		return reconcile.Result{}, err
+		if err := r.enablePrometheusRules(instance.Spec.ExternalStorage.Enable); err != nil {
+			r.Log.Error(err, "failed to reconcile prometheus rules")
+			return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{}, nil
