@@ -291,6 +291,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			if err := r.deleteResources(instance); err != nil {
 				r.Log.Info("Uninstall in progress", "Status", err)
+				r.recorder.Event(instance, statusutil.EventTypeWarning, statusutil.EventReasonUninstallPending, err.Error())
 				return reconcile.Result{RequeueAfter: time.Second * time.Duration(1)}, nil
 			}
 			r.Log.Info("Removing finalizer")
