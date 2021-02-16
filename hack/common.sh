@@ -56,7 +56,7 @@ OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 LATEST_ROOK_IMAGE="rook/ceph:v1.5.6"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:5.7.0-20201216"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.7.0-20201216"
-LATEST_NOOBAA_DB_IMAGE="centos/mongodb-36-centos7"
+LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
 # The stretch cluster feature will come in ceph pacific(v16).  We don't have an
 # image for it yet. Meanwhile, we will use an image that has the required
 # patches. This is required for the CI and does not impact anything else.
