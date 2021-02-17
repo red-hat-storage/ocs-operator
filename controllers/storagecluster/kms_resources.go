@@ -35,7 +35,7 @@ var (
 type kmsConfigMapValidateFunc func(*corev1.ConfigMap) error
 
 var (
-	// just to make sure 'isKMSProviderReachable' function follows the validate function type
+	// just to make sure 'reachKMSProvider' function follows the validate function type
 	_ kmsConfigMapValidateFunc = reachKMSProvider
 )
 
