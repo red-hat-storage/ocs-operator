@@ -544,16 +544,19 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 					}
 
 					if len(topologyKeyValues) >= replica {
-						// Hard constraints are set in OSD placement for portable volumes with rack failure domain
+						// Node affinity is set in OSD and prepared placement for portable volumes with rack failure
 						// domain as there is no node affinity in PVs. This restricts the movement of OSDs
-						// between failure domain.
+						// between failure domain and OSDs will land on the same failure domain as of prepare pod.
 						if portable && !strings.Contains(topologyKey, "zone") {
-							addStrictFailureDomainTSC(&placement, topologyKey)
-						}
-						// If topologyKey is not host, append additional topology spread constarint to the
-						// default preparePlacement. This serves even distribution at the host level
-						// within a failure domain (zone/rack).
-						if noPreparePlacement {
+							topologyIndex := i % len(topologyKeyValues)
+							setTopologyForAffinity(&placement, topologyKeyValues[topologyIndex], topologyKey)
+							if noPreparePlacement {
+								setTopologyForAffinity(&preparePlacement, topologyKeyValues[topologyIndex], topologyKey)
+							}
+						} else if noPreparePlacement {
+							// If topologyKey is not host, append additional topology spread constarint to the
+							// default preparePlacement. This serves even distribution at the host level
+							// within a failure domain (zone/rack).
 							if topologyKey != corev1.LabelHostname {
 								addStrictFailureDomainTSC(&preparePlacement, topologyKey)
 							} else {

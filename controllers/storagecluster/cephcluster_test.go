@@ -321,7 +321,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			label:                "case 4",
 			sc:                   sc4,
 			topologyKey:          "rack",
-			lenOfMatchExpression: 1,
+			lenOfMatchExpression: 2,
 		},
 	}
 
@@ -339,15 +339,9 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
 			if scds.Portable && c.topologyKey == "rack" {
-				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].WhenUnsatisfiable, corev1.UnsatisfiableConstraintAction("DoNotSchedule"))
-				assert.Equal(t, len(scds.Placement.TopologySpreadConstraints), 2)
-				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].TopologyKey, defaults.RackTopologyKey)
-				placementOsd := getPlacement(c.sc, "osd-tsc")
-				newTSC := placementOsd.TopologySpreadConstraints[0]
-				newTSC.TopologyKey = defaults.RackTopologyKey
-				newTSC.WhenUnsatisfiable = corev1.UnsatisfiableConstraintAction("DoNotSchedule")
-				placementOsd.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{newTSC, placementOsd.TopologySpreadConstraints[0]}
-				assert.Equal(t, placementOsd, scds.Placement)
+				assert.Equal(t, len(scds.Placement.TopologySpreadConstraints), 1)
+				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].TopologyKey, hostnameLabel)
+				assert.Equal(t, getPlacement(c.sc, "osd-tsc").TopologySpreadConstraints, scds.Placement.TopologySpreadConstraints)
 			} else {
 				assert.Equal(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
 			}
@@ -360,7 +354,9 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
 
 			if c.topologyKey == "rack" {
-				assert.Equal(t, defaults.RackTopologyKey, topologyKey)
+				// Node affinity is provided for distributing prepare pods across racks.
+				// Host level topology spread is used to distribute evenly within rack.
+				assert.Equal(t, hostnameLabel, topologyKey)
 			} else if len(c.sc.Status.NodeTopologies.Labels[zoneTopologyLabel]) >= defaults.DeviceSetReplica {
 				assert.Equal(t, zoneTopologyLabel, topologyKey)
 			} else {
