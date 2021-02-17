@@ -94,66 +94,79 @@ for ns in $namespaces; do
     ceph_collection(){
         COMMAND_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/must_gather_commands
         COMMAND_JSON_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/must_gather_commands_json_output
+        COMMAND_ERR_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/logs
         mkdir -p "${COMMAND_OUTPUT_DIR}"
         mkdir -p "${COMMAND_JSON_OUTPUT_DIR}"
+        mkdir -p "${COMMAND_ERR_OUTPUT_DIR}"
 
 
         # add jq command to the helper pod
         timeout 120 oc -n "$ns" exec "${HOSTNAME}"-helper -- bash -c "wget 'http://stedolan.github.io/jq/download/linux64/jq' && chmod 755 jq"
         timeout 120 oc -n "$ns" exec "${HOSTNAME}"-helper -- bash -c "mv jq /usr/bin/"
 
+        pids_ceph=()
+
         # Collecting output of ceph commands
         for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
-             printf "collecting command output for: %s\n"  "${ceph_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+             printf "collecting command output for: %s\n"  "${ceph_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
              COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_commands[$i]// /_}
              JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_commands[$i]// /_}_--format_json-pretty
-             { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-             { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+             { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${ceph_commands[$i]}"-debug.log 2>&1 &
+             pids_ceph+=($!)
+             { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${ceph_commands[$i]}"-json-debug.log 2>&1 &
+             pids_ceph+=($!)
         done
         for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
-             { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
+             { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-"$i"-debug.log 2>&1 &
+             pids_ceph+=($!)
         done
 
         # Collecting snapshot info for ceph rbd volumes
-        printf "collecting snapshot info for ceph rbd volumes \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        printf "collecting snapshot info for ceph rbd volumes \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
         COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/rbd_vol_and_snap_info
         # Inspecting ceph block pools for ceph rbd
-        blockpools=$(oc get cephblockpools.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
+        blockpools=$(timeout 60 oc get cephblockpools.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
         for bp in $blockpools; do
-            images=$(oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $bp")
+            images=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $bp")
             for image in $images; do
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd info $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd info $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-image-"${image}"-debug.log 2>&1 &
+                pids_ceph+=($!)
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-snap-"${image}"-debug.log 2>&1 &
+                pids_ceph+=($!)
             done
         done
 
         # Collecting snapshot information for ceph subvolumes
-        printf "collecting snapshot info for cephFS subvolumes \n" | tee -a "${BASE_COLLECTION_PATH}"/gather-debug.log
+        printf "collecting snapshot info for cephFS subvolumes \n" | tee -a "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
         COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/cephfs_subvol_and_snap_info
 
         # Inspecting CephFS filesystems
-        filesystems=$(oc get cephfilesystems.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
+        filesystems=$(timeout 60 oc get cephfilesystems.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
         # Default subvolumegroup in OCS is 'csi'
         svg="csi"
         for fs in $filesystems; do
-             subvols=$(oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume ls $fs $svg | jq --raw-output '.[].name' ")
+             subvols=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume ls $fs $svg | jq --raw-output '.[].name' ")
              for subvol in $subvols; do
                  { printf "Information for subvolume: %s\n" "${subvol}" >> "${COMMAND_OUTPUT_FILE}"; }
-                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume info $fs $subvol $svg --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-                 snaps=$(oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot ls $fs $subvol $svg | jq --raw-output '.[].name'")
-                 count=$(oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot ls $fs $subvol $svg | jq --raw-output '.[].name' | wc -l")
+                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume info $fs $subvol $svg --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-ceph-fs-"${subvol}"-debug.log 2>&1 &
+                 pids_ceph+=($!)
+                 snaps=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot ls $fs $subvol $svg | jq --raw-output '.[].name'")
+                 count=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot ls $fs $subvol $svg | jq --raw-output '.[].name' | wc -l")
                  { printf "Snapshot count in subvolume: %s=%s\n" "${subvol}" "${count}" >> "${COMMAND_OUTPUT_FILE}"; }
                  for snap in $snaps; do
                      { printf "Information for snapshot: %s\n" "${snap}" >> "${COMMAND_OUTPUT_FILE}"; }
-                     { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot info $fs $subvol $snap $svg --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+                     { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume snapshot info $fs $subvol $snap $svg --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-ceph-fs-"${subvol}"-"${snap}"-debug.log 2>&1 &
+                     pids_ceph+=($!)
                  done
              done
         done
+        printf "waiting for pids to finish" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+        wait "${pids_ceph[@]}"
     }
     if [ "$(oc get pods --no-headers -n openshift-storage -l  must-gather-helper-pod='' | awk '{print $2}')" == "1/1" ] ; then
         ceph_collection
     else
-        echo "skipping the ceph collection" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        echo "skipping the ceph collection" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
     fi
     # Collecting output of ceph volume commands
     for ((i = 0; i < ${#ceph_volume_commands[@]}; i++)); do
@@ -209,3 +222,6 @@ for ns in $namespaces; do
 
     echo "ceph core dump collection completed"
 done
+
+cat "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+rm -rf "${BASE_COLLECTION_PATH}/"gather-ceph-debug.log >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
