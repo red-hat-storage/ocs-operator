@@ -121,8 +121,9 @@ func (m MatchingLabelsSelector) ApplyToList(opts *client.ListOptions) {
 
 // setTopologyForAffinity assigns topology related values to the affinity placements
 func setTopologyForAffinity(placement *rookv1.Placement, selectorValue string, topologyKey string) {
-	placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey = topologyKey
-
+	if placement.PodAntiAffinity != nil {
+		placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey = topologyKey
+	}
 	nodeZoneSelector := corev1.NodeSelectorRequirement{
 		Key:      topologyKey,
 		Operator: corev1.NodeSelectorOpIn,
