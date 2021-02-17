@@ -27,6 +27,7 @@ all: ocs-operator ocs-registry ocs-must-gather
 	verify-operator-bundle \
 	operator-index \
 	ocs-registry \
+	ocs-registry-master \
 	gen-release-csv \
 	gen-latest-csv \
 	gen-latest-deploy-yaml \
@@ -117,6 +118,10 @@ operator-index:
 ocs-registry:
 	@echo "Building ocs-registry image in appregistry format"
 	hack/build-appregistry.sh
+
+ocs-registry-master:
+	@echo "Building ocs-registry image in appregistry format using master images for all OCS components"
+	hack/build-master-appregistry.sh
 
 clean:
 	@echo "cleaning previous outputs"
