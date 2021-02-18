@@ -8,6 +8,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -98,7 +99,15 @@ func createUpdateRuntimeObjects(cp *Platform) []runtime.Object {
 		}
 		updateRTObjects = append(updateRTObjects, cos)
 	}
-
+	// Create 'ceph rgw route' only for non-cloud platforms
+	if !avoidObjectStore(cp.platform) {
+		cos := &routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "ocsinit-cephobjectstore",
+			},
+		}
+		updateRTObjects = append(updateRTObjects, cos)
+	}
 	return updateRTObjects
 }
 
@@ -199,6 +208,9 @@ func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtim
 	if err != nil {
 		assert.Fail(t, "failed to add consolev1 scheme")
 	}
-
+	err = routev1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add routev1 scheme")
+	}
 	return scheme
 }

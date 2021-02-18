@@ -98,6 +98,12 @@ rules:
   - update
   - watch
 - apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - '*'
+- apiGroups:
   - security.openshift.io
   resources:
   - securitycontextconstraints
