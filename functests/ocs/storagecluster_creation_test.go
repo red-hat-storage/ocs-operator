@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/util"
 	tests "github.com/openshift/ocs-operator/functests"
@@ -39,30 +38,30 @@ func (sccObj *SCCreation) populateDuplicateSC() error {
 	return nil
 }
 
-var _ = Describe("StorageCluster Creation", StorageClusterCreationTest)
+var _ = ginkgo.Describe("StorageCluster Creation", StorageClusterCreationTest)
 
 func StorageClusterCreationTest() {
 	var sccObj *SCCreation
 	var err error
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		sccObj, err = initSCCreation()
-		Expect(err).To(BeNil())
+		gomega.Expect(err).To(gomega.BeNil())
 	})
 
-	AfterEach(func() {
-		if CurrentGinkgoTestDescription().Failed {
+	ginkgo.AfterEach(func() {
+		if ginkgo.CurrentGinkgoTestDescription().Failed {
 			tests.SuiteFailed = tests.SuiteFailed || true
 		}
 	})
 
-	Describe("Duplicate StorageCluster Creation", func() {
-		BeforeEach(func() {
+	ginkgo.Describe("Duplicate StorageCluster Creation", func() {
+		ginkgo.BeforeEach(func() {
 			err := sccObj.populateDuplicateSC()
-			Expect(err).To(BeNil())
+			gomega.Expect(err).To(gomega.BeNil())
 		})
 
-		AfterEach(func() {
+		ginkgo.AfterEach(func() {
 			err := sccObj.ocsClient.Delete().
 				Resource("storageclusters").
 				Namespace(sccObj.duplicateStorageCluster.Namespace).
@@ -70,12 +69,12 @@ func StorageClusterCreationTest() {
 				VersionedParams(&metav1.GetOptions{}, sccObj.parameterCodec).
 				Do(context.TODO()).
 				Error()
-			Expect(err).To(BeNil())
+			gomega.Expect(err).To(gomega.BeNil())
 		})
 
-		Context("create storagecluster", func() {
-			It("and verify PhaseIgnored status", func() {
-				By("Creating StorageCluster")
+		ginkgo.Context("create storagecluster", func() {
+			ginkgo.It("and verify PhaseIgnored status", func() {
+				ginkgo.By("Creating StorageCluster")
 				newSc := &ocsv1.StorageCluster{}
 
 				err := sccObj.ocsClient.Post().
@@ -85,12 +84,12 @@ func StorageClusterCreationTest() {
 					Body(sccObj.duplicateStorageCluster).
 					Do(context.TODO()).
 					Into(newSc)
-				Expect(err).To(BeNil())
+				gomega.Expect(err).To(gomega.BeNil())
 
-				By("Verifying StorageCluster is PhaseIgnored")
+				ginkgo.By("Verifying StorageCluster is PhaseIgnored")
 				sc := &ocsv1.StorageCluster{}
 
-				Eventually(func() error {
+				gomega.Eventually(func() error {
 					err = sccObj.ocsClient.Get().
 						Resource("storageclusters").
 						Namespace(sccObj.duplicateStorageCluster.Namespace).
@@ -105,7 +104,7 @@ func StorageClusterCreationTest() {
 						return nil
 					}
 					return fmt.Errorf("Waiting on StorageCluster %s/%s to reach Ignored state when it is currently %s", sc.Namespace, sc.Name, sc.Status.Phase)
-				}, 10*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
+				}, 10*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
 			})
 		})
 	})

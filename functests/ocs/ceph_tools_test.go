@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	tests "github.com/openshift/ocs-operator/functests"
 	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
@@ -81,43 +80,43 @@ func (rctObj *RookCephTools) toolsRemove() error {
 	return nil
 }
 
-var _ = Describe("Rook Ceph Tools", rookCephToolsTest)
+var _ = ginkgo.Describe("Rook Ceph Tools", rookCephToolsTest)
 
 func rookCephToolsTest() {
 	var rctObj *RookCephTools
 	var err error
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		rctObj, err = newRookCephTools()
-		Expect(err).To(BeNil())
+		gomega.Expect(err).To(gomega.BeNil())
 	})
 
-	AfterEach(func() {
-		if CurrentGinkgoTestDescription().Failed {
+	ginkgo.AfterEach(func() {
+		if ginkgo.CurrentGinkgoTestDescription().Failed {
 			tests.SuiteFailed = tests.SuiteFailed || true
 		}
 	})
 
-	Describe("Deployment", func() {
-		AfterEach(func() {
+	ginkgo.Describe("Deployment", func() {
+		ginkgo.AfterEach(func() {
 			err = rctObj.patchOCSInit(disableToolsPatch)
-			Expect(err).To(BeNil())
+			gomega.Expect(err).To(gomega.BeNil())
 		})
 
-		It("Ensure enable tools works", func() {
-			By("Setting enableCephTools=true")
+		ginkgo.It("Ensure enable tools works", func() {
+			ginkgo.By("Setting enableCephTools=true")
 			err = rctObj.patchOCSInit(enableToolsPatch)
-			Expect(err).To(BeNil())
+			gomega.Expect(err).To(gomega.BeNil())
 
-			By("Ensuring tools are created")
-			Eventually(rctObj.toolsPodOnlineCheck, 200*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
+			ginkgo.By("Ensuring tools are created")
+			gomega.Eventually(rctObj.toolsPodOnlineCheck, 200*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
 
-			By("Setting enableCephTools=false")
+			ginkgo.By("Setting enableCephTools=false")
 			err = rctObj.patchOCSInit(disableToolsPatch)
-			Expect(err).To(BeNil())
+			gomega.Expect(err).To(gomega.BeNil())
 
-			By("Ensuring tools are removed")
-			Eventually(rctObj.toolsRemove, 200*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
+			ginkgo.By("Ensuring tools are removed")
+			gomega.Eventually(rctObj.toolsRemove, 200*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
 		})
 	})
 }
