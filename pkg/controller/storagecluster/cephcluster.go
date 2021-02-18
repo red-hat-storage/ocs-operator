@@ -26,7 +26,7 @@ import (
 
 var throttleDiskTypes = []string{"gp2", "io1"}
 
-var throttleFastDiskTypes = []string{"managed-premium"}
+var throttleFastDiskTypes = []string{"StandardSSD_LRS", "Premium_LRS", "UltraSSD_LRS"}
 
 const (
 	// Hardcoding networkProvider to multus and this can be changed later to accomodate other providers
@@ -447,7 +447,7 @@ func (r *ReconcileStorageCluster) throttleStorageDevices(storageClassName string
 			return true, false, nil
 		}
 	case string(AzureDisk):
-		if contains(throttleFastDiskTypes, storageClass.Parameters["type"]) {
+		if contains(throttleFastDiskTypes, storageClass.Parameters["storageaccounttype"]) {
 			return false, true, nil
 		}
 	}
