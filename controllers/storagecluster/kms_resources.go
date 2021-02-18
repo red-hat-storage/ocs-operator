@@ -7,9 +7,11 @@ import (
 
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -30,6 +32,64 @@ var (
 	}
 )
 
+func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	// if 'KMS' is not enabled, nothing to delete
+	if !sc.Spec.Encryption.KeyManagementService.Enable {
+		return nil
+	}
+
+	type getKMSResourceFunc func(*ocsv1.StorageCluster, client.Client) (runtime.Object, error)
+
+	getKMSConfigMapAsRuntimeObject := func(
+		sc *ocsv1.StorageCluster,
+		client client.Client) (runtime.Object, error) {
+		return getKMSConfigMap(sc, client)
+	}
+
+	getKMSSecretTokenAsRuntimeObject := func(
+		sc *ocsv1.StorageCluster,
+		client client.Client) (runtime.Object, error) {
+		return getKMSSecretToken(sc, client)
+	}
+
+	resourceNameGetFuncMap := map[string]getKMSResourceFunc{
+		KMSConfigMapName:   getKMSConfigMapAsRuntimeObject,
+		KMSTokenSecretName: getKMSSecretTokenAsRuntimeObject,
+	}
+	// collect all the errors into a single return error
+	var returnError error
+
+	// TODO:
+	// later this loop could be refactored to use `go-routines` & `channels`,
+	// but it needs broader discussion to bring uniformity in other deletion/uninstall modules
+	for kmsResourceName, kmsResourceGetFunc := range resourceNameGetFuncMap {
+		errLog := "while retrieving"
+		runtimeObj, err := kmsResourceGetFunc(sc, r.Client)
+		if err == nil {
+			errLog = "while deleting"
+			err = r.Client.Delete(context.TODO(), runtimeObj)
+		}
+		if err != nil && !errors.IsNotFound(err) {
+			r.Log.Error(err, fmt.Sprintf("Uninstall: Error occurred %v the kms resource: %v", errLog, kmsResourceName))
+		}
+		// collect the error into the return error
+		if err != nil {
+			formattedErr := fmt.Errorf("KMS Error: %v", err)
+			if returnError == nil {
+				returnError = formattedErr
+			} else {
+				returnError = fmt.Errorf("%v\n%v", returnError, formattedErr)
+			}
+		}
+	}
+
+	if returnError == nil {
+		r.Log.Info("Uninstall: All KMS resources removed successfully")
+	}
+
+	return returnError
+}
+
 // getKMSConfigMap function try to return a KMS ConfigMap.
 // if 'kmsValidateFunc' function is present it try to validate the retrieved config map.
 func getKMSConfigMap(instance *ocsv1.StorageCluster, client client.Client) (*corev1.ConfigMap, error) {
@@ -49,6 +109,23 @@ func getKMSConfigMap(instance *ocsv1.StorageCluster, client client.Client) (*cor
 		return nil, err
 	}
 	return &kmsConfigMap, err
+}
+
+// getKMSSecretToken function try to return the KMS Secret Token
+func getKMSSecretToken(instance *ocsv1.StorageCluster, client client.Client) (*corev1.Secret, error) {
+	// if 'KMS' is not enabled, nothing to fetch
+	if !instance.Spec.Encryption.KeyManagementService.Enable {
+		return nil, nil
+	}
+	kmsSecretToken := &corev1.Secret{}
+	err := client.Get(context.TODO(),
+		types.NamespacedName{
+			Name:      KMSTokenSecretName,
+			Namespace: instance.ObjectMeta.Namespace,
+		},
+		kmsSecretToken,
+	)
+	return kmsSecretToken, err
 }
 
 // reachKMSProvider function checks whether the provided address is reachable or not.
