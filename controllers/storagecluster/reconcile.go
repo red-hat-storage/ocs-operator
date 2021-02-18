@@ -126,6 +126,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=*
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 // +kubebuilder:rbac:groups=console.openshift.io,resources=consolequickstarts,verbs=*
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=*
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -318,6 +319,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			r.ensureSnapshotClasses,
 			r.ensureCephObjectStores,
 			r.ensureCephObjectStoreUsers,
+			r.ensureCephRGWRoutes,
 			r.ensureCephBlockPools,
 			r.ensureCephFilesystems,
 			r.ensureCephConfig,

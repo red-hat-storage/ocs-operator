@@ -9,6 +9,7 @@ import (
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -924,6 +925,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = consolev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add consolev1 scheme")
+	}
+	err = routev1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add routev1 scheme")
 	}
 	return scheme
 }

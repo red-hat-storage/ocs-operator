@@ -7,6 +7,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	consolev1 "github.com/openshift/api/console/v1"
+	routev1 "github.com/openshift/api/route/v1"
 
 	"github.com/go-logr/logr"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
@@ -379,6 +380,10 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster, req
 	if err != nil {
 		return err
 	}
+	err = r.deleteCephRGWRoutes(sc, reqLogger)
+	if err != nil {
+		return err
+	}
 
 	err = r.deleteCephFilesystems(sc, reqLogger)
 	if err != nil {
@@ -566,6 +571,44 @@ func (r *StorageClusterReconciler) deleteCephObjectStores(sc *ocsv1.StorageClust
 			}
 		}
 		return fmt.Errorf("Uninstall: Waiting for cephObjectStore %v to be deleted", cephObjectStore.Name)
+
+	}
+	return nil
+}
+
+func (r *StorageClusterReconciler) deleteCephRGWRoutes(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	foundRoute := &routev1.Route{}
+	routes, err := r.newCephRGWRoutes(sc)
+	if err != nil {
+		return err
+	}
+
+	for _, route := range routes {
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Uninstall: Route not found", "Route Name", route.Name)
+				continue
+			}
+			return fmt.Errorf("Uninstall: Unable to retrieve route %v: %v", route.Name, err)
+		}
+
+		if route.GetDeletionTimestamp().IsZero() {
+			r.Log.Info("Uninstall: Deleting route", "Route Name", route.Name)
+			err = r.Client.Delete(context.TODO(), foundRoute)
+			if err != nil {
+				return fmt.Errorf("Uninstall: Failed to delete route %v: %v", route.Name, err)
+			}
+		}
+
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Uninstall: Route is deleted", "Route Name", route.Name)
+				continue
+			}
+		}
+		return fmt.Errorf("Uninstall: Waiting for route %v to be deleted", route.Name)
 
 	}
 	return nil
