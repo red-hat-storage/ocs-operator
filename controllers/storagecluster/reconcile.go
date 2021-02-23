@@ -41,8 +41,8 @@ type ocsCephConfig struct{}
 type ocsJobTemplates struct{}
 
 const (
-	rookConfigMapName = "rook-config-override"
-	rookConfigData    = `
+	rookConfigMapName     = "rook-config-override"
+	defaultRookConfigData = `
 [global]
 mon_osd_full_ratio = .85
 mon_osd_backfillfull_ratio = .8
@@ -495,6 +495,18 @@ func (r *StorageClusterReconciler) validateStorageDeviceSets(sc *ocsv1.StorageCl
 // ensureCreated ensures that a ConfigMap resource exists with its Spec in
 // the desired state.
 func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephConfig.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return nil
+	}
+
+	found := &corev1.ConfigMap{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
+
+	if err == nil && reconcileStrategy == ReconcileStrategyInit {
+		return nil
+	}
+
 	ownerRef := metav1.OwnerReference{
 		UID:        sc.UID,
 		APIVersion: sc.APIVersion,
@@ -508,12 +520,10 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
 		},
 		Data: map[string]string{
-			"config": rookConfigData,
+			"config": defaultRookConfigData,
 		},
 	}
 
-	found := &corev1.ConfigMap{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Creating Ceph ConfigMap")
@@ -532,7 +542,7 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 		}
 	}
 	val, ok := found.Data["config"]
-	if !ok || val != rookConfigData || !ownerRefFound {
+	if !ok || val != defaultRookConfigData || !ownerRefFound {
 		r.Log.Info("Updating Ceph ConfigMap")
 		return r.Client.Update(context.TODO(), cm)
 	}
