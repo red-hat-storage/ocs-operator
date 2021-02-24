@@ -1139,6 +1139,7 @@ github.com/kshvakov/clickhouse v1.3.5/go.mod h1:DMzX7FxRymoNkVgizH0DWAL8Cur7wHLg
 github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20200610144127-e2eec875d6d1/go.mod h1:WMXcpbGahPxQbYURxMYWPKXxFCw2o4saIl/x3iH68Rg=
 github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20201218194517-2e9d6aa76d58 h1:oWkAP3zmqwL9ULYPGMAbhBstzyzSwgi5gK66SvSaoyk=
 github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20201218194517-2e9d6aa76d58/go.mod h1:i+faT/nMoHqzCx95vZsh/82TDNO7CtWWLOIT4iECXI4=
+github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210127170128-83a4fdf6edd6/go.mod h1:XpQ9HGG9uF5aJCBP+s6w5kSiyTIVSqCV8+XAE4qms5E=
 github.com/kubernetes-csi/csi-lib-utils v0.7.1/go.mod h1:bze+2G9+cmoHxN6+WyG1qT4MDxgZJMLGwc7V4acPNm0=
 github.com/kubernetes-csi/csi-test v2.0.0+incompatible/go.mod h1:YxJ4UiuPWIhMBkxUKY5c267DyA0uDZ/MtAimhx/2TA0=
 github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2 h1:e9X3AkEwEYctP4SWDr39Ox84u12w16yLGcPrXodJvAM=
@@ -1576,6 +1577,8 @@ github.com/rollbar/rollbar-go v1.0.2/go.mod h1:AcFs5f0I+c71bpHlXNNDbOWJiKwjFDtIS
 github.com/rook/rook v1.4.6/go.mod h1:FQt7I3fXmOE5f/FEAnNWhB75JPTpJCf3MzXrwj9QjPw=
 github.com/rook/rook v1.5.6 h1:FdsB6T9RL+V4txx6vGnonPUGpg8r0Th+MHIPouacvzc=
 github.com/rook/rook v1.5.6/go.mod h1:tLopimdSJM0oOdhXJgfoUGc/dtC22ea/fyNoolzBA5w=
+github.com/rook/rook v1.5.8-0.20210219161258-2744b997ad89 h1:9QlPeWhednPG0Te6+6VvbOriIELh9/uUMsa49VYAeFg=
+github.com/rook/rook v1.5.8-0.20210219161258-2744b997ad89/go.mod h1:fpovkyyvB7POSupGlEVEUhbQLLncnVBOefw2lR9foVk=
 github.com/rs/cors v1.6.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/rubiojr/go-vhd v0.0.0-20200706105327-02e210299021/go.mod h1:DM5xW0nvfNNm2uytzsvhI3OnX8uzaRAg8UX/CnDqbto=

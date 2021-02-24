@@ -22,7 +22,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.43.0
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/rook/rook v1.5.6
+	github.com/rook/rook v1.5.8-0.20210219161258-2744b997ad89
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
 	k8s.io/api v0.20.2
