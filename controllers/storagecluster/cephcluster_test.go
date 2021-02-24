@@ -212,6 +212,10 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			},
 		},
 	}
+	var emptyLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{},
+	}
+	sc3.Spec.LabelSelector = &emptyLabelSelector
 
 	sc4 := &api.StorageCluster{}
 	sc4.Spec.StorageDeviceSets = mockDeviceSets
@@ -224,10 +228,6 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			},
 		},
 	}
-	var emptyLabelSelector = metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{},
-	}
-	sc3.Spec.LabelSelector = &emptyLabelSelector
 
 	// Testing StorageClassDeviceSetCreation for kube version below 1.19
 	serverVersion := &version.Info{
