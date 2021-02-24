@@ -453,3 +453,81 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	assert.Equal(t, KMSTokenSecretName, cephCluster.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
 }
+
+func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
+
+	sc1 := &api.StorageCluster{}
+	sc1.Spec.Arbiter.Enable = true
+	sc1.Spec.NodeTopologies = &api.NodeTopologyMap{
+		ArbiterLocation: "zone3",
+	}
+	sc1.Spec.StorageDeviceSets = getMockDeviceSets("mock", 1, 4, true)
+	sc1.Status.NodeTopologies = &api.NodeTopologyMap{
+		Labels: map[string]api.TopologyLabelValues{
+			zoneTopologyLabel: []string{
+				"zone1",
+				"zone2",
+			},
+		},
+		ArbiterLocation: "zone3",
+	}
+	sc1.Status.FailureDomain = "zone"
+	sc1.Status.FailureDomainKey = zoneTopologyLabel
+	sc1.Status.FailureDomainValues = []string{"zone1", "zone2"}
+
+	sc2 := &api.StorageCluster{}
+	sc2.Spec.Arbiter.Enable = true
+	sc2.Spec.NodeTopologies = &api.NodeTopologyMap{
+		ArbiterLocation: "zone3",
+	}
+	sc2.Spec.StorageDeviceSets = getMockDeviceSets("mock", 1, 6, true)
+	sc2.Status.NodeTopologies = &api.NodeTopologyMap{
+		Labels:          map[string]api.TopologyLabelValues{zoneTopologyLabel: []string{"zone1", "zone2"}},
+		ArbiterLocation: "zone3",
+	}
+	sc2.Status.FailureDomain = "zone"
+	sc2.Status.FailureDomainKey = zoneTopologyLabel
+	sc2.Status.FailureDomainValues = []string{"zone1", "zone2"}
+
+	serverVersion := &version.Info{
+		Major: defaults.KubeMajorTopologySpreadConstraints,
+		Minor: defaults.KubeMinorTopologySpreadConstraints,
+	}
+	cases := []struct {
+		label       string
+		sc          *api.StorageCluster
+		topologyKey string
+	}{
+		{
+			label:       "case 1",
+			sc:          sc1,
+			topologyKey: zoneTopologyLabel,
+		},
+		{
+			label:       "case 2",
+			sc:          sc2,
+			topologyKey: zoneTopologyLabel,
+		},
+	}
+
+	for _, c := range cases {
+
+		setFailureDomain(c.sc)
+		actual := newStorageClassDeviceSets(c.sc, serverVersion)
+		deviceSet := c.sc.Spec.StorageDeviceSets[0]
+
+		for i, scds := range actual {
+			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name, c.label)
+			assert.Equal(t, deviceSet.Count, scds.Count, c.label)
+			assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources, c.label)
+			assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0], c.label)
+			assert.Equal(t, true, scds.Portable, c.label)
+			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted, c.label)
+			assert.Equal(t, getPlacement(c.sc, "osd-tsc"), scds.Placement, c.label)
+			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
+			assert.Equal(t, c.topologyKey, topologyKey, c.label)
+		}
+
+	}
+
+}

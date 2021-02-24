@@ -121,6 +121,22 @@ var mockWalPVCTemplate = &corev1.PersistentVolumeClaim{
 	},
 }
 
+func getMockDeviceSets(name string, count int, replica int, portable bool) []api.StorageDeviceSet {
+
+	return []api.StorageDeviceSet{
+		{
+			Name:                name,
+			Count:               count,
+			Replica:             replica,
+			DataPVCTemplate:     mockDataPVCTemplate,
+			MetadataPVCTemplate: mockMetaDataPVCTemplate,
+			WalPVCTemplate:      mockWalPVCTemplate,
+			Portable:            portable,
+		},
+	}
+
+}
+
 var mockDeviceSets = []api.StorageDeviceSet{
 	{
 		Name:                "mock-sds",
