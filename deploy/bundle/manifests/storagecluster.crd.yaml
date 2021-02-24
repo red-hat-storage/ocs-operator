@@ -278,6 +278,12 @@ spec:
                       reconcileStrategy:
                         type: string
                     type: object
+                  cephConfig:
+                    description: ManageCephConfig defines how to reconcile the Ceph configuration
+                    properties:
+                      reconcileStrategy:
+                        type: string
+                    type: object
                   cephFilesystems:
                     description: ManageCephFilesystems defines how to reconcile CephFilesystems
                     properties:
