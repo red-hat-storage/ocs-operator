@@ -543,7 +543,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 						(&in).DeepCopyInto(&preparePlacement)
 					}
 
-					if len(topologyKeyValues) >= replica {
+					if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
 						// Hard constraints are set in OSD placement for portable volumes with rack failure domain
 						// domain as there is no node affinity in PVs. This restricts the movement of OSDs
 						// between failure domain.
@@ -570,7 +570,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 						(&in).DeepCopyInto(&preparePlacement)
 					}
 
-					if len(topologyKeyValues) >= replica {
+					if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
 						topologyIndex := i % len(topologyKeyValues)
 						setTopologyForAffinity(&placement, topologyKeyValues[topologyIndex], topologyKey)
 						if noPreparePlacement {
