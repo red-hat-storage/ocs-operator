@@ -31,6 +31,8 @@ spec:
                     type: string
                   crushRoot:
                     type: string
+                  deviceClass:
+                    type: string
                   erasureCoded:
                     nullable: true
                     properties:
@@ -125,6 +127,8 @@ spec:
                     - force
                     type: string
                   crushRoot:
+                    type: string
+                  deviceClass:
                     type: string
                   erasureCoded:
                     nullable: true
