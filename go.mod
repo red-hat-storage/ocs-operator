@@ -8,28 +8,33 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.2.0 // indirect
-	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2
+	github.com/googleapis/gnostic v0.5.1 // indirect
+	github.com/imdario/mergo v0.3.10 // indirect
+	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.4
 	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
 	github.com/oklog/run v1.1.0
-	github.com/onsi/ginkgo v1.14.0
-	github.com/onsi/gomega v1.10.1
+	github.com/onsi/ginkgo v1.14.1
+	github.com/onsi/gomega v1.10.2
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
 	github.com/openshift/client-go v0.0.0-20200929181438-91d71ef2122c
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
-	github.com/operator-framework/api v0.3.22
+	github.com/operator-framework/api v0.3.25
 	github.com/operator-framework/operator-lifecycle-manager v0.17.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.43.0
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/rook/rook v1.5.8-0.20210219161258-2744b997ad89
+	github.com/rook/rook v1.5.8
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	go.uber.org/zap v1.15.0 // indirect
+	gomodules.xyz/jsonpatch/v2 v2.1.0 // indirect
 	k8s.io/api v0.20.2
-	k8s.io/apiextensions-apiserver v0.20.2
+	k8s.io/apiextensions-apiserver v0.20.1
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
+	k8s.io/utils v0.0.0-20210111153108-fddb29f9d009 // indirect
 	sigs.k8s.io/controller-runtime v0.6.3
 )
 

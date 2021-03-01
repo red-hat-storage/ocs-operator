@@ -4,9 +4,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// OperatorUpgradeable indicates that the operator is upgradeable
+	OperatorUpgradeable string = "OperatorUpgradeable"
+)
+
 // OperatorConditionSpec allows a cluster admin to convey information about the state of an operator to OLM, potentially overriding state reported by the operator.
 type OperatorConditionSpec struct {
-	Overrides []metav1.Condition `json:"overrides,omitempty"`
+	ServiceAccounts []string           `json:"serviceAccounts,omitempty"`
+	Deployments     []string           `json:"deployments,omitempty"`
+	Overrides       []metav1.Condition `json:"overrides,omitempty"`
 }
 
 // OperatorConditionStatus allows an operator to convey information its state to OLM. The status may trail the actual
