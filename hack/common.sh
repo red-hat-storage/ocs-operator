@@ -53,7 +53,7 @@ NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
-LATEST_ROOK_IMAGE="rook/ceph:v1.5.6"
+LATEST_ROOK_IMAGE="rook/ceph:v1.5.7-37.g2744b99"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:5.7.0-20201216"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:5.7.0-20201216"
 LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
@@ -61,7 +61,7 @@ LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
 # image for it yet. Meanwhile, we will use an image that has the required
 # patches. This is required for the CI and does not impact anything else.
 # TODO: revert to using ceph/ceph image once v16 is out.)
-LATEST_CEPH_IMAGE="travisn/ceph:stretch-demo-5"
+LATEST_CEPH_IMAGE="ceph/daemon-base:latest-pacific"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
