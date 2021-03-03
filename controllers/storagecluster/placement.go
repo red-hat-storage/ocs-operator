@@ -21,6 +21,11 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
 		(&in).DeepCopyInto(&placement)
 	}
 
+	// ignore default PodAntiAffinity mon placement when arbiter is enabled
+	if component == "mon" && arbiterEnabled(sc) {
+		placement.PodAntiAffinity = &corev1.PodAntiAffinity{}
+	}
+
 	if component == "arbiter" {
 		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
 			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
