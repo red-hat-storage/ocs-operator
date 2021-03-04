@@ -30,18 +30,9 @@ var (
 	}
 )
 
-// kmsConfigMapValidateFunc is a functional type,
-// which validates the given configmap and returns an error if any
-type kmsConfigMapValidateFunc func(*corev1.ConfigMap) error
-
-var (
-	// just to make sure 'reachKMSProvider' function follows the validate function type
-	_ kmsConfigMapValidateFunc = reachKMSProvider
-)
-
 // getKMSConfigMap function try to return a KMS ConfigMap.
 // if 'kmsValidateFunc' function is present it try to validate the retrieved config map.
-func getKMSConfigMap(instance *ocsv1.StorageCluster, client client.Client, kmsValidateFunc kmsConfigMapValidateFunc) (*corev1.ConfigMap, error) {
+func getKMSConfigMap(instance *ocsv1.StorageCluster, client client.Client) (*corev1.ConfigMap, error) {
 	// if 'KMS' is not enabled, nothing to fetch
 	if !instance.Spec.Encryption.KeyManagementService.Enable {
 		return nil, nil
@@ -56,10 +47,6 @@ func getKMSConfigMap(instance *ocsv1.StorageCluster, client client.Client, kmsVa
 	)
 	if err != nil {
 		return nil, err
-	}
-	// if validation function is provided, use it
-	if kmsValidateFunc != nil {
-		err = kmsValidateFunc(&kmsConfigMap)
 	}
 	return &kmsConfigMap, err
 }
