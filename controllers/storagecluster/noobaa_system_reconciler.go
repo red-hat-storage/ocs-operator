@@ -146,7 +146,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	// Add KMS details to Noobaa spec, if available
 	// no need to pass any validation function,
 	// as validation already done during cephcluster creation time.
-	if kmsConfig, err := getKMSConfigMap(sc, r.Client, nil); err != nil {
+	if kmsConfig, err := getKMSConfigMap(sc, r.Client); err != nil {
 		return err
 	} else if kmsConfig != nil {
 		nb.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfig.Data
