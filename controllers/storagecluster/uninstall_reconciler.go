@@ -410,6 +410,11 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster, req
 		return err
 	}
 
+	err = deleteKMSResources(r, sc)
+	if err != nil {
+		return err
+	}
+
 	// TODO: skip the deletion of these labels till we figure out a way to wait
 	// for the cleanup jobs
 	//err = r.deleteNodeAffinityKeyFromNodes(sc, reqLogger)
