@@ -171,8 +171,8 @@ func CreateOrUpdateServiceMonitor(r *StorageClusterReconciler, instance *ocsv1.S
 		}
 		return nil, fmt.Errorf("failed to retrieve metrics exporter servicemonitor %v. %v", namespacedName, err)
 	}
-	serviceMonitor.ResourceVersion = oldSm.ResourceVersion
-	err = r.Client.Update(context.TODO(), serviceMonitor)
+	oldSm.Spec = serviceMonitor.Spec
+	err = r.Client.Update(context.TODO(), oldSm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update metrics exporter servicemonitor %v. %v", namespacedName, err)
 	}
