@@ -23,7 +23,6 @@ resources=()
 # resources+=(storageclusters)
 
 # collect OB/OBC resoureces
-resources+=(objectbucketclaims)
 resources+=(objectbuckets)
 
 # collection path for OC commands
