@@ -57,6 +57,7 @@ var (
 	// List of APIs which should be exposed in Console
 	exposedAPIs = []string{
 		"storageclusters.ocs.openshift.io",
+		"cephblockpools.ceph.rook.io",
 		"backingstores.noobaa.io",
 		"bucketclasses.noobaa.io",
 	}
@@ -506,7 +507,10 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		case "storageclusterinitializations.ocs.openshift.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "StorageCluster Initialization"
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
+		case "cephblockpools.ceph.rook.io":
+			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Block Pools"
 		}
+
 	}
 
 	// Add metrics exporter deployment to CSV
