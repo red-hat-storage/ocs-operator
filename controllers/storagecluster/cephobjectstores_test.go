@@ -26,11 +26,11 @@ func TestCephObjectStores(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 		for _, c := range cases {
 			var objects []runtime.Object
-			if c.createRuntimeObjects {
-				objects = createUpdateRuntimeObjects(cp)
-			}
 			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 				t, cp, objects)
+			if c.createRuntimeObjects {
+				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
+			}
 			assertCephObjectStores(t, reconciler, cr, request)
 		}
 	}
@@ -48,7 +48,9 @@ func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, c
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCos)
 	// for any cloud platform, 'cephobjectstore' should not be created
 	// 'Get' should have thrown an error
-	if avoidObjectStore(reconciler.platform.platform) {
+	avoid, avoidErr := reconciler.PlatformsShouldAvoidObjectStore()
+	assert.NoError(t, avoidErr)
+	if avoid {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)

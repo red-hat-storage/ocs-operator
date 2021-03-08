@@ -43,7 +43,9 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualSc3)
 	// on a cloud platform, 'Get' should throw an error,
 	// as OBC StorageClass won't be created
-	if avoidObjectStore(reconciler.platform.platform) {
+	avoid, avoidErr := reconciler.PlatformsShouldAvoidObjectStore()
+	assert.NoError(t, avoidErr)
+	if avoid {
 		// we should be expecting only 2 storage classes
 		assert.Equal(t, len(expected), 2)
 		assert.Error(t, err)
