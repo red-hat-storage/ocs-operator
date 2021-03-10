@@ -201,7 +201,7 @@ for ns in $namespaces; do
     }
 
     # creating a counter variable for collecting PID in array
-    idx=0
+    pids=()
     # Collecting ceph crash dump
     for node in ${nodes}; do
         printf "collecting crash logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
@@ -211,14 +211,14 @@ for ns in $namespaces; do
         mkdir -p "${NODE_OUTPUT_DIR}"
         crash_collection &
         # collecting PID for bg jobs
-        pids[${idx}]=$!
-        # shellcheck disable=SC2046
-        idx=$idx+1
+        pids+=($!)
     done
 
-    # wait for all pids
-    echo "waiting for ${pids[*]} to terminate"
-    wait "${pids[@]}"
+    if [ -n "${pids[*]}" ]; then
+        # wait for all pids
+        echo "waiting for ${pids[*]} to terminate"
+        wait "${pids[@]}"
+    fi
 
     echo "ceph core dump collection completed"
 done
