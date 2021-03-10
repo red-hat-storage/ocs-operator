@@ -196,7 +196,7 @@ for ns in $namespaces; do
 
     crash_collection(){
         printf "collecting crash core dump from node %s \n" "${node}"
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' | awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
+        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' --no-headers | awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
     }
 
     # creating a counter variable for collecting PID in array
