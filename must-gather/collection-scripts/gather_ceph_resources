@@ -195,8 +195,7 @@ for ns in $namespaces; do
     }
 
     crash_collection(){
-        echo "debug pod is ready"
-        volume_collection
+        printf "collecting crash core dump from node %s \n" "${node}"
         oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' | awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
     }
 
@@ -204,13 +203,14 @@ for ns in $namespaces; do
     pids=()
     # Collecting ceph crash dump
     for node in ${nodes}; do
-        printf "collecting crash logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        printf "collecting crash and volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         CRASH_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/crash_${node}
+        VOLUME_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/volume_collection_${node}
         mkdir -p "${CRASH_OUTPUT_DIR}"
-        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/volume_collection_${node}
-        mkdir -p "${NODE_OUTPUT_DIR}"
+        mkdir -p "${VOLUME_OUTPUT_DIR}"
+        volume_collection &
+        pids+=($!)
         crash_collection &
-        # collecting PID for bg jobs
         pids+=($!)
     done
 
