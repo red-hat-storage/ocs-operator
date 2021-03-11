@@ -635,21 +635,21 @@ func remove(slice []string, s string) (result []string) {
 	return
 }
 
-// ensureCreated ensures if the osd removal job template exists
-func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
-	osdCleanUpTemplate := &openshiftv1.Template{
+func osdCleanUpTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
+
+	jobTemplateName := "ocs-osd-removal"
+	osdCleanupArgs := []string{
+		"ceph",
+		"osd",
+		"remove",
+		"--osd-ids=${FAILED_OSD_IDS}",
+	}
+	return &openshiftv1.Template{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ocs-osd-removal",
+			Name:      jobTemplateName,
 			Namespace: sc.Namespace,
 		},
-	}
-	_, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, osdCleanUpTemplate, func() error {
-		osdCleanUpTemplate.Objects = []runtime.RawExtension{
-			{
-				Object: newCleanupJob(sc),
-			},
-		}
-		osdCleanUpTemplate.Parameters = []openshiftv1.Parameter{
+		Parameters: []openshiftv1.Parameter{
 			{
 				Name:        "FAILED_OSD_IDS",
 				DisplayName: "OSD IDs",
@@ -661,12 +661,33 @@ If the expected comma-separated format is not used,
 or an ID cannot be converted to an int, 
 or if an OSD ID is not found, errors will be generated in the log and no OSDs would be removed.`,
 			},
-		}
-		return controllerutil.SetControllerReference(sc, osdCleanUpTemplate, r.Scheme)
-	})
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create Template: %v", err.Error())
+		},
+		Objects: []runtime.RawExtension{
+			{
+				Object: newosdCleanUpJob(sc, jobTemplateName, osdCleanupArgs),
+			},
+		},
 	}
+}
+
+// ensureCreated ensures if the osd removal job template exists
+func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+
+	tempFuncs := []func(*ocsv1.StorageCluster) *openshiftv1.Template{
+		osdCleanUpTemplate,
+	}
+
+	for _, tempFunc := range tempFuncs {
+		template := tempFunc(sc)
+		_, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, template, func() error {
+			return controllerutil.SetControllerReference(sc, template, r.Scheme)
+		})
+
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create Template : %v", err.Error())
+		}
+	}
+
 	return nil
 }
 
@@ -675,7 +696,7 @@ func (obj *ocsJobTemplates) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	return nil
 }
 
-func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
+func newosdCleanUpJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephCommands []string) *batchv1.Job {
 	labels := map[string]string{
 		"app": "ceph-toolbox-job",
 	}
@@ -691,7 +712,7 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "ocs-osd-removal-job",
+			Name:        jobTemplateName,
 			Namespace:   sc.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
@@ -716,12 +737,7 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 						{
 							Name:  "operator",
 							Image: os.Getenv("ROOK_CEPH_IMAGE"),
-							Args: []string{
-								"ceph",
-								"osd",
-								"remove",
-								"--osd-ids=${FAILED_OSD_IDS}",
-							},
+							Args:  cephCommands,
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "ceph-conf-emptydir",
