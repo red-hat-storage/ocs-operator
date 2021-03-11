@@ -181,6 +181,10 @@ for ns in $namespaces; do
         done
     done
 
+    for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash ls --connect-timeout=15"| awk '{print $1}'); do
+        { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash info $i --connect-timeout=15" >> "${COMMAND_OUTPUT_DIR}"/crash_"${i}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
+    done
+
     # Add Ready nodes to the list
     nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
 
@@ -190,35 +194,31 @@ for ns in $namespaces; do
         oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/log "${NODE_OUTPUT_DIR}"
     }
 
-    for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash ls --connect-timeout=15"| awk '{print $1}'); do
-        { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph crash info $i --connect-timeout=15" >> "${COMMAND_OUTPUT_DIR}"/crash_"${i}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1;
-    done
-
     crash_collection(){
-        echo "debug pod is ready"
-        volume_collection
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' | awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
+        printf "collecting crash core dump from node %s \n" "${node}"
+        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' --no-headers | awk '{print $1}')":/host/var/lib/rook/openshift-storage/crash/ "${CRASH_OUTPUT_DIR}"
     }
 
     # creating a counter variable for collecting PID in array
-    idx=0
+    pids=()
     # Collecting ceph crash dump
     for node in ${nodes}; do
-        printf "collecting crash logs  from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        printf "collecting crash and volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         CRASH_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/crash_${node}
+        VOLUME_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/volume_collection_${node}
         mkdir -p "${CRASH_OUTPUT_DIR}"
-        NODE_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/volume_collection_${node}
-        mkdir -p "${NODE_OUTPUT_DIR}"
+        mkdir -p "${VOLUME_OUTPUT_DIR}"
+        volume_collection &
+        pids+=($!)
         crash_collection &
-        # collecting PID for bg jobs
-        pids[${idx}]=$!
-        # shellcheck disable=SC2046
-        idx=$idx+1
+        pids+=($!)
     done
 
-    # wait for all pids
-    echo "waiting for ${pids[*]} to terminate"
-    wait "${pids[@]}"
+    if [ -n "${pids[*]}" ]; then
+        # wait for all pids
+        echo "waiting for ${pids[*]} to terminate"
+        wait "${pids[@]}"
+    fi
 
     echo "ceph core dump collection completed"
 done
