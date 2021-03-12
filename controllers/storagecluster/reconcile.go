@@ -420,7 +420,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	// enable metrics exporter at the end of reconcile
 	// this allows storagecluster to be instantiated before
 	// scraping metrics
-	if instance.Spec.MetricsExporter == nil || ReconcileStrategy(instance.Spec.MetricsExporter.ReconcileStrategy) != ReconcileStrategyIgnore {
+	if instance.Spec.Monitoring == nil || ReconcileStrategy(instance.Spec.Monitoring.ReconcileStrategy) != ReconcileStrategyIgnore {
 		if err := r.enableMetricsExporter(instance); err != nil {
 			r.Log.Error(err, "failed to reconcile metrics exporter")
 			return reconcile.Result{}, err
