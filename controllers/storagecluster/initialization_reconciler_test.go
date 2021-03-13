@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
@@ -145,6 +146,8 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 	result, err := reconciler.Reconcile(request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
+	err = os.Setenv("WATCH_NAMESPACE", cr.Namespace)
+	assert.NoError(t, err)
 
 	return t, reconciler, cr, request
 }
