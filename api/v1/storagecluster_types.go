@@ -156,6 +156,13 @@ type StorageDeviceSet struct {
 	// +optional
 	DeviceClass string `json:"deviceClass,omitempty"`
 
+	// InitialWeight is an optional explicit OSD weight value in TiB units.
+	// If non empty, it defines the 'CrushInitialWeight' value which is
+	// assigned to ceph OSD upon init
+	// +kubebuilder:validation:Pattern=`^([0-9]*[.])?[0-9]+(Ti[B])$`
+	// +optional
+	InitialWeight string `json:"initialWeight,omitempty"`
+
 	// TopologyKey is the Kubernetes topology label that the
 	// StorageClassDeviceSets will be distributed across. Ignored if
 	// Placement is set
