@@ -160,7 +160,7 @@ for ns in $namespaces; do
                  done
              done
         done
-        printf "waiting for pids to finish" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+        printf "waiting for pids to finish \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
         wait "${pids_ceph[@]}"
     }
     if [ "$(oc get pods --no-headers -n openshift-storage -l  must-gather-helper-pod='' | awk '{print $2}')" == "1/1" ] ; then
