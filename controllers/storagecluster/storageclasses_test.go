@@ -12,7 +12,7 @@ import (
 )
 
 var allPlatforms = append(AvoidObjectStorePlatforms,
-	configv1.NonePlatformType, configv1.PlatformType("NonCloudPlatform"))
+	configv1.NonePlatformType, configv1.PlatformType("NonCloudPlatform"), configv1.IBMCloudPlatformType)
 
 func TestStorageClasses(t *testing.T) {
 	for _, eachPlatform := range allPlatforms {
