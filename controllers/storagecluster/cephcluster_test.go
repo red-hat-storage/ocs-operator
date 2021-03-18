@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	v1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/defaults"
@@ -97,6 +98,52 @@ func TestEnsureCephCluster(t *testing.T) {
 			assert.Empty(t, reconciler.conditions)
 		}
 
+	}
+}
+
+func TestCephClusterMonTimeout(t *testing.T) {
+	// cases for testing
+	cases := []struct {
+		label    string
+		platform v1.PlatformType
+	}{
+		{
+			label:    "case 1", // when the platform is not identified
+			platform: v1.NonePlatformType,
+		},
+		{
+			label:    "case 2", // when platform is IBMCloudPlatformType
+			platform: v1.IBMCloudPlatformType,
+		},
+		{
+			label:    "case 3", // when platform is IBMCloudCosPlatformType
+			platform: IBMCloudCosPlatformType,
+		},
+	}
+
+	for _, c := range cases {
+		sc := &api.StorageCluster{}
+		mockStorageCluster.DeepCopyInto(sc)
+		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+
+		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster)
+
+		reconciler.platform = &Platform{
+			platform: c.platform,
+		}
+
+		var obj ocsCephCluster
+		err := obj.ensureCreated(&reconciler, sc)
+		assert.NoError(t, err)
+
+		cc := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
+		assert.NoError(t, err)
+		if c.platform == v1.IBMCloudPlatformType || c.platform == IBMCloudCosPlatformType {
+			assert.Equal(t, "15m", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
+		} else {
+			assert.Equal(t, "", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
+		}
 	}
 }
 
