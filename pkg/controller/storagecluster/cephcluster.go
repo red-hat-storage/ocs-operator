@@ -73,9 +73,17 @@ func (r *ReconcileStorageCluster) ensureCephCluster(sc *ocsv1.StorageCluster, re
 		return err
 	}
 
+	platform, err := r.platform.GetPlatform(r.client)
+	if err != nil {
+		reqLogger.Error(err, "Failed to get platform")
+	} else if platform == PlatformIBM {
+		reqLogger.Info(fmt.Sprintf("Increasing Mon failover timeout to 15m for %s", platform))
+		cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
+	}
+
 	// Check if this CephCluster already exists
 	found := &cephv1.CephCluster{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if sc.Spec.ExternalStorage.Enable {

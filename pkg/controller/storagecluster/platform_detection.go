@@ -20,12 +20,14 @@ const (
 	PlatformGCP CloudPlatformType = "gce"
 	// PlatformAzure represents the Azure Platform
 	PlatformAzure CloudPlatformType = "azure"
+	// PlatformIBM represents the IBM cloud platform
+	PlatformIBM CloudPlatformType = "ibm"
 	// PlatformUnknown represents an unknown validly formatted cloud platform
 	PlatformUnknown CloudPlatformType = "unknown"
 )
 
 // ValidCloudPlatforms is a list of all CloudPlatformTypes recognized by the package other than PlatformUnknown
-var ValidCloudPlatforms = []CloudPlatformType{PlatformAWS, PlatformGCP, PlatformAzure}
+var ValidCloudPlatforms = []CloudPlatformType{PlatformAWS, PlatformGCP, PlatformAzure, PlatformIBM}
 
 // CloudPlatform is used to get the CloudPlatformType of the running cluster in a thread-safe manner.
 type CloudPlatform struct {
