@@ -65,6 +65,9 @@ func setFailureDomain(sc *ocsv1.StorageCluster) {
 	// as we need +1 scaling
 	if sc.Spec.FlexibleScaling {
 		failureDomain = "host"
+		sc.Status.FailureDomain = failureDomain
+		sc.Status.FailureDomainKey, sc.Status.FailureDomainValues = sc.Status.NodeTopologies.GetKeyValues(sc.Status.FailureDomain)
+		return
 	}
 
 	// If sufficient zones are available then we select zone as the failure domain
