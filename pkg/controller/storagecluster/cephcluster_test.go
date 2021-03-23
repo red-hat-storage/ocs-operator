@@ -91,6 +91,46 @@ func TestEnsureCephCluster(t *testing.T) {
 	}
 }
 
+func TestCephClusterMonTimeout(t *testing.T) {
+	// cases for testing
+	cases := []struct {
+		label    string
+		platform CloudPlatformType
+	}{
+		{
+			label:    "case 1", // when the platform is not identified
+			platform: PlatformUnknown,
+		},
+		{
+			label:    "case 2", // when platform is IBMCloudPlatformType
+			platform: PlatformIBM,
+		},
+	}
+
+	for _, c := range cases {
+		sc := &api.StorageCluster{}
+		mockStorageCluster.DeepCopyInto(sc)
+
+		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster)
+
+		reconciler.platform = &CloudPlatform{
+			platform: c.platform,
+		}
+
+		err := reconciler.ensureCephCluster(sc, reconciler.reqLogger)
+		assert.NoError(t, err)
+
+		cc := newCephCluster(sc, "", 3, reconciler.reqLogger)
+		err = reconciler.client.Get(nil, mockCephClusterNamespacedName, cc)
+		assert.NoError(t, err)
+		if c.platform == PlatformIBM {
+			assert.Equal(t, "15m", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
+		} else {
+			assert.Equal(t, "", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
+		}
+	}
+}
+
 func TestNewCephClusterMonData(t *testing.T) {
 	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
 	sc := &api.StorageCluster{}
