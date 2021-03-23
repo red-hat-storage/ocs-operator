@@ -69,7 +69,12 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 			errLog = "while deleting"
 			err = r.Client.Delete(context.TODO(), runtimeObj)
 		}
-		if err != nil && !errors.IsNotFound(err) {
+		// ignore any NotFound error,
+		// that is; resource is not there, nothing has to be deleted
+		if errors.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
 			r.Log.Error(err, fmt.Sprintf("Uninstall: Error occurred %v the kms resource: %v", errLog, kmsResourceName))
 		}
 		// collect the error into the return error
