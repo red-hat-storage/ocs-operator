@@ -27,11 +27,11 @@ func TestCephFileSystem(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 		for _, c := range cases {
 			var objects []runtime.Object
-			if c.createRuntimeObjects {
-				objects = createUpdateRuntimeObjects(cp)
-			}
 			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 				t, cp, objects)
+			if c.createRuntimeObjects {
+				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
+			}
 			assertCephFileSystem(t, reconciler, cr, request)
 		}
 	}

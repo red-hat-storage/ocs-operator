@@ -50,7 +50,7 @@ func createStorageCluster(scName, failureDomainName string,
 	return cr
 }
 
-func createUpdateRuntimeObjects(cp *Platform) []runtime.Object {
+func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReconciler) []runtime.Object {
 	csfs := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfs",
@@ -73,42 +73,39 @@ func createUpdateRuntimeObjects(cp *Platform) []runtime.Object {
 	}
 	updateRTObjects := []runtime.Object{csfs, csrbd, cfs, cbp}
 
-	if !avoidObjectStore(cp.platform) {
+	avoid, err := r.PlatformsShouldAvoidObjectStore()
+	assert.NoError(t, err)
+	if !avoid {
 		csobc := &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-ceph-rgw",
 			},
 		}
 		updateRTObjects = append(updateRTObjects, csobc)
-	}
 
-	// Create 'cephobjectstoreuser' only for non-aws platforms
-	if !avoidObjectStore(cp.platform) {
+		// Create 'cephobjectstoreuser' only for non-aws platforms
 		cosu := &cephv1.CephObjectStoreUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-cephobjectstoreuser",
 			},
 		}
 		updateRTObjects = append(updateRTObjects, cosu)
-	}
 
-	// Create 'cephobjectstore' only for non-cloud platforms
-	if !avoidObjectStore(cp.platform) {
+		// Create 'cephobjectstore' only for non-cloud platforms
 		cos := &cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-cephobjectstore",
 			},
 		}
 		updateRTObjects = append(updateRTObjects, cos)
-	}
-	// Create 'route' only for non-cloud platforms
-	if !avoidObjectStore(cp.platform) {
-		cos := &routev1.Route{
+
+		// Create 'route' only for non-cloud platforms
+		cosr := &routev1.Route{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-cephobjectstore",
 			},
 		}
-		updateRTObjects = append(updateRTObjects, cos)
+		updateRTObjects = append(updateRTObjects, cosr)
 	}
 	return updateRTObjects
 }
