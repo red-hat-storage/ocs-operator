@@ -286,6 +286,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			Network: cephv1.NetworkSpec{
 				HostNetwork: sc.Spec.HostNetwork,
 			},
+			Dashboard: cephv1.DashboardSpec{
+				Enabled: sc.Spec.ManagedResources.CephDashboard.Enable,
+				SSL:     sc.Spec.ManagedResources.CephDashboard.SSL,
+			},
 			Monitoring: cephv1.MonitoringSpec{
 				Enabled:        true,
 				RulesNamespace: "openshift-storage",
