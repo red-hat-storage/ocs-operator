@@ -99,7 +99,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	if sc.Spec.ExternalStorage.Enable {
 		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP, r.monitoringPort)
 	} else {
-		kmsConfigMap, err := getKMSConfigMap(sc, r.Client)
+		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
 		if err != nil {
 			r.Log.Error(err, "failed to procure KMS config")
 			return err
