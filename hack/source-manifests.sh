@@ -41,9 +41,11 @@ mkdir -p $OUTDIR_TOOLS
 noobaa_dump_crds_cmd="crd yaml"
 noobaa_dump_csv_cmd="olm csv yaml"
 echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
-($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_csv_cmd") > $NOOBAA_CSV
+# shellcheck disable=SC2086
+($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
+# shellcheck disable=SC2086
 echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
-($IMAGE_RUN_CMD "$NOOBAA_IMAGE" "$noobaa_dump_crds_cmd") > $OUTDIR_CRDS/noobaa-crd.yaml
+($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $OUTDIR_CRDS/noobaa-crd.yaml
 
 # ==== DUMP ROOK YAMLS ====
 rook_template_dir="/etc/ceph-csv-templates"
