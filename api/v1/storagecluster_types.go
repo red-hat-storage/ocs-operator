@@ -199,6 +199,9 @@ type MultiCloudGatewaySpec struct {
 // MonitoringSpec controls the configuration of resources for exposing OCS metrics
 type MonitoringSpec struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	// Labels to add to monitoring resources created by operator.
+	// These labels are used as LabelSelector for Prometheus
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster

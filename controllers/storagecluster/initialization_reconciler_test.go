@@ -38,6 +38,11 @@ func createStorageCluster(scName, failureDomainName string,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: scName,
 		},
+		Spec: api.StorageClusterSpec{
+			Monitoring: &api.MonitoringSpec{
+				ReconcileStrategy: string(ReconcileStrategyIgnore),
+			},
+		},
 		Status: api.StorageClusterStatus{
 			FailureDomain: failureDomainName,
 			NodeTopologies: &api.NodeTopologyMap{

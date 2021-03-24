@@ -627,6 +627,12 @@ spec:
                 description: Monitoring controls the configuration of resources for
                   exposing OCS metrics
                 properties:
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Labels to add to monitoring resources created by
+                      operator. These labels are used as LabelSelector for Prometheus
+                    type: object
                   reconcileStrategy:
                     type: string
                 type: object

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/imdario/mergo"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,14 +25,20 @@ const (
 )
 
 // enablePrometheusRules is a wrapper around CreateOrUpdatePrometheusRule()
-func (r *StorageClusterReconciler) enablePrometheusRules(isExternal bool) error {
-	rule, err := getPrometheusRules(isExternal)
+func (r *StorageClusterReconciler) enablePrometheusRules(instance *ocsv1.StorageCluster) error {
+	rule, err := getPrometheusRules(instance.Spec.ExternalStorage.Enable)
 	if err != nil {
 		r.Log.Error(err, "prometheus rules file not found")
+		return err
+	}
+	err = mergo.Merge(&rule.ObjectMeta.Labels, instance.Spec.Monitoring.Labels, mergo.WithOverride)
+	if err != nil {
+		return err
 	}
 	err = r.CreateOrUpdatePrometheusRules(rule)
 	if err != nil {
 		r.Log.Error(err, "unable to deploy Prometheus rules")
+		return err
 	}
 	return nil
 }
