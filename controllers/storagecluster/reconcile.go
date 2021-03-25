@@ -205,6 +205,10 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 	if err := versionCheck(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate version")
 		r.recorder.Event(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+		instance.Status.Phase = statusutil.PhaseError
+		if updateErr := r.Client.Update(context.TODO(), instance); updateErr != nil {
+			return updateErr
+		}
 		return err
 	}
 
@@ -212,6 +216,10 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		if err := r.validateStorageDeviceSets(instance); err != nil {
 			r.Log.Error(err, "Failed to validate StorageDeviceSets")
 			r.recorder.Event(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+			instance.Status.Phase = statusutil.PhaseError
+			if updateErr := r.Client.Update(context.TODO(), instance); updateErr != nil {
+				return updateErr
+			}
 			return err
 		}
 	}
@@ -219,6 +227,10 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 	if err := validateArbiterSpec(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate ArbiterSpec")
 		r.recorder.Event(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+		instance.Status.Phase = statusutil.PhaseError
+		if updateErr := r.Client.Update(context.TODO(), instance); updateErr != nil {
+			return updateErr
+		}
 		return err
 	}
 	return nil
