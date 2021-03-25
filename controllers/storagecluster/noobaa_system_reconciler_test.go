@@ -409,15 +409,19 @@ func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconcile
 
 func TestNoobaaKMSConfiguration(t *testing.T) {
 	allKMSArgs := []struct {
-		testLabel       string
-		kmsProvider     string
-		kmsAddress      string
-		failureExpected bool
+		testLabel             string
+		kmsProvider           string
+		kmsAddress            string
+		clusterWideEncryption bool
+		failureExpected       bool
 	}{
-		{testLabel: "case 1", kmsProvider: "vault", kmsAddress: "http://localhost:3053"},
-		{testLabel: "case 2", kmsProvider: "vault", kmsAddress: "http://localhost:32123"},
+		{testLabel: "case 1", kmsProvider: "vault",
+			clusterWideEncryption: true, kmsAddress: "http://localhost:3053"},
+		{testLabel: "case 2", kmsProvider: "vault",
+			clusterWideEncryption: false, kmsAddress: "http://localhost:32123", failureExpected: true},
 		// ocs-operator is agnostic to KMS Provider, here rook should be throwing error
-		{testLabel: "case 3", kmsProvider: "newKMSProvider", kmsAddress: "http://127.0.0.1:15851"},
+		{testLabel: "case 3", kmsProvider: "newKMSProvider",
+			clusterWideEncryption: true, kmsAddress: "http://127.0.0.1:15851"},
 		// invalid test case, with an unreachable KMS address
 		{testLabel: "case 4", kmsProvider: "vault", kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
 	}
@@ -427,15 +431,17 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 }
 
 func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
-	testLabel       string
-	kmsProvider     string
-	kmsAddress      string
-	failureExpected bool
+	testLabel             string
+	kmsProvider           string
+	kmsAddress            string
+	clusterWideEncryption bool
+	failureExpected       bool
 }) {
 	ctxTodo := context.TODO()
 	cr := createDefaultStorageCluster()
 	// enable KMS to true
 	cr.Spec.Encryption.KeyManagementService.Enable = true
+	cr.Spec.Encryption.Enable = kmsArgs.clusterWideEncryption
 	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress)
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
 	if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
