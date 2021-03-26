@@ -78,6 +78,7 @@ type KeyManagementServiceSpec struct {
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
 type ManagedResourcesSpec struct {
 	CephConfig           ManageCephConfig           `json:"cephConfig,omitempty"`
+	CephDashboard        ManageCephDashboard        `json:"cephDashboard,omitempty"`
 	CephBlockPools       ManageCephBlockPools       `json:"cephBlockPools,omitempty"`
 	CephFilesystems      ManageCephFilesystems      `json:"cephFilesystems,omitempty"`
 	CephObjectStores     ManageCephObjectStores     `json:"cephObjectStores,omitempty"`
@@ -87,6 +88,13 @@ type ManagedResourcesSpec struct {
 // ManageCephConfig defines how to reconcile the Ceph configuration
 type ManageCephConfig struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// ManageCephDashboard defines how to reconcile Ceph dashboard
+type ManageCephDashboard struct {
+	Enable bool `json:"enable,omitempty"`
+	// serve the dashboard using SSL
+	SSL bool `json:"ssl,omitempty"`
 }
 
 // ManageCephBlockPools defines how to reconcilea CephBlockPools
