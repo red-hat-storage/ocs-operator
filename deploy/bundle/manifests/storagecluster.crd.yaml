@@ -284,6 +284,15 @@ spec:
                       reconcileStrategy:
                         type: string
                     type: object
+                  cephDashboard:
+                    description: ManageCephDashboard defines how to reconcile Ceph dashboard
+                    properties:
+                      enable:
+                        type: boolean
+                      ssl:
+                        description: serve the dashboard using SSL
+                        type: boolean
+                    type: object
                   cephFilesystems:
                     description: ManageCephFilesystems defines how to reconcile CephFilesystems
                     properties:
