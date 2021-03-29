@@ -39,8 +39,8 @@ func generateNameForCephFilesystemSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephfs", initData.Name)
 }
 
-func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
-	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
+func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster, suffix string) string {
+	return fmt.Sprintf("%s-ceph-rbd%s", initData.Name, suffix)
 }
 
 // generateNameForSnapshotClass function generates 'SnapshotClass' name.
