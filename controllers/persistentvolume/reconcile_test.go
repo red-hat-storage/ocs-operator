@@ -78,7 +78,7 @@ func TestEnsureExpansionSecret(t *testing.T) {
 			},
 		}
 		reconciler := createFakePersistentVolumeReconciler(t, testPV, testSC)
-		result, err := reconciler.Reconcile(request)
+		result, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoError(t, err)
 		assert.Equal(t, reconcile.Result{}, result)
 

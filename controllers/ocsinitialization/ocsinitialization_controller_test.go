@@ -126,7 +126,7 @@ func TestNonWatchedResourceNotFound(t *testing.T) {
 		_, request, reconciler := getTestParams(true, t)
 		request.Name = tc.name
 		request.Namespace = tc.namespace
-		_, err := reconciler.Reconcile(request)
+		_, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile with non watched resource", tc.label)
 	}
 }
@@ -157,7 +157,7 @@ func TestNonWatchedResourceFound(t *testing.T) {
 		ocs.Name = tc.name
 		ocs.Namespace = tc.namespace
 		reconciler.Client.Create(nil, &ocs)
-		_, err := reconciler.Reconcile(request)
+		_, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile with non watched resource", tc.label)
 		actual := &v1.OCSInitialization{}
 		reconciler.Client.Get(nil, request.NamespacedName, actual)
@@ -192,7 +192,7 @@ func TestCreateWatchedResource(t *testing.T) {
 			err = reconciler.Client.Get(nil, request.NamespacedName, &ocs)
 			assert.Error(t, err)
 		}
-		_, err := reconciler.Reconcile(request)
+		_, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoError(t, err)
 		obj := v1.OCSInitialization{}
 		_ = reconciler.Client.Get(nil, request.NamespacedName, &obj)
@@ -225,7 +225,7 @@ func TestCreateSCCs(t *testing.T) {
 			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
 
-		_, err := reconciler.Reconcile(request)
+		_, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
 		obj := v1.OCSInitialization{}
 		_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
@@ -241,7 +241,7 @@ func TestCreateSCCs(t *testing.T) {
 func TestReconcileCompleteConditions(t *testing.T) {
 	_, request, reconciler := getTestParams(false, t)
 
-	_, err := reconciler.Reconcile(request)
+	_, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	obj := v1.OCSInitialization{}
 	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)

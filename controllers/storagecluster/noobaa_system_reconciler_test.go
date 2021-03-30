@@ -327,7 +327,7 @@ func TestNoobaaSystemInExternalClusterMode(t *testing.T) {
 		},
 	}
 	reconciler := createExternalClusterReconciler(t)
-	result, err := reconciler.Reconcile(request)
+	result, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertNoobaaResource(t, reconciler)

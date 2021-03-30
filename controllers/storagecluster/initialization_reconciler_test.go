@@ -145,7 +145,7 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 		_ = reconciler.Client.Create(context.TODO(), rtObj)
 	}
 
-	result, err := reconciler.Reconcile(request)
+	result, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	err = os.Setenv("WATCH_NAMESPACE", cr.Namespace)
