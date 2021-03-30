@@ -189,7 +189,7 @@ func (r *OCSInitializationReconciler) ensureToolsDeployment(initialData *ocsv1.O
 // and what is in the OCSInitialization.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	prevLogger := r.Log
 	defer func() { r.Log = prevLogger }()
@@ -202,7 +202,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 	if initNamespacedName.Name != request.Name || initNamespacedName.Namespace != request.Namespace {
 		// Ignoring this resource because it has the wrong name or namespace
 		r.Log.Info(wrongNamespacedName)
-		err := r.Client.Get(context.TODO(), request.NamespacedName, instance)
+		err := r.Client.Get(ctx, request.NamespacedName, instance)
 		if err != nil {
 			// the resource probably got deleted
 			if errors.IsNotFound(err) {
@@ -212,7 +212,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 		}
 
 		instance.Status.Phase = util.PhaseIgnored
-		err = r.Client.Status().Update(context.TODO(), instance)
+		err = r.Client.Status().Update(ctx, instance)
 		if err != nil {
 			r.Log.Error(err, "failed to update ignored resource")
 		}
@@ -220,14 +220,14 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 	}
 
 	// Fetch the OCSInitialization instance
-	err := r.Client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Recreating since we depend on this to exist. A user may delete it to
 			// induce a reset of all initial data.
 			r.Log.Info("recreating OCSInitialization resource")
-			return reconcile.Result{}, r.Client.Create(context.TODO(), &ocsv1.OCSInitialization{
+			return reconcile.Result{}, r.Client.Create(ctx, &ocsv1.OCSInitialization{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      initNamespacedName.Name,
 					Namespace: initNamespacedName.Namespace,
@@ -244,7 +244,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 		util.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
 		instance.Status.Phase = util.PhaseProgressing
-		err = r.Client.Status().Update(context.TODO(), instance)
+		err = r.Client.Status().Update(ctx, instance)
 		if err != nil {
 			r.Log.Error(err, "Failed to add conditions to status")
 			return reconcile.Result{}, err
@@ -259,7 +259,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 
 		instance.Status.Phase = util.PhaseError
 		// don't want to overwrite the actual reconcile failure
-		uErr := r.Client.Status().Update(context.TODO(), instance)
+		uErr := r.Client.Status().Update(ctx, instance)
 		if uErr != nil {
 			r.Log.Error(uErr, "Failed to update conditions")
 		}
@@ -267,7 +267,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 	}
 	instance.Status.SCCsCreated = true
 
-	err = r.Client.Status().Update(context.TODO(), instance)
+	err = r.Client.Status().Update(ctx, instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -294,7 +294,7 @@ func (r *OCSInitializationReconciler) Reconcile(request reconcile.Request) (reco
 	util.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 
 	instance.Status.Phase = util.PhaseReady
-	err = r.Client.Status().Update(context.TODO(), instance)
+	err = r.Client.Status().Update(ctx, instance)
 
 	return reconcile.Result{}, err
 }

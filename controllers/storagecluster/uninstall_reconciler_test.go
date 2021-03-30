@@ -17,7 +17,6 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -610,7 +609,7 @@ func TestDeleteCephObjectStoreUsers(t *testing.T) {
 
 		for _, obj := range testList {
 			fakeCephObjectStoreUser := getFakeCephObjectStoreUser()
-			runtimeObjs := []runtime.Object{fakeCephObjectStoreUser}
+			runtimeObjs := []client.Object{fakeCephObjectStoreUser}
 			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
 
 			assertTestDeleteCephObjectStoreUsers(t, reconciler, sc, obj.CephObjectStoreUsersExist)
@@ -709,7 +708,7 @@ func TestDeleteCephObjectStores(t *testing.T) {
 
 		for _, obj := range testList {
 			fakeCephObjectStore := getFakeCephObjectStore()
-			runtimeObjs := []runtime.Object{fakeCephObjectStore}
+			runtimeObjs := []client.Object{fakeCephObjectStore}
 			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
 
 			assertTestDeleteCephObjectStores(t, reconciler, sc, obj.CephObjectStoreExist)
@@ -794,7 +793,7 @@ func TestSetNoobaaUninstallMode(t *testing.T) {
 
 		for _, obj := range testList {
 			fakeNoobaa := getFakeNoobaa()
-			runtimeObjs := []runtime.Object{fakeNoobaa}
+			runtimeObjs := []client.Object{fakeNoobaa}
 			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
 
 			assertTestSetNoobaaUninstallMode(t, reconciler, sc, obj.UninstallMode, obj.NoobaaUninstallMode)

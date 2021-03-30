@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -40,23 +39,23 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 		return nil
 	}
 
-	type getKMSResourceFunc func(*ocsv1.StorageCluster, client.Client) (runtime.Object, error)
+	type getKMSResourceFunc func(*ocsv1.StorageCluster, client.Client) (client.Object, error)
 
 	getKMSConfigMapAsRuntimeObject := func(
 		sc *ocsv1.StorageCluster,
-		client client.Client) (runtime.Object, error) {
+		client client.Client) (client.Object, error) {
 		return getKMSConfigMap(KMSConfigMapName, sc, client)
 	}
 
 	getCSIKMSConfigMapAsRuntimeObject := func(
 		sc *ocsv1.StorageCluster,
-		client client.Client) (runtime.Object, error) {
+		client client.Client) (client.Object, error) {
 		return getKMSConfigMap(CSIKMSConfigMapName, sc, client)
 	}
 
 	getKMSSecretTokenAsRuntimeObject := func(
 		sc *ocsv1.StorageCluster,
-		client client.Client) (runtime.Object, error) {
+		client client.Client) (client.Object, error) {
 		return getKMSSecretToken(sc, client)
 	}
 

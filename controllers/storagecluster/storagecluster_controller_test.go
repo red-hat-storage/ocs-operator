@@ -615,7 +615,7 @@ func TestReconcileWithNonWatchedResource(t *testing.T) {
 			},
 		}
 		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster)
-		result, err := reconciler.Reconcile(request)
+		result, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoError(t, err)
 		assert.Equalf(t, reconcile.Result{}, result, "[%s]: reconcile failed with non-watched resource", tc.label)
 
@@ -639,7 +639,7 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 	}
 
 	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, infra)
-	result, err := reconciler.Reconcile(mockStorageClusterRequest)
+	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 }
@@ -656,7 +656,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	mockStorageCluster.DeepCopyInto(sc)
 
 	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, infra)
-	result, err := reconciler.Reconcile(mockStorageClusterRequest)
+	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
@@ -818,7 +818,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	mockInfrastructure.DeepCopyInto(infra)
 
 	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc, nodeList, infra)
-	result, err := reconciler.Reconcile(mockStorageClusterRequest)
+	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
@@ -849,7 +849,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	}
 	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, noobaaMock, nodeList, infra)
 
-	result, err := reconciler.Reconcile(mockStorageClusterRequest)
+	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
@@ -878,7 +878,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	err = reconciler.Client.Delete(context.TODO(), noobaa)
 	assert.NoError(t, err)
 
-	result, err = reconciler.Reconcile(mockStorageClusterRequest)
+	result, err = reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 
@@ -920,7 +920,7 @@ func assertCondition(conditions []conditionsv1.Condition, conditionType conditio
 
 func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
 	scheme := createFakeScheme(t)
-	client := fake.NewFakeClientWithScheme(scheme, obj...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 
 	return StorageClusterReconciler{
 		Client:        client,
@@ -1047,7 +1047,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 		}
 		reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(t, platform)
 		_ = reconciler.Client.Create(context.TODO(), c.cr)
-		result, err := reconciler.Reconcile(request)
+		result, err := reconciler.Reconcile(context.TODO(), request)
 		if c.testCase != "default" {
 			validMultus := validateMultusSelectors(c.cr.Spec.Network.Selectors)
 			if validMultus != nil {
