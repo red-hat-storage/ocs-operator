@@ -139,7 +139,7 @@ var validTopologyLabelKeys = []string{
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *StorageClusterReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	prevLogger := r.Log
 	defer func() { r.Log = prevLogger }()
@@ -147,7 +147,7 @@ func (r *StorageClusterReconciler) Reconcile(request reconcile.Request) (reconci
 
 	// Fetch the StorageCluster instance
 	sc := &ocsv1.StorageCluster{}
-	if err := r.Client.Get(context.TODO(), request.NamespacedName, sc); err != nil {
+	if err := r.Client.Get(ctx, request.NamespacedName, sc); err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("No StorageCluster resource")
 			// Request object not found, could have been deleted after reconcile request.
@@ -167,7 +167,7 @@ func (r *StorageClusterReconciler) Reconcile(request reconcile.Request) (reconci
 	result, reconcileError := r.reconcilePhases(sc, request)
 
 	// Apply status changes to the storagecluster
-	statusError := r.Client.Status().Update(context.TODO(), sc)
+	statusError := r.Client.Status().Update(ctx, sc)
 	if statusError != nil {
 		r.Log.Info("Status Update Error", "StatusUpdateErr", "Could not update storagecluster status")
 	}
