@@ -54,11 +54,11 @@ type MetadataChangedPredicate struct {
 
 // Update implements the update event trap for StorageClusterChangedPredicate
 func (p MetadataChangedPredicate) Update(e event.UpdateEvent) bool {
-	metaChanged := !reflect.DeepEqual(e.MetaOld.GetLabels(), e.MetaNew.GetLabels()) ||
-		!reflect.DeepEqual(e.MetaOld.GetAnnotations(), e.MetaNew.GetAnnotations()) ||
-		!reflect.DeepEqual(e.MetaOld.GetFinalizers(), e.MetaNew.GetFinalizers())
+	metaChanged := !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) ||
+		!reflect.DeepEqual(e.ObjectOld.GetAnnotations(), e.ObjectNew.GetAnnotations()) ||
+		!reflect.DeepEqual(e.ObjectOld.GetFinalizers(), e.ObjectNew.GetFinalizers())
 
-	return e.MetaOld != nil &&
-		e.MetaNew != nil &&
+	return e.ObjectOld != nil &&
+		e.ObjectNew != nil &&
 		metaChanged
 }
