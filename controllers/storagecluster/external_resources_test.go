@@ -19,8 +19,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -151,8 +151,8 @@ func createExternalClusterReconcilerFromCustomResources(
 	}
 	rookCephConfig := newRookCephOperatorConfig("")
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	runtimeObjs := []runtime.Object{cr, externalSecret, rookCephConfig}
-	for _, obj := range runtimeObjs {
+	clientObjs := []client.Object{cr, externalSecret, rookCephConfig}
+	for _, obj := range clientObjs {
 		if err = reconciler.Client.Create(context.TODO(), obj); err != nil {
 			t.Fatalf("failed to create a needed runtime object: %v", err)
 		}

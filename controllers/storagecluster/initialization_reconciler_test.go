@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -55,7 +56,7 @@ func createStorageCluster(scName, failureDomainName string,
 	return cr
 }
 
-func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReconciler) []runtime.Object {
+func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReconciler) []client.Object {
 	csfs := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfs",
@@ -76,7 +77,7 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephblockpool",
 		},
 	}
-	updateRTObjects := []runtime.Object{csfs, csrbd, cfs, cbp}
+	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp}
 
 	avoid, err := r.PlatformsShouldAvoidObjectStore()
 	assert.NoError(t, err)
@@ -116,7 +117,7 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 }
 
 func initStorageClusterResourceCreateUpdateTestWithPlatform(
-	t *testing.T, platform *Platform, runtimeObjs []runtime.Object) (*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
+	t *testing.T, platform *Platform, runtimeObjs []client.Object) (*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
