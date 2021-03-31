@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	testingClient "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -53,9 +54,9 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 	return ocs, request, getReconciler(t, &ocs)
 }
 
-func getReconciler(t *testing.T, objs ...runtime.Object) OCSInitializationReconciler {
+func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconciler {
 	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
 	secClient := &fakeSecClient.FakeSecurityV1{Fake: &testingClient.Fake{}}
 	log := logf.Log.WithName("controller_storagecluster_test")
 
