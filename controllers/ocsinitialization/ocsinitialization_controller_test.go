@@ -163,12 +163,14 @@ func TestNonWatchedResourceFound(t *testing.T) {
 		request.Namespace = tc.namespace
 		ocs.Name = tc.name
 		ocs.Namespace = tc.namespace
-		reconciler.Client.Create(nil, &ocs)
-		_, err := reconciler.Reconcile(context.TODO(), request)
+		err := reconciler.Client.Create(nil, &ocs)
+		assert.NoErrorf(t, err, "[%s]: failed CREATE of non watched resource", tc.label)
+		_, err = reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile with non watched resource", tc.label)
 		actual := &v1.OCSInitialization{}
-		reconciler.Client.Get(nil, request.NamespacedName, actual)
-		assert.Equalf(t, statusutil.PhaseIgnored, actual.Status.Phase, "[%s]: failed to update phase of non watched resource that already exists", tc.label)
+		err = reconciler.Client.Get(nil, request.NamespacedName, actual)
+		assert.NoErrorf(t, err, "[%s]: failed GET of actual resource", tc.label)
+		assert.Equalf(t, statusutil.PhaseIgnored, actual.Status.Phase, "[%s]: failed to update phase of non watched resource that already exists OCS:\n%v", tc.label, actual)
 	}
 }
 
