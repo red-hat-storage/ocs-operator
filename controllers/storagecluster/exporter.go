@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/imdario/mergo"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +30,11 @@ var exporterLabels = map[string]string{
 // enableMetricsExporter is a wrapper around CreateOrUpdateService()
 // and CreateOrUpdateServiceMonitor()
 func (r *StorageClusterReconciler) enableMetricsExporter(instance *ocsv1.StorageCluster) error {
-	_, err := CreateOrUpdateService(r, instance)
+	err := mergo.Merge(&exporterLabels, instance.Spec.Monitoring.Labels, mergo.WithOverride)
+	if err != nil {
+		return err
+	}
+	_, err = CreateOrUpdateService(r, instance)
 	if err != nil {
 		return err
 	}

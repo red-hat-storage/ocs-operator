@@ -58,6 +58,11 @@ var mockStorageCluster = &api.StorageCluster{
 		Name:      mockStorageClusterRequest.Name,
 		Namespace: mockStorageClusterRequest.Namespace,
 	},
+	Spec: api.StorageClusterSpec{
+		Monitoring: &api.MonitoringSpec{
+			ReconcileStrategy: string(ReconcileStrategyIgnore),
+		},
+	},
 }
 
 var mockStorageClusterWithArbiter = &api.StorageCluster{
@@ -625,6 +630,11 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "storage-test",
 			Namespace: "storage-test-ns",
+		},
+		Spec: api.StorageClusterSpec{
+			Monitoring: &api.MonitoringSpec{
+				ReconcileStrategy: string(ReconcileStrategyIgnore),
+			},
 		},
 	}
 

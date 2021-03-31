@@ -130,6 +130,9 @@ func createExternalClusterReconcilerFromCustomResources(
 			ExternalStorage: api.ExternalStorageClusterSpec{
 				Enable: true,
 			},
+			Monitoring: &api.MonitoringSpec{
+				ReconcileStrategy: string(ReconcileStrategyIgnore),
+			},
 		},
 	}
 	if extResource, err := findNamedResourceFromArray(extResources, "ceph-rgw"); err == nil {
