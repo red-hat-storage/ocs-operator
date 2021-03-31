@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
-  name: cephrbdmirrors.ceph.rook.io
+  name: cephfilesystemmirrors.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: CephRBDMirror
-    listKind: CephRBDMirrorList
-    plural: cephrbdmirrors
-    singular: cephrbdmirror
+    kind: CephFilesystemMirror
+    listKind: CephFilesystemMirrorList
+    plural: cephfilesystemmirrors
+    singular: cephfilesystemmirror
   scope: Namespaced
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: CephRBDMirror represents a Ceph RBD Mirror
+        description: CephFilesystemMirror is the Ceph Filesystem Mirror object definition
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -28,7 +28,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: RBDMirroringSpec represents the specification of an RBD mirror daemon
+            description: FilesystemMirroringSpec is the filesystem mirorring specification
             properties:
               annotations:
                 additionalProperties:
@@ -36,27 +36,11 @@ spec:
                 description: The annotations-related configuration to add/set on each Pod related object.
                 nullable: true
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
-              count:
-                description: Count represents the number of rbd mirror instance to run
-                minimum: 1
-                type: integer
               labels:
                 additionalProperties:
                   type: string
                 description: The labels-related configuration to add/set on each Pod related object.
                 nullable: true
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
-              peers:
-                description: RBDMirroringPeerSpec represents the peers spec
-                nullable: true
-                properties:
-                  secretNames:
-                    description: SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
-                    items:
-                      type: string
-                    type: array
                 type: object
               placement:
                 description: The affinity to place the rgw pods (default is to place on any available node)
@@ -474,12 +458,11 @@ spec:
                       type: object
                     type: array
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
               priorityClassName:
-                description: PriorityClassName sets priority class on the rbd mirror pods
+                description: PriorityClassName sets priority class on the cephfs-mirror pods
                 type: string
               resources:
-                description: The resource requirements for the rbd mirror pods
+                description: The resource requirements for the cephfs-mirror pods
                 nullable: true
                 properties:
                   limits:
@@ -501,9 +484,6 @@ spec:
                     description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                     type: object
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
-            required:
-            - count
             type: object
           status:
             description: Status represents the status of an object
@@ -511,7 +491,6 @@ spec:
               phase:
                 type: string
             type: object
-            x-kubernetes-preserve-unknown-fields: true
         required:
         - metadata
         - spec
