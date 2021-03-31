@@ -55,7 +55,7 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 
 func getReconciler(t *testing.T, objs ...runtime.Object) OCSInitializationReconciler {
 	scheme := createFakeScheme(t)
-	client := fake.NewFakeClientWithScheme(scheme, objs...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).Build()
 	secClient := &fakeSecClient.FakeSecurityV1{Fake: &testingClient.Fake{}}
 	log := logf.Log.WithName("controller_storagecluster_test")
 

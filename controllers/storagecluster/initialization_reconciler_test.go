@@ -165,7 +165,7 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	obj ...runtime.Object) StorageClusterReconciler {
 	scheme := createFakeInitializationScheme(t, obj...)
 	obj = append(obj, mockNodeList)
-	client := fake.NewFakeClientWithScheme(scheme, obj...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}
 	}

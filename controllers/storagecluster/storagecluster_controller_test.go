@@ -920,7 +920,7 @@ func assertCondition(conditions []conditionsv1.Condition, conditionType conditio
 
 func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
 	scheme := createFakeScheme(t)
-	client := fake.NewFakeClientWithScheme(scheme, obj...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 
 	return StorageClusterReconciler{
 		Client:        client,

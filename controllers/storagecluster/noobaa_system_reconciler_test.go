@@ -398,7 +398,7 @@ func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconcile
 	if err != nil {
 		assert.Fail(t, "failed to add openshiftv1 scheme")
 	}
-	client := fake.NewFakeClientWithScheme(scheme, registerObjs...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(registerObjs...).Build()
 
 	return StorageClusterReconciler{
 		Scheme:   scheme,
