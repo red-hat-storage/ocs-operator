@@ -153,14 +153,21 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 }
 
 // newCephBlockPoolStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass.
-func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
+func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, thickProvision bool) StorageClassConfiguration {
+	thickProvisionStr := "false"
+	storageClassSuffix := ""
+	if thickProvision {
+		thickProvisionStr = "true"
+		storageClassSuffix = "-thick"
+	}
+
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	managementSpec := initData.Spec.ManagedResources.CephBlockPools
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: generateNameForCephBlockPoolSC(initData),
+				Name: generateNameForCephBlockPoolSC(initData, storageClassSuffix),
 				Annotations: map[string]string{
 					"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 				},
@@ -175,6 +182,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 				"imageFeatures":             "layering",
 				"csi.storage.k8s.io/fstype": "ext4",
 				"imageFormat":               "2",
+				"thickProvision":            thickProvisionStr,
 				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
 				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
 				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
@@ -218,7 +226,8 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1.StorageCluster) ([]StorageClassConfiguration, error) {
 	ret := []StorageClassConfiguration{
 		newCephFilesystemStorageClassConfiguration(initData),
-		newCephBlockPoolStorageClassConfiguration(initData),
+		newCephBlockPoolStorageClassConfiguration(initData, false),
+		newCephBlockPoolStorageClassConfiguration(initData, true),
 	}
 	// OBC storageclass will be returned only in TWO conditions,
 	// a. either 'externalStorage' is enabled
