@@ -18,8 +18,8 @@ if [[ -n "${NOT_FOUND}" ]];then
 	exit 1
 fi
 
-if [[ -n "$(git status --porcelain deploy/olm-catalog)" ]]; then
-	git diff -u deploy/olm-catalog
+if [[ -n "$(git status --porcelain deploy/csv-templates deploy/bundle config/crd/bases )" ]]; then
+	git diff -u deploy/csv-templates deploy/bundle config/crd/bases
 	echo "uncommitted CSV changes. run 'make gen-latest-csv' and commit results."
 	exit 1
 fi
