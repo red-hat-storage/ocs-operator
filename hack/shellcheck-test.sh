@@ -35,7 +35,7 @@ if [ ! -f "${SHELLCHECK}" ]; then
                 SC_SOURCE="https://github.com/koalaman/shellcheck/releases/download/${SC_VERSION?}/shellcheck-${SC_VERSION?}.linux.x86_64.tar.xz"
         fi
 
-        wget -qO- "${SC_SOURCE}" | tar -xJv
+        curl -JL "${SC_SOURCE}" | tar -xJv
         mkdir -p ${OUTDIR_TOOLS}
         cp -f "shellcheck-${SC_VERSION}/shellcheck" "${SHELLCHECK}"
 
