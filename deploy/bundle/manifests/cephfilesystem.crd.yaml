@@ -47,6 +47,7 @@ spec:
                       default: none
                       description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
                       enum:
+                      - ""
                       - none
                       - passive
                       - aggressive
@@ -185,6 +186,7 @@ spec:
                     default: none
                     description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
                     enum:
+                    - ""
                     - none
                     - passive
                     - aggressive

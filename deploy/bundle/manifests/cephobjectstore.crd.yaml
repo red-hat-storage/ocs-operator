@@ -23,6 +23,7 @@ spec:
                 properties:
                   compressionMode:
                     enum:
+                    - ""
                     - none
                     - passive
                     - aggressive
@@ -119,6 +120,7 @@ spec:
                 properties:
                   compressionMode:
                     enum:
+                    - ""
                     - none
                     - passive
                     - aggressive

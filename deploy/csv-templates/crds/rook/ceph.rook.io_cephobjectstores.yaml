@@ -99,6 +99,7 @@ spec:
                     compressionMode:
                       type: string
                       enum:
+                        - ""
                         - none
                         - passive
                         - aggressive
@@ -145,6 +146,7 @@ spec:
                     compressionMode:
                       type: string
                       enum:
+                        - ""
                         - none
                         - passive
                         - aggressive
