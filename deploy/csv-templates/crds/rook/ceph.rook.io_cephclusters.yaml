@@ -395,3 +395,5 @@ spec:
           type: string
           description: Ceph Health
           jsonPath: .status.ceph.health
+      subresources:
+        status: {}
