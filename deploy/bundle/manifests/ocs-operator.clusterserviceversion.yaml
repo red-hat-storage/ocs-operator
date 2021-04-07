@@ -1177,15 +1177,6 @@ spec:
       kind: CephObjectZone
       name: cephobjectzones.ceph.rook.io
       version: v1
-    - kind: ObjectBucketClaim
-      name: objectbucketclaims.objectbucket.io
-      version: v1alpha1
-    - kind: ObjectBucket
-      name: objectbuckets.objectbucket.io
-      version: v1alpha1
-    - kind: Volume
-      name: volumes.rook.io
-      version: v1alpha2
     - description: A NooBaa system - Create this to start
       displayName: NooBaa
       kind: NooBaa
