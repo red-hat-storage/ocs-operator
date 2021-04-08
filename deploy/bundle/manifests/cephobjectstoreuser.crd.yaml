@@ -2,6 +2,8 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.5.0
   name: cephobjectstoreusers.ceph.rook.io
 spec:
   group: ceph.rook.io
@@ -19,6 +21,12 @@ spec:
     schema:
       openAPIV3Schema:
         properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
           spec:
             properties:
               displayName:
@@ -27,8 +35,19 @@ spec:
                 type: string
             type: object
           status:
+            properties:
+              info:
+                additionalProperties:
+                  type: string
+                nullable: true
+                type: object
+              phase:
+                type: string
             type: object
             x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
         type: object
     served: true
     storage: true
