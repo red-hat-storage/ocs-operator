@@ -4,14 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
-  name: cephrbdmirrors.ceph.rook.io
+  name: cephfilesystemmirrors.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: CephRBDMirror
-    listKind: CephRBDMirrorList
-    plural: cephrbdmirrors
-    singular: cephrbdmirror
+    kind: CephFilesystemMirror
+    listKind: CephFilesystemMirrorList
+    plural: cephfilesystemmirrors
+    singular: cephfilesystemmirror
   scope: Namespaced
   versions:
   - name: v1
@@ -31,23 +31,10 @@ spec:
                   type: string
                 nullable: true
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
-              count:
-                minimum: 1
-                type: integer
               labels:
                 additionalProperties:
                   type: string
                 nullable: true
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
-              peers:
-                nullable: true
-                properties:
-                  secretNames:
-                    items:
-                      type: string
-                    type: array
                 type: object
               placement:
                 nullable: true
@@ -367,7 +354,6 @@ spec:
                       type: object
                     type: array
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
               priorityClassName:
                 type: string
               resources:
@@ -390,16 +376,12 @@ spec:
                       x-kubernetes-int-or-string: true
                     type: object
                 type: object
-                x-kubernetes-preserve-unknown-fields: true
-            required:
-            - count
             type: object
           status:
             properties:
               phase:
                 type: string
             type: object
-            x-kubernetes-preserve-unknown-fields: true
         required:
         - metadata
         - spec
