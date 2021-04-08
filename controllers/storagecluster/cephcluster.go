@@ -37,9 +37,9 @@ const (
 )
 
 type knownDiskType struct {
-	speed            diskSpeed
-	provisioner      StorageClassProvisionerType
-	storageClassType string
+	speed                  diskSpeed
+	provisioner            StorageClassProvisionerType
+	storageClassParameters map[string]string
 }
 
 // These are known disk types where we can't correctly detect the type of the
@@ -47,9 +47,11 @@ type knownDiskType struct {
 // This list allows to specify disks from which storage classes to tune for fast
 // or slow disk optimization.
 var knownDiskTypes = []knownDiskType{
-	{diskSpeedSlow, EBS, "gp2"},
-	{diskSpeedSlow, EBS, "io1"},
-	{diskSpeedFast, AzureDisk, "managed-premium"},
+	{speed: diskSpeedSlow, provisioner: EBS, storageClassParameters: map[string]string{"type": "gp2"}},
+	{speed: diskSpeedSlow, provisioner: EBS, storageClassParameters: map[string]string{"type": "io1"}},
+	{speed: diskSpeedFast, provisioner: AzureDisk, storageClassParameters: map[string]string{"storageaccounttype": "StandardSSD_LRS"}},
+	{speed: diskSpeedFast, provisioner: AzureDisk, storageClassParameters: map[string]string{"storageaccounttype": "Premium_LRS"}},
+	{speed: diskSpeedFast, provisioner: AzureDisk, storageClassParameters: map[string]string{"storageaccounttype": "UltraSSD_LRS"}},
 }
 
 const (
@@ -690,7 +692,15 @@ func (r *StorageClusterReconciler) checkTuneStorageDevices(ds ocsv1.StorageDevic
 			continue
 		}
 
-		if dt.storageClassType != storageClass.Parameters["type"] {
+		invalidParameters := false
+		for parameter, expectedValue := range dt.storageClassParameters {
+			actualValue, ok := storageClass.Parameters[parameter]
+			if ok && actualValue != expectedValue {
+				invalidParameters = true
+			}
+		}
+
+		if invalidParameters {
 			continue
 		}
 
