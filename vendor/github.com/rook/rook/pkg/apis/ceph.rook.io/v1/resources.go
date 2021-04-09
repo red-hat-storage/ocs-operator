@@ -26,6 +26,8 @@ const (
 	ResourcesKeyMon = "mon"
 	// ResourcesKeyMgr represents the name of resource in the CR for a mgr
 	ResourcesKeyMgr = "mgr"
+	// ResourcesKeyMgrSidecar represents the name of resource in the CR for a mgr
+	ResourcesKeyMgrSidecar = "mgr-sidecar"
 	// ResourcesKeyOSD represents the name of resource in the CR for an osd
 	ResourcesKeyOSD = "osd"
 	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
@@ -38,6 +40,8 @@ const (
 	ResourcesKeyLogCollector = "logcollector"
 	// ResourcesKeyRBDMirror represents the name of resource in the CR for the rbd mirror
 	ResourcesKeyRBDMirror = "rbdmirror"
+	// ResourcesKeyFilesystemMirror represents the name of resource in the CR for the filesystem mirror
+	ResourcesKeyFilesystemMirror = "fsmirror"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
 	ResourcesKeyCleanup = "cleanup"
 )
@@ -45,6 +49,11 @@ const (
 // GetMgrResources returns the placement for the MGR service
 func GetMgrResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgr]
+}
+
+// GetMgrSidecarResources returns the placement for the MGR sidecar container
+func GetMgrSidecarResources(p rook.ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyMgrSidecar]
 }
 
 // GetMonResources returns the placement for the monitors
