@@ -670,11 +670,52 @@ or if an OSD ID is not found, errors will be generated in the log and no OSDs wo
 	}
 }
 
+func extendClusterTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
+
+	jobTemplateName := "ocs-extend-cluster"
+	extendClusterCommand := []string{
+		"bash",
+		"-c",
+		`full_ratio_value=$(ceph osd dump | grep -m1 full_ratio | awk '{print $2}')
+		  echo $full_ratio_value
+		if [[ $full_ratio_value == "0.85"  ]]; then
+			   ceph osd set-full-ratio 0.87
+		else
+			   ceph osd set-full-ratio 0.85
+		fi
+		`,
+	}
+
+	return &openshiftv1.Template{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobTemplateName,
+			Namespace: sc.Namespace,
+		},
+		Parameters: []openshiftv1.Parameter{
+			{
+				Name:        "RECONFIGURE",
+				DisplayName: "Ratio",
+				Required:    false,
+				Description: `
+				 Currently this design does not require any parameter yet,
+				 included for an additional possiblity to implement something like
+				 --increase-limit and --reset-limit`,
+			},
+		},
+		Objects: []runtime.RawExtension{
+			{
+				Object: newExtendClusterJob(sc, jobTemplateName, extendClusterCommand),
+			},
+		},
+	}
+}
+
 // ensureCreated ensures if the osd removal job template exists
 func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
 
 	tempFuncs := []func(*ocsv1.StorageCluster) *openshiftv1.Template{
 		osdCleanUpTemplate,
+		extendClusterTemplate,
 	}
 
 	for _, tempFunc := range tempFuncs {
@@ -694,6 +735,123 @@ func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 // ensureDeleted is dummy func for the ocsJobTemplates
 func (obj *ocsJobTemplates) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
 	return nil
+}
+
+func newExtendClusterJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephCommands []string) *batchv1.Job {
+	labels := map[string]string{
+		"app": "ceph-toolbox-job",
+	}
+
+	// Annotation template.alpha.openshift.io/wait-for-ready ensures template readiness
+	annotations := map[string]string{
+		"template.alpha.openshift.io/wait-for-ready": "true",
+	}
+
+	job := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        jobTemplateName,
+			Namespace:   sc.Namespace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+
+					InitContainers: []corev1.Container{
+						{
+							Name:            "config-init",
+							Image:           "rook/ceph:master",
+							Command:         []string{"/usr/local/bin/toolbox.sh"},
+							Args:            []string{"--skip-watch"},
+							ImagePullPolicy: "IfNotPresent",
+							Env: []corev1.EnvVar{
+								{
+									Name: "ROOK_CEPH_USERNAME",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key:                  "ceph-username",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+										},
+									},
+								},
+								{
+									Name: "ROOK_CEPH_SECRET",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key:                  "ceph-secret",
+											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
+										},
+									},
+								},
+								{
+									Name:  "POD_NAMESPACE",
+									Value: sc.Namespace,
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "ceph-config",
+									MountPath: "/etc/ceph",
+								},
+								{
+									Name:      "mon-endpoint-volume",
+									MountPath: "/etc/rook",
+								},
+							},
+						},
+					},
+
+					Containers: []corev1.Container{
+						{
+							Name:  "script",
+							Image: os.Getenv("ROOK_CEPH_IMAGE"),
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "ceph-config",
+									MountPath: "/etc/ceph",
+									ReadOnly:  true,
+								},
+							},
+							Command: cephCommands,
+						},
+					},
+					RestartPolicy:      corev1.RestartPolicyNever,
+					ServiceAccountName: "default",
+					Volumes: []corev1.Volume{
+						{
+							Name:         "rook-config",
+							VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+						},
+						{
+							Name:         "ceph-config",
+							VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+						},
+						{
+							Name: "mon-endpoint-volume",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "data",
+											Path: "mon-endpoints",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return job
+
 }
 
 func newosdCleanUpJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephCommands []string) *batchv1.Job {
