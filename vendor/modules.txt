@@ -240,7 +240,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rook/rook v1.5.8-0.20210219161258-2744b997ad89
+# github.com/rook/rook v1.5.8-0.20210219161258-2744b997ad89 => github.com/travisn/rook v1.0.6-0.20210409223730-3cf6719abe4d
 ## explicit
 github.com/rook/rook/pkg/apis/cassandra.rook.io
 github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1
@@ -661,6 +661,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml
 # github.com/openshift/api => github.com/openshift/api v0.0.0-20201203102015-275406142edb
+# github.com/rook/rook => github.com/travisn/rook v1.0.6-0.20210409223730-3cf6719abe4d
 # k8s.io/api => k8s.io/api v0.20.2
 # k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
 # k8s.io/apimachinery => k8s.io/apimachinery v0.20.2

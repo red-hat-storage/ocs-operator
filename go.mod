@@ -35,6 +35,7 @@ require (
 
 replace (
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20201203102015-275406142edb // required for Quickstart CRD
+	github.com/rook/rook => github.com/travisn/rook v1.0.6-0.20210409223730-3cf6719abe4d
 	k8s.io/api => k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.2
