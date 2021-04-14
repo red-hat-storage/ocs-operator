@@ -140,6 +140,10 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			}
 			// Need to happen after the ceph cluster CR creation was confirmed
 			sc.Status.Images.Ceph.ActualImage = cephCluster.Spec.CephVersion.Image
+			// Assuming progress when ceph cluster CR is created.
+			reason := "CephClusterStatus"
+			message := "CephCluster resource is not reporting status"
+			statusutil.MapCephClusterNoConditions(&r.conditions, reason, message)
 			return nil
 		}
 		return err
