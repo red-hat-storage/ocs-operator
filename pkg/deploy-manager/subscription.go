@@ -41,11 +41,24 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, operatorGroup := range co.operatorGroups {
-		_, err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Create(context.TODO(), &operatorGroup, metav1.CreateOptions{})
+		operatorGroups, err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		if len(operatorGroups.Items) > 1 {
+			// There should be only one operatorgroup in a namespace.
+			// The system is already misconfigured - error out.
+			return fmt.Errorf("More than one operatorgroup detected in namespace %v - aborting", operatorGroup.Namespace)
+		}
+		if len(operatorGroups.Items) > 0 {
+			// There should be only one operatorgroup in a namespace.
+			// Skip this one, so we don't make the system bad.
+			continue
+		}
+		_, err = t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Create(context.TODO(), &operatorGroup, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
-
 	}
 
 	for _, catalogSource := range co.catalogSources {
