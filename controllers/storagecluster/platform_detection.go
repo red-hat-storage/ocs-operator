@@ -44,22 +44,17 @@ type Platform struct {
 }
 
 // GetPlatform is used to get the CloudPlatformType of the running cluster
-func (p *Platform) GetPlatform(c client.Client) (configv1.PlatformType, error) {
-	// if 'platform' is already set just return it
-	if p.platform != "" {
-		return p.platform, nil
-	}
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	return p.getPlatform(c)
+func (p *Platform) GetPlatform() configv1.PlatformType {
+	return p.platform
 }
 
-func (p *Platform) getPlatform(c client.Client) (configv1.PlatformType, error) {
+func (p *Platform) detectPlatform(c client.Client) error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
 	infrastructure := &configv1.Infrastructure{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
 	err := c.Get(context.TODO(), types.NamespacedName{Name: infrastructure.ObjectMeta.Name}, infrastructure)
 	if err != nil {
-		return "", fmt.Errorf("could not get infrastructure details to determine cloud platform: %v", err)
+		return fmt.Errorf("could not get infrastructure details to determine cloud platform: %v", err)
 	}
 
 	p.platform = infrastructure.Status.Platform //nolint:staticcheck
@@ -68,12 +63,12 @@ func (p *Platform) getPlatform(c client.Client) (configv1.PlatformType, error) {
 	if p.platform == configv1.IBMCloudPlatformType {
 		platformIBM, platErr := getActualIBMPlatformType(c)
 		if platErr != nil {
-			return "", fmt.Errorf("Error checking COS secret in IBMCloud: %v", platErr)
+			return fmt.Errorf("Error checking COS secret in IBMCloud: %v", platErr)
 		}
 		p.platform = platformIBM
 	}
 
-	return p.platform, nil
+	return nil
 }
 
 func avoidObjectStore(p configv1.PlatformType) bool {
@@ -120,11 +115,7 @@ func IsCosSecretPresent(c client.Client) (bool, error) {
 }
 
 func (r *StorageClusterReconciler) DevicesDefaultToFastForThisPlatform() (bool, error) {
-	c := r.Client
-	platform, err := r.platform.GetPlatform(c)
-	if err != nil {
-		return false, err
-	}
+	platform := r.platform.GetPlatform()
 
 	for _, tfplatform := range TuneFastPlatforms {
 		if platform == tfplatform {
@@ -139,10 +130,7 @@ func (r *StorageClusterReconciler) DevicesDefaultToFastForThisPlatform() (bool, 
 // for the platform.
 func (r *StorageClusterReconciler) PlatformsShouldAvoidObjectStore() (bool, error) {
 	// Call GetPlatform to get platform
-	platform, err := r.platform.GetPlatform(r.Client)
-	if err != nil {
-		return false, err
-	}
+	platform := r.platform.GetPlatform()
 
 	// Call avoidObjectStore to avoid creation of objectstores
 	if avoidObjectStore(platform) {

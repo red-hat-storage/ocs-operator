@@ -26,11 +26,7 @@ func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance
 		return err
 	}
 	if avoid {
-		platform, err := r.platform.GetPlatform(r.Client)
-		if err != nil {
-			return err
-		}
-		r.Log.Info(fmt.Sprintf("not creating a Ceph RGW route because the platform is '%s'", platform))
+		r.Log.Info(fmt.Sprintf("not creating a Ceph RGW route because the platform is '%s'", r.platform.GetPlatform()))
 		return nil
 	}
 

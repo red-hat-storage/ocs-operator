@@ -167,6 +167,11 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases(sc, request)
 
+	// call detectPlatform func to detect the platform of running cluster
+	if err := r.platform.detectPlatform(r.Client); err != nil {
+		r.Log.Error(err, "Failed to get platform")
+	}
+
 	// Apply status changes to the storagecluster
 	statusError := r.Client.Status().Update(ctx, sc)
 	if statusError != nil {

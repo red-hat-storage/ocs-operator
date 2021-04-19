@@ -117,17 +117,15 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return err
 	}
 
-	platform, err := r.platform.GetPlatform(r.Client)
-	if err != nil {
-		r.Log.Error(err, "Failed to get platform")
-	} else if platform == v1.IBMCloudPlatformType || platform == IBMCloudCosPlatformType {
-		r.Log.Info(fmt.Sprintf("Increasing Mon failover timeout to 15m for %s", platform))
+	platform := r.platform.GetPlatform()
+	if platform == v1.IBMCloudPlatformType || platform == IBMCloudCosPlatformType {
+		r.Log.Info(fmt.Sprintf("Increasing Mon failover timeout to 15m for %s", r.platform.GetPlatform()))
 		cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
 	}
 
 	// Check if this CephCluster already exists
 	found := &cephv1.CephCluster{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if sc.Spec.ExternalStorage.Enable {

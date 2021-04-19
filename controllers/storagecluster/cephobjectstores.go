@@ -29,11 +29,7 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 	}
 
 	if avoid {
-		platform, err := r.platform.GetPlatform(r.Client)
-		if err != nil {
-			return err
-		}
-		r.Log.Info(fmt.Sprintf("not creating a CephObjectStore because the platform is '%s'", platform))
+		r.Log.Info(fmt.Sprintf("not creating a CephObjectStore because the platform is '%s'", r.platform.GetPlatform()))
 		return nil
 	}
 
