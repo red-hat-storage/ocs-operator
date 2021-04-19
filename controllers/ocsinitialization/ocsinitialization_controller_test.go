@@ -51,7 +51,16 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 		},
 	}
 
-	return ocs, request, getReconciler(t, &ocs)
+	reconciler := getReconciler(t, &ocs)
+	//The fake client stores the objects after adding a resource version to
+	//them. This is a breaking change introduced in
+	//https://github.com/kubernetes-sigs/controller-runtime/pull/1306.
+	//Therefore we cannot use the fake object that we provided as input to the
+	//the fake client and should use the object obtained from the Get
+	//operation.
+	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &ocs)
+
+	return ocs, request, reconciler
 }
 
 func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconciler {
