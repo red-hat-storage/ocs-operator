@@ -221,6 +221,7 @@ func TestCreateWatchedResource(t *testing.T) {
 	}
 }
 
+// TestCreateSCCs ensures that the reconciler creates the SCCs if they are missing.
 func TestCreateSCCs(t *testing.T) {
 	testcases := []struct {
 		label      string
@@ -240,14 +241,18 @@ func TestCreateSCCs(t *testing.T) {
 		ocs, request, reconciler := getTestParams(false, t)
 
 		if tc.sscCreated {
-			ocs.Status.SCCsCreated = false
+			ocs.Status.SCCsCreated = true
 			err := reconciler.Client.Update(context.TODO(), &ocs)
 			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
 
-		_, err := reconciler.Reconcile(context.TODO(), request)
-		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
 		obj := v1.OCSInitialization{}
+		err := reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
+		assert.NoErrorf(t, err, "[%s]: failed to get ocsInit", tc.label)
+		assert.Equal(t, tc.sscCreated, obj.Status.SCCsCreated, "[%s] failed to set the pre condition for the test", tc.label)
+
+		_, err = reconciler.Reconcile(context.TODO(), request)
+		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
 		_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
 		for cType, status := range successfulReconcileConditions {
 			found := assertCondition(obj, cType, status)
@@ -255,6 +260,7 @@ func TestCreateSCCs(t *testing.T) {
 				assert.Fail(t, fmt.Sprintf("Expected status condition %s %s not found", cType, status))
 			}
 		}
+		assert.Equal(t, true, obj.Status.SCCsCreated, "[%s] SCCs not created after reconcile", tc.label)
 	}
 }
 
