@@ -18,14 +18,14 @@ type ensureFunc func(*corev1.PersistentVolume) error
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get
 
 // Reconcile ...
-func (r *PersistentVolumeReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	prevLogger := r.Log
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
 	pv := &corev1.PersistentVolume{}
-	err := r.Client.Get(context.TODO(), request.NamespacedName, pv)
+	err := r.Client.Get(ctx, request.NamespacedName, pv)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("PersistentVolume not found")

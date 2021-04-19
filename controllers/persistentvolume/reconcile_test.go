@@ -78,7 +78,7 @@ func TestEnsureExpansionSecret(t *testing.T) {
 			},
 		}
 		reconciler := createFakePersistentVolumeReconciler(t, testPV, testSC)
-		result, err := reconciler.Reconcile(request)
+		result, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoError(t, err)
 		assert.Equal(t, reconcile.Result{}, result)
 
@@ -110,7 +110,7 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 
 func createFakePersistentVolumeReconciler(t *testing.T, obj ...runtime.Object) PersistentVolumeReconciler {
 	scheme := createFakeScheme(t)
-	client := fake.NewFakeClientWithScheme(scheme, obj...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 
 	return PersistentVolumeReconciler{
 		Client: client,

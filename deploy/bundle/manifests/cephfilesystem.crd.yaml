@@ -118,7 +118,7 @@ spec:
                         requireSafeReplicaSize:
                           type: boolean
                         size:
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         subFailureDomain:
                           type: string
@@ -226,7 +226,7 @@ spec:
                       requireSafeReplicaSize:
                         type: boolean
                       size:
-                        minimum: 1
+                        minimum: 0
                         type: integer
                       subFailureDomain:
                         type: string

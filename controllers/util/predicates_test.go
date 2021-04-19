@@ -69,10 +69,12 @@ func TestComposePredicatesUpdate(t *testing.T) {
 			MetadataChangedPredicate{},
 		)
 		event := event.UpdateEvent{
-			MetaOld:   &metav1.ObjectMeta{},
-			MetaNew:   c.metaNew,
-			ObjectOld: &corev1.PersistentVolume{},
-			ObjectNew: &corev1.PersistentVolume{},
+			ObjectOld: &corev1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			ObjectNew: &corev1.PersistentVolume{
+				ObjectMeta: *c.metaNew,
+			},
 		}
 
 		assert.Equal(t, c.update, pred.Update(event))
@@ -142,8 +144,12 @@ func TestMetadataChangedPredicateUpdate(t *testing.T) {
 		t.Logf("Case %d: %s\n", i+1, c.label)
 		pred := MetadataChangedPredicate{}
 		event := event.UpdateEvent{
-			MetaOld: &metav1.ObjectMeta{},
-			MetaNew: c.metaNew,
+			ObjectOld: &corev1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			ObjectNew: &corev1.PersistentVolume{
+				ObjectMeta: *c.metaNew,
+			},
 		}
 
 		assert.Equal(t, c.update, pred.Update(event))

@@ -179,7 +179,7 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 	healthCheck := cephv1.BucketHealthCheckSpec{
 		Bucket: cephv1.HealthCheckSpec{
 			Disabled: false,
-			Interval: "60s",
+			Interval: &metav1.Duration{Duration: time.Minute},
 		},
 	}
 	retObj := &cephv1.CephObjectStore{

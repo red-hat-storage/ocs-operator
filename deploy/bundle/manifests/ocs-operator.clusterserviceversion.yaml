@@ -995,7 +995,7 @@ metadata:
     operatorframework.io/initialization-resource: "\n    {\n        \"apiVersion\": \"ocs.openshift.io/v1\",\n        \"kind\": \"StorageCluster\",\n        \"metadata\": {\n            \"name\": \"example-storagecluster\",\n            \"namespace\": \"openshift-storage\"\n        },\n        \"spec\": {\n            \"manageNodes\": false,\n            \"monPVCTemplate\": {\n                \"spec\": {\n                    \"accessModes\": [\n                        \"ReadWriteOnce\"\n                    ],\n                    \"resources\": {\n                        \"requests\": {\n                            \"storage\": \"10Gi\"\n                        }\n                    },\n                    \"storageClassName\": \"gp2\"\n                }\n            },\n            \"storageDeviceSets\": [\n                {\n                    \"count\": 3,\n                    \"dataPVCTemplate\": {\n                        \"spec\": {\n                            \"accessModes\": [\n                                \"ReadWriteOnce\"\n                            ],\n                            \"resources\": {\n                                \"requests\": {\n                                    \"storage\": \"1Ti\"\n                                }\n                            },\n                            \"storageClassName\": \"gp2\",\n                            \"volumeMode\": \"Block\"\n                        }\n                    },\n                    \"name\": \"example-deviceset\",\n                    \"placement\": {},\n                    \"portable\": true,\n                    \"resources\": {}\n                }\n            ]\n        }\n    }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","noobaas.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","volumereplicationclasses.replication.storage.openshift.io","volumereplications.replication.storage.openshift.io","noobaas.noobaa.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/openshift/ocs-operator
     support: Red Hat
@@ -1177,6 +1177,12 @@ spec:
       kind: CephObjectZone
       name: cephobjectzones.ceph.rook.io
       version: v1
+    - kind: VolumeReplicationClass
+      name: volumereplicationclasses.replication.storage.openshift.io
+      version: v1alpha1
+    - kind: VolumeReplication
+      name: volumereplications.replication.storage.openshift.io
+      version: v1alpha1
     - description: A NooBaa system - Create this to start
       displayName: NooBaa
       kind: NooBaa
@@ -1658,6 +1664,15 @@ spec:
           - consolequickstarts
           verbs:
           - '*'
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - get
+          - list
+          - update
         - apiGroups:
           - ""
           resources:
@@ -2321,6 +2336,39 @@ spec:
           - configmaps
           verbs:
           - get
+        - apiGroups:
+          - replication.storage.openshift.io
+          resources:
+          - volumereplications
+          - volumereplicationclasses
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - replication.storage.openshift.io
+          resources:
+          - volumereplications/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - replication.storage.openshift.io
+          resources:
+          - volumereplications/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - replication.storage.openshift.io
+          resources:
+          - volumereplicationclasses/status
+          verbs:
+          - get
         serviceAccountName: rook-csi-rbd-provisioner-sa
       - rules:
         - apiGroups:
@@ -2430,7 +2478,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.6.0.13.g1b77b9e
+                  value: rook/ceph:v1.6.0.95.gf4cfc7a
                 - name: CEPH_IMAGE
                   value: ceph/daemon-base:latest-pacific
                 - name: NOOBAA_CORE_IMAGE
@@ -2529,7 +2577,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: rook/ceph:v1.6.0.13.g1b77b9e
+                image: rook/ceph:v1.6.0.95.gf4cfc7a
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
@@ -2948,7 +2996,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: rook/ceph:v1.6.0.13.g1b77b9e
+  - image: rook/ceph:v1.6.0.95.gf4cfc7a
     name: rook-container
   - image: ceph/daemon-base:latest-pacific
     name: ceph-container

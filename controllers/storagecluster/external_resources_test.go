@@ -19,8 +19,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -74,7 +74,7 @@ func TestEnsureExternalStorageClusterResources(t *testing.T) {
 		},
 	}
 	reconciler := createExternalClusterReconciler(t)
-	result, err := reconciler.Reconcile(request)
+	result, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertExpectedExternalResources(t, reconciler)
@@ -151,8 +151,8 @@ func createExternalClusterReconcilerFromCustomResources(
 	}
 	rookCephConfig := newRookCephOperatorConfig("")
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	runtimeObjs := []runtime.Object{cr, externalSecret, rookCephConfig}
-	for _, obj := range runtimeObjs {
+	clientObjs := []client.Object{cr, externalSecret, rookCephConfig}
+	for _, obj := range clientObjs {
 		if err = reconciler.Client.Create(context.TODO(), obj); err != nil {
 			t.Fatalf("failed to create a needed runtime object: %v", err)
 		}
@@ -324,7 +324,7 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 	for _, testParam := range optionalTestParams {
 		extResources := removeNamedResourceFromArray(globalTestExternalResources, testParam.resourceToBeRemoved)
 		reconciler := createExternalClusterReconcilerFromCustomResources(t, extResources)
-		result, err := reconciler.Reconcile(request)
+		result, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoError(t, err)
 		assert.Equal(t, reconcile.Result{}, result)
 		// rest of the resources should be available
@@ -438,7 +438,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	}
 
 	// first reconcile, which sets everything in place
-	result, err := reconciler.Reconcile(request)
+	result, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertExpectedExternalResources(t, reconciler)
@@ -468,7 +468,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	assert.NoError(t, err)
 
 	// second reconcile on same 'reconciler', we should have expected/changed resources
-	result, err = reconciler.Reconcile(request)
+	result, err = reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertExpectedExternalResources(t, reconciler)
@@ -482,7 +482,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	assert.NotEqual(t, firstExtSecretChecksum, secondExtSecretChecksum)
 
 	// third reconcile on same 'reconciler', without any change in the resources
-	result, err = reconciler.Reconcile(request)
+	result, err = reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertExpectedExternalResources(t, reconciler)
@@ -552,7 +552,7 @@ func TestExternalMonitoringResources(t *testing.T) {
 		extRArr := updateNamedResourceInArray(globalTestExternalResources, extR.ExternalResource)
 
 		reconciler := createExternalClusterReconcilerFromCustomResources(t, extRArr)
-		result, err := reconciler.Reconcile(request)
+		result, err := reconciler.Reconcile(context.TODO(), request)
 		if extR.ReconcileExpectedToFail && err != nil {
 			continue
 		}
