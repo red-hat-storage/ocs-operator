@@ -225,22 +225,22 @@ func TestCreateWatchedResource(t *testing.T) {
 func TestCreateSCCs(t *testing.T) {
 	testcases := []struct {
 		label      string
-		sscCreated bool
+		sccCreated bool
 	}{
 		{
-			label:      "Case 1", // sscs already created before reconcile
-			sscCreated: true,
+			label:      "Case 1", // sccs already created before reconcile
+			sccCreated: true,
 		},
 		{
 			label:      "Case 2",
-			sscCreated: false, // sscs not created before reconcile
+			sccCreated: false, // sccs not created before reconcile
 		},
 	}
 
 	for _, tc := range testcases {
 		ocs, request, reconciler := getTestParams(false, t)
 
-		if tc.sscCreated {
+		if tc.sccCreated {
 			ocs.Status.SCCsCreated = true
 			err := reconciler.Client.Update(context.TODO(), &ocs)
 			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
@@ -249,7 +249,7 @@ func TestCreateSCCs(t *testing.T) {
 		obj := v1.OCSInitialization{}
 		err := reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
 		assert.NoErrorf(t, err, "[%s]: failed to get ocsInit", tc.label)
-		assert.Equal(t, tc.sscCreated, obj.Status.SCCsCreated, "[%s] failed to set the pre condition for the test", tc.label)
+		assert.Equal(t, tc.sccCreated, obj.Status.SCCsCreated, "[%s] failed to set the pre condition for the test", tc.label)
 
 		_, err = reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
