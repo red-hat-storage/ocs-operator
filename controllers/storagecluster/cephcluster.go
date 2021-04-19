@@ -333,7 +333,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				StorageClassName: ds.DataPVCTemplate.Spec.StorageClassName,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						corev1.ResourceStorage: resource.MustParse("10Gi"),
+						corev1.ResourceStorage: resource.MustParse("50Gi"),
 					},
 				},
 			},
