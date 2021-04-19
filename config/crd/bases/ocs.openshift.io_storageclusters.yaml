@@ -712,10 +712,8 @@ spec:
                       be used to connect the cluster. Meanwhile the keys describe
                       each network respective responsibilities or any metadata storage
                       provider decide.
+                    nullable: true
                     type: object
-                required:
-                - provider
-                - selectors
                 type: object
               nodeTopologies:
                 description: NodeTopologies specifies the nodes available for the
@@ -746,10 +744,11 @@ spec:
                 type: object
               placement:
                 additionalProperties:
+                  description: Placement is the placement for an object
                   properties:
                     nodeAffinity:
-                      description: Node affinity is a group of node affinity scheduling
-                        rules.
+                      description: NodeAffinity is a group of node affinity scheduling
+                        rules
                       properties:
                         preferredDuringSchedulingIgnoredDuringExecution:
                           description: The scheduler will prefer to schedule pods
@@ -953,8 +952,8 @@ spec:
                           type: object
                       type: object
                     podAffinity:
-                      description: Pod affinity is a group of inter pod affinity scheduling
-                        rules.
+                      description: PodAffinity is a group of inter pod affinity scheduling
+                        rules
                       properties:
                         preferredDuringSchedulingIgnoredDuringExecution:
                           description: The scheduler will prefer to schedule pods
@@ -1147,8 +1146,8 @@ spec:
                           type: array
                       type: object
                     podAntiAffinity:
-                      description: Pod anti affinity is a group of inter pod anti
-                        affinity scheduling rules.
+                      description: PodAntiAffinity is a group of inter pod anti affinity
+                        scheduling rules
                       properties:
                         preferredDuringSchedulingIgnoredDuringExecution:
                           description: The scheduler will prefer to schedule pods
@@ -1342,6 +1341,9 @@ spec:
                           type: array
                       type: object
                     tolerations:
+                      description: The pod this Toleration is attached to tolerates
+                        any taint that matches the triple <key,value,effect> using
+                        the matching operator <operator>
                       items:
                         description: The pod this Toleration is attached to tolerates
                           any taint that matches the triple <key,value,effect> using
@@ -1383,6 +1385,8 @@ spec:
                         type: object
                       type: array
                     topologySpreadConstraints:
+                      description: TopologySpreadConstraint specifies how to spread
+                        matching pods among the given topology
                       items:
                         description: TopologySpreadConstraint specifies how to spread
                           matching pods among the given topology.
@@ -1984,10 +1988,11 @@ spec:
                     name:
                       type: string
                     placement:
+                      description: Placement is the placement for an object
                       properties:
                         nodeAffinity:
-                          description: Node affinity is a group of node affinity scheduling
-                            rules.
+                          description: NodeAffinity is a group of node affinity scheduling
+                            rules
                           properties:
                             preferredDuringSchedulingIgnoredDuringExecution:
                               description: The scheduler will prefer to schedule pods
@@ -2200,8 +2205,8 @@ spec:
                               type: object
                           type: object
                         podAffinity:
-                          description: Pod affinity is a group of inter pod affinity
-                            scheduling rules.
+                          description: PodAffinity is a group of inter pod affinity
+                            scheduling rules
                           properties:
                             preferredDuringSchedulingIgnoredDuringExecution:
                               description: The scheduler will prefer to schedule pods
@@ -2403,8 +2408,8 @@ spec:
                               type: array
                           type: object
                         podAntiAffinity:
-                          description: Pod anti affinity is a group of inter pod anti
-                            affinity scheduling rules.
+                          description: PodAntiAffinity is a group of inter pod anti
+                            affinity scheduling rules
                           properties:
                             preferredDuringSchedulingIgnoredDuringExecution:
                               description: The scheduler will prefer to schedule pods
@@ -2606,6 +2611,9 @@ spec:
                               type: array
                           type: object
                         tolerations:
+                          description: The pod this Toleration is attached to tolerates
+                            any taint that matches the triple <key,value,effect> using
+                            the matching operator <operator>
                           items:
                             description: The pod this Toleration is attached to tolerates
                               any taint that matches the triple <key,value,effect>
@@ -2648,6 +2656,8 @@ spec:
                             type: object
                           type: array
                         topologySpreadConstraints:
+                          description: TopologySpreadConstraint specifies how to spread
+                            matching pods among the given topology
                           items:
                             description: TopologySpreadConstraint specifies how to
                               spread matching pods among the given topology.
@@ -2762,10 +2772,11 @@ spec:
                         set
                       type: boolean
                     preparePlacement:
+                      description: Placement is the placement for an object
                       properties:
                         nodeAffinity:
-                          description: Node affinity is a group of node affinity scheduling
-                            rules.
+                          description: NodeAffinity is a group of node affinity scheduling
+                            rules
                           properties:
                             preferredDuringSchedulingIgnoredDuringExecution:
                               description: The scheduler will prefer to schedule pods
@@ -2978,8 +2989,8 @@ spec:
                               type: object
                           type: object
                         podAffinity:
-                          description: Pod affinity is a group of inter pod affinity
-                            scheduling rules.
+                          description: PodAffinity is a group of inter pod affinity
+                            scheduling rules
                           properties:
                             preferredDuringSchedulingIgnoredDuringExecution:
                               description: The scheduler will prefer to schedule pods
@@ -3181,8 +3192,8 @@ spec:
                               type: array
                           type: object
                         podAntiAffinity:
-                          description: Pod anti affinity is a group of inter pod anti
-                            affinity scheduling rules.
+                          description: PodAntiAffinity is a group of inter pod anti
+                            affinity scheduling rules
                           properties:
                             preferredDuringSchedulingIgnoredDuringExecution:
                               description: The scheduler will prefer to schedule pods
@@ -3384,6 +3395,9 @@ spec:
                               type: array
                           type: object
                         tolerations:
+                          description: The pod this Toleration is attached to tolerates
+                            any taint that matches the triple <key,value,effect> using
+                            the matching operator <operator>
                           items:
                             description: The pod this Toleration is attached to tolerates
                               any taint that matches the triple <key,value,effect>
@@ -3426,6 +3440,8 @@ spec:
                             type: object
                           type: array
                         topologySpreadConstraints:
+                          description: TopologySpreadConstraint specifies how to spread
+                            matching pods among the given topology
                           items:
                             description: TopologySpreadConstraint specifies how to
                               spread matching pods among the given topology.
