@@ -161,11 +161,19 @@ func TestNonWatchedResourceFound(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		ocs, request, reconciler := getTestParams(true, t)
-		request.Name = tc.name
-		request.Namespace = tc.namespace
-		ocs.Name = tc.name
-		ocs.Namespace = tc.namespace
+		_, _, reconciler := getTestParams(true, t)
+		request := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      tc.name,
+				Namespace: tc.namespace,
+			},
+		}
+		ocs := v1.OCSInitialization{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      tc.name,
+				Namespace: tc.namespace,
+			},
+		}
 		err := reconciler.Client.Create(nil, &ocs)
 		assert.NoErrorf(t, err, "[%s]: failed CREATE of non watched resource", tc.label)
 		_, err = reconciler.Reconcile(context.TODO(), request)
