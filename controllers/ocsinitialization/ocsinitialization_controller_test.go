@@ -50,14 +50,17 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 			Namespace: request.Namespace,
 		},
 	}
-	ocsRecon := v1.OCSInitialization{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      request.Name,
-			Namespace: request.Namespace,
-		},
-	}
 
-	return ocs, request, getReconciler(t, &ocsRecon)
+	reconciler := getReconciler(t, &ocs)
+	//The fake client stores the objects after adding a resource version to
+	//them. This is a breaking change introduced in
+	//https://github.com/kubernetes-sigs/controller-runtime/pull/1306.
+	//Therefore we cannot use the fake object that we provided as input to the
+	//the fake client and should use the object obtained from the Get
+	//operation.
+	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &ocs)
+
+	return ocs, request, reconciler
 }
 
 func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconciler {
@@ -158,11 +161,19 @@ func TestNonWatchedResourceFound(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		ocs, request, reconciler := getTestParams(true, t)
-		request.Name = tc.name
-		request.Namespace = tc.namespace
-		ocs.Name = tc.name
-		ocs.Namespace = tc.namespace
+		_, _, reconciler := getTestParams(true, t)
+		request := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      tc.name,
+				Namespace: tc.namespace,
+			},
+		}
+		ocs := v1.OCSInitialization{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      tc.name,
+				Namespace: tc.namespace,
+			},
+		}
 		err := reconciler.Client.Create(nil, &ocs)
 		assert.NoErrorf(t, err, "[%s]: failed CREATE of non watched resource", tc.label)
 		_, err = reconciler.Reconcile(context.TODO(), request)
@@ -230,9 +241,8 @@ func TestCreateSCCs(t *testing.T) {
 
 		if tc.sscCreated {
 			ocs.Status.SCCsCreated = false
-			// TODO: uncomment this!
-			//err := reconciler.Client.Update(context.TODO(), &ocs)
-			//assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
+			err := reconciler.Client.Update(context.TODO(), &ocs)
+			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
 
 		_, err := reconciler.Reconcile(context.TODO(), request)
