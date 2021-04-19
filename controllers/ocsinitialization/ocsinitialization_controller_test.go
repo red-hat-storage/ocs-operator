@@ -204,6 +204,7 @@ func TestCreateWatchedResource(t *testing.T) {
 	}
 }
 
+// TestCreateSCCs ensures that the reconciler creates the SCCs if they are missing.
 func TestCreateSCCs(t *testing.T) {
 	testcases := []struct {
 		label      string
@@ -223,7 +224,7 @@ func TestCreateSCCs(t *testing.T) {
 		ocs, request, reconciler := getTestParams(false, t)
 
 		if tc.sscCreated {
-			ocs.Status.SCCsCreated = false
+			ocs.Status.SCCsCreated = true
 			err := reconciler.Client.Update(context.TODO(), &ocs)
 			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
