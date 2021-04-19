@@ -50,14 +50,17 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 			Namespace: request.Namespace,
 		},
 	}
-	ocsRecon := v1.OCSInitialization{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      request.Name,
-			Namespace: request.Namespace,
-		},
-	}
 
-	return ocs, request, getReconciler(t, &ocsRecon)
+	reconciler := getReconciler(t, &ocs)
+	//The fake client stores the objects after adding a resource version to
+	//them. This is a breaking change introduced in
+	//https://github.com/kubernetes-sigs/controller-runtime/pull/1306.
+	//Therefore we cannot use the fake object that we provided as input to the
+	//the fake client and should use the object obtained from the Get
+	//operation.
+	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &ocs)
+
+	return ocs, request, reconciler
 }
 
 func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconciler {
@@ -158,11 +161,19 @@ func TestNonWatchedResourceFound(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		ocs, request, reconciler := getTestParams(true, t)
-		request.Name = tc.name
-		request.Namespace = tc.namespace
-		ocs.Name = tc.name
-		ocs.Namespace = tc.namespace
+		_, _, reconciler := getTestParams(true, t)
+		request := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      tc.name,
+				Namespace: tc.namespace,
+			},
+		}
+		ocs := v1.OCSInitialization{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      tc.name,
+				Namespace: tc.namespace,
+			},
+		}
 		err := reconciler.Client.Create(nil, &ocs)
 		assert.NoErrorf(t, err, "[%s]: failed CREATE of non watched resource", tc.label)
 		_, err = reconciler.Reconcile(context.TODO(), request)
@@ -210,34 +221,38 @@ func TestCreateWatchedResource(t *testing.T) {
 	}
 }
 
+// TestCreateSCCs ensures that the reconciler creates the SCCs if they are missing.
 func TestCreateSCCs(t *testing.T) {
 	testcases := []struct {
 		label      string
-		sscCreated bool
+		sccCreated bool
 	}{
 		{
-			label:      "Case 1", // sscs already created before reconcile
-			sscCreated: true,
+			label:      "Case 1", // sccs already created before reconcile
+			sccCreated: true,
 		},
 		{
 			label:      "Case 2",
-			sscCreated: false, // sscs not created before reconcile
+			sccCreated: false, // sccs not created before reconcile
 		},
 	}
 
 	for _, tc := range testcases {
 		ocs, request, reconciler := getTestParams(false, t)
 
-		if tc.sscCreated {
-			ocs.Status.SCCsCreated = false
-			// TODO: uncomment this!
-			//err := reconciler.Client.Update(context.TODO(), &ocs)
-			//assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
+		if tc.sccCreated {
+			ocs.Status.SCCsCreated = true
+			err := reconciler.Client.Update(context.TODO(), &ocs)
+			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
 
-		_, err := reconciler.Reconcile(context.TODO(), request)
-		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
 		obj := v1.OCSInitialization{}
+		err := reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
+		assert.NoErrorf(t, err, "[%s]: failed to get ocsInit", tc.label)
+		assert.Equal(t, tc.sccCreated, obj.Status.SCCsCreated, "[%s] failed to set the pre condition for the test", tc.label)
+
+		_, err = reconciler.Reconcile(context.TODO(), request)
+		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
 		_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
 		for cType, status := range successfulReconcileConditions {
 			found := assertCondition(obj, cType, status)
@@ -245,6 +260,7 @@ func TestCreateSCCs(t *testing.T) {
 				assert.Fail(t, fmt.Sprintf("Expected status condition %s %s not found", cType, status))
 			}
 		}
+		assert.Equal(t, true, obj.Status.SCCsCreated, "[%s] SCCs not created after reconcile", tc.label)
 	}
 }
 
