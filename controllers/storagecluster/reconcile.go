@@ -437,7 +437,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		if instance.Spec.Monitoring == nil {
 			instance.Spec.Monitoring = &ocsv1.MonitoringSpec{
 				ReconcileStrategy: string(ReconcileStrategyUnknown),
-				Labels:            map[string]string{"": ""},
 			}
 		}
 		if err := r.enableMetricsExporter(instance); err != nil {
