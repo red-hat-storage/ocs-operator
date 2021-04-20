@@ -40,12 +40,12 @@ function dump_noobaa_csv() {
 	rm -rf $noobaa_crds_outdir
 	mkdir -p $noobaa_crds_outdir
 
-	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
+	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
 	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
-	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
+	($IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
+	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
 	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $noobaa_crds_outdir/noobaa-crd.yaml
+	($IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $noobaa_crds_outdir/noobaa-crd.yaml
 }
 
 # ==== DUMP ROOK YAMLS ====
