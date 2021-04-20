@@ -61,6 +61,7 @@ LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
 # patches. This is required for the CI and does not impact anything else.
 # TODO: revert to using ceph/ceph image once v16 is out.)
 LATEST_CEPH_IMAGE="ceph/daemon-base:latest-pacific"
+LATEST_VOLUME_REPLICATION_OPERATOR_IMAGE="csiaddons/volumereplication-operator:v0.1.0"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"
