@@ -150,6 +150,12 @@ type StorageDeviceSet struct {
 	// +optional
 	DeviceType string `json:"deviceType,omitempty"`
 
+	// DeviceClass is an optional, fine-grained property of DeviceType.
+	// If non empty, it defines the 'crushDeviceClass' value as used by ceph's
+	// CRUSH map.
+	// +optional
+	DeviceClass string `json:"deviceClass,omitempty"`
+
 	// TopologyKey is the Kubernetes topology label that the
 	// StorageClassDeviceSets will be distributed across. Ignored if
 	// Placement is set
