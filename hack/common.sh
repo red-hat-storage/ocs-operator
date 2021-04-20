@@ -13,7 +13,6 @@ GOARCH="${GOARCH:-amd64}"
 DEFAULT_CSV_VERSION="4.8.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 
-IMAGE_BUILD_CMD="${IMAGE_BUILD_CMD}"
 if [ -z "$IMAGE_BUILD_CMD" ]; then
     IMAGE_BUILD_CMD=$(command -v docker || echo "")
 fi
