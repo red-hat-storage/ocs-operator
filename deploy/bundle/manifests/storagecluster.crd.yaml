@@ -1182,6 +1182,10 @@ spec:
                       - NVME
                       - nvme
                       type: string
+                    initialWeight:
+                      description: InitialWeight is an optional explicit OSD weight value in TiB units. If non empty, it defines the 'CrushInitialWeight' value which is assigned to ceph OSD upon init
+                      pattern: ^([0-9]*[.])?[0-9]+(Ti[B])$
+                      type: string
                     metadataPVCTemplate:
                       description: PersistentVolumeClaim is a user's request for and claim to a persistent volume
                       properties:
