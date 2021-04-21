@@ -2482,7 +2482,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: ceph/daemon-base:latest-pacific
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.7.0-20201216
+                  value: noobaa/noobaa-core:master-20210419
                 - name: NOOBAA_DB_IMAGE
                   value: centos/postgresql-12-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
@@ -2624,10 +2624,10 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:5.7.0-20201216
+                  value: noobaa/noobaa-core:master-20210419
                 - name: NOOBAA_DB_IMAGE
                   value: centos/postgresql-12-centos7
-                image: noobaa/noobaa-operator:5.7.0-20201216
+                image: noobaa/noobaa-operator:master-20210419
                 name: noobaa-operator
                 resources:
                   limits:
@@ -2937,6 +2937,14 @@ spec:
           - list
           - watch
         - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephclusters
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
           - route.openshift.io
           resources:
           - routes
@@ -2968,7 +2976,60 @@ spec:
           - patch
           - list
           - watch
+          - delete
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - noobaa
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - use
         serviceAccountName: noobaa
+      - rules:
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - '*'
+          - noobaas
+          - backingstores
+          - bucketclasses
+          - noobaas/finalizers
+          - backingstores/finalizers
+          - bucketclasses/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          - serviceaccounts
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - noobaa-endpoint
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - use
+        serviceAccountName: noobaa-endpoint
     strategy: deployment
   installModes:
   - supported: true
@@ -3004,9 +3065,9 @@ spec:
     name: ceph-container
   - image: quay.io/csiaddons/volumereplication-operator:v0.1.0
     name: volume-replication-operator
-  - image: noobaa/noobaa-operator:5.7.0-20201216
+  - image: noobaa/noobaa-operator:master-20210419
     name: noobaa-operator
-  - image: noobaa/noobaa-core:5.7.0-20201216
+  - image: noobaa/noobaa-core:master-20210419
     name: noobaa-core
   - image: centos/postgresql-12-centos7
     name: noobaa-db
