@@ -535,6 +535,9 @@ spec:
                     description: Namespace defines the space within which the secret name must be unique.
                     type: string
                 type: object
+              mongoDbURL:
+                description: MongoDbURL (optional) overrides the default mongo db remote url
+                type: string
               pvPoolDefaultStorageClass:
                 description: PVPoolDefaultStorageClass (optional) overrides the default cluster StorageClass for the pv-pool volumes. This affects where the system stores data chunks (encrypted). Updates to this field will only affect new pv-pools, but updates to existing pools are not supported by the operator.
                 type: string
@@ -1184,6 +1187,22 @@ spec:
                 - secret
                 - targetBucket
                 type: object
+              nsfs:
+                description: NSFS specifies a namespace store of type nsfs
+                properties:
+                  fsBackend:
+                    description: FsBackend is the backend type of the file system
+                    enum:
+                    - CEPH_FS
+                    - GPFS
+                    - NFSv4
+                    type: string
+                  fsPath:
+                    description: FsPath is a path to a directory in a file system
+                    type: string
+                required:
+                - fsPath
+                type: object
               s3Compatible:
                 description: S3Compatible specifies a namespace store of type s3-compatible
                 properties:
@@ -1540,6 +1559,9 @@ spec:
                 type: string
               generateBucketName:
                 description: GenerateBucketName (recommended) a prefix for a bucket name to be followed by a hyphen and 5 random characters. Protects against in-store name collisions.
+                type: string
+              objectBucketName:
+                description: ObjectBucketName is the name of the object bucket resource. This is the authoritative determination for binding.
                 type: string
               storageClassName:
                 description: StorageClass names the StorageClass object representing the desired provisioner and parameters

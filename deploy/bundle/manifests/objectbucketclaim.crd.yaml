@@ -53,6 +53,9 @@ spec:
               generateBucketName:
                 description: GenerateBucketName (recommended) a prefix for a bucket name to be followed by a hyphen and 5 random characters. Protects against in-store name collisions.
                 type: string
+              objectBucketName:
+                description: ObjectBucketName is the name of the object bucket resource. This is the authoritative determination for binding.
+                type: string
               storageClassName:
                 description: StorageClass names the StorageClass object representing the desired provisioner and parameters
                 type: string
