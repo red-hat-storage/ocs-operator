@@ -42,6 +42,7 @@ func getAllSCCs(namespace string) []*secv1.SecurityContextConstraints {
 		newRookCephSCC(namespace),
 		newRookCephCSISCC(namespace),
 		newNooBaaSCC(namespace),
+		newNooBaaEndpointSCC(namespace),
 	}
 }
 
@@ -183,6 +184,55 @@ func newNooBaaSCC(namespace string) *secv1.SecurityContextConstraints {
 	}
 	scc.Users = []string{
 		fmt.Sprintf("system:serviceaccount:%s:noobaa", namespace),
+	}
+
+	return scc
+}
+
+func newNooBaaEndpointSCC(namespace string) *secv1.SecurityContextConstraints {
+	scc := blankSCC()
+
+	scc.Name = "noobaa-endpoint"
+	allowPrivilegeEscalation := true
+	scc.AllowHostDirVolumePlugin = false
+	scc.AllowHostIPC = false
+	scc.AllowHostNetwork = false
+	scc.AllowHostPID = false
+	scc.AllowPrivilegeEscalation = &allowPrivilegeEscalation
+	scc.AllowPrivilegedContainer = false
+	scc.ReadOnlyRootFilesystem = false
+	scc.AllowedCapabilities = []corev1.Capability{
+		"SETUID",
+		"SETGID",
+	}
+	scc.DefaultAddCapabilities = []corev1.Capability{}
+	scc.RequiredDropCapabilities = []corev1.Capability{
+		"KILL",
+		"MKNOD",
+	}
+	scc.RunAsUser = secv1.RunAsUserStrategyOptions{
+		Type: secv1.RunAsUserStrategyRunAsAny,
+	}
+	scc.SELinuxContext = secv1.SELinuxContextStrategyOptions{
+		Type: secv1.SELinuxStrategyMustRunAs,
+	}
+	scc.FSGroup = secv1.FSGroupStrategyOptions{
+		Type: secv1.FSGroupStrategyMustRunAs,
+	}
+	scc.SupplementalGroups = secv1.SupplementalGroupsStrategyOptions{
+		Type: secv1.SupplementalGroupsStrategyRunAsAny,
+	}
+	scc.Volumes = []secv1.FSType{
+		secv1.FSTypeConfigMap,
+		secv1.FSTypeDownwardAPI,
+		secv1.FSTypeEmptyDir,
+		secv1.FSTypeHostPath,
+		secv1.FSTypePersistentVolumeClaim,
+		secv1.FSProjected,
+		secv1.FSTypeSecret,
+	}
+	scc.Users = []string{
+		fmt.Sprintf("system:serviceaccount:%s:noobaa-endpoint", namespace),
 	}
 
 	return scc
