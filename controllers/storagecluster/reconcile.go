@@ -183,7 +183,7 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 	if images.NooBaaCore == nil {
 		images.NooBaaCore = &ocsv1.ComponentImageStatus{}
 	}
-	images.NooBaaCore.DesiredImage = r.images.Ceph
+	images.NooBaaCore.DesiredImage = r.images.NooBaaCore
 
 	if images.NooBaaDB == nil {
 		images.NooBaaDB = &ocsv1.ComponentImageStatus{}
