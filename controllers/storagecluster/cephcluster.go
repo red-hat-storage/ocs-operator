@@ -59,6 +59,12 @@ const (
 	clusterNetworkSelectorKey = "cluster"
 )
 
+const (
+	// PriorityClasses for cephCluster
+	systemNodeCritical    = "system-node-critical"
+	openshiftUserCritical = "openshift-user-critical"
+)
+
 func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 	return sc.Spec.Arbiter.Enable
 }
@@ -305,6 +311,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				"all":     getPlacement(sc, "all"),
 				"mon":     getPlacement(sc, "mon"),
 				"arbiter": getPlacement(sc, "arbiter"),
+			},
+			PriorityClassNames: rook.PriorityClassNamesSpec{
+				"all":         openshiftUserCritical,
+				cephv1.KeyMds: openshiftUserCritical,
+				cephv1.KeyMgr: systemNodeCritical,
+				cephv1.KeyMon: systemNodeCritical,
+				cephv1.KeyOSD: systemNodeCritical,
 			},
 			Resources: newCephDaemonResources(sc.Spec.Resources),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
