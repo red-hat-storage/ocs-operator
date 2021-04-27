@@ -313,8 +313,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				"arbiter": getPlacement(sc, "arbiter"),
 			},
 			PriorityClassNames: rook.PriorityClassNamesSpec{
-				"all":         openshiftUserCritical,
-				cephv1.KeyMds: openshiftUserCritical,
 				cephv1.KeyMgr: systemNodeCritical,
 				cephv1.KeyMon: systemNodeCritical,
 				cephv1.KeyOSD: systemNodeCritical,
