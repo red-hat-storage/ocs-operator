@@ -3,6 +3,7 @@
 set -e
 
 source hack/common.sh
+source hack/docker-common.sh
 
 $IMAGE_BUILD_CMD build --no-cache -t "$CATALOG_FULL_IMAGE_NAME" -f openshift-ci/Dockerfile.registry.master .
 echo

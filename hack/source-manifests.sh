@@ -5,6 +5,7 @@
 set -e
 
 source hack/common.sh
+source hack/docker-common.sh
 source hack/operator-sdk-common.sh
 
 function help_txt() {

@@ -13,15 +13,6 @@ GOARCH="${GOARCH:-amd64}"
 DEFAULT_CSV_VERSION="4.8.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 
-if [ -z "$IMAGE_BUILD_CMD" ]; then
-    IMAGE_BUILD_CMD=$(command -v docker || echo "")
-fi
-if [ -z "$IMAGE_BUILD_CMD" ]; then
-    IMAGE_BUILD_CMD=$(command -v podman || echo "")
-fi
-
-IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-${IMAGE_BUILD_CMD} run --rm -it}"
-
 OUTDIR="build/_output"
 OUTDIR_BIN="build/_output/bin"
 OUTDIR_OCS_CI="build/_output/ocs-ci-testsuite"
