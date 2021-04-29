@@ -159,6 +159,8 @@ func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger) (*cephv1.
 		return nil, err
 	}
 	gateWay.Port = int32(portInt64)
+	// set PriorityClassName for the rgw pods
+	gateWay.PriorityClassName = openshiftUserCritical
 	return &gateWay, nil
 }
 

@@ -40,6 +40,8 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 					ActiveStandby: true,
 					Placement:     getPlacement(initData, "mds"),
 					Resources:     defaults.GetDaemonResources("mds", initData.Spec.Resources),
+					// set PriorityClassName for the MDS pods
+					PriorityClassName: openshiftUserCritical,
 				},
 			},
 		},
