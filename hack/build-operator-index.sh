@@ -3,6 +3,7 @@
 set -e
 
 source hack/common.sh
+source hack/docker-common.sh
 source hack/ensure-opm.sh
 
 echo

@@ -95,6 +95,7 @@ function gen_ocs_csv() {
 }
 
 if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ]; then
+	source hack/docker-common.sh
 	dump_noobaa_csv
 	dump_rook_csv
 fi

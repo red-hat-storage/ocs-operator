@@ -3,6 +3,7 @@
 set -e
 
 source hack/common.sh
+source hack/docker-common.sh
 
 TMP_ROOT="$(dirname "${BASH_SOURCE[@]}")/.."
 REPO_ROOT=$(readlink -e "${TMP_ROOT}" 2> /dev/null || perl -MCwd -e 'print Cwd::abs_path shift' "${TMP_ROOT}")
