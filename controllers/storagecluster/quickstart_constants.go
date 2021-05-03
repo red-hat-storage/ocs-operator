@@ -111,13 +111,13 @@ spec:
       description: "You can monitor any storage resources managed by OpenShift Container Storage on the Persistent Storage and Object Service dashboards.
 
 
-   Click Home -> Overview to get to the dashboard page, then click on the appropriate tab.
+   Click Storage -> Overview to get to the dashboard page, then click on the appropriate tab.
 
 
-   The Persistent Storage dashboard tab shows the state of OpenShift Container Storage as a whole, as well as the state of any persistent volumes.
+   The Block and File dashboard tab shows the state of OpenShift Container Storage as a whole, as well as the state of any persistent volumes.
 
 
-   The Object Service dashboard shows the state of the Multicloud Object Gateway, RADOS Object Gateway, and any object claims.
+   The Object dashboard shows the state of the Multicloud Object Gateway, RADOS Object Gateway, and any object claims.
    On each of these dashboards:
 
    - The Details card shows basic information about the cluster.
