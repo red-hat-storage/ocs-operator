@@ -38,7 +38,7 @@ spec:
    Persistent volumes exist outside the pod lifecycle, meaning that your data is retained even after your pod has been restarted, rescheduled, or deleted. You might use persistent volumes with a MySQL or WordPress application to store information for longer than the lifetime of any individual application pod.
 
 
-   After an administrator has set up an OpenShift Container Storage cluster, developers can use persitent volume claims (PVCs) to request persistent volume (PV) resources without needing to know anything specific about the underlying storage infrastructure.
+   After an administrator has set up an OpenShift Container Storage cluster, developers can use persistent volume claims (PVCs) to request persistent volume (PV) resources without needing to know anything specific about the underlying storage infrastructure.
 
 
    **Connect your application with a PVC:**
@@ -130,7 +130,7 @@ spec:
 
    - The Storage Efficiency card shows any enabled data compression and savings.
 
-   - The Utilisation card shows charts for different metrics ; use the drop-down menus to select the information you are interested in.
+   - The Utilization card shows charts for different metrics ; use the drop-down menus to select the information you are interested in.
 
    - The Activity card shows recent important activities occurring in the resources listed on this dashboard.
    "
