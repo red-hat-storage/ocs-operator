@@ -163,6 +163,15 @@ type StorageDeviceSet struct {
 	// +optional
 	InitialWeight string `json:"initialWeight,omitempty"`
 
+	// PrimaryAffinity is an optional OSD primary-affinity value within the
+	// range [0,1). This value influence the way Ceph's CRUSH selection of
+	// primary OSDs. Lower value reduce performance bottlenecks (especially
+	// on read operations). If not set, default value is 1.
+	// https://docs.ceph.com/en/latest/rados/operations/crush-map/#primary-affinity
+	// +kubebuilder:validation:Pattern=`^0.[0-9]+$`
+	// +optional
+	PrimaryAffinity string `json:"primaryAffinity,omitempty"`
+
 	// TopologyKey is the Kubernetes topology label that the
 	// StorageClassDeviceSets will be distributed across. Ignored if
 	// Placement is set
