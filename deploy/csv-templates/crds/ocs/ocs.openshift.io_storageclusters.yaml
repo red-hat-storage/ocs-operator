@@ -3561,6 +3561,14 @@ spec:
                             type: object
                           type: array
                       type: object
+                    primaryAffinity:
+                      description: PrimaryAffinity is an optional OSD primary-affinity
+                        value within the range [0,1). This value influence the way
+                        Ceph's CRUSH selection of primary OSDs. Lower value reduce
+                        performance bottlenecks (especially on read operations). If
+                        not set, default value is 1. https://docs.ceph.com/en/latest/rados/operations/crush-map/#primary-affinity
+                      pattern: ^0.[0-9]+$
+                      type: string
                     replica:
                       description: Replica is the number of StorageClassDeviceSets
                         for this StorageDeviceSet
