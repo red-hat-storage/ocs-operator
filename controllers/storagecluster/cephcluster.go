@@ -643,6 +643,11 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			if crushInitialWeight != "" {
 				annotations["crushInitialWeight"] = crushInitialWeight
 			}
+			// Annotation crushPrimaryAffinity is an optinal, explicit primary-affinity value within the range [0,1) to
+			// set upon OSD's deployment. If not set, Ceph sets default value to 1
+			if ds.PrimaryAffinity != "" {
+				annotations["crushPrimaryAffinity"] = ds.PrimaryAffinity
+			}
 			ds.DataPVCTemplate.Annotations = annotations
 
 			set := rook.StorageClassDeviceSet{
