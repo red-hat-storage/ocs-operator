@@ -205,7 +205,7 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.StorageCluster, request reconcile.Request) error {
 	if err := versionCheck(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate version")
-		r.recorder.ReportIfNotPresent(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
 		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
 			return updateErr
@@ -216,7 +216,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 	if !instance.Spec.ExternalStorage.Enable {
 		if err := r.validateStorageDeviceSets(instance); err != nil {
 			r.Log.Error(err, "Failed to validate StorageDeviceSets")
-			r.recorder.ReportIfNotPresent(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+			r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 			instance.Status.Phase = statusutil.PhaseError
 			if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
 				return updateErr
@@ -227,7 +227,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 
 	if err := validateArbiterSpec(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate ArbiterSpec")
-		r.recorder.ReportIfNotPresent(instance, statusutil.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
 		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
 			return updateErr
@@ -304,7 +304,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			if err := r.deleteResources(instance); err != nil {
 				r.Log.Info("Uninstall in progress", "Status", err)
-				r.recorder.ReportIfNotPresent(instance, statusutil.EventTypeWarning, statusutil.EventReasonUninstallPending, err.Error())
+				r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonUninstallPending, err.Error())
 				return reconcile.Result{RequeueAfter: time.Second * time.Duration(1)}, nil
 			}
 			r.Log.Info("Removing finalizer")
