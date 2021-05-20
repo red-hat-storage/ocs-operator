@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -83,7 +82,7 @@ type StorageClusterReconciler struct {
 	nodeCount      int
 	platform       *Platform
 	images         ImageMap
-	recorder       record.EventRecorder
+	recorder       *util.EventReporter
 }
 
 // SetupWithManager sets up a controller with manager
@@ -97,7 +96,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	r.platform = &Platform{}
-	r.recorder = mgr.GetEventRecorderFor("controller_storagecluster")
+	r.recorder = util.NewEventReporter(mgr.GetEventRecorderFor("controller_storagecluster"))
 
 	// Compose a predicate that is an OR of the specified predicates
 	scPredicate := util.ComposePredicates(
