@@ -13,6 +13,7 @@ import (
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -582,4 +583,91 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 
 	}
 
+}
+
+func TestNewCephDaemonResources(t *testing.T) {
+
+	cases := []struct {
+		name      string
+		resources map[string]corev1.ResourceRequirements
+		expected  map[string]corev1.ResourceRequirements
+	}{
+		{
+			name:      "When nothing is passed to StorageCluster.Spec.Resources (Defaults)",
+			resources: map[string]corev1.ResourceRequirements{},
+			expected: map[string]corev1.ResourceRequirements{
+				"mon": defaults.DaemonResources["mon"],
+				"mgr": defaults.DaemonResources["mgr"],
+				"mds": defaults.DaemonResources["mds"],
+				"rgw": defaults.DaemonResources["rgw"],
+			},
+		},
+		{
+			name: "Overriding defaults",
+			resources: map[string]corev1.ResourceRequirements{
+				"mds": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mon": defaults.DaemonResources["mon"],
+				"mgr": defaults.DaemonResources["mgr"],
+				"mds": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+				},
+				"rgw": defaults.DaemonResources["rgw"],
+			},
+		},
+		{
+			name: "Passing a new key",
+			resources: map[string]corev1.ResourceRequirements{
+				"crashcollector": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mon": defaults.DaemonResources["mon"],
+				"mgr": defaults.DaemonResources["mgr"],
+				"mds": defaults.DaemonResources["mds"],
+				"rgw": defaults.DaemonResources["rgw"],
+				"crashcollector": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		got := newCephDaemonResources(c.resources)
+		assert.Equalf(t, len(c.expected), len(got), c.name)
+		assert.Equalf(t, c.expected, got, c.name)
+	}
 }

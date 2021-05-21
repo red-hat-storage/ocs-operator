@@ -682,11 +682,13 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 
 func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[string]corev1.ResourceRequirements {
 	resources := map[string]corev1.ResourceRequirements{
-		"mon": defaults.GetDaemonResources("mon", custom),
-		"mgr": defaults.GetDaemonResources("mgr", custom),
+		"mon": defaults.DaemonResources["mon"],
+		"mgr": defaults.DaemonResources["mgr"],
+		"mds": defaults.DaemonResources["mds"],
+		"rgw": defaults.DaemonResources["rgw"],
 	}
 
-	for k := range resources {
+	for k := range custom {
 		if r, ok := custom[k]; ok {
 			resources[k] = r
 		}
