@@ -532,6 +532,20 @@ spec:
               network:
                 description: Network represents cluster network settings
                 properties:
+                  dualStack:
+                    description: DualStack determines whether Ceph daemons should listen on both IPv4 and IPv6
+                    type: boolean
+                  hostNetwork:
+                    description: HostNetwork to enable host network
+                    type: boolean
+                  ipFamily:
+                    default: IPv4
+                    description: IPFamily is the single stack IPv6 or IPv4 protocol
+                    enum:
+                    - IPv4
+                    - IPv6
+                    nullable: true
+                    type: string
                   provider:
                     description: Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
                     nullable: true
