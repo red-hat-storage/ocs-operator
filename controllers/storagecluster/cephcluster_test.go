@@ -8,11 +8,13 @@ import (
 	"github.com/openshift/ocs-operator/controllers/defaults"
 	ocsutil "github.com/openshift/ocs-operator/controllers/util"
 
+	"github.com/google/go-cmp/cmp"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -26,7 +28,7 @@ func TestEnsureCephCluster(t *testing.T) {
 	cases := []struct {
 		label            string
 		shouldCreate     bool
-		cephClusterState rookCephv1.ClusterState
+		cephClusterState cephv1.ClusterState
 		reconcilerPhase  string
 	}{
 		{
@@ -40,23 +42,23 @@ func TestEnsureCephCluster(t *testing.T) {
 		},
 		{
 			label:            "Reconcile creating CephCluster",
-			cephClusterState: rookCephv1.ClusterStateCreating,
+			cephClusterState: cephv1.ClusterStateCreating,
 		},
 		{
 			label:            "Reconcile updating CephCluster",
-			cephClusterState: rookCephv1.ClusterStateUpdating,
+			cephClusterState: cephv1.ClusterStateUpdating,
 		},
 		{
 			label:            "Reconcile degraded CephCluster",
-			cephClusterState: rookCephv1.ClusterStateError,
+			cephClusterState: cephv1.ClusterStateError,
 		},
 		{
 			label:            "CephCluster reconciled succesfully",
-			cephClusterState: rookCephv1.ClusterStateCreated,
+			cephClusterState: cephv1.ClusterStateCreated,
 		},
 		{
 			label:            "Update expanding CephCluster",
-			cephClusterState: rookCephv1.ClusterStateUpdating,
+			cephClusterState: cephv1.ClusterStateUpdating,
 			reconcilerPhase:  ocsutil.PhaseClusterExpanding,
 		},
 	}
@@ -106,7 +108,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		err := obj.ensureCreated(&reconciler, sc)
 		assert.NoError(t, err)
 
-		actual := &rookCephv1.CephCluster{}
+		actual := &cephv1.CephCluster{}
 		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
 		assert.NoError(t, err)
 		assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -518,7 +520,7 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 		return
 	}
 	// following part of the tests are only for valid tests
-	cephCluster := &rookCephv1.CephCluster{}
+	cephCluster := &cephv1.CephCluster{}
 	err = reconciler.Client.Get(ctxTodo,
 		types.NamespacedName{Name: generateNameForCephCluster(cr)},
 		cephCluster)
@@ -725,5 +727,104 @@ func TestNewCephDaemonResources(t *testing.T) {
 		got := newCephDaemonResources(c.spec)
 		assert.Equalf(t, len(c.expected), len(got), c.name)
 		assert.Equalf(t, c.expected, got, c.name)
+	}
+}
+
+func TestGetNetworkSpec(t *testing.T) {
+	testTable := []struct {
+		desc     string
+		scSpec   ocsv1.StorageClusterSpec
+		expected cephv1.NetworkSpec
+	}{
+		{
+			desc: "hostNetwork specified as true, network unspecified",
+			scSpec: ocsv1.StorageClusterSpec{
+				HostNetwork: true,
+			},
+			expected: cephv1.NetworkSpec{
+				HostNetwork: true,
+			},
+		},
+		{
+			desc: "hostNetwork specified as false, network unspecified",
+			scSpec: ocsv1.StorageClusterSpec{
+				HostNetwork: false,
+			},
+			expected: cephv1.NetworkSpec{
+				HostNetwork: false,
+			},
+		},
+		{
+			desc: "hostNetwork specified as true, network specified without hostnetwork",
+			scSpec: ocsv1.StorageClusterSpec{
+				HostNetwork: true,
+				Network: &cephv1.NetworkSpec{
+					HostNetwork: false, // same as default
+					IPFamily:    cephv1.IPv6,
+				},
+			},
+			expected: cephv1.NetworkSpec{
+				HostNetwork: true,
+				IPFamily:    cephv1.IPv6,
+			},
+		},
+		{
+			desc: "hostNetwork specified as false, network specified with hostnetwork",
+			scSpec: ocsv1.StorageClusterSpec{
+				HostNetwork: false,
+				Network: &cephv1.NetworkSpec{
+					HostNetwork: true,
+					IPFamily:    cephv1.IPv6,
+					DualStack:   true,
+				},
+			},
+			expected: cephv1.NetworkSpec{
+				HostNetwork: true,
+				IPFamily:    cephv1.IPv6,
+				DualStack:   true,
+			},
+		},
+		{
+			desc: "hostNetwork specified as false, network specified without hostnetwork",
+			scSpec: ocsv1.StorageClusterSpec{
+				HostNetwork: false,
+				Network: &cephv1.NetworkSpec{
+					HostNetwork: false,
+					IPFamily:    cephv1.IPv4,
+				},
+			},
+			expected: cephv1.NetworkSpec{
+				HostNetwork: false,
+				IPFamily:    cephv1.IPv4,
+			},
+		},
+		{
+			desc:     "hostNetwork unspecified, network unspecified",
+			scSpec:   ocsv1.StorageClusterSpec{},
+			expected: cephv1.NetworkSpec{},
+		},
+		{
+			desc: "hostNetwork unspecified, network specified",
+			scSpec: ocsv1.StorageClusterSpec{
+				Network: &cephv1.NetworkSpec{
+					HostNetwork: true,
+					IPFamily:    cephv1.IPv4,
+				},
+			},
+			expected: cephv1.NetworkSpec{
+				HostNetwork: true,
+				IPFamily:    cephv1.IPv4,
+			},
+		},
+	}
+	for _, testCase := range testTable {
+		t.Logf("running testCase %q", testCase.desc)
+		sc := ocsv1.StorageCluster{
+			Spec: testCase.scSpec,
+		}
+		actual := getNetworkSpec(sc)
+		// test Provider, Selectors, HostNetwork, IPFamily, Dualstack
+		assert.Truef(t, cmp.Equal(testCase.expected, actual), "diff between expected(-) and actual(+) not empty: %s", cmp.Diff(testCase.expected, actual))
+
 	}
 }
