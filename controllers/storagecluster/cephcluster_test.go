@@ -675,6 +675,24 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "When nothing is passed to StorageCluster.Spec.Resources (Defaults) and arbiter is enabled",
+			spec: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{},
+					Arbiter: api.ArbiterSpec{
+						Enable: true,
+					},
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mon":         defaults.DaemonResources["mon"],
+				"mgr":         defaults.DaemonResources["mgr"],
+				"mds":         defaults.DaemonResources["mds"],
+				"rgw":         defaults.DaemonResources["rgw"],
+				"mgr-sidecar": defaults.DaemonResources["mgr-sidecar"],
+			},
+		},
 	}
 
 	for _, c := range cases {
