@@ -280,13 +280,8 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Image:            cephImage,
 				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
-			Mon: generateMonSpec(sc, nodeCount),
-			Mgr: cephv1.MgrSpec{
-				Modules: []cephv1.Module{
-					{Name: "pg_autoscaler", Enabled: true},
-					{Name: "balancer", Enabled: true},
-				},
-			},
+			Mon:             generateMonSpec(sc, nodeCount),
+			Mgr:             generateMgrSpec(sc),
 			DataDirHostPath: "/var/lib/rook",
 			DisruptionManagement: cephv1.DisruptionManagementSpec{
 				ManagePodBudgets:                 true,
@@ -786,6 +781,17 @@ func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) cephv1.MonSpec {
 		Count:                getMonCount(nodeCount, false),
 		AllowMultiplePerNode: false,
 	}
+}
+
+func generateMgrSpec(sc *ocsv1.StorageCluster) cephv1.MgrSpec {
+	spec := cephv1.MgrSpec{
+		Modules: []cephv1.Module{
+			{Name: "pg_autoscaler", Enabled: true},
+			{Name: "balancer", Enabled: true},
+		},
+	}
+
+	return spec
 }
 
 func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int32 {
