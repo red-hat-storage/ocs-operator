@@ -18,6 +18,13 @@ var templateNames = []string{
 	"ocs-osd-removal",
 	"ocs-extend-cluster",
 }
+var expectedlabels = map[string]string{
+	"app": "ceph-toolbox-job",
+}
+
+var expectedAnnotations = map[string]string{
+	"template.alpha.openshift.io/wait-for-ready": "true",
+}
 
 func TestTemplateCreated(t *testing.T) {
 
@@ -25,6 +32,7 @@ func TestTemplateCreated(t *testing.T) {
 		t, nil, nil)
 
 	for _, s := range templateNames {
+		assertJobs(s, t, reconciler, cr, request)
 		assertTemplates(s, t, reconciler, cr, request)
 	}
 
@@ -53,6 +61,36 @@ func assertTemplates(name string, t *testing.T, reconciler StorageClusterReconci
 	assert.Equal(t, template.Parameters[0].Name, expectedParameterName)
 }
 
+func assertJobs(name string, t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+
+	ocsJob := &batchv1.Job{
+
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: cr.Namespace,
+		},
+	}
+
+	request.Name = name
+	if name == "ocs-extend-cluster" {
+		err := reconciler.Client.Create(context.TODO(), newExtendClusterJob(cr, name, extendClusterCommand))
+		assert.NoError(t, err)
+		err = reconciler.Client.Get(context.TODO(), request.NamespacedName, ocsJob)
+		assert.NoError(t, err)
+		assert.Equal(t, ocsJob.Spec.Template.Spec.Containers[0].Command, extendClusterCommand)
+		assertLabelsAndAnnotations(ocsJob.Annotations, ocsJob.Labels, t)
+	} else if name == "ocs-osd-removal" {
+		err := reconciler.Client.Create(context.TODO(), newosdCleanUpJob(cr, name, osdCleanupArgs))
+		assert.NoError(t, err)
+		err = reconciler.Client.Get(context.TODO(), request.NamespacedName, ocsJob)
+		assert.NoError(t, err)
+		assert.Equal(t, ocsJob.Spec.Template.Spec.Containers[0].Args, osdCleanupArgs)
+		assertLabelsAndAnnotations(ocsJob.Annotations, ocsJob.Labels, t)
+
+	}
+
+}
+
 func expectedTemplates(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 
 	var count = 0
@@ -74,4 +112,10 @@ func expectedTemplates(t *testing.T, reconciler StorageClusterReconciler, cr *ap
 
 	}
 	assert.Equalf(t, len(TestedJob), count, "Unit tests are not added for one or more Job templates")
+}
+
+func assertLabelsAndAnnotations(annotations map[string]string, labels map[string]string, t *testing.T) {
+	assert.Equal(t, annotations, expectedAnnotations)
+	assert.Equal(t, labels, expectedlabels)
+
 }

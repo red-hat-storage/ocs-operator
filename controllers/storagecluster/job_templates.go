@@ -15,15 +15,57 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+var extendClusterCommand = []string{
+	"bash",
+	"-c",
+	`full_ratio_value=$(ceph osd dump | grep -m1 full_ratio | awk '{print $2}')
+	  echo $full_ratio_value
+	if [[ $full_ratio_value == "0.85"  ]]; then
+		   ceph osd set-full-ratio 0.87
+	else
+		   ceph osd set-full-ratio 0.85
+	fi
+	`,
+}
+
+var osdCleanupArgs = []string{
+	"ceph",
+	"osd",
+	"remove",
+	"--osd-ids=${FAILED_OSD_IDS}",
+}
+
+// ensureCreated ensures if the osd removal job template exists
+func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+
+	tempFuncs := []func(*ocsv1.StorageCluster) *openshiftv1.Template{
+		osdCleanUpTemplate,
+		extendClusterTemplate,
+	}
+
+	for _, tempFunc := range tempFuncs {
+		template := tempFunc(sc)
+		_, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, template, func() error {
+			return controllerutil.SetControllerReference(sc, template, r.Scheme)
+		})
+
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create Template : %v", err.Error())
+		}
+	}
+
+	return nil
+}
+
+// ensureDeleted is dummy func for the ocsJobTemplates
+func (obj *ocsJobTemplates) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	return nil
+}
+
 func osdCleanUpTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 
 	jobTemplateName := "ocs-osd-removal"
-	osdCleanupArgs := []string{
-		"ceph",
-		"osd",
-		"remove",
-		"--osd-ids=${FAILED_OSD_IDS}",
-	}
+
 	return &openshiftv1.Template{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobTemplateName,
@@ -53,18 +95,6 @@ or if an OSD ID is not found, errors will be generated in the log and no OSDs wo
 func extendClusterTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 
 	jobTemplateName := "ocs-extend-cluster"
-	extendClusterCommand := []string{
-		"bash",
-		"-c",
-		`full_ratio_value=$(ceph osd dump | grep -m1 full_ratio | awk '{print $2}')
-		  echo $full_ratio_value
-		if [[ $full_ratio_value == "0.85"  ]]; then
-			   ceph osd set-full-ratio 0.87
-		else
-			   ceph osd set-full-ratio 0.85
-		fi
-		`,
-	}
 
 	return &openshiftv1.Template{
 		ObjectMeta: metav1.ObjectMeta{
@@ -88,33 +118,6 @@ func extendClusterTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 			},
 		},
 	}
-}
-
-// ensureCreated ensures if the osd removal job template exists
-func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
-
-	tempFuncs := []func(*ocsv1.StorageCluster) *openshiftv1.Template{
-		osdCleanUpTemplate,
-		extendClusterTemplate,
-	}
-
-	for _, tempFunc := range tempFuncs {
-		template := tempFunc(sc)
-		_, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, template, func() error {
-			return controllerutil.SetControllerReference(sc, template, r.Scheme)
-		})
-
-		if err != nil && !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create Template : %v", err.Error())
-		}
-	}
-
-	return nil
-}
-
-// ensureDeleted is dummy func for the ocsJobTemplates
-func (obj *ocsJobTemplates) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
-	return nil
 }
 
 func newExtendClusterJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephCommands []string) *batchv1.Job {
