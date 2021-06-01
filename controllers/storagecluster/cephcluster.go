@@ -312,7 +312,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				cephv1.KeyMon: systemNodeCritical,
 				cephv1.KeyOSD: systemNodeCritical,
 			},
-			Resources: newCephDaemonResources(sc.Spec.Resources),
+			Resources: newCephDaemonResources(sc),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
 			LogCollector: cephv1.LogCollectorSpec{
 				Enabled:     true,
@@ -675,7 +675,9 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 	return storageClassDeviceSets
 }
 
-func newCephDaemonResources(custom map[string]corev1.ResourceRequirements) map[string]corev1.ResourceRequirements {
+func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
+
+	custom := sc.Spec.Resources
 	resources := map[string]corev1.ResourceRequirements{
 		"mon": defaults.DaemonResources["mon"],
 		"mgr": defaults.DaemonResources["mgr"],
