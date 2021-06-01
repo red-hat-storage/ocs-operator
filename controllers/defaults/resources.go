@@ -59,6 +59,16 @@ var (
 				corev1.ResourceMemory: resource.MustParse("3Gi"),
 			},
 		},
+		"mgr-sidecar": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("40Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("100Mi"),
+			},
+		},
 		"noobaa-core": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("1"),
