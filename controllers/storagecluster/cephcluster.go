@@ -684,6 +684,9 @@ func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.Resource
 		"mds": defaults.DaemonResources["mds"],
 		"rgw": defaults.DaemonResources["rgw"],
 	}
+	if arbiterEnabled(sc) {
+		resources["mgr-sidecar"] = defaults.DaemonResources["mgr-sidecar"]
+	}
 
 	for k := range custom {
 		if r, ok := custom[k]; ok {
