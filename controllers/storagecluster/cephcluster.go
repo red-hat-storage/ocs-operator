@@ -791,6 +791,10 @@ func generateMgrSpec(sc *ocsv1.StorageCluster) cephv1.MgrSpec {
 		},
 	}
 
+	if arbiterEnabled(sc) {
+		spec.Count = 2
+	}
+
 	return spec
 }
 
