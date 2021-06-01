@@ -588,13 +588,17 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 func TestNewCephDaemonResources(t *testing.T) {
 
 	cases := []struct {
-		name      string
-		resources map[string]corev1.ResourceRequirements
-		expected  map[string]corev1.ResourceRequirements
+		name     string
+		spec     *api.StorageCluster
+		expected map[string]corev1.ResourceRequirements
 	}{
 		{
-			name:      "When nothing is passed to StorageCluster.Spec.Resources (Defaults)",
-			resources: map[string]corev1.ResourceRequirements{},
+			name: "When nothing is passed to StorageCluster.Spec.Resources (Defaults)",
+			spec: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{},
+				},
+			},
 			expected: map[string]corev1.ResourceRequirements{
 				"mon": defaults.DaemonResources["mon"],
 				"mgr": defaults.DaemonResources["mgr"],
@@ -604,15 +608,19 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "Overriding defaults",
-			resources: map[string]corev1.ResourceRequirements{
-				"mds": {
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("6"),
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
-					},
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("6"),
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
+			spec: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{
+						"mds": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
 					},
 				},
 			},
@@ -634,15 +642,19 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "Passing a new key",
-			resources: map[string]corev1.ResourceRequirements{
-				"crashcollector": {
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("6"),
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
-					},
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("6"),
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
+			spec: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{
+						"crashcollector": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
 					},
 				},
 			},
@@ -666,7 +678,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		got := newCephDaemonResources(c.resources)
+		got := newCephDaemonResources(c.spec)
 		assert.Equalf(t, len(c.expected), len(got), c.name)
 		assert.Equalf(t, c.expected, got, c.name)
 	}
