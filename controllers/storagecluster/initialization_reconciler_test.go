@@ -16,6 +16,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -222,6 +223,11 @@ func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtim
 	err = routev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add routev1 scheme")
+	}
+
+	err = batchv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add batchv1 scheme")
 	}
 
 	return scheme
