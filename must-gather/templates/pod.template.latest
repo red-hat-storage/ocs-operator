@@ -4,6 +4,11 @@ metadata:
   name: MUST_GATHER-helper
   namespace: NAMESPACE
 spec:
+  tolerations:
+  - key: "node.ocs.openshift.io/storage"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
   containers:
   - args:
     - -g
