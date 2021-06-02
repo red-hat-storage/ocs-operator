@@ -79,10 +79,11 @@ func getPrometheusRuleSpecFrom(filePath string) (*monitoringv1.PrometheusRuleSpe
 	if err != nil {
 		return nil, fmt.Errorf("'%s' not readable", filePath)
 	}
-	ruleSpec := monitoringv1.PrometheusRuleSpec{}
-	if err := k8sYAML.NewYAMLOrJSONDecoder(bytes.NewBufferString(string(fileContent)), 1000).Decode(&ruleSpec); err != nil {
+	rule := monitoringv1.PrometheusRule{}
+	if err := k8sYAML.NewYAMLOrJSONDecoder(bytes.NewBufferString(string(fileContent)), 1000).Decode(&rule); err != nil {
 		return nil, err
 	}
+	ruleSpec := rule.Spec
 	return &ruleSpec, nil
 }
 
