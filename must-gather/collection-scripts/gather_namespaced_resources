@@ -43,6 +43,8 @@ commands_get+=("rolebinding")
 commands_get+=("volumesnapshot -A")
 commands_get+=("volumesnapshotclass")
 commands_get+=("volumesnapshotcontent")
+commands_get+=("volumereplication")
+commands_get+=("volumereplicationclass")
 
 # collect oc output of OC desc commands
 commands_desc=()
@@ -59,6 +61,8 @@ oc_yamls+=("installplan")
 oc_yamls+=("volumesnapshot -A")
 oc_yamls+=("volumesnapshotclass")
 oc_yamls+=("volumesnapshotcontent")
+oc_yamls+=("volumereplication")
+oc_yamls+=("volumereplicationclass")
 
 echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
 oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1

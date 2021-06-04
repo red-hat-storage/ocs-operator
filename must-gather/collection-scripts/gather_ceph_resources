@@ -133,11 +133,19 @@ for ns in $namespaces; do
         # Inspecting ceph block pools for ceph rbd
         blockpools=$(timeout 60 oc get cephblockpools.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
         for bp in $blockpools; do
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd mirror snapshot schedule list --pool=$bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-mirror-snap-schedule-list-"${bp}"-debug.log 2>&1 &
+            pids_ceph+=($!)
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd mirror pool status $bp --format=json" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-mirror-pool-status-"${bp}"-debug.log 2>&1 &
+            pids_ceph+=($!)
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd mirror pool info $bp --format=json" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-mirror-pool-info-"${bp}"-debug.log 2>&1 &
+            pids_ceph+=($!)
             images=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $bp")
             for image in $images; do
                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd info $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-image-"${image}"-debug.log 2>&1 &
                 pids_ceph+=($!)
                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-snap-"${image}"-debug.log 2>&1 &
+                pids_ceph+=($!)
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd mirror image status $bp/$image --format=json" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-mirror-image-status-"${bp}"-"${image}"-debug.log 2>&1 &
                 pids_ceph+=($!)
             done
         done
