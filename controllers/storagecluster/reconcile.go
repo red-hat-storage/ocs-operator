@@ -753,7 +753,7 @@ func newExtendClusterJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephC
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        jobTemplateName,
+			Name:        jobTemplateName + "-job",
 			Namespace:   sc.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
@@ -870,7 +870,7 @@ func newosdCleanUpJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephComm
 			APIVersion: "batch/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        jobTemplateName,
+			Name:        jobTemplateName + "-job",
 			Namespace:   sc.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
