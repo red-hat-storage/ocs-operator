@@ -96,13 +96,11 @@ func determinePlacementRack(
 	rackList := []string{}
 
 	if len(nodeRacks.Labels) < minRacks {
-		for i := len(nodeRacks.Labels); i < minRacks; i++ {
-			for j := 0; j <= i; j++ {
-				newRack := fmt.Sprintf("rack%d", j)
-				if _, ok := nodeRacks.Labels[newRack]; !ok {
-					nodeRacks.Labels[newRack] = ocsv1.TopologyLabelValues{}
-					break
-				}
+		for i := 0; i < minRacks; i++ {
+			newRack := fmt.Sprintf("rack%d", i)
+			if _, ok := nodeRacks.Labels[newRack]; !ok {
+				nodeRacks.Labels[newRack] = ocsv1.TopologyLabelValues{}
+				break
 			}
 		}
 	}
@@ -152,6 +150,18 @@ func determinePlacementRack(
 			}
 			if validRack {
 				rackList = append(rackList, rack)
+			}
+		}
+		if len(rackList) == 0 {
+			//Create a new rack because EBS volumes cannot move to a different
+			// AZ
+			for i := len(nodeRacks.Labels); ; i++ {
+				newRack := fmt.Sprintf("rack%d", i)
+				if _, ok := nodeRacks.Labels[newRack]; !ok {
+					nodeRacks.Labels[newRack] = ocsv1.TopologyLabelValues{}
+					rackList = append(rackList, newRack)
+					break
+				}
 			}
 		}
 	} else {
