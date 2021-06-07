@@ -82,6 +82,11 @@ ceph_volume_commands+=()
 ceph_volume_commands+=("ceph-volume lvm list")
 ceph_volume_commands+=("ceph-volume raw list")
 
+# Rados commands
+rados_commands+=("rados lspools")
+rados_commands+=("rados ls --pool=ocs-storagecluster-cephblockpool")
+rados_commands+=("rados ls --pool=ocs-storagecluster-cephfilesystem-metadata --namespace=csi")
+
 # Inspecting ceph related custom resources for all namespaces
 for resource in "${ceph_resources[@]}"; do
     echo "collecting dump ${resource}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
@@ -128,6 +133,14 @@ for ns in $namespaces; do
         for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
              { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-"$i"-debug.log 2>&1 &
              pids_ceph+=($!)
+        done
+
+        # Collecting output of rados commands
+        for ((i = 0; i < ${#rados_commands[@]}; i++)); do
+            printf "collecting command output for: %s\n"  "${rados_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${rados_commands[$i]// /_}
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${rados_commands[$i]} " >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${rados_commands[$i]}"-debug.log 2>&1 &
+            pids_ceph+=($!)
         done
 
         # Collecting snapshot info for ceph rbd volumes
