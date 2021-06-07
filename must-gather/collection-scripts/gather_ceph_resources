@@ -106,6 +106,12 @@ for ns in $namespaces; do
 
         pids_ceph=()
 
+        # Collecting output of ceph osd config
+        for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd tree --connect-timeout=15 |  grep up "| awk '{print $4}'); do
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph config show $i" >> "${COMMAND_OUTPUT_DIR}/config_$i"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-config-"$i"-debug.log 2>&1 &
+            pids_ceph+=($!)
+        done
+
         # Collecting output of ceph commands
         for ((i = 0; i < ${#ceph_commands[@]}; i++)); do
              printf "collecting command output for: %s\n"  "${ceph_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
