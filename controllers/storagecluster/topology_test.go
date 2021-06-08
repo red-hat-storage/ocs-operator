@@ -16,6 +16,7 @@ import (
 
 var rack0 = "rack0"
 var rack1 = "rack1"
+var rack2 = "rack2"
 
 var workerAffinityNode = corev1.Node{
 	ObjectMeta: metav1.ObjectMeta{
@@ -904,6 +905,74 @@ func TestDeterminePlacementRack(t *testing.T) {
 				},
 			},
 			expectedRack: "rack2",
+		},
+		{
+			label: "Case 4", // `rack3` should be placement rack as`node4` is in a different zone`
+			nodeList: &corev1.NodeList{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "NodeList",
+				},
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node1",
+							Labels: map[string]string{
+								defaults.RackTopologyKey: "rack0",
+								zoneTopologyLabel:        "zone1",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node2",
+							Labels: map[string]string{
+								defaults.RackTopologyKey: "rack1",
+								zoneTopologyLabel:        "zone1",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node3",
+							Labels: map[string]string{
+								defaults.RackTopologyKey: "rack2",
+								zoneTopologyLabel:        "zone1",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "Node4",
+							Labels: map[string]string{
+								zoneTopologyLabel: "zone2",
+							},
+						},
+					},
+				},
+			},
+			node: corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "Node4",
+					Labels: map[string]string{
+						zoneTopologyLabel: "zone2",
+					},
+				},
+			},
+			minRacks: 3,
+			nodeRacks: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					rack0: []string{
+						"Node1",
+					},
+					rack1: []string{
+						"Node2",
+					},
+					rack2: []string{
+						"Node3",
+					},
+				},
+			},
+			expectedRack: "rack3",
 		},
 	}
 
