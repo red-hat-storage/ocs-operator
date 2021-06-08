@@ -100,9 +100,9 @@ github.com/konsorten/go-windows-terminal-sequences
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api
-# github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2
+# github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 ## explicit
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1
+github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1
 # github.com/mailru/easyjson v0.7.1
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
