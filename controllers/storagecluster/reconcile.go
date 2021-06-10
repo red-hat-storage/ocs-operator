@@ -657,9 +657,10 @@ func osdCleanUpTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 				Description: `
 The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs 
 when a single job removes multiple OSDs. 
-If the expected comma-separated format is not used, 
-or an ID cannot be converted to an int, 
-or if an OSD ID is not found, errors will be generated in the log and no OSDs would be removed.`,
+OSD removal is an advanced use case.
+In the event of errors or invalid user inputs,
+the Job will attempt to remove as many OSDs as can be processed and complete without returning an error condition.
+Users should always check for errors and success in the log of the finished OSD removal Job.`,
 			},
 		},
 		Objects: []runtime.RawExtension{
