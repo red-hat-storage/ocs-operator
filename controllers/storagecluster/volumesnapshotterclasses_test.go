@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	snapapi "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

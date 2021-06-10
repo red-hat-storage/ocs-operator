@@ -8,7 +8,7 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.3.0
 	github.com/imdario/mergo v0.3.10
-	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2
+	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.14.1
