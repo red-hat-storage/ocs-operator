@@ -6,13 +6,13 @@ metadata:
     capabilities: Basic Install
     categories: Storage,Big Data
     certified: "false"
-    containerImage: noobaa/noobaa-operator:5.8.0
+    containerImage: noobaa/noobaa-operator:5.9.0
     createdAt: "2019-07-08T13:10:20.940Z"
     description: NooBaa is an object data service for hybrid and multi cloud environments.
     repository: https://github.com/noobaa/noobaa-operator
     support: Red Hat
   creationTimestamp: null
-  name: noobaa-operator.v5.8.0
+  name: noobaa-operator.v5.9.0
   namespace: noobaa
 spec:
   apiservicedefinitions: {}
@@ -516,7 +516,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:5.8.0
+                image: noobaa/noobaa-operator:5.9.0
                 name: noobaa-operator
                 resources:
                   limits:
@@ -748,5 +748,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: NooBaa
-  version: 5.8.0
+  version: 5.9.0
 status: {}

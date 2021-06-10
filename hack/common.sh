@@ -44,8 +44,8 @@ ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
 LATEST_ROOK_IMAGE="rook/ceph:v1.6.0.95.gf4cfc7a"
-LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:master-20210419"
-LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:master-20210419"
+LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:master-20210609"
+LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:master-20210609"
 LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
 # The stretch cluster feature will come in ceph pacific(v16).  We don't have an
 # image for it yet. Meanwhile, we will use an image that has the required
