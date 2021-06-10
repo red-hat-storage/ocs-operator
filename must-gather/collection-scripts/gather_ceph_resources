@@ -1,4 +1,7 @@
 #!/bin/bash
+
+gather_common_ceph_resources "${BASE_COLLECTION_PATH}" "${SINCE_TIME}"
+
 # Expect base collection path as an argument
 BASE_COLLECTION_PATH=$1
 
@@ -15,10 +18,7 @@ CEPH_COLLECTION_PATH="${BASE_COLLECTION_PATH}/ceph"
 # Ceph resources
 ceph_resources=()
 ceph_resources+=(cephblockpools)
-ceph_resources+=(cephclusters)
 ceph_resources+=(cephfilesystems)
-ceph_resources+=(cephobjectstores)
-ceph_resources+=(cephobjectstoreusers)
 
 # Ceph commands
 ceph_commands=()
