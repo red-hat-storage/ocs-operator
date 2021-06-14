@@ -27,6 +27,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		label            string
 		shouldCreate     bool
 		cephClusterState rookCephv1.ClusterState
+		reconcilerPhase  string
 	}{
 		{
 			label:            "Create new CephCluster",
@@ -53,6 +54,11 @@ func TestEnsureCephCluster(t *testing.T) {
 			label:            "CephCluster reconciled succesfully",
 			cephClusterState: rookCephv1.ClusterStateCreated,
 		},
+		{
+			label:            "Update expanding CephCluster",
+			cephClusterState: rookCephv1.ClusterStateUpdating,
+			reconcilerPhase:  ocsutil.PhaseClusterExpanding,
+		},
 	}
 
 	for i, c := range cases {
@@ -71,6 +77,29 @@ func TestEnsureCephCluster(t *testing.T) {
 		if !c.shouldCreate {
 			createErr := reconciler.Client.Create(context.TODO(), expected)
 			assert.NoError(t, createErr)
+		}
+
+		// To test for cluster expansion, the expected CephCluster must
+		// have more more storage devices defined than the existing
+		// CephCluster.
+		if c.reconcilerPhase == ocsutil.PhaseClusterExpanding {
+			createErr := reconciler.Client.Create(context.TODO(), fakeStorageClass)
+			assert.NoError(t, createErr)
+
+			sc.Spec.StorageDeviceSets = []api.StorageDeviceSet{
+				{
+					Name:    "mock-sds",
+					Count:   3,
+					Replica: 1,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &fakeStorageClassName,
+						},
+					},
+				},
+			}
+			sc.Spec.MonDataDirHostPath = "/var/lib/rook"
+			expected.Spec.Storage.StorageClassDeviceSets = newStorageClassDeviceSets(sc, reconciler.serverVersion)
 		}
 
 		var obj ocsCephCluster
@@ -93,8 +122,10 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		assert.Len(t, reconciler.conditions, len(expectedConditions))
 		for i, condition := range expectedConditions {
-			assert.Equal(t, condition.Type, reconciler.conditions[i].Type)
-			assert.Equal(t, condition.Status, reconciler.conditions[i].Status)
+			if i < len(reconciler.conditions) {
+				assert.Equal(t, condition.Type, reconciler.conditions[i].Type)
+				assert.Equal(t, condition.Status, reconciler.conditions[i].Status)
+			}
 		}
 	}
 }
