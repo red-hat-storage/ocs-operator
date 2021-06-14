@@ -34,12 +34,20 @@ func TestEnsureCephCluster(t *testing.T) {
 			cephClusterState: "",
 		},
 		{
-			label:            "Reconcile progressing CephCluster",
+			label:            "Reconcile CephCluster not reporting state",
+			cephClusterState: "",
+		},
+		{
+			label:            "Reconcile creating CephCluster",
 			cephClusterState: rookCephv1.ClusterStateCreating,
 		},
 		{
-			label:            "CephCluster not reporting state",
-			cephClusterState: "",
+			label:            "Reconcile updating CephCluster",
+			cephClusterState: rookCephv1.ClusterStateUpdating,
+		},
+		{
+			label:            "Reconcile degraded CephCluster",
+			cephClusterState: rookCephv1.ClusterStateError,
 		},
 		{
 			label:            "CephCluster reconciled succesfully",
