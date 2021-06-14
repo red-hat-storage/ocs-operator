@@ -94,10 +94,20 @@ var mockCephClusterNamespacedName = types.NamespacedName{
 
 var storageClassName = "gp2"
 var storageClassName2 = "managed-premium"
-var fakestorageClassName = "st1"
+var fakeStorageClassName = "st1"
 var volMode = corev1.PersistentVolumeBlock
 var annotations = map[string]string{
 	"crushDeviceClass": "",
+}
+
+var fakeStorageClass = &storagev1.StorageClass{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: fakeStorageClassName,
+	},
+	Provisioner: string(EBS),
+	Parameters: map[string]string{
+		"type": "fake",
+	},
 }
 
 var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
@@ -348,7 +358,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 					Count: 3,
 					DataPVCTemplate: corev1.PersistentVolumeClaim{
 						Spec: corev1.PersistentVolumeClaimSpec{
-							StorageClassName: &fakestorageClassName,
+							StorageClassName: &fakeStorageClassName,
 						},
 					},
 					Portable: true,
@@ -454,7 +464,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 					Count: 3,
 					DataPVCTemplate: corev1.PersistentVolumeClaim{
 						Spec: corev1.PersistentVolumeClaimSpec{
-							StorageClassName: &fakestorageClassName,
+							StorageClassName: &fakeStorageClassName,
 						},
 					},
 					Portable:   true,
@@ -481,7 +491,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 					Count: 3,
 					DataPVCTemplate: corev1.PersistentVolumeClaim{
 						Spec: corev1.PersistentVolumeClaimSpec{
-							StorageClassName: &fakestorageClassName,
+							StorageClassName: &fakeStorageClassName,
 						},
 					},
 					Portable: true,
