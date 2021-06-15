@@ -316,6 +316,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 		r.Log.Info("Object is terminated, skipping reconciliation")
+		ReadinessSet()
 		return reconcile.Result{}, nil
 	}
 
