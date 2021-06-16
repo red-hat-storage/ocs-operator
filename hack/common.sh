@@ -10,7 +10,7 @@ GOOS="${GOOS:-linux}"
 GOARCH="${GOARCH:-amd64}"
 
 # Current DEV version of the CSV
-DEFAULT_CSV_VERSION="4.8.0"
+DEFAULT_CSV_VERSION="4.9.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 
 OUTDIR="build/_output"
