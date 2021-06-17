@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openshift/ocs-operator/controllers/defaults"
+	ocsutil "github.com/openshift/ocs-operator/controllers/util"
+
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
-	"github.com/openshift/ocs-operator/controllers/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -20,87 +22,111 @@ import (
 )
 
 func TestEnsureCephCluster(t *testing.T) {
-	serverVersion := &version.Info{}
 	// cases for testing
 	cases := []struct {
-		label     string
-		cc        *rookCephv1.CephCluster
-		isCreate  bool
-		condition string
+		label            string
+		shouldCreate     bool
+		cephClusterState rookCephv1.ClusterState
+		reconcilerPhase  string
 	}{
 		{
-			label:     "case 1", // create logic
-			isCreate:  true,
-			condition: "",
+			label:            "Create new CephCluster",
+			shouldCreate:     true,
+			cephClusterState: "",
 		},
 		{
-			label:     "case 2", // update logic
-			isCreate:  false,
-			condition: "",
+			label:            "Reconcile CephCluster not reporting state",
+			cephClusterState: "",
 		},
 		{
-			label:     "case 3", // No Conditions
-			isCreate:  false,
-			condition: "noCondition",
+			label:            "Reconcile creating CephCluster",
+			cephClusterState: rookCephv1.ClusterStateCreating,
 		},
 		{
-			label:     "case 4", // Negative Conditions
-			isCreate:  false,
-			condition: "negativeCondition",
+			label:            "Reconcile updating CephCluster",
+			cephClusterState: rookCephv1.ClusterStateUpdating,
+		},
+		{
+			label:            "Reconcile degraded CephCluster",
+			cephClusterState: rookCephv1.ClusterStateError,
+		},
+		{
+			label:            "CephCluster reconciled succesfully",
+			cephClusterState: rookCephv1.ClusterStateCreated,
+		},
+		{
+			label:            "Update expanding CephCluster",
+			cephClusterState: rookCephv1.ClusterStateUpdating,
+			reconcilerPhase:  ocsutil.PhaseClusterExpanding,
 		},
 	}
 
-	for _, c := range cases {
-		c.cc = &rookCephv1.CephCluster{}
-		if c.condition == "" {
-			mockCephCluster.DeepCopyInto(c.cc)
-			if c.isCreate {
-				c.cc.ObjectMeta.Name = "doesn't exist"
-			}
-		} else {
-			c.cc = newCephCluster(mockStorageCluster, "", 3, serverVersion, nil, log)
-			c.cc.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
-			if c.condition == "negativeCondition" {
-				c.cc.Status.State = rookCephv1.ClusterStateCreated
-			}
-		}
+	for i, c := range cases {
+		t.Logf("Case %d: %s\n", i+1, c.label)
 
-		var obj ocsCephCluster
-
-		reconciler := createFakeStorageClusterReconciler(t, c.cc)
 		sc := &api.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		err := obj.ensureCreated(&reconciler, sc)
-		assert.NoError(t, err)
-		if c.condition == "" {
-			expected := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
-			actual := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
-			err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, actual)
-			assert.NoError(t, err)
-			assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
-			assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
-			assert.Equal(t, expected.Spec, actual.Spec)
-		} else if c.condition == "noCondition" {
+		reconciler := createFakeStorageClusterReconciler(t)
 
-			assert.NotEmpty(t, reconciler.conditions)
-			assert.Len(t, reconciler.conditions, 3)
+		expected := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, nil, log)
+		expected.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
+		expected.Status.State = c.cephClusterState
 
-			expectedConditions := map[conditionsv1.ConditionType]corev1.ConditionStatus{
-				conditionsv1.ConditionAvailable:   corev1.ConditionFalse,
-				conditionsv1.ConditionProgressing: corev1.ConditionTrue,
-				conditionsv1.ConditionUpgradeable: corev1.ConditionFalse,
-			}
-			for cType, status := range expectedConditions {
-				found := assertCondition(reconciler.conditions, cType, status)
-				assert.True(t, found, "expected status condition not found", cType, status)
-			}
-
-		} else {
-			assert.Empty(t, reconciler.conditions)
+		if !c.shouldCreate {
+			createErr := reconciler.Client.Create(context.TODO(), expected)
+			assert.NoError(t, createErr)
 		}
 
+		// To test for cluster expansion, the expected CephCluster must
+		// have more more storage devices defined than the existing
+		// CephCluster.
+		if c.reconcilerPhase == ocsutil.PhaseClusterExpanding {
+			createErr := reconciler.Client.Create(context.TODO(), fakeStorageClass)
+			assert.NoError(t, createErr)
+
+			sc.Spec.StorageDeviceSets = []api.StorageDeviceSet{
+				{
+					Name:    "mock-sds",
+					Count:   3,
+					Replica: 1,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &fakeStorageClassName,
+						},
+					},
+				},
+			}
+			sc.Spec.MonDataDirHostPath = "/var/lib/rook"
+			expected.Spec.Storage.StorageClassDeviceSets = newStorageClassDeviceSets(sc, reconciler.serverVersion)
+		}
+
+		var obj ocsCephCluster
+		err := obj.ensureCreated(&reconciler, sc)
+		assert.NoError(t, err)
+
+		actual := &rookCephv1.CephCluster{}
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
+		assert.NoError(t, err)
+		assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
+		assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
+		assert.Equal(t, expected.Spec, actual.Spec)
+
+		expectedConditions := []conditionsv1.Condition{}
+		if c.cephClusterState == "" {
+			ocsutil.MapCephClusterNoConditions(&expectedConditions, "", "")
+		} else {
+			ocsutil.MapCephClusterNegativeConditions(&expectedConditions, expected)
+		}
+
+		assert.Len(t, reconciler.conditions, len(expectedConditions))
+		for i, condition := range expectedConditions {
+			if i < len(reconciler.conditions) {
+				assert.Equal(t, condition.Type, reconciler.conditions[i].Type)
+				assert.Equal(t, condition.Status, reconciler.conditions[i].Status)
+			}
+		}
 	}
 }
 
