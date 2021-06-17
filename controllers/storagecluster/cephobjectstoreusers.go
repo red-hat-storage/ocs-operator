@@ -44,13 +44,11 @@ func (obj *ocsCephObjectStoreUsers) ensureCreated(r *StorageClusterReconciler, i
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStoreUsers.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
-	} else if  reconcileStrategy == ReconcileStrategyForce {
-                avoid = False
-        } else {
-	        avoid, err := r.PlatformsShouldAvoidObjectStore()
-	        if err != nil {
-                        return err
-                }
+	}
+
+	avoid, err := r.PlatformsShouldAvoidObjectStore()
+	if err != nil {
+		return err
 	}
 
 	if avoid {
@@ -58,8 +56,12 @@ func (obj *ocsCephObjectStoreUsers) ensureCreated(r *StorageClusterReconciler, i
 		if err != nil {
 			return err
 		}
-		r.Log.Info(fmt.Sprintf("not creating a CephObjectStoreUsers because the platform is '%s'", platform))
-		return nil
+		if reconcileStrategy == ReconcileStrategyForce {
+			r.Log.Info("force creating a CephObjectStore")
+		} else {
+			r.Log.Info(fmt.Sprintf("not creating a CephObjectStoreUsers because the platform is '%s'", platform))
+			return nil
+		}
 	}
 
 	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(instance)
