@@ -44,10 +44,13 @@ func (obj *ocsCephObjectStoreUsers) ensureCreated(r *StorageClusterReconciler, i
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStoreUsers.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
-	}
-	avoid, err := r.PlatformsShouldAvoidObjectStore()
-	if err != nil {
-		return err
+	} else if  reconcileStrategy == ReconcileStrategyForce {
+                avoid = False
+        } else {
+	        avoid, err := r.PlatformsShouldAvoidObjectStore()
+	        if err != nil {
+                        return err
+                }
 	}
 
 	if avoid {
