@@ -1,6 +1,6 @@
 module github.com/openshift/ocs-operator
 
-go 1.15
+go 1.16
 
 require (
 	github.com/RHsyseng/operator-utils v1.4.2
