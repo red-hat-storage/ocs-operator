@@ -155,35 +155,8 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return err
 	}
 
-	// Update the CephCluster if it is not in the desired state
-	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
-		r.Log.Info("Updating spec for CephCluster")
-		if !sc.Spec.ExternalStorage.Enable {
-			// Check if Cluster is Expanding
-			if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
-				r.phase = statusutil.PhaseClusterExpanding
-			} else if len(found.Spec.Storage.StorageClassDeviceSets) == len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
-				for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
-					for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
-						if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
-							r.phase = statusutil.PhaseClusterExpanding
-							break
-						}
-					}
-					if r.phase == statusutil.PhaseClusterExpanding {
-						break
-					}
-				}
-			}
-		}
-		found.Spec = cephCluster.Spec
-		if err := r.Client.Update(context.TODO(), found); err != nil {
-			return err
-		}
-		// Need to happen after the ceph cluster CR update was confirmed
-		sc.Status.Images.Ceph.ActualImage = cephCluster.Spec.CephVersion.Image
-		return nil
-	}
+	// Record actual Ceph container image version before attempting update
+	sc.Status.Images.Ceph.ActualImage = found.Spec.CephVersion.Image
 
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
@@ -226,6 +199,33 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			sc.Status.Phase = statusutil.PhaseReady
 		} else {
 			sc.Status.Phase = statusutil.PhaseNotReady
+		}
+	}
+
+	// Update the CephCluster if it is not in the desired state
+	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
+		r.Log.Info("Updating spec for CephCluster")
+		if !sc.Spec.ExternalStorage.Enable {
+			// Check if Cluster is Expanding
+			if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
+				r.phase = statusutil.PhaseClusterExpanding
+			} else if len(found.Spec.Storage.StorageClassDeviceSets) == len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
+				for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
+					for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+						if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
+							r.phase = statusutil.PhaseClusterExpanding
+							break
+						}
+					}
+					if r.phase == statusutil.PhaseClusterExpanding {
+						break
+					}
+				}
+			}
+		}
+		found.Spec = cephCluster.Spec
+		if err := r.Client.Update(context.TODO(), found); err != nil {
+			return err
 		}
 	}
 
