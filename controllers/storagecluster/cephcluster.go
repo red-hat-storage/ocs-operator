@@ -390,9 +390,6 @@ func validateMultusSelectors(selectors map[string]string) error {
 	if publicNetwork == "" && clusterNetwork == "" {
 		return fmt.Errorf("both public and cluster network selector values can't be empty")
 	}
-	if publicNetwork == "" {
-		return fmt.Errorf("public network selector values can't be empty")
-	}
 	return nil
 }
 
