@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
   creationTimestamp: null
   name: cephblockpools.ceph.rook.io
 spec:
@@ -36,15 +36,13 @@ spec:
                 - aggressive
                 - force
                 - ""
+                nullable: true
                 type: string
               crushRoot:
+                nullable: true
                 type: string
               deviceClass:
-                enum:
-                - ssd
-                - hdd
-                - nvme
-                - ""
+                nullable: true
                 type: string
               enableRBDStats:
                 type: boolean
