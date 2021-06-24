@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
   name: cephobjectstores.ceph.rook.io
 spec:
   group: ceph.rook.io
@@ -27,6 +27,7 @@ spec:
           spec:
             properties:
               dataPool:
+                nullable: true
                 properties:
                   compressionMode:
                     default: none
@@ -36,15 +37,13 @@ spec:
                     - aggressive
                     - force
                     - ""
+                    nullable: true
                     type: string
                   crushRoot:
+                    nullable: true
                     type: string
                   deviceClass:
-                    enum:
-                    - ssd
-                    - hdd
-                    - nvme
-                    - ""
+                    nullable: true
                     type: string
                   enableRBDStats:
                     type: boolean
@@ -532,8 +531,18 @@ spec:
                     format: int32
                     maximum: 65535
                     minimum: 0
+                    nullable: true
                     type: integer
+                  service:
+                    nullable: true
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                    type: object
                   sslCertificateRef:
+                    nullable: true
                     type: string
                 required:
                 - instances
@@ -622,6 +631,7 @@ spec:
                     type: object
                 type: object
               metadataPool:
+                nullable: true
                 properties:
                   compressionMode:
                     default: none
@@ -631,15 +641,13 @@ spec:
                     - aggressive
                     - force
                     - ""
+                    nullable: true
                     type: string
                   crushRoot:
+                    nullable: true
                     type: string
                   deviceClass:
-                    enum:
-                    - ssd
-                    - hdd
-                    - nvme
-                    - ""
+                    nullable: true
                     type: string
                   enableRBDStats:
                     type: boolean
@@ -730,6 +738,22 @@ spec:
                 type: object
               preservePoolsOnDelete:
                 type: boolean
+              security:
+                nullable: true
+                properties:
+                  kms:
+                    nullable: true
+                    properties:
+                      connectionDetails:
+                        additionalProperties:
+                          type: string
+                        nullable: true
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      tokenSecretName:
+                        type: string
+                    type: object
+                type: object
               zone:
                 nullable: true
                 properties:
