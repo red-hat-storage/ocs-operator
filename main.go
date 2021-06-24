@@ -79,22 +79,24 @@ func printVersion() {
 }
 
 func main() {
-	var isDevelopmentEnv bool
 	var probeAddr string
 	var metricsAddr string
 	var enableLeaderElection bool
-	flag.BoolVar(&isDevelopmentEnv, "development", false, "Enable/Disable running operator in development environment")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
+	loggerOpts := zap.Options{}
+	loggerOpts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(isDevelopmentEnv)))
+	logger := zap.New(zap.UseFlagOptions(&loggerOpts))
+	ctrl.SetLogger(logger)
 
 	printVersion()
-	if isDevelopmentEnv {
+	if loggerOpts.Development {
 		setupLog.Info("running in development mode")
 	}
 
