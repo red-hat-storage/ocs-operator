@@ -179,6 +179,14 @@ verify-generated: update-generated
 	@echo "Verifying generated code and manifests"
 	hack/verify-generated.sh
 
+# ARGS is used to pass flags
+# `make run ARGS="--zap-devel"` is parsed as
+# `go run ./main.go --zap-devel`
+run: manifests generate
+	go fmt ./...
+	go vet ./...
+	go run ./main.go $(ARGS)
+
 # find or download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
