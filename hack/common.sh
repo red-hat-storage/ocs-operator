@@ -12,6 +12,7 @@ GOARCH="${GOARCH:-amd64}"
 # Current DEV version of the CSV
 DEFAULT_CSV_VERSION="4.9.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
+VERSION="${VERSION:-${CSV_VERSION}}"
 
 OUTDIR="build/_output"
 OUTDIR_BIN="build/_output/bin"
