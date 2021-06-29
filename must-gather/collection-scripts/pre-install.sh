@@ -81,6 +81,8 @@ for node in ${nodes}; do
     pids+=($!)
 done
 
-# wait for all pids
-echo "waiting for ${pids[*]} to terminate" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-wait "${pids[@]}"
+# wait for all pi ds
+if [ -n "${pids[*]}" ]; then
+    echo "waiting for ${pids[*]} to terminate" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+    wait "${pids[@]}"
+fi
