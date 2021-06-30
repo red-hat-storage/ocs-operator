@@ -640,6 +640,8 @@ spec:
                 description: MultiCloudGatewaySpec defines specific multi-cloud gateway
                   configuration options
                 properties:
+                  dbStorageClassName:
+                    type: string
                   endpoints:
                     description: Endpoints (optional) sets configuration info for
                       the noobaa endpoint deployment.
