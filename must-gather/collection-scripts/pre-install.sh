@@ -56,7 +56,7 @@ labels(){
 check_for_debug_pod(){
     debug_pod_name=$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $1}')
     # sleep for 60 seconds giving time for debug pod to get created
-    sleep 60 
+    sleep 60
     oc wait -n openshift-storage --for=condition=Ready pod/"$debug_pod_name" --timeout=200s
     if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" == "1/1" ] ; then
         oc label -n openshift-storage pod "$debug_pod_name" "${node//./}"-debug='ready'
@@ -81,6 +81,8 @@ for node in ${nodes}; do
     pids+=($!)
 done
 
-# wait for all pids
-echo "waiting for ${pids[*]} to terminate"
-wait "${pids[@]}"
+# wait for all pi ds
+if [ -n "${pids[*]}" ]; then
+    echo "waiting for ${pids[*]} to terminate" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+    wait "${pids[@]}"
+fi
