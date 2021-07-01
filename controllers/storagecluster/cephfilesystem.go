@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -49,6 +50,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 	for _, obj := range ret {
 		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
+			r.Log.Error(err, "Unable to set Controller Reference for CephFileSystem.", "CephFileSystem", klog.KRef(obj.Namespace, obj.Name))
 			return nil, err
 		}
 	}
@@ -76,21 +78,23 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
-				r.Log.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
+				r.Log.Info("Unable to restore CephFileSystem because it is marked for deletion.", "CephFileSystem", klog.KRef(existing.Namespace, existing.Name))
 				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
 			}
 
-			r.Log.Info(fmt.Sprintf("Restoring original cephFilesystem %s", cephFilesystem.Name))
+			r.Log.Info("Restoring original CephFilesystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 			existing.ObjectMeta.OwnerReferences = cephFilesystem.ObjectMeta.OwnerReferences
 			cephFilesystem.ObjectMeta = existing.ObjectMeta
 			err = r.Client.Update(context.TODO(), cephFilesystem)
 			if err != nil {
+				r.Log.Error(err, "Unable to update CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
-			r.Log.Info(fmt.Sprintf("Creating cephFilesystem %s", cephFilesystem.Name))
+			r.Log.Info("Creating CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 			err = r.Client.Create(context.TODO(), cephFilesystem)
 			if err != nil {
+				r.Log.Error(err, "Unable to create CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 				return err
 			}
 		}
@@ -111,28 +115,31 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: CephFilesystem not found", "CephFilesystem Name", cephFilesystem.Name)
+				r.Log.Info("Uninstall: CephFileSystem not found.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrieve cephFilesystem %v: %v", cephFilesystem.Name, err)
+			r.Log.Error(err, "Uninstall: Unable to retrieve CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
+			return fmt.Errorf("uninstall: Unable to retrieve CephFileSystem %v: %v", cephFilesystem.Name, err)
 		}
 
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
-			r.Log.Info("Uninstall: Deleting cephFilesystem", "CephFilesystem Name", cephFilesystem.Name)
+			r.Log.Info("Uninstall: Deleting cephFilesystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))
 			err = r.Client.Delete(context.TODO(), foundCephFilesystem)
 			if err != nil {
-				return fmt.Errorf("Uninstall: Failed to delete cephFilesystem %v: %v", foundCephFilesystem.Name, err)
+				r.Log.Error(err, "Uninstall: Failed to delete CephFileSystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))
+				return fmt.Errorf("uninstall: Failed to delete CephFileSystem %v: %v", foundCephFilesystem.Name, err)
 			}
 		}
 
 		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: CephFilesystem is deleted", "CephFilesystem Name", cephFilesystem.Name)
+				r.Log.Info("Uninstall: CephFilesystem is deleted.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 				continue
 			}
 		}
-		return fmt.Errorf("Uninstall: Waiting for cephFilesystem %v to be deleted", cephFilesystem.Name)
+		r.Log.Error(err, "Uninstall: Waiting for CephFileSystem to be deleted.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
+		return fmt.Errorf("uninstall: Waiting for CephFileSystem %v to be deleted", cephFilesystem.Name)
 
 	}
 	return nil

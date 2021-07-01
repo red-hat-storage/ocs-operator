@@ -226,11 +226,11 @@ func (r *StorageClusterReconciler) ensureNodeRacks(
 			rack := determinePlacementRack(nodes, node, minRacks, nodeRacks)
 			nodeRacks.Add(rack, node.Name)
 			if !topologyMap.Contains(defaults.RackTopologyKey, rack) {
-				r.Log.Info("Adding rack label from node", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+				r.Log.Info("Adding rack label from Node.", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
 				topologyMap.Add(defaults.RackTopologyKey, rack)
 			}
 
-			r.Log.Info("Labeling node with rack label", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
+			r.Log.Info("Labeling node with rack label.", "Node", node.Name, "Label", defaults.RackTopologyKey, "Value", rack)
 			newNode := node.DeepCopy()
 			newNode.Labels[defaults.RackTopologyKey] = rack
 			patch, err := generateStrategicPatch(node, newNode)
@@ -275,7 +275,7 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 			for _, key := range validTopologyLabelKeys {
 				if strings.Contains(label, key) {
 					if !topologyMap.Contains(label, value) {
-						r.Log.Info("Adding topology label from node", "Node", node.Name, "Label", label, "Value", value)
+						r.Log.Info("Adding topology label from Node.", "Node", node.Name, "Label", label, "Value", value)
 						topologyMap.Add(label, value)
 					}
 				}

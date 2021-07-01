@@ -33,15 +33,15 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 
 	if r.images.Ceph == "" {
 		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
-		r.Log.Error(err, "missing required environment variable for ocs initialization")
+		r.Log.Error(err, "Missing CEPH_IMAGE environment variable for ocs initialization.")
 		return err
 	} else if r.images.NooBaaCore == "" {
 		err := fmt.Errorf("NOOBAA_CORE_IMAGE environment variable not found")
-		r.Log.Error(err, "missing required environment variable for ocs initialization")
+		r.Log.Error(err, "Missing NOOBAA_CORE_IMAGE environment variable for ocs initialization.")
 		return err
 	} else if r.images.NooBaaDB == "" {
 		err := fmt.Errorf("NOOBAA_DB_IMAGE environment variable not found")
-		r.Log.Error(err, "missing required environment variable for ocs initialization")
+		r.Log.Error(err, "Missing NOOBAA_DB_IMAGE environment variable for ocs initialization.")
 		return err
 	}
 	return nil
@@ -50,12 +50,12 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 func (r *StorageClusterReconciler) initializeServerVersion() error {
 	clientset, err := kubernetes.NewForConfig(config.GetConfigOrDie())
 	if err != nil {
-		r.Log.Error(err, "failed creation of clientset for determining serverversion")
+		r.Log.Error(err, "Failed creation of clientset for determining serverversion.")
 		return err
 	}
 	r.serverVersion, err = clientset.Discovery().ServerVersion()
 	if err != nil {
-		r.Log.Error(err, "failed getting the serverversion")
+		r.Log.Error(err, "Failed getting the serverversion.")
 		return err
 	}
 	return nil

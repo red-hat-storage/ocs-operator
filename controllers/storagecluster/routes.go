@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -30,7 +31,7 @@ func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance
 		if err != nil {
 			return err
 		}
-		r.Log.Info(fmt.Sprintf("not creating a Ceph RGW route because the platform is '%s'", platform))
+		r.Log.Info("Platform is set to avoid Ceph RGW Route. Not creating a Ceph RGW Route.", "platform", platform)
 		return nil
 	}
 
@@ -40,7 +41,7 @@ func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance
 	}
 	err = r.createCephRGWRoutes(ocsCephRoutes, instance)
 	if err != nil {
-		r.Log.Error(err, "could not create Routes")
+		r.Log.Error(err, "Could not create Ceph RGW Routes.")
 		return err
 	}
 
@@ -59,28 +60,29 @@ func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: Route not found", "Route Name", route.Name)
+				r.Log.Info("Uninstall: Ceph RGW Route not found.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
 				continue
 			}
 			return fmt.Errorf("Uninstall: Unable to retrieve route %v: %v", route.Name, err)
 		}
 
 		if route.GetDeletionTimestamp().IsZero() {
-			r.Log.Info("Uninstall: Deleting route", "Route Name", route.Name)
+			r.Log.Info("Uninstall: Deleting Ceph RGW Route.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
 			err = r.Client.Delete(context.TODO(), foundRoute)
 			if err != nil {
-				return fmt.Errorf("Uninstall: Failed to delete route %v: %v", route.Name, err)
+				r.Log.Error(err, "Uninstall: Failed to delete Ceph RGW Route.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
+				return fmt.Errorf("Uninstall: Failed to delete Route %v: %v", route.Name, err)
 			}
 		}
 
 		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: Route is deleted", "Route Name", route.Name)
+				r.Log.Info("Uninstall: Ceph RGW Route is deleted.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
 				continue
 			}
 		}
-		return fmt.Errorf("Uninstall: Waiting for route %v to be deleted", route.Name)
+		return fmt.Errorf("Uninstall: Waiting for Ceph RGW Route %v to be deleted", route.Name)
 
 	}
 	return nil
@@ -99,23 +101,23 @@ func (r *StorageClusterReconciler) createCephRGWRoutes(routes []*routev1.Route, 
 			}
 			if existing.DeletionTimestamp != nil {
 				err := fmt.Errorf("failed to restore route object %s because it is marked for deletion", existing.Name)
-				r.Log.Info("route restore failed")
+				r.Log.Info("Ceph RGW Route restore failed.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
 				return err
 			}
 
-			r.Log.Info(fmt.Sprintf("Restoring original route %s", route.Name))
+			r.Log.Info("Restoring original Ceph RGW Route.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
 			existing.ObjectMeta.OwnerReferences = route.ObjectMeta.OwnerReferences
 			route.ObjectMeta = existing.ObjectMeta
 			err = r.Client.Update(context.TODO(), route)
 			if err != nil {
-				r.Log.Error(err, fmt.Sprintf("failed to update route Object: %s", route.Name))
+				r.Log.Error(err, "Failed to update Ceph RGW Route Object.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
-			r.Log.Info(fmt.Sprintf("creating route %s", route.Name))
+			r.Log.Info("Creating Ceph RGW Route.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
 			err = r.Client.Create(context.TODO(), route)
 			if err != nil {
-				r.Log.Error(err, fmt.Sprintf("failed to create CephObjectStore object: %s", route.Name))
+				r.Log.Error(err, "Failed to create Ceph RGW Route.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
 				return err
 			}
 		}
@@ -145,7 +147,7 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 	for _, obj := range ret {
 		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Failed to set ControllerReference to %s", obj.Name))
+			r.Log.Error(err, "Failed to set ControllerReference for Ceph RGW Route", "CephRGWRoute", klog.KRef(obj.Namespace, obj.Name))
 			return nil, err
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -32,6 +33,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreUserInstances(initData *ocs
 	for _, obj := range ret {
 		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
+			r.Log.Error(err, "Unable to set Controller Reference for CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(initData.Namespace, generateNameForCephObjectStore(initData)))
 			return nil, err
 		}
 	}
@@ -55,17 +57,18 @@ func (obj *ocsCephObjectStoreUsers) ensureCreated(r *StorageClusterReconciler, i
 		if err != nil {
 			return err
 		}
-		r.Log.Info(fmt.Sprintf("not creating a CephObjectStoreUsers because the platform is '%s'", platform))
+		r.Log.Info("Platform is set to avoid object store. Not creating a CephObjectStore.", "Platform", platform)
 		return nil
 	}
 
 	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(instance)
 	if err != nil {
+		r.Log.Error(err, "Unable to create instances for CephObjectStoreUsers.")
 		return err
 	}
 	err = r.createCephObjectStoreUsers(cephObjectStoreUsers, instance)
 	if err != nil {
-		r.Log.Error(err, "could not create CephObjectStoresUsers")
+		r.Log.Error(err, "Could not create CephObjectStoresUsers.")
 		return err
 	}
 
@@ -77,6 +80,7 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 	foundCephObjectStoreUser := &cephv1.CephObjectStoreUser{}
 	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(sc)
 	if err != nil {
+		r.Log.Error(err, "Cannot create CephObjectStoreUser instances.")
 		return err
 	}
 
@@ -84,28 +88,31 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: CephObjectStoreUser not found", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+				r.Log.Info("Uninstall: CephObjectStoreUser not found.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrieve cephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
+			r.Log.Error(err, "Uninstall: Unable to retrieve CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
+			return fmt.Errorf("uninstall: Unable to retrieve CephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
 		}
 
 		if cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
-			r.Log.Info("Uninstall: Deleting cephObjectStoreUser", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+			r.Log.Info("Uninstall: Deleting CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
 			err = r.Client.Delete(context.TODO(), foundCephObjectStoreUser)
 			if err != nil {
-				return fmt.Errorf("Uninstall: Failed to delete cephObjectStoreUser %v: %v", foundCephObjectStoreUser.Name, err)
+				r.Log.Error(err, "Uninstall: Failed to delete CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
+				return fmt.Errorf("uninstall: Failed to delete CephObjectStoreUser %v: %v", foundCephObjectStoreUser.Name, err)
 			}
 		}
 
 		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: CephObjectStoreUser is deleted", "CephObjectStoreUser Name", cephObjectStoreUser.Name)
+				r.Log.Info("Uninstall: CephObjectStoreUser is deleted.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
 				continue
 			}
 		}
-		return fmt.Errorf("Uninstall: Waiting for cephObjectStoreUser %v to be deleted", cephObjectStoreUser.Name)
+		r.Log.Error(err, "Uninstall: Waiting for CephObjectStoreUser to be deleted.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
+		return fmt.Errorf("uninstall: Waiting for CephObjectStoreUser %v to be deleted", cephObjectStoreUser.Name)
 
 	}
 	return nil
@@ -123,21 +130,23 @@ func (r *StorageClusterReconciler) createCephObjectStoreUsers(cephObjectStoreUse
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
-				r.Log.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
-				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
+				r.Log.Info("Unable to restore CephObjectStoreUser because it is marked for deletion.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, existing.Name))
+				return fmt.Errorf("failed to restore CephObjectStoreUser %s because it is marked for deletion", existing.Name)
 			}
 
-			r.Log.Info(fmt.Sprintf("Restoring original cephObjectStoreUser %s", cephObjectStoreUser.Name))
+			r.Log.Info("Restoring original CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
 			existing.ObjectMeta.OwnerReferences = cephObjectStoreUser.ObjectMeta.OwnerReferences
 			cephObjectStoreUser.ObjectMeta = existing.ObjectMeta
 			err = r.Client.Update(context.TODO(), cephObjectStoreUser)
 			if err != nil {
+				r.Log.Error(err, "Unable to update CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
-			r.Log.Info(fmt.Sprintf("Creating cephObjectStoreUser %s", cephObjectStoreUser.Name))
+			r.Log.Info("Creating CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
 			err = r.Client.Create(context.TODO(), cephObjectStoreUser)
 			if err != nil {
+				r.Log.Error(err, "Could not create CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
 				return err
 			}
 		}

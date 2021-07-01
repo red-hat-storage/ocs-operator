@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -145,13 +146,14 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	sc := &ocsv1.StorageCluster{}
 	if err := r.Client.Get(ctx, request.NamespacedName, sc); err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("No StorageCluster resource")
+			r.Log.Info("No StorageCluster resource.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		r.Log.Error(err, "Failed to retrieve StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 		return reconcile.Result{}, err
 	}
 
@@ -165,7 +167,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	// Apply status changes to the storagecluster
 	statusError := r.Client.Status().Update(ctx, sc)
 	if statusError != nil {
-		r.Log.Info("Status Update Error", "StatusUpdateErr", "Could not update storagecluster status")
+		r.Log.Info("Could not update StorageCluster status.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 	}
 
 	// Reconcile errors have higher priority than status update errors
@@ -199,10 +201,11 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 // validateStorageClusterSpec must be called before reconciling. Any syntactic and sematic errors in the CR must be caught here.
 func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.StorageCluster, request reconcile.Request) error {
 	if err := versionCheck(instance, r.Log); err != nil {
-		r.Log.Error(err, "Failed to validate version")
+		r.Log.Error(err, "Failed to validate StorageCluster version.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
 		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
+			r.Log.Error(updateErr, "Failed to update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			return updateErr
 		}
 		return err
@@ -210,10 +213,11 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 
 	if !instance.Spec.ExternalStorage.Enable {
 		if err := r.validateStorageDeviceSets(instance); err != nil {
-			r.Log.Error(err, "Failed to validate StorageDeviceSets")
+			r.Log.Error(err, "Failed to validate StorageDeviceSets.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 			instance.Status.Phase = statusutil.PhaseError
 			if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
+				r.Log.Error(updateErr, "Failed to update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return updateErr
 			}
 			return err
@@ -221,10 +225,11 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 	}
 
 	if err := validateArbiterSpec(instance, r.Log); err != nil {
-		r.Log.Error(err, "Failed to validate ArbiterSpec")
+		r.Log.Error(err, "Failed to validate ArbiterSpec.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
 		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
+			r.Log.Error(updateErr, "Could not update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			return updateErr
 		}
 		return err
@@ -237,9 +242,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	request reconcile.Request) (reconcile.Result, error) {
 
 	if instance.Spec.ExternalStorage.Enable {
-		r.Log.Info("Reconciling external StorageCluster")
+		r.Log.Info("Reconciling external StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 	} else {
-		r.Log.Info("Reconciling StorageCluster")
+		r.Log.Info("Reconciling StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 	}
 
 	// Initialize the StatusImages section of the storageclsuter CR
@@ -252,7 +257,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	if instance.Status.Phase == "" {
 		isActive, err := r.isActiveStorageCluster(instance)
 		if err != nil {
-			r.Log.Error(err, "StorageCluster could not be reconciled. Retrying")
+			r.Log.Error(err, "StorageCluster could not be reconciled. Retrying.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			return reconcile.Result{}, err
 		}
 		if !isActive {
@@ -280,10 +285,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if instance.GetDeletionTimestamp().IsZero() {
 		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
-			r.Log.Info("Finalizer not found for storagecluster. Adding finalizer")
+			r.Log.Info("Finalizer not found for StorageCluster. Adding finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
 			if err := r.Client.Update(context.TODO(), instance); err != nil {
-				r.Log.Info("Update Error", "MetaUpdateErr", "Failed to update storagecluster with finalizer")
+				r.Log.Info("Failed to update StorageCluster with finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return reconcile.Result{}, err
 			}
 		}
@@ -298,19 +303,19 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			if err := r.deleteResources(instance); err != nil {
-				r.Log.Info("Uninstall in progress", "Status", err)
+				r.Log.Info("Uninstall in progress.", "Status", err)
 				r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonUninstallPending, err.Error())
 				return reconcile.Result{RequeueAfter: time.Second * time.Duration(1)}, nil
 			}
-			r.Log.Info("Removing finalizer")
+			r.Log.Info("Removing finalizer from StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			// Once all finalizers have been removed, the object will be deleted
 			instance.ObjectMeta.Finalizers = remove(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
 			if err := r.Client.Update(context.TODO(), instance); err != nil {
-				r.Log.Info("Update Error", "MetaUpdateErr", "Failed to remove finalizer from storagecluster")
+				r.Log.Info("Failed to remove finalizer from StorageCluster", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return reconcile.Result{}, err
 			}
 		}
-		r.Log.Info("Object is terminated, skipping reconciliation")
+		r.Log.Info("StorageCluster is terminated, skipping reconciliation.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		ReadinessSet()
 		return reconcile.Result{}, nil
 	}
@@ -318,7 +323,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	if !instance.Spec.ExternalStorage.Enable {
 		// Get storage node topology labels
 		if err := r.reconcileNodeTopologyMap(instance); err != nil {
-			r.Log.Error(err, "Failed to set node topology map")
+			r.Log.Error(err, "Failed to set node Topology Map for StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			return reconcile.Result{}, err
 		}
 	}
@@ -376,7 +381,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	}
 	// All component operators are in a happy state.
 	if r.conditions == nil {
-		r.Log.Info("No component operator reported negatively")
+		r.Log.Info("No component operator reported negatively.")
 		reason := ocsv1.ReconcileCompleted
 		message := ocsv1.ReconcileCompletedMessage
 		statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
@@ -436,12 +441,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 		if err := r.enableMetricsExporter(instance); err != nil {
-			r.Log.Error(err, "failed to reconcile metrics exporter")
+			r.Log.Error(err, "Failed to reconcile metrics exporter.")
 			return reconcile.Result{}, err
 		}
 
 		if err := r.enablePrometheusRules(instance); err != nil {
-			r.Log.Error(err, "failed to reconcile prometheus rules")
+			r.Log.Error(err, "Failed to reconcile prometheus rules.")
 			return reconcile.Result{}, err
 		}
 	}
@@ -540,9 +545,10 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("Creating Ceph ConfigMap")
+			r.Log.Info("Creating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
 			err = r.Client.Create(context.TODO(), cm)
 			if err != nil {
+				r.Log.Error(err, "Failed to create Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
 				return err
 			}
 		}
@@ -557,7 +563,7 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 	}
 	val, ok := found.Data["config"]
 	if !ok || val != defaultRookConfigData || !ownerRefFound {
-		r.Log.Info("Updating Ceph ConfigMap")
+		r.Log.Info("Updating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, cm.Name))
 		return r.Client.Update(context.TODO(), cm)
 	}
 	return nil

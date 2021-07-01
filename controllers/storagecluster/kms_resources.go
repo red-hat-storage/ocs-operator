@@ -7,6 +7,7 @@ import (
 
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -83,7 +84,11 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 			continue
 		}
 		if err != nil {
-			r.Log.Error(err, fmt.Sprintf("Uninstall: Error occurred %v the kms resource: %v", errLog, kmsResourceName))
+			if errLog == "while retrieving" {
+				r.Log.Error(err, "Uninstall: Error occurred while retrieving the KMS resource.", "KMSResource", klog.KRef(sc.Namespace, kmsResourceName))
+			} else {
+				r.Log.Error(err, "Uninstall: Error occurred while deleting the KMS resource.", "KMSResource", klog.KRef(sc.Namespace, kmsResourceName))
+			}
 		}
 		// collect the error into the return error
 		if err != nil {
@@ -97,7 +102,7 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 	}
 
 	if returnError == nil {
-		r.Log.Info("Uninstall: All KMS resources removed successfully")
+		r.Log.Info("Uninstall: All KMS resources removed successfully.")
 	}
 
 	return returnError

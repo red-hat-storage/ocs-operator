@@ -28,7 +28,7 @@ const (
 func (r *StorageClusterReconciler) enablePrometheusRules(instance *ocsv1.StorageCluster) error {
 	rule, err := getPrometheusRules(instance.Spec.ExternalStorage.Enable)
 	if err != nil {
-		r.Log.Error(err, "prometheus rules file not found")
+		r.Log.Error(err, "Prometheus rules file not found.")
 		return err
 	}
 	err = mergo.Merge(&rule.ObjectMeta.Labels, instance.Spec.Monitoring.Labels, mergo.WithOverride)
@@ -37,7 +37,7 @@ func (r *StorageClusterReconciler) enablePrometheusRules(instance *ocsv1.Storage
 	}
 	err = r.CreateOrUpdatePrometheusRules(rule)
 	if err != nil {
-		r.Log.Error(err, "unable to deploy Prometheus rules")
+		r.Log.Error(err, "Unable to deploy Prometheus rules.")
 		return err
 	}
 	return nil
