@@ -34,7 +34,7 @@ mkdir -p $OUTDIR_TOOLS
 # ==== DUMP NOOBAA YAMLS ====
 function dump_noobaa_csv() {
 	noobaa_dump_crds_cmd="crd yaml"
-	noobaa_dump_csv_cmd="olm csv yaml"
+	noobaa_dump_csv_cmd="olm csv"
 	noobaa_crds_outdir="$OUTDIR_CRDS/noobaa"
 	rm -rf $NOOBAA_CSV
 	rm -rf $noobaa_crds_outdir
