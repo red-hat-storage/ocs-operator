@@ -217,7 +217,7 @@ func (r *ReconcileOCSInitialization) ensureToolsDeployment(initialData *ocsv1.OC
 
 		if !isFound {
 			return r.client.Create(context.TODO(), toolsDeployment)
-		} else if reflect.DeepEqual(foundToolsDeployment.Spec, toolsDeployment.Spec) {
+		} else if !reflect.DeepEqual(foundToolsDeployment.Spec, toolsDeployment.Spec) {
 
 			updateDeployment := foundToolsDeployment.DeepCopy()
 			updateDeployment.Spec = *toolsDeployment.Spec.DeepCopy()
