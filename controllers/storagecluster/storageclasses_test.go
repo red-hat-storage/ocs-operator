@@ -26,14 +26,12 @@ func TestStorageClasses(t *testing.T) {
 
 func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	scNameCephfs := generateNameForCephFilesystemSC(cr)
-	scNameRbd := generateNameForCephBlockPoolSC(cr, "")
-	scNameRbdThick := generateNameForCephBlockPoolSC(cr, "-thick")
+	scNameRbd := generateNameForCephBlockPoolSC(cr)
 	scNameRgw := generateNameForCephRgwSC(cr)
 
 	actual := map[string]*storagev1.StorageClass{
 		scNameCephfs:   {},
 		scNameRbd:      {},
-		scNameRbdThick: {},
 		scNameRgw:      {},
 	}
 	expected, err := reconciler.newStorageClassConfigurations(cr)
