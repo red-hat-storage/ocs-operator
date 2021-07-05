@@ -28,7 +28,7 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, request reco
 	err := r.Client.Get(ctx, request.NamespacedName, pv)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("PersistentVolume not found")
+			r.Log.Info("PersistentVolume not found.", "PersistentVolume", request.Name)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -36,11 +36,11 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, request reco
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if !pv.GetDeletionTimestamp().IsZero() {
-		r.Log.Info("Object is terminated, skipping reconciliation")
+		r.Log.Info("PersistentVolume is terminated, skipping reconciliation.", "PersistentVolume", pv.Name)
 		return reconcile.Result{}, nil
 	}
 
-	r.Log.Info("Reconciling PersistentVolume")
+	r.Log.Info("Reconciling PersistentVolume.", "PersistentVolume", pv.Name)
 
 	ensureFs := []ensureFunc{
 		r.ensureExpansionSecret,
@@ -58,14 +58,14 @@ func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, request reco
 func (r *PersistentVolumeReconciler) ensureExpansionSecret(pv *corev1.PersistentVolume) error {
 	scName := pv.Spec.StorageClassName
 	if scName == "" {
-		r.Log.Info("PersistentVolume has no associated StorageClass")
+		r.Log.Info("PersistentVolume has no associated StorageClass.", "PersistentVolume", pv.Name)
 		return nil
 	}
 	sc := &storagev1.StorageClass{}
 
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: scName}, sc)
 	if err != nil {
-		r.Log.Error(err, "Error getting StorageClass")
+		r.Log.Error(err, "Error getting StorageClass.", "StorageClass", scName)
 		return err
 	}
 
@@ -86,10 +86,10 @@ func (r *PersistentVolumeReconciler) ensureExpansionSecret(pv *corev1.Persistent
 	newPV.Spec.CSI.ControllerExpandSecretRef = secretRef
 	err = r.Client.Patch(context.TODO(), newPV, patch)
 	if err != nil {
-		r.Log.Error(err, "Error patching PersistentVolume")
+		r.Log.Error(err, "Error patching PersistentVolume.", "PersistentVolume", newPV.Name)
 		return err
 	}
 
-	r.Log.Info("PersistentVolume patched")
+	r.Log.Info("PersistentVolume patched.", "PersistentVolume", newPV.Name)
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 func (r *OCSInitializationReconciler) ensureSCCs(initialData *ocsv1.OCSInitialization) error {
@@ -17,19 +18,21 @@ func (r *OCSInitializationReconciler) ensureSCCs(initialData *ocsv1.OCSInitializ
 		found, err := r.SecurityClient.SecurityContextConstraints().Get(context.TODO(), scc.Name, metav1.GetOptions{})
 
 		if err != nil && errors.IsNotFound(err) {
-			r.Log.Info(fmt.Sprintf("Creating %s SecurityContextConstraint", scc.Name))
+			r.Log.Info("Creating SecurityContextConstraint.", "SecurityContextConstraint", klog.KRef(scc.Namespace, scc.Name))
 			_, err := r.SecurityClient.SecurityContextConstraints().Create(context.TODO(), scc, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("unable to create SCC %+v: %v", scc, err)
 			}
 		} else if err == nil {
 			scc.ObjectMeta = found.ObjectMeta
-			r.Log.Info(fmt.Sprintf("Updating %s SecurityContextConstraint", scc.Name))
+			r.Log.Info("Updating SecurityContextConstraint.", "SecurityContextConstraint", klog.KRef(scc.Namespace, scc.Name))
 			_, err := r.SecurityClient.SecurityContextConstraints().Update(context.TODO(), scc, metav1.UpdateOptions{})
 			if err != nil {
+				r.Log.Error(err, "Unable to update SecurityContextConstraint.", "SecurityContextConstraint", klog.KRef(scc.Namespace, scc.Name))
 				return fmt.Errorf("unable to update SCC %+v: %v", scc, err)
 			}
 		} else {
+			r.Log.Error(err, "Something went wrong when checking for SecurityContextConstraint.", "SecurityContextConstraint", klog.KRef(scc.Namespace, scc.Name))
 			return fmt.Errorf("something went wrong when checking for SCC %+v: %v", scc, err)
 		}
 	}

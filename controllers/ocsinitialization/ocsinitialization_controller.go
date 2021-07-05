@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -195,7 +196,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
-	r.Log.Info("Reconciling OCSInitialization")
+	r.Log.Info("Reconciling OCSInitialization.", "OCSInitialization", klog.KRef(request.Namespace, request.Name))
 
 	initNamespacedName := InitNamespacedName()
 	instance := &ocsv1.OCSInitialization{}
@@ -214,7 +215,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		instance.Status.Phase = util.PhaseIgnored
 		err = r.Client.Status().Update(ctx, instance)
 		if err != nil {
-			r.Log.Error(err, "failed to update ignored resource")
+			r.Log.Error(err, "Failed to update ignored OCSInitialization resource.", "OCSInitialization", klog.KRef(instance.Namespace, instance.Name))
 		}
 		return reconcile.Result{}, err
 	}
@@ -226,7 +227,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 			// Request object not found, could have been deleted after reconcile request.
 			// Recreating since we depend on this to exist. A user may delete it to
 			// induce a reset of all initial data.
-			r.Log.Info("recreating OCSInitialization resource")
+			r.Log.Info("Recreating OCSInitialization resource.")
 			return reconcile.Result{}, r.Client.Create(ctx, &ocsv1.OCSInitialization{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      initNamespacedName.Name,
@@ -246,7 +247,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		instance.Status.Phase = util.PhaseProgressing
 		err = r.Client.Status().Update(ctx, instance)
 		if err != nil {
-			r.Log.Error(err, "Failed to add conditions to status")
+			r.Log.Error(err, "Failed to add conditions to status of OCSInitialization resource.", "OCSInitialization", klog.KRef(instance.Namespace, instance.Name))
 			return reconcile.Result{}, err
 		}
 	}
@@ -261,7 +262,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		// don't want to overwrite the actual reconcile failure
 		uErr := r.Client.Status().Update(ctx, instance)
 		if uErr != nil {
-			r.Log.Error(uErr, "Failed to update conditions")
+			r.Log.Error(uErr, "Failed to update conditions of OCSInitialization resource.", "OCSInitialization", klog.KRef(instance.Namespace, instance.Name))
 		}
 		return reconcile.Result{}, err
 	}
@@ -274,7 +275,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 
 	err = r.ensureToolsDeployment(instance)
 	if err != nil {
-		r.Log.Error(err, "Failed to process ceph tools deployment")
+		r.Log.Error(err, "Failed to process ceph tools deployment.", "CephToolDeployment", klog.KRef(instance.Namespace, rookCephToolDeploymentName))
 		return reconcile.Result{}, err
 	}
 
@@ -283,7 +284,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		// if false, ensure ConfigMap and update the status
 		err = r.ensureRookCephOperatorConfig(instance)
 		if err != nil {
-			r.Log.Error(err, "Failed to process %s Configmap", rookCephOperatorConfigName)
+			r.Log.Error(err, "Failed to process ConfigMap.", "ConfigMap", klog.KRef(instance.Namespace, rookCephOperatorConfigName))
 			return reconcile.Result{}, err
 		}
 		instance.Status.RookCephOperatorConfigCreated = true
