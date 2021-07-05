@@ -308,10 +308,6 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
 				scc = newCephBlockPoolStorageClassConfiguration(instance, false)
-				// if RBD storageclass is present, we need to add thick provision
-				// storageclass as well into the 'availableSCCs' array
-				availableSCCs = append(availableSCCs,
-					newCephBlockPoolStorageClassConfiguration(instance, true))
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
