@@ -30,9 +30,9 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 	scNameRgw := generateNameForCephRgwSC(cr)
 
 	actual := map[string]*storagev1.StorageClass{
-		scNameCephfs:   {},
-		scNameRbd:      {},
-		scNameRgw:      {},
+		scNameCephfs: {},
+		scNameRbd:    {},
+		scNameRgw:    {},
 	}
 	expected, err := reconciler.newStorageClassConfigurations(cr)
 	assert.NoError(t, err)
