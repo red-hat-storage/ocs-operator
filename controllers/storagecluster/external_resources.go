@@ -303,19 +303,12 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				return err
 			}
 		case "StorageClass":
-			// sccArr will contain all the SC Configs
-			var sccArr []StorageClassConfiguration
+			var scc StorageClassConfiguration
 			if d.Name == cephFsStorageClassName {
-				sccArr = append(sccArr,
-					newCephFilesystemStorageClassConfiguration(instance))
+				scc = newCephFilesystemStorageClassConfiguration(instance)
 				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
-				// if RBD storageclass is present, we need to add
-				// a thick provision storageclass as well
-				sccArr = append(sccArr,
-					newCephBlockPoolStorageClassConfiguration(instance, false),
-					newCephBlockPoolStorageClassConfiguration(instance, true),
-				)
+				scc = newCephBlockPoolStorageClassConfiguration(instance)
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
@@ -332,21 +325,14 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				// https://github.com/rook/rook/issues/6165
 				delete(d.Data, externalCephRgwEndpointKey)
 
-				sccArr = append(sccArr,
-					newCephOBCStorageClassConfiguration(instance))
+				scc = newCephOBCStorageClassConfiguration(instance)
 			}
-			// most cases, 'sccArr' will be a singleton array,
-			// only in case of 'ceph-rbd' SC name, we create
-			// both thin and thick provision SCs.
-			for _, scc := range sccArr {
-				// now 'scc' is pointing to
-				// appropriate StorageClass Configuration,
-				// whose SC parameters have to be updated
-				for k, v := range d.Data {
-					scc.storageClass.Parameters[k] = v
-				}
-				availableSCCs = append(availableSCCs, scc)
+			// now sc is pointing to appropriate StorageClass,
+			// whose parameters have to be updated
+			for k, v := range d.Data {
+				scc.storageClass.Parameters[k] = v
 			}
+			availableSCCs = append(availableSCCs, scc)
 		}
 	}
 	// creating only the available storageClasses
