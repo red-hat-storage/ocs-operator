@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -33,6 +34,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 	for _, obj := range ret {
 		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
+			r.Log.Error(err, "Unable to set controller reference for CephBlockPool.", "CephBlockPool", klog.KRef(obj.Namespace, obj.Name))
 			return nil, err
 		}
 	}
@@ -61,21 +63,23 @@ func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instanc
 				return nil
 			}
 			if existing.DeletionTimestamp != nil {
-				r.Log.Info(fmt.Sprintf("Unable to restore init object because %s is marked for deletion", existing.Name))
+				r.Log.Info("Unable to restore CephBlockPool because it is marked for deletion.", "CephBlockPool", klog.KRef(existing.Namespace, existing.Name))
 				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
 			}
 
-			r.Log.Info(fmt.Sprintf("Restoring original cephBlockPool %s", cephBlockPool.Name))
+			r.Log.Info("Restoring original CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 			existing.ObjectMeta.OwnerReferences = cephBlockPool.ObjectMeta.OwnerReferences
 			cephBlockPool.ObjectMeta = existing.ObjectMeta
 			err = r.Client.Update(context.TODO(), cephBlockPool)
 			if err != nil {
+				r.Log.Error(err, "Failed to update CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
-			r.Log.Info(fmt.Sprintf("Creating cephBlockPool %s", cephBlockPool.Name))
+			r.Log.Info("Creating CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 			err = r.Client.Create(context.TODO(), cephBlockPool)
 			if err != nil {
+				r.Log.Error(err, "Failed to create CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 				return err
 			}
 		}
@@ -96,28 +100,30 @@ func (obj *ocsCephBlockPools) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: CephBlockPool not found", "CephBlockPool Name", cephBlockPool.Name)
+				r.Log.Info("Uninstall: CephBlockPool not found.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrieve cephBlockPool %v: %v", cephBlockPool.Name, err)
+			return fmt.Errorf("uninstall: unable to retrieve CephBlockPool %v: %v", cephBlockPool.Name, err)
 		}
 
 		if cephBlockPool.GetDeletionTimestamp().IsZero() {
-			r.Log.Info("Uninstall: Deleting cephBlockPool", "CephBlockPool Name", cephBlockPool.Name)
+			r.Log.Info("Uninstall: Deleting CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 			err = r.Client.Delete(context.TODO(), foundCephBlockPool)
 			if err != nil {
-				return fmt.Errorf("Uninstall: Failed to delete cephBlockPool %v: %v", foundCephBlockPool.Name, err)
+				r.Log.Error(err, "Uninstall: Failed to delete CephBlockPool.", "CephBlockPool", klog.KRef(foundCephBlockPool.Namespace, foundCephBlockPool.Name))
+				return fmt.Errorf("uninstall: Failed to delete CephBlockPool %v: %v", foundCephBlockPool.Name, err)
 			}
 		}
 
 		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: CephBlockPool is deleted", "CephBlockPool Name", cephBlockPool.Name)
+				r.Log.Info("Uninstall: CephBlockPool is deleted.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 				continue
 			}
 		}
-		return fmt.Errorf("Uninstall: Waiting for cephBlockPool %v to be deleted", cephBlockPool.Name)
+		r.Log.Error(err, "Uninstall: Waiting for CephBlockPool to be deleted.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
+		return fmt.Errorf("uninstall: Waiting for CephBlockPool %v to be deleted", cephBlockPool.Name)
 
 	}
 	return nil

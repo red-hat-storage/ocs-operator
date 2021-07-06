@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -51,7 +52,7 @@ func (r *StorageClusterReconciler) setRookCSICephFS(
 		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: instance.ObjectMeta.Namespace},
 		rookCephOperatorConfig)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Unable to get '%s' config", rookCephOperatorConfigName))
+		r.Log.Error(err, "Unable to get RookCeph ConfigMap.", "RookCephConfigMap", klog.KRef(instance.Namespace, rookCephOperatorConfigName))
 		return err
 	}
 	enableDisableFlagStr := fmt.Sprintf("%v", enableDisableFlag)
@@ -126,13 +127,13 @@ func (r *StorageClusterReconciler) retrieveExternalSecretData(
 	instance *ocsv1.StorageCluster) ([]ExternalResource, error) {
 	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
-		r.Log.Error(err, "could not find the external secret resource")
+		r.Log.Error(err, "Could not find the RookCeph external secret resource.")
 		return nil, err
 	}
 	var data []ExternalResource
 	err = json.Unmarshal(found.Data[externalClusterDetailsKey], &data)
 	if err != nil {
-		r.Log.Error(err, "could not parse json blob")
+		r.Log.Error(err, "Could not parse json blob.")
 		return nil, err
 	}
 	return data, nil
@@ -171,7 +172,7 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 	initData *ocsv1.StorageCluster, rgwEndpoint string) ([]*cephv1.CephObjectStore, error) {
 	// check whether the provided rgw endpoint is empty
 	if rgwEndpoint = strings.TrimSpace(rgwEndpoint); rgwEndpoint == "" {
-		r.Log.Info("WARNING: Empty RGW Endpoint specified, external CephObjectStore won't be created")
+		r.Log.Info("Empty RGW Endpoint specified, external CephObjectStore won't be created.")
 		return nil, nil
 	}
 	gatewaySpec, err := newExternalGatewaySpec(rgwEndpoint, r.Log)
@@ -209,7 +210,7 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 	}
 	err := r.createExternalStorageClusterResources(instance)
 	if err != nil {
-		r.Log.Error(err, "could not create ExternalStorageClusterResource")
+		r.Log.Error(err, "Could not create ExternalStorageClusterResource.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		return err
 	}
 	return nil
@@ -234,7 +235,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	availableSCCs := []StorageClassConfiguration{}
 	data, err := r.retrieveExternalSecretData(instance)
 	if err != nil {
-		r.Log.Error(err, "failed to retrieve external resources")
+		r.Log.Error(err, "Failed to retrieve external secret resources.")
 		return err
 	}
 	var extCephObjectStores []*cephv1.CephObjectStore
@@ -275,7 +276,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				}
 				r.monitoringPort = monitoringPort
 			}
-			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster")
+			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			r.monitoringIP = monitoringIP
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{
@@ -285,7 +286,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			found := &corev1.ConfigMap{ObjectMeta: objectMeta}
 			err := r.createExternalStorageClusterConfigMap(cm, found, objectKey)
 			if err != nil {
-				r.Log.Error(err, "could not create ExternalStorageClusterConfigMap")
+				r.Log.Error(err, "Could not create ExternalStorageClusterConfigMap.", "ConfigMap", klog.KRef(cm.Namespace, cm.Name))
 				return err
 			}
 		case "Secret":
@@ -299,7 +300,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			found := &corev1.Secret{ObjectMeta: objectMeta}
 			err := r.createExternalStorageClusterSecret(sec, found, objectKey)
 			if err != nil {
-				r.Log.Error(err, "could not create ExternalStorageClusterSecret")
+				r.Log.Error(err, "Could not create ExternalStorageClusterSecret.", "Secret", klog.KRef(sec.Namespace, sec.Name))
 				return err
 			}
 		case "StorageClass":
@@ -319,7 +320,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
-					r.Log.Error(err, fmt.Sprintf("RGW endpoint, %q, is not reachable", rgwEndpoint))
+					r.Log.Error(err, "RGW endpoint is not reachable.", "RGWEndpoint", rgwEndpoint)
 					return err
 				}
 				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint)
@@ -352,12 +353,11 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	// creating only the available storageClasses
 	err = r.createStorageClasses(availableSCCs)
 	if err != nil {
-		r.Log.Error(err, "failed to create needed StorageClasses")
+		r.Log.Error(err, "Failed to create needed StorageClasses.")
 		return err
 	}
 	if err = r.setRookCSICephFS(enableRookCSICephFS, instance); err != nil {
-		r.Log.Error(err,
-			fmt.Sprintf("failed to set '%s' to %v", rookEnableCephFSCSIKey, enableRookCSICephFS))
+		r.Log.Error(err, "Failed to set RookEnableCephFSCSIKey to EnableRookCSICephFS.", "RookEnableCephFSCSIKey", rookEnableCephFSCSIKey, "EnableRookCSICephFS", enableRookCSICephFS)
 		return err
 	}
 	if extCephObjectStores != nil {
@@ -373,14 +373,14 @@ func (r *StorageClusterReconciler) createExternalStorageClusterConfigMap(cm *cor
 	err := r.Client.Get(context.TODO(), objectKey, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info(fmt.Sprintf("creating configmap: %s", cm.Name))
+			r.Log.Info("Creating External StorageCluster ConfigMap.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
 			err = r.Client.Create(context.TODO(), cm)
 			if err != nil {
-				r.Log.Error(err, "creation of configmap failed")
+				r.Log.Error(err, "Creation of External StorageCluster ConfigMap failed.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
 				return err
 			}
 		} else {
-			r.Log.Error(err, "unable the get the configmap")
+			r.Log.Error(err, "Unable the get the External StorageCluster ConfigMap.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
 			return err
 		}
 	}
@@ -392,14 +392,14 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 	err := r.Client.Get(context.TODO(), objectKey, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info(fmt.Sprintf("creating secret: %s", sec.Name))
+			r.Log.Info("Creating External StorageCluster Secret.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
 			err = r.Client.Create(context.TODO(), sec)
 			if err != nil {
-				r.Log.Error(err, "creation of secret failed")
+				r.Log.Error(err, "Creation of External StorageCluster Secret failed.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
 				return err
 			}
 		} else {
-			r.Log.Error(err, "unable the get the secret")
+			r.Log.Error(err, "Unable the get External StorageCluster Secret", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
 			return err
 		}
 	}

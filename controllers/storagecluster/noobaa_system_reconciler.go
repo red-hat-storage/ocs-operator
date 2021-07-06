@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/reference"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -35,19 +36,20 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("Waiting on ceph cluster to be created before starting noobaa")
+			r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
 			return nil
 		}
+		r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
 		return err
 	}
 	if !sc.Spec.ExternalStorage.Enable {
 		if foundCeph.Status.State != cephv1.ClusterStateCreated {
-			r.Log.Info("Waiting on ceph cluster to initialize before starting noobaa")
+			r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
 			return nil
 		}
 	} else {
 		if foundCeph.Status.State != cephv1.ClusterStateConnected {
-			r.Log.Info("Waiting for the external ceph cluster to be connected before starting noobaa")
+			r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
 			return nil
 		}
 	}
@@ -65,6 +67,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	}
 	err = controllerutil.SetControllerReference(sc, nb, r.Scheme)
 	if err != nil {
+		r.Log.Error(err, "Unable to set controller reference for Noobaa.", "Noobaa", klog.KRef(nb.Namespace, nb.Name))
 		return err
 	}
 
@@ -73,7 +76,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		return r.setNooBaaDesiredState(nb, sc)
 	})
 	if err != nil {
-		r.Log.Error(err, "Failed to create or update NooBaa system")
+		r.Log.Error(err, "Failed to create or update NooBaa system.", "Noobaa", klog.KRef(nb.Namespace, nb.Name))
 		return err
 	}
 	// Need to happen after the noobaa CR update was confirmed
@@ -198,17 +201,17 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	}
 	if !isOwned {
 		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
-		r.Log.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping", "Object", noobaa.ObjectMeta.Name)
+		r.Log.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping Deletion.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
 		return nil
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
-		r.Log.Info("Uninstall: Deleting NooBaa system", "Object", noobaa.ObjectMeta.Name)
+		r.Log.Info("Uninstall: Deleting NooBaa system.", "Nooba", klog.KRef(noobaa.Namespace, noobaa.Name))
 		err = r.Client.Delete(context.TODO(), noobaa)
 		if err != nil {
-			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system", "Object", noobaa.ObjectMeta.Name)
-			return fmt.Errorf("Uninstall: Failed to delete NooBaa system %v : %v", noobaa.ObjectMeta.Name, err)
+			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
+			return fmt.Errorf("uninstall: Failed to delete NooBaa system %v : %v", noobaa.ObjectMeta.Name, err)
 		}
 	}
-	return fmt.Errorf("Uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
+	return fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
 }

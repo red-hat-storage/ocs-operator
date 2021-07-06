@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
@@ -92,16 +93,16 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Since the SnapshotClass is not found, we will create a new one
-				r.Log.Info(fmt.Sprintf("creating SnapshotClass %q", vsc.Name))
+				r.Log.Info("Creating SnapshotClass.", "SnapshotClass", klog.KRef(vsc.Namespace, vsc.Name))
 				err = r.Client.Create(context.TODO(), vsc)
 				if err != nil {
-					r.Log.Error(err, fmt.Sprintf("failed to create SnapshotClass %q", vsc.Name))
+					r.Log.Error(err, "Failed to create SnapshotClass.", "SnapshotClass", klog.KRef(vsc.Namespace, vsc.Name))
 					return err
 				}
 				// no error, continue with the next iteration
 				continue
 			} else {
-				r.Log.Error(err, fmt.Sprintf("failed to 'Get' SnapshotClass %q", vsc.Name))
+				r.Log.Error(err, "Failed to 'Get' SnapshotClass.", "SnapshotClass", klog.KRef(vsc.Namespace, vsc.Name))
 				return err
 			}
 		}
@@ -109,16 +110,16 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 			return nil
 		}
 		if existing.DeletionTimestamp != nil {
-			return fmt.Errorf("failed to restore snapshotclass %q because it is marked for deletion", existing.Name)
+			return fmt.Errorf("failed to restore SnapshotClass %q because it is marked for deletion", existing.Name)
 		}
 		// if there is a mis-match in the parameters of existing vs created resources,
 		if !reflect.DeepEqual(vsc.Parameters, existing.Parameters) {
 			// we have to update the existing SnapshotClass
-			r.Log.Info(fmt.Sprintf("SnapshotClass %q needs to be updated", existing.Name))
+			r.Log.Info("SnapshotClass needs to be updated", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))
 			existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
 			vsc.ObjectMeta = existing.ObjectMeta
 			if err := r.Client.Update(context.TODO(), vsc); err != nil {
-				r.Log.Error(err, fmt.Sprintf("SnapshotClass %q updation failed", existing.Name))
+				r.Log.Error(err, "SnapshotClass updation failed.", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))
 				return err
 			}
 		}
@@ -150,22 +151,22 @@ func (obj *ocsSnapshotClass) ensureDeleted(r *StorageClusterReconciler, instance
 		switch {
 		case err == nil:
 			if existing.DeletionTimestamp != nil {
-				r.Log.Info(fmt.Sprintf("Uninstall: SnapshotClass %s is already marked for deletion", existing.Name))
+				r.Log.Info("Uninstall: SnapshotClass is already marked for deletion.", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))
 				break
 			}
 
-			r.Log.Info(fmt.Sprintf("Uninstall: Deleting SnapshotClass %s", sc.Name))
+			r.Log.Info("Uninstall: Deleting SnapshotClass.", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))
 			existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
 			sc.ObjectMeta = existing.ObjectMeta
 
 			err = r.Client.Delete(context.TODO(), sc)
 			if err != nil {
-				r.Log.Error(err, fmt.Sprintf("Uninstall: Ignoring error deleting the SnapshotClass %s", existing.Name))
+				r.Log.Error(err, "Uninstall: Ignoring error deleting the SnapshotClass.", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))
 			}
 		case errors.IsNotFound(err):
-			r.Log.Info(fmt.Sprintf("Uninstall: SnapshotClass %s not found, nothing to do", sc.Name))
+			r.Log.Info("Uninstall: SnapshotClass not found, nothing to do.", "SnapshotClass", klog.KRef(sc.Namespace, sc.Name))
 		default:
-			r.Log.Info(fmt.Sprintf("Uninstall: Error while getting SnapshotClass %s: %v", sc.Name, err))
+			r.Log.Error(err, "Uninstall: Error while getting SnapshotClass.", "SnapshotClass", klog.KRef(sc.Namespace, sc.Name))
 		}
 	}
 	return nil

@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 )
 
 // StorageClassConfiguration provides configuration options for a StorageClass.
@@ -43,7 +44,7 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 
 	sccs, err := r.newStorageClassConfigurations(instance)
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Uninstall: Unable to determine the StorageClass names")) //nolint:gosimple
+		r.Log.Error(err, "Uninstall: Unable to determine the StorageClass names.") //nolint:gosimple
 		return nil
 	}
 	for _, scc := range sccs {
@@ -54,22 +55,22 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 		switch {
 		case err == nil:
 			if existing.DeletionTimestamp != nil {
-				r.Log.Info(fmt.Sprintf("Uninstall: StorageClass %s is already marked for deletion", existing.Name))
+				r.Log.Info("Uninstall: StorageClass is already marked for deletion.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 				break
 			}
 
-			r.Log.Info(fmt.Sprintf("Uninstall: Deleting StorageClass %s", sc.Name))
+			r.Log.Info("Uninstall: Deleting StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 			existing.ObjectMeta.OwnerReferences = sc.ObjectMeta.OwnerReferences
 			sc.ObjectMeta = existing.ObjectMeta
 
 			err = r.Client.Delete(context.TODO(), sc)
 			if err != nil {
-				r.Log.Error(err, fmt.Sprintf("Uninstall: Ignoring error deleting the StorageClass %s", existing.Name))
+				r.Log.Error(err, "Uninstall: Ignoring error deleting the StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 			}
 		case errors.IsNotFound(err):
-			r.Log.Info(fmt.Sprintf("Uninstall: StorageClass %s not found, nothing to do", sc.Name))
+			r.Log.Info("Uninstall: StorageClass not found, nothing to do.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 		default:
-			r.Log.Info(fmt.Sprintf("Uninstall: Error while getting StorageClass %s: %v", sc.Name, err))
+			r.Log.Error(err, "Uninstall: Error while getting StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 		}
 	}
 	return nil
@@ -86,7 +87,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 
 		if errors.IsNotFound(err) {
 			// Since the StorageClass is not found, we will create a new one
-			r.Log.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+			r.Log.Info("Creating StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 			err = r.Client.Create(context.TODO(), sc)
 			if err != nil {
 				return err
@@ -98,19 +99,21 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				continue
 			}
 			if existing.DeletionTimestamp != nil {
-				return fmt.Errorf("failed to restore storageclass  %s because it is marked for deletion", existing.Name)
+				return fmt.Errorf("failed to restore StorageClass  %s because it is marked for deletion", existing.Name)
 			}
 			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) {
 				// Since we have to update the existing StorageClass
 				// So, we will delete the existing storageclass and create a new one
-				r.Log.Info(fmt.Sprintf("StorageClass %s needs to be updated, deleting it", existing.Name))
+				r.Log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 				err = r.Client.Delete(context.TODO(), existing)
 				if err != nil {
+					r.Log.Error(err, "Failed to delete StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 					return err
 				}
-				r.Log.Info(fmt.Sprintf("Creating StorageClass %s", sc.Name))
+				r.Log.Info("Creating StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
 				err = r.Client.Create(context.TODO(), sc)
 				if err != nil {
+					r.Log.Info("Failed to craete StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
 					return err
 				}
 			}
