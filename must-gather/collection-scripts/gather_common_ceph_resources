@@ -23,5 +23,3 @@ for resource in "${common_ceph_resources[@]}"; do
     echo "collecting dump ${resource}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
     { oc adm --dest-dir="${CEPH_COLLECTION_PATH}" inspect "${resource}" --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
-cat "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-rm -rf "${BASE_COLLECTION_PATH}/"gather-ceph-debug.log >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
