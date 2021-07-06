@@ -68,6 +68,9 @@ type StorageClusterSpec struct {
 	// ArbiterSpec specifies the storage cluster options related to arbiter.
 	// If Arbiter is enabled, ArbiterLocation in the NodeTopologies must be specified.
 	Arbiter ArbiterSpec `json:"arbiter,omitempty"`
+	// Mirroring specifies data mirroring configuration for the storage cluster.
+	// This configuration will only be applied to resources managed by the operator.
+	Mirroring MirroringSpec `json:"mirroring,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS
@@ -233,6 +236,15 @@ type EncryptionSpec struct {
 	// +optional
 	Enable               bool                     `json:"enable,omitempty"`
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+}
+
+type MirroringSpec struct {
+	// If true, data mirroring is enabled for the StorageCluster.
+	// This configuration will only be applied to resources (such as CephBlockPool)
+	// managed by the operator.
+	// It is optional and defaults to false.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // StorageClusterStatus defines the observed state of StorageCluster
