@@ -95,6 +95,10 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 
 func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster) error {
 	storageClassName := generateNameForCephBlockPoolSC(sc, "")
+	dbStorageClassName := sc.Spec.MultiCloudGateway.DbStorageClassName
+	if dbStorageClassName != "" {
+		storageClassName = dbStorageClassName
+	}
 	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
 	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
 	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", sc.Spec.Resources)

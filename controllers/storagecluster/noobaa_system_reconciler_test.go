@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	coreEnvVar          = "NOOBAA_CORE_IMAGE"
-	dbEnvVar            = "NOOBAA_DB_IMAGE"
-	defaultStorageClass = "noobaa-ceph-rbd"
+	coreEnvVar           = "NOOBAA_CORE_IMAGE"
+	dbEnvVar             = "NOOBAA_DB_IMAGE"
+	defaultStorageClass  = "noobaa-ceph-rbd"
+	noobaaDbStorageClass = "test_storage_class"
 )
 
 var noobaaReconcileTestLogger = logf.Log.WithName("noobaa_system_reconciler_test")
@@ -267,6 +268,16 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			label: "case 5", // missing initData namespace does not cause error
 			sc:    v1.StorageCluster{},
 		},
+		{
+			label: "case 6", // DbStorageClassName set for noobaa reflects in noobaa spec
+			sc: v1.StorageCluster{
+				Spec: v1.StorageClusterSpec{
+					MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+						DbStorageClassName: noobaaDbStorageClass,
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -304,11 +315,16 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		assert.NotEmptyf(t, noobaa.Labels, "[%s] expected noobaa Labels not found", c.label)
 		assert.Equalf(t, noobaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		assert.Equal(t, *noobaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+		if c.sc.Spec.MultiCloudGateway.DbStorageClassName != "" {
+			assert.Equal(t, *noobaa.Spec.DBStorageClass, noobaaDbStorageClass)
+			assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, noobaaDbStorageClass)
+		} else {
+			assert.Equal(t, *noobaa.Spec.DBStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+			assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
+		}
 		noobaaplacement := getPlacement(&c.sc, "noobaa-core")
 		assert.Equal(t, noobaa.Spec.Tolerations, noobaaplacement.Tolerations)
 		assert.Equal(t, noobaa.Spec.Affinity, &corev1.Affinity{NodeAffinity: noobaaplacement.NodeAffinity})
-		assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, fmt.Sprintf("%s-ceph-rbd", c.sc.Name))
 		assert.Equalf(t, noobaa.Namespace, c.sc.Namespace, "[%s] namespace mismatch", c.label)
 		if c.envCore != "" {
 			assert.Equalf(t, *noobaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)
