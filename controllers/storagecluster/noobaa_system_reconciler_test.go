@@ -315,7 +315,8 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		assert.NotEmptyf(t, noobaa.Labels, "[%s] expected noobaa Labels not found", c.label)
 		assert.Equalf(t, noobaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		if c.sc.Spec.MultiCloudGateway.DbStorageClassName != "" {
+
+		if c.label == "case 6" {
 			assert.Equal(t, *noobaa.Spec.DBStorageClass, noobaaDbStorageClass)
 			assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, noobaaDbStorageClass)
 		} else {
@@ -334,7 +335,6 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		}
 	}
 }
-
 func TestNoobaaSystemInExternalClusterMode(t *testing.T) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
