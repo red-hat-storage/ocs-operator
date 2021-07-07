@@ -212,6 +212,10 @@ type MultiCloudGatewaySpec struct {
 	// and "" (same as "manage").
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 
+	// DbStorageClassName specifies the default storage class
+	// for nooba-db pods
+	// +optional
+	DbStorageClassName string `json:"dbStorageClassName,omitempty"`
 	// Endpoints (optional) sets configuration info for the noobaa endpoint
 	// deployment.
 	// +optional
