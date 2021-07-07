@@ -129,6 +129,11 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	// Override with MCG options specified in the storage cluster spec
 	if sc.Spec.MultiCloudGateway != nil {
+		dbStorageClass := sc.Spec.MultiCloudGateway.DbStorageClassName
+		if dbStorageClass != "" {
+			nb.Spec.DBStorageClass = &dbStorageClass
+			nb.Spec.PVPoolDefaultStorageClass = &dbStorageClass
+		}
 		if sc.Spec.MultiCloudGateway.Endpoints != nil {
 			epSpec := sc.Spec.MultiCloudGateway.Endpoints
 
