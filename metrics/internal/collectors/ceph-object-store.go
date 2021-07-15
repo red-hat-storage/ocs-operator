@@ -29,13 +29,11 @@ type CephObjectStoreCollector struct {
 
 // NewCephObjectStoreCollector constructs a collector
 func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollector {
-	client, err := rookclient.NewForConfig(opts.Kubeconfig)
-	if err != nil {
-		klog.Error(err)
-	}
 
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephobjectstores", metav1.NamespaceAll, fields.Everything())
-	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephObjectStore{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	sharedIndexInformer := CephObjectStoreInformer(opts)
+	if sharedIndexInformer == nil {
+		return nil
+	}
 
 	return &CephObjectStoreCollector{
 		RGWHealthStatus: prometheus.NewDesc(
@@ -122,4 +120,16 @@ func (c *CephObjectStoreCollector) collectObjectStoreHealth(cephObjectStores []*
 				cephv1.ConditionConnected, cephv1.ConditionProgressing, cephv1.ConditionFailure)
 		}
 	}
+}
+
+func CephObjectStoreInformer(opts *options.Options) cache.SharedIndexInformer {
+	client, err := rookclient.NewForConfig(opts.Kubeconfig)
+	if err != nil {
+		klog.Error(err)
+		return nil
+	}
+
+	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephobjectstores", metav1.NamespaceAll, fields.Everything())
+	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephObjectStore{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	return sharedIndexInformer
 }
