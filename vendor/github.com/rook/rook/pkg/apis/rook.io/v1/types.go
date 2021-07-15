@@ -39,9 +39,6 @@ type StorageScopeSpec struct {
 	Selection `json:",inline"`
 	// +nullable
 	// +optional
-	VolumeSources []VolumeSource `json:"volumeSources,omitempty"`
-	// +nullable
-	// +optional
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
 }
 
@@ -135,6 +132,7 @@ type PriorityClassNamesSpec map[KeyType]string
 // NetworkSpec represents cluster network settings
 type NetworkSpec struct {
 	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	// +nullable
 	// +optional
 	Provider string `json:"provider,omitempty"`
 
@@ -189,51 +187,7 @@ type StorageClassDeviceSet struct {
 	// +optional
 	Config map[string]string `json:"config,omitempty"`
 	// VolumeClaimTemplates is a list of PVC templates for the underlying storage devices
-	// +kubebuilder:pruning:PreserveUnknownFields
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
-	// Portable represents OSD portability across the hosts
-	// +optional
-	Portable bool `json:"portable,omitempty"`
-	// TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
-	// +optional
-	TuneSlowDeviceClass bool `json:"tuneDeviceClass,omitempty"`
-	// TuneFastDeviceClass Tune the OSD when running on a fast Device Class
-	// +optional
-	TuneFastDeviceClass bool `json:"tuneFastDeviceClass,omitempty"`
-	// Scheduler name for OSD pod placement
-	// +optional
-	SchedulerName string `json:"schedulerName,omitempty"`
-	// Whether to encrypt the deviceSet
-	// +optional
-	Encrypted bool `json:"encrypted,omitempty"`
-}
-
-// VolumeSource is a volume source spec for Rook
-type VolumeSource struct {
-	// Name is the name of the volume source
-	Name string `json:"name"`
-	// PVCSources
-	PVCSources map[string]v1.PersistentVolumeClaimVolumeSource `json:"pvcSources,omitempty"`
-	// CrushDeviceClass represents the crush device class for an OSD
-	// +optional
-	CrushDeviceClass string `json:"crushDeviceClass,omitempty"`
-	// Size represents the size requested for the PVC
-	Size string `json:"size"`
-	// Resources requests/limits for the devices
-	// +nullable
-	// +optional
-	Resources v1.ResourceRequirements `json:"resources,omitempty"`
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +nullable
-	// +optional
-	Placement Placement `json:"placement,omitempty"` // Placement constraints for the device daemons
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +optional
-	PreparePlacement *Placement `json:"preparePlacement,omitempty"` // Placement constraints for the device preparation
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +nullable
-	// +optional
-	Config map[string]string `json:"config,omitempty"` // Provider-specific device configuration
 	// Portable represents OSD portability across the hosts
 	// +optional
 	Portable bool `json:"portable,omitempty"`

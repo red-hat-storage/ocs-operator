@@ -534,6 +534,7 @@ spec:
                 properties:
                   provider:
                     description: Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+                    nullable: true
                     type: string
                   selectors:
                     additionalProperties:
