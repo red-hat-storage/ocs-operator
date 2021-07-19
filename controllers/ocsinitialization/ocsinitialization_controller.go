@@ -58,6 +58,8 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 	var replicaOne int32 = 1
 
 	privilegedContainer := true
+	runAsNonRoot := true
+	var runAsUser int64 = 1000
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -105,12 +107,12 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
-								Privileged: &privilegedContainer,
+								Privileged:   &privilegedContainer,
+								RunAsNonRoot: &runAsNonRoot,
+								RunAsUser:    &runAsUser,
 							},
 							VolumeMounts: []corev1.VolumeMount{
-								{Name: "dev", MountPath: "/dev"},
-								{Name: "sysbus", MountPath: "/sys/bus"},
-								{Name: "libmodules", MountPath: "/lib/modules"},
+								{Name: "ceph-config", MountPath: "/etc/ceph"},
 								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
 							},
 						},
@@ -126,9 +128,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 					// if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
 					HostNetwork: true,
 					Volumes: []corev1.Volume{
-						{Name: "dev", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/dev"}}},
-						{Name: "sysbus", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/sys/bus"}}},
-						{Name: "libmodules", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/lib/modules"}}},
+						{Name: "ceph-config", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/etc/ceph"}}},
 						{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
 								Items: []corev1.KeyToPath{
