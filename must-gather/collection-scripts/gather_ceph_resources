@@ -1,12 +1,12 @@
 #!/bin/bash
 
-gather_common_ceph_resources "${BASE_COLLECTION_PATH}" "${SINCE_TIME}"
-
 # Expect base collection path as an argument
 BASE_COLLECTION_PATH=$1
 
 # Expect time option as an argument
 SINCE_TIME=$2
+
+gather_common_ceph_resources "${BASE_COLLECTION_PATH}" "${SINCE_TIME}"
 
 # Use PWD as base path if no argument is passed
 if [ "${BASE_COLLECTION_PATH}" = "" ]; then
