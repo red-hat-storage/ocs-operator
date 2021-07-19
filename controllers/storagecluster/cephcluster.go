@@ -333,6 +333,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			},
 		},
 	}
+	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
+		label := rook.LabelsSpec{
+			cephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
+		}
+		cephCluster.Spec.Labels = label
+	}
+
 	monPVCTemplate := sc.Spec.MonPVCTemplate
 	monDataDirHostPath := sc.Spec.MonDataDirHostPath
 	// If the `monPVCTemplate` is provided, the mons will provisioned on the
@@ -435,6 +442,13 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 			},
 			Monitoring: monitoringSpec,
 		},
+	}
+
+	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
+		label := rook.LabelsSpec{
+			cephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
+		}
+		externalCephCluster.Spec.Labels = label
 	}
 
 	return externalCephCluster
