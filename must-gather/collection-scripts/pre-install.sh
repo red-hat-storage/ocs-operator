@@ -2,21 +2,15 @@
 
 ns="openshift-storage"
 
-POD_TEMPLATE_LATEST="/templates/pod.template.latest"
-POD_TEMPLATE_STANDARD="/templates/pod.template.standard"
+POD_TEMPLATE="/templates/pod.template"
 
 SED_DELIMITER=$(echo -en "\001");
 safe_replace () {
     sed "s${SED_DELIMITER}${1}${SED_DELIMITER}${2}${SED_DELIMITER}g"
 }
 
-apply_standard_helper_pod() {
-    < ${POD_TEMPLATE_STANDARD} safe_replace "NAMESPACE" "$1" | safe_replace "IMAGE_NAME" "$2" | safe_replace "MUST_GATHER" "$HOSTNAME" > pod_helper.yaml
-    oc apply -f pod_helper.yaml
-}
-
-apply_latest_helper_pod() {
-    < ${POD_TEMPLATE_LATEST} safe_replace "NAMESPACE" "$1" | safe_replace "IMAGE_NAME" "$2" | safe_replace "MUST_GATHER" "$HOSTNAME" > pod_helper.yaml
+apply_helper_pod() {
+    < ${POD_TEMPLATE} safe_replace "NAMESPACE" "$1" | safe_replace "IMAGE_NAME" "$2" | safe_replace "MUST_GATHER" "$HOSTNAME" > pod_helper.yaml
     oc apply -f pod_helper.yaml
 }
 
@@ -33,12 +27,7 @@ deploy(){
         echo "not able to find the rook's operator image. Skipping collection of ceph command output" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
      else
           echo "creating helper pod" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-          current_version=$(oc get csv -n "${ns}" --no-headers | awk '{print $5}' | tr -dc '0-9')
-          if [[ $current_version -ge 460 ]]; then
-              apply_latest_helper_pod "$ns" "$operatorImage"
-          else
-              apply_standard_helper_pod "$ns" "$operatorImage"
-          fi
+          apply_helper_pod "$ns" "$operatorImage"
      fi
 
      for node in ${nodes}; do
