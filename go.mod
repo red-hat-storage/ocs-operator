@@ -7,7 +7,6 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.3.0
-	github.com/google/go-cmp v0.5.2
 	github.com/imdario/mergo v0.3.10
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
@@ -26,6 +25,7 @@ require (
 	github.com/rook/rook v1.6.5
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	gotest.tools/v3 v3.0.2
 	k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery v0.20.2
