@@ -18,6 +18,11 @@ type ocsCephBlockPools struct{}
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
+	var mirroringSpec cephv1.MirroringSpec
+	if initData.Spec.Mirroring.Enabled {
+		mirroringSpec.Enabled = true
+		mirroringSpec.Mode = "image"
+	}
 	ret := []*cephv1.CephBlockPool{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -28,6 +33,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 				FailureDomain:  getFailureDomain(initData),
 				Replicated:     generateCephReplicatedSpec(initData, "data"),
 				EnableRBDStats: true,
+				Mirroring:      mirroringSpec,
 			},
 		},
 	}
