@@ -8,14 +8,14 @@ import (
 	"github.com/openshift/ocs-operator/controllers/defaults"
 	ocsutil "github.com/openshift/ocs-operator/controllers/util"
 
-	"github.com/google/go-cmp/cmp"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,7 +78,7 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		if !c.shouldCreate {
 			createErr := reconciler.Client.Create(context.TODO(), expected)
-			assert.NoError(t, createErr)
+			assert.NilError(t, createErr)
 		}
 
 		// To test for cluster expansion, the expected CephCluster must
@@ -86,7 +86,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		// CephCluster.
 		if c.reconcilerPhase == ocsutil.PhaseClusterExpanding {
 			createErr := reconciler.Client.Create(context.TODO(), fakeStorageClass)
-			assert.NoError(t, createErr)
+			assert.NilError(t, createErr)
 
 			sc.Spec.StorageDeviceSets = []api.StorageDeviceSet{
 				{
@@ -106,14 +106,14 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		var obj ocsCephCluster
 		err := obj.ensureCreated(&reconciler, sc)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		actual := &cephv1.CephCluster{}
 		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 		assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 		assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
-		assert.Equal(t, expected.Spec, actual.Spec)
+		assert.DeepEqual(t, expected.Spec, actual.Spec)
 
 		expectedConditions := []conditionsv1.Condition{}
 		if c.cephClusterState == "" {
@@ -122,7 +122,7 @@ func TestEnsureCephCluster(t *testing.T) {
 			ocsutil.MapCephClusterNegativeConditions(&expectedConditions, expected)
 		}
 
-		assert.Len(t, reconciler.conditions, len(expectedConditions))
+		assert.Assert(t, is.Len(reconciler.conditions, len(expectedConditions)))
 		for i, condition := range expectedConditions {
 			if i < len(reconciler.conditions) {
 				assert.Equal(t, condition.Type, reconciler.conditions[i].Type)
@@ -153,6 +153,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
 		sc := &api.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
@@ -165,11 +166,11 @@ func TestCephClusterMonTimeout(t *testing.T) {
 
 		var obj ocsCephCluster
 		err := obj.ensureCreated(&reconciler, sc)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		cc := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
 		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 		if c.platform == v1.IBMCloudPlatformType || c.platform == IBMCloudCosPlatformType {
 			assert.Equal(t, "15m", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
 		} else {
@@ -224,6 +225,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
 		mockStorageCluster.DeepCopyInto(c.sc)
 		c.sc.Spec.StorageDeviceSets = mockDeviceSets
 		c.sc.Status.NodeTopologies = topologyMap
@@ -237,11 +239,11 @@ func TestNewCephClusterMonData(t *testing.T) {
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
 
 		if c.monPVCTemplate != nil {
-			assert.Equal(t, actual.Spec.Mon.VolumeClaimTemplate, c.sc.Spec.MonPVCTemplate)
+			assert.DeepEqual(t, actual.Spec.Mon.VolumeClaimTemplate, c.sc.Spec.MonPVCTemplate)
 		} else {
 			if c.monDataPath != "" {
 				var emptyPVCSpec *corev1.PersistentVolumeClaim
-				assert.Equal(t, emptyPVCSpec, actual.Spec.Mon.VolumeClaimTemplate)
+				assert.DeepEqual(t, emptyPVCSpec, actual.Spec.Mon.VolumeClaimTemplate)
 			} else {
 				pvcSpec := actual.Spec.Mon.VolumeClaimTemplate.Spec
 				assert.Equal(t, mockDeviceSets[0].DataPVCTemplate.Spec.StorageClassName, pvcSpec.StorageClassName)
@@ -336,7 +338,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 
 	for _, c := range cases {
-
+		t.Logf("Case: %s\n", c.label)
 		actual := newStorageClassDeviceSets(c.sc, serverVersion)
 		assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
@@ -344,18 +346,18 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		for i, scds := range actual {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count/3, scds.Count)
-			assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
-			assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
 
 			if c.topologyKey == "rack" {
-				assert.Equal(t, getPlacement(c.sc, "osd"), scds.Placement)
+				assert.DeepEqual(t, getPlacement(c.sc, "osd"), scds.Placement)
 			} else {
 				topologyKey := scds.Placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey
 				assert.Equal(t, zoneTopologyLabel, topologyKey)
 				matchExpressions := scds.Placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
-				assert.Equal(t, c.lenOfMatchExpression, len(matchExpressions))
+				assert.Assert(t, is.Len(matchExpressions, c.lenOfMatchExpression))
 				nodeSelector := matchExpressions[c.lenOfMatchExpression-1]
 				assert.Equal(t, zoneTopologyLabel, nodeSelector.Key)
 				assert.Equal(t, c.sc.Status.NodeTopologies.Labels[zoneTopologyLabel][i], nodeSelector.Values[0])
@@ -402,7 +404,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 
 	for _, c := range cases {
-
+		t.Logf("Case: %s\n", c.label)
 		actual := newStorageClassDeviceSets(c.sc, serverVersion)
 		assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
@@ -410,8 +412,8 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		for i, scds := range actual {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count/3, scds.Count)
-			assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources)
-			assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
 			if scds.Portable && c.topologyKey == "rack" {
@@ -423,12 +425,12 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 				newTSC.TopologyKey = defaults.RackTopologyKey
 				newTSC.WhenUnsatisfiable = corev1.UnsatisfiableConstraintAction("DoNotSchedule")
 				placementOsd.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{newTSC, placementOsd.TopologySpreadConstraints[0]}
-				assert.Equal(t, placementOsd, scds.Placement)
+				assert.DeepEqual(t, placementOsd, scds.Placement)
 			} else {
-				assert.Equal(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
+				assert.DeepEqual(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
 			}
 			if c.lenOfMatchExpression == 0 {
-				assert.Nil(t, scds.Placement.NodeAffinity)
+				assert.Assert(t, is.Nil(scds.Placement.NodeAffinity))
 			} else {
 				matchExpressions := scds.Placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
 				assert.Equal(t, c.lenOfMatchExpression, len(matchExpressions))
@@ -530,9 +532,9 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	// check the provided KMS ConfigMap data is passed on to CephCluster
 	for k, v := range kmsCM.Data {
-		assert.Equal(t, v, cephCluster.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+		assert.Equal(t, v, cephCluster.Spec.Security.KeyManagementService.ConnectionDetails[k], "Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k)
 	}
-	assert.Equal(t, KMSTokenSecretName, cephCluster.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+	assert.Equal(t, KMSTokenSecretName, cephCluster.Spec.Security.KeyManagementService.TokenSecretName, "Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel)
 }
 
 func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
@@ -592,21 +594,22 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
 
 		setFailureDomain(c.sc)
 		actual := newStorageClassDeviceSets(c.sc, serverVersion)
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
 
 		for i, scds := range actual {
-			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name, c.label)
-			assert.Equal(t, deviceSet.Count, scds.Count, c.label)
-			assert.Equal(t, defaults.DaemonResources["osd"], scds.Resources, c.label)
-			assert.Equal(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0], c.label)
-			assert.Equal(t, true, scds.Portable, c.label)
-			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted, c.label)
-			assert.Equal(t, getPlacement(c.sc, "osd-tsc"), scds.Placement, c.label)
+			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
+			assert.Equal(t, deviceSet.Count, scds.Count)
+			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+			assert.Equal(t, true, scds.Portable)
+			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
+			assert.DeepEqual(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
-			assert.Equal(t, c.topologyKey, topologyKey, c.label)
+			assert.Equal(t, c.topologyKey, topologyKey)
 		}
 
 	}
@@ -724,9 +727,9 @@ func TestNewCephDaemonResources(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		t.Logf("Case: %s\n", c.name)
 		got := newCephDaemonResources(c.spec)
-		assert.Equalf(t, len(c.expected), len(got), c.name)
-		assert.Equalf(t, c.expected, got, c.name)
+		assert.DeepEqual(t, c.expected, got)
 	}
 }
 
@@ -818,13 +821,13 @@ func TestGetNetworkSpec(t *testing.T) {
 		},
 	}
 	for _, testCase := range testTable {
-		t.Logf("running testCase %q", testCase.desc)
+		t.Logf("Case: %q\n", testCase.desc)
 		sc := ocsv1.StorageCluster{
 			Spec: testCase.scSpec,
 		}
 		actual := getNetworkSpec(sc)
 		// test Provider, Selectors, HostNetwork, IPFamily, Dualstack
-		assert.Truef(t, cmp.Equal(testCase.expected, actual), "diff between expected(-) and actual(+) not empty: %s", cmp.Diff(testCase.expected, actual))
+		assert.DeepEqual(t, actual, testCase.expected)
 
 	}
 }
