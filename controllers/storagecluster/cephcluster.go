@@ -14,7 +14,7 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/defaults"
 	statusutil "github.com/openshift/ocs-operator/controllers/util"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -102,7 +102,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
-	var cephCluster *cephv1.CephCluster
+	var cephCluster *rookCephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
 		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP, r.monitoringPort)
@@ -136,7 +136,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	}
 
 	// Check if this CephCluster already exists
-	found := &cephv1.CephCluster{}
+	found := &rookCephv1.CephCluster{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -196,14 +196,14 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// this means expansion is in progress and overall system is progressing
 	// else expansion is not yet triggered
 	if sc.Status.Phase == statusutil.PhaseClusterExpanding &&
-		found.Status.State != cephv1.ClusterStateUpdating {
+		found.Status.State != rookCephv1.ClusterStateUpdating {
 		r.phase = statusutil.PhaseClusterExpanding
 	}
 
 	if sc.Spec.ExternalStorage.Enable {
-		if found.Status.State == cephv1.ClusterStateConnecting {
+		if found.Status.State == rookCephv1.ClusterStateConnecting {
 			sc.Status.Phase = statusutil.PhaseConnecting
-		} else if found.Status.State == cephv1.ClusterStateConnected {
+		} else if found.Status.State == rookCephv1.ClusterStateConnected {
 			sc.Status.Phase = statusutil.PhaseReady
 		} else {
 			sc.Status.Phase = statusutil.PhaseNotReady
@@ -243,7 +243,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
 func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
-	cephCluster := &cephv1.CephCluster{}
+	cephCluster := &rookCephv1.CephCluster{}
 	cephClusterName := generateNameForCephCluster(sc)
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephClusterName, Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
@@ -277,38 +277,36 @@ func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) *cephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
 
-	cephCluster := &cephv1.CephCluster{
+	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
-		Spec: cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{
+		Spec: rookCephv1.ClusterSpec{
+			CephVersion: rookCephv1.CephVersionSpec{
 				Image:            cephImage,
 				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
 			Mon:             generateMonSpec(sc, nodeCount),
 			Mgr:             generateMgrSpec(sc),
 			DataDirHostPath: "/var/lib/rook",
-			DisruptionManagement: cephv1.DisruptionManagementSpec{
+			DisruptionManagement: rookCephv1.DisruptionManagementSpec{
 				ManagePodBudgets:                 true,
 				ManageMachineDisruptionBudgets:   false,
 				MachineDisruptionBudgetNamespace: "openshift-machine-api",
 			},
-			Network: cephv1.NetworkSpec{
-				HostNetwork: sc.Spec.HostNetwork,
-			},
-			Dashboard: cephv1.DashboardSpec{
+			Network: getNetworkSpec(*sc),
+			Dashboard: rookCephv1.DashboardSpec{
 				Enabled: sc.Spec.ManagedResources.CephDashboard.Enable,
 				SSL:     sc.Spec.ManagedResources.CephDashboard.SSL,
 			},
-			Monitoring: cephv1.MonitoringSpec{
+			Monitoring: rookCephv1.MonitoringSpec{
 				Enabled:        true,
 				RulesNamespace: "openshift-storage",
 			},
@@ -321,13 +319,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				"arbiter": getPlacement(sc, "arbiter"),
 			},
 			PriorityClassNames: rook.PriorityClassNamesSpec{
-				cephv1.KeyMgr: systemNodeCritical,
-				cephv1.KeyMon: systemNodeCritical,
-				cephv1.KeyOSD: systemNodeCritical,
+				rookCephv1.KeyMgr: systemNodeCritical,
+				rookCephv1.KeyMon: systemNodeCritical,
+				rookCephv1.KeyOSD: systemNodeCritical,
 			},
 			Resources: newCephDaemonResources(sc),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
-			LogCollector: cephv1.LogCollectorSpec{
+			LogCollector: rookCephv1.LogCollectorSpec{
 				Enabled:     true,
 				Periodicity: "24h",
 			},
@@ -335,7 +333,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 	}
 	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
 		label := rook.LabelsSpec{
-			cephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
+			rookCephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
 		}
 		cephCluster.Spec.Labels = label
 	}
@@ -367,9 +365,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 	} else {
 		reqLogger.Info("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 	}
-	if isMultus(sc.Spec.Network) {
-		cephCluster.Spec.Network.NetworkSpec = *sc.Spec.Network
-	}
+
 	// if kmsConfig is not 'nil', add the KMS details to CephCluster spec
 	if kmsConfigMap != nil {
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
@@ -378,7 +374,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 	return cephCluster
 }
 
-func isMultus(nwSpec *rook.NetworkSpec) bool {
+func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
 	if nwSpec != nil {
 		return nwSpec.IsMultus()
 	}
@@ -394,18 +390,27 @@ func validateMultusSelectors(selectors map[string]string) error {
 	if publicNetwork == "" && clusterNetwork == "" {
 		return fmt.Errorf("both public and cluster network selector values can't be empty")
 	}
-	if publicNetwork == "" {
-		return fmt.Errorf("public network selector values can't be empty")
-	}
 	return nil
 }
 
-func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, monitoringPort string) *cephv1.CephCluster {
+// getNetworkSpec returns cephv1.NetworkSpec after reconciling the
+// storageCluster.Spec.HostNetwork and storageCluster.Spec.Network fields
+func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
+	networkSpec := rookCephv1.NetworkSpec{}
+	if sc.Spec.Network != nil {
+		networkSpec = *sc.Spec.Network
+	}
+	// respect both the old way and the new way for enabling HostNetwork
+	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
+	return networkSpec
+}
+
+func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, monitoringPort string) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
 
-	var monitoringSpec = cephv1.MonitoringSpec{Enabled: false}
+	var monitoringSpec = rookCephv1.MonitoringSpec{Enabled: false}
 
 	if monitoringIP != "" {
 		monitoringSpec.Enabled = true
@@ -423,20 +428,20 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 		}
 	}
 
-	externalCephCluster := &cephv1.CephCluster{
+	externalCephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
-		Spec: cephv1.ClusterSpec{
-			External: cephv1.ExternalSpec{
+		Spec: rookCephv1.ClusterSpec{
+			External: rookCephv1.ExternalSpec{
 				Enable: true,
 			},
-			CrashCollector: cephv1.CrashCollectorSpec{
+			CrashCollector: rookCephv1.CrashCollectorSpec{
 				Disable: true,
 			},
-			DisruptionManagement: cephv1.DisruptionManagementSpec{
+			DisruptionManagement: rookCephv1.DisruptionManagementSpec{
 				ManagePodBudgets:               false,
 				ManageMachineDisruptionBudgets: false,
 			},
@@ -446,7 +451,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 
 	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
 		label := rook.LabelsSpec{
-			cephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
+			rookCephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
 		}
 		externalCephCluster.Spec.Labels = label
 	}
@@ -773,22 +778,22 @@ func allowUnsupportedCephVersion() bool {
 	return defaults.IsUnsupportedCephVersionAllowed == "allowed"
 }
 
-func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *cephv1.StretchClusterSpec {
+func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClusterSpec {
 	var zones []string
-	stretchClusterSpec := cephv1.StretchClusterSpec{}
+	stretchClusterSpec := rookCephv1.StretchClusterSpec{}
 	stretchClusterSpec.FailureDomainLabel, zones = sc.Status.NodeTopologies.GetKeyValues(getFailureDomain(sc))
 
 	for _, zone := range zones {
 		if zone == sc.Spec.NodeTopologies.ArbiterLocation {
 			continue
 		}
-		stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, cephv1.StretchClusterZoneSpec{
+		stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, rookCephv1.StretchClusterZoneSpec{
 			Name:    zone,
 			Arbiter: false,
 		})
 	}
 
-	arbiterZoneSpec := cephv1.StretchClusterZoneSpec{
+	arbiterZoneSpec := rookCephv1.StretchClusterZoneSpec{
 		Name:    sc.Spec.NodeTopologies.ArbiterLocation,
 		Arbiter: true,
 	}
@@ -800,24 +805,24 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *cephv1.StretchCluster
 	return &stretchClusterSpec
 }
 
-func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) cephv1.MonSpec {
+func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) rookCephv1.MonSpec {
 	if arbiterEnabled(sc) {
-		return cephv1.MonSpec{
+		return rookCephv1.MonSpec{
 			Count:                getMonCount(nodeCount, true),
 			AllowMultiplePerNode: false,
 			StretchCluster:       generateStretchClusterSpec(sc),
 		}
 	}
 
-	return cephv1.MonSpec{
+	return rookCephv1.MonSpec{
 		Count:                getMonCount(nodeCount, false),
 		AllowMultiplePerNode: false,
 	}
 }
 
-func generateMgrSpec(sc *ocsv1.StorageCluster) cephv1.MgrSpec {
-	spec := cephv1.MgrSpec{
-		Modules: []cephv1.Module{
+func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
+	spec := rookCephv1.MgrSpec{
+		Modules: []rookCephv1.Module{
 			{Name: "pg_autoscaler", Enabled: true},
 			{Name: "balancer", Enabled: true},
 		},

@@ -19,6 +19,7 @@ package v1
 import (
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +50,7 @@ type StorageClusterSpec struct {
 	// Version specifies the version of StorageCluster
 	Version string `json:"version,omitempty"`
 	// Network represents cluster network settings
-	Network *rook.NetworkSpec `json:"network,omitempty"`
+	Network *rookCephv1.NetworkSpec `json:"network,omitempty"`
 	// ManagedResources specifies how to deal with auxiliary resources reconciled
 	// with the StorageCluster
 	ManagedResources ManagedResourcesSpec `json:"managedResources,omitempty"`
