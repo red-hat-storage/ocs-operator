@@ -321,6 +321,13 @@ spec:
                         type: string
                     type: object
                 type: object
+              mirroring:
+                description: Mirroring specifies data mirroring configuration for the storage cluster. This configuration will only be applied to resources managed by the operator.
+                properties:
+                  enabled:
+                    description: If true, data mirroring is enabled for the StorageCluster. This configuration will only be applied to resources (such as CephBlockPool) managed by the operator. It is optional and defaults to false.
+                    type: boolean
+                type: object
               monDataDirHostPath:
                 type: string
               monPVCTemplate:
