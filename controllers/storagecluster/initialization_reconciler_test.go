@@ -80,9 +80,9 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 	}
 	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp}
 
-	avoid, err := r.PlatformsShouldAvoidObjectStore()
+	skip, err := r.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, err)
-	if !avoid {
+	if !skip {
 		csobc := &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "ocsinit-ceph-rgw",

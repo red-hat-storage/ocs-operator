@@ -54,7 +54,7 @@ func assertCephRGWRoutes(t *testing.T, reconciler StorageClusterReconciler, cr *
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCos)
 	// for any cloud platform, 'route' should not be created
 	// 'Get' should have thrown an error
-	if avoidObjectStore(reconciler.platform.platform) {
+	if skipObjectStore(reconciler.platform.platform) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)

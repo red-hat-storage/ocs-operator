@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var allPlatforms = append(AvoidObjectStorePlatforms,
+var allPlatforms = append(SkipObjectStorePlatforms,
 	configv1.NonePlatformType, configv1.PlatformType("NonCloudPlatform"), configv1.IBMCloudPlatformType)
 
 func TestStorageClasses(t *testing.T) {
@@ -41,9 +41,9 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	// on a cloud platform, 'Get' should throw an error,
 	// as RGW StorageClass won't be created
-	avoid, avoidErr := reconciler.PlatformsShouldAvoidObjectStore()
-	assert.NoError(t, avoidErr)
-	if avoid {
+	skip, skipErr := reconciler.PlatformsShouldSkipObjectStore()
+	assert.NoError(t, skipErr)
+	if skip {
 		// we should be expecting only 3 StorageClasses
 		assert.Equal(t, len(expected), 3)
 	} else {
@@ -55,7 +55,7 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 		scName := scConfig.storageClass.Name
 		request.Name = scName
 		err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actual[scName])
-		if avoid && scName == scNameRgw {
+		if skip && scName == scNameRgw {
 			assert.Error(t, err)
 		} else {
 			assert.NoError(t, err)

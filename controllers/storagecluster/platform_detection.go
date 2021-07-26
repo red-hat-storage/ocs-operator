@@ -22,8 +22,8 @@ const (
 	IBMCloudCosPlatformType configv1.PlatformType = "IBMCloudCosPlatform"
 )
 
-// AvoidObjectStorePlatforms is a list of all PlatformTypes where CephObjectStores will not be deployed.
-var AvoidObjectStorePlatforms = []configv1.PlatformType{
+// SkipObjectStorePlatforms is a list of all PlatformTypes where CephObjectStores will not be deployed.
+var SkipObjectStorePlatforms = []configv1.PlatformType{
 	configv1.AWSPlatformType,
 	configv1.GCPPlatformType,
 	configv1.AzurePlatformType,
@@ -76,8 +76,8 @@ func (p *Platform) getPlatform(c client.Client) (configv1.PlatformType, error) {
 	return p.platform, nil
 }
 
-func avoidObjectStore(p configv1.PlatformType) bool {
-	for _, platform := range AvoidObjectStorePlatforms {
+func skipObjectStore(p configv1.PlatformType) bool {
+	for _, platform := range SkipObjectStorePlatforms {
 		if p == platform {
 			return true
 		}
@@ -135,17 +135,17 @@ func (r *StorageClusterReconciler) DevicesDefaultToFastForThisPlatform() (bool, 
 	return false, nil
 }
 
-// PlatformsShouldAvoidObjectStore determines whether an object store should be created
+// PlatformsShouldSkipObjectStore determines whether an object store should be created
 // for the platform.
-func (r *StorageClusterReconciler) PlatformsShouldAvoidObjectStore() (bool, error) {
+func (r *StorageClusterReconciler) PlatformsShouldSkipObjectStore() (bool, error) {
 	// Call GetPlatform to get platform
 	platform, err := r.platform.GetPlatform(r.Client)
 	if err != nil {
 		return false, err
 	}
 
-	// Call avoidObjectStore to avoid creation of objectstores
-	if avoidObjectStore(platform) {
+	// Call skipObjectStore to skip creation of objectstores
+	if skipObjectStore(platform) {
 		return true, nil
 	}
 

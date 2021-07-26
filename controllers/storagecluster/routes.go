@@ -22,16 +22,16 @@ func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
-	avoid, err := r.PlatformsShouldAvoidObjectStore()
+	skip, err := r.PlatformsShouldSkipObjectStore()
 	if err != nil {
 		return err
 	}
-	if avoid {
+	if skip {
 		platform, err := r.platform.GetPlatform(r.Client)
 		if err != nil {
 			return err
 		}
-		r.Log.Info("Platform is set to avoid Ceph RGW Route. Not creating a Ceph RGW Route.", "platform", platform)
+		r.Log.Info("Platform is set to skip Ceph RGW Route. Not creating a Ceph RGW Route.", "platform", platform)
 		return nil
 	}
 
