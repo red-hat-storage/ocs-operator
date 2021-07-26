@@ -276,6 +276,15 @@ func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.
 
 }
 
+func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
+	labels := make(map[string]string)
+	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
+		labels = sc.Spec.Monitoring.Labels
+	}
+	labels["rook.io/managedBy"] = sc.Name
+	return labels
+}
+
 // newCephCluster returns a CephCluster object.
 func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) *rookCephv1.CephCluster {
 	labels := map[string]string{
@@ -329,13 +338,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Enabled:     true,
 				Periodicity: "24h",
 			},
+			Labels: rook.LabelsSpec{
+				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
+			},
 		},
-	}
-	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
-		label := rook.LabelsSpec{
-			rookCephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
-		}
-		cephCluster.Spec.Labels = label
 	}
 
 	monPVCTemplate := sc.Spec.MonPVCTemplate
@@ -446,14 +452,10 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 				ManageMachineDisruptionBudgets: false,
 			},
 			Monitoring: monitoringSpec,
+			Labels: rook.LabelsSpec{
+				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
+			},
 		},
-	}
-
-	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
-		label := rook.LabelsSpec{
-			rookCephv1.KeyMonitoring: sc.Spec.Monitoring.Labels,
-		}
-		externalCephCluster.Spec.Labels = label
 	}
 
 	return externalCephCluster

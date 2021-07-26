@@ -3,16 +3,16 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
-
-	"github.com/openshift/ocs-operator/controllers/defaults"
-	ocsutil "github.com/openshift/ocs-operator/controllers/util"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/defaults"
+	ocsutil "github.com/openshift/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -829,5 +829,62 @@ func TestGetNetworkSpec(t *testing.T) {
 		// test Provider, Selectors, HostNetwork, IPFamily, Dualstack
 		assert.DeepEqual(t, actual, testCase.expected)
 
+	}
+}
+
+func TestGetCephClusterMonitoringLabels(t *testing.T) {
+
+	type args struct {
+		sc ocsv1.StorageCluster
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "Default StorageCluster, No Labels",
+			args: args{
+				sc: ocsv1.StorageCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "storagecluster",
+					},
+					Spec: ocsv1.StorageClusterSpec{
+						Monitoring: nil,
+					},
+				},
+			},
+			want: map[string]string{
+				"rook.io/managedBy": "storagecluster",
+			},
+		},
+		{
+			name: "StorageCluster with labels",
+			args: args{
+				sc: ocsv1.StorageCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "storagecluster",
+					},
+					Spec: ocsv1.StorageClusterSpec{
+						Monitoring: &ocsv1.MonitoringSpec{
+							Labels: map[string]string{
+								"dummyKey": "dummyValue",
+							},
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"rook.io/managedBy": "storagecluster",
+				"dummyKey":          "dummyValue",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getCephClusterMonitoringLabels(tt.args.sc); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getCephClusterMonitoringLabels() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
