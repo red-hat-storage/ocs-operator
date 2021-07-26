@@ -24,17 +24,17 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 		return nil
 	}
 
-	avoid, err := r.PlatformsShouldAvoidObjectStore()
+	skip, err := r.PlatformsShouldSkipObjectStore()
 	if err != nil {
 		return err
 	}
 
-	if avoid {
+	if skip {
 		platform, err := r.platform.GetPlatform(r.Client)
 		if err != nil {
 			return err
 		}
-		r.Log.Info("Platform is set to avoid object store. Not creating a CephObjectStore.", "Platform", platform)
+		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStore.", "Platform", platform)
 		return nil
 	}
 

@@ -48,7 +48,7 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler StorageClusterReconcile
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCosu)
-	if avoidObjectStore(reconciler.platform.platform) {
+	if skipObjectStore(reconciler.platform.platform) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)
