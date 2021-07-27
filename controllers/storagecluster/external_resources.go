@@ -28,6 +28,9 @@ const (
 	cephRbdStorageClassName      = "ceph-rbd"
 	cephRgwStorageClassName      = "ceph-rgw"
 	externalCephRgwEndpointKey   = "endpoint"
+	externalEndpointConfigMap    = "external-endpoint-details"
+	monitoringEndpointIPKey      = "MonitoringEndpoint"
+	monitoringEndpointPortKey    = "MonitoringPort"
 )
 
 const (
@@ -108,6 +111,25 @@ func (r *StorageClusterReconciler) sameExternalSecretData(instance *ocsv1.Storag
 	// at this point the checksums are different, so update it
 	instance.Status.ExternalSecretHash = extSecretChecksum
 	return false
+}
+
+// retrieveConfigMap function retrieves the ConfigMap object
+// with the specified name
+func (r *StorageClusterReconciler) retrieveConfigMap(configMapName string, instance *ocsv1.StorageCluster) (*corev1.ConfigMap, error) {
+	found := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: instance.Namespace,
+		},
+	}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: found.Name, Namespace: found.Namespace}, found)
+	return found, err
+}
+
+// retrieveExternalEndpointConfigMap retrieves the endpoint configmap,
+// created by the external resources
+func (r *StorageClusterReconciler) retrieveExternalEndpointConfigMap(instance *ocsv1.StorageCluster) (*corev1.ConfigMap, error) {
+	return r.retrieveConfigMap(externalEndpointConfigMap, instance)
 }
 
 // retrieveSecret function retrieves the secret object with the specified name
@@ -248,7 +270,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		objectKey := types.NamespacedName{Name: d.Name, Namespace: instance.Namespace}
 		switch d.Kind {
 		case "CephCluster":
-			monitoringIP := d.Data["MonitoringEndpoint"]
+			monitoringIP := d.Data[monitoringEndpointIPKey]
 			if monitoringIP == "" {
 				err := fmt.Errorf(
 					"Monitoring Endpoint not present in the external cluster secret %s",
@@ -259,7 +281,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			// replace any comma in the monitoring ip string with space
 			// and then collect individual (non-empty) items' array
 			monIPArr := parseMonitoringIPs(monitoringIP)
-			monitoringPort := d.Data["MonitoringPort"]
+			monitoringPort := d.Data[monitoringEndpointPortKey]
 			if monitoringPort != "" {
 				var err error
 				for _, eachMonIP := range monIPArr {
@@ -274,10 +296,19 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 					r.Log.Error(err, "Monitoring validation failed")
 					return err
 				}
-				r.monitoringPort = monitoringPort
 			}
 			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-			r.monitoringIP = monitoringIP
+			// change the configmap name to 'external-endpoint-details'
+			objectMeta.Name = externalEndpointConfigMap
+			cm := &corev1.ConfigMap{
+				ObjectMeta: objectMeta,
+				Data:       d.Data,
+			}
+			found := &corev1.ConfigMap{ObjectMeta: objectMeta}
+			err := r.createConfigMap(cm, found, objectKey, "external endpoint configmap")
+			if err != nil {
+				return err
+			}
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{
 				ObjectMeta: objectMeta,
@@ -370,17 +401,22 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 
 // createExternalStorageClusterConfigMap creates configmap for external cluster
 func (r *StorageClusterReconciler) createExternalStorageClusterConfigMap(cm *corev1.ConfigMap, found *corev1.ConfigMap, objectKey types.NamespacedName) error {
+	return r.createConfigMap(cm, found, objectKey, "External StorageCluster ConfigMap")
+}
+
+// createConfigMap is a common function to create a ConfigMap
+func (r *StorageClusterReconciler) createConfigMap(cm *corev1.ConfigMap, found *corev1.ConfigMap, objectKey types.NamespacedName, configMapDescription string) error {
 	err := r.Client.Get(context.TODO(), objectKey, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("Creating External StorageCluster ConfigMap.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
+			r.Log.Info(fmt.Sprintf("Creating %s.", configMapDescription), "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
 			err = r.Client.Create(context.TODO(), cm)
 			if err != nil {
-				r.Log.Error(err, "Creation of External StorageCluster ConfigMap failed.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
+				r.Log.Error(err, fmt.Sprintf("Creation of %s failed.", configMapDescription), "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
 				return err
 			}
 		} else {
-			r.Log.Error(err, "Unable the get the External StorageCluster ConfigMap.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
+			r.Log.Error(err, fmt.Sprintf("Unable to get the %s.", configMapDescription), "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
 			return err
 		}
 	}

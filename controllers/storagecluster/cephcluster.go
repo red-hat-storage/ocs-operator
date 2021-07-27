@@ -105,7 +105,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	var cephCluster *rookCephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP, r.monitoringPort)
+		externalEndpointCM, err := r.retrieveExternalEndpointConfigMap(sc)
+		if err != nil {
+			return err
+		}
+		cephCluster = newExternalCephCluster(sc, r.images.Ceph, externalEndpointCM)
 	} else {
 		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
 		if err != nil {
@@ -411,10 +415,13 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	return networkSpec
 }
 
-func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, monitoringPort string) *rookCephv1.CephCluster {
+func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage string, externalEndpointCM *corev1.ConfigMap) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
+
+	monitoringIP := externalEndpointCM.Data[monitoringEndpointIPKey]
+	monitoringPort := externalEndpointCM.Data[monitoringEndpointPortKey]
 
 	var monitoringSpec = rookCephv1.MonitoringSpec{Enabled: false}
 
