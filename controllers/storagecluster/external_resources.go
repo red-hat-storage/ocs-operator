@@ -89,6 +89,16 @@ func parseMonitoringIPs(monIP string) []string {
 	return strings.Fields(strings.ReplaceAll(monIP, ",", " "))
 }
 
+// findNamedResourceFromArray retrieves the 'ExternalResource' with provided 'name'
+func findNamedResourceFromArray(extArr []ExternalResource, name string) (ExternalResource, error) {
+	for _, extR := range extArr {
+		if extR.Name == name {
+			return extR, nil
+		}
+	}
+	return ExternalResource{}, fmt.Errorf("Unable to retrieve %q external resource", name)
+}
+
 func (r *StorageClusterReconciler) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
 	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
@@ -260,15 +270,10 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		objectKey := types.NamespacedName{Name: d.Name, Namespace: instance.Namespace}
 		switch d.Kind {
 		case "CephCluster":
+			// nothing to be done here,
+			// as all the validation will be done in CephCluster creation
 			if d.Name == "monitoring-endpoint" {
-				monitoringIP := d.Data["MonitoringEndpoint"]
-				monitoringPort := d.Data["MonitoringPort"]
-				if err := verifyMonitoringEndpoints(monitoringIP, monitoringPort, r.Log); err != nil {
-					return err
-				}
-				r.monitoringIP = monitoringIP
-				r.monitoringPort = monitoringPort
-				r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+				continue
 			}
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{
