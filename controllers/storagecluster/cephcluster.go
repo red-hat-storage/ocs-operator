@@ -103,7 +103,25 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	var cephCluster *cephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		cephCluster = newExternalCephCluster(sc, r.images.Ceph, r.monitoringIP, r.monitoringPort)
+		extRArr, err := r.retrieveExternalSecretData(sc)
+		if err != nil {
+			r.Log.Error(err, "Could not retrieve the External Cluster details.",
+				"CephCluster", klog.KRef(sc.Namespace, sc.Name))
+			return err
+		}
+		endpointR, err := findNamedResourceFromArray(extRArr, "monitoring-endpoint")
+		if err != nil {
+			return err
+		}
+		monitoringIP := endpointR.Data["MonitoringEndpoint"]
+		monitoringPort := endpointR.Data["MonitoringPort"]
+		if err := verifyMonitoringEndpoints(monitoringIP, monitoringPort, r.Log); err != nil {
+			r.Log.Error(err, "Could not connect to the Monitoring Endpoints.",
+				"CephCluster", klog.KRef(sc.Namespace, sc.Name))
+			return err
+		}
+		r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
+		cephCluster = newExternalCephCluster(sc, r.images.Ceph, monitoringIP, monitoringPort)
 	} else {
 		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
 		if err != nil {
