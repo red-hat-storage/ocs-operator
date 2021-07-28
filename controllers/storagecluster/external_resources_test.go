@@ -64,6 +64,14 @@ var globalTestExternalResources = []ExternalResource{
 		},
 		Name: "ceph-rgw",
 	},
+	{
+		Kind: "CephCluster",
+		Data: map[string]string{
+			"MonitoringEndpoint": "127.0.0.1, localhost",
+			"MonitoringPort":     fmt.Sprintf("%d", generateRandomPort(19000, 29000)),
+		},
+		Name: "monitoring-endpoint",
+	},
 }
 
 func TestEnsureExternalStorageClusterResources(t *testing.T) {
@@ -142,6 +150,7 @@ func createExternalClusterReconcilerFromCustomResources(
 		monEndpointIP := extResource.Data["MonitoringEndpoint"]
 		monEndpointPort := extResource.Data["MonitoringPort"]
 		if monEndpointIP != "" && monEndpointPort != "" {
+			monEndpointIP = parseMonitoringIPs(monEndpointIP)[0]
 			startServerAt(net.JoinHostPort(monEndpointIP, monEndpointPort))
 		}
 	}
@@ -231,16 +240,6 @@ func assertExpectedExternalResources(t *testing.T, reconciler StorageClusterReco
 			}
 		}
 	}
-}
-
-// findNamedResourceFromArray retrieves the 'ExternalResource' with provided 'name'
-func findNamedResourceFromArray(extArr []ExternalResource, name string) (ExternalResource, error) {
-	for _, extR := range extArr {
-		if extR.Name == name {
-			return extR, nil
-		}
-	}
-	return ExternalResource{}, fmt.Errorf("Unable to retrieve %q external resource", name)
 }
 
 // removeNamedResourceFromArray removes the first resource with 'Name' == 'name'

@@ -88,6 +88,45 @@ func parseMonitoringIPs(monIP string) []string {
 	return strings.Fields(strings.ReplaceAll(monIP, ",", " "))
 }
 
+// findNamedResourceFromArray retrieves the 'ExternalResource' with provided 'name'
+func findNamedResourceFromArray(extArr []ExternalResource, name string) (ExternalResource, error) {
+	for _, extR := range extArr {
+		if extR.Name == name {
+			return extR, nil
+		}
+	}
+	return ExternalResource{}, fmt.Errorf("Unable to retrieve %q external resource", name)
+}
+
+func verifyMonitoringEndpoints(monitoringIP, monitoringPort string,
+	log logr.Logger) (err error) {
+	if monitoringIP == "" {
+		err = fmt.Errorf(
+			"Monitoring Endpoint not present in the external cluster secret %s",
+			externalClusterDetailsSecret)
+		log.Error(err, "Failed to get Monitoring IP.")
+		return
+	}
+	if monitoringPort != "" {
+		// replace any comma in the monitoring ip string with space
+		// and then collect individual (non-empty) items' array
+		monIPArr := parseMonitoringIPs(monitoringIP)
+		for _, eachMonIP := range monIPArr {
+			err = checkEndpointReachable(net.JoinHostPort(eachMonIP, monitoringPort), 5*time.Second)
+			// if any one of the mon's IP:PORT combination is reachable,
+			// consider the whole set as valid
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			log.Error(err, "Monitoring validation failed")
+			return
+		}
+	}
+	return
+}
+
 func (r *StorageClusterReconciler) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
 	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
@@ -248,36 +287,13 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		objectKey := types.NamespacedName{Name: d.Name, Namespace: instance.Namespace}
 		switch d.Kind {
 		case "CephCluster":
-			monitoringIP := d.Data["MonitoringEndpoint"]
-			if monitoringIP == "" {
-				err := fmt.Errorf(
-					"Monitoring Endpoint not present in the external cluster secret %s",
-					externalClusterDetailsSecret)
-				r.Log.Error(err, "Failed to get Monitoring IP.")
-				return err
+			// nothing to be done here,
+			// as all the validation will be done in CephCluster creation
+			if d.Name == "monitoring-endpoint" {
+				continue
 			}
-			// replace any comma in the monitoring ip string with space
-			// and then collect individual (non-empty) items' array
-			monIPArr := parseMonitoringIPs(monitoringIP)
-			monitoringPort := d.Data["MonitoringPort"]
-			if monitoringPort != "" {
-				var err error
-				for _, eachMonIP := range monIPArr {
-					err = checkEndpointReachable(net.JoinHostPort(eachMonIP, monitoringPort), 5*time.Second)
-					// if any one of the mon's IP:PORT combination is reachable,
-					// consider the whole set as valid
-					if err == nil {
-						break
-					}
-				}
-				if err != nil {
-					r.Log.Error(err, "Monitoring validation failed")
-					return err
-				}
-				r.monitoringPort = monitoringPort
-			}
-			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-			r.monitoringIP = monitoringIP
+			// for any other CephCluster resource, developer has to handle
+			return fmt.Errorf("CephCluster Resource named: %q, is not taken care of", d.Name)
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{
 				ObjectMeta: objectMeta,
