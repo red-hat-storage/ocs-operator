@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -403,10 +404,17 @@ func (r *StorageClusterReconciler) createExternalStorageClusterConfigMap(cm *cor
 			err = r.Client.Create(context.TODO(), cm)
 			if err != nil {
 				r.Log.Error(err, "Creation of External StorageCluster ConfigMap failed.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
-				return err
 			}
 		} else {
 			r.Log.Error(err, "Unable the get the External StorageCluster ConfigMap.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
+		}
+		return err
+	}
+	// update the found ConfigMap's Data with the latest changes,
+	// if they don't match
+	if !reflect.DeepEqual(found.Data, cm.Data) {
+		found.Data = cm.DeepCopy().Data
+		if err = r.Client.Update(context.TODO(), found); err != nil {
 			return err
 		}
 	}
@@ -422,10 +430,17 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 			err = r.Client.Create(context.TODO(), sec)
 			if err != nil {
 				r.Log.Error(err, "Creation of External StorageCluster Secret failed.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
-				return err
 			}
 		} else {
 			r.Log.Error(err, "Unable the get External StorageCluster Secret", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+		}
+		return err
+	}
+	// update the found secret's Data with the latest changes,
+	// if they don't match
+	if !reflect.DeepEqual(found.Data, sec.Data) {
+		found.Data = sec.DeepCopy().Data
+		if err = r.Client.Update(context.TODO(), found); err != nil {
 			return err
 		}
 	}
