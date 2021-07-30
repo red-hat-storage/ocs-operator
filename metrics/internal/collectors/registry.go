@@ -15,8 +15,11 @@ const (
 // This is used to expose metrics about the Custom Resources
 func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *options.Options) {
 	cephObjectStoreCollector := NewCephObjectStoreCollector(opts)
+	cephBlockPoolCollector := NewCephBlockPoolCollector(opts)
 	cephObjectStoreCollector.Run(opts.StopCh)
+	cephBlockPoolCollector.Run(opts.StopCh)
 	registry.MustRegister(
 		cephObjectStoreCollector,
+		cephBlockPoolCollector,
 	)
 }
