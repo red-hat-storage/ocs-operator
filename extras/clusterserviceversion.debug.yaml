@@ -1,0 +1,45 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: ocs-operator.v4.9.0
+  namespace: openshift-storage
+spec:
+  displayName: OpenShift Container Storage
+  install:
+    strategy: deployment
+    spec:
+      deployments:
+        - name: ocs-operator
+          spec:
+            selector:
+              matchLabels:
+                name: ocs-operator
+            template:
+              metadata:
+                labels:
+                  name: ocs-operator
+              spec:
+                containers:
+                  - command:
+                    - /script.sh
+                    image: quay.io/rexagod/ocs-operator:debug
+                    name: ocs-operator
+        - name: rook-ceph-operator
+          spec:
+            selector:
+              matchLabels:
+                app: rook-ceph-operator
+            template:
+              spec:
+                containers:
+                  - name: rook-ceph-operator
+        - name: noobaa-operator
+          spec:
+            selector:
+              matchLabels:
+                noobaa-operator: deployment
+            template:
+              spec:
+                containers:
+                  - image: quay.io/rexagod/ocs-operator:debug
+                    name: noobaa-operator
