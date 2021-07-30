@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	consolev1 "github.com/openshift/api/console/v1"
-
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	api "github.com/openshift/ocs-operator/api/v1"
@@ -818,30 +816,4 @@ func assertTestSetNoobaaUninstallMode(
 	assert.NoError(t, err)
 
 	assert.Equal(t, NoobaaUninstallMode, noobaa.Spec.CleanupPolicy.Confirmation)
-}
-
-func TestDeleteQuickStarts(t *testing.T) {
-	cases := []struct {
-		quickstartName string
-	}{
-		{
-			quickstartName: "getting-started-ocs",
-		},
-		{
-			quickstartName: "ocs-configuration",
-		},
-	}
-
-	var obj ocsQuickStarts
-
-	cqs := &consolev1.ConsoleQuickStart{}
-	reconciler := createFakeStorageClusterReconciler(t, cqs)
-	sc := &api.StorageCluster{}
-	mockStorageCluster.DeepCopyInto(sc)
-	err := obj.ensureCreated(&reconciler, sc)
-	assert.NoError(t, err)
-	err = obj.ensureDeleted(&reconciler, sc)
-	assert.NoError(t, err)
-	actualQuickStarts := getActualQuickStarts(t, cases, &reconciler)
-	assert.Equal(t, 0, len(actualQuickStarts))
 }

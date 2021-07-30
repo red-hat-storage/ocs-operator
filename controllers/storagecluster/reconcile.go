@@ -350,7 +350,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsCephCluster{},
 			&ocsNoobaaSystem{},
 			&ocsJobTemplates{},
-			&ocsQuickStarts{},
 		}
 
 	} else {
@@ -360,7 +359,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsCephCluster{},
 			&ocsSnapshotClass{},
 			&ocsNoobaaSystem{},
-			&ocsQuickStarts{},
 		}
 	}
 

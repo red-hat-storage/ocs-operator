@@ -272,13 +272,7 @@ func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.Stora
 // Every function that is called within this function should be idempotent
 func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) error {
 
-	var obj ocsQuickStarts
-	err := obj.ensureDeleted(r, sc)
-	if err != nil {
-		return err
-	}
-
-	err = r.setRookUninstallandCleanupPolicy(sc)
+	err := r.setRookUninstallandCleanupPolicy(sc)
 	if err != nil {
 		return err
 	}
