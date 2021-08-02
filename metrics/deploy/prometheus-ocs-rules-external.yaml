@@ -8,6 +8,20 @@ metadata:
   namespace: openshift-storage
 spec:
   groups:
+  - name: ocs_performance.rules
+    rules:
+    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
+        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
+        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by
+        (instance,device) \n    (1,\n      (\n        rate(node_disk_read_time_seconds_total[1m])
+        / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      )\n    )\n)\n"
+      record: 'record: cluster:ceph_disk_latency_read:join_ceph_node_disk_rate1m'
+    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
+        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
+        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by
+        (instance,device) \n    (1,\n      (\n        rate(node_disk_write_time_seconds_total[1m])
+        / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n)\n"
+      record: 'record: cluster:ceph_disk_latency_write:join_ceph_node_disk_rate1m'
   - name: external-cluster-services-alert.rules
     rules:
     - alert: ClusterObjectStoreState
