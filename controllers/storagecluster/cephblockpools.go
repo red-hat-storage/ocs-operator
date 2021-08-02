@@ -3,12 +3,15 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"reflect"
 
+	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -80,6 +83,29 @@ func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instanc
 			err = r.Client.Create(context.TODO(), cephBlockPool)
 			if err != nil {
 				r.Log.Error(err, "Failed to create CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
+				return err
+			}
+		}
+
+		if !reflect.DeepEqual(existing, cephv1.CephBlockPool{}) {
+			// If CephBlockPool is not empty, add it to the list of RelatedObjects
+			objectRef, err := reference.GetReference(r.Scheme, &existing)
+			if err != nil {
+				r.Log.Error(err, "Unable to get CephBlockPool ObjectReference.", "CephBlockPool", klog.KRef(existing.Namespace, existing.Name))
+				return err
+			}
+			err = objectreferencesv1.SetObjectReference(&instance.Status.RelatedObjects, *objectRef)
+			if err != nil {
+				r.Log.Error(err, "Unable to add CephBlockPool to the list of Related Objects in StorageCluster.",
+					"CephBlockPool", klog.KRef(objectRef.Namespace, objectRef.Name),
+					"StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+				return err
+			}
+			err = r.Client.Status().Update(context.TODO(), instance)
+			if err != nil {
+				r.Log.Error(err, "Unable to add CephBlockPool to the list of Related Objects in StorageCluster.",
+					"CephBlockPool", klog.KRef(objectRef.Namespace, objectRef.Name),
+					"StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return err
 			}
 		}
