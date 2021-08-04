@@ -14,10 +14,8 @@ import (
 )
 
 const (
-	// name of the project/exporter
-	namespace = "ocs"
 	// component within the project/exporter
-	subsystem = "rgw"
+	rgwSubsystem = "rgw"
 )
 
 var _ prometheus.Collector = &CephObjectStoreCollector{}
@@ -41,7 +39,7 @@ func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollecto
 
 	return &CephObjectStoreCollector{
 		RGWHealthStatus: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, subsystem, "health_status"),
+			prometheus.BuildFQName(namespace, rgwSubsystem, "health_status"),
 			`Health Status of RGW Endpoint. 0=Connected, 1=Progressing & 2=Failure`,
 			[]string{"name", "namespace", "rgw_endpoint"},
 			nil,
