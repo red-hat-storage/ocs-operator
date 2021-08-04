@@ -3,12 +3,15 @@ module github.com/openshift/ocs-operator
 go 1.16
 
 require (
+	cloud.google.com/go v0.81.0 // indirect
 	github.com/RHsyseng/operator-utils v1.4.2
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/blang/semver/v4 v4.0.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.4.0
 	github.com/imdario/mergo v0.3.12
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
+	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.4
@@ -17,7 +20,8 @@ require (
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
-	github.com/operator-framework/api v0.3.22
+	github.com/operator-framework/api v0.10.0
+	github.com/operator-framework/operator-lib v0.6.0
 	github.com/operator-framework/operator-lifecycle-manager v0.17.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0
 	github.com/prometheus/client_golang v1.11.0
