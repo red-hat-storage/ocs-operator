@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	error1 "errors"
 	"fmt"
 	"strings"
 	"time"
@@ -12,9 +13,11 @@ import (
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	statusutil "github.com/openshift/ocs-operator/controllers/util"
 	"github.com/openshift/ocs-operator/version"
+	"github.com/operator-framework/operator-lib/conditions"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -132,6 +135,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=*
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
+// +kubebuilder:rbac:groups=operators.coreos.com,resources=operatorconditions,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -318,8 +322,8 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 		r.Log.Info("StorageCluster is terminated, skipping reconciliation.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-		ReadinessSet()
-		return reconcile.Result{}, nil
+		returnErr := r.SetOperatorConditions("Skipping StorageCluster reconcilation", "Terminated", metav1.ConditionTrue, nil)
+		return reconcile.Result{}, returnErr
 	}
 
 	if !instance.Spec.ExternalStorage.Enable {
@@ -363,20 +367,29 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	}
 
 	for _, obj := range objs {
-		err := obj.ensureCreated(r, instance)
+		returnErr := obj.ensureCreated(r, instance)
 		if r.phase == statusutil.PhaseClusterExpanding {
+			message := "StorageCluster is expanding"
+			reason := "Expanding"
+			returnErr = r.SetOperatorConditions(message, reason, metav1.ConditionFalse, returnErr)
 			instance.Status.Phase = statusutil.PhaseClusterExpanding
+			conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
+				Type:    conditionsv1.ConditionUpgradeable,
+				Status:  corev1.ConditionFalse,
+				Reason:  reason,
+				Message: message,
+			})
 		} else if instance.Status.Phase != statusutil.PhaseReady &&
 			instance.Status.Phase != statusutil.PhaseConnecting {
 			instance.Status.Phase = statusutil.PhaseProgressing
 		}
-		if err != nil {
+		if returnErr != nil {
 			reason := ocsv1.ReconcileFailed
-			message := fmt.Sprintf("Error while reconciling: %v", err)
+			message := fmt.Sprintf("Error while reconciling: %v", returnErr)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 			instance.Status.Phase = statusutil.PhaseError
 			// don't want to overwrite the actual reconcile failure
-			return reconcile.Result{}, err
+			return reconcile.Result{}, returnErr
 		}
 	}
 	// All component operators are in a happy state.
@@ -387,11 +400,14 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 
 		// If no operator whose conditions we are watching reports an error, then it is safe
-		// to set readiness.
-		ReadinessSet()
+		// to set upgradeable to true.
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 			!instance.Spec.ExternalStorage.Enable {
 			instance.Status.Phase = statusutil.PhaseReady
+			returnErr := r.SetOperatorConditions(message, reason, metav1.ConditionTrue, nil)
+			if returnErr != nil {
+				return reconcile.Result{}, returnErr
+			}
 		}
 	} else {
 		// If any component operator reports negatively we want to write that to
@@ -417,7 +433,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-			ReadinessUnset()
+			returnErr := r.SetOperatorConditions("StorageCluster is not ready.", "NotReady", metav1.ConditionFalse, nil)
+			if returnErr != nil {
+				return reconcile.Result{}, returnErr
+			}
 		}
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 			!instance.Spec.ExternalStorage.Enable {
@@ -482,6 +501,21 @@ func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 		sc.Spec.Version = version.Version
 	}
 	return nil
+}
+
+func (r *StorageClusterReconciler) SetOperatorConditions(message string, reason string, isUpgradeable v1.ConditionStatus, prevError error) error {
+	prevError = client.IgnoreNotFound(prevError)
+	operatorConditionErr := r.OperatorCondition.Set(context.TODO(), isUpgradeable, conditions.Option(conditions.WithMessage(message)), conditions.Option(conditions.WithReason(reason)))
+	if operatorConditionErr != nil {
+		r.Log.Error(operatorConditionErr, "Unable to update OperatorCondition")
+	}
+	if prevError != nil && operatorConditionErr != nil {
+		return error1.New(prevError.Error() + operatorConditionErr.Error())
+	} else if prevError != nil {
+		return prevError
+	} else {
+		return operatorConditionErr
+	}
 }
 
 // validateStorageDeviceSets checks the StorageDeviceSets of the given
