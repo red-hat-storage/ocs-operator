@@ -284,7 +284,6 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) err
 
 	objs := []resourceManager{
 		&ocsNoobaaSystem{},
-		&ocsCephCluster{},
 		&ocsCephRGWRoutes{},
 		&ocsCephObjectStoreUsers{},
 		&ocsCephObjectStores{},
@@ -292,6 +291,7 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) err
 		&ocsCephBlockPools{},
 		&ocsSnapshotClass{},
 		&ocsStorageClass{},
+		&ocsCephCluster{},
 	}
 
 	for _, obj := range objs {
