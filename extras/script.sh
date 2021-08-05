@@ -6,7 +6,4 @@
   --headless=true \
   --listen=:40000 \
   --log \
-  exec /usr/local/bin/ocs-operator \
-  -- \
-  --enable-leader-election \
-  --health-probe-bind-address=:8081
+  attach 1 &

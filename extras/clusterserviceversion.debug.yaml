@@ -24,22 +24,3 @@ spec:
                     - /script.sh
                     image: quay.io/rexagod/ocs-operator:debug
                     name: ocs-operator
-        - name: rook-ceph-operator
-          spec:
-            selector:
-              matchLabels:
-                app: rook-ceph-operator
-            template:
-              spec:
-                containers:
-                  - name: rook-ceph-operator
-        - name: noobaa-operator
-          spec:
-            selector:
-              matchLabels:
-                noobaa-operator: deployment
-            template:
-              spec:
-                containers:
-                  - image: quay.io/rexagod/ocs-operator:debug
-                    name: noobaa-operator
