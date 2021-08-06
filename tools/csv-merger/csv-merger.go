@@ -13,7 +13,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	yaml "github.com/ghodss/yaml"
 	ocsversion "github.com/openshift/ocs-operator/version"
 	"github.com/operator-framework/api/pkg/lib/version"
