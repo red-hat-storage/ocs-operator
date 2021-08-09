@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eEuo pipefail
 
 source hack/common.sh
 

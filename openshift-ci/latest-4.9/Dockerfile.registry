@@ -5,7 +5,7 @@ COPY . /ocs-operator
 WORKDIR /ocs-operator
 
 RUN microdnf install -y jq
-RUN hack/generate-midstream-csv.sh 'appregistry' 'master'
+RUN hack/generate-midstream-csv.sh 'appregistry' 'latest-4.9'
 
 
 FROM quay.io/openshift/origin-operator-registry:latest

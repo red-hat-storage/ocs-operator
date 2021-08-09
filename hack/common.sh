@@ -91,6 +91,7 @@ OCP_MUST_GATHER_DIR="${OCP_MUST_GATHER_DIR:-ocp-must-gather}"
 OS_TYPE=$(uname)
 
 # Override the image name when this is invoked from openshift ci
+OPENSHIFT_BUILD_NAMESPACE="${OPENSHIFT_BUILD_NAMESPACE:=""}"
 if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	CATALOG_FULL_IMAGE_NAME="${IMAGE_FORMAT%:*}:ocs-registry"
 	echo "Openshift CI detected, deploying using image $CATALOG_FULL_IMAGE_NAME"

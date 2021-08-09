@@ -14,7 +14,7 @@ COPY hack /hack/
 # the jq package is needed to query which container image represents the latest
 # master branch code for some OCS projects.
 RUN microdnf install -y jq
-RUN hack/generate-midstream-csv.sh 'bundle' 'master'
+RUN hack/generate-midstream-csv.sh 'bundle' 'latest-4.9'
 RUN rm -rf /hack/
 
 # These are three labels needed to control how the pipeline should handle this container image
