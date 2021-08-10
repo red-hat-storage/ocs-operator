@@ -28,6 +28,7 @@ const (
 	cephRbdStorageClassName      = "ceph-rbd"
 	cephRgwStorageClassName      = "ceph-rgw"
 	externalCephRgwEndpointKey   = "endpoint"
+	cephRgwTLSSecretKey          = "ceph-rgw-tls-cert"
 )
 
 const (
@@ -139,7 +140,7 @@ func (r *StorageClusterReconciler) retrieveExternalSecretData(
 	return data, nil
 }
 
-func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger) (*cephv1.GatewaySpec, error) {
+func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger, tlsEnabled bool) (*cephv1.GatewaySpec, error) {
 	var gateWay cephv1.GatewaySpec
 	hostIP, portStr, err := net.SplitHostPort(rgwEndpoint)
 	if err != nil {
@@ -159,10 +160,16 @@ func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger) (*cephv1.
 			fmt.Sprintf("invalid rgw 'port' provided: %s", portStr))
 		return nil, err
 	}
-	gateWay.Port = int32(portInt64)
+	if tlsEnabled {
+		gateWay.SSLCertificateRef = cephRgwTLSSecretKey
+		gateWay.SecurePort = int32(portInt64)
+	} else {
+		gateWay.Port = int32(portInt64)
+	}
 	// set PriorityClassName for the rgw pods
 	gateWay.PriorityClassName = openshiftUserCritical
 	gateWay.Instances = 1
+
 	return &gateWay, nil
 }
 
@@ -175,7 +182,12 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 		r.Log.Info("Empty RGW Endpoint specified, external CephObjectStore won't be created.")
 		return nil, nil
 	}
-	gatewaySpec, err := newExternalGatewaySpec(rgwEndpoint, r.Log)
+	var tlsEnabled bool = false
+	_, err := r.retrieveSecret(cephRgwTLSSecretKey, initData)
+	if err != nil {
+		tlsEnabled = true
+	}
+	gatewaySpec, err := newExternalGatewaySpec(rgwEndpoint, r.Log, tlsEnabled)
 	if err != nil {
 		return nil, err
 	}

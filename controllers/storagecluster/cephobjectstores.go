@@ -153,7 +153,13 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					Replicated:    generateCephReplicatedSpec(initData, "metadata"),
 				},
 				Gateway: cephv1.GatewaySpec{
-					Port:      80,
+					Port:       80,
+					SecurePort: 443,
+					Service: &cephv1.RGWServiceSpec{
+						Annotations: map[string]string{
+							"service.beta.openshift.io/serving-cert-secret-name": fmt.Sprintf("%s-%s-%s", initData.Name, "cos", cephRgwTLSSecretKey),
+						},
+					},
 					Instances: gatewayInstances,
 					Placement: getPlacement(initData, "rgw"),
 					Resources: defaults.GetDaemonResources("rgw", initData.Spec.Resources),
