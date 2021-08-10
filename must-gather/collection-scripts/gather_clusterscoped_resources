@@ -23,6 +23,7 @@ commands_get+=("infrastructures.config")
 commands_get+=("clusterrole")
 commands_get+=("clusterrolebinding")
 commands_get+=("scc")
+commands_get+=("volumereplicationclass")
 
 # collect yaml output of OC commands
 oc_yamls=()
@@ -35,6 +36,7 @@ oc_yamls+=("infrastructures.config")
 oc_yamls+=("clusterrole")
 oc_yamls+=("clusterrolebinding")
 oc_yamls+=("scc")
+oc_yamls+=("volumereplicationclass")
 
 # collect describe output of OC commands
 commands_desc=()
