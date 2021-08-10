@@ -5,7 +5,7 @@
         name: 'ocs_performance.rules',
         rules: [
           {
-            record: 'record: cluster:ceph_disk_latency_read:join_ceph_node_disk_rate1m',
+            record: 'cluster:ceph_disk_latency_read:join_ceph_node_disk_rate1m',
             expr: |||
               sum by (namespace, managedBy) (
                   topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"}, "instance", "$1", "exported_instance", "(.*)"), "device", "$1", "device", "/dev/(.*)")) 
@@ -19,7 +19,7 @@
             ||| % $._config,
           },
           {
-            record: 'record: cluster:ceph_disk_latency_write:join_ceph_node_disk_rate1m',
+            record: 'cluster:ceph_disk_latency_write:join_ceph_node_disk_rate1m',
             expr: |||
               sum by (namespace, managedBy) (
                   topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"}, "instance", "$1", "exported_instance", "(.*)"), "device", "$1", "device", "/dev/(.*)")) 
