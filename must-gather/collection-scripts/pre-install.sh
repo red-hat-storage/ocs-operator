@@ -58,6 +58,22 @@ check_for_helper_pod(){
     oc wait -n openshift-storage --for=condition=Ready pod/"${HOSTNAME}"-helper --timeout=200s
 }
 
+cleanup() {
+  echo "checking for existing must-gather resource" | tee -a "${BASE_COLLECTION_PATH}"/gather-debug.log
+  pods=$(oc get pods --no-headers -n openshift-storage -l must-gather-helper-pod='' | awk '{print $1}')
+  if [ -n "${storageClusterPresent}" ] && [ -n "${pods}" ]; then
+    SAVEIFS=$IFS # Save current IFS
+    IFS=$'\n'    # Change IFS to new line
+    pods=("$pods") # split to array $pods
+    IFS=$SAVEIFS # Restore IFS
+    echo "deleting existing must-gather resource" | tee -a "${BASE_COLLECTION_PATH}"/gather-debug.log
+    for pod in "${pods[@]}"; do
+      oc delete pod "${pod}" -n "${ns}"
+    done
+  fi
+}
+
+cleanup
 deploy
 labels
 pids=()
