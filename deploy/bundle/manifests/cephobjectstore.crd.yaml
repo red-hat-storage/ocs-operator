@@ -71,10 +71,20 @@ spec:
                         type: boolean
                       mode:
                         type: string
+                      peers:
+                        nullable: true
+                        properties:
+                          secretNames:
+                            items:
+                              type: string
+                            type: array
+                        type: object
                       snapshotSchedules:
                         items:
                           properties:
                             interval:
+                              type: string
+                            path:
                               type: string
                             startTime:
                               type: string
@@ -102,6 +112,19 @@ spec:
                     type: object
                   replicated:
                     properties:
+                      hybridStorage:
+                        nullable: true
+                        properties:
+                          primaryDeviceClass:
+                            minLength: 1
+                            type: string
+                          secondaryDeviceClass:
+                            minLength: 1
+                            type: string
+                        required:
+                        - primaryDeviceClass
+                        - secondaryDeviceClass
+                        type: object
                       replicasPerFailureDomain:
                         minimum: 1
                         type: integer
@@ -174,7 +197,7 @@ spec:
                     type: array
                   instances:
                     format: int32
-                    minimum: 1
+                    nullable: true
                     type: integer
                   labels:
                     additionalProperties:
@@ -306,6 +329,29 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    namespaceSelector:
+                                      properties:
+                                        matchExpressions:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              operator:
+                                                type: string
+                                              values:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
                                     namespaces:
                                       items:
                                         type: string
@@ -327,6 +373,29 @@ spec:
                             items:
                               properties:
                                 labelSelector:
+                                  properties:
+                                    matchExpressions:
+                                      items:
+                                        properties:
+                                          key:
+                                            type: string
+                                          operator:
+                                            type: string
+                                          values:
+                                            items:
+                                              type: string
+                                            type: array
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                    matchLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                namespaceSelector:
                                   properties:
                                     matchExpressions:
                                       items:
@@ -390,6 +459,29 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    namespaceSelector:
+                                      properties:
+                                        matchExpressions:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              operator:
+                                                type: string
+                                              values:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
                                     namespaces:
                                       items:
                                         type: string
@@ -411,6 +503,29 @@ spec:
                             items:
                               properties:
                                 labelSelector:
+                                  properties:
+                                    matchExpressions:
+                                      items:
+                                        properties:
+                                          key:
+                                            type: string
+                                          operator:
+                                            type: string
+                                          values:
+                                            items:
+                                              type: string
+                                            type: array
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                    matchLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                namespaceSelector:
                                   properties:
                                     matchExpressions:
                                       items:
@@ -544,8 +659,6 @@ spec:
                   sslCertificateRef:
                     nullable: true
                     type: string
-                required:
-                - instances
                 type: object
               healthCheck:
                 nullable: true
@@ -624,6 +737,9 @@ spec:
                             required:
                             - port
                             type: object
+                          terminationGracePeriodSeconds:
+                            format: int64
+                            type: integer
                           timeoutSeconds:
                             format: int32
                             type: integer
@@ -675,10 +791,20 @@ spec:
                         type: boolean
                       mode:
                         type: string
+                      peers:
+                        nullable: true
+                        properties:
+                          secretNames:
+                            items:
+                              type: string
+                            type: array
+                        type: object
                       snapshotSchedules:
                         items:
                           properties:
                             interval:
+                              type: string
+                            path:
                               type: string
                             startTime:
                               type: string
@@ -706,6 +832,19 @@ spec:
                     type: object
                   replicated:
                     properties:
+                      hybridStorage:
+                        nullable: true
+                        properties:
+                          primaryDeviceClass:
+                            minLength: 1
+                            type: string
+                          secondaryDeviceClass:
+                            minLength: 1
+                            type: string
+                        required:
+                        - primaryDeviceClass
+                        - secondaryDeviceClass
+                        type: object
                       replicasPerFailureDomain:
                         minimum: 1
                         type: integer
@@ -776,6 +915,25 @@ spec:
                   lastChecked:
                     type: string
                 type: object
+              conditions:
+                items:
+                  properties:
+                    lastHeartbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
               info:
                 additionalProperties:
                   type: string

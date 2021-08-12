@@ -82,10 +82,20 @@ spec:
                           type: boolean
                         mode:
                           type: string
+                        peers:
+                          nullable: true
+                          properties:
+                            secretNames:
+                              items:
+                                type: string
+                              type: array
+                          type: object
                         snapshotSchedules:
                           items:
                             properties:
                               interval:
+                                type: string
+                              path:
                                 type: string
                               startTime:
                                 type: string
@@ -113,6 +123,19 @@ spec:
                       type: object
                     replicated:
                       properties:
+                        hybridStorage:
+                          nullable: true
+                          properties:
+                            primaryDeviceClass:
+                              minLength: 1
+                              type: string
+                            secondaryDeviceClass:
+                              minLength: 1
+                              type: string
+                          required:
+                          - primaryDeviceClass
+                          - secondaryDeviceClass
+                          type: object
                         replicasPerFailureDomain:
                           minimum: 1
                           type: integer
@@ -190,10 +213,20 @@ spec:
                         type: boolean
                       mode:
                         type: string
+                      peers:
+                        nullable: true
+                        properties:
+                          secretNames:
+                            items:
+                              type: string
+                            type: array
+                        type: object
                       snapshotSchedules:
                         items:
                           properties:
                             interval:
+                              type: string
+                            path:
                               type: string
                             startTime:
                               type: string
@@ -221,6 +254,19 @@ spec:
                     type: object
                   replicated:
                     properties:
+                      hybridStorage:
+                        nullable: true
+                        properties:
+                          primaryDeviceClass:
+                            minLength: 1
+                            type: string
+                          secondaryDeviceClass:
+                            minLength: 1
+                            type: string
+                        required:
+                        - primaryDeviceClass
+                        - secondaryDeviceClass
+                        type: object
                       replicasPerFailureDomain:
                         minimum: 1
                         type: integer
@@ -396,6 +442,29 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    namespaceSelector:
+                                      properties:
+                                        matchExpressions:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              operator:
+                                                type: string
+                                              values:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
                                     namespaces:
                                       items:
                                         type: string
@@ -417,6 +486,29 @@ spec:
                             items:
                               properties:
                                 labelSelector:
+                                  properties:
+                                    matchExpressions:
+                                      items:
+                                        properties:
+                                          key:
+                                            type: string
+                                          operator:
+                                            type: string
+                                          values:
+                                            items:
+                                              type: string
+                                            type: array
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                    matchLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                namespaceSelector:
                                   properties:
                                     matchExpressions:
                                       items:
@@ -480,6 +572,29 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    namespaceSelector:
+                                      properties:
+                                        matchExpressions:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              operator:
+                                                type: string
+                                              values:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
                                     namespaces:
                                       items:
                                         type: string
@@ -501,6 +616,29 @@ spec:
                             items:
                               properties:
                                 labelSelector:
+                                  properties:
+                                    matchExpressions:
+                                      items:
+                                        properties:
+                                          key:
+                                            type: string
+                                          operator:
+                                            type: string
+                                          values:
+                                            items:
+                                              type: string
+                                            type: array
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                    matchLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                namespaceSelector:
                                   properties:
                                     matchExpressions:
                                       items:
@@ -622,11 +760,53 @@ spec:
                 properties:
                   enabled:
                     type: boolean
+                  peers:
+                    nullable: true
+                    properties:
+                      secretNames:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  snapshotRetention:
+                    items:
+                      properties:
+                        duration:
+                          type: string
+                        path:
+                          type: string
+                      type: object
+                    type: array
+                  snapshotSchedules:
+                    items:
+                      properties:
+                        interval:
+                          type: string
+                        path:
+                          type: string
+                        startTime:
+                          type: string
+                      type: object
+                    type: array
                 type: object
               preserveFilesystemOnDelete:
                 type: boolean
               preservePoolsOnDelete:
                 type: boolean
+              statusCheck:
+                properties:
+                  mirror:
+                    nullable: true
+                    properties:
+                      disabled:
+                        type: boolean
+                      interval:
+                        type: string
+                      timeout:
+                        type: string
+                    type: object
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             required:
             - dataPools
             - metadataPool
@@ -634,8 +814,108 @@ spec:
             type: object
           status:
             properties:
+              info:
+                additionalProperties:
+                  type: string
+                nullable: true
+                type: object
+              mirroringStatus:
+                properties:
+                  daemonsStatus:
+                    items:
+                      properties:
+                        daemon_id:
+                          type: integer
+                        filesystems:
+                          items:
+                            properties:
+                              directory_count:
+                                type: integer
+                              filesystem_id:
+                                type: integer
+                              name:
+                                type: string
+                              peers:
+                                items:
+                                  properties:
+                                    remote:
+                                      properties:
+                                        client_name:
+                                          type: string
+                                        cluster_name:
+                                          type: string
+                                        fs_name:
+                                          type: string
+                                      type: object
+                                    stats:
+                                      properties:
+                                        failure_count:
+                                          type: integer
+                                        recovery_count:
+                                          type: integer
+                                      type: object
+                                    uuid:
+                                      type: string
+                                  type: object
+                                type: array
+                            type: object
+                          type: array
+                      type: object
+                    nullable: true
+                    type: array
+                  details:
+                    type: string
+                  lastChanged:
+                    type: string
+                  lastChecked:
+                    type: string
+                type: object
               phase:
                 type: string
+              snapshotScheduleStatus:
+                properties:
+                  details:
+                    type: string
+                  lastChanged:
+                    type: string
+                  lastChecked:
+                    type: string
+                  snapshotSchedules:
+                    items:
+                      properties:
+                        fs:
+                          type: string
+                        path:
+                          type: string
+                        rel_path:
+                          type: string
+                        retention:
+                          properties:
+                            active:
+                              type: boolean
+                            created:
+                              type: string
+                            created_count:
+                              type: integer
+                            first:
+                              type: string
+                            last:
+                              type: string
+                            last_pruned:
+                              type: string
+                            pruned_count:
+                              type: integer
+                            start:
+                              type: string
+                          type: object
+                        schedule:
+                          type: string
+                        subvol:
+                          type: string
+                      type: object
+                    nullable: true
+                    type: array
+                type: object
             type: object
             x-kubernetes-preserve-unknown-fields: true
         required:

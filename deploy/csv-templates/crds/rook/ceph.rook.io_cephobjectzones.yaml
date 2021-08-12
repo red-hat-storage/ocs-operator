@@ -73,10 +73,20 @@ spec:
                         type: boolean
                       mode:
                         type: string
+                      peers:
+                        nullable: true
+                        properties:
+                          secretNames:
+                            items:
+                              type: string
+                            type: array
+                        type: object
                       snapshotSchedules:
                         items:
                           properties:
                             interval:
+                              type: string
+                            path:
                               type: string
                             startTime:
                               type: string
@@ -104,6 +114,19 @@ spec:
                     type: object
                   replicated:
                     properties:
+                      hybridStorage:
+                        nullable: true
+                        properties:
+                          primaryDeviceClass:
+                            minLength: 1
+                            type: string
+                          secondaryDeviceClass:
+                            minLength: 1
+                            type: string
+                        required:
+                        - primaryDeviceClass
+                        - secondaryDeviceClass
+                        type: object
                       replicasPerFailureDomain:
                         minimum: 1
                         type: integer
@@ -179,10 +202,20 @@ spec:
                         type: boolean
                       mode:
                         type: string
+                      peers:
+                        nullable: true
+                        properties:
+                          secretNames:
+                            items:
+                              type: string
+                            type: array
+                        type: object
                       snapshotSchedules:
                         items:
                           properties:
                             interval:
+                              type: string
+                            path:
                               type: string
                             startTime:
                               type: string
@@ -210,6 +243,19 @@ spec:
                     type: object
                   replicated:
                     properties:
+                      hybridStorage:
+                        nullable: true
+                        properties:
+                          primaryDeviceClass:
+                            minLength: 1
+                            type: string
+                          secondaryDeviceClass:
+                            minLength: 1
+                            type: string
+                        required:
+                        - primaryDeviceClass
+                        - secondaryDeviceClass
+                        type: object
                       replicasPerFailureDomain:
                         minimum: 1
                         type: integer
