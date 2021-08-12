@@ -20,7 +20,6 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,7 +36,7 @@ type StorageClusterSpec struct {
 	// HostNetwork defaults to false
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 	// Placement is optional and used to specify placements of OCS components explicitly
-	Placement rook.PlacementSpec `json:"placement,omitempty"`
+	Placement rookCephv1.PlacementSpec `json:"placement,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
 	Resources          map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
 	Encryption         EncryptionSpec                         `json:"encryption,omitempty"`
@@ -189,8 +188,8 @@ type StorageDeviceSet struct {
 
 	Name                string                        `json:"name"`
 	Resources           corev1.ResourceRequirements   `json:"resources,omitempty"`
-	PreparePlacement    rook.Placement                `json:"preparePlacement,omitempty"`
-	Placement           rook.Placement                `json:"placement,omitempty"`
+	PreparePlacement    rookCephv1.Placement          `json:"preparePlacement,omitempty"`
+	Placement           rookCephv1.Placement          `json:"placement,omitempty"`
 	Config              StorageDeviceSetConfig        `json:"config,omitempty"`
 	DataPVCTemplate     corev1.PersistentVolumeClaim  `json:"dataPVCTemplate"`
 	MetadataPVCTemplate *corev1.PersistentVolumeClaim `json:"metadataPVCTemplate,omitempty"`

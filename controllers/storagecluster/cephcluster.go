@@ -15,7 +15,6 @@ import (
 	"github.com/openshift/ocs-operator/controllers/defaults"
 	statusutil "github.com/openshift/ocs-operator/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -319,15 +318,15 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Enabled:        true,
 				RulesNamespace: "openshift-storage",
 			},
-			Storage: rook.StorageScopeSpec{
+			Storage: rookCephv1.StorageScopeSpec{
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
 			},
-			Placement: rook.PlacementSpec{
+			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
 				"mon":     getPlacement(sc, "mon"),
 				"arbiter": getPlacement(sc, "arbiter"),
 			},
-			PriorityClassNames: rook.PriorityClassNamesSpec{
+			PriorityClassNames: rookCephv1.PriorityClassNamesSpec{
 				rookCephv1.KeyMgr: systemNodeCritical,
 				rookCephv1.KeyMon: systemNodeCritical,
 				rookCephv1.KeyOSD: systemNodeCritical,
@@ -338,7 +337,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Enabled:     true,
 				Periodicity: "24h",
 			},
-			Labels: rook.LabelsSpec{
+			Labels: rookCephv1.LabelsSpec{
 				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
 			},
 		},
@@ -452,7 +451,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 				ManageMachineDisruptionBudgets: false,
 			},
 			Monitoring: monitoringSpec,
-			Labels: rook.LabelsSpec{
+			Labels: rookCephv1.LabelsSpec{
 				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
 			},
 		},
@@ -536,11 +535,11 @@ func getMonCount(nodeCount int, arbiter bool) int {
 }
 
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
-func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.Info) []rook.StorageClassDeviceSet {
+func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.Info) []rookCephv1.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
 	topologyMap := sc.Status.NodeTopologies
 
-	var storageClassDeviceSets []rook.StorageClassDeviceSet
+	var storageClassDeviceSets []rookCephv1.StorageClassDeviceSet
 
 	// For kube server version 1.19 and above, topology spread constraints are used for OSD placements.
 	// For kube server version below 1.19, NodeAffinity and PodAntiAffinity are used for OSD placements.
@@ -597,8 +596,8 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 		}
 
 		for i := 0; i < replica; i++ {
-			placement := rook.Placement{}
-			preparePlacement := rook.Placement{}
+			placement := rookCephv1.Placement{}
+			preparePlacement := rookCephv1.Placement{}
 
 			if noPlacement {
 				if supportTSC {
@@ -679,7 +678,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			}
 			ds.DataPVCTemplate.Annotations = annotations
 
-			set := rook.StorageClassDeviceSet{
+			set := rookCephv1.StorageClassDeviceSet{
 				Name:                 fmt.Sprintf("%s-%d", ds.Name, i),
 				Count:                count,
 				Resources:            resources,
@@ -846,7 +845,7 @@ func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int32 {
 
 // addStrictFailureDomainTSC adds hard topology constraints at failure domain level
 // and uses soft topology constraints within falure domain (across host).
-func addStrictFailureDomainTSC(placement *rook.Placement, topologyKey string) {
+func addStrictFailureDomainTSC(placement *rookCephv1.Placement, topologyKey string) {
 	newTSC := placement.TopologySpreadConstraints[0]
 	newTSC.TopologyKey = topologyKey
 	newTSC.WhenUnsatisfiable = "DoNotSchedule"

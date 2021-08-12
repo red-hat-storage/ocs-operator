@@ -3,7 +3,9 @@ package storagecluster
 import (
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/defaults"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -11,8 +13,8 @@ import (
 )
 
 // getPlacement returns placement configuration for ceph components with appropriate topology
-func getPlacement(sc *ocsv1.StorageCluster, component string) rookv1.Placement {
-	placement := rookv1.Placement{}
+func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
+	placement := rookCephv1.Placement{}
 	in, ok := sc.Spec.Placement[rookv1.KeyType(component)]
 	if ok {
 		(&in).DeepCopyInto(&placement)
@@ -97,7 +99,7 @@ func convertLabelToNodeSelectorRequirements(labelSelector metav1.LabelSelector) 
 	return reqs
 }
 
-func appendNodeRequirements(placement *rookv1.Placement, reqs ...corev1.NodeSelectorRequirement) {
+func appendNodeRequirements(placement *rookCephv1.Placement, reqs ...corev1.NodeSelectorRequirement) {
 	if placement.NodeAffinity == nil {
 		placement.NodeAffinity = &corev1.NodeAffinity{}
 	}
@@ -125,7 +127,7 @@ func (m MatchingLabelsSelector) ApplyToList(opts *client.ListOptions) {
 }
 
 // setTopologyForAffinity assigns topology related values to the affinity placements
-func setTopologyForAffinity(placement *rookv1.Placement, selectorValue string, topologyKey string) {
+func setTopologyForAffinity(placement *rookCephv1.Placement, selectorValue string, topologyKey string) {
 	placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey = topologyKey
 
 	nodeZoneSelector := corev1.NodeSelectorRequirement{

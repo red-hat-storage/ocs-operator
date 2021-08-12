@@ -15,7 +15,6 @@ import (
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -1043,12 +1042,10 @@ func TestStorageClusterOnMultus(t *testing.T) {
 		c.cr = createDefaultStorageCluster()
 		if c.testCase != "default" {
 			c.cr.Spec.Network = &rookCephv1.NetworkSpec{
-				NetworkSpec: rookv1.NetworkSpec{
-					Provider: networkProvider,
-					Selectors: map[string]string{
-						"public":  c.publicNW,
-						"cluster": c.clusterNW,
-					},
+				Provider: networkProvider,
+				Selectors: map[string]string{
+					"public":  c.publicNW,
+					"cluster": c.clusterNW,
 				},
 			}
 		}
@@ -1075,8 +1072,8 @@ func assertCephClusterNetwork(t assert.TestingT, reconciler StorageClusterReconc
 	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
 	if cr.Spec.Network == nil {
-		assert.Equal(t, "", cephCluster.Spec.Network.NetworkSpec.Provider)
-		assert.Nil(t, cephCluster.Spec.Network.NetworkSpec.Selectors)
+		assert.Equal(t, "", cephCluster.Spec.Network.Provider)
+		assert.Nil(t, cephCluster.Spec.Network.Selectors)
 	} else {
 		assert.Equal(t, *cr.Spec.Network, cephCluster.Spec.Network)
 	}
