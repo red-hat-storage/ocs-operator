@@ -415,7 +415,12 @@ func assertCephObjectStore(t *testing.T, reconciler StorageClusterReconciler, re
 		assert.NoError(t, err)
 		hostFound, portFound, err := net.SplitHostPort(extR.Data["endpoint"])
 		assert.NoError(t, err)
-		assert.Equal(t, portFound, fmt.Sprintf("%d", cObjS.Spec.Gateway.Port))
+		if cObjS.Spec.Gateway.Port == 0 {
+			assert.Equal(t, portFound, fmt.Sprintf("%d", cObjS.Spec.Gateway.SecurePort))
+			assert.Equal(t, cephRgwTLSSecretKey, cObjS.Spec.Gateway.SSLCertificateRef)
+		} else {
+			assert.Equal(t, portFound, fmt.Sprintf("%d", cObjS.Spec.Gateway.Port))
+		}
 		// length of 'ExternalRgwEndpoints' should be atleast 1
 		assert.True(t, len(cObjS.Spec.Gateway.ExternalRgwEndpoints) > 0, true)
 		// and the first IP should be that of the host we passed from 'ceph-rgw' resource
