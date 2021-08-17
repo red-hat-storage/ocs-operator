@@ -1129,6 +1129,8 @@ metadata:
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
+  cleanup:
+    enabled: false
   customresourcedefinitions:
     owned:
     - description: OCS Initialization represents the initial data to be created when
@@ -1886,6 +1888,18 @@ spec:
           - ocs.openshift.io
           resources:
           - '*'
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - operators.coreos.com
+          resources:
+          - operatorconditions
           verbs:
           - create
           - delete
