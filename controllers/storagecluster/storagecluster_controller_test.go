@@ -16,6 +16,7 @@ import (
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -80,13 +81,13 @@ var mockStorageClusterWithArbiter = &api.StorageCluster{
 
 var mockCephCluster = &rookCephv1.CephCluster{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      generateNameForCephCluster(mockStorageCluster),
+		Name:      generateNameForCephCluster(mockStorageCluster.DeepCopy()),
 		Namespace: mockStorageCluster.Namespace,
 	},
 }
 
 var mockCephClusterNamespacedName = types.NamespacedName{
-	Name:      generateNameForCephCluster(mockStorageCluster),
+	Name:      generateNameForCephCluster(mockStorageCluster.DeepCopy()),
 	Namespace: mockStorageCluster.Namespace,
 }
 
@@ -157,9 +158,9 @@ func getMockDeviceSets(name string, count int, replica int, portable bool) []api
 			Name:                name,
 			Count:               count,
 			Replica:             replica,
-			DataPVCTemplate:     mockDataPVCTemplate,
-			MetadataPVCTemplate: mockMetaDataPVCTemplate,
-			WalPVCTemplate:      mockWalPVCTemplate,
+			DataPVCTemplate:     *mockDataPVCTemplate.DeepCopy(),
+			MetadataPVCTemplate: mockMetaDataPVCTemplate.DeepCopy(),
+			WalPVCTemplate:      mockWalPVCTemplate.DeepCopy(),
 			Portable:            portable,
 		},
 	}
@@ -170,9 +171,9 @@ var mockDeviceSets = []api.StorageDeviceSet{
 	{
 		Name:                "mock-sds",
 		Count:               3,
-		DataPVCTemplate:     mockDataPVCTemplate,
-		MetadataPVCTemplate: mockMetaDataPVCTemplate,
-		WalPVCTemplate:      mockWalPVCTemplate,
+		DataPVCTemplate:     *mockDataPVCTemplate.DeepCopy(),
+		MetadataPVCTemplate: mockMetaDataPVCTemplate.DeepCopy(),
+		WalPVCTemplate:      mockWalPVCTemplate.DeepCopy(),
 		Portable:            true,
 	},
 }
@@ -622,7 +623,7 @@ func TestReconcileWithNonWatchedResource(t *testing.T) {
 				Namespace: tc.namespace,
 			},
 		}
-		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster)
+		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy())
 		result, err := reconciler.Reconcile(context.TODO(), request)
 		assert.NoError(t, err)
 		assert.Equalf(t, reconcile.Result{}, result, "[%s]: reconcile failed with non-watched resource", tc.label)
@@ -713,7 +714,7 @@ func TestStorageDeviceSets(t *testing.T) {
 					Name:                "mock-sds",
 					Count:               3,
 					DataPVCTemplate:     corev1.PersistentVolumeClaim{},
-					MetadataPVCTemplate: mockMetaDataPVCTemplate,
+					MetadataPVCTemplate: mockMetaDataPVCTemplate.DeepCopy(),
 					Portable:            true,
 				},
 			},
@@ -731,7 +732,7 @@ func TestStorageDeviceSets(t *testing.T) {
 							StorageClassName: &scName,
 						},
 					},
-					MetadataPVCTemplate: mockMetaDataPVCTemplate,
+					MetadataPVCTemplate: mockMetaDataPVCTemplate.DeepCopy(),
 					Portable:            true,
 				},
 			},
@@ -745,7 +746,7 @@ func TestStorageDeviceSets(t *testing.T) {
 				{
 					Name:                "mock-sds",
 					Count:               3,
-					DataPVCTemplate:     mockDataPVCTemplate,
+					DataPVCTemplate:     *mockDataPVCTemplate.DeepCopy(),
 					MetadataPVCTemplate: &corev1.PersistentVolumeClaim{},
 					Portable:            true,
 				},
@@ -759,7 +760,7 @@ func TestStorageDeviceSets(t *testing.T) {
 				{
 					Name:            "mock-sds",
 					Count:           3,
-					DataPVCTemplate: mockDataPVCTemplate,
+					DataPVCTemplate: *mockDataPVCTemplate.DeepCopy(),
 					MetadataPVCTemplate: &corev1.PersistentVolumeClaim{
 						Spec: corev1.PersistentVolumeClaimSpec{
 							StorageClassName: &metadataScName,
@@ -777,7 +778,7 @@ func TestStorageDeviceSets(t *testing.T) {
 				{
 					Name:            "mock-sds",
 					Count:           3,
-					DataPVCTemplate: mockDataPVCTemplate,
+					DataPVCTemplate: *mockDataPVCTemplate.DeepCopy(),
 					WalPVCTemplate: &corev1.PersistentVolumeClaim{
 						Spec: corev1.PersistentVolumeClaimSpec{
 							StorageClassName: &walScName,
@@ -795,7 +796,7 @@ func TestStorageDeviceSets(t *testing.T) {
 				{
 					Name:            "mock-sds",
 					Count:           3,
-					DataPVCTemplate: mockDataPVCTemplate,
+					DataPVCTemplate: *mockDataPVCTemplate.DeepCopy(),
 					WalPVCTemplate:  &corev1.PersistentVolumeClaim{},
 					Portable:        true,
 				},
@@ -825,7 +826,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	infra := &configv1.Infrastructure{}
 	mockInfrastructure.DeepCopyInto(infra)
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, cc, nodeList, infra)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), cc, nodeList, infra)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -855,7 +856,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, noobaaMock, nodeList, infra)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), noobaaMock.DeepCopy(), nodeList, infra)
 
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
@@ -985,6 +986,16 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = routev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add routev1 scheme")
+	}
+
+	err = v1alpha1.SchemeBuilder.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add v1alpha1 scheme")
+	}
+
+	err = appsv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add appsv1 scheme")
 	}
 
 	return scheme

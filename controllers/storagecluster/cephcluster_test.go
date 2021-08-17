@@ -72,7 +72,7 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		reconciler := createFakeStorageClusterReconciler(t)
 
-		expected := newCephCluster(mockStorageCluster, "", 3, reconciler.serverVersion, nil, log)
+		expected := newCephCluster(mockStorageCluster.DeepCopy(), "", 3, reconciler.serverVersion, nil, log)
 		expected.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 		expected.Status.State = c.cephClusterState
 
@@ -158,7 +158,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster)
+		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster.DeepCopy())
 
 		reconciler.platform = &Platform{
 			platform: c.platform,
