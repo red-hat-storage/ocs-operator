@@ -938,11 +938,12 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 
 	return StorageClusterReconciler{
-		Client:        client,
-		Scheme:        scheme,
-		serverVersion: &k8sVersion.Info{},
-		Log:           logf.Log.WithName("controller_storagecluster_test"),
-		platform:      &Platform{platform: configv1.NonePlatformType},
+		Client:            client,
+		Scheme:            scheme,
+		OperatorCondition: newStubOperatorCondition(),
+		serverVersion:     &k8sVersion.Info{},
+		Log:               logf.Log.WithName("controller_storagecluster_test"),
+		platform:          &Platform{platform: configv1.NonePlatformType},
 	}
 }
 

@@ -293,7 +293,8 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		}
 
 		reconciler := StorageClusterReconciler{
-			Log: logf.Log.WithName("controller_storagecluster_test"),
+			OperatorCondition: newStubOperatorCondition(),
+			Log:               logf.Log.WithName("controller_storagecluster_test"),
 		}
 		_ = reconciler.initializeImageVars()
 
