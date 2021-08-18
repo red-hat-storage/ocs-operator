@@ -119,7 +119,7 @@ make unit-test
 
 *It is of special note that many of the mock objects in the [StorageCluster
 tests](./pkg/controller/storagecluster/storagecluster_controller_test.go) are
-reused in many other test cases. They may be useful in developing your own.*
+reused in many other test cases. Please avoid using the global mock variables directly, instead use the mock variables by creating DeepCopy() to prevent modification of global mock variables. They may be useful in developing your own.*
 
 ### Certificate of Origin
 
