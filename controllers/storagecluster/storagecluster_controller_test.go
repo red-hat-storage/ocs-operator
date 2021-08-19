@@ -887,14 +887,20 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	assert.NoError(t, err)
 
 	result, err = reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
-	assert.NoError(t, err)
+	if err != nil {
+		assert.True(t, errors.IsNotFound(err), "error", err)
+	}
 	assert.Equal(t, reconcile.Result{}, result)
 
 	// Finalizer is removed
 	sc = &api.StorageCluster{}
 	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
-	assert.NoError(t, err)
-	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 0)
+	if err != nil {
+		assert.True(t, errors.IsNotFound(err), "error", err)
+	} else {
+		assert.False(t, sc.ObjectMeta.DeletionTimestamp.IsZero())
+		assert.Len(t, sc.ObjectMeta.GetFinalizers(), 0)
+	}
 
 	noobaa = &v1alpha1.NooBaa{}
 	err = reconciler.Client.Get(context.TODO(), namespacedName, noobaa)
