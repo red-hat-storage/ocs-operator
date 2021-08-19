@@ -30,10 +30,14 @@ spec:
         description: BackingStore is the Schema for the backingstores API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -47,13 +51,16 @@ spec:
                     description: Region is the AWS region
                     type: string
                   secret:
-                    description: Secret refers to a secret that provides the credentials The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+                    description: Secret refers to a secret that provides the credentials
+                      The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
                     properties:
                       name:
-                        description: Name is unique within a namespace to reference a secret resource.
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
                         type: string
                       namespace:
-                        description: Namespace defines the space within which the secret name must be unique.
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
                         type: string
                     type: object
                   sslDisabled:
@@ -70,33 +77,43 @@ spec:
                 description: AzureBlob specifies a backing store of type azure-blob
                 properties:
                   secret:
-                    description: Secret refers to a secret that provides the credentials The secret should define AccountName and AccountKey as provided by Azure Blob.
+                    description: Secret refers to a secret that provides the credentials
+                      The secret should define AccountName and AccountKey as provided
+                      by Azure Blob.
                     properties:
                       name:
-                        description: Name is unique within a namespace to reference a secret resource.
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
                         type: string
                       namespace:
-                        description: Namespace defines the space within which the secret name must be unique.
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
                         type: string
                     type: object
                   targetBlobContainer:
-                    description: TargetBlobContainer is the name of the target Azure Blob container
+                    description: TargetBlobContainer is the name of the target Azure
+                      Blob container
                     type: string
                 required:
                 - secret
                 - targetBlobContainer
                 type: object
               googleCloudStorage:
-                description: GoogleCloudStorage specifies a backing store of type google-cloud-storage
+                description: GoogleCloudStorage specifies a backing store of type
+                  google-cloud-storage
                 properties:
                   secret:
-                    description: Secret refers to a secret that provides the credentials The secret should define GoogleServiceAccountPrivateKeyJson containing the entire json string as provided by Google.
+                    description: Secret refers to a secret that provides the credentials
+                      The secret should define GoogleServiceAccountPrivateKeyJson
+                      containing the entire json string as provided by Google.
                     properties:
                       name:
-                        description: Name is unique within a namespace to reference a secret resource.
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
                         type: string
                       namespace:
-                        description: Namespace defines the space within which the secret name must be unique.
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
                         type: string
                     type: object
                   targetBucket:
@@ -113,17 +130,21 @@ spec:
                     description: 'Endpoint is the IBM COS compatible endpoint: http(s)://host:port'
                     type: string
                   secret:
-                    description: Secret refers to a secret that provides the credentials The secret should define IBM_COS_ACCESS_KEY_ID and IBM_COS_SECRET_ACCESS_KEY
+                    description: Secret refers to a secret that provides the credentials
+                      The secret should define IBM_COS_ACCESS_KEY_ID and IBM_COS_SECRET_ACCESS_KEY
                     properties:
                       name:
-                        description: Name is unique within a namespace to reference a secret resource.
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
                         type: string
                       namespace:
-                        description: Namespace defines the space within which the secret name must be unique.
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
                         type: string
                     type: object
                   signatureVersion:
-                    description: SignatureVersion specifies the client signature version to use when signing requests.
+                    description: SignatureVersion specifies the client signature version
+                      to use when signing requests.
                     type: string
                   targetBucket:
                     description: TargetBucket is the name of the target IBM COS bucket
@@ -140,7 +161,8 @@ spec:
                     description: NumVolumes is the number of volumes to allocate
                     type: integer
                   resources:
-                    description: VolumeResources represents the minimum resources each volume should have.
+                    description: VolumeResources represents the minimum resources
+                      each volume should have.
                     properties:
                       limits:
                         additionalProperties:
@@ -149,7 +171,8 @@ spec:
                           - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
-                        description: 'Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                        description: 'Limits describes the maximum amount of compute
+                          resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                       requests:
                         additionalProperties:
@@ -158,21 +181,29 @@ spec:
                           - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
-                        description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                        description: 'Requests describes the minimum amount of compute
+                          resources required. If Requests is omitted for a container,
+                          it defaults to Limits if that is explicitly specified, otherwise
+                          to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                         type: object
                     type: object
                   secret:
-                    description: Secret refers to a secret that provides the agent configuration The secret should define AGENT_CONFIG containing agent_configuration from noobaa-core.
+                    description: Secret refers to a secret that provides the agent
+                      configuration The secret should define AGENT_CONFIG containing
+                      agent_configuration from noobaa-core.
                     properties:
                       name:
-                        description: Name is unique within a namespace to reference a secret resource.
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
                         type: string
                       namespace:
-                        description: Namespace defines the space within which the secret name must be unique.
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
                         type: string
                     type: object
                   storageClass:
-                    description: StorageClass is the name of the storage class to use for the PV's
+                    description: StorageClass is the name of the storage class to
+                      use for the PV's
                     type: string
                 required:
                 - numVolumes
@@ -184,17 +215,21 @@ spec:
                     description: 'Endpoint is the S3 compatible endpoint: http(s)://host:port'
                     type: string
                   secret:
-                    description: Secret refers to a secret that provides the credentials The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+                    description: Secret refers to a secret that provides the credentials
+                      The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
                     properties:
                       name:
-                        description: Name is unique within a namespace to reference a secret resource.
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
                         type: string
                       namespace:
-                        description: Namespace defines the space within which the secret name must be unique.
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
                         type: string
                     type: object
                   signatureVersion:
-                    description: SignatureVersion specifies the client signature version to use when signing requests.
+                    description: SignatureVersion specifies the client signature version
+                      to use when signing requests.
                     type: string
                   targetBucket:
                     description: TargetBucket is the name of the target S3 bucket
@@ -214,9 +249,11 @@ spec:
             description: Most recently observed status of the noobaa BackingStore.
             properties:
               conditions:
-                description: Conditions is a list of conditions related to operator reconciliation
+                description: Conditions is a list of conditions related to operator
+                  reconciliation
                 items:
-                  description: Condition represents the state of the operator's reconciliation functionality.
+                  description: Condition represents the state of the operator's reconciliation
+                    functionality.
                   properties:
                     lastHeartbeatTime:
                       format: date-time
@@ -231,7 +268,8 @@ spec:
                     status:
                       type: string
                     type:
-                      description: ConditionType is the state of the operator's reconciliation functionality.
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
                       type: string
                   required:
                   - status
@@ -245,22 +283,58 @@ spec:
                     description: ModeCode specifies the updated mode of backingstore
                     type: string
                   timeStamp:
-                    description: TimeStamp specifies the update time of backingstore new mode
+                    description: TimeStamp specifies the update time of backingstore
+                      new mode
                     type: string
                 type: object
               phase:
-                description: Phase is a simple, high-level summary of where the backing store is in its lifecycle
+                description: Phase is a simple, high-level summary of where the backing
+                  store is in its lifecycle
                 type: string
               relatedObjects:
                 description: RelatedObjects is a list of objects related to this operator.
                 items:
-                  description: 'ObjectReference contains enough information to let you inspect or modify the referred object. New uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.  1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.  2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular     restrictions like, "must refer only to types A and B" or "UID not honored" or "name must be restricted".     Those cannot be well described when embedded.  3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.  4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity     during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple     and the version of the actual struct is irrelevant.  5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type     will affect numerous schemas.  Don''t make new APIs embed an underspecified API type they do not control. Instead of using this type, create a locally provided and used type that is well-focused on your reference. For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .'
+                  description: 'ObjectReference contains enough information to let
+                    you inspect or modify the referred object. New uses of this type
+                    are discouraged because of difficulty describing its usage when
+                    embedded in APIs.  1. Ignored fields.  It includes many fields
+                    which are not generally honored.  For instance, ResourceVersion
+                    and FieldPath are both very rarely valid in actual usage.  2.
+                    Invalid usage help.  It is impossible to add specific help for
+                    individual usage.  In most embedded usages, there are particular     restrictions
+                    like, "must refer only to types A and B" or "UID not honored"
+                    or "name must be restricted".     Those cannot be well described
+                    when embedded.  3. Inconsistent validation.  Because the usages
+                    are different, the validation rules are different by usage, which
+                    makes it hard for users to predict what will happen.  4. The fields
+                    are both imprecise and overly precise.  Kind is not a precise
+                    mapping to a URL. This can produce ambiguity     during interpretation
+                    and require a REST mapping.  In most cases, the dependency is
+                    on the group,resource tuple     and the version of the actual
+                    struct is irrelevant.  5. We cannot easily change it.  Because
+                    this type is embedded in many locations, updates to this type     will
+                    affect numerous schemas.  Don''t make new APIs embed an underspecified
+                    API type they do not control. Instead of using this type, create
+                    a locally provided and used type that is well-focused on your
+                    reference. For example, ServiceReferences for admission registration:
+                    https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533
+                    .'
                   properties:
                     apiVersion:
                       description: API version of the referent.
                       type: string
                     fieldPath:
-                      description: 'If referring to a piece of an object instead of an entire object, this string should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2]. For example, if the object reference is to a container within a pod, this would take on a value like: "spec.containers{name}" (where "name" refers to the name of the container that triggered the event) or if no container name is specified "spec.containers[2]" (container with index 2 in this pod). This syntax is chosen only to have some well-defined way of referencing a part of an object. TODO: this design is not final and this field is subject to change in the future.'
+                      description: 'If referring to a piece of an object instead of
+                        an entire object, this string should contain a valid JSON/Go
+                        field access statement, such as desiredState.manifest.containers[2].
+                        For example, if the object reference is to a container within
+                        a pod, this would take on a value like: "spec.containers{name}"
+                        (where "name" refers to the name of the container that triggered
+                        the event) or if no container name is specified "spec.containers[2]"
+                        (container with index 2 in this pod). This syntax is chosen
+                        only to have some well-defined way of referencing a part of
+                        an object. TODO: this design is not final and this field is
+                        subject to change in the future.'
                       type: string
                     kind:
                       description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
@@ -272,7 +346,8 @@ spec:
                       description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
                       type: string
                     resourceVersion:
-                      description: 'Specific resourceVersion to which this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                      description: 'Specific resourceVersion to which this reference
+                        is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
                       type: string
                     uid:
                       description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'

@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -28,7 +27,7 @@ const (
 	ResourcesKeyMgr = "mgr"
 	// ResourcesKeyMgrSidecar represents the name of resource in the CR for a mgr
 	ResourcesKeyMgrSidecar = "mgr-sidecar"
-	// ResourcesKeyOSD represents the name of resource in the CR for an osd
+	// ResourcesKeyOSD represents the name of a resource in the CR for all OSDs
 	ResourcesKeyOSD = "osd"
 	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
 	ResourcesKeyPrepareOSD = "prepareosd"
@@ -47,41 +46,54 @@ const (
 )
 
 // GetMgrResources returns the placement for the MGR service
-func GetMgrResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetMgrResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgr]
 }
 
 // GetMgrSidecarResources returns the placement for the MGR sidecar container
-func GetMgrSidecarResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetMgrSidecarResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgrSidecar]
 }
 
 // GetMonResources returns the placement for the monitors
-func GetMonResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetMonResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMon]
 }
 
-// GetOSDResources returns the placement for the OSDs
-func GetOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
+// GetOSDResources returns the placement for all OSDs or for OSDs of specified device class (hdd, nvme, ssd)
+func GetOSDResources(p ResourceSpec, deviceClass string) v1.ResourceRequirements {
+	if deviceClass == "" {
+		return p[ResourcesKeyOSD]
+	}
+	// if device class specified, but not set in requirements return common osd requirements if present
+	r, ok := p[getOSDResourceKeyForDeviceClass(deviceClass)]
+	if ok {
+		return r
+	}
 	return p[ResourcesKeyOSD]
 }
 
+// getOSDResourceKeyForDeviceClass returns key name for device class in resources spec
+func getOSDResourceKeyForDeviceClass(deviceClass string) string {
+	return ResourcesKeyOSD + "-" + deviceClass
+}
+
 // GetPrepareOSDResources returns the placement for the OSDs prepare job
-func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetPrepareOSDResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyPrepareOSD]
 }
 
 // GetCrashCollectorResources returns the placement for the crash daemon
-func GetCrashCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetCrashCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 
 // GetLogCollectorResources returns the placement for the crash daemon
-func GetLogCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetLogCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 
 // GetCleanupResources returns the placement for the cleanup job
-func GetCleanupResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetCleanupResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCleanup]
 }

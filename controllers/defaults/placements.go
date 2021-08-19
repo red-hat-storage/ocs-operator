@@ -1,7 +1,7 @@
 package defaults
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -18,7 +18,7 @@ var (
 	}
 	// DaemonPlacements map contains the default placement configs for the
 	// various OCS daemons
-	DaemonPlacements = map[string]rook.Placement{
+	DaemonPlacements = map[string]rookCephv1.Placement{
 		"all": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),

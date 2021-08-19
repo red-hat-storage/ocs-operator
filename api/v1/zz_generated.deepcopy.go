@@ -24,7 +24,6 @@ import (
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ceph_rook_iov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook_iov1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -510,7 +509,7 @@ func (in *StorageClusterSpec) DeepCopyInto(out *StorageClusterSpec) {
 	out.ExternalStorage = in.ExternalStorage
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
-		*out = make(rook_iov1.PlacementSpec, len(*in))
+		*out = make(ceph_rook_iov1.PlacementSpec, len(*in))
 		for key, val := range *in {
 			(*out)[key] = *val.DeepCopy()
 		}

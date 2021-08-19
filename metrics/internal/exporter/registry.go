@@ -2,6 +2,7 @@ package exporter
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
 // RegisterExporterCollectors registers the following collectors in the given
@@ -13,8 +14,8 @@ import (
 func RegisterExporterCollectors(registry *prometheus.Registry) {
 	registry.MustRegister(
 		// Add the standard process and Go metrics to the registry.
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
-		prometheus.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
 		// Add exporter version collector to the registry.
 		NewExporterVersionCollector(),
 	)

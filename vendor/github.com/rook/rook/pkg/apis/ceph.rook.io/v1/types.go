@@ -19,7 +19,7 @@ package v1
 import (
 	"time"
 
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -61,7 +61,7 @@ type CephClusterHealthCheckSpec struct {
 	DaemonHealth DaemonHealthSpec `json:"daemonHealth,omitempty"`
 	// LivenessProbe allows to change the livenessprobe configuration for a given daemon
 	// +optional
-	LivenessProbe map[rookv1.KeyType]*rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
+	LivenessProbe map[rook.KeyType]*ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
 // DaemonHealthSpec is a daemon health check
@@ -99,24 +99,24 @@ type ClusterSpec struct {
 	// A spec for available storage in the cluster and how it should be used
 	// +optional
 	// +nullable
-	Storage rookv1.StorageScopeSpec `json:"storage,omitempty"`
+	Storage StorageScopeSpec `json:"storage,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Annotations rookv1.AnnotationsSpec `json:"annotations,omitempty"`
+	Annotations AnnotationsSpec `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.LabelsSpec `json:"labels,omitempty"`
+	Labels LabelsSpec `json:"labels,omitempty"`
 
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.PlacementSpec `json:"placement,omitempty"`
+	Placement PlacementSpec `json:"placement,omitempty"`
 
 	// Network related configuration
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -128,13 +128,13 @@ type ClusterSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Resources rookv1.ResourceSpec `json:"resources,omitempty"`
+	Resources ResourceSpec `json:"resources,omitempty"`
 
 	// PriorityClassNames sets priority classes on components
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	PriorityClassNames rookv1.PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
+	PriorityClassNames PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
 
 	// The path on the host where config and data can be persisted
 	// +kubebuilder:validation:Pattern=`^/(\S+)`
@@ -251,7 +251,8 @@ type KeyManagementServiceSpec struct {
 
 // CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v16.2.4
+	// Image is the container image used to launch the ceph daemons, such as quay.io/ceph/ceph:<tag>
+	// The full list of images can be found at https://quay.io/repository/ceph/ceph?tab=tags
 	// +optional
 	Image string `json:"image,omitempty"`
 
@@ -383,30 +384,44 @@ type CephHealthMessage struct {
 	Message  string `json:"message"`
 }
 
-// Condition represents
+// Condition represents a status condition on any Rook-Ceph Custom Resource.
 type Condition struct {
 	Type               ConditionType      `json:"type,omitempty"`
 	Status             v1.ConditionStatus `json:"status,omitempty"`
-	Reason             ClusterReasonType  `json:"reason,omitempty"`
+	Reason             ConditionReason    `json:"reason,omitempty"`
 	Message            string             `json:"message,omitempty"`
 	LastHeartbeatTime  metav1.Time        `json:"lastHeartbeatTime,omitempty"`
 	LastTransitionTime metav1.Time        `json:"lastTransitionTime,omitempty"`
 }
 
-// ClusterReasonType is cluster reason
-type ClusterReasonType string
+// ConditionReason is a reason for a condition
+type ConditionReason string
 
 const (
 	// ClusterCreatedReason is cluster created reason
-	ClusterCreatedReason ClusterReasonType = "ClusterCreated"
+	ClusterCreatedReason ConditionReason = "ClusterCreated"
 	// ClusterConnectedReason is cluster connected reason
-	ClusterConnectedReason ClusterReasonType = "ClusterConnected"
+	ClusterConnectedReason ConditionReason = "ClusterConnected"
 	// ClusterProgressingReason is cluster progressing reason
-	ClusterProgressingReason ClusterReasonType = "ClusterProgressing"
+	ClusterProgressingReason ConditionReason = "ClusterProgressing"
 	// ClusterDeletingReason is cluster deleting reason
-	ClusterDeletingReason ClusterReasonType = "ClusterDeleting"
+	ClusterDeletingReason ConditionReason = "ClusterDeleting"
 	// ClusterConnectingReason is cluster connecting reason
-	ClusterConnectingReason ClusterReasonType = "ClusterConnecting"
+	ClusterConnectingReason ConditionReason = "ClusterConnecting"
+
+	// ReconcileSucceeded represents when a resource reconciliation was successful.
+	ReconcileSucceeded ConditionReason = "ReconcileSucceeded"
+	// ReconcileFailed represents when a resource reconciliation failed.
+	ReconcileFailed ConditionReason = "ReconcileFailed"
+
+	// DeletingReason represents when Rook has detected a resource object should be deleted.
+	DeletingReason ConditionReason = "Deleting"
+	// ObjectHasDependentsReason represents when a resource object has dependents that are blocking
+	// deletion.
+	ObjectHasDependentsReason ConditionReason = "ObjectHasDependents"
+	// ObjectHasNoDependentsReason represents when a resource object has no dependents that are
+	// blocking deletion.
+	ObjectHasNoDependentsReason ConditionReason = "ObjectHasNoDependents"
 )
 
 // ConditionType represent a resource's status
@@ -425,6 +440,9 @@ const (
 	ConditionFailure ConditionType = "Failure"
 	// ConditionDeleting represents Deleting state of an object
 	ConditionDeleting ConditionType = "Deleting"
+
+	// ConditionDeletionIsBlocked represents when deletion of the object is blocked.
+	ConditionDeletionIsBlocked ConditionType = "DeletionIsBlocked"
 )
 
 // ClusterState represents the state of a Ceph Cluster
@@ -636,7 +654,6 @@ type CephBlockPoolStatus struct {
 	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
 	// +optional
 	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
-	// Use only info and put mirroringStatus in it?
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
@@ -822,6 +839,25 @@ type ReplicatedSpec struct {
 	// SubFailureDomain the name of the sub-failure domain
 	// +optional
 	SubFailureDomain string `json:"subFailureDomain,omitempty"`
+
+	// HybridStorage represents hybrid storage tier settings
+	// +optional
+	// +nullable
+	HybridStorage *HybridStorageSpec `json:"hybridStorage,omitempty"`
+}
+
+// HybridStorageSpec represents the settings for hybrid storage pool
+type HybridStorageSpec struct {
+	// PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	PrimaryDeviceClass string `json:"primaryDeviceClass"`
+	// SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	SecondaryDeviceClass string `json:"secondaryDeviceClass"`
 }
 
 // MirroringSpec represents the setting for a mirrored pool
@@ -837,10 +873,19 @@ type MirroringSpec struct {
 	// SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
 	// +optional
 	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+
+	// Peers represents the peers spec
+	// +nullable
+	// +optional
+	Peers *MirroringPeerSpec `json:"peers,omitempty"`
 }
 
 // SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
 type SnapshotScheduleSpec struct {
+	// Path is the path to snapshot, only valid for CephFS
+	// +optional
+	Path string `json:"path,omitempty"`
+
 	// Interval represent the periodicity of the snapshot.
 	// +optional
 	Interval string `json:"interval,omitempty"`
@@ -898,7 +943,7 @@ type CephFilesystem struct {
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              FilesystemSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Status *Status `json:"status,omitempty"`
+	Status *CephFilesystemStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -934,7 +979,11 @@ type FilesystemSpec struct {
 	// The mirroring settings
 	// +nullable
 	// +optional
-	Mirroring FSMirroringSpec `json:"mirroring,omitempty"`
+	Mirroring *FSMirroringSpec `json:"mirroring,omitempty"`
+
+	// The mirroring statusCheck
+	// +kubebuilder:pruning:PreserveUnknownFields
+	StatusCheck MirrorHealthCheckSpec `json:"statusCheck,omitempty"`
 }
 
 // MetadataServerSpec represents the specification of a Ceph Metadata Server
@@ -953,19 +1002,19 @@ type MetadataServerSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -983,6 +1032,189 @@ type FSMirroringSpec struct {
 	// Enabled whether this filesystem is mirrored or not
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+
+	// Peers represents the peers spec
+	// +nullable
+	// +optional
+	Peers *MirroringPeerSpec `json:"peers,omitempty"`
+
+	// SnapshotSchedules is the scheduling of snapshot for mirrored filesystems
+	// +optional
+	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+
+	// Retention is the retention policy for a snapshot schedule
+	// One path has exactly one retention policy.
+	// A policy can however contain multiple count-time period pairs in order to specify complex retention policies
+	// +optional
+	SnapshotRetention []SnapshotScheduleRetentionSpec `json:"snapshotRetention,omitempty"`
+}
+
+// SnapshotScheduleRetentionSpec is a retention policy
+type SnapshotScheduleRetentionSpec struct {
+	// Path is the path to snapshot
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// Duration represents the retention duration for a snapshot
+	// +optional
+	Duration string `json:"duration,omitempty"`
+}
+
+// CephFilesystemStatus represents the status of a Ceph Filesystem
+type CephFilesystemStatus struct {
+	// +optional
+	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	SnapshotScheduleStatus *FilesystemSnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
+	// Use only info and put mirroringStatus in it?
+	// +optional
+	// +nullable
+	Info map[string]string `json:"info,omitempty"`
+	// MirroringStatus is the filesystem mirroring status
+	// +optional
+	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`
+}
+
+// FilesystemMirroringInfo is the status of the pool mirroring
+type FilesystemMirroringInfoSpec struct {
+	// PoolMirroringStatus is the mirroring status of a filesystem
+	// +nullable
+	// +optional
+	FilesystemMirroringAllInfo []FilesystemMirroringInfo `json:"daemonsStatus,omitempty"`
+	// LastChecked is the last time time the status was checked
+	// +optional
+	LastChecked string `json:"lastChecked,omitempty"`
+	// LastChanged is the last time time the status last changed
+	// +optional
+	LastChanged string `json:"lastChanged,omitempty"`
+	// Details contains potential status errors
+	// +optional
+	Details string `json:"details,omitempty"`
+}
+
+// FilesystemSnapshotScheduleStatusSpec is the status of the snapshot schedule
+type FilesystemSnapshotScheduleStatusSpec struct {
+	// SnapshotSchedules is the list of snapshots scheduled
+	// +nullable
+	// +optional
+	SnapshotSchedules []FilesystemSnapshotSchedulesSpec `json:"snapshotSchedules,omitempty"`
+	// LastChecked is the last time time the status was checked
+	// +optional
+	LastChecked string `json:"lastChecked,omitempty"`
+	// LastChanged is the last time time the status last changed
+	// +optional
+	LastChanged string `json:"lastChanged,omitempty"`
+	// Details contains potential status errors
+	// +optional
+	Details string `json:"details,omitempty"`
+}
+
+// FilesystemSnapshotSchedulesSpec is the list of snapshot scheduled for images in a pool
+type FilesystemSnapshotSchedulesSpec struct {
+	// Fs is the name of the Ceph Filesystem
+	// +optional
+	Fs string `json:"fs,omitempty"`
+	// Subvol is the name of the sub volume
+	// +optional
+	Subvol string `json:"subvol,omitempty"`
+	// Path is the path on the filesystem
+	// +optional
+	Path string `json:"path,omitempty"`
+	// +optional
+	RelPath string `json:"rel_path,omitempty"`
+	// +optional
+	Schedule string `json:"schedule,omitempty"`
+	// +optional
+	Retention FilesystemSnapshotScheduleStatusRetention `json:"retention,omitempty"`
+}
+
+// FilesystemSnapshotScheduleStatusRetention is the retention specification for a filesystem snapshot schedule
+type FilesystemSnapshotScheduleStatusRetention struct {
+	// Start is when the snapshot schedule starts
+	// +optional
+	Start string `json:"start,omitempty"`
+	// Created is when the snapshot schedule was created
+	// +optional
+	Created string `json:"created,omitempty"`
+	// First is when the first snapshot schedule was taken
+	// +optional
+	First string `json:"first,omitempty"`
+	// Last is when the last snapshot schedule was taken
+	// +optional
+	Last string `json:"last,omitempty"`
+	// LastPruned is when the last snapshot schedule was pruned
+	// +optional
+	LastPruned string `json:"last_pruned,omitempty"`
+	// CreatedCount is total amount of snapshots
+	// +optional
+	CreatedCount int `json:"created_count,omitempty"`
+	// PrunedCount is total amount of pruned snapshots
+	// +optional
+	PrunedCount int `json:"pruned_count,omitempty"`
+	// Active is whether the scheduled is active or not
+	// +optional
+	Active bool `json:"active,omitempty"`
+}
+
+// FilesystemMirrorInfoSpec is the filesystem mirror status of a given filesystem
+type FilesystemMirroringInfo struct {
+	// DaemonID is the cephfs-mirror name
+	// +optional
+	DaemonID int `json:"daemon_id,omitempty"`
+	// Filesystems is the list of filesystems managed by a given cephfs-mirror daemon
+	// +optional
+	Filesystems []FilesystemsSpec `json:"filesystems,omitempty"`
+}
+
+// FilesystemsSpec is spec for the mirrored filesystem
+type FilesystemsSpec struct {
+	// FilesystemID is the filesystem identifier
+	// +optional
+	FilesystemID int `json:"filesystem_id,omitempty"`
+	// Name is name of the filesystem
+	// +optional
+	Name string `json:"name,omitempty"`
+	// DirectoryCount is the number of directories in the filesystem
+	// +optional
+	DirectoryCount int `json:"directory_count,omitempty"`
+	// Peers represents the mirroring peers
+	// +optional
+	Peers []FilesystemMirrorInfoPeerSpec `json:"peers,omitempty"`
+}
+
+// FilesystemMirrorInfoPeerSpec is the specification of a filesystem peer mirror
+type FilesystemMirrorInfoPeerSpec struct {
+	// UUID is the peer unique identifier
+	// +optional
+	UUID string `json:"uuid,omitempty"`
+	// Remote are the remote cluster information
+	// +optional
+	Remote *PeerRemoteSpec `json:"remote,omitempty"`
+	// Stats are the stat a peer mirror
+	// +optional
+	Stats *PeerStatSpec `json:"stats,omitempty"`
+}
+
+type PeerRemoteSpec struct {
+	// ClientName is cephx name
+	// +optional
+	ClientName string `json:"client_name,omitempty"`
+	// ClusterName is the name of the cluster
+	// +optional
+	ClusterName string `json:"cluster_name,omitempty"`
+	// FsName is the filesystem name
+	// +optional
+	FsName string `json:"fs_name,omitempty"`
+}
+
+// PeerStatSpec are the mirror stat with a given peer
+type PeerStatSpec struct {
+	// FailureCount is the number of mirroring failure
+	// +optional
+	FailureCount int `json:"failure_count,omitempty"`
+	// RecoveryCount is the number of recovery attempted after failures
+	// +optional
+	RecoveryCount int `json:"recovery_count,omitempty"`
 }
 
 // +genclient
@@ -1050,7 +1282,7 @@ type BucketHealthCheckSpec struct {
 	// +optional
 	Bucket HealthCheckSpec `json:"bucket,omitempty"`
 	// +optional
-	LivenessProbe *rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
+	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
 // HealthCheckSpec represents the health check of an object store bucket
@@ -1078,8 +1310,9 @@ type GatewaySpec struct {
 	SecurePort int32 `json:"securePort,omitempty"`
 
 	// The number of pods in the rgw replicaset.
-	// +kubebuilder:validation:Minimum=1
-	Instances int32 `json:"instances"`
+	// +nullable
+	// +optional
+	Instances int32 `json:"instances,omitempty"`
 
 	// The name of the secret that stores the ssl certificate for secure rgw connections
 	// +nullable
@@ -1090,19 +1323,19 @@ type GatewaySpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1141,7 +1374,8 @@ type ObjectStoreStatus struct {
 	BucketStatus *BucketStatus `json:"bucketStatus,omitempty"`
 	// +optional
 	// +nullable
-	Info map[string]string `json:"info,omitempty"`
+	Info       map[string]string `json:"info,omitempty"`
+	Conditions []Condition       `json:"conditions,omitempty"`
 }
 
 // BucketStatus represents the status of a bucket
@@ -1302,7 +1536,7 @@ type RGWServiceSpec struct {
 	// The annotations-related configuration to add/set on each rgw service.
 	// nullable
 	// optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 }
 
 // CephNFS represents a Ceph NFS
@@ -1355,19 +1589,19 @@ type GaneshaServerSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// Resources set resource requests and limits
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1386,7 +1620,17 @@ type GaneshaServerSpec struct {
 
 // NetworkSpec for Ceph includes backward compatibility code
 type NetworkSpec struct {
-	rookv1.NetworkSpec `json:",inline"`
+	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	// +nullable
+	// +optional
+	Provider string `json:"provider,omitempty"`
+
+	// Selectors string values describe what networks will be used to connect the cluster.
+	// Meanwhile the keys describe each network respective responsibilities or any metadata
+	// storage provider decide.
+	// +nullable
+	// +optional
+	Selectors map[string]string `json:"selectors,omitempty"`
 
 	// HostNetwork to enable host network
 	// +optional
@@ -1544,28 +1788,28 @@ type RBDMirroringSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	Count int `json:"count"`
 
-	// RBDMirroringPeerSpec represents the peers spec
+	// Peers represents the peers spec
 	// +nullable
 	// +optional
-	Peers RBDMirroringPeerSpec `json:"peers,omitempty"`
+	Peers MirroringPeerSpec `json:"peers,omitempty"`
 
 	// The affinity to place the rgw pods (default is to place on any available node)
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rbd mirror pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1578,9 +1822,9 @@ type RBDMirroringSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
-// RBDMirroringPeerSpec represents the specification of an RBD mirror peer
-type RBDMirroringPeerSpec struct {
-	// SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
+// MirroringPeerSpec represents the specification of a mirror peer
+type MirroringPeerSpec struct {
+	// SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
 	// +optional
 	SecretNames []string `json:"secretNames,omitempty"`
 }
@@ -1608,22 +1852,22 @@ type CephFilesystemMirrorList struct {
 	Items           []CephFilesystemMirror `json:"items"`
 }
 
-// FilesystemMirroringSpec is the filesystem mirorring specification
+// FilesystemMirroringSpec is the filesystem mirroring specification
 type FilesystemMirroringSpec struct {
 	// The affinity to place the rgw pods (default is to place on any available node)
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the cephfs-mirror pods
 	// +nullable
@@ -1644,3 +1888,150 @@ const (
 	// IPv4 internet protocol version
 	IPv4 IPFamilyType = "IPv4"
 )
+
+type StorageScopeSpec struct {
+	// +nullable
+	// +optional
+	Nodes []Node `json:"nodes,omitempty"`
+	// +optional
+	UseAllNodes bool `json:"useAllNodes,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config    map[string]string `json:"config,omitempty"`
+	Selection `json:",inline"`
+	// +nullable
+	// +optional
+	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
+}
+
+// Node is a storage nodes
+// +nullable
+type Node struct {
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config    map[string]string `json:"config,omitempty"`
+	Selection `json:",inline"`
+}
+
+// Device represents a disk to use in the cluster
+type Device struct {
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +optional
+	FullPath string `json:"fullpath,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
+}
+
+type Selection struct {
+	// Whether to consume all the storage devices found on a machine
+	// +optional
+	UseAllDevices *bool `json:"useAllDevices,omitempty"`
+	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
+	// +optional
+	DeviceFilter string `json:"deviceFilter,omitempty"`
+	// A regular expression to allow more fine-grained selection of devices with path names
+	// +optional
+	DevicePathFilter string `json:"devicePathFilter,omitempty"`
+	// List of devices to use as storage devices
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Devices []Device `json:"devices,omitempty"`
+	// PersistentVolumeClaims to use as storage
+	// +optional
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+}
+
+// PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD
+type PlacementSpec map[rook.KeyType]Placement
+
+// Placement is the placement for an object
+type Placement struct {
+	// NodeAffinity is a group of node affinity scheduling rules
+	// +optional
+	NodeAffinity *v1.NodeAffinity `json:"nodeAffinity,omitempty"`
+	// PodAffinity is a group of inter pod affinity scheduling rules
+	// +optional
+	PodAffinity *v1.PodAffinity `json:"podAffinity,omitempty"`
+	// PodAntiAffinity is a group of inter pod anti affinity scheduling rules
+	// +optional
+	PodAntiAffinity *v1.PodAntiAffinity `json:"podAntiAffinity,omitempty"`
+	// The pod this Toleration is attached to tolerates any taint that matches
+	// the triple <key,value,effect> using the matching operator <operator>
+	// +optional
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+	// TopologySpreadConstraint specifies how to spread matching pods among the given topology
+	// +optional
+	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+}
+
+// ResourceSpec is a collection of ResourceRequirements that describes the compute resource requirements
+type ResourceSpec map[string]v1.ResourceRequirements
+
+// ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
+type ProbeSpec struct {
+	// Disabled determines whether probe is disable or not
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
+	// Probe describes a health check to be performed against a container to determine whether it is
+	// alive or ready to receive traffic.
+	// +optional
+	Probe *v1.Probe `json:"probe,omitempty"`
+}
+
+// PriorityClassNamesSpec is a map of priority class names to be assigned to components
+type PriorityClassNamesSpec map[rook.KeyType]string
+
+// StorageClassDeviceSet is a storage class device set
+// +nullable
+type StorageClassDeviceSet struct {
+	// Name is a unique identifier for the set
+	Name string `json:"name"`
+	// Count is the number of devices in this set
+	// +kubebuilder:validation:Minimum=1
+	Count int `json:"count"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"` // Requests/limits for the devices
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Placement Placement `json:"placement,omitempty"` // Placement constraints for the device daemons
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	PreparePlacement *Placement `json:"preparePlacement,omitempty"` // Placement constraints for the device preparation
+	// Provider-specific device configuration
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
+	// VolumeClaimTemplates is a list of PVC templates for the underlying storage devices
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
+	// Portable represents OSD portability across the hosts
+	// +optional
+	Portable bool `json:"portable,omitempty"`
+	// TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	// +optional
+	TuneSlowDeviceClass bool `json:"tuneDeviceClass,omitempty"`
+	// TuneFastDeviceClass Tune the OSD when running on a fast Device Class
+	// +optional
+	TuneFastDeviceClass bool `json:"tuneFastDeviceClass,omitempty"`
+	// Scheduler name for OSD pod placement
+	// +optional
+	SchedulerName string `json:"schedulerName,omitempty"`
+	// Whether to encrypt the deviceSet
+	// +optional
+	Encrypted bool `json:"encrypted,omitempty"`
+}
