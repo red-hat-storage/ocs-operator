@@ -8,7 +8,6 @@ import (
 
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
-	openshiftv1 "github.com/openshift/api/template/v1"
 	v1 "github.com/openshift/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -76,20 +75,20 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		{
 			label:          "case 1", //ensure create logic
 			namespacedName: namespacedName,
-			sc:             sc,
-			noobaa:         noobaa,
+			sc:             *sc.DeepCopy(),
+			noobaa:         *noobaa.DeepCopy(),
 			isCreate:       true,
 		},
 		{
 			label:          "case 2", //ensure update logic
 			namespacedName: namespacedName,
-			sc:             sc,
-			noobaa:         noobaa,
+			sc:             *sc.DeepCopy(),
+			noobaa:         *noobaa.DeepCopy(),
 		},
 		{
 			label:          "case 3", //equal, no update
 			namespacedName: namespacedName,
-			sc:             sc,
+			sc:             *sc.DeepCopy(),
 			noobaa: v1alpha1.NooBaa{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      namespacedName.Name,
@@ -399,20 +398,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconciler {
 	registerObjs := []runtime.Object{&v1.StorageCluster{}}
 	registerObjs = append(registerObjs, objs...)
-	v1.SchemeBuilder.Register(registerObjs...)
-
-	scheme, err := v1.SchemeBuilder.Build()
-	if err != nil {
-		assert.Fail(t, "unable to build scheme")
-	}
-	err = cephv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add rookCephv1 scheme")
-	}
-	err = openshiftv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add openshiftv1 scheme")
-	}
+	scheme := createFakeScheme(t)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(registerObjs...).Build()
 
 	return StorageClusterReconciler{

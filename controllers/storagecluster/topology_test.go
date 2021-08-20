@@ -545,7 +545,7 @@ func TestReconcileNodeTopologyMapFailure(t *testing.T) {
 			mockNodeList.DeepCopyInto(tc.nodeList)
 		}
 		tc.storageCluster.Spec.StorageDeviceSets[0].Replica = tc.repilcaCount
-		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster, tc.nodeList)
+		reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), tc.nodeList)
 		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.Errorf(t, err, "[%s]: failed to test ReconcileNodeTopologyMap failure condition", tc.label)
 	}

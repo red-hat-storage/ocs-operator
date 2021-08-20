@@ -116,7 +116,7 @@ func TestGetPlacement(t *testing.T) {
 	}{
 		{
 			label:          "Case 1: Defaults are preserved i.e no placement and no label selector",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  nil,
 			expectedPlacements: rookCephv1.PlacementSpec{
@@ -132,7 +132,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 2: The configured Placements override the defaults",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     emptyPlacements,
 			labelSelector:  nil,
 			expectedPlacements: rookCephv1.PlacementSpec{
@@ -147,7 +147,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 3: LabelSelector to modify the default Placements correctly",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  &workerLabelSelector,
 			expectedPlacements: rookCephv1.PlacementSpec{
@@ -163,7 +163,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 4: LabelSelector modifies an empty NodeAffinity",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     emptyPlacements,
 			labelSelector:  &workerLabelSelector,
 			expectedPlacements: rookCephv1.PlacementSpec{
@@ -178,7 +178,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 5: LabelSelector modifies a configured NodeAffinity",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     workerPlacements,
 			labelSelector:  &masterLabelSelector,
 			expectedPlacements: rookCephv1.PlacementSpec{
@@ -220,7 +220,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 6: Empty LabelSelector sets no NodeAffinity",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  &emptyLabelSelector,
 			expectedPlacements: rookCephv1.PlacementSpec{
@@ -234,7 +234,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 7: Custom placement is applied without failure",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements: rookCephv1.PlacementSpec{
 				"mon": customPlacement,
 			},
@@ -251,7 +251,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 8: Custom placement is modified by labelSelector",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements: rookCephv1.PlacementSpec{
 				"mon": customPlacement,
 			},
@@ -269,7 +269,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 9: NodeTopologyMap modifies default mon placement",
-			storageCluster: mockStorageCluster,
+			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
@@ -308,7 +308,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			label:          "Case 10: skip podAntiAffinity in mon placement in case of stretched cluster",
-			storageCluster: mockStorageClusterWithArbiter,
+			storageCluster: mockStorageClusterWithArbiter.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  nil,
 			expectedPlacements: rookCephv1.PlacementSpec{

@@ -5,20 +5,14 @@ import (
 	"os"
 	"testing"
 
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	openshiftv1 "github.com/openshift/api/template/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
-	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -163,8 +157,8 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	platform *Platform,
 	obj ...runtime.Object) StorageClusterReconciler {
-	scheme := createFakeInitializationScheme(t, obj...)
-	obj = append(obj, mockNodeList)
+	scheme := createFakeScheme(t)
+	obj = append(obj, mockNodeList.DeepCopy())
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}
@@ -177,53 +171,4 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		Log:           logf.Log.WithName("controller_storagecluster_test"),
 		platform:      platform,
 	}
-}
-
-func createFakeInitializationScheme(t *testing.T, obj ...runtime.Object) *runtime.Scheme {
-	registerObjs := obj
-	registerObjs = append(registerObjs) //nolint:staticcheck
-	api.SchemeBuilder.Register(registerObjs...)
-	scheme, err := api.SchemeBuilder.Build()
-	if err != nil {
-		assert.Fail(t, "unable to build scheme")
-	}
-	err = corev1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add corev1 scheme")
-	}
-	err = cephv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add cephv1 scheme")
-	}
-	err = storagev1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add storagev1 scheme")
-	}
-	err = openshiftv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add openshiftv1 scheme")
-	}
-	err = snapapi.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add volume-snapshot scheme")
-	}
-	err = monitoringv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add monitoringv1 scheme")
-	}
-	err = extv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add extv1 scheme")
-	}
-	err = routev1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add routev1 scheme")
-	}
-
-	err = batchv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add batchv1 scheme")
-	}
-
-	return scheme
 }
