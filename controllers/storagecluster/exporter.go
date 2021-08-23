@@ -119,6 +119,12 @@ func CreateOrUpdateService(r *StorageClusterReconciler, instance *ocsv1.StorageC
 }
 
 func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitoringv1.ServiceMonitor {
+	// To add storagecluster CR name to the metrics as label: managedBy
+	relabelConfig := monitoringv1.RelabelConfig{
+		TargetLabel: "managedBy",
+		Replacement: instance.Name,
+	}
+
 	serviceMonitor := &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      exporterName,
@@ -142,9 +148,10 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 			},
 			Endpoints: []monitoringv1.Endpoint{
 				{
-					Port:     portMetrics,
-					Path:     metricsPath,
-					Interval: scrapeInterval,
+					Port:           portMetrics,
+					Path:           metricsPath,
+					Interval:       scrapeInterval,
+					RelabelConfigs: []*monitoringv1.RelabelConfig{&relabelConfig},
 				},
 				{
 					Port:     portExporter,
