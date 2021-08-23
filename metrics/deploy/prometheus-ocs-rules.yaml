@@ -22,6 +22,50 @@ spec:
         (instance,device) \n    (1,\n      (\n        rate(node_disk_write_time_seconds_total[1m])
         / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n)\n"
       record: cluster:ceph_disk_latency_write:join_ceph_node_disk_rate1m
+  - name: ODF_standardized_metrics.rules
+    rules:
+    - expr: |
+        ceph_health_status
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_health_status
+    - expr: |
+        ceph_cluster_total_bytes
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_raw_capacity_total_bytes
+    - expr: |
+        ceph_cluster_total_used_raw_bytes
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_raw_capacity_used_bytes
+    - expr: |
+        sum by (namespace, managedBy, job, service) (rate(ceph_pool_wr[1m]) + rate(ceph_pool_rd[1m]))
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_iops_total_bytes
+    - expr: |
+        sum by (namespace, managedBy, job, service) (rate(ceph_pool_wr_bytes[1m]) + rate(ceph_pool_rd_bytes[1m]))
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_throughput_total_bytes
+    - expr: "avg by (namespace, managedBy, job, service)\n(\n  topk by (ceph_daemon)
+        (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
+        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
+        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left() topk by
+        (instance,device) \n  (1,\n    (\n      (  \n          rate(node_disk_read_time_seconds_total[1m])
+        / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      ) +\n      (\n
+        \         rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]),
+        1))\n      )\n    )/2\n  )\n)\n"
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_latency_seconds
   - name: cluster-services-alert.rules
     rules:
     - alert: ClusterObjectStoreState
