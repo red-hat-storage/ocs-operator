@@ -57,13 +57,14 @@ operator-sdk:
 
 ocs-operator-openshift-ci-build: build
 
-build: build-go
+build: deps-update generate build-go
 
-build-go: deps-update generate
+# Do not update/generate deps to ensure a consistent build with the current vendored deps.
+build-go:
 	@echo "Building the ocs-operator binary"
 	hack/go-build.sh
 
-build-container:
+build-container: deps-update generate
 	@echo "Building the ocs-operator binary (containerized)"
 	hack/build-container.sh
 
@@ -157,7 +158,7 @@ unit-test:
 	@echo "Executing unit tests"
 	go test -v -cover `go list ./... | grep -v "functest"`
 
-ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-generated verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"
@@ -172,6 +173,10 @@ generate: controller-gen
 manifests: controller-gen
 	@echo Updating generated manifests
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+verify-deps: deps-update
+	@echo "Verifying dependency files"
+	hack/verify-dependencies.sh
 
 update-generated: generate manifests
 
