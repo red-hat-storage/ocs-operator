@@ -104,5 +104,15 @@ var (
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
+		"rbd-mirror": {
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("2Gi"),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("2Gi"),
+			},
+		},
 	}
 )
