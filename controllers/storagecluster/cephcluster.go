@@ -373,6 +373,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 
 	// if kmsConfig is not 'nil', add the KMS details to CephCluster spec
 	if kmsConfigMap != nil {
+		// Set default KMS_PROVIDER and VAULT_SECRET_ENGINE values, refer https://issues.redhat.com/browse/RHSTOR-1963
+		if _, ok := kmsConfigMap.Data["KMS_PROVIDER"]; !ok {
+			kmsConfigMap.Data["KMS_PROVIDER"] = "vault"
+		}
+		if _, ok := kmsConfigMap.Data["VAULT_SECRET_ENGINE"]; !ok {
+			kmsConfigMap.Data["VAULT_SECRET_ENGINE"] = "transit"
+		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 		cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 	}
