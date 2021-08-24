@@ -47,7 +47,7 @@ func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
 		),
 		MirroringStatus: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, poolMirroringSubsystem, "status"),
-			`Pool Mirroring Status. 0=Enabled, 1=Disabled`,
+			`Pool Mirroring Status.  0=Disabled, 1=Enabled`,
 			[]string{"name", "namespace"},
 			nil,
 		),
@@ -144,12 +144,12 @@ func (c *CephBlockPoolCollector) collectMirroringStatus(cephBlockPools []*cephv1
 		switch cephBlockPool.Spec.Mirroring.Enabled {
 		case true:
 			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
-				prometheus.GaugeValue, 0,
+				prometheus.GaugeValue, 1,
 				cephBlockPool.Name,
 				cephBlockPool.Namespace)
 		case false:
 			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
-				prometheus.GaugeValue, 1,
+				prometheus.GaugeValue, 0,
 				cephBlockPool.Name,
 				cephBlockPool.Namespace)
 		default:
