@@ -424,6 +424,12 @@ spec:
                       CephBlockPool) managed by the operator. It is optional and defaults
                       to false.
                     type: boolean
+                  peerSecretNames:
+                    description: PeerSecretNames represents the Kubernetes Secret
+                      names of rbd-mirror peers tokens
+                    items:
+                      type: string
+                    type: array
                 type: object
               monDataDirHostPath:
                 type: string
