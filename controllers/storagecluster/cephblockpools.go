@@ -15,19 +15,50 @@ import (
 
 type ocsCephBlockPools struct{}
 
+// ensures that peer cluster secret exists and adds it to CephBlockPool
+func (r *StorageClusterReconciler) addPeerSecretsToCephBlockPool(initData *ocsv1.StorageCluster) (cephv1.MirroringPeerSpec, error) {
+	mirroringPeerSpec := cephv1.MirroringPeerSpec{}
+	secretNames := []string{}
+
+	if len(initData.Spec.Mirroring.PeerSecretNames) == 0 {
+		return mirroringPeerSpec, fmt.Errorf("mirroring is enabled but peerSecretNames is not provided")
+	}
+	for _, secretName := range initData.Spec.Mirroring.PeerSecretNames {
+		_, err := r.retrieveSecret(secretName, initData)
+		if err != nil {
+			return mirroringPeerSpec, fmt.Errorf("peer cluster token could not be retrieved using secretname")
+		}
+		secretNames = append(secretNames, secretName)
+	}
+
+	mirroringPeerSpec.SecretNames = secretNames
+
+	return mirroringPeerSpec, nil
+}
+
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
 	var mirroringSpec cephv1.MirroringSpec
+	poolName := generateNameForCephBlockPool(initData)
+	poolNamespace := initData.Namespace
+
 	if initData.Spec.Mirroring.Enabled {
 		mirroringSpec.Enabled = true
 		mirroringSpec.Mode = "image"
+		mirroringPeerSpec, err := r.addPeerSecretsToCephBlockPool(initData)
+		if err != nil {
+			r.Log.Error(err, "Unable to add cluster peer token to CephBlockPool.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
+			return nil, err
+		}
+		mirroringSpec.Peers = &mirroringPeerSpec
 	}
+
 	ret := []*cephv1.CephBlockPool{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephBlockPool(initData),
-				Namespace: initData.Namespace,
+				Name:      poolName,
+				Namespace: poolNamespace,
 			},
 			Spec: cephv1.PoolSpec{
 				FailureDomain:  getFailureDomain(initData),
