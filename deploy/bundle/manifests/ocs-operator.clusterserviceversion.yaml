@@ -1811,6 +1811,7 @@ spec:
           - cephfilesystems
           - cephobjectstores
           - cephobjectstoreusers
+          - cephrbdmirrors
           verbs:
           - '*'
         - apiGroups:
