@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -71,7 +72,12 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephblockpool",
 		},
 	}
-	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp}
+	crm := &cephv1.CephRBDMirror{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephrbdmirror",
+		},
+	}
+	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm}
 
 	skip, err := r.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, err)
@@ -111,8 +117,11 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 }
 
 func initStorageClusterResourceCreateUpdateTestWithPlatform(
-	t *testing.T, platform *Platform, runtimeObjs []client.Object) (*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
+	t *testing.T, platform *Platform, runtimeObjs []client.Object, customSpec *api.StorageClusterSpec) (*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
+	if customSpec != nil {
+		_ = mergo.Merge(&cr.Spec, customSpec)
+	}
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",

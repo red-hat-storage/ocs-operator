@@ -36,7 +36,7 @@ func TestJobTemplates(t *testing.T) {
 	}
 
 	t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-		t, nil, nil)
+		t, nil, nil, nil)
 
 	for _, c := range cases {
 		template := &openshiftv1.Template{
