@@ -9,6 +9,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/util"
+	"github.com/operator-framework/operator-lib/conditions"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -72,17 +73,18 @@ type ImageMap struct {
 //nolint
 type StorageClusterReconciler struct {
 	client.Client
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	serverVersion  *version.Info
-	conditions     []conditionsv1.Condition
-	phase          string
-	monitoringIP   string
-	monitoringPort string
-	nodeCount      int
-	platform       *Platform
-	images         ImageMap
-	recorder       *util.EventReporter
+	Log               logr.Logger
+	Scheme            *runtime.Scheme
+	serverVersion     *version.Info
+	conditions        []conditionsv1.Condition
+	phase             string
+	monitoringIP      string
+	monitoringPort    string
+	nodeCount         int
+	platform          *Platform
+	images            ImageMap
+	recorder          *util.EventReporter
+	OperatorCondition conditions.Condition
 }
 
 // SetupWithManager sets up a controller with manager

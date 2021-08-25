@@ -165,10 +165,11 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	}
 
 	return StorageClusterReconciler{
-		Client:        client,
-		Scheme:        scheme,
-		serverVersion: &version.Info{},
-		Log:           logf.Log.WithName("controller_storagecluster_test"),
-		platform:      platform,
+		Client:            client,
+		Scheme:            scheme,
+		serverVersion:     &version.Info{},
+		OperatorCondition: newStubOperatorCondition(),
+		Log:               logf.Log.WithName("controller_storagecluster_test"),
+		platform:          platform,
 	}
 }
