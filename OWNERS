@@ -2,15 +2,11 @@
 approvers:
   - jarrpa
   - obnoxxx
-  - davidvossel
-  - egafford
   - umangachapagain
   - agarwal-mudit
 # review == this code is good /lgtm
 reviewers:
   - jarrpa
   - obnoxxx
-  - davidvossel
-  - egafford
   - umangachapagain
   - agarwal-mudit
