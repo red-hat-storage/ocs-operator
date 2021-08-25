@@ -7,9 +7,11 @@ require (
 	github.com/RHsyseng/operator-utils v1.4.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/blang/semver/v4 v4.0.0
+	github.com/ceph/go-ceph v0.11.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.4.0
 	github.com/imdario/mergo v0.3.12
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210311161930-4bea5edaff58
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
