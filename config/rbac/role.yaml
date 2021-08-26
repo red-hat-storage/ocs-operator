@@ -33,6 +33,7 @@ rules:
   - cephfilesystems
   - cephobjectstores
   - cephobjectstoreusers
+  - cephrbdmirrors
   verbs:
   - '*'
 - apiGroups:

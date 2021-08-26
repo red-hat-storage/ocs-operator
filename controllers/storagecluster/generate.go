@@ -57,6 +57,10 @@ func generateNameForSnapshotClassSecret(snapshotType SnapshotterType) string {
 	return fmt.Sprintf("rook-csi-%s-provisioner", snapshotType)
 }
 
+func generateNameForCephRbdMirror(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-cephrbdmirror", initData.Name)
+}
+
 // generateCephReplicatedSpec returns the ReplicatedSpec for the cephCluster
 // based on the StorageCluster configuration
 func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string) cephv1.ReplicatedSpec {

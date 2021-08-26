@@ -27,7 +27,7 @@ func TestCephObjectStores(t *testing.T) {
 		for _, c := range cases {
 			var objects []client.Object
 			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-				t, cp, objects)
+				t, cp, objects, nil)
 			if c.createRuntimeObjects {
 				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
 			}

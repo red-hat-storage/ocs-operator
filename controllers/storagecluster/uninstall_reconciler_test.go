@@ -23,7 +23,7 @@ import (
 func TestReconcileUninstallAnnotations(t *testing.T) {
 	for _, eachPlatform := range allPlatforms {
 		cp := &Platform{platform: eachPlatform}
-		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 		// verify it set default value when nothing is set
 		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful)
@@ -67,7 +67,7 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 
 	for _, eachPlatform := range allPlatforms {
 		cp := &Platform{platform: eachPlatform}
-		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 		// there are two annotations which will be 4 combinations, test all 4 combinations
 
@@ -133,7 +133,7 @@ func TestDeleteStorageClasses(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 
 		for _, obj := range testList {
-			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 			assertTestDeleteStorageClasses(t, reconciler, sc, obj.storageClassExists)
 		}
 	}
@@ -187,7 +187,7 @@ func TestDeleteSnapshotClasses(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 
 		for _, obj := range testList {
-			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 			assertTestDeleteStorageClasses(t, reconciler, sc, obj.SnapshotClassExists)
 		}
 	}
@@ -243,7 +243,7 @@ func TestDeleteNodeAffinityKeyFromNodes(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 
 		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 			assertTestDeleteNodeAffinityKeyFromNodes(t, reconciler, sc, obj.createUserDefinedKey)
 		}
@@ -333,7 +333,7 @@ func TestDeleteNodeTaint(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 
 		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 			assertTestDeleteNodeTaint(t, reconciler, sc, obj.createDefaultNodeTaint)
 		}
@@ -407,7 +407,7 @@ func TestDeleteCephCluster(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 
 		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 			assertTestDeleteCephCluster(t, reconciler, sc, obj.cephClusterExist)
 		}
@@ -463,7 +463,7 @@ func TestDeleteCephFilesystems(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 
 		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 			assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephFilesystemsExist)
 		}
@@ -526,7 +526,7 @@ func TestDeleteCephBlockPools(t *testing.T) {
 		cp := &Platform{platform: eachPlatform}
 
 		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 			assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephBlockPoolsExist)
 		}
@@ -608,7 +608,7 @@ func TestDeleteCephObjectStoreUsers(t *testing.T) {
 		for _, obj := range testList {
 			fakeCephObjectStoreUser := getFakeCephObjectStoreUser()
 			runtimeObjs := []client.Object{fakeCephObjectStoreUser}
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs, nil)
 
 			assertTestDeleteCephObjectStoreUsers(t, reconciler, sc, obj.CephObjectStoreUsersExist)
 		}
@@ -707,7 +707,7 @@ func TestDeleteCephObjectStores(t *testing.T) {
 		for _, obj := range testList {
 			fakeCephObjectStore := getFakeCephObjectStore()
 			runtimeObjs := []client.Object{fakeCephObjectStore}
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs, nil)
 
 			assertTestDeleteCephObjectStores(t, reconciler, sc, obj.CephObjectStoreExist)
 		}
@@ -792,7 +792,7 @@ func TestSetNoobaaUninstallMode(t *testing.T) {
 		for _, obj := range testList {
 			fakeNoobaa := getFakeNoobaa()
 			runtimeObjs := []client.Object{fakeNoobaa}
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs)
+			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs, nil)
 
 			assertTestSetNoobaaUninstallMode(t, reconciler, sc, obj.UninstallMode, obj.NoobaaUninstallMode)
 		}

@@ -18,7 +18,7 @@ func TestStorageClasses(t *testing.T) {
 	for _, eachPlatform := range allPlatforms {
 		cp := &Platform{platform: eachPlatform}
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, nil)
+			t, cp, nil, nil)
 		assertStorageClasses(t, reconciler, cr, request)
 	}
 
