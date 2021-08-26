@@ -207,6 +207,7 @@ github.com/onsi/gomega/types
 ## explicit
 github.com/openshift/api/config/v1
 github.com/openshift/api/pkg/serialization
+github.com/openshift/api/quota/v1
 github.com/openshift/api/route/v1
 github.com/openshift/api/security/v1
 github.com/openshift/api/template/v1
