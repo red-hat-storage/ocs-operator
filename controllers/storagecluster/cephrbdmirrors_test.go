@@ -7,7 +7,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	api "github.com/openshift/ocs-operator/api/v1"
@@ -25,7 +25,8 @@ func TestCephRbdMirror(t *testing.T) {
 			createRuntimeObjects: false,
 			spec: &api.StorageClusterSpec{
 				Mirroring: api.MirroringSpec{
-					Enabled: true,
+					Enabled:         true,
+					PeerSecretNames: []string{testPeerSecretName},
 				},
 			},
 		},
@@ -43,12 +44,16 @@ func TestCephRbdMirror(t *testing.T) {
 	for _, eachPlatform := range allPlatforms {
 		cp := &Platform{platform: eachPlatform}
 		for _, c := range cases {
-			var objects []client.Object
-			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-				t, cp, objects, c.spec)
-			if c.createRuntimeObjects {
-				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
+			cr := getInitData(c.spec)
+			request := reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "ocsinit",
+					Namespace: "",
+				},
 			}
+			reconciler := createReconcilerFromCustomResources(t, cp, cr)
+			_, err := reconciler.Reconcile(context.TODO(), request)
+			assert.NoError(t, err)
 			switch c.label {
 			case "create-ceph-rbd-mirror":
 				assertCephRbdMirrorCreation(t, reconciler, cr, request)

@@ -248,6 +248,10 @@ type MirroringSpec struct {
 	// It is optional and defaults to false.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+
+	// PeerSecretNames represents the Kubernetes Secret names of rbd-mirror peers tokens
+	// +optional
+	PeerSecretNames []string `json:"peerSecretNames,omitempty"`
 }
 
 // StorageClusterStatus defines the observed state of StorageCluster
