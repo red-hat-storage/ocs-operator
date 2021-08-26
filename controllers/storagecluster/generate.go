@@ -74,3 +74,8 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 
 	return crs
 }
+
+// generateStorageQuotaName function generates a name for ClusterResourceQuota
+func generateStorageQuotaName(storageClassName, quotaName string) string {
+	return fmt.Sprintf("ocs-%s-%s", storageClassName, quotaName)
+}

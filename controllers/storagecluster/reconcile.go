@@ -136,6 +136,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=*
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=operatorconditions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=*
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -240,6 +241,18 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		}
 		return err
 	}
+
+	if err := validateOverprovisionControlSpec(instance, r.Log); err != nil {
+		r.Log.Error(err, "Failed to validate OverprovisionControlSpec.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+		instance.Status.Phase = statusutil.PhaseError
+		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
+			r.Log.Error(updateErr, "Could not update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+			return updateErr
+		}
+		return err
+	}
+
 	return nil
 }
 
@@ -344,6 +357,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		// list of default ensure functions
 		objs = []resourceManager{
 			&ocsStorageClass{},
+			&ocsStorageQuota{},
 			&ocsSnapshotClass{},
 			&ocsCephObjectStores{},
 			&ocsCephObjectStoreUsers{},
@@ -679,6 +693,28 @@ func validateArbiterSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error 
 	}
 	if sc.Spec.Arbiter.Enable && sc.Spec.NodeTopologies.ArbiterLocation == "" {
 		return fmt.Errorf("arbiter is set to enable but no arbiterLocation has been provided in the Spec.NodeTopologies.ArbiterLocation")
+	}
+	return nil
+}
+
+func validateOverprovisionControlSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	for _, opc := range sc.Spec.OverprovisionControl {
+		if opc.Capacity == nil && opc.Percentage == 0 {
+			return fmt.Errorf("missing either capacity or percentage for overprovision")
+		}
+		if opc.Capacity != nil && opc.Percentage > 0 {
+			return fmt.Errorf("can not define both capacity and percentage for overprovision")
+		}
+		if opc.StorageClassName == "" {
+			return fmt.Errorf("missing storageclassname")
+		}
+		if opc.StorageClassName != sc.Name+"-"+cephFsStorageClassName &&
+			opc.StorageClassName != sc.Name+"-"+cephRbdStorageClassName {
+			return fmt.Errorf("unsupported storageclassname: %s", opc.StorageClassName)
+		}
+		if opc.QuotaName == "" {
+			return fmt.Errorf("missing quotaname")
+		}
 	}
 	return nil
 }

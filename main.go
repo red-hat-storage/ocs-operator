@@ -26,6 +26,7 @@ import (
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	nbapis "github.com/noobaa/noobaa-operator/v2/pkg/apis"
 	openshiftConfigv1 "github.com/openshift/api/config/v1"
+	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
@@ -74,6 +75,7 @@ func init() {
 	utilruntime.Must(openshiftConfigv1.AddToScheme(scheme))
 	utilruntime.Must(extv1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
+	utilruntime.Must(quotav1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -104,7 +106,8 @@ func main() {
 		setupLog.Info("running in development mode")
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	cfg := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		HealthProbeBindAddress: probeAddr,
