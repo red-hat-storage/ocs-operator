@@ -29,6 +29,7 @@ require (
 	github.com/rook/rook v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	gopkg.in/ini.v1 v1.57.0
 	gotest.tools/v3 v3.0.3
 	k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver v0.21.3
