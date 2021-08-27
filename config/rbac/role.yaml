@@ -131,6 +131,12 @@ rules:
   - update
   - watch
 - apiGroups:
+  - quota.openshift.io
+  resources:
+  - clusterresourcequotas
+  verbs:
+  - '*'
+- apiGroups:
   - route.openshift.io
   resources:
   - routes

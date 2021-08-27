@@ -18,9 +18,11 @@ package v1
 
 import (
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	quotav1 "github.com/openshift/api/quota/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -70,6 +72,9 @@ type StorageClusterSpec struct {
 	// Mirroring specifies data mirroring configuration for the storage cluster.
 	// This configuration will only be applied to resources managed by the operator.
 	Mirroring MirroringSpec `json:"mirroring,omitempty"`
+	// OverprovisionControl specifies the allowed hard-limit PVs overprovisioning relative to
+	// the effective usable storage capacity.
+	OverprovisionControl []OverprovisionControlSpec `json:"overprovisionControl,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS
@@ -394,4 +399,15 @@ type ArbiterSpec struct {
 
 func init() {
 	SchemeBuilder.Register(&StorageCluster{}, &StorageClusterList{})
+}
+
+// OverprovisionControlSpec defines the allowed overprovisioning PVC consumption from the underlying cluster.
+// This may be an absolute value or as a percentage of the overall effective capacity.
+// One, and only one of those two (Capacity and Percentage) may be defined.
+type OverprovisionControlSpec struct {
+	StorageClassName string                               `json:"storageClassName,omitempty"`
+	QuotaName        string                               `json:"quotaName,omitempty"`
+	Capacity         *resource.Quantity                   `json:"capacity,omitempty"`
+	Percentage       uint                                 `json:"percentage,omitempty"`
+	Selector         quotav1.ClusterResourceQuotaSelector `json:"selector,omitempty"`
 }

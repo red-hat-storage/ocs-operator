@@ -290,6 +290,7 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) err
 		&ocsCephFilesystems{},
 		&ocsCephBlockPools{},
 		&ocsSnapshotClass{},
+		&ocsStorageQuota{},
 		&ocsStorageClass{},
 		&ocsCephCluster{},
 	}

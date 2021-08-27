@@ -8,6 +8,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
+	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -997,6 +998,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = appsv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add appsv1 scheme")
+	}
+
+	err = quotav1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add quotav1 scheme")
 	}
 
 	return scheme

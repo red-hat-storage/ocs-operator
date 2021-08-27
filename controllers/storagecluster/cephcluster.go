@@ -585,23 +585,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			}
 		}
 
-		count := ds.Count
-		replica := ds.Replica
-		if replica == 0 {
-			replica = defaults.DeviceSetReplica
-
-			// This is a temporary hack in place due to limitations
-			// in the current implementation of the OCP console.
-			// The console is hardcoded to create a StorageCluster
-			// with a Count of 3, as made sense for the previous
-			// behavior, but it cannot be updated until the next
-			// z-stream release of OCP 4.2. This workaround is to
-			// enable the new behavior while the console is waiting
-			// to be updated.
-			// TODO: Remove this behavior when OCP console is updated
-			count = count / 3
-		}
-
+		count, replica := countAndReplicaOf(&ds)
 		for i := 0; i < replica; i++ {
 			placement := rookCephv1.Placement{}
 			preparePlacement := rookCephv1.Placement{}
@@ -713,6 +697,26 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 	}
 
 	return storageClassDeviceSets
+}
+
+func countAndReplicaOf(ds *ocsv1.StorageDeviceSet) (int, int) {
+	count := ds.Count
+	replica := ds.Replica
+	if replica == 0 {
+		replica = defaults.DeviceSetReplica
+
+		// This is a temporary hack in place due to limitations
+		// in the current implementation of the OCP console.
+		// The console is hardcoded to create a StorageCluster
+		// with a Count of 3, as made sense for the previous
+		// behavior, but it cannot be updated until the next
+		// z-stream release of OCP 4.2. This workaround is to
+		// enable the new behavior while the console is waiting
+		// to be updated.
+		// TODO: Remove this behavior when OCP console is updated
+		count = count / 3
+	}
+	return count, replica
 }
 
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
