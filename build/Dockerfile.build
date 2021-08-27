@@ -1,11 +1,14 @@
-FROM registry.access.redhat.com/ubi8/go-toolset AS builder
+# FROM registry.access.redhat.com/ubi8/go-toolset AS builder
+# ubi8/go-toolset only supports up to Go v1.15 (20 Aug 2021)
+FROM golang:1.16 as builder
 
-COPY . /ocs-operator
-WORKDIR /ocs-operator
+WORKDIR /go/src/github.com/openshift/ocs-operator
+COPY . .
+USER root
 RUN make build-go
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal
 
-COPY --from=builder /ocs-operator/build/_output/bin/ocs-operator /usr/local/bin/ocs-operator
-COPY --from=builder /ocs-operator/build/_output/bin/metrics-exporter /usr/local/bin/metrics-exporter
-COPY --from=builder /ocs-operator/build/_output/*rules*.yaml /ocs-prometheus-rules/
+COPY --from=builder /go/src/github.com/openshift/ocs-operator/build/_output/bin/ocs-operator /usr/local/bin/ocs-operator
+COPY --from=builder /go/src/github.com/openshift/ocs-operator/build/_output/bin/metrics-exporter /usr/local/bin/metrics-exporter
+COPY --from=builder /go/src/github.com/openshift/ocs-operator/metrics/deploy/*rules*.yaml /ocs-prometheus-rules/
