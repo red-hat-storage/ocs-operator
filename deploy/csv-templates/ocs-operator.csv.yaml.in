@@ -122,6 +122,7 @@ spec:
           - config.openshift.io
           resources:
           - infrastructures
+          - networks
           verbs:
           - get
           - list
