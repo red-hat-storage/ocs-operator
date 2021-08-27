@@ -686,6 +686,7 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Deep Insights"
 	ocsCSV.Annotations["categories"] = "Storage"
+	ocsCSV.Annotations["operators.operatorframework.io/operator-type"] = "non-standalone"
 	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
 	// Make Storage cluster the initialization resource
 	ocsCSV.Annotations["operatorframework.io/initialization-resource"] = `
