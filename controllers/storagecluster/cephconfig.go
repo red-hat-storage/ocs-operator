@@ -1,9 +1,14 @@
 package storagecluster
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"strings"
 
+	configv1 "github.com/openshift/api/config/v1"
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	ini "gopkg.in/ini.v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +19,12 @@ import (
 type ocsCephConfig struct{}
 
 const (
-	rookConfigMapName     = "rook-config-override"
+	rookConfigMapName = "rook-config-override"
+	globalSectionKey  = "global"
+	publicNetworkKey  = "public_network"
+)
+
+var (
 	defaultRookConfigData = `
 [global]
 bdev_flock_retry = 20
@@ -35,12 +45,17 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
-
+	isNotFound := false
 	found := &corev1.ConfigMap{}
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
-
 	if err == nil && reconcileStrategy == ReconcileStrategyInit {
 		return nil
+	} else if err != nil {
+		if errors.IsNotFound(err) {
+			isNotFound = true
+		} else {
+			return err
+		}
 	}
 
 	ownerRef := metav1.OwnerReference{
@@ -49,6 +64,10 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 		Kind:       sc.Kind,
 		Name:       sc.Name,
 	}
+	rookConfigData, err := getRookCephConfig(r, sc)
+	if err != nil {
+		return fmt.Errorf("failed to get rook ceph config data: %w", err)
+	}
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            rookConfigMapName,
@@ -56,18 +75,15 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
 		},
 		Data: map[string]string{
-			"config": defaultRookConfigData,
+			"config": rookConfigData,
 		},
 	}
 
-	if err != nil {
-		if errors.IsNotFound(err) {
-			r.Log.Info("Creating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
-			err = r.Client.Create(context.TODO(), cm)
-			if err != nil {
-				r.Log.Error(err, "Failed to create Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
-				return err
-			}
+	if isNotFound {
+		r.Log.Info("Creating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
+		err = r.Client.Create(context.TODO(), cm)
+		if err != nil {
+			r.Log.Error(err, "Failed to create Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
 		}
 		return err
 	}
@@ -89,4 +105,50 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 // ensureDeleted is dummy func for the ocsCephConfig
 func (obj *ocsCephConfig) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 	return nil
+}
+
+// updateRookConfig(config string, section string, value string )(string, error)
+func updateRookConfig(defaultRookConfigData string, section string, key string, val string) (string, error) {
+	if defaultRookConfigData == "" {
+		return "", nil
+	}
+
+	if val == "" {
+		return "", nil
+	}
+	cfg, err := ini.Load([]byte(defaultRookConfigData))
+	if err != nil {
+		return "", fmt.Errorf("failed to load configData by ini Loader : %v", err)
+	}
+	cfg.Section(section).Key(key).SetValue(val)
+	var b bytes.Buffer
+	_, err = cfg.WriteTo(&b)
+	if err != nil {
+		return "", fmt.Errorf("failed to write to bytes buffer from ini cfg: %v", err)
+	}
+	return b.String(), nil
+}
+
+func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (string, error) {
+	// configure public network if the cluster is dualstack, but not multus
+	if sc.Spec.Network != nil && sc.Spec.Network.Provider == "" && sc.Spec.Network.DualStack {
+		log.Info("DualStack is enabled, and no alternate network provider is detected")
+
+		networkConfig := &configv1.Network{}
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "cluster", Namespace: ""}, networkConfig)
+		if err != nil {
+			return "", fmt.Errorf("could not get network config details : %v", err)
+		}
+		cidrNameArray := []string{}
+		for _, cidr := range networkConfig.Status.ClusterNetwork {
+			cidrNameArray = append(cidrNameArray, cidr.CIDR)
+		}
+		cidrName := strings.Join(cidrNameArray, ",")
+		rookConfigData, err := updateRookConfig(defaultRookConfigData, globalSectionKey, publicNetworkKey, cidrName)
+		if err != nil {
+			return "", fmt.Errorf("failed to set network configuration for rook: %v", err)
+		}
+		return rookConfigData, nil
+	}
+	return defaultRookConfigData, nil
 }
