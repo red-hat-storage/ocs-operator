@@ -81,3 +81,56 @@ spec:
       for: 15s
       labels:
         severity: critical
+  - name: mirroring-alert.rules
+    rules:
+    - alert: OdfMirrorDaemonStatus
+      annotations:
+        description: Mirror daemon is in unhealthy status for more than 1m. Mirroring
+          on this cluster is not working as expected.
+        message: Mirror daemon is unhealthy.
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        (ocs_mirror_daemon_status{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
+      for: 1m
+      labels:
+        severity: critical
+    - alert: OdfPoolMirroringImageHealth
+      annotations:
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+          Unknown state for more than 1m. Mirroring might not work as expected.
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown
+          state.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
+      for: 1m
+      labels:
+        severity: warning
+    - alert: OdfPoolMirroringImageHealth
+      annotations:
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+          Warning state for more than 1m. Mirroring might not work as expected.
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning
+          state.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
+      for: 1m
+      labels:
+        severity: warning
+    - alert: OdfPoolMirroringImageHealth
+      annotations:
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+          Error state for more than 10s. Mirroring is not working as expected.
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error
+          state.
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
+      for: 10s
+      labels:
+        severity: critical

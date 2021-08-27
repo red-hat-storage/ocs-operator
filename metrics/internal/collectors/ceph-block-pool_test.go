@@ -267,9 +267,9 @@ func TestCollectPoolMirroringStatus(t *testing.T) {
 			for _, label := range labels {
 				if *label.Name == "name" {
 					if *label.Value == objEnabled.Name {
-						assert.Equal(t, *metric.Gauge.Value, float64(0))
-					} else if *label.Value == objDisabled.Name {
 						assert.Equal(t, *metric.Gauge.Value, float64(1))
+					} else if *label.Value == objDisabled.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(0))
 					}
 				} else if *label.Name == "namespace" {
 					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
