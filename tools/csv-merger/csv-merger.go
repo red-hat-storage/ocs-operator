@@ -909,12 +909,8 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 	}
 
 	ownedCrds := map[string]*csvv1.CRDDescription{}
-	requiredCrds := map[string]*csvv1.CRDDescription{}
 	for _, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		ownedCrds[definition.Name] = &definition
-	}
-	for _, definition := range ocsCSV.Spec.CustomResourceDefinitions.Required {
-		requiredCrds[definition.Name] = &definition
 	}
 
 	for _, crdFile := range crdFiles {
@@ -943,12 +939,8 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 				// filters out empty entries caused by starting file with '---' separator
 				continue
 			}
-			if requiredCrds[crd.Name] != nil {
-				// filter out required entries
-				continue
-			}
 			if ownedCrds[crd.Name] == nil {
-				fmt.Printf("WARNING: CRD is not owned and not required %s\n", crd.Name)
+				continue
 			}
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("%s.crd.yaml", crd.Spec.Names.Singular))
 			writer := strings.Builder{}
