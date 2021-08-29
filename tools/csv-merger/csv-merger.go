@@ -447,8 +447,21 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	// Merge CSVs into Unified CSV
 	for _, csv := range mergeCsvs {
-		if csv != nil {
-			strategySpec := csv.Spec.InstallStrategy.StrategySpec
+		if csv == noobaaCSV {
+			for _, definition := range csv.Spec.CustomResourceDefinitions.Owned {
+				// Add noobaas to Required
+				if definition.Name == "noobaas.noobaa.io" {
+					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, definition)
+				}
+			}
+			for _, definition := range csv.Spec.CustomResourceDefinitions.Required {
+				// Move ob and obc to Owned list instead to Required
+				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
+					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
+				}
+			}
+		} else {
+			strategySpec := unmarshalStrategySpec(csv)
 
 			deploymentspecs := strategySpec.DeploymentSpecs
 			clusterPermissions := strategySpec.ClusterPermissions
@@ -459,15 +472,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
 			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csv.Spec.CustomResourceDefinitions.Owned...)
-
-			for _, definition := range csv.Spec.CustomResourceDefinitions.Required {
-				// Move ob and obc to Owned list instead to Required
-				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
-					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				} else {
-					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				}
-			}
 		}
 	}
 	// whitelisting APIs
