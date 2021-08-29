@@ -423,16 +423,15 @@ func contains(slice []string, s string) bool {
 }
 
 func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
-
-	csvs := []string{
-		*ocsCSVStr,
-		*rookCSVStr,
-		*noobaaCSVStr,
-	}
-
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
 	rookCSV := unmarshalCSV(*rookCSVStr)
-	ocsCSV.Spec.CustomResourceDefinitions.Owned = nil
+	noobaaCSV := unmarshalCSV(*noobaaCSVStr)
+
+	mergeCsvs := []*csvv1.ClusterServiceVersion{
+		rookCSV,
+		noobaaCSV,
+	}
+
 	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
 
 	ocsCSV.Spec.Icon = []csvv1.Icon{
@@ -444,17 +443,12 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = ""
 
-	templateStrategySpec := &csvv1.StrategyDetailsDeployment{
-		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{},
-		Permissions:        []csvv1.StrategyDeploymentPermissions{},
-		DeploymentSpecs:    []csvv1.StrategyDeploymentSpec{},
-	}
+	templateStrategySpec := &ocsCSV.Spec.InstallStrategy.StrategySpec
 
 	// Merge CSVs into Unified CSV
-	for _, csvStr := range csvs {
-		if csvStr != "" {
-			csvStruct := unmarshalCSV(csvStr)
-			strategySpec := unmarshalStrategySpec(csvStruct)
+	for _, csv := range mergeCsvs {
+		if csv != nil {
+			strategySpec := csv.Spec.InstallStrategy.StrategySpec
 
 			deploymentspecs := strategySpec.DeploymentSpecs
 			clusterPermissions := strategySpec.ClusterPermissions
@@ -464,10 +458,10 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
-			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
+			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csv.Spec.CustomResourceDefinitions.Owned...)
 
-			for _, definition := range csvStruct.Spec.CustomResourceDefinitions.Required {
-				// Move ob and obc to Owned list instead ot Required
+			for _, definition := range csv.Spec.CustomResourceDefinitions.Required {
+				// Move ob and obc to Owned list instead to Required
 				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
 					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
 				} else {
@@ -543,8 +537,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		},
 	})
 	fmt.Println(templateStrategySpec.DeploymentSpecs)
-
-	ocsCSV.Spec.InstallStrategy.StrategySpec = *templateStrategySpec
 
 	// Set correct csv versions and name
 	semverVersion, err := semver.New(*csvVersion)
