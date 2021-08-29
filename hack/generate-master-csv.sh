@@ -17,10 +17,6 @@ NOOBAA_CORE_PATTERN="noobaa\/noobaa-core:[0-9.-]*$"
 NOOBAA_CORE_VERSION=$(latest_master_version 'noobaa/noobaa-core' master)
 sed -i "s/${NOOBAA_CORE_PATTERN}/noobaa\/noobaa-core:${NOOBAA_CORE_VERSION}/" "$CSV_FILE"
 
-NOOBAA_OPERATOR_PATTERN="noobaa\/noobaa-operator:[0-9.-]*$"
-NOOBAA_OPERATOR_VERSION=$(latest_master_version noobaa/noobaa-operator master)
-sed -i "s/${NOOBAA_OPERATOR_PATTERN}/noobaa\/noobaa-operator:${NOOBAA_OPERATOR_VERSION}/" "$CSV_FILE"
-
 ROOK_PATTERN="rook\/ceph:v[a-zA-Z0-9.-]*$"
 ROOK_VERSION="master"
 sed -i "s/${ROOK_PATTERN}/rook\/ceph:${ROOK_VERSION}/" "${CSV_FILE}"
