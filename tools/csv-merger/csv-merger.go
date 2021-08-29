@@ -75,12 +75,10 @@ var (
 )
 
 type templateData struct {
-	RookOperatorImage        string
-	RookOperatorCsvVersion   string
-	NoobaaOperatorImage      string
-	NoobaaOperatorCsvVersion string
-	OcsOperatorCsvVersion    string
-	OcsOperatorImage         string
+	RookOperatorImage      string
+	RookOperatorCsvVersion string
+	OcsOperatorCsvVersion  string
+	OcsOperatorImage       string
 }
 
 func finalizedCsvFilename() string {
@@ -108,12 +106,10 @@ func copyFile(src string, dst string) {
 
 func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	data := templateData{
-		RookOperatorImage:        *rookContainerImage,
-		NoobaaOperatorImage:      *noobaaContainerImage,
-		NoobaaOperatorCsvVersion: *csvVersion,
-		RookOperatorCsvVersion:   *csvVersion,
-		OcsOperatorCsvVersion:    *csvVersion,
-		OcsOperatorImage:         *ocsContainerImage,
+		RookOperatorImage:      *rookContainerImage,
+		RookOperatorCsvVersion: *csvVersion,
+		OcsOperatorCsvVersion:  *csvVersion,
+		OcsOperatorImage:       *ocsContainerImage,
 	}
 
 	writer := strings.Builder{}
@@ -310,27 +306,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 
 		// override the rook env var list.
 		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env = vars
-
-	} else if strings.Contains(csv.Name, "noobaa") {
-
-		vars := []corev1.EnvVar{
-			{
-				Name:  "NOOBAA_CORE_IMAGE",
-				Value: *noobaaCoreContainerImage,
-			},
-			{
-				Name:  "NOOBAA_DB_IMAGE",
-				Value: *noobaaDBContainerImage,
-			},
-		}
-
-		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env =
-			append(templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env, vars...)
-
-		// TODO remove this if statement once issue
-		// https://github.com/noobaa/noobaa-operator/issues/35 is resolved
-		// this image should be set by the templator logic
-		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
 	}
 
 	return csv
@@ -854,24 +829,6 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "volume-replication-operator",
 			"image": *volumeReplicationControllerImage,
-		})
-	}
-	if *noobaaContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "noobaa-operator",
-			"image": *noobaaContainerImage,
-		})
-	}
-	if *noobaaCoreContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "noobaa-core",
-			"image": *noobaaCoreContainerImage,
-		})
-	}
-	if *noobaaDBContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "noobaa-db",
-			"image": *noobaaDBContainerImage,
 		})
 	}
 	if *ocsMustGatherImage != "" {
