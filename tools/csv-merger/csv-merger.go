@@ -127,16 +127,11 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 
 	bytes := []byte(writer.String())
 
-	csvStruct := &csvv1.ClusterServiceVersion{}
-	err = yaml.Unmarshal(bytes, csvStruct)
+	csv := &csvv1.ClusterServiceVersion{}
+	err = yaml.Unmarshal(bytes, csv)
 	if err != nil {
 		panic(err)
 	}
-
-	return csvStruct
-}
-
-func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvv1.StrategyDetailsDeployment {
 
 	templateStrategySpec := &csv.Spec.InstallStrategy.StrategySpec
 
@@ -338,7 +333,7 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvv1.StrategyDeta
 		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
 	}
 
-	return templateStrategySpec
+	return csv
 }
 
 func marshallObject(obj interface{}, writer io.Writer, modifyUnstructuredFunc func(*unstructured.Unstructured) error) error {
@@ -461,7 +456,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 				}
 			}
 		} else {
-			strategySpec := unmarshalStrategySpec(csv)
+			strategySpec := csv.Spec.InstallStrategy.StrategySpec
 
 			deploymentspecs := strategySpec.DeploymentSpecs
 			clusterPermissions := strategySpec.ClusterPermissions
