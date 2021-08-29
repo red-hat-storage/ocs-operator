@@ -567,7 +567,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		"storage",
 		"rook",
 		"ceph",
-		"noobaa",
 		"block storage",
 		"shared filesystem",
 		"object storage",
@@ -590,10 +589,6 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 
 [Rook][1] deploys and manages Ceph on OpenShift, which provides block and file storage.
 
-### NooBaa operator
-
-The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on OpenShift, which provides object storage.
-
 # Core Capabilities
 
 * **Self-managing service:** No matter which supported storage technologies you choose, OpenShift Container Storage ensures that resources can be deployed and managed automatically.
@@ -609,7 +604,6 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 * **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
 
 [1]: https://rook.io
-[2]: https://noobaa.io
 `
 
 	ocsCSV.Spec.DisplayName = "OpenShift Container Storage"
