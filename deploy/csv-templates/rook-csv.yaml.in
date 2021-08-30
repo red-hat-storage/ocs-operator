@@ -1846,6 +1846,12 @@ spec:
           verbs:
           - get
           - list
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - get
         serviceAccountName: rook-csi-rbd-plugin-sa
       - rules:
         - apiGroups:
@@ -2016,6 +2022,12 @@ spec:
           - volumereplicationclasses/status
           verbs:
           - get
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - get
         serviceAccountName: rook-csi-rbd-provisioner-sa
       - rules:
         - verbs:
@@ -2183,6 +2195,20 @@ spec:
           - '*'
           verbs:
           - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments/scale
+          - deployments
+          verbs:
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims
+          verbs:
+          - delete
         serviceAccountName: rook-ceph-mgr
       - rules:
         - apiGroups:

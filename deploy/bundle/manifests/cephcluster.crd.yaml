@@ -1135,6 +1135,7 @@ spec:
                         config:
                           additionalProperties:
                             type: string
+                          nullable: true
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         fullpath:
@@ -1164,6 +1165,7 @@ spec:
                               config:
                                 additionalProperties:
                                   type: string
+                                nullable: true
                                 type: object
                                 x-kubernetes-preserve-unknown-fields: true
                               fullpath:
@@ -1336,6 +1338,8 @@ spec:
                       type: object
                     nullable: true
                     type: array
+                  onlyApplyOSDPlacement:
+                    type: boolean
                   storageClassDeviceSets:
                     items:
                       properties:

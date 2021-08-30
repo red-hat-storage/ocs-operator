@@ -166,6 +166,9 @@ spec:
                     nullable: true
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
+                  caBundleRef:
+                    nullable: true
+                    type: string
                   externalRgwEndpoints:
                     items:
                       properties:
