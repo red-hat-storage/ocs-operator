@@ -23,34 +23,39 @@ import (
 type ocsNoobaaSystem struct{}
 
 func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	var err error
+	var reconcileStrategy ReconcileStrategy
+
 	// Everything other than ReconcileStrategyIgnore means we reconcile
 	if sc.Spec.MultiCloudGateway != nil {
-		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
-		if reconcileStrategy == ReconcileStrategyIgnore || reconcileStrategy == ReconcileStrategyStandalone {
+		reconcileStrategy = ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
+		if reconcileStrategy == ReconcileStrategyIgnore {
 			return nil
 		}
 	}
 
-	// find cephCluster
-	foundCeph := &cephv1.CephCluster{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-			return nil
+	if !r.IsNoobaaStandalone {
+		// find cephCluster
+		foundCeph := &cephv1.CephCluster{}
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				return nil
+			}
+			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+			return err
 		}
-		r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-		return err
-	}
-	if !sc.Spec.ExternalStorage.Enable {
-		if foundCeph.Status.State != cephv1.ClusterStateCreated {
-			r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-			return nil
-		}
-	} else {
-		if foundCeph.Status.State != cephv1.ClusterStateConnected {
-			r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-			return nil
+		if !sc.Spec.ExternalStorage.Enable {
+			if foundCeph.Status.State != cephv1.ClusterStateCreated {
+				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				return nil
+			}
+		} else {
+			if foundCeph.Status.State != cephv1.ClusterStateConnected {
+				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				return nil
+			}
 		}
 	}
 
@@ -97,7 +102,6 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 }
 
 func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster) error {
-	storageClassName := generateNameForCephBlockPoolSC(sc, "")
 	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
 	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
 	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", sc.Spec.Resources)
@@ -106,8 +110,13 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	nb.Labels = map[string]string{
 		"app": "noobaa",
 	}
-	nb.Spec.DBStorageClass = &storageClassName
-	nb.Spec.PVPoolDefaultStorageClass = &storageClassName
+
+	if !r.IsNoobaaStandalone {
+		storageClassName := generateNameForCephBlockPoolSC(sc, "")
+		nb.Spec.DBStorageClass = &storageClassName
+		nb.Spec.PVPoolDefaultStorageClass = &storageClassName
+	}
+
 	nb.Spec.CoreResources = &coreResources
 	nb.Spec.DBResources = &dbResources
 	placement := getPlacement(sc, "noobaa-core")
@@ -171,7 +180,7 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	// Delete only if this is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
-		if reconcileStrategy == ReconcileStrategyIgnore || reconcileStrategy == ReconcileStrategyStandalone {
+		if reconcileStrategy == ReconcileStrategyIgnore {
 			return nil
 		}
 	}

@@ -184,7 +184,7 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 	// Do this if Noobaa is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
-		if reconcileStrategy == ReconcileStrategyIgnore || reconcileStrategy == ReconcileStrategyStandalone {
+		if reconcileStrategy == ReconcileStrategyIgnore {
 			return nil
 		}
 	}

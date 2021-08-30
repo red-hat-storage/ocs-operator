@@ -73,16 +73,17 @@ type ImageMap struct {
 //nolint
 type StorageClusterReconciler struct {
 	client.Client
-	Log               logr.Logger
-	Scheme            *runtime.Scheme
-	serverVersion     *version.Info
-	conditions        []conditionsv1.Condition
-	phase             string
-	nodeCount         int
-	platform          *Platform
-	images            ImageMap
-	recorder          *util.EventReporter
-	OperatorCondition conditions.Condition
+	Log                logr.Logger
+	Scheme             *runtime.Scheme
+	serverVersion      *version.Info
+	conditions         []conditionsv1.Condition
+	phase              string
+	nodeCount          int
+	platform           *Platform
+	images             ImageMap
+	recorder           *util.EventReporter
+	OperatorCondition  conditions.Condition
+	IsNoobaaStandalone bool
 }
 
 // SetupWithManager sets up a controller with manager
