@@ -1319,6 +1319,11 @@ type GatewaySpec struct {
 	// +optional
 	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 
+	// The name of the secret that stores custom ca-bundle with root and intermediate certificates.
+	// +nullable
+	// +optional
+	CaBundleRef string `json:"caBundleRef,omitempty"`
+
 	// The affinity to place the rgw pods (default is to place on any available node)
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
@@ -1895,6 +1900,8 @@ type StorageScopeSpec struct {
 	Nodes []Node `json:"nodes,omitempty"`
 	// +optional
 	UseAllNodes bool `json:"useAllNodes,omitempty"`
+	// +optional
+	OnlyApplyOSDPlacement bool `json:"onlyApplyOSDPlacement,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
@@ -1928,6 +1935,7 @@ type Device struct {
 	// +optional
 	FullPath string `json:"fullpath,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
 	// +optional
 	Config map[string]string `json:"config,omitempty"`
 }
