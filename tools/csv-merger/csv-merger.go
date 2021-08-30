@@ -43,7 +43,6 @@ var (
 	rookCsiProvisionerImage          = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiSnapshotterImage          = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	rookCsiAttacherImage             = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	noobaaContainerImage             = flag.String("noobaa-image", "", "noobaa operator container image")
 	noobaaCoreContainerImage         = flag.String("noobaa-core-image", "", "noobaa core container image")
 	noobaaDBContainerImage           = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage                = flag.String("ocs-image", "", "ocs operator container image")
@@ -75,12 +74,10 @@ var (
 )
 
 type templateData struct {
-	RookOperatorImage        string
-	RookOperatorCsvVersion   string
-	NoobaaOperatorImage      string
-	NoobaaOperatorCsvVersion string
-	OcsOperatorCsvVersion    string
-	OcsOperatorImage         string
+	RookOperatorImage      string
+	RookOperatorCsvVersion string
+	OcsOperatorCsvVersion  string
+	OcsOperatorImage       string
 }
 
 func finalizedCsvFilename() string {
@@ -108,12 +105,10 @@ func copyFile(src string, dst string) {
 
 func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	data := templateData{
-		RookOperatorImage:        *rookContainerImage,
-		NoobaaOperatorImage:      *noobaaContainerImage,
-		NoobaaOperatorCsvVersion: *csvVersion,
-		RookOperatorCsvVersion:   *csvVersion,
-		OcsOperatorCsvVersion:    *csvVersion,
-		OcsOperatorImage:         *ocsContainerImage,
+		RookOperatorImage:      *rookContainerImage,
+		RookOperatorCsvVersion: *csvVersion,
+		OcsOperatorCsvVersion:  *csvVersion,
+		OcsOperatorImage:       *ocsContainerImage,
 	}
 
 	writer := strings.Builder{}
@@ -127,16 +122,11 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 
 	bytes := []byte(writer.String())
 
-	csvStruct := &csvv1.ClusterServiceVersion{}
-	err = yaml.Unmarshal(bytes, csvStruct)
+	csv := &csvv1.ClusterServiceVersion{}
+	err = yaml.Unmarshal(bytes, csv)
 	if err != nil {
 		panic(err)
 	}
-
-	return csvStruct
-}
-
-func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvv1.StrategyDetailsDeployment {
 
 	templateStrategySpec := &csv.Spec.InstallStrategy.StrategySpec
 
@@ -315,30 +305,9 @@ func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvv1.StrategyDeta
 
 		// override the rook env var list.
 		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env = vars
-
-	} else if strings.Contains(csv.Name, "noobaa") {
-
-		vars := []corev1.EnvVar{
-			{
-				Name:  "NOOBAA_CORE_IMAGE",
-				Value: *noobaaCoreContainerImage,
-			},
-			{
-				Name:  "NOOBAA_DB_IMAGE",
-				Value: *noobaaDBContainerImage,
-			},
-		}
-
-		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env =
-			append(templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env, vars...)
-
-		// TODO remove this if statement once issue
-		// https://github.com/noobaa/noobaa-operator/issues/35 is resolved
-		// this image should be set by the templator logic
-		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Image = *noobaaContainerImage
 	}
 
-	return templateStrategySpec
+	return csv
 }
 
 func marshallObject(obj interface{}, writer io.Writer, modifyUnstructuredFunc func(*unstructured.Unstructured) error) error {
@@ -423,16 +392,15 @@ func contains(slice []string, s string) bool {
 }
 
 func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
-
-	csvs := []string{
-		*ocsCSVStr,
-		*rookCSVStr,
-		*noobaaCSVStr,
-	}
-
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
 	rookCSV := unmarshalCSV(*rookCSVStr)
-	ocsCSV.Spec.CustomResourceDefinitions.Owned = nil
+	noobaaCSV := unmarshalCSV(*noobaaCSVStr)
+
+	mergeCsvs := []*csvv1.ClusterServiceVersion{
+		rookCSV,
+		noobaaCSV,
+	}
+
 	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
 
 	ocsCSV.Spec.Icon = []csvv1.Icon{
@@ -444,17 +412,25 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = ""
 
-	templateStrategySpec := &csvv1.StrategyDetailsDeployment{
-		ClusterPermissions: []csvv1.StrategyDeploymentPermissions{},
-		Permissions:        []csvv1.StrategyDeploymentPermissions{},
-		DeploymentSpecs:    []csvv1.StrategyDeploymentSpec{},
-	}
+	templateStrategySpec := &ocsCSV.Spec.InstallStrategy.StrategySpec
 
 	// Merge CSVs into Unified CSV
-	for _, csvStr := range csvs {
-		if csvStr != "" {
-			csvStruct := unmarshalCSV(csvStr)
-			strategySpec := unmarshalStrategySpec(csvStruct)
+	for _, csv := range mergeCsvs {
+		if csv == noobaaCSV {
+			for _, definition := range csv.Spec.CustomResourceDefinitions.Owned {
+				// Add noobaas to Required
+				if definition.Name == "noobaas.noobaa.io" {
+					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Required, definition)
+				}
+			}
+			for _, definition := range csv.Spec.CustomResourceDefinitions.Required {
+				// Move ob and obc to Owned list instead to Required
+				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
+					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
+				}
+			}
+		} else {
+			strategySpec := csv.Spec.InstallStrategy.StrategySpec
 
 			deploymentspecs := strategySpec.DeploymentSpecs
 			clusterPermissions := strategySpec.ClusterPermissions
@@ -464,16 +440,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
-			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csvStruct.Spec.CustomResourceDefinitions.Owned...)
-
-			for _, definition := range csvStruct.Spec.CustomResourceDefinitions.Required {
-				// Move ob and obc to Owned list instead ot Required
-				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
-					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				} else {
-					ocsCSV.Spec.CustomResourceDefinitions.Required = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				}
-			}
+			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csv.Spec.CustomResourceDefinitions.Owned...)
 		}
 	}
 	// whitelisting APIs
@@ -544,8 +511,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	})
 	fmt.Println(templateStrategySpec.DeploymentSpecs)
 
-	ocsCSV.Spec.InstallStrategy.StrategySpec = *templateStrategySpec
-
 	// Set correct csv versions and name
 	semverVersion, err := semver.New(*csvVersion)
 	if err != nil {
@@ -602,7 +567,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		"storage",
 		"rook",
 		"ceph",
-		"noobaa",
 		"block storage",
 		"shared filesystem",
 		"object storage",
@@ -625,10 +589,6 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 
 [Rook][1] deploys and manages Ceph on OpenShift, which provides block and file storage.
 
-### NooBaa operator
-
-The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on OpenShift, which provides object storage.
-
 # Core Capabilities
 
 * **Self-managing service:** No matter which supported storage technologies you choose, OpenShift Container Storage ensures that resources can be deployed and managed automatically.
@@ -644,7 +604,6 @@ The NooBaa operator deploys and manages the [NooBaa][2] Multi-Cloud Gateway on O
 * **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
 
 [1]: https://rook.io
-[2]: https://noobaa.io
 `
 
 	ocsCSV.Spec.DisplayName = "OpenShift Container Storage"
@@ -865,24 +824,6 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 			"image": *volumeReplicationControllerImage,
 		})
 	}
-	if *noobaaContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "noobaa-operator",
-			"image": *noobaaContainerImage,
-		})
-	}
-	if *noobaaCoreContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "noobaa-core",
-			"image": *noobaaCoreContainerImage,
-		})
-	}
-	if *noobaaDBContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "noobaa-db",
-			"image": *noobaaDBContainerImage,
-		})
-	}
 	if *ocsMustGatherImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "ocs-must-gather",
@@ -909,12 +850,8 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 	}
 
 	ownedCrds := map[string]*csvv1.CRDDescription{}
-	requiredCrds := map[string]*csvv1.CRDDescription{}
 	for _, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		ownedCrds[definition.Name] = &definition
-	}
-	for _, definition := range ocsCSV.Spec.CustomResourceDefinitions.Required {
-		requiredCrds[definition.Name] = &definition
 	}
 
 	for _, crdFile := range crdFiles {
@@ -943,12 +880,8 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 				// filters out empty entries caused by starting file with '---' separator
 				continue
 			}
-			if requiredCrds[crd.Name] != nil {
-				// filter out required entries
-				continue
-			}
 			if ownedCrds[crd.Name] == nil {
-				fmt.Printf("WARNING: CRD is not owned and not required %s\n", crd.Name)
+				continue
 			}
 			outputFile := filepath.Join(*outputDir, fmt.Sprintf("%s.crd.yaml", crd.Spec.Names.Singular))
 			writer := strings.Builder{}
@@ -1044,8 +977,6 @@ func main() {
 		log.Fatal("--rook-image is required")
 	} else if *cephContainerImage == "" {
 		log.Fatal("--ceph-image is required")
-	} else if *noobaaContainerImage == "" {
-		log.Fatal("--noobaa-image is required")
 	} else if *noobaaCoreContainerImage == "" {
 		log.Fatal("--noobaa-core-image is required")
 	} else if *noobaaDBContainerImage == "" {

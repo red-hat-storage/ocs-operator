@@ -56,7 +56,6 @@ $CSV_MERGER \
 	--rook-csi-provisioner-image="$ROOK_CSI_PROVISIONER_IMAGE" \
 	--rook-csi-snapshotter-image="$ROOK_CSI_SNAPSHOTTER_IMAGE" \
 	--rook-csi-attacher-image="$ROOK_CSI_ATTACHER_IMAGE" \
-	--noobaa-image="$NOOBAA_IMAGE" \
 	--noobaa-core-image="$NOOBAA_CORE_IMAGE" \
 	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
 	--ocs-image="$OCS_IMAGE" \
