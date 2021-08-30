@@ -106,11 +106,11 @@ func (obj *ocsCephConfig) ensureDeleted(r *StorageClusterReconciler, instance *o
 // updateRookConfig(config string, section string, value string )(string, error)
 func updateRookConfig(defaultRookConfigData string, section string, key string, val string) (string, error) {
 	if defaultRookConfigData == "" {
-		return "", nil
+		return "", fmt.Errorf("failed to update rook config: defaultRookConfigData is empty")
 	}
 
 	if val == "" {
-		return "", nil
+		return "", fmt.Errorf("failed to update rook config: value is empty")
 	}
 	cfg, err := ini.Load([]byte(defaultRookConfigData))
 	if err != nil {
@@ -138,6 +138,9 @@ func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (s
 		cidrNameArray := []string{}
 		for _, cidr := range networkConfig.Status.ClusterNetwork {
 			cidrNameArray = append(cidrNameArray, cidr.CIDR)
+		}
+		if len(cidrNameArray) == 0 {
+			return "", fmt.Errorf("no CIDR is detected")
 		}
 		cidrName := strings.Join(cidrNameArray, ",")
 		rookConfigData, err := updateRookConfig(defaultRookConfigData, globalSectionKey, publicNetworkKey, cidrName)
