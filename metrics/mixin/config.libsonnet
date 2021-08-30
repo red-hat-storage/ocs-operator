@@ -5,6 +5,7 @@
 
     // Duration to raise various Alerts
     clusterObjectStoreStateAlertTime: '15s',
+    odfClusterResourceQuotaAlertTime: '0s',
     odfMirrorDaemonStatusAlertTime: '1m',
     odfPoolMirroringImageHealthWarningAlertTime: '1m',
     odfPoolMirroringImageHealthCriticalAlertTime: '10s',
