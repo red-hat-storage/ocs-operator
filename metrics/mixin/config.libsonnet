@@ -7,6 +7,8 @@
     clusterObjectStoreStateAlertTime: '15s',
     odfClusterResourceQuotaAlertTime: '0s',
     odfMirrorDaemonStatusAlertTime: '1m',
+    odfObcQuotaAlertTime: '10s',
+    odfObcQuotaCriticalAlertTime: '0s',
     odfPoolMirroringImageHealthWarningAlertTime: '1m',
     odfPoolMirroringImageHealthCriticalAlertTime: '10s',
 
