@@ -10,6 +10,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	api "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -167,7 +168,25 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	platform *Platform,
 	obj ...runtime.Object) StorageClusterReconciler {
 	scheme := createFakeScheme(t)
-	obj = append(obj, mockNodeList.DeepCopy())
+	cfs := &cephv1.CephFilesystem{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephfilesystem",
+		},
+		Status: &cephv1.CephFilesystemStatus{
+			Phase: cephv1.ConditionType(util.PhaseReady),
+		},
+	}
+
+	cbp := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephblockpool",
+		},
+		Status: &cephv1.CephBlockPoolStatus{
+			Phase: cephv1.ConditionType(util.PhaseReady),
+		},
+	}
+
+	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}

@@ -11,7 +11,7 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.4.0
 	github.com/imdario/mergo v0.3.12
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210311161930-4bea5edaff58
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210818162813-3eee31c01875
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
@@ -28,7 +28,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/rook/rook v1.7.0
+	github.com/rook/rook v1.7.3-0.20210830134613-f2b966caf356
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/ini.v1 v1.57.0

@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	"github.com/openshift/ocs-operator/controllers/util"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +22,7 @@ type StorageClassConfiguration struct {
 	storageClass      *storagev1.StorageClass
 	reconcileStrategy ReconcileStrategy
 	disable           bool
+	isClusterExternal bool
 }
 
 type ocsStorageClass struct{}
@@ -77,11 +81,41 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 }
 
 func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration) error {
+	var skippedSC []string
 	for _, scc := range sccs {
 		if scc.reconcileStrategy == ReconcileStrategyIgnore || scc.disable {
 			continue
 		}
 		sc := scc.storageClass
+
+		if strings.Contains(sc.Name, "-ceph-rbd") && !scc.isClusterExternal {
+			// wait for CephBlockPool to be ready
+			cephBlockPool := cephv1.CephBlockPool{}
+			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: sc.Parameters["clusterID"]}
+			err := r.Client.Get(context.TODO(), key, &cephBlockPool)
+			if err != nil || cephBlockPool.Status == nil || cephBlockPool.Status.Phase != cephv1.ConditionType(util.PhaseReady) {
+				r.Log.Info("Waiting for CephBlockPool to be Ready. Skip reconciling StorageClass",
+					"CephBlockPool", klog.KRef(key.Name, key.Namespace),
+					"StorageClass", klog.KRef("", sc.Name),
+				)
+				skippedSC = append(skippedSC, sc.Name)
+				continue
+			}
+		} else if strings.Contains(sc.Name, "-cephfs") && !scc.isClusterExternal {
+			// wait for CephFilesystem to be ready
+			cephFilesystem := cephv1.CephFilesystem{}
+			key := types.NamespacedName{Name: sc.Parameters["fsName"], Namespace: sc.Parameters["clusterID"]}
+			err := r.Client.Get(context.TODO(), key, &cephFilesystem)
+			if err != nil || cephFilesystem.Status == nil || cephFilesystem.Status.Phase != cephv1.ConditionType(util.PhaseReady) {
+				r.Log.Info("Waiting for CephFilesystem to be Ready. Skip reconciling StorageClass",
+					"CephFilesystem", klog.KRef(key.Name, key.Namespace),
+					"StorageClass", klog.KRef("", sc.Name),
+				)
+				skippedSC = append(skippedSC, sc.Name)
+				continue
+			}
+		}
+
 		existing := &storagev1.StorageClass{}
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 
@@ -113,11 +147,14 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				r.Log.Info("Creating StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
 				err = r.Client.Create(context.TODO(), sc)
 				if err != nil {
-					r.Log.Info("Failed to craete StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
+					r.Log.Info("Failed to create StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
 					return err
 				}
 			}
 		}
+	}
+	if len(skippedSC) > 0 {
+		return fmt.Errorf("some StorageClasses [%s] were skipped while waiting for pre-requisites to be met", strings.Join(skippedSC, ","))
 	}
 	return nil
 }
@@ -152,6 +189,7 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 		},
 		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
 		disable:           managementSpec.DisableStorageClass,
+		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
 }
 
@@ -196,6 +234,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, t
 		},
 		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
 		disable:           managementSpec.DisableStorageClass,
+		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
 }
 
@@ -221,6 +260,7 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 		},
 		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
 		disable:           managementSpec.DisableStorageClass,
+		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
 }
 

@@ -84,8 +84,8 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 
 			r.Log.Info("Restoring original CephFilesystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 			existing.ObjectMeta.OwnerReferences = cephFilesystem.ObjectMeta.OwnerReferences
-			cephFilesystem.ObjectMeta = existing.ObjectMeta
-			err = r.Client.Update(context.TODO(), cephFilesystem)
+			existing.Spec = cephFilesystem.Spec
+			err = r.Client.Update(context.TODO(), &existing)
 			if err != nil {
 				r.Log.Error(err, "Unable to update CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 				return err

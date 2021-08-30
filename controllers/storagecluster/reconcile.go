@@ -341,24 +341,26 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	var objs []resourceManager
 	if !instance.Spec.ExternalStorage.Enable {
 		// list of default ensure functions
+		// preserve list order
 		objs = []resourceManager{
-			&ocsStorageClass{},
-			&ocsStorageQuota{},
-			&ocsSnapshotClass{},
+			&ocsCephConfig{},
+			&ocsCephCluster{},
+			&ocsCephBlockPools{},
+			&ocsCephFilesystems{},
 			&ocsCephObjectStores{},
 			&ocsCephObjectStoreUsers{},
 			&ocsCephRGWRoutes{},
-			&ocsCephBlockPools{},
-			&ocsCephFilesystems{},
-			&ocsCephConfig{},
-			&ocsCephCluster{},
+			&ocsStorageClass{},
 			&ocsNoobaaSystem{},
+			&ocsStorageQuota{},
+			&ocsSnapshotClass{},
 			&ocsJobTemplates{},
 			&ocsCephRbdMirrors{},
 		}
 
 	} else {
 		// for external cluster, we have a different set of ensure functions
+		// preserve list order
 		objs = []resourceManager{
 			&ocsExternalResources{},
 			&ocsCephCluster{},

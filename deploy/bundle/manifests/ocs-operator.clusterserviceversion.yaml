@@ -2410,6 +2410,12 @@ spec:
           verbs:
           - get
           - list
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - get
         serviceAccountName: rook-csi-rbd-plugin-sa
       - rules:
         - apiGroups:
@@ -2580,6 +2586,12 @@ spec:
           - volumereplicationclasses/status
           verbs:
           - get
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - get
         serviceAccountName: rook-csi-rbd-provisioner-sa
       - rules:
         - apiGroups:
@@ -2689,7 +2701,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.7.0
+                  value: rook/ceph:v1.7.2-4.gf2b966c
                 - name: CEPH_IMAGE
                   value: ceph/daemon-base:latest-pacific
                 - name: NOOBAA_CORE_IMAGE
@@ -2790,7 +2802,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: rook/ceph:v1.7.0
+                image: rook/ceph:v1.7.2-4.gf2b966c
                 name: rook-ceph-operator
                 resources: {}
                 volumeMounts:
@@ -2976,6 +2988,20 @@ spec:
           - '*'
           verbs:
           - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments/scale
+          - deployments
+          verbs:
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims
+          verbs:
+          - delete
         serviceAccountName: rook-ceph-mgr
       - rules:
         - apiGroups:
@@ -3270,7 +3296,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: rook/ceph:v1.7.0
+  - image: rook/ceph:v1.7.2-4.gf2b966c
     name: rook-container
   - image: ceph/daemon-base:latest-pacific
     name: ceph-container

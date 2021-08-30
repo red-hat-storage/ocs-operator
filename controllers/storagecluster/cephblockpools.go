@@ -106,8 +106,8 @@ func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instanc
 
 			r.Log.Info("Restoring original CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 			existing.ObjectMeta.OwnerReferences = cephBlockPool.ObjectMeta.OwnerReferences
-			cephBlockPool.ObjectMeta = existing.ObjectMeta
-			err = r.Client.Update(context.TODO(), cephBlockPool)
+			existing.Spec = cephBlockPool.Spec
+			err = r.Client.Update(context.TODO(), &existing)
 			if err != nil {
 				r.Log.Error(err, "Failed to update CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 				return err

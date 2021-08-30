@@ -43,6 +43,8 @@ type Provisioner interface {
 	Provision(options *BucketOptions) (*v1alpha1.ObjectBucket, error)
 	// Grant should be implemented to handle access to existing buckets
 	Grant(options *BucketOptions) (*v1alpha1.ObjectBucket, error)
+	// Update should be implemented to handle cases when additional config are modified
+	Update(ob *v1alpha1.ObjectBucket) error
 	// Delete should be implemented to handle bucket deletion
 	Delete(ob *v1alpha1.ObjectBucket) error
 	// Revoke should be implemented to handle removing bucket access

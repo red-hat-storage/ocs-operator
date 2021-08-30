@@ -15,6 +15,7 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -32,6 +33,7 @@ import (
 
 	api "github.com/openshift/ocs-operator/api/v1"
 	"github.com/openshift/ocs-operator/controllers/defaults"
+	"github.com/openshift/ocs-operator/controllers/util"
 	statusutil "github.com/openshift/ocs-operator/controllers/util"
 	"github.com/openshift/ocs-operator/version"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -936,6 +938,27 @@ func assertCondition(conditions []conditionsv1.Condition, conditionType conditio
 
 func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
 	scheme := createFakeScheme(t)
+	name := mockStorageClusterRequest.NamespacedName.Name
+	namespace := mockStorageClusterRequest.NamespacedName.Namespace
+	cfs := &cephv1.CephFilesystem{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-cephfilesystem", name),
+			Namespace: namespace,
+		},
+		Status: &cephv1.CephFilesystemStatus{
+			Phase: cephv1.ConditionType(util.PhaseReady),
+		},
+	}
+	cbp := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-cephblockpool", name),
+			Namespace: namespace,
+		},
+		Status: &cephv1.CephBlockPoolStatus{
+			Phase: cephv1.ConditionType(util.PhaseReady),
+		},
+	}
+	obj = append(obj, cbp, cfs)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 
 	return StorageClusterReconciler{
