@@ -45,17 +45,12 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
-	isNotFound := false
 	found := &corev1.ConfigMap{}
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
 	if err == nil && reconcileStrategy == ReconcileStrategyInit {
 		return nil
-	} else if err != nil {
-		if errors.IsNotFound(err) {
-			isNotFound = true
-		} else {
-			return err
-		}
+	} else if err != nil && !errors.IsNotFound(err) {
+		return err
 	}
 
 	ownerRef := metav1.OwnerReference{
@@ -64,8 +59,8 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 		Kind:       sc.Kind,
 		Name:       sc.Name,
 	}
-	rookConfigData, err := getRookCephConfig(r, sc)
-	if err != nil {
+	rookConfigData, configErr := getRookCephConfig(r, sc)
+	if configErr != nil {
 		return fmt.Errorf("failed to get rook ceph config data: %w", err)
 	}
 	cm := &corev1.ConfigMap{
@@ -79,11 +74,12 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 		},
 	}
 
-	if isNotFound {
+	if err != nil {
 		r.Log.Info("Creating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
 		err = r.Client.Create(context.TODO(), cm)
 		if err != nil {
 			r.Log.Error(err, "Failed to create Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
+			return err
 		}
 		return err
 	}
@@ -110,11 +106,11 @@ func (obj *ocsCephConfig) ensureDeleted(r *StorageClusterReconciler, instance *o
 // updateRookConfig(config string, section string, value string )(string, error)
 func updateRookConfig(defaultRookConfigData string, section string, key string, val string) (string, error) {
 	if defaultRookConfigData == "" {
-		return "", nil
+		return "", fmt.Errorf("failed to update rook config: defaultRookConfigData is empty")
 	}
 
 	if val == "" {
-		return "", nil
+		return "", fmt.Errorf("failed to update rook config: value is empty")
 	}
 	cfg, err := ini.Load([]byte(defaultRookConfigData))
 	if err != nil {
@@ -142,6 +138,9 @@ func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (s
 		cidrNameArray := []string{}
 		for _, cidr := range networkConfig.Status.ClusterNetwork {
 			cidrNameArray = append(cidrNameArray, cidr.CIDR)
+		}
+		if len(cidrNameArray) == 0 {
+			return "", fmt.Errorf("no CIDR is detected")
 		}
 		cidrName := strings.Join(cidrNameArray, ",")
 		rookConfigData, err := updateRookConfig(defaultRookConfigData, globalSectionKey, publicNetworkKey, cidrName)
