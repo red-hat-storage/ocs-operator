@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -247,36 +248,16 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		objectKey := types.NamespacedName{Name: d.Name, Namespace: instance.Namespace}
 		switch d.Kind {
 		case "CephCluster":
-			monitoringIP := d.Data["MonitoringEndpoint"]
-			if monitoringIP == "" {
-				err := fmt.Errorf(
-					"Monitoring Endpoint not present in the external cluster secret %s",
-					externalClusterDetailsSecret)
-				r.Log.Error(err, "Failed to get Monitoring IP.")
-				return err
-			}
-			// replace any comma in the monitoring ip string with space
-			// and then collect individual (non-empty) items' array
-			monIPArr := parseMonitoringIPs(monitoringIP)
-			monitoringPort := d.Data["MonitoringPort"]
-			if monitoringPort != "" {
-				var err error
-				for _, eachMonIP := range monIPArr {
-					err = checkEndpointReachable(net.JoinHostPort(eachMonIP, monitoringPort), 5*time.Second)
-					// if any one of the mon's IP:PORT combination is reachable,
-					// consider the whole set as valid
-					if err == nil {
-						break
-					}
-				}
-				if err != nil {
-					r.Log.Error(err, "Monitoring validation failed")
+			if d.Name == "monitoring-endpoint" {
+				monitoringIP := d.Data["MonitoringEndpoint"]
+				monitoringPort := d.Data["MonitoringPort"]
+				if err := verifyMonitoringEndpoints(monitoringIP, monitoringPort, r.Log); err != nil {
 					return err
 				}
+				r.monitoringIP = monitoringIP
 				r.monitoringPort = monitoringPort
+				r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			}
-			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster")
-			r.monitoringIP = monitoringIP
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{
 				ObjectMeta: objectMeta,
@@ -352,6 +333,35 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		}
 	}
 	return nil
+}
+
+func verifyMonitoringEndpoints(monitoringIP, monitoringPort string,
+	log logr.Logger) (err error) {
+	if monitoringIP == "" {
+		err = fmt.Errorf(
+			"Monitoring Endpoint not present in the external cluster secret %s",
+			externalClusterDetailsSecret)
+		log.Error(err, "Failed to get Monitoring IP.")
+		return
+	}
+	if monitoringPort != "" {
+		// replace any comma in the monitoring ip string with space
+		// and then collect individual (non-empty) items' array
+		monIPArr := parseMonitoringIPs(monitoringIP)
+		for _, eachMonIP := range monIPArr {
+			err = checkEndpointReachable(net.JoinHostPort(eachMonIP, monitoringPort), 5*time.Second)
+			// if any one of the mon's IP:PORT combination is reachable,
+			// consider the whole set as valid
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			log.Error(err, "Monitoring validation failed")
+			return
+		}
+	}
+	return
 }
 
 // createExternalStorageClusterConfigMap creates configmap for external cluster
