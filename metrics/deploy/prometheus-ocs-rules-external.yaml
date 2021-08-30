@@ -82,6 +82,62 @@ spec:
       for: 0s
       labels:
         severity: warning
+  - name: odf-obc-quota-alert.rules
+    rules:
+    - alert: ObcQuotaBytesAlert
+      annotations:
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80%
+          of the size limit set by the quota(bytes) and will become read-only on reaching
+          the quota limit. Increase the quota in the {{$labels.objectbucketclaim}}
+          OBC custom resource.
+        message: OBC has crossed 80% of the quota(bytes).
+        severity_level: warning
+        storage_type: RGW
+      expr: |
+        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) > 0.80
+      for: 10s
+      labels:
+        severity: warning
+    - alert: ObcQuotaObjectsAlert
+      annotations:
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80%
+          of the size limit set by the quota(objects) and will become read-only on
+          reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}}
+          OBC custom resource.
+        message: OBC has crossed 80% of the quota(object).
+        severity_level: warning
+        storage_type: RGW
+      expr: |
+        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) > 0.80
+      for: 10s
+      labels:
+        severity: warning
+    - alert: ObcQuotaBytesExhausedAlert
+      annotations:
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the
+          limit set by the quota(bytes) and will be read-only now. Increase the quota
+          in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
+        message: OBC reached quota(bytes) limit.
+        severity_level: error
+        storage_type: RGW
+      expr: |
+        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) >= 1
+      for: 0s
+      labels:
+        severity: critical
+    - alert: ObcQuotaObjectsExhausedAlert
+      annotations:
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the
+          limit set by the quota(objects) and will be read-only now. Increase the
+          quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
+        message: OBC reached quota(object) limit.
+        severity_level: error
+        storage_type: RGW
+      expr: |
+        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) >= 1
+      for: 0s
+      labels:
+        severity: critical
   - name: external-cluster-services-alert.rules
     rules:
     - alert: ClusterObjectStoreState
