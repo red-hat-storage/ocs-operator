@@ -78,8 +78,6 @@ type StorageClusterReconciler struct {
 	serverVersion     *version.Info
 	conditions        []conditionsv1.Condition
 	phase             string
-	monitoringIP      string
-	monitoringPort    string
 	nodeCount         int
 	platform          *Platform
 	images            ImageMap

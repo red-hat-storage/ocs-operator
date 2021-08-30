@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -87,6 +88,16 @@ func sha512sum(tobeHashed []byte) (string, error) {
 
 func parseMonitoringIPs(monIP string) []string {
 	return strings.Fields(strings.ReplaceAll(monIP, ",", " "))
+}
+
+// findNamedResourceFromArray retrieves the 'ExternalResource' with provided 'name'
+func findNamedResourceFromArray(extArr []ExternalResource, name string) (ExternalResource, error) {
+	for _, extR := range extArr {
+		if extR.Name == name {
+			return extR, nil
+		}
+	}
+	return ExternalResource{}, fmt.Errorf("Unable to retrieve %q external resource", name)
 }
 
 func (r *StorageClusterReconciler) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
@@ -260,36 +271,11 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		objectKey := types.NamespacedName{Name: d.Name, Namespace: instance.Namespace}
 		switch d.Kind {
 		case "CephCluster":
-			monitoringIP := d.Data["MonitoringEndpoint"]
-			if monitoringIP == "" {
-				err := fmt.Errorf(
-					"Monitoring Endpoint not present in the external cluster secret %s",
-					externalClusterDetailsSecret)
-				r.Log.Error(err, "Failed to get Monitoring IP.")
-				return err
+			// nothing to be done here,
+			// as all the validation will be done in CephCluster creation
+			if d.Name == "monitoring-endpoint" {
+				continue
 			}
-			// replace any comma in the monitoring ip string with space
-			// and then collect individual (non-empty) items' array
-			monIPArr := parseMonitoringIPs(monitoringIP)
-			monitoringPort := d.Data["MonitoringPort"]
-			if monitoringPort != "" {
-				var err error
-				for _, eachMonIP := range monIPArr {
-					err = checkEndpointReachable(net.JoinHostPort(eachMonIP, monitoringPort), 5*time.Second)
-					// if any one of the mon's IP:PORT combination is reachable,
-					// consider the whole set as valid
-					if err == nil {
-						break
-					}
-				}
-				if err != nil {
-					r.Log.Error(err, "Monitoring validation failed")
-					return err
-				}
-				r.monitoringPort = monitoringPort
-			}
-			r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-			r.monitoringIP = monitoringIP
 		case "ConfigMap":
 			cm := &corev1.ConfigMap{
 				ObjectMeta: objectMeta,
@@ -380,6 +366,35 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	return nil
 }
 
+func verifyMonitoringEndpoints(monitoringIP, monitoringPort string,
+	log logr.Logger) (err error) {
+	if monitoringIP == "" {
+		err = fmt.Errorf(
+			"Monitoring Endpoint not present in the external cluster secret %s",
+			externalClusterDetailsSecret)
+		log.Error(err, "Failed to get Monitoring IP.")
+		return
+	}
+	if monitoringPort != "" {
+		// replace any comma in the monitoring ip string with space
+		// and then collect individual (non-empty) items' array
+		monIPArr := parseMonitoringIPs(monitoringIP)
+		for _, eachMonIP := range monIPArr {
+			err = checkEndpointReachable(net.JoinHostPort(eachMonIP, monitoringPort), 5*time.Second)
+			// if any one of the mon's IP:PORT combination is reachable,
+			// consider the whole set as valid
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			log.Error(err, "Monitoring validation failed")
+			return
+		}
+	}
+	return
+}
+
 // createExternalStorageClusterConfigMap creates configmap for external cluster
 func (r *StorageClusterReconciler) createExternalStorageClusterConfigMap(cm *corev1.ConfigMap, found *corev1.ConfigMap, objectKey types.NamespacedName) error {
 	err := r.Client.Get(context.TODO(), objectKey, found)
@@ -389,10 +404,17 @@ func (r *StorageClusterReconciler) createExternalStorageClusterConfigMap(cm *cor
 			err = r.Client.Create(context.TODO(), cm)
 			if err != nil {
 				r.Log.Error(err, "Creation of External StorageCluster ConfigMap failed.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
-				return err
 			}
 		} else {
 			r.Log.Error(err, "Unable the get the External StorageCluster ConfigMap.", "ConfigMap", klog.KRef(objectKey.Namespace, cm.Name))
+		}
+		return err
+	}
+	// update the found ConfigMap's Data with the latest changes,
+	// if they don't match
+	if !reflect.DeepEqual(found.Data, cm.Data) {
+		found.Data = cm.DeepCopy().Data
+		if err = r.Client.Update(context.TODO(), found); err != nil {
 			return err
 		}
 	}
@@ -408,10 +430,17 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 			err = r.Client.Create(context.TODO(), sec)
 			if err != nil {
 				r.Log.Error(err, "Creation of External StorageCluster Secret failed.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
-				return err
 			}
 		} else {
 			r.Log.Error(err, "Unable the get External StorageCluster Secret", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+		}
+		return err
+	}
+	// update the found secret's Data with the latest changes,
+	// if they don't match
+	if !reflect.DeepEqual(found.Data, sec.Data) {
+		found.Data = sec.DeepCopy().Data
+		if err = r.Client.Update(context.TODO(), found); err != nil {
 			return err
 		}
 	}

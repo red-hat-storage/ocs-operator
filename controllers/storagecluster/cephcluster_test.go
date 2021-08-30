@@ -476,7 +476,9 @@ func TestKMSConfigChanges(t *testing.T) {
 		{testLabel: "case 4", kmsProvider: "vault", kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
 	}
 	for _, kmsArgs := range validKMSArgs {
-		assertCephClusterKMSConfiguration(t, kmsArgs)
+		t.Run(kmsArgs.testLabel, func(t *testing.T) {
+			assertCephClusterKMSConfiguration(t, kmsArgs)
+		})
 	}
 }
 
@@ -499,7 +501,11 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 
 	// don't start dummy servers for invalid tests
 	if !kmsArgs.failureExpected {
-		startServerAt(kmsArgs.kmsAddress)
+		errChan := startServerAt(kmsArgs.kmsAddress)
+		go func() {
+			servErr := <-errChan
+			assert.NilError(t, servErr)
+		}()
 	}
 
 	var obj ocsCephCluster
