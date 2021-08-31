@@ -1142,18 +1142,41 @@ func getSemVer(version string, majorDiff uint64, islower bool) string {
 	return sv.String()
 }
 
+type ListenServer struct {
+	DoneChan chan error
+	Listener net.Listener
+}
+
+func NewListenServer(endpoint string) (*ListenServer, error) {
+	ls := &ListenServer{}
+
+	rxp := regexp.MustCompile(`^http[s]?://`)
+	// remove any http or https protocols from the endpoint string
+	endpoint = rxp.ReplaceAllString(endpoint, "")
+	ln, err := net.Listen("tcp4", endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	ls.Listener = ln
+	ls.DoneChan = make(chan error)
+
+	go func() {
+		<-ls.DoneChan
+	}()
+
+	return ls, nil
+
+}
+
 func startServerAt(endpoint string) <-chan error {
-	var doneChan = make(chan error)
-	go func(doneChan chan<- error, endpoint string) {
+	ls, err := NewListenServer(endpoint)
+	if err != nil {
+		return nil
+	}
+
+	go func(doneChan chan<- error, ln net.Listener) {
 		defer close(doneChan)
-		rxp := regexp.MustCompile(`^http[s]?://`)
-		// remove any http or https protocols from the endpoint string
-		endpoint = rxp.ReplaceAllString(endpoint, "")
-		ln, err := net.Listen("tcp4", endpoint)
-		if err != nil {
-			doneChan <- err
-			return
-		}
 		defer ln.Close()
 		conn, err := ln.Accept()
 		if err != nil {
@@ -1162,6 +1185,6 @@ func startServerAt(endpoint string) <-chan error {
 		}
 		defer conn.Close()
 		doneChan <- nil
-	}(doneChan, endpoint)
-	return doneChan
+	}(ls.DoneChan, ls.Listener)
+	return ls.DoneChan
 }
