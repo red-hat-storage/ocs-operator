@@ -1143,7 +1143,6 @@ func getSemVer(version string, majorDiff uint64, islower bool) string {
 }
 
 type ListenServer struct {
-	DoneChan chan error
 	Listener net.Listener
 }
 
@@ -1159,11 +1158,8 @@ func NewListenServer(endpoint string) (*ListenServer, error) {
 	}
 
 	ls.Listener = ln
-	ls.DoneChan = make(chan error)
 
-	go func(doneChan chan<- error, ln net.Listener) {
-		var err error
-		defer close(doneChan)
+	go func(ln net.Listener) {
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
@@ -1171,23 +1167,18 @@ func NewListenServer(endpoint string) (*ListenServer, error) {
 			}
 			conn.Close()
 		}
-		doneChan <- err
-	}(ls.DoneChan, ls.Listener)
-
-	go func() {
-		<-ls.DoneChan
-	}()
+	}(ls.Listener)
 
 	return ls, nil
 
 }
 
-func startServerAt(t *testing.T, endpoint string) <-chan error {
+func startServerAt(t *testing.T, endpoint string) {
 	ls, err := NewListenServer(endpoint)
 	if err != nil {
-		return nil
+		t.Logf("Failed to start ListenServer: %v", err)
+		return
 	}
 	t.Cleanup(func() { ls.Listener.Close() })
 
-	return ls.DoneChan
 }
