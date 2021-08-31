@@ -106,7 +106,7 @@ if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	# When run by the openshift ci, we must pass the original
 	# ocs-must-gather image name to the csv-merger tool
 	export OCS_MUST_GATHER_IMAGE="${MUST_GATHER_FULL_IMAGE_NAME}"
-	MUST_GATHER_FULL_IMAGE_NAME="${IMAGE_FORMAT%:*}:ocs-must-gather-quay"
+	MUST_GATHER_FULL_IMAGE_NAME="${IMAGE_FORMAT%:*}:ocs-must-gather"
 	OCS_MUST_GATHER_DIR="${ARTIFACT_DIR}/ocs-must-gather"
 	OCP_MUST_GATHER_DIR="${ARTIFACT_DIR}/ocp-must-gather"
 fi
