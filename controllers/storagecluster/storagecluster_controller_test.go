@@ -3,6 +3,8 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"net"
+	"regexp"
 	"testing"
 
 	"github.com/blang/semver"
@@ -1138,4 +1140,28 @@ func getSemVer(version string, majorDiff uint64, islower bool) string {
 	}
 
 	return sv.String()
+}
+
+func startServerAt(endpoint string) <-chan error {
+	var doneChan = make(chan error)
+	go func(doneChan chan<- error, endpoint string) {
+		defer close(doneChan)
+		rxp := regexp.MustCompile(`^http[s]?://`)
+		// remove any http or https protocols from the endpoint string
+		endpoint = rxp.ReplaceAllString(endpoint, "")
+		ln, err := net.Listen("tcp4", endpoint)
+		if err != nil {
+			doneChan <- err
+			return
+		}
+		defer ln.Close()
+		conn, err := ln.Accept()
+		if err != nil {
+			doneChan <- err
+			return
+		}
+		defer conn.Close()
+		doneChan <- nil
+	}(doneChan, endpoint)
+	return doneChan
 }

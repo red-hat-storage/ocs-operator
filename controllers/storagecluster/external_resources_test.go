@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -268,30 +267,6 @@ func updateNamedResourceInArray(extArr []ExternalResource, extRsrc ExternalResou
 	}
 	extArr = append(extArr, extRsrc)
 	return extArr
-}
-
-func startServerAt(endpoint string) <-chan error {
-	var doneChan = make(chan error)
-	go func(doneChan chan<- error, endpoint string) {
-		defer close(doneChan)
-		rxp := regexp.MustCompile(`^http[s]?://`)
-		// remove any http or https protocols from the endpoint string
-		endpoint = rxp.ReplaceAllString(endpoint, "")
-		ln, err := net.Listen("tcp4", endpoint)
-		if err != nil {
-			doneChan <- err
-			return
-		}
-		defer ln.Close()
-		conn, err := ln.Accept()
-		if err != nil {
-			doneChan <- err
-			return
-		}
-		defer conn.Close()
-		doneChan <- nil
-	}(doneChan, endpoint)
-	return doneChan
 }
 
 func generateRandomPort(minPort, maxPort int) int {
