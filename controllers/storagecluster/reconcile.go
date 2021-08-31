@@ -53,7 +53,7 @@ const (
 	ReconcileStrategyIgnore ReconcileStrategy = "ignore"
 	// ReconcileStrategyManage means always reconcile
 	ReconcileStrategyManage ReconcileStrategy = "manage"
-	// ReconcileStrategyStandalone also means never reconcile (NooBaa)
+	// ReconcileStrategyStandalone means to renconcile the component exclusively (NooBaa)
 	ReconcileStrategyStandalone ReconcileStrategy = "standalone"
 
 	// DeviceTypeSSD represents the DeviceType SSD
@@ -154,6 +154,8 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 		return reconcile.Result{}, err
 	}
 
+	r.IsNoobaaStandalone = sc.Spec.MultiCloudGateway != nil &&
+		ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) == ReconcileStrategyStandalone
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases(sc, request)
 
@@ -340,22 +342,29 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	r.phase = ""
 	var objs []resourceManager
 	if !instance.Spec.ExternalStorage.Enable {
-		// list of default ensure functions
-		// preserve list order
-		objs = []resourceManager{
-			&ocsCephConfig{},
-			&ocsCephCluster{},
-			&ocsCephBlockPools{},
-			&ocsCephFilesystems{},
-			&ocsCephObjectStores{},
-			&ocsCephObjectStoreUsers{},
-			&ocsCephRGWRoutes{},
-			&ocsStorageClass{},
-			&ocsNoobaaSystem{},
-			&ocsStorageQuota{},
-			&ocsSnapshotClass{},
-			&ocsJobTemplates{},
-			&ocsCephRbdMirrors{},
+		if !r.IsNoobaaStandalone {
+			// list of default ensure functions
+			// preserve list order
+			objs = []resourceManager{
+				&ocsCephConfig{},
+				&ocsCephCluster{},
+				&ocsCephBlockPools{},
+				&ocsCephFilesystems{},
+				&ocsCephObjectStores{},
+				&ocsCephObjectStoreUsers{},
+				&ocsCephRGWRoutes{},
+				&ocsStorageClass{},
+				&ocsNoobaaSystem{},
+				&ocsStorageQuota{},
+				&ocsSnapshotClass{},
+				&ocsJobTemplates{},
+				&ocsCephRbdMirrors{},
+			}
+		} else {
+			// noobaa-only ensure functions
+			objs = []resourceManager{
+				&ocsNoobaaSystem{},
+			}
 		}
 
 	} else {
