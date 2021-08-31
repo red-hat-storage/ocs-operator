@@ -1162,14 +1162,16 @@ func NewListenServer(endpoint string) (*ListenServer, error) {
 	ls.DoneChan = make(chan error)
 
 	go func(doneChan chan<- error, ln net.Listener) {
+		var err error
 		defer close(doneChan)
-		conn, err := ln.Accept()
-		if err != nil {
-			doneChan <- err
-			return
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				break
+			}
+			conn.Close()
 		}
-		defer conn.Close()
-		doneChan <- nil
+		doneChan <- err
 	}(ls.DoneChan, ls.Listener)
 
 	go func() {
