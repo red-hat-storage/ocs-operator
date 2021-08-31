@@ -1161,6 +1161,17 @@ func NewListenServer(endpoint string) (*ListenServer, error) {
 	ls.Listener = ln
 	ls.DoneChan = make(chan error)
 
+	go func(doneChan chan<- error, ln net.Listener) {
+		defer close(doneChan)
+		conn, err := ln.Accept()
+		if err != nil {
+			doneChan <- err
+			return
+		}
+		defer conn.Close()
+		doneChan <- nil
+	}(ls.DoneChan, ls.Listener)
+
 	go func() {
 		<-ls.DoneChan
 	}()
@@ -1176,15 +1187,5 @@ func startServerAt(t *testing.T, endpoint string) <-chan error {
 	}
 	t.Cleanup(func() { ls.Listener.Close() })
 
-	go func(doneChan chan<- error, ln net.Listener) {
-		defer close(doneChan)
-		conn, err := ln.Accept()
-		if err != nil {
-			doneChan <- err
-			return
-		}
-		defer conn.Close()
-		doneChan <- nil
-	}(ls.DoneChan, ls.Listener)
 	return ls.DoneChan
 }
