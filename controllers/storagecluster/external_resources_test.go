@@ -143,14 +143,16 @@ func createExternalClusterReconcilerFromCustomResources(
 		},
 	}
 	if extResource, err := findNamedResourceFromArray(extResources, "ceph-rgw"); err == nil {
-		startServerAt(extResource.Data["endpoint"])
+		servEndpoint := extResource.Data["endpoint"]
+		startServerAt(t, servEndpoint)
 	}
 	if extResource, err := findNamedResourceFromArray(extResources, "monitoring-endpoint"); err == nil {
 		monEndpointIP := extResource.Data["MonitoringEndpoint"]
 		monEndpointPort := extResource.Data["MonitoringPort"]
 		if monEndpointIP != "" && monEndpointPort != "" {
 			monEndpointIP = parseMonitoringIPs(monEndpointIP)[0]
-			startServerAt(net.JoinHostPort(monEndpointIP, monEndpointPort))
+			servEndpoint := net.JoinHostPort(monEndpointIP, monEndpointPort)
+			startServerAt(t, servEndpoint)
 		}
 	}
 	externalSecret, err := createExternalCephClusterSecret(extResources)
@@ -434,7 +436,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	// change 'rgw-endpoint'
 	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("localhost:%d", generateRandomPort(20000, 30000))
 	// start a dummy / local server at the endpoint
-	startServerAt(rgwRsrc.Data[externalCephRgwEndpointKey])
+	startServerAt(t, rgwRsrc.Data[externalCephRgwEndpointKey])
 	extRsrcs = updateNamedResourceInArray(extRsrcs, rgwRsrc)
 	// create and update external secret with new changes
 	extSecret, err := createExternalCephClusterSecret(extRsrcs)

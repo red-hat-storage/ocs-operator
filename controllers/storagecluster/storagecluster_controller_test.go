@@ -1169,15 +1169,15 @@ func NewListenServer(endpoint string) (*ListenServer, error) {
 
 }
 
-func startServerAt(endpoint string) <-chan error {
+func startServerAt(t *testing.T, endpoint string) <-chan error {
 	ls, err := NewListenServer(endpoint)
 	if err != nil {
 		return nil
 	}
+	t.Cleanup(func() { ls.Listener.Close() })
 
 	go func(doneChan chan<- error, ln net.Listener) {
 		defer close(doneChan)
-		defer ln.Close()
 		conn, err := ln.Accept()
 		if err != nil {
 			doneChan <- err
