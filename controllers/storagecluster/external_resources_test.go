@@ -290,11 +290,20 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 	}
 
 	optionalTestParams := []struct {
+		label                     string
 		resourceToBeRemoved       string
 		expectedRookCephConfigVal string
 	}{
-		{resourceToBeRemoved: "ceph-rgw", expectedRookCephConfigVal: "true"},
-		{resourceToBeRemoved: "cephfs", expectedRookCephConfigVal: "false"},
+		{
+			label:                     "RemoveRGW",
+			resourceToBeRemoved:       "ceph-rgw",
+			expectedRookCephConfigVal: "true",
+		},
+		{
+			label:                     "RemoveCephFS",
+			resourceToBeRemoved:       "cephfs",
+			expectedRookCephConfigVal: "false",
+		},
 	}
 
 	for _, testParam := range optionalTestParams {
@@ -494,7 +503,7 @@ func TestExternalMonitoringResources(t *testing.T) {
 				},
 				Name: "monitoring-endpoint",
 			},
-			Label:                   "A passing case, with valid args",
+			Label:                   "ValidEndpointAndPort",
 			ReconcileExpectedToFail: false,
 		},
 		{
@@ -505,7 +514,7 @@ func TestExternalMonitoringResources(t *testing.T) {
 				},
 				Name: "monitoring-endpoint",
 			},
-			Label:                   "Another passing case, without an explicit port, in which rook will provide a default port number",
+			Label:                   "ValidEndpointWithoutPort",
 			ReconcileExpectedToFail: false,
 		},
 		{
@@ -517,7 +526,7 @@ func TestExternalMonitoringResources(t *testing.T) {
 				},
 				Name: "monitoring-endpoint",
 			},
-			Label:                   "A failing case, which has an invalid port",
+			Label:                   "InvalidPort",
 			ReconcileExpectedToFail: true,
 		},
 	}
