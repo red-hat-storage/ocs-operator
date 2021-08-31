@@ -307,19 +307,21 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 	}
 
 	for _, testParam := range optionalTestParams {
-		extResources := removeNamedResourceFromArray(globalTestExternalResources, testParam.resourceToBeRemoved)
-		reconciler := createExternalClusterReconcilerFromCustomResources(t, extResources)
-		result, err := reconciler.Reconcile(context.TODO(), request)
-		assert.NoError(t, err)
-		assert.Equal(t, reconcile.Result{}, result)
-		// rest of the resources should be available
-		assertExpectedExternalResources(t, reconciler)
-		// make sure we are missing the provided resource
-		assertMissingExternalResource(t, reconciler, testParam.resourceToBeRemoved)
-		// make sure that we have expected rook ceph config value
-		assertRookCephOperatorConfigValue(t, reconciler, testParam.expectedRookCephConfigVal)
-		// make sure about the availability of 'CephObjectStore' according to the resource removed
-		assertCephObjectStore(t, reconciler, testParam.resourceToBeRemoved)
+		t.Run(testParam.label, func(t *testing.T) {
+			extResources := removeNamedResourceFromArray(globalTestExternalResources, testParam.resourceToBeRemoved)
+			reconciler := createExternalClusterReconcilerFromCustomResources(t, extResources)
+			result, err := reconciler.Reconcile(context.TODO(), request)
+			assert.NoError(t, err)
+			assert.Equal(t, reconcile.Result{}, result)
+			// rest of the resources should be available
+			assertExpectedExternalResources(t, reconciler)
+			// make sure we are missing the provided resource
+			assertMissingExternalResource(t, reconciler, testParam.resourceToBeRemoved)
+			// make sure that we have expected rook ceph config value
+			assertRookCephOperatorConfigValue(t, reconciler, testParam.expectedRookCephConfigVal)
+			// make sure about the availability of 'CephObjectStore' according to the resource removed
+			assertCephObjectStore(t, reconciler, testParam.resourceToBeRemoved)
+		})
 	}
 }
 
@@ -539,17 +541,19 @@ func TestExternalMonitoringResources(t *testing.T) {
 	}
 
 	for _, extR := range monAddedExternalResources {
-		extRArr := updateNamedResourceInArray(globalTestExternalResources, extR.ExternalResource)
+		t.Run(extR.Label, func(t *testing.T) {
+			extRArr := updateNamedResourceInArray(globalTestExternalResources, extR.ExternalResource)
 
-		reconciler := createExternalClusterReconcilerFromCustomResources(t, extRArr)
-		result, err := reconciler.Reconcile(context.TODO(), request)
-		if extR.ReconcileExpectedToFail && err != nil {
-			continue
-		}
-		if ok := assert.NoError(t, err); !ok {
-			t.Fatalf("Reconcile Error: %v", err)
-		}
-		assert.Equal(t, reconcile.Result{}, result)
-		assertExpectedExternalResources(t, reconciler)
+			reconciler := createExternalClusterReconcilerFromCustomResources(t, extRArr)
+			result, err := reconciler.Reconcile(context.TODO(), request)
+			if extR.ReconcileExpectedToFail && err != nil {
+				return
+			}
+			if ok := assert.NoError(t, err); !ok {
+				t.Fatalf("Reconcile Error: %v", err)
+			}
+			assert.Equal(t, reconcile.Result{}, result)
+			assertExpectedExternalResources(t, reconciler)
+		})
 	}
 }
