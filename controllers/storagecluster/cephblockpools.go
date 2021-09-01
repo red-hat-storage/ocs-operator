@@ -16,24 +16,26 @@ import (
 type ocsCephBlockPools struct{}
 
 // ensures that peer cluster secret exists and adds it to CephBlockPool
-func (r *StorageClusterReconciler) addPeerSecretsToCephBlockPool(initData *ocsv1.StorageCluster) (cephv1.MirroringPeerSpec, error) {
+func (r *StorageClusterReconciler) addPeerSecretsToCephBlockPool(initData *ocsv1.StorageCluster, poolName string, poolNamespace string) cephv1.MirroringPeerSpec {
 	mirroringPeerSpec := cephv1.MirroringPeerSpec{}
 	secretNames := []string{}
 
 	if len(initData.Spec.Mirroring.PeerSecretNames) == 0 {
-		return mirroringPeerSpec, fmt.Errorf("mirroring is enabled but peerSecretNames is not provided")
+		err := fmt.Errorf("mirroring is enabled but peerSecretNames is not provided")
+		r.Log.Error(err, "Unable to add cluster peer token to CephBlockPool.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
+		return mirroringPeerSpec
 	}
 	for _, secretName := range initData.Spec.Mirroring.PeerSecretNames {
 		_, err := r.retrieveSecret(secretName, initData)
 		if err != nil {
-			return mirroringPeerSpec, fmt.Errorf("peer cluster token could not be retrieved using secretname")
+			r.Log.Error(err, "Peer cluster token could not be retrieved using secretname.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
+			return mirroringPeerSpec
 		}
 		secretNames = append(secretNames, secretName)
 	}
 
 	mirroringPeerSpec.SecretNames = secretNames
-
-	return mirroringPeerSpec, nil
+	return mirroringPeerSpec
 }
 
 // newCephBlockPoolInstances returns the cephBlockPool instances that should be created
@@ -46,11 +48,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 	if initData.Spec.Mirroring.Enabled {
 		mirroringSpec.Enabled = true
 		mirroringSpec.Mode = "image"
-		mirroringPeerSpec, err := r.addPeerSecretsToCephBlockPool(initData)
-		if err != nil {
-			r.Log.Error(err, "Unable to add cluster peer token to CephBlockPool.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
-			return nil, err
-		}
+		mirroringPeerSpec := r.addPeerSecretsToCephBlockPool(initData, poolName, poolNamespace)
 		mirroringSpec.Peers = &mirroringPeerSpec
 	}
 
