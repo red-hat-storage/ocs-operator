@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -144,14 +143,16 @@ func createExternalClusterReconcilerFromCustomResources(
 		},
 	}
 	if extResource, err := findNamedResourceFromArray(extResources, "ceph-rgw"); err == nil {
-		startServerAt(extResource.Data["endpoint"])
+		servEndpoint := extResource.Data["endpoint"]
+		startServerAt(t, servEndpoint)
 	}
 	if extResource, err := findNamedResourceFromArray(extResources, "monitoring-endpoint"); err == nil {
 		monEndpointIP := extResource.Data["MonitoringEndpoint"]
 		monEndpointPort := extResource.Data["MonitoringPort"]
 		if monEndpointIP != "" && monEndpointPort != "" {
 			monEndpointIP = parseMonitoringIPs(monEndpointIP)[0]
-			startServerAt(net.JoinHostPort(monEndpointIP, monEndpointPort))
+			servEndpoint := net.JoinHostPort(monEndpointIP, monEndpointPort)
+			startServerAt(t, servEndpoint)
 		}
 	}
 	externalSecret, err := createExternalCephClusterSecret(extResources)
@@ -270,30 +271,6 @@ func updateNamedResourceInArray(extArr []ExternalResource, extRsrc ExternalResou
 	return extArr
 }
 
-func startServerAt(endpoint string) <-chan error {
-	var doneChan = make(chan error)
-	go func(doneChan chan<- error, endpoint string) {
-		defer close(doneChan)
-		rxp := regexp.MustCompile(`^http[s]?://`)
-		// remove any http or https protocols from the endpoint string
-		endpoint = rxp.ReplaceAllString(endpoint, "")
-		ln, err := net.Listen("tcp4", endpoint)
-		if err != nil {
-			doneChan <- err
-			return
-		}
-		defer ln.Close()
-		conn, err := ln.Accept()
-		if err != nil {
-			doneChan <- err
-			return
-		}
-		defer conn.Close()
-		doneChan <- nil
-	}(doneChan, endpoint)
-	return doneChan
-}
-
 func generateRandomPort(minPort, maxPort int) int {
 	rand.Seed(time.Now().UnixNano())
 	portRange := minPort - maxPort
@@ -313,27 +290,38 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 	}
 
 	optionalTestParams := []struct {
+		label                     string
 		resourceToBeRemoved       string
 		expectedRookCephConfigVal string
 	}{
-		{resourceToBeRemoved: "ceph-rgw", expectedRookCephConfigVal: "true"},
-		{resourceToBeRemoved: "cephfs", expectedRookCephConfigVal: "false"},
+		{
+			label:                     "RemoveRGW",
+			resourceToBeRemoved:       "ceph-rgw",
+			expectedRookCephConfigVal: "true",
+		},
+		{
+			label:                     "RemoveCephFS",
+			resourceToBeRemoved:       "cephfs",
+			expectedRookCephConfigVal: "false",
+		},
 	}
 
 	for _, testParam := range optionalTestParams {
-		extResources := removeNamedResourceFromArray(globalTestExternalResources, testParam.resourceToBeRemoved)
-		reconciler := createExternalClusterReconcilerFromCustomResources(t, extResources)
-		result, err := reconciler.Reconcile(context.TODO(), request)
-		assert.NoError(t, err)
-		assert.Equal(t, reconcile.Result{}, result)
-		// rest of the resources should be available
-		assertExpectedExternalResources(t, reconciler)
-		// make sure we are missing the provided resource
-		assertMissingExternalResource(t, reconciler, testParam.resourceToBeRemoved)
-		// make sure that we have expected rook ceph config value
-		assertRookCephOperatorConfigValue(t, reconciler, testParam.expectedRookCephConfigVal)
-		// make sure about the availability of 'CephObjectStore' according to the resource removed
-		assertCephObjectStore(t, reconciler, testParam.resourceToBeRemoved)
+		t.Run(testParam.label, func(t *testing.T) {
+			extResources := removeNamedResourceFromArray(globalTestExternalResources, testParam.resourceToBeRemoved)
+			reconciler := createExternalClusterReconcilerFromCustomResources(t, extResources)
+			result, err := reconciler.Reconcile(context.TODO(), request)
+			assert.NoError(t, err)
+			assert.Equal(t, reconcile.Result{}, result)
+			// rest of the resources should be available
+			assertExpectedExternalResources(t, reconciler)
+			// make sure we are missing the provided resource
+			assertMissingExternalResource(t, reconciler, testParam.resourceToBeRemoved)
+			// make sure that we have expected rook ceph config value
+			assertRookCephOperatorConfigValue(t, reconciler, testParam.expectedRookCephConfigVal)
+			// make sure about the availability of 'CephObjectStore' according to the resource removed
+			assertCephObjectStore(t, reconciler, testParam.resourceToBeRemoved)
+		})
 	}
 }
 
@@ -459,7 +447,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	// change 'rgw-endpoint'
 	rgwRsrc.Data[externalCephRgwEndpointKey] = fmt.Sprintf("localhost:%d", generateRandomPort(20000, 30000))
 	// start a dummy / local server at the endpoint
-	startServerAt(rgwRsrc.Data[externalCephRgwEndpointKey])
+	startServerAt(t, rgwRsrc.Data[externalCephRgwEndpointKey])
 	extRsrcs = updateNamedResourceInArray(extRsrcs, rgwRsrc)
 	// create and update external secret with new changes
 	extSecret, err := createExternalCephClusterSecret(extRsrcs)
@@ -517,7 +505,7 @@ func TestExternalMonitoringResources(t *testing.T) {
 				},
 				Name: "monitoring-endpoint",
 			},
-			Label:                   "A passing case, with valid args",
+			Label:                   "ValidEndpointAndPort",
 			ReconcileExpectedToFail: false,
 		},
 		{
@@ -528,7 +516,7 @@ func TestExternalMonitoringResources(t *testing.T) {
 				},
 				Name: "monitoring-endpoint",
 			},
-			Label:                   "Another passing case, without an explicit port, in which rook will provide a default port number",
+			Label:                   "ValidEndpointWithoutPort",
 			ReconcileExpectedToFail: false,
 		},
 		{
@@ -540,7 +528,7 @@ func TestExternalMonitoringResources(t *testing.T) {
 				},
 				Name: "monitoring-endpoint",
 			},
-			Label:                   "A failing case, which has an invalid port",
+			Label:                   "InvalidPort",
 			ReconcileExpectedToFail: true,
 		},
 	}
@@ -553,17 +541,19 @@ func TestExternalMonitoringResources(t *testing.T) {
 	}
 
 	for _, extR := range monAddedExternalResources {
-		extRArr := updateNamedResourceInArray(globalTestExternalResources, extR.ExternalResource)
+		t.Run(extR.Label, func(t *testing.T) {
+			extRArr := updateNamedResourceInArray(globalTestExternalResources, extR.ExternalResource)
 
-		reconciler := createExternalClusterReconcilerFromCustomResources(t, extRArr)
-		result, err := reconciler.Reconcile(context.TODO(), request)
-		if extR.ReconcileExpectedToFail && err != nil {
-			continue
-		}
-		if ok := assert.NoError(t, err); !ok {
-			t.Fatalf("Reconcile Error: %v", err)
-		}
-		assert.Equal(t, reconcile.Result{}, result)
-		assertExpectedExternalResources(t, reconciler)
+			reconciler := createExternalClusterReconcilerFromCustomResources(t, extRArr)
+			result, err := reconciler.Reconcile(context.TODO(), request)
+			if extR.ReconcileExpectedToFail && err != nil {
+				return
+			}
+			if ok := assert.NoError(t, err); !ok {
+				t.Fatalf("Reconcile Error: %v", err)
+			}
+			assert.Equal(t, reconcile.Result{}, result)
+			assertExpectedExternalResources(t, reconciler)
+		})
 	}
 }

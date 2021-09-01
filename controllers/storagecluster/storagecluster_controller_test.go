@@ -3,6 +3,8 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"net"
+	"regexp"
 	"testing"
 
 	"github.com/blang/semver"
@@ -1138,4 +1140,45 @@ func getSemVer(version string, majorDiff uint64, islower bool) string {
 	}
 
 	return sv.String()
+}
+
+type ListenServer struct {
+	Listener net.Listener
+}
+
+func NewListenServer(endpoint string) (*ListenServer, error) {
+	ls := &ListenServer{}
+
+	rxp := regexp.MustCompile(`^http[s]?://`)
+	// remove any http or https protocols from the endpoint string
+	endpoint = rxp.ReplaceAllString(endpoint, "")
+	ln, err := net.Listen("tcp4", endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	ls.Listener = ln
+
+	go func(ln net.Listener) {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				break
+			}
+			conn.Close()
+		}
+	}(ls.Listener)
+
+	return ls, nil
+
+}
+
+func startServerAt(t *testing.T, endpoint string) {
+	ls, err := NewListenServer(endpoint)
+	if err != nil {
+		t.Logf("Failed to start ListenServer: %v", err)
+		return
+	}
+	t.Cleanup(func() { ls.Listener.Close() })
+
 }
