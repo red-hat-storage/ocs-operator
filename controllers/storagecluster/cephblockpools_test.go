@@ -41,7 +41,7 @@ func TestCephBlockPools(t *testing.T) {
 			if c.createRuntimeObjects {
 				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
 			}
-			assertCephBlockPools(t, reconciler, cr, request, false)
+			assertCephBlockPools(t, reconciler, cr, request, false, false)
 		}
 	}
 }
@@ -97,10 +97,11 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 			}
 			reconciler := createReconcilerFromCustomResources(t, cp, cr)
 			_, err := reconciler.Reconcile(context.TODO(), request)
+			assert.NoError(t, err)
 			if c.label == "test-injecting-peer-token-to-cephblockpool" {
-				assertCephBlockPools(t, reconciler, cr, request, true)
+				assertCephBlockPools(t, reconciler, cr, request, true, true)
 			} else {
-				assert.Error(t, err)
+				assertCephBlockPools(t, reconciler, cr, request, true, false)
 			}
 		}
 	}
@@ -134,7 +135,7 @@ func createReconcilerFromCustomResources(t *testing.T, platform *Platform, cr *a
 	return reconciler
 }
 
-func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request, mirroringEnabled bool) {
+func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request, mirroringEnabled bool, validSecret bool) {
 	actualCbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -146,7 +147,11 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 	if mirroringEnabled {
 		assert.Equal(t, true, actualCbp.Spec.Mirroring.Enabled)
 		assert.Equal(t, "image", actualCbp.Spec.Mirroring.Mode)
-		assert.Equal(t, []string{testPeerSecretName}, actualCbp.Spec.Mirroring.Peers.SecretNames)
+		expectedSecretNames := []string(nil)
+		if validSecret {
+			expectedSecretNames = []string{testPeerSecretName}
+		}
+		assert.Equal(t, expectedSecretNames, actualCbp.Spec.Mirroring.Peers.SecretNames)
 	}
 
 	expectedCbp, err := reconciler.newCephBlockPoolInstances(cr)
