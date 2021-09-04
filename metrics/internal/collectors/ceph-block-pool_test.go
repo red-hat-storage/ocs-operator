@@ -3,9 +3,9 @@ package collectors
 import (
 	"testing"
 
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
