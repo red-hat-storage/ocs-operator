@@ -10,7 +10,7 @@ import (
 	"k8s.io/klog/v2"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
-	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

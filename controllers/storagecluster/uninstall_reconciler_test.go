@@ -7,8 +7,8 @@ import (
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
-	api "github.com/openshift/ocs-operator/api/v1"
-	"github.com/openshift/ocs-operator/controllers/defaults"
+	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"

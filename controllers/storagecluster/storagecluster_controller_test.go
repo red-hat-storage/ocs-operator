@@ -33,11 +33,11 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	api "github.com/openshift/ocs-operator/api/v1"
-	"github.com/openshift/ocs-operator/controllers/defaults"
-	"github.com/openshift/ocs-operator/controllers/util"
-	statusutil "github.com/openshift/ocs-operator/controllers/util"
-	"github.com/openshift/ocs-operator/version"
+	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
+	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/version"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 

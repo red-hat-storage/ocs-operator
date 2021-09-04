@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+	deploymanager "github.com/red-hat-storage/ocs-operator/pkg/deploy-manager"
 )
 
 // TestNamespace is the namespace we run all the tests in.
