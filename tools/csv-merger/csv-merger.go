@@ -15,9 +15,9 @@ import (
 
 	"github.com/blang/semver/v4"
 	yaml "github.com/ghodss/yaml"
-	ocsversion "github.com/red-hat-storage/ocs-operator/version"
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocsversion "github.com/red-hat-storage/ocs-operator/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
