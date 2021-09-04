@@ -3,7 +3,7 @@ package collectors
 import (
 	"testing"
 
-	"github.com/openshift/ocs-operator/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"

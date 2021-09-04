@@ -1,7 +1,7 @@
 package collectors
 
 import (
-	"github.com/openshift/ocs-operator/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"github.com/prometheus/client_golang/prometheus"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"

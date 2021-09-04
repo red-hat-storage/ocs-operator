@@ -1,7 +1,7 @@
 domain: openshift.io
 layout: go.kubebuilder.io/v2
 projectName: ocs-operator
-repo: github.com/openshift/ocs-operator
+repo: github.com/red-hat-storage/ocs-operator
 resources:
 - group: ocs
   kind: OCSInitialization

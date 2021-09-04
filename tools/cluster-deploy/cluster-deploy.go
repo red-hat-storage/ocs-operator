@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+	deploymanager "github.com/red-hat-storage/ocs-operator/pkg/deploy-manager"
 )
 
 var (

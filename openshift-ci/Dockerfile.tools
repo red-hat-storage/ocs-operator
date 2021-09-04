@@ -2,7 +2,7 @@ FROM fedora:33 as build-tools
 ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV GOCACHE /go/.cache
-ARG GO_PACKAGE_PATH=github.com/openshift/ocs-operator
+ARG GO_PACKAGE_PATH=github.com/red-hat-storage/ocs-operator
 
 # rpms required for building and running test suites
 RUN dnf -y install \

@@ -1,7 +1,7 @@
 package exporter
 
 import (
-	"github.com/openshift/ocs-operator/metrics/internal/version"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/version"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
