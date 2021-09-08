@@ -7,7 +7,7 @@ import (
 	"time"
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

@@ -47,13 +47,13 @@ run `oc adm must-gather` (without passing a custom image). Run `oc adm must-gath
 
 #### Contribution Flow
 Developers must follow these steps to make a change:
-1. Fork the `openshift/ocs-operator` repository on GitHub.
+1. Fork the `red-hat-storage/ocs-operator` repository on GitHub.
 2. Create a branch from the master branch, or from a versioned branch (such
    as `release-4.2`) if you are proposing a backport.
 3. Make changes.
 4. Ensure your commit messages include sign-off.
 5. Push your changes to a branch in your fork of the repository.
-6. Submit a pull request to the `openshift/ocs-operator` repository.
+6. Submit a pull request to the `red-hat-storage/ocs-operator` repository.
 7. Work with the community to make any necessary changes through the code
    review process (effectively repeating steps 3-7 as needed).
 

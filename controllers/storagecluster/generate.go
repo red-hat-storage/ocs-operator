@@ -3,7 +3,7 @@ package storagecluster
 import (
 	"fmt"
 
-	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 

@@ -3,7 +3,7 @@ package persistentvolume
 import (
 	"strings"
 
-	"github.com/openshift/ocs-operator/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
-	ocsv1 "github.com/openshift/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	batchv1 "k8s.io/api/batch/v1"

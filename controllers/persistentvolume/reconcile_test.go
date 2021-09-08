@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	api "github.com/openshift/ocs-operator/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/api/v1"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
