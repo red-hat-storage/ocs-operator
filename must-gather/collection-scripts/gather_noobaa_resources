@@ -11,6 +11,9 @@ if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
 
+# Make a global variable for namespace
+INSTALL_NAMESPACE=openshift-storage
+
 NOOBAA_COLLLECTION_PATH="${BASE_COLLECTION_PATH}/noobaa"
 mkdir -p "${NOOBAA_COLLLECTION_PATH}"
 
@@ -23,6 +26,10 @@ noobaa_resources+=(bucketclass)
 noobaa_cli=()
 noobaa_cli+=("status")
 noobaa_cli+=("obc list")
+
+noobaa_desc=()
+noobaa_desc+=("pod noobaa-db-pg-0")
+noobaa_desc+=("statefulset.apps noobaa-db-pg")
 
 /templates/noobaa.template
 
@@ -73,3 +80,14 @@ if [ "${NOOBAA_RECONCILE_STRATEGY}" = "ignore" ] || [ "${NOOBAA_RECONCILE_STRATE
         echo "- ${UNMANAGED_NOOBAA_NOTIF}" >> "${NOOBAA_COLLLECTION_PATH}/notifications.txt"
     fi
 fi
+
+# Create the dir for oc_output
+mkdir -p "${NOOBAA_COLLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/"
+
+# Run the Collection of OC desc commands for noobaa
+for noobaa_desc in "${noobaa_desc[@]}"; do
+     echo "collecting oc describe command ${noobaa_desc}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+     COMMAND_OUTPUT_FILE=${NOOBAA_COLLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/${noobaa_desc// /_}
+     # shellcheck disable=SC2086
+     { oc describe ${noobaa_desc} -n ${INSTALL_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
+done
