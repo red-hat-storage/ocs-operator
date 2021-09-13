@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/blang/semver"
-	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
