@@ -14,6 +14,18 @@ func init() {
 	SchemeBuilder.Register(&NooBaa{}, &NooBaaList{})
 }
 
+// Labels are label for a given daemon
+type Labels map[string]string
+
+// LabelsSpec is the main spec label for all daemons
+type LabelsSpec map[string]Labels
+
+// Annotations are annotation for a given daemon
+type Annotations map[string]string
+
+// AnnotationsSpec is the main spec annotation for all daemons
+type AnnotationsSpec map[string]Annotations
+
 // NooBaa is the Schema for the NooBaas API
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -97,6 +109,15 @@ type NooBaaSpec struct {
 	// +optional
 	DBStorageClass *string `json:"dbStorageClass,omitempty"`
 
+	// MongoDbURL (optional) overrides the default mongo db remote url
+	// +optional
+	MongoDbURL string `json:"mongoDbURL,omitempty"`
+
+	// DebugLevel (optional) sets the debug level
+	// +optional
+	// +kubebuilder:validation:Enum=all;nsfs;warn;default_level
+	DebugLevel int `json:"debugLevel,omitempty"`
+	
 	// PVPoolDefaultStorageClass (optional) overrides the default cluster StorageClass for the pv-pool volumes.
 	// This affects where the system stores data chunks (encrypted).
 	// Updates to this field will only affect new pv-pools,
@@ -137,6 +158,18 @@ type NooBaaSpec struct {
 
 	// Security represents security settings
 	Security SecuritySpec `json:"security,omitempty"`
+
+	// The labels-related configuration to add/set on each Pod related object.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Labels LabelsSpec `json:"labels,omitempty"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Annotations AnnotationsSpec `json:"annotations,omitempty"`
 }
 
 // SecuritySpec is security spec to include various security items such as kms
