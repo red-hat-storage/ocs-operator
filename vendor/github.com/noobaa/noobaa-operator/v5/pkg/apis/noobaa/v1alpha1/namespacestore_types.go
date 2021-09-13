@@ -75,6 +75,10 @@ type NamespaceStoreSpec struct {
 	// AzureBlob specifies a namespace store of type azure-blob
 	// +optional
 	AzureBlob *AzureBlobSpec `json:"azureBlob,omitempty"`
+
+	// NSFS specifies a namespace store of type nsfs
+	// +optional
+	NSFS *NSFSSpec `json:"nsfs,omitempty"`
 }
 
 // NamespaceStoreStatus defines the observed state of NamespaceStore
@@ -151,4 +155,22 @@ const (
 
 	// NSStoreTypeAzureBlob is used to connect to Azure Blob
 	NSStoreTypeAzureBlob NSType = "azure-blob"
+
+	// NSStoreTypeNSFS is used to connect to a file system
+	NSStoreTypeNSFS NSType = "nsfs"
 )
+
+// NSFSSpec specifies a namespace store of type nsfs
+type NSFSSpec struct {
+	// PvcName is the name of the pvc in which the file system resides
+	PvcName string `json:"pvcName"`
+	
+	// SubPath is a path to a sub directory in the pvc file system
+	// +optional
+	SubPath string `json:"subPath"`
+
+	// FsBackend is the backend type of the file system
+	// +optional
+	// +kubebuilder:validation:Enum=CEPH_FS;GPFS;NFSv4
+	FsBackend string `json:"fsBackend,omitempty"`
+}
