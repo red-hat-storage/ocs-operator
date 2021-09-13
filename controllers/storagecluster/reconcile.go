@@ -327,14 +327,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		return reconcile.Result{}, returnErr
 	}
 
-	if !instance.Spec.ExternalStorage.Enable {
-		// Get storage node topology labels
-		if err := r.reconcileNodeTopologyMap(instance); err != nil {
-			r.Log.Error(err, "Failed to set node Topology Map for StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-			return reconcile.Result{}, err
-		}
-	}
-
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
@@ -346,6 +338,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			// list of default ensure functions
 			// preserve list order
 			objs = []resourceManager{
+				&ocsTopologyMap{},
 				&ocsCephConfig{},
 				&ocsCephCluster{},
 				&ocsCephBlockPools{},
