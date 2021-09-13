@@ -21,7 +21,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ceph_rook_iov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
