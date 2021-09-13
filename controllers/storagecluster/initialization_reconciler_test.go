@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/imdario/mergo"
-	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	api "github.com/red-hat-storage/ocs-operator/api/v1"

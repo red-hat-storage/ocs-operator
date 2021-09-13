@@ -2312,7 +2312,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: ceph/daemon-base:latest-pacific
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:master-20210609
+                  value: noobaa/noobaa-core:master-20210912
                 - name: NOOBAA_DB_IMAGE
                   value: centos/postgresql-12-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
