@@ -570,18 +570,30 @@ func assertTestDeleteCephBlockPools(
 	}
 }
 
-func getFakeCephObjectStoreUser() *cephv1.CephObjectStoreUser {
+func getFakeCephObjectStoreUser() []cephv1.CephObjectStoreUser {
 
 	sc := createDefaultStorageCluster()
 
-	return &cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephObjectStoreUser(sc),
-			Namespace: sc.Namespace,
+	return []cephv1.CephObjectStoreUser{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      generateNameForCephObjectStoreUser(sc),
+				Namespace: sc.Namespace,
+			},
+			Spec: cephv1.ObjectStoreUserSpec{
+				DisplayName: sc.Name,
+				Store:       generateNameForCephObjectStore(sc),
+			},
 		},
-		Spec: cephv1.ObjectStoreUserSpec{
-			DisplayName: sc.Name,
-			Store:       generateNameForCephObjectStore(sc),
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      prometheusUserName,
+				Namespace: sc.Namespace,
+			},
+			Spec: cephv1.ObjectStoreUserSpec{
+				DisplayName: sc.Name,
+				Store:       generateNameForCephObjectStore(sc),
+			},
 		},
 	}
 }
@@ -607,9 +619,8 @@ func TestDeleteCephObjectStoreUsers(t *testing.T) {
 
 		for _, obj := range testList {
 			fakeCephObjectStoreUser := getFakeCephObjectStoreUser()
-			runtimeObjs := []client.Object{fakeCephObjectStoreUser}
+			runtimeObjs := []client.Object{&fakeCephObjectStoreUser[0], &fakeCephObjectStoreUser[1]}
 			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs, nil)
-
 			assertTestDeleteCephObjectStoreUsers(t, reconciler, sc, obj.CephObjectStoreUsersExist)
 		}
 	}

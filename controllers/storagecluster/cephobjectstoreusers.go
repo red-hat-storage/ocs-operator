@@ -15,6 +15,8 @@ import (
 
 type ocsCephObjectStoreUsers struct{}
 
+const prometheusUserName = "prometheus-user"
+
 // newCephObjectStoreUserInstances returns the cephObjectStoreUser instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephObjectStoreUserInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephObjectStoreUser, error) {
@@ -27,6 +29,20 @@ func (r *StorageClusterReconciler) newCephObjectStoreUserInstances(initData *ocs
 			Spec: cephv1.ObjectStoreUserSpec{
 				DisplayName: initData.Name,
 				Store:       generateNameForCephObjectStore(initData),
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      prometheusUserName,
+				Namespace: initData.Namespace,
+			},
+			Spec: cephv1.ObjectStoreUserSpec{
+				DisplayName: prometheusUserName,
+				Store:       generateNameForCephObjectStore(initData),
+				// This user needs to read quota info from other users where actual quota is on set at the backend
+				Capabilities: &cephv1.ObjectUserCapSpec{
+					User: "read",
+				},
 			},
 		},
 	}
