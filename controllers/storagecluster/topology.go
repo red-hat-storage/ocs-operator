@@ -11,12 +11,30 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type ocsTopologyMap struct{}
+
+// ensureCreated ensures that StorageCluster.Status.Topology is up to date
+func (obj *ocsTopologyMap) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	if err := r.reconcileNodeTopologyMap(instance); err != nil {
+		r.Log.Error(err, "Failed to set node Topology Map for StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+		return err
+	}
+
+	return nil
+}
+
+// ensureDeleted is dummy func for the ocsTopologyMap
+func (obj *ocsTopologyMap) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	return nil
+}
 
 func (r *StorageClusterReconciler) getStorageClusterEligibleNodes(sc *ocsv1.StorageCluster) (nodes *corev1.NodeList, err error) {
 	nodes = &corev1.NodeList{}
