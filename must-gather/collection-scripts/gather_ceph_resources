@@ -116,6 +116,14 @@ for ns in $namespaces; do
              pids_ceph+=($!)
              { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_commands[$i]} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${ceph_commands[$i]}"-json-debug.log 2>&1 &
              pids_ceph+=($!)
+
+             # CRI-O have a limitation to upper limit to number of PIDs, so we found that when `ps aux | wc -l` exceeds 115 the resource cannot be collected
+             # hence to keep a buffer, we are waiting for 2 seconds until we have PIDs available, https://access.redhat.com/solutions/5597061
+             while [ "$(ps aux | wc -l)" -gt 100 ]
+             do
+               printf "waiting for PIDs to be empty before proceeding \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+               sleep 2
+             done
         done
         for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
              { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-"$i"-debug.log 2>&1 &
