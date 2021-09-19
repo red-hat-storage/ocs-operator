@@ -236,7 +236,7 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
-		r.Log.Info("Uninstall: Deleting NooBaa system.", "Nooba", klog.KRef(noobaa.Namespace, noobaa.Name))
+		r.Log.Info("Uninstall: Deleting NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
 		err = r.Client.Delete(context.TODO(), noobaa)
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
