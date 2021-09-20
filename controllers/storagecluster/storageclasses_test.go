@@ -26,15 +26,13 @@ func TestStorageClasses(t *testing.T) {
 
 func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	scNameCephfs := generateNameForCephFilesystemSC(cr)
-	scNameRbd := generateNameForCephBlockPoolSC(cr, "")
-	scNameRbdThick := generateNameForCephBlockPoolSC(cr, "-thick")
+	scNameRbd := generateNameForCephBlockPoolSC(cr)
 	scNameRgw := generateNameForCephRgwSC(cr)
 
 	actual := map[string]*storagev1.StorageClass{
-		scNameCephfs:   {},
-		scNameRbd:      {},
-		scNameRbdThick: {},
-		scNameRgw:      {},
+		scNameCephfs: {},
+		scNameRbd:    {},
+		scNameRgw:    {},
 	}
 	expected, err := reconciler.newStorageClassConfigurations(cr)
 	assert.NoError(t, err)
@@ -44,11 +42,10 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 	skip, skipErr := reconciler.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, skipErr)
 	if skip {
-		// we should be expecting only 3 StorageClasses
-		assert.Equal(t, len(expected), 3)
+		assert.Equal(t, len(expected), 2)
 	} else {
 		// if not a cloud platform, RGW StorageClass should be created/updated
-		assert.Equal(t, len(expected), 4)
+		assert.Equal(t, len(expected), 3)
 	}
 
 	for _, scConfig := range expected {
