@@ -21,6 +21,7 @@ resources=()
 
 # TODO: Re enable the collection of storagecluster via inspect command
 # resources+=(storageclusters)
+# resources+=(storagesystem)
 
 # collect OB/OBC resoureces
 resources+=(objectbuckets)
@@ -89,6 +90,7 @@ done
 
 # NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
 { oc get storageclusters -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagecluster.yaml" 2>&1
+{ oc get storagesystem -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagesystem.yaml" 2>&1
 
 # Create the dir for data from all namespaces
 mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
