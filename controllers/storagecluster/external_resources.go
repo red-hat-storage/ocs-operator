@@ -195,7 +195,8 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 	}
 	var tlsEnabled bool = false
 	_, err := r.retrieveSecret(cephRgwTLSSecretKey, initData)
-	if err != nil {
+	// if we could retrieve a TLS secret, then enable TLS
+	if err == nil {
 		tlsEnabled = true
 	}
 	gatewaySpec, err := newExternalGatewaySpec(rgwEndpoint, r.Log, tlsEnabled)
