@@ -82,6 +82,11 @@ ceph_volume_commands+=()
 ceph_volume_commands+=("ceph-volume lvm list")
 ceph_volume_commands+=("ceph-volume raw list")
 
+# Rados commands
+rados_commands+=("rados lspools")
+rados_commands+=("rados ls --pool=ocs-storagecluster-cephblockpool")
+rados_commands+=("rados ls --pool=ocs-storagecluster-cephfilesystem-metadata --namespace=csi")
+
 # Inspecting ceph related custom resources for all namespaces
 for resource in "${ceph_resources[@]}"; do
     echo "collecting dump ${resource}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
@@ -128,6 +133,63 @@ for ns in $namespaces; do
         for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
              { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-"$i"-debug.log 2>&1 &
              pids_ceph+=($!)
+        done
+
+        # Collecting output of rados commands
+        for ((i = 0; i < ${#rados_commands[@]}; i++)); do
+            printf "collecting command output for: %s\n"  "${rados_commands[$i]}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${rados_commands[$i]// /_}
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${rados_commands[$i]} " >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${rados_commands[$i]}"-debug.log 2>&1 &
+            pids_ceph+=($!)
+        done
+
+        # Collecting rados object information for CephFS PVs and snapshots
+        COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/rados_cephfs_objects
+        # List filesystem and Get the metadata pool name of the filesystem
+        printf "Collecting metadata pool name of the filesystem \n" | tee -a "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+        mdpools=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "ceph fs ls --format=json | jq '.[] | .metadata_pool'")
+        for mdpool in $mdpools; do
+            { printf "Name of the metadata pool: %s\n" "${mdpool}" >> "${COMMAND_OUTPUT_FILE}"; }
+            # List omapkeys in csi.volumes.default in filesystem metadata pool
+            pvcobjs=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rados listomapkeys csi.volumes.default --pool=${mdpool} --namespace=csi")
+            # Get the omap details of each PVC object
+            for pvcobj in $pvcobjs; do
+                { printf "Name of pvc object: %s\n" "${pvcobj}" >> "${COMMAND_OUTPUT_FILE}"; }
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.volumes.default ${pvcobj} --pool=${mdpool} --namespace=csi" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${pvcobj}"-debug.log 2>&1 &
+                pids_ceph+=($!)
+            done
+            # List omapkeys in csi.snaps.default in filesystem metadata pool
+            snapobjs=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rados listomapkeys csi.snaps.default --pool=${mdpool} --namespace=csi")
+            # Get the omap details of each snap object
+            for snapobj in $snapobjs; do
+                { printf "Name of snap object: %s\n" "${snapobj}" >> "${COMMAND_OUTPUT_FILE}"; }
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.snaps.default ${snapobj} --pool=${mdpool} --namespace=csi" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${snapobj}"-debug.log 2>&1 &
+                pids_ceph+=($!)
+            done
+        done
+
+        # Collecting rados object information for RBD PVs and snapshots
+        COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/rados_rbd_objects
+        # Inspecting ceph block pools for ceph rbd
+        blockpools=$(timeout 60 oc get cephblockpools.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
+        for bp in $blockpools; do
+            { printf "Name of the block pool: %s\n" "${bp}" >> "${COMMAND_OUTPUT_FILE}"; }
+            # List omapkeys in csi.volumes.default in each block pool
+            pvcobjs=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rados listomapkeys csi.volumes.default --pool=${bp}")
+            # Get the omap details of each PVC object
+            for pvcobj in $pvcobjs; do
+                { printf "Name of the pvc object: %s\n" "${pvcobj}" >> "${COMMAND_OUTPUT_FILE}"; }
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.volumes.default ${pvcobj} --pool=${bp}" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${pvcobj}"-debug.log 2>&1 &
+                pids_ceph+=($!)
+            done
+            # List omapkeys in csi.snaps.default in the block pool
+            snapobjs=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rados listomapkeys csi.snaps.default --pool=${bp}")
+            # Get the omap details of each snap object
+            for snapobj in $snapobjs; do
+                { printf "Name of snap object: %s\n" "${snapobj}" >> "${COMMAND_OUTPUT_FILE}"; }
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.snaps.default ${snapobj} --pool=${bp}" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${snapobj}"-debug.log 2>&1 &
+                pids_ceph+=($!)
+            done
         done
 
         # Collecting snapshot info for ceph rbd volumes
