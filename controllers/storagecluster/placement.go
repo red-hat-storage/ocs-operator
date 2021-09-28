@@ -63,14 +63,16 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	topologyKey := getFailureDomain(sc)
 	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
 	if component == "mon" || component == "mds" || (component == "rgw" && getCephObjectStoreGatewayInstances(sc) > 1) {
-		if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
-			for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-				placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[i].PodAffinityTerm.TopologyKey = topologyKey
+		if placement.PodAntiAffinity != nil {
+			if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
+				for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+					placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[i].PodAffinityTerm.TopologyKey = topologyKey
+				}
 			}
-		}
-		if placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-			for i := range placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-				placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i].TopologyKey = topologyKey
+			if placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+				for i := range placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+					placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i].TopologyKey = topologyKey
+				}
 			}
 		}
 	}
