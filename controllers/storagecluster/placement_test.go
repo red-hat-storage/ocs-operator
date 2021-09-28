@@ -60,6 +60,12 @@ var workerPlacements = map[rookCore.KeyType]rookCephv1.Placement{
 	"all": {
 		NodeAffinity: &workerNodeAffinity,
 	},
+	"mds": {
+		NodeAffinity: &workerNodeAffinity,
+	},
+	"mon": {
+		NodeAffinity: &workerNodeAffinity,
+	},
 }
 
 var emptyLabelSelector = metav1.LabelSelector{
@@ -67,9 +73,47 @@ var emptyLabelSelector = metav1.LabelSelector{
 }
 var emptyPlacements = map[rookCore.KeyType]rookCephv1.Placement{
 	"all": {},
+	"mds": {},
+	"mon": {},
 }
 
-var customPlacement = rookCephv1.Placement{
+var customMDSPlacement = rookCephv1.Placement{
+	PodAntiAffinity: &corev1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "app",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{"rook-ceph-mds"},
+						},
+					},
+				},
+				TopologyKey: "topology.rook.io/rack",
+			},
+		},
+		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+			{
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      "app",
+								Operator: metav1.LabelSelectorOpIn,
+								Values:   []string{"rook-ceph-mds"},
+							},
+						},
+					},
+					TopologyKey: "topology.rook.io/rack",
+				},
+				Weight: 100,
+			},
+		},
+	},
+}
+
+var customMONPlacement = rookCephv1.Placement{
 	PodAntiAffinity: &corev1.PodAntiAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 			{
@@ -105,6 +149,16 @@ var customPlacement = rookCephv1.Placement{
 	},
 }
 
+func getOcsToleration() corev1.Toleration {
+	toleration := corev1.Toleration{
+		Key:      "node.ocs.openshift.io/storage",
+		Operator: corev1.TolerationOpEqual,
+		Value:    "true",
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+	return toleration
+}
+
 func TestGetPlacement(t *testing.T) {
 	cases := []struct {
 		label              string
@@ -128,6 +182,11 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity:    defaults.DefaultNodeAffinity,
 					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
 				},
+				"mds": {
+					NodeAffinity:    defaults.DefaultNodeAffinity,
+					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
+					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
+				},
 			},
 		},
 		{
@@ -140,8 +199,10 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 				},
 				"mon": {
-					NodeAffinity:    defaults.DefaultNodeAffinity,
-					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
+					NodeAffinity: defaults.DefaultNodeAffinity,
+				},
+				"mds": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
 				},
 			},
 		},
@@ -159,6 +220,11 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity:    &workerNodeAffinity,
 					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
 				},
+				"mds": {
+					NodeAffinity:    &workerNodeAffinity,
+					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
+					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
+				},
 			},
 		},
 		{
@@ -171,8 +237,10 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity: &workerNodeAffinity,
 				},
 				"mon": {
-					NodeAffinity:    &workerNodeAffinity,
-					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
+					NodeAffinity: &workerNodeAffinity,
+				},
+				"mds": {
+					NodeAffinity: &workerNodeAffinity,
 				},
 			},
 		},
@@ -202,19 +270,27 @@ func TestGetPlacement(t *testing.T) {
 							NodeSelectorTerms: []corev1.NodeSelectorTerm{
 								{
 									MatchExpressions: []corev1.NodeSelectorRequirement{
-										// TODO: For this test, this is an expected result that
-										// will yield an undesirable CephCluster config. Since
-										// NodeAffinity will be defined in the CephCluster, the
-										// "all" NodeAffinity will not apply, meaning mons will
-										// only run on master nodes. We should figure out a way
-										// to prevent this, if possible.
+										workerSelectorRequirement,
 										masterSelectorRequirement,
 									},
 								},
 							},
 						},
 					},
-					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
+				},
+				"mds": {
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										workerSelectorRequirement,
+										masterSelectorRequirement,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -230,13 +306,18 @@ func TestGetPlacement(t *testing.T) {
 				"mon": {
 					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
 				},
+				"mds": {
+					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
+					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
+				},
 			},
 		},
 		{
 			label:          "Case 7: Custom placement is applied without failure",
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements: rookCephv1.PlacementSpec{
-				"mon": customPlacement,
+				"mds": customMDSPlacement,
+				"mon": customMONPlacement,
 			},
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
@@ -245,7 +326,11 @@ func TestGetPlacement(t *testing.T) {
 				},
 				"mon": {
 					NodeAffinity:    defaults.DefaultNodeAffinity,
-					PodAntiAffinity: customPlacement.PodAntiAffinity,
+					PodAntiAffinity: customMONPlacement.PodAntiAffinity,
+				},
+				"mds": {
+					NodeAffinity:    defaults.DefaultNodeAffinity,
+					PodAntiAffinity: customMDSPlacement.PodAntiAffinity,
 				},
 			},
 		},
@@ -253,7 +338,8 @@ func TestGetPlacement(t *testing.T) {
 			label:          "Case 8: Custom placement is modified by labelSelector",
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements: rookCephv1.PlacementSpec{
-				"mon": customPlacement,
+				"mds": customMDSPlacement,
+				"mon": customMONPlacement,
 			},
 			labelSelector: &workerLabelSelector,
 			expectedPlacements: rookCephv1.PlacementSpec{
@@ -263,7 +349,11 @@ func TestGetPlacement(t *testing.T) {
 				},
 				"mon": {
 					NodeAffinity:    &workerNodeAffinity,
-					PodAntiAffinity: customPlacement.PodAntiAffinity,
+					PodAntiAffinity: customMONPlacement.PodAntiAffinity,
+				},
+				"mds": {
+					NodeAffinity:    &workerNodeAffinity,
+					PodAntiAffinity: customMDSPlacement.PodAntiAffinity,
 				},
 			},
 		},
@@ -276,6 +366,27 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
+				"mds": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
+					PodAntiAffinity: &corev1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{
+										{
+											Key:      "app",
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"rook-ceph-mds"},
+										},
+									},
+								},
+								TopologyKey: zoneTopologyLabel,
+							},
+						},
+					},
+				},
+
 				"mon": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -320,6 +431,60 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity:    defaults.DefaultNodeAffinity,
 					PodAntiAffinity: &corev1.PodAntiAffinity{},
 				},
+				"mds": {
+					NodeAffinity:    defaults.DefaultNodeAffinity,
+					Tolerations:     defaults.DaemonPlacements["all"].Tolerations,
+					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
+				},
+			},
+		},
+		{
+			label:          "Case 11: When PodAntiAffinity is empty and topologyMap is provided ",
+			storageCluster: mockStorageCluster.DeepCopy(),
+			placements: rookCephv1.PlacementSpec{
+				"all": {
+					Tolerations: []corev1.Toleration{
+						getOcsToleration(),
+					},
+				},
+				"mon": {
+					Tolerations: []corev1.Toleration{
+						getOcsToleration(),
+					},
+				},
+				"mds": {
+					Tolerations: []corev1.Toleration{
+						getOcsToleration(),
+					},
+				},
+			},
+			topologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
+					zoneTopologyLabel: []string{
+						"zone1",
+						"zone2",
+						"zone3",
+					},
+				},
+			},
+			labelSelector: nil,
+			expectedPlacements: rookCephv1.PlacementSpec{
+				"all": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
+				},
+				"mon": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations: []corev1.Toleration{
+						getOcsToleration(),
+					},
+					PodAntiAffinity: nil,
+				},
+				"mds": {
+					NodeAffinity:    defaults.DefaultNodeAffinity,
+					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
+					PodAntiAffinity: nil,
+				},
 			},
 		},
 	}
@@ -338,6 +503,10 @@ func TestGetPlacement(t *testing.T) {
 
 		expectedPlacement = c.expectedPlacements["mon"]
 		actualPlacement = getPlacement(sc, "mon")
+		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
+
+		expectedPlacement = c.expectedPlacements["mds"]
+		actualPlacement = getPlacement(sc, "mds")
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
 	}
 }
