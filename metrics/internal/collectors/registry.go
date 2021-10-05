@@ -1,8 +1,8 @@
 package collectors
 
 import (
-	"github.com/openshift/ocs-operator/metrics/internal/options"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 )
 
 const (

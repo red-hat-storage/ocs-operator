@@ -15,9 +15,9 @@ import (
 
 	"github.com/blang/semver/v4"
 	yaml "github.com/ghodss/yaml"
-	ocsversion "github.com/openshift/ocs-operator/version"
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocsversion "github.com/red-hat-storage/ocs-operator/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -558,7 +558,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	ocsCSV.Spec.Links = []csvv1.AppLink{
 		{
 			Name: "Source Code",
-			URL:  "https://github.com/openshift/ocs-operator",
+			URL:  "https://github.com/red-hat-storage/ocs-operator",
 		},
 	}
 
@@ -639,7 +639,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 		}
 		ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
 	}
-	ocsCSV.Annotations["repository"] = "https://github.com/openshift/ocs-operator"
+	ocsCSV.Annotations["repository"] = "https://github.com/red-hat-storage/ocs-operator"
 	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:" + ocsversion.Version
 	ocsCSV.Annotations["description"] = "Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster."
 	ocsCSV.Annotations["support"] = "Red Hat"

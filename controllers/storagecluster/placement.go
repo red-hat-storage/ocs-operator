@@ -1,8 +1,8 @@
 package storagecluster
 
 import (
-	ocsv1 "github.com/openshift/ocs-operator/api/v1"
-	"github.com/openshift/ocs-operator/controllers/defaults"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io"
 

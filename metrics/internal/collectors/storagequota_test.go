@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	quotav1 "github.com/openshift/api/quota/v1"
-	"github.com/openshift/ocs-operator/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

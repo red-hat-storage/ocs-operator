@@ -7,9 +7,9 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-	ocsv1 "github.com/openshift/ocs-operator/api/v1"
-	tests "github.com/openshift/ocs-operator/functests"
-	deploymanager "github.com/openshift/ocs-operator/pkg/deploy-manager"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	tests "github.com/red-hat-storage/ocs-operator/functests"
+	deploymanager "github.com/red-hat-storage/ocs-operator/pkg/deploy-manager"
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

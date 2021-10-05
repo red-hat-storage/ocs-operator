@@ -8,14 +8,14 @@ contribute to the project.
 
 Developers must follow these steps to make a change:
 
-1. Fork the `openshift/ocs-operator` repository on GitHub.
+1. Fork the `red-hat-storage/ocs-operator` repository on GitHub.
 2. Create a branch from the master branch, or from a versioned branch (such
    as `release-4.2`) if you are proposing a backport.
 3. Make changes.
 4. Create tests as needed and ensure that all tests pass.
 5. Ensure your commit messages include sign-off.
 6. Push your changes to a branch in your fork of the repository.
-7. Submit a pull request to the `openshift/ocs-operator` repository.
+7. Submit a pull request to the `red-hat-storage/ocs-operator` repository.
 8. Work with the community to make any necessary changes through the code
    review process (effectively repeating steps 3-8 as needed).
 

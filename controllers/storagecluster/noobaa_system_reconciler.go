@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	nbv1 "github.com/noobaa/noobaa-operator/v2/pkg/apis/noobaa/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
-	ocsv1 "github.com/openshift/ocs-operator/api/v1"
-	"github.com/openshift/ocs-operator/controllers/defaults"
-	statusutil "github.com/openshift/ocs-operator/controllers/util"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
+	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -69,6 +69,11 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 			Name:      "noobaa",
 			Namespace: sc.Namespace,
 		},
+		Spec: nbv1.NooBaaSpec{
+			Labels: nbv1.LabelsSpec{
+				"monitoring": getNooBaaMonitoringLabels(*sc),
+			},
+		},
 	}
 	err = controllerutil.SetControllerReference(sc, nb, r.Scheme)
 	if err != nil {
@@ -99,6 +104,15 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 
 	statusutil.MapNoobaaNegativeConditions(&r.conditions, nb)
 	return nil
+}
+
+func getNooBaaMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
+	labels := make(map[string]string)
+	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
+		labels = sc.Spec.Monitoring.Labels
+	}
+	labels["noobaa.io/managedBy"] = sc.Name
+	return labels
 }
 
 func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster) error {
@@ -222,7 +236,7 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
-		r.Log.Info("Uninstall: Deleting NooBaa system.", "Nooba", klog.KRef(noobaa.Namespace, noobaa.Name))
+		r.Log.Info("Uninstall: Deleting NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
 		err = r.Client.Delete(context.TODO(), noobaa)
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))

@@ -1,4 +1,4 @@
-module github.com/openshift/ocs-operator
+module github.com/red-hat-storage/ocs-operator
 
 go 1.16
 
@@ -14,12 +14,12 @@ require (
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210818162813-3eee31c01875
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
-	github.com/noobaa/noobaa-operator/v2 v2.0.6-0.20201215082004-c6f4a83f7d61
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20210912161037-7eb9969404e4
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.14.0
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
-	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
+	github.com/openshift/build-machinery-go v0.0.0-20210702090207-9c7b89e8633a
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
 	github.com/operator-framework/api v0.10.0

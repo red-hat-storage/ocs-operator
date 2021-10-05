@@ -8,13 +8,13 @@ For any help with the openshift-ci, reach out to the maintainers in `#forum-test
 
 ## Test configs
 
-The ocs-operator test configs live under `ci-operator/config/openshift/ocs-operator` in the openshift/release repository.
+The ocs-operator test configs live under `ci-operator/config/red-hat-storage/ocs-operator` in the openshift/release repository.
 Each branch of the ocs-operator repository has its own configuration file, and is named `openshift-ocs-operator-${branch}.yaml`.
 The config file format reference is available in [CONFIGURATION.md][4].
 A new config file needs to be created by copying and editing the master config whenever a new release branch is created.
 The master config should then be updated for the next release.
 
-These files are used to generate the [Prow][3] job configs under `ci-operator/jobs/openshift/ocs-operator`. After each modification of the config files run
+These files are used to generate the [Prow][3] job configs under `ci-operator/jobs/red-hat-storage/ocs-operator`. After each modification of the config files run
 
 ```console
 $ make jobs
@@ -68,13 +68,13 @@ The [ci-operator][7], which runs these tests in openshift-ci cluster, can also b
 Normal single container tests, ie. the non end-to-end tests, can be run on any OpenShift cluster. Either `oc login` to your own cluster or export `KUBECONFIG` for your own cluster, and run
 
 ```console
-$ ci-operator --config <path-to-config-file> --git-ref openshift/ocs-operator@<gitref> --target <test-to-run>
+$ ci-operator --config <path-to-config-file> --git-ref red-hat-storage/ocs-operator@<gitref> --target <test-to-run>
 ```
 
 For eg.,
 
 ```console
-$ ci-operator --config ci-operator/config/openshift/ocs-operator/openshift-ocs-operator-master.yaml --git-ref openshift/ocs-operator@master --target ocs-operator-ci
+$ ci-operator --config ci-operator/config/red-hat-storage/ocs-operator/openshift-ocs-operator-master.yaml --git-ref red-hat-storage/ocs-operator@master --target ocs-operator-ci
 ```
 
 #### E2E tests
@@ -86,13 +86,13 @@ Login to [api.ci.openshift.org][1] web-console using the Github login option and
 Login to the cluster using the obtained login command, and run
 
 ```console
-$ ci-operator --config <path-to-config-file> --git-ref openshift/ocs-operator@<gitref> --target <test-to-run> --template <path-to-cluster-template>
+$ ci-operator --config <path-to-config-file> --git-ref red-hat-storage/ocs-operator@<gitref> --target <test-to-run> --template <path-to-cluster-template>
 ```
 
 For eg.,
 
 ```console
-$ ci-operator --config ci-operator/config/openshift/ocs-operator/openshift-ocs-operator-master.yaml --git-ref openshift/ocs-operator@master --target ocs-operator-e2e-aws --template ci-operator/templates/openshift/installer/cluster-launch-installer-src.yaml
+$ ci-operator --config ci-operator/config/red-hat-storage/ocs-operator/openshift-ocs-operator-master.yaml --git-ref red-hat-storage/ocs-operator@master --target ocs-operator-e2e-aws --template ci-operator/templates/openshift/installer/cluster-launch-installer-src.yaml
 ```
 
 ## Automation

@@ -1120,7 +1120,7 @@ metadata:
     operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","volumereplicationclasses.replication.storage.openshift.io","volumereplications.replication.storage.openshift.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-    repository: https://github.com/openshift/ocs-operator
+    repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
   labels:
     operatorframework.io/arch.amd64: supported
@@ -2312,7 +2312,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: ceph/daemon-base:latest-pacific
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:master-20210609
+                  value: noobaa/noobaa-core:master-20210912
                 - name: NOOBAA_DB_IMAGE
                   value: centos/postgresql-12-centos7
                 image: quay.io/ocs-dev/ocs-operator:latest
@@ -2670,7 +2670,7 @@ spec:
   - object storage
   links:
   - name: Source Code
-    url: https://github.com/openshift/ocs-operator
+    url: https://github.com/red-hat-storage/ocs-operator
   maintainers:
   - email: ocs-support@redhat.com
     name: Red Hat Support
