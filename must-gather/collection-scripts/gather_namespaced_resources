@@ -115,3 +115,8 @@ echo "collecting dump of oc get obc all namespaces" | tee -a  "${BASE_COLLECTION
 echo "collecting dump of oc get volumereplication all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get volumereplication --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/vr_all_namespaces"
 { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect volumereplication --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+
+# For VolumeReplicationGroups of all namespaces
+echo "collecting dump of oc get volumereplicationgroups all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+{ oc get volumereplicationgroups --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/vrg_all_namespaces"
+{ oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect vrg --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
