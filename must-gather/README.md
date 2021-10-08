@@ -2,7 +2,7 @@ OCS must-gather
 =================
 
 `ocs-must-gather` is a tool built on top of [OpenShift must-gather](https://github.com/openshift/must-gather)
-that expands its capabilities to gather Openshift Container Storage 4 information.
+that expands its capabilities to gather Openshift Container Storage for information.
 
 ### Usage
 ```sh
@@ -14,8 +14,8 @@ Note that this command will only get data related to the ocs part of the OpenShi
 
 You will get a dump of:
 - The OCS Operator namespaces (and its children objects)
-- All namespaces (and their children objects) that belong to any ocs resources
-- All ocs CRD's definitions
+- All namespaces (and their children objects) that belong to any OCS resources
+- All OCS CRD's definitions
 - All namspaces that contains ceph and noobaa
 - Output of the following ceph commands
     ```
@@ -40,7 +40,7 @@ You will get a dump of:
     ceph versions
     ```
 
-In order to get data about other parts of the cluster (not specific to ocs) you should
+In order to get data about other parts of the cluster (not specific to OCS) you should
 run `oc adm must-gather` (without passing a custom image). Run `oc adm must-gather -h` to see more options.
 
 ### How to Contribute
