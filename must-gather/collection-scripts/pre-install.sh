@@ -53,7 +53,7 @@ check_for_debug_pod(){
 }
 
 check_for_helper_pod(){
-    # sleep for 60 seconds giving time for debug pod to get created
+    # sleep for 60 seconds giving time for helper pod to get created
     sleep 60
     oc wait -n openshift-storage --for=condition=Ready pod/"${HOSTNAME}"-helper --timeout=200s
 }
