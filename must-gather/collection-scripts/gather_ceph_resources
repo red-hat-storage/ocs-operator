@@ -35,8 +35,6 @@ ceph_commands+=("ceph df detail")
 ceph_commands+=("ceph fs dump")
 ceph_commands+=("ceph fs ls")
 ceph_commands+=("ceph fs status")
-ceph_commands+=("ceph fs subvolumegroup ls ocs-storagecluster-cephfilesystem")
-ceph_commands+=("ceph fs subvolume ls ocs-storagecluster-cephfilesystem csi")
 ceph_commands+=("ceph health detail")
 ceph_commands+=("ceph mds stat")
 ceph_commands+=("ceph mgr dump")
@@ -133,6 +131,33 @@ for ns in $namespaces; do
         for i in $(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph osd lspools --connect-timeout=15"|awk '{print $2}'); do
              { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $i" >> "${COMMAND_OUTPUT_DIR}/pools_rbd_$i"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-"$i"-debug.log 2>&1 &
              pids_ceph+=($!)
+        done
+
+        # Collecting output for ceph subvolume output
+        printf "collecting output for cephFS filesystem\n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+        # Inspecting CephFS filesystems
+        filesystems=$(timeout 60 oc get cephfilesystems.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
+        
+        for fs in $filesystems; do
+            ceph_command="ceph fs subvolumegroup ls ${fs%?}"
+            printf "collecting command output for: %s\n"  "${ceph_command}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_command// /_}
+            JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_command// /_}_--format_json-pretty
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_command} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${ceph_command}"-debug.log 2>&1 &
+            pids_ceph+=($!)
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_command} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${ceph_command}"-json-debug.log 2>&1 &
+            pids_ceph+=($!)
+            subvolgrp_name=$(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_command}"|awk -F\" '{print $4}')
+            for svg in $subvolgrp_name; do
+                subvolume_command="ceph fs subvolume ls ${fs%?} ${svg}"
+                printf "collecting command output for: %s\n"  "${subvolume_command}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+                COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${subvolume_command// /_}
+                JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${subvolume_command// /_}_--format_json-pretty
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${subvolume_command} --connect-timeout=15" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${subvolume_command}"-debug.log 2>&1 &
+                pids_ceph+=($!)
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${subvolume_command} --connect-timeout=15 --format json-pretty" >> "${JSON_COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-"${subvolume_command}"-json-debug.log 2>&1 &
+                pids_ceph+=($!)
+            done
         done
 
         # Collecting output of rados commands
@@ -243,8 +268,6 @@ for ns in $namespaces; do
         printf "collecting snapshot info for cephFS subvolumes \n" | tee -a "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
         COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/cephfs_subvol_and_snap_info
 
-        # Inspecting CephFS filesystems
-        filesystems=$(timeout 60 oc get cephfilesystems.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
         # Default subvolumegroup in OCS is 'csi'
         svg="csi"
         for fs in $filesystems; do
