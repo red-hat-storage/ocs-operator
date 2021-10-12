@@ -26,6 +26,20 @@ rules:
     - get
     - list
     - watch
+- apiGroups:
+  - objectbucket.io
+  resources:
+  - objectbuckets
+  verbs:
+    - get
+    - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+    - get
+    - list
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
