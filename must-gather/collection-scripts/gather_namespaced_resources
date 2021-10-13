@@ -12,6 +12,7 @@ SINCE_TIME=$2
 
 # Make a globle variable for namespace
 INSTALL_NAMESPACE=openshift-storage
+RAMEN_NAMESPACE=openshift-dr-system
 
 # Add general resources to list if necessary
 
@@ -25,6 +26,12 @@ resources=()
 
 # collect OB/OBC resoureces
 resources+=(objectbuckets)
+
+#collect openshift-dr-system namespaced resources
+dr_resources=()
+dr_resources+=(secrets)
+dr_resources+=(configmap)
+dr_resources+=(pods -owide)
 
 # collection path for OC commands
 mkdir -p "${BASE_COLLECTION_PATH}/oc_output/"
@@ -99,6 +106,20 @@ mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
 for resource in "${resources[@]}"; do
     echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
     { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect "${resource}" --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+done
+
+echo "collecting dump of openshift-dr-system namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${RAMEN_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+
+# Create the dir for oc_output for openshift-dr-system namespace
+mkdir -p "${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/"
+
+# Run the Collection of Resources to list
+for dr_resource in "${dr_resources[@]}"; do
+     echo "collecting oc command ${dr-resource}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+     COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/${dr_resource// /_}
+     # shellcheck disable=SC2086
+     { oc get ${dr_resource} -n ${RAMEN_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
 done
 
 # For pvc of all namespaces
