@@ -70,6 +70,9 @@ const (
 
 	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
+
+	// Maximal value allowed for 'Percentage' field in OverprovisionControl
+	overprovisionPercentageMax = 100000
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -628,10 +631,22 @@ func validateArbiterSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error 
 func validateOverprovisionControlSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	for _, opc := range sc.Spec.OverprovisionControl {
 		if opc.Capacity == nil && opc.Percentage == 0 {
-			return fmt.Errorf("missing either capacity or percentage for overprovision")
+			return fmt.Errorf("missing either capacity or percentage for overprovision %s", opc.QuotaName)
 		}
 		if opc.Capacity != nil && opc.Percentage > 0 {
-			return fmt.Errorf("can not define both capacity and percentage for overprovision")
+			return fmt.Errorf("can not define both capacity and percentage for overprovision %s", opc.QuotaName)
+		}
+		if opc.Capacity != nil {
+			val, ok := opc.Capacity.AsInt64()
+			if !ok {
+				return fmt.Errorf("non-valid capacity %q for overprovision %s", opc.Capacity, opc.QuotaName)
+			}
+			if val <= 0 {
+				return fmt.Errorf("capacity can not be negative value for overprovision %s", opc.QuotaName)
+			}
+		}
+		if opc.Percentage > overprovisionPercentageMax {
+			return fmt.Errorf("percentage value is too big for overprovision %s", opc.QuotaName)
 		}
 		if opc.StorageClassName == "" {
 			return fmt.Errorf("missing storageclassname")
