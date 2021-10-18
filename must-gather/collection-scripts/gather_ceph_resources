@@ -69,6 +69,7 @@ ceph_commands+=("ceph pool autoscale-status")
 ceph_commands+=("ceph progress")
 ceph_commands+=("ceph progress json")
 ceph_commands+=("ceph quorum_status")
+ceph_commands+=("ceph rbd task list")
 ceph_commands+=("ceph report")
 ceph_commands+=("ceph service dump")
 ceph_commands+=("ceph status")
@@ -215,6 +216,15 @@ for ns in $namespaces; do
                 { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.snaps.default ${snapobj} --pool=${bp}" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${snapobj}"-debug.log 2>&1 &
                 pids_ceph+=($!)
             done
+        done
+
+        # collecting trash list for ceph rbd
+        printf "collecting trash list for ceph rbd \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+         # Inspecting ceph block pools for ceph rbd
+        blockpools=$(timeout 60 oc get cephblockpools.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
+        for bp in $blockpools; do
+            COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/rbd_trash_ls_"${bp}"
+            { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd trash ls --pool $bp --format=json" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-trash-ls-"${bp}"-json-debug.log 2>&1 &
         done
 
         # Collecting snapshot info for ceph rbd volumes
