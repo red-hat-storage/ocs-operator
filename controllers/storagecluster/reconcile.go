@@ -339,6 +339,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			// preserve list order
 			objs = []resourceManager{
 				&ocsTopologyMap{},
+				&ocsStorageQuota{},
 				&ocsCephConfig{},
 				&ocsCephCluster{},
 				&ocsCephBlockPools{},
@@ -348,7 +349,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephRGWRoutes{},
 				&ocsStorageClass{},
 				&ocsNoobaaSystem{},
-				&ocsStorageQuota{},
 				&ocsSnapshotClass{},
 				&ocsJobTemplates{},
 				&ocsCephRbdMirrors{},
@@ -365,6 +365,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		// preserve list order
 		objs = []resourceManager{
 			&ocsExternalResources{},
+			&ocsStorageQuota{},
 			&ocsCephCluster{},
 			&ocsSnapshotClass{},
 			&ocsNoobaaSystem{},
