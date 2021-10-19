@@ -138,7 +138,7 @@ for ns in $namespaces; do
         filesystems=$(timeout 60 oc get cephfilesystems.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
         
         for fs in $filesystems; do
-            ceph_command="ceph fs subvolumegroup ls ${fs%?}"
+            ceph_command="ceph fs subvolumegroup ls ${fs}"
             printf "collecting command output for: %s\n"  "${ceph_command}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
             COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${ceph_command// /_}
             JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${ceph_command// /_}_--format_json-pretty
