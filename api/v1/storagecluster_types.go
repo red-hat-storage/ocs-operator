@@ -413,7 +413,6 @@ func init() {
 type OverprovisionControlSpec struct {
 	StorageClassName string                               `json:"storageClassName,omitempty"`
 	QuotaName        string                               `json:"quotaName,omitempty"`
-	Capacity         *resource.Quantity                   `json:"capacity,omitempty"`
-	Percentage       uint                                 `json:"percentage,omitempty"`
+	Capacity         resource.Quantity                    `json:"capacity,omitempty"`
 	Selector         quotav1.ClusterResourceQuotaSelector `json:"selector,omitempty"`
 }
