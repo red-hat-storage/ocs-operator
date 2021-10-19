@@ -43,29 +43,13 @@ var mockOverprovisionControl = []api.OverprovisionControlSpec{
 	{
 		StorageClassName: mockStorageClassName,
 		QuotaName:        "quota1",
-		Capacity:         &mockQuantity2T,
+		Capacity:         mockQuantity2T,
 		Selector: quotav1.ClusterResourceQuotaSelector{
 			LabelSelector: &metav1.LabelSelector{
 				MatchExpressions: []metav1.LabelSelectorRequirement{
 					{
 						Key:      "storagequota_test",
 						Values:   []string{"test1"},
-						Operator: metav1.LabelSelectorOpExists,
-					},
-				},
-			},
-		},
-	},
-	{
-		StorageClassName: mockStorageClassName,
-		QuotaName:        "quota2",
-		Percentage:       50,
-		Selector: quotav1.ClusterResourceQuotaSelector{
-			LabelSelector: &metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{
-						Key:      "storagequota_test",
-						Values:   []string{"test2"},
 						Operator: metav1.LabelSelectorOpExists,
 					},
 				},
@@ -80,28 +64,14 @@ func TestStorageQuotaEnsureCreatedDeleted(t *testing.T) {
 		storageCluster *api.StorageCluster
 	}{
 		{
-			label: "Case 1", // create with percentage
-			storageCluster: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
-					OverprovisionControl: []api.OverprovisionControlSpec{
-						{
-							StorageClassName: "ceph-rbd",
-							QuotaName:        "quota1",
-							Percentage:       60,
-						},
-					},
-				},
-			},
-		},
-		{
-			label: "Case 2", // create with explicit capacity
+			label: "Case 1",
 			storageCluster: &api.StorageCluster{
 				Spec: api.StorageClusterSpec{
 					OverprovisionControl: []api.OverprovisionControlSpec{
 						{
 							StorageClassName: "ceph-rbd",
 							QuotaName:        "quota2",
-							Capacity:         &mockQuantity1T,
+							Capacity:         mockQuantity1T,
 						},
 					},
 				},
