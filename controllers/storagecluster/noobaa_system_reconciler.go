@@ -111,7 +111,10 @@ func getNooBaaMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 	if sc.Spec.Monitoring != nil && sc.Spec.Monitoring.Labels != nil {
 		labels = sc.Spec.Monitoring.Labels
 	}
-	labels["noobaa.io/managedBy"] = sc.Name
+	if sc.Spec.MultiCloudGateway != nil &&
+		ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) == ReconcileStrategyStandalone {
+		labels["noobaa.io/managedBy"] = sc.Name
+	}
 	return labels
 }
 
