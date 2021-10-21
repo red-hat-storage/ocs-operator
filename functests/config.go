@@ -35,6 +35,7 @@ var DeployManager *deploymanager.DeployManager
 var SuiteFailed = false
 
 var ocsClusterUninstall bool
+var ocsOperatorInstall bool
 var arbiterEnabled bool
 
 func init() {
@@ -42,7 +43,8 @@ func init() {
 	flag.StringVar(&OcsSubscriptionChannel, "ocs-subscription-channel", "", "The subscription channel to reveice updates from")
 	flag.StringVar(&UpgradeFromOcsRegistryImage, "upgrade-from-ocs-registry-image", "", "The ocs-registry container image to upgrade from in the deployment")
 	flag.StringVar(&UpgradeFromOcsSubscriptionChannel, "upgrade-from-ocs-subscription-channel", "", "The subscription channel to upgrade from")
-	flag.BoolVar(&ocsClusterUninstall, "ocs-cluster-uninstall", true, "Uninstall the ocs cluster after tests completion")
+	flag.BoolVar(&ocsOperatorInstall, "ocs-operator-install", false, "Install the ocs operator before starting tests")
+	flag.BoolVar(&ocsClusterUninstall, "ocs-cluster-uninstall", false, "Uninstall the ocs storagecluster and operator after test completion")
 	flag.BoolVar(&arbiterEnabled, "arbiter", false, "Deploy the StorageCluster with arbiter enabled")
 
 	flag.Parse()

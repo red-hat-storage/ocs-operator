@@ -424,3 +424,12 @@ func (t *DeployManager) startStorageCluster() error {
 	}
 	return nil
 }
+
+func (t *DeployManager) DeleteStorageCluster() error {
+	// Delete storage cluster and wait for it to be deleted
+	err := t.DeleteStorageClusterAndWait(InstallNamespace)
+	if err != nil {
+		return err
+	}
+	return nil
+}
