@@ -10,7 +10,7 @@ func BeforeTestSuiteSetup() {
 	SuiteFailed = true
 	if ocsOperatorInstall {
 		debug("BeforeTestSuite: deploying OCS Operator\n")
-		err := DeployManager.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
+		err := DeployManager.DeployOCSWithOLM(OcsCatalogSourceImage, OcsSubscriptionChannel)
 		gomega.Expect(err).To(gomega.BeNil())
 	}
 
@@ -50,7 +50,7 @@ func AfterTestSuiteCleanup() {
 		gomega.Expect(err).To(gomega.BeNil())
 
 		debug("AfterTestSuite: uninstalling OCS Operator\n")
-		err = DeployManager.UninstallOCS(OcsRegistryImage, OcsSubscriptionChannel)
+		err = DeployManager.UninstallOCS(OcsCatalogSourceImage, OcsSubscriptionChannel)
 		gomega.Expect(err).To(gomega.BeNil(), "error uninstalling OCS: %v", err)
 	}
 }
@@ -62,7 +62,7 @@ func AfterUpgradeTestSuiteCleanup() {
 	gomega.Expect(err).To(gomega.BeNil())
 
 	// Only called after upgrade failures, so the cluster has to be uninstalled.
-	err = DeployManager.UninstallOCS(OcsRegistryImage, OcsSubscriptionChannel)
+	err = DeployManager.UninstallOCS(OcsCatalogSourceImage, OcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 }
 
@@ -72,7 +72,7 @@ func BeforeUpgradeTestSuiteSetup() {
 	err := DeployManager.CreateNamespace(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
-	err = DeployManager.DeployOCSWithOLM(UpgradeFromOcsRegistryImage, UpgradeFromOcsSubscriptionChannel)
+	err = DeployManager.DeployOCSWithOLM(UpgradeFromOcsCatalogSourceImage, UpgradeFromOcsSubscriptionChannel)
 	gomega.Expect(err).To(gomega.BeNil())
 
 	err = DeployManager.StartDefaultStorageCluster()
