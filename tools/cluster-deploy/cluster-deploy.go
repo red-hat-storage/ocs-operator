@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ocsRegistryImage       = flag.String("ocs-registry-image", "", "The ocs-registry container image to use in the deployment")
-	ocsSubscriptionChannel = flag.String("ocs-subscription-channel", "", "The subscription channel to receive upgades from in the deployment")
+	ocsCatalogSourceImage  = flag.String("ocs-catalog-image", "", "The OCS CatalogSource container image to use in the deployment")
+	ocsSubscriptionChannel = flag.String("ocs-subscription-channel", "", "The subscription channel to receive upgrades from in the deployment")
 	yamlOutputPath         = flag.String("yaml-output-path", "", "Just generate the yaml for the OCS olm deployment and dump it to a file")
 	arbiterEnabled         = flag.Bool("arbiter", false, "Deploy the StorageCluster with arbiter enabled")
 )
@@ -19,8 +19,8 @@ var (
 func main() {
 
 	flag.Parse()
-	if *ocsRegistryImage == "" {
-		log.Fatal("--ocs-registry-image is required")
+	if *ocsCatalogSourceImage == "" {
+		log.Fatal("--ocs-catalog-image is required")
 	} else if *ocsSubscriptionChannel == "" {
 		log.Fatal("--ocs-subscription-channel is required")
 	}
@@ -32,7 +32,7 @@ func main() {
 	}
 
 	if *yamlOutputPath != "" {
-		yaml := t.DumpYAML(*ocsRegistryImage, *ocsSubscriptionChannel)
+		yaml := t.DumpYAML(*ocsCatalogSourceImage, *ocsSubscriptionChannel)
 		err := ioutil.WriteFile(*yamlOutputPath, []byte(yaml), 0644)
 		if err != nil {
 			panic(err)
@@ -40,8 +40,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	log.Printf("Deploying ocs image %s", *ocsRegistryImage)
-	err := t.DeployOCSWithOLM(*ocsRegistryImage, *ocsSubscriptionChannel)
+	log.Printf("Deploying ocs image %s", *ocsCatalogSourceImage)
+	err := t.DeployOCSWithOLM(*ocsCatalogSourceImage, *ocsSubscriptionChannel)
 	if err != nil {
 		panic(err)
 	}
