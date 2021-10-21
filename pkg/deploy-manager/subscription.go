@@ -90,7 +90,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	return nil
 }
 
-func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, subscriptionChannel string) *clusterObjects {
+func (t *DeployManager) generateClusterObjects(ocsCatalogImage string, subscriptionChannel string) *clusterObjects {
 
 	co := &clusterObjects{}
 	label := make(map[string]string)
@@ -129,7 +129,7 @@ func (t *DeployManager) generateClusterObjects(ocsRegistryImage string, subscrip
 		},
 		Spec: v1alpha1.CatalogSourceSpec{
 			SourceType:  v1alpha1.SourceTypeGrpc,
-			Image:       ocsRegistryImage,
+			Image:       ocsCatalogImage,
 			DisplayName: "OpenShift Container Storage",
 			Publisher:   "Red Hat",
 			Icon: v1alpha1.Icon{
@@ -207,8 +207,8 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 }
 
 // DumpYAML dumps ocs deployment yaml
-func (t *DeployManager) DumpYAML(ocsRegistryImage string, subscriptionChannel string) string {
-	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
+func (t *DeployManager) DumpYAML(ocsCatalogImage string, subscriptionChannel string) string {
+	co := t.generateClusterObjects(ocsCatalogImage, subscriptionChannel)
 
 	writer := strings.Builder{}
 
@@ -294,13 +294,13 @@ func (t *DeployManager) waitForOCSCatalogSource() error {
 }
 
 // DeployOCSWithOLM deploys ocs operator via an olm subscription
-func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, subscriptionChannel string) error {
+func (t *DeployManager) DeployOCSWithOLM(ocsCatalogImage string, subscriptionChannel string) error {
 
-	if ocsRegistryImage == "" {
+	if ocsCatalogImage == "" {
 		return fmt.Errorf("catalog registry images not supplied")
 	}
 
-	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
+	co := t.generateClusterObjects(ocsCatalogImage, subscriptionChannel)
 	err := t.deployClusterObjects(co)
 	if err != nil {
 		return err
@@ -310,13 +310,13 @@ func (t *DeployManager) DeployOCSWithOLM(ocsRegistryImage string, subscriptionCh
 }
 
 // UpgradeOCSWithOLM upgrades ocs operator via an olm subscription
-func (t *DeployManager) UpgradeOCSWithOLM(ocsRegistryImage string, subscriptionChannel string) error {
+func (t *DeployManager) UpgradeOCSWithOLM(ocsCatalogImage string, subscriptionChannel string) error {
 
-	if ocsRegistryImage == "" {
+	if ocsCatalogImage == "" {
 		return fmt.Errorf("catalog registry images not supplied")
 	}
 
-	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
+	co := t.generateClusterObjects(ocsCatalogImage, subscriptionChannel)
 	err := t.updateClusterObjects(co)
 	if err != nil {
 		return err
@@ -368,9 +368,9 @@ func (t *DeployManager) WaitForOCSOperator() error {
 }
 
 // UninstallOCS uninstalls ocs operator and storage clusters
-func (t *DeployManager) UninstallOCS(ocsRegistryImage string, subscriptionChannel string) error {
+func (t *DeployManager) UninstallOCS(ocsCatalogImage string, subscriptionChannel string) error {
 	// Delete remaining operator manifests
-	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
+	co := t.generateClusterObjects(ocsCatalogImage, subscriptionChannel)
 	err := t.deleteClusterObjects(co)
 	if err != nil {
 		return err

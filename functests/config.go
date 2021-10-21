@@ -22,11 +22,11 @@ var OcsSubscriptionChannel string
 // UpgradeFromOcsSubscriptionChannel is the name of the ocs subscription channel to upgrade from
 var UpgradeFromOcsSubscriptionChannel string
 
-// OcsRegistryImage is the ocs-registry container image to use in the deployment
-var OcsRegistryImage string
+// OcsCatalogSourceImage is the OCS CatalogSource container image to use in the deployment
+var OcsCatalogSourceImage string
 
-// UpgradeFromOcsRegistryImage is the ocs-registry container image to upgrade from in the deployment
-var UpgradeFromOcsRegistryImage string
+// UpgradeFromOcsCatalogSourceImage is the OCS CatalogSource container image to upgrade from in the deployment
+var UpgradeFromOcsCatalogSourceImage string
 
 // DeployManager is the suite global DeployManager
 var DeployManager *deploymanager.DeployManager
@@ -39,12 +39,12 @@ var ocsOperatorInstall bool
 var arbiterEnabled bool
 
 func init() {
-	flag.StringVar(&OcsRegistryImage, "ocs-registry-image", "", "The ocs-registry container image to use in the deployment")
+	flag.StringVar(&OcsCatalogSourceImage, "ocs-catalog-image", "", "The OCS CatalogSource container image to use in the deployment")
 	flag.StringVar(&OcsSubscriptionChannel, "ocs-subscription-channel", "", "The subscription channel to reveice updates from")
-	flag.StringVar(&UpgradeFromOcsRegistryImage, "upgrade-from-ocs-registry-image", "", "The ocs-registry container image to upgrade from in the deployment")
+	flag.StringVar(&UpgradeFromOcsCatalogSourceImage, "upgrade-from-ocs-catalog-image", "", "The OCS CatalogSource container image to upgrade from in the deployment")
 	flag.StringVar(&UpgradeFromOcsSubscriptionChannel, "upgrade-from-ocs-subscription-channel", "", "The subscription channel to upgrade from")
-	flag.BoolVar(&ocsOperatorInstall, "ocs-operator-install", false, "Install the ocs operator before starting tests")
-	flag.BoolVar(&ocsClusterUninstall, "ocs-cluster-uninstall", false, "Uninstall the ocs storagecluster and operator after test completion")
+	flag.BoolVar(&ocsOperatorInstall, "ocs-operator-install", false, "Install the OCS operator before starting tests")
+	flag.BoolVar(&ocsClusterUninstall, "ocs-cluster-uninstall", false, "Uninstall the OCS storagecluster and operator after test completion")
 	flag.BoolVar(&arbiterEnabled, "arbiter", false, "Deploy the StorageCluster with arbiter enabled")
 
 	flag.Parse()
