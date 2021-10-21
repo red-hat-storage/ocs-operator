@@ -8,13 +8,14 @@ import (
 func BeforeTestSuiteSetup() {
 
 	SuiteFailed = true
-
-	debug("BeforeTestSuite: deploying OCS Operator\n")
-	err := DeployManager.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
-	gomega.Expect(err).To(gomega.BeNil())
+	if ocsOperatorInstall {
+		debug("BeforeTestSuite: deploying OCS Operator\n")
+		err := DeployManager.DeployOCSWithOLM(OcsRegistryImage, OcsSubscriptionChannel)
+		gomega.Expect(err).To(gomega.BeNil())
+	}
 
 	debug("BeforeTestSuite: starting default StorageCluster\n")
-	err = DeployManager.StartDefaultStorageCluster()
+	err := DeployManager.StartDefaultStorageCluster()
 
 	gomega.Expect(err).To(gomega.BeNil())
 
@@ -44,7 +45,6 @@ func AfterTestSuiteCleanup() {
 	gomega.Expect(err).To(gomega.BeNil())
 
 	if ocsClusterUninstall {
-
 		debug("AfterTestSuite: deleting default StorageCluster\n")
 		err := DeployManager.DeleteStorageCluster()
 		gomega.Expect(err).To(gomega.BeNil())
