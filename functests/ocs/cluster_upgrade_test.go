@@ -12,8 +12,8 @@ func ClusterUpgradeTest() {
 
 	ginkgo.BeforeEach(func() {
 		gomega.RegisterFailHandler(ginkgo.Fail)
-		if tests.UpgradeFromOcsRegistryImage == "" {
-			ginkgo.Skip("Condition not met for upgrade. Missing ocs registry image to upgrade from.")
+		if tests.UpgradeFromOcsCatalogSourceImage == "" {
+			ginkgo.Skip("Condition not met for upgrade. Missing OCS CatalogSource image to upgrade from.")
 		}
 	})
 
@@ -44,7 +44,7 @@ func ClusterUpgradeTest() {
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Upgrading OCS with OLM to the current version from upgrade_from version")
-				err = deployManager.UpgradeOCSWithOLM(tests.OcsRegistryImage, tests.OcsSubscriptionChannel)
+				err = deployManager.UpgradeOCSWithOLM(tests.OcsCatalogSourceImage, tests.OcsSubscriptionChannel)
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for OCS CSV to be posted and installed")
