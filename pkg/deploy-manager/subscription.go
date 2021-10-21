@@ -369,15 +369,9 @@ func (t *DeployManager) WaitForOCSOperator() error {
 
 // UninstallOCS uninstalls ocs operator and storage clusters
 func (t *DeployManager) UninstallOCS(ocsRegistryImage string, subscriptionChannel string) error {
-	// Delete storage cluster and wait for it to be deleted
-	err := t.DeleteStorageClusterAndWait(InstallNamespace)
-	if err != nil {
-		return err
-	}
-
 	// Delete remaining operator manifests
 	co := t.generateClusterObjects(ocsRegistryImage, subscriptionChannel)
-	err = t.deleteClusterObjects(co)
+	err := t.deleteClusterObjects(co)
 	if err != nil {
 		return err
 	}
