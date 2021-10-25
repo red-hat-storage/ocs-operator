@@ -403,7 +403,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			kmsConfigMap.Data["KMS_PROVIDER"] = "vault"
 		}
 		if _, ok := kmsConfigMap.Data["VAULT_SECRET_ENGINE"]; !ok {
-			kmsConfigMap.Data["VAULT_SECRET_ENGINE"] = "transit"
+			kmsConfigMap.Data["VAULT_SECRET_ENGINE"] = "kv"
 		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 		cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
