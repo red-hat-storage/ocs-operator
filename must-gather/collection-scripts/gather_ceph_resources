@@ -148,7 +148,7 @@ for ns in $namespaces; do
             pids_ceph+=($!)
             subvolgrp_name=$(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_command}"|awk -F\" '{print $4}')
             for svg in $subvolgrp_name; do
-                subvolume_command="ceph fs subvolume ls ${fs%?} ${svg}"
+                subvolume_command="ceph fs subvolume ls ${fs} ${svg}"
                 printf "collecting command output for: %s\n"  "${subvolume_command}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
                 COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/${subvolume_command// /_}
                 JSON_COMMAND_OUTPUT_FILE=${COMMAND_JSON_OUTPUT_DIR}/${subvolume_command// /_}_--format_json-pretty
