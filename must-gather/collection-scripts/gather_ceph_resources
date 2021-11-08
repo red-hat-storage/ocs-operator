@@ -179,7 +179,11 @@ for ns in $namespaces; do
             # Get the omap details of each PVC object
             for pvcobj in $pvcobjs; do
                 { printf "Name of pvc object: %s\n" "${pvcobj}" >> "${COMMAND_OUTPUT_FILE}"; }
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.volumes.default ${pvcobj} --pool=${mdpool} --namespace=csi" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${pvcobj}"-debug.log 2>&1 &
+                # getomapval writes the UUID to a file inside helper pod
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.volumes.default ${pvcobj} --pool=${mdpool} --namespace=csi uuidfile"; }
+                # Get UUID from the file
+                UUID=$(oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "cat uuidfile")
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados listomapvals csi.volume.${UUID} --pool=${mdpool} --namespace=csi" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${pvcobj}"-debug.log 2>&1 &
                 pids_ceph+=($!)
             done
             # List omapkeys in csi.snaps.default in filesystem metadata pool
@@ -187,7 +191,11 @@ for ns in $namespaces; do
             # Get the omap details of each snap object
             for snapobj in $snapobjs; do
                 { printf "Name of snap object: %s\n" "${snapobj}" >> "${COMMAND_OUTPUT_FILE}"; }
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.snaps.default ${snapobj} --pool=${mdpool} --namespace=csi" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${snapobj}"-debug.log 2>&1 &
+                # getomapval writes the UUID to a file inside helper pod
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.snaps.default ${snapobj} --pool=${mdpool} --namespace=csi uuidfile"; }
+                # Get UUID from the file
+                UUID=$(oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "cat uuidfile")
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados listomapvals csi.snap.${UUID} --pool=${mdpool} --namespace=csi" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${snapobj}"-debug.log 2>&1 &
                 pids_ceph+=($!)
             done
         done
@@ -203,7 +211,11 @@ for ns in $namespaces; do
             # Get the omap details of each PVC object
             for pvcobj in $pvcobjs; do
                 { printf "Name of the pvc object: %s\n" "${pvcobj}" >> "${COMMAND_OUTPUT_FILE}"; }
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.volumes.default ${pvcobj} --pool=${bp}" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${pvcobj}"-debug.log 2>&1 &
+                # getomapval writes the UUID to a file inside helper pod
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.volumes.default ${pvcobj} --pool=${bp} uuidfile" ; }
+                # Get UUID from the file
+                UUID=$(oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "cat uuidfile")
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados listomapvals csi.volume.${UUID} --pool=${bp}" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${pvcobj}"-debug.log 2>&1 &
                 pids_ceph+=($!)
             done
             # List omapkeys in csi.snaps.default in the block pool
@@ -211,7 +223,11 @@ for ns in $namespaces; do
             # Get the omap details of each snap object
             for snapobj in $snapobjs; do
                 { printf "Name of snap object: %s\n" "${snapobj}" >> "${COMMAND_OUTPUT_FILE}"; }
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.snaps.default ${snapobj} --pool=${bp}" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${snapobj}"-debug.log 2>&1 &
+                # getomapval writes the UUID to a file inside helper pod
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados getomapval csi.snaps.default ${snapobj} --pool=${bp} uuidfile" ; }
+                # Get UUID from the file
+                UUID=$(oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "cat uuidfile")
+                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rados listomapvals csi.snap.${UUID} --pool=${bp}" >> "${COMMAND_OUTPUT_FILE}"; } >>   "${COMMAND_ERR_OUTPUT_DIR}"/gather-rados-"${snapobj}"-debug.log 2>&1 &
                 pids_ceph+=($!)
             done
         done
