@@ -1093,7 +1093,7 @@ metadata:
       "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints",
       "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}'
     features.ocs.openshift.io/enabled: '["kms", "arbiter", "flexible-scaling", "multus",
-      "pool-management", "namespace-store", "mcg-standalone"]'
+      "pool-management", "namespace-store", "mcg-standalone", "taint-nodes"]'
     olm.skipRange: '>=0.0.1 <4.9.0'
     operatorframework.io/initialization-resource: "\n    {\n        \"apiVersion\":
       \"ocs.openshift.io/v1\",\n        \"kind\": \"StorageCluster\",\n        \"metadata\":
