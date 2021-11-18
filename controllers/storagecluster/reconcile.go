@@ -637,10 +637,6 @@ func validateOverprovisionControlSpec(sc *ocsv1.StorageCluster, reqLogger logr.L
 		if opc.StorageClassName == "" {
 			return fmt.Errorf("missing storageclassname")
 		}
-		if opc.StorageClassName != sc.Name+"-"+cephFsStorageClassName &&
-			opc.StorageClassName != sc.Name+"-"+cephRbdStorageClassName {
-			return fmt.Errorf("unsupported storageclassname: %s", opc.StorageClassName)
-		}
 		if opc.QuotaName == "" {
 			return fmt.Errorf("missing quotaname")
 		}
