@@ -23,7 +23,7 @@
           {
             alert: 'OdfPoolMirroringImageHealth',
             expr: |||
-              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 1
+              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace, name) group_left() (ocs_pool_mirroring_status{%(ocsExporterSelector)s})) == 1
             ||| % $._config,
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
@@ -39,7 +39,7 @@
           {
             alert: 'OdfPoolMirroringImageHealth',
             expr: |||
-              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 2
+              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace, name) group_left() (ocs_pool_mirroring_status{%(ocsExporterSelector)s})) == 2
             ||| % $._config,
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
