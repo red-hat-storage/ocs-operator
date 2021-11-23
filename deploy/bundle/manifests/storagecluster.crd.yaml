@@ -53,6 +53,11 @@ spec:
           spec:
             description: StorageClusterSpec defines the desired state of StorageCluster
             properties:
+              allowRemoteStorageConsumers:
+                description: AllowRemoteStorageConsumers Indicates that the OCS cluster
+                  should deploy the needed components to enable connections from remote
+                  consumers.
+                type: boolean
               arbiter:
                 description: ArbiterSpec specifies the storage cluster options related
                   to arbiter. If Arbiter is enabled, ArbiterLocation in the NodeTopologies
@@ -289,12 +294,33 @@ spec:
                     type: object
                 type: object
               externalStorage:
-                description: External Storage is optional and defaults to false. When
+                description: ExternalStorage is optional and defaults to false. When
                   set to true, OCS will connect to an external OCS Storage Cluster
                   instead of provisioning one locally.
                 properties:
+                  connectionString:
+                    description: ConnectionString An encoded string holding connection
+                      and identity information that is needed in order to establish
+                      connection with the storage providing cluster.
+                    type: string
                   enable:
                     type: boolean
+                  requestedCapacity:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: RequestedCapacity Will define the desired capacity
+                      requested by a consumer cluster.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  storageProviderKind:
+                    default: rhcs
+                    description: StorageProviderKind Identify the type of storage
+                      provider cluster this consumer cluster is going to connect to.
+                    enum:
+                    - ocs
+                    - rhcs
+                    type: string
                 type: object
               flexibleScaling:
                 description: If enabled, sets the failureDomain to host, allowing
@@ -4733,6 +4759,18 @@ spec:
                 description: ExternalSecretHash holds the checksum value of external
                   secret data.
                 type: string
+              externalStorage:
+                description: ExternalStorage shows the status of the external cluster
+                properties:
+                  grantedCapacity:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: GrantedCapacity Will report the actual capacity granted
+                      to the consumer cluster by the provider cluster.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
               failureDomain:
                 description: FailureDomain is the base CRUSH element Ceph will use
                   to distribute its data replicas for the default CephBlockPool
