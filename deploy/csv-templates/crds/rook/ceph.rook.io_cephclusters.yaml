@@ -301,6 +301,7 @@ spec:
                     allowMultiplePerNode:
                       type: boolean
                     count:
+                      maximum: 9
                       minimum: 0
                       type: integer
                     stretchCluster:
@@ -638,7 +639,6 @@ spec:
                     hostNetwork:
                       type: boolean
                     ipFamily:
-                      default: IPv4
                       enum:
                         - IPv4
                         - IPv6
