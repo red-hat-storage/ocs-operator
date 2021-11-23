@@ -29,8 +29,65 @@ spec:
             type: object
           spec:
             properties:
+              capabilities:
+                nullable: true
+                properties:
+                  bucket:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  metadata:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  usage:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  user:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  zone:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                type: object
               displayName:
                 type: string
+              quotas:
+                nullable: true
+                properties:
+                  maxBuckets:
+                    nullable: true
+                    type: integer
+                  maxObjects:
+                    format: int64
+                    nullable: true
+                    type: integer
+                  maxSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    nullable: true
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
               store:
                 type: string
             type: object
