@@ -122,6 +122,12 @@ for dr_resource in "${dr_resources[@]}"; do
      { oc get ${dr_resource} -n ${RAMEN_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
 done
 
+# Run collection of oc describe command for config map
+echo "collecting oc describe configmap -n ${RAMEN_NAMESPACE}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+     COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/desc_configmap
+     # shellcheck disable=SC2086
+     { oc describe configmap -n ${RAMEN_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
+
 # For pvc of all namespaces
 echo "collecting dump of oc get pvc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/pvc_all_namespaces"
