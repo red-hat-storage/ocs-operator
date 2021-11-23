@@ -32,7 +32,7 @@ type StorageClusterSpec struct {
 	InstanceType string `json:"instanceType,omitempty"`
 	// LabelSelector is used to specify custom labels of nodes to run OCS on
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
-	// External Storage is optional and defaults to false. When set to true, OCS will
+	// ExternalStorage is optional and defaults to false. When set to true, OCS will
 	// connect to an external OCS Storage Cluster instead of provisioning one locally.
 	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`
 	// HostNetwork defaults to false
@@ -75,6 +75,10 @@ type StorageClusterSpec struct {
 	// OverprovisionControl specifies the allowed hard-limit PVs overprovisioning relative to
 	// the effective usable storage capacity.
 	OverprovisionControl []OverprovisionControlSpec `json:"overprovisionControl,omitempty"`
+
+	// AllowRemoteStorageConsumers Indicates that the OCS cluster should deploy the needed
+	// components to enable connections from remote consumers.
+	AllowRemoteStorageConsumers bool `json:"allowRemoteStorageConsumers,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS
@@ -137,11 +141,42 @@ type ManageCephObjectStoreUsers struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
+// ExternalStorageKind specifies a kind of the external storage
+type ExternalStorageKind string
+
+const (
+	// KindOCS specifies a "ocs" kind of the external storage
+	KindOCS ExternalStorageKind = "ocs"
+
+	// KindRHCS specifies a "rhcs" kind of the external storage
+	KindRHCS ExternalStorageKind = "rhcs"
+)
+
 // ExternalStorageClusterSpec defines the spec of the external Storage Cluster
 // to be connected to the local cluster
 type ExternalStorageClusterSpec struct {
 	// +optional
 	Enable bool `json:"enable,omitempty"`
+
+	//+kubebuilder:default:=rhcs
+	//+kubebuilder:validation:Enum=ocs;rhcs
+	// StorageProviderKind Identify the type of storage provider cluster this consumer cluster is going to connect to.
+	StorageProviderKind ExternalStorageKind `json:"storageProviderKind,omitempty"`
+
+	// ConnectionString An encoded string holding connection and identity information
+	// that is needed in order to establish connection with the storage providing cluster.
+	ConnectionString string `json:"connectionString,omitempty"`
+
+	// RequestedCapacity Will define the desired capacity requested by a consumer cluster.
+	RequestedCapacity *resource.Quantity `json:"requestedCapacity,omitempty"`
+}
+
+// ExternalStorageClusterStatus defines the status of the external Storage Cluster
+// to be connected to the local cluster
+type ExternalStorageClusterStatus struct {
+	// GrantedCapacity Will report the actual capacity
+	// granted to the consumer cluster by the provider cluster.
+	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
 }
 
 // StorageDeviceSet defines a set of storage devices.
@@ -304,6 +339,9 @@ type StorageClusterStatus struct {
 
 	// ExternalSecretHash holds the checksum value of external secret data.
 	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
+
+	// ExternalStorage shows the status of the external cluster
+	ExternalStorage ExternalStorageClusterStatus `json:"externalStorage,omitempty"`
 
 	// Images holds the image reconcile status for all images reconciled by the operator
 	Images ImagesStatus `json:"images,omitempty"`
