@@ -85,8 +85,12 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 						{
 							Name:    name,
 							Image:   rookImage,
-							Command: []string{"/tini"},
-							Args:    []string{"-g", "--", "/usr/local/bin/toolbox.sh"},
+							Command: []string{"/bin/bash"},
+							Args: []string{
+								"-m",
+								"-c",
+								"/usr/local/bin/toolbox.sh",
+							},
 							Env: []corev1.EnvVar{
 								{
 									Name: "ROOK_CEPH_USERNAME",
