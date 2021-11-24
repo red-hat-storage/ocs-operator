@@ -60,7 +60,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 
 	privilegedContainer := true
 	runAsNonRoot := true
-	var runAsUser int64 = 1000
+	var runAsUser, runAsGroup int64 = 2016, 2016
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -115,6 +115,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 								Privileged:   &privilegedContainer,
 								RunAsNonRoot: &runAsNonRoot,
 								RunAsUser:    &runAsUser,
+								RunAsGroup:   &runAsGroup,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "ceph-config", MountPath: "/etc/ceph"},
