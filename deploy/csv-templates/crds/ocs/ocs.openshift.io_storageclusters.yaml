@@ -285,7 +285,12 @@ spec:
                 description: EncryptionSpec defines if encryption should be enabled
                   for the Storage Cluster It is optional and defaults to false.
                 properties:
+                  clusterWide:
+                    type: boolean
                   enable:
+                    description: deprecated from OCS 4.10 onwards, acting as a dummy,
+                      UI will keep sending this flag for backward compatibility (OCP
+                      4.10 + OCS 4.9)
                     type: boolean
                   kms:
                     description: KeyManagementServiceSpec provides a way to enable
@@ -294,6 +299,8 @@ spec:
                       enable:
                         type: boolean
                     type: object
+                  storageClass:
+                    type: boolean
                 type: object
               externalStorage:
                 description: ExternalStorage is optional and defaults to false. When

@@ -129,18 +129,26 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
 		cephCluster = newExternalCephCluster(sc, r.images.Ceph, monitoringIP, monitoringPort)
 	} else {
-		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
-		if err != nil {
-			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, KMSConfigMapName))
-			return err
-		}
-		if kmsConfigMap != nil {
-			if err = reachKMSProvider(kmsConfigMap); err != nil {
-				r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
+		// Add KMS details to CephCluster spec, only if
+		// cluster-wide encryption is enabled
+		// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True
+		// and KMS ConfigMap is available
+		if sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide {
+			kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
+			if err != nil {
+				r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, KMSConfigMapName))
 				return err
 			}
+			if kmsConfigMap != nil {
+				if err = reachKMSProvider(kmsConfigMap); err != nil {
+					r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
+					return err
+				}
+			}
+			cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, r.Log)
+		} else {
+			cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, nil, r.Log)
 		}
-		cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, r.Log)
 	}
 
 	// Set StorageCluster instance as the owner and controller
@@ -705,7 +713,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 				Portable:             portable,
 				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
 				TuneFastDeviceClass:  ds.Config.TuneFastDeviceClass,
-				Encrypted:            sc.Spec.Encryption.Enable,
+				Encrypted:            sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide,
 			}
 
 			if ds.MetadataPVCTemplate != nil {

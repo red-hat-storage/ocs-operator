@@ -284,8 +284,14 @@ type MonitoringSpec struct {
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster
 // It is optional and defaults to false.
 type EncryptionSpec struct {
+	// deprecated from OCS 4.10 onwards, acting as a dummy,
+	// UI will keep sending this flag for backward compatibility (OCP 4.10 + OCS 4.9)
 	// +optional
-	Enable               bool                     `json:"enable,omitempty"`
+	Enable bool `json:"enable,omitempty"`
+	// +optional
+	ClusterWide bool `json:"clusterWide,omitempty"`
+	// +optional
+	StorageClass         bool                     `json:"storageClass,omitempty"`
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
 }
 

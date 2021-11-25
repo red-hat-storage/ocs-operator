@@ -266,7 +266,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 
 	sc2 := &api.StorageCluster{}
-	sc2.Spec.Encryption.Enable = false
+	sc2.Spec.Encryption.ClusterWide = false
 	sc2.Spec.StorageDeviceSets = mockDeviceSets
 	sc2.Status.NodeTopologies = &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{
@@ -279,7 +279,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	}
 
 	sc3 := &api.StorageCluster{}
-	sc3.Spec.Encryption.Enable = true
+	sc3.Spec.Encryption.ClusterWide = true
 	sc3.Spec.StorageDeviceSets = mockDeviceSets
 	sc3.Status.NodeTopologies = &api.NodeTopologyMap{
 		Labels: map[string]api.TopologyLabelValues{
@@ -349,7 +349,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
-			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
+			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
 
 			if c.topologyKey == "rack" {
 				assert.DeepEqual(t, getPlacement(c.sc, "osd"), scds.Placement)
@@ -415,7 +415,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
-			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
+			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
 			if scds.Portable && c.topologyKey == "rack" {
 				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].WhenUnsatisfiable, corev1.UnsatisfiableConstraintAction("DoNotSchedule"))
 				assert.Equal(t, len(scds.Placement.TopologySpreadConstraints), 2)
@@ -497,6 +497,7 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	// create a cephcluster CR and enable the KMS
 	cr := createDefaultStorageCluster()
+	cr.Spec.Encryption.ClusterWide = true
 	cr.Spec.Encryption.KeyManagementService.Enable = true
 
 	// don't start dummy servers for invalid tests
@@ -608,7 +609,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
-			assert.Equal(t, c.sc.Spec.Encryption.Enable, scds.Encrypted)
+			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
 			assert.DeepEqual(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
 			assert.Equal(t, c.topologyKey, topologyKey)
