@@ -455,6 +455,7 @@ func createDummyKMSConfigMap(kmsProvider, kmsAddr string) *corev1.ConfigMap {
 	cm.Name = KMSConfigMapName
 	cm.Data = make(map[string]string)
 	cm.Data["KMS_PROVIDER"] = kmsProvider
+	cm.Data["KMS_SERVICE_NAME"] = "my-connection"
 	cm.Data[kmsProviderAddressKeyMap[kmsProvider]] = kmsAddr
 	cm.Data["VAULT_BACKEND_PATH"] = "ocs"
 	cm.Data["VAULT_NAMESPACE"] = "my-ocs-namespace"
