@@ -1,0 +1,64 @@
+syntax = "proto3";
+package provider;
+
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "./;providerpb";
+
+
+// OCSProvider holds the RPC methods that the OCS consumer can use to communicate with remote OCS provider cluster
+service OCSProvider {
+  // OnBoardConsumer RPC call to onboard a new OCS consumer cluster.
+  rpc OnBoardConsumer (OnBoardConsumerRequest)
+  returns (OnBoardConsumerResponse) {}
+  // OffboardConsumer RPC call to delete StorageConsumer CR.
+  rpc OffBoardConsumer (OffBoardConsumerRequest)
+  returns (OffBoardConsumerResponse) {}
+  // UpdateCapacity PRC call to increase or decrease the storage pool size
+  rpc UpdateCapacity(UpdateCapacityRequest)
+  returns (UpdateCapacityResponse){}
+}
+
+
+// OnBoardConsumerRequest holds the required information start the onboarding process between OCS
+// storage consumer and provider
+message OnBoardConsumerRequest{
+    // K8s UID (UUID) of the consumer cluster
+    string storageConsumerUUID =1;
+
+    // capacity is a valid k8s resource quantity
+    string capacity = 2;
+}
+
+
+message OnBoardConsumerResponse{
+    // data contains the json blob to be used by the consumer cluster to connect with the provider cluster
+    google.protobuf.Struct data = 1;
+}
+
+// OffBoardConsumerRequest holds the required information to start the offboarding process between OCS
+// consumer and provider
+message OffBoardConsumerRequest{
+    // K8s UID (UUID) of the consumer cluster
+    string storageConsumerUUID =1;
+}
+
+// OffBoardConsumerResponse
+message OffBoardConsumerResponse{
+
+}
+
+
+// UpdateCapacityRequest holds the information required by an OCS consumer cluster to update the capacity on an OCS
+// provider cluster
+message UpdateCapacityRequest{
+    // K8s UID (UUID) of the consumer cluster
+    string storageConsumerUUID =1;
+    // capacity is a valid k8s resource quantity
+    string capacity = 2;
+}
+
+message UpdateCapacityResponse{
+
+}
