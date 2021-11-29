@@ -201,7 +201,6 @@ func newExtendClusterJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephC
 									ReadOnly:  true,
 								},
 							},
-							TTY:     true,
 							Command: cephCommands,
 						},
 					},
