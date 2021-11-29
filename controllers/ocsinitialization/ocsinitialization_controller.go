@@ -58,6 +58,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 	name := rookCephToolDeploymentName
 	var replicaOne int32 = 1
 
+	// privileged needs to be true due to permission issues
 	privilegedContainer := true
 	runAsNonRoot := true
 	var runAsUser, runAsGroup int64 = 2016, 2016
@@ -91,6 +92,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 								"-c",
 								"/usr/local/bin/toolbox.sh",
 							},
+							TTY: true,
 							Env: []corev1.EnvVar{
 								{
 									Name: "ROOK_CEPH_USERNAME",
