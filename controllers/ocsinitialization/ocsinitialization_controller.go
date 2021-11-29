@@ -58,7 +58,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 	name := rookCephToolDeploymentName
 	var replicaOne int32 = 1
 
-	privilegedContainer := false
+	privilegedContainer := true
 	runAsNonRoot := true
 	var runAsUser, runAsGroup int64 = 2016, 2016
 	return &appsv1.Deployment{
