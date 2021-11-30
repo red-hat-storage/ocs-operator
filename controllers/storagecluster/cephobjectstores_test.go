@@ -36,7 +36,7 @@ func TestCephObjectStores(t *testing.T) {
 	}
 }
 func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
-	expectedCos, err := reconciler.newCephObjectStoreInstances(cr)
+	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil)
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{
@@ -66,6 +66,6 @@ func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, c
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
 
 	cr.Spec.ManagedResources.CephObjectStores.GatewayInstances = 2
-	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr)
+	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil)
 	assert.Equal(t, expectedCos[0].Spec.Gateway.Instances, int32(2))
 }
