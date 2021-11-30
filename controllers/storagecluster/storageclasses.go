@@ -282,7 +282,7 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 		ret = append(ret, newCephOBCStorageClassConfiguration(initData))
 	}
 	// encrypted Ceph Block Pool storageclass will be returned only if
-	// storage-class wide encryption + kms is enabled and KMS ConfigMap is available
+	// storage-class encryption + kms is enabled and KMS ConfigMap is available
 	if initData.Spec.Encryption.StorageClass && initData.Spec.Encryption.KeyManagementService.Enable {
 		kmsConfig, err := getKMSConfigMap(KMSConfigMapName, initData, r.Client)
 		if err == nil && kmsConfig != nil {

@@ -187,8 +187,22 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		if kmsConfig, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client); err != nil {
 			return err
 		} else if kmsConfig != nil {
+			// Set default KMS_PROVIDER. Possible values are: vault, ibmkeyprotect.
+			if _, ok := kmsConfig.Data["KMS_PROVIDER"]; !ok {
+				kmsConfig.Data["KMS_PROVIDER"] = VaultKMSProvider
+			}
+			// vault as a KMS service provider
+			if kmsConfig.Data["KMS_PROVIDER"] == VaultKMSProvider {
+				// Set default VAULT_AUTH_METHOD. Possible values are: token, kubernetes.
+				if _, ok := kmsConfig.Data["VAULT_AUTH_METHOD"]; !ok {
+					kmsConfig.Data["VAULT_AUTH_METHOD"] = VaultTokenAuthMethod
+				}
+				// Set TokenSecretName only for vault token based auth method
+				if kmsConfig.Data["VAULT_AUTH_METHOD"] == VaultTokenAuthMethod {
+					nb.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
+				}
+			}
 			nb.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfig.Data
-			nb.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 		}
 	}
 

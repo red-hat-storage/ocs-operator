@@ -630,7 +630,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 	// Feature gating for Console. The array values are unique identifiers provided by the console.
 	// This can be used to enable/disable console support for any supported feature
 	// Example: "features.ocs.openshift.io/enabled": `["external", "foo1", "foo2", ...]`
-	ocsCSV.Annotations["features.ocs.openshift.io/enabled"] = `["kms", "arbiter", "flexible-scaling", "multus", "pool-management", "namespace-store", "mcg-standalone", "taint-nodes"]`
+	ocsCSV.Annotations["features.ocs.openshift.io/enabled"] = `["kms", "arbiter", "flexible-scaling", "multus", "pool-management", "namespace-store", "mcg-standalone", "taint-nodes", "vault-sa-kms", "hpcs-kms"]`
 	// Feature disablement flag for Console. The array values are unique identifiers provided by the console.
 	// To be used to disable UI components. This is used to track migration of features.
 	// Example: "features.ocs.openshift.io/disabled": `["external", "foo1", "foo2", ...]`

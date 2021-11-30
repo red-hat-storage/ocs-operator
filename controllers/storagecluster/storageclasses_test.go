@@ -40,7 +40,7 @@ func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.Storage
 		cp := &Platform{platform: eachPlatform}
 		runtimeObjs := []client.Object{}
 		if pvEncryption {
-			runtimeObjs = append(runtimeObjs, createDummyKMSConfigMap(dummyKmsProvider, dummyKmsAddress))
+			runtimeObjs = append(runtimeObjs, createDummyKMSConfigMap(dummyKmsProvider, dummyKmsAddress, ""))
 		}
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 			t, cp, runtimeObjs, customSpec)
