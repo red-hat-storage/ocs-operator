@@ -283,6 +283,7 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) err
 	}
 
 	objs := []resourceManager{
+		&ocsProviderServer{},
 		&ocsNoobaaSystem{},
 		&ocsCephRGWRoutes{},
 		&ocsCephObjectStoreUsers{},
