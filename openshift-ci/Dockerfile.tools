@@ -1,4 +1,4 @@
-FROM fedora:33 as build-tools
+FROM fedora:34 as build-tools
 ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV GOCACHE /go/.cache
