@@ -71,7 +71,7 @@ func newRookCephSCC(namespace string) *secv1.SecurityContextConstraints {
 	scc.AllowHostIPC = true
 	scc.ReadOnlyRootFilesystem = false
 	scc.RequiredDropCapabilities = []corev1.Capability{}
-	scc.DefaultAddCapabilities = []corev1.Capability{}
+	scc.DefaultAddCapabilities = []corev1.Capability{"MKNOD"}
 	scc.RunAsUser = secv1.RunAsUserStrategyOptions{
 		Type: secv1.RunAsUserStrategyRunAsAny,
 	}
