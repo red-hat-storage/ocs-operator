@@ -2,4 +2,5 @@
 resources:
 - ocs_v1_ocsinitialization.yaml
 - ocs_v1_storagecluster.yaml
+- ocs_v1alpha1_storageconsumer.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

@@ -58,6 +58,14 @@ metadata:
               }
             ]
           }
+        },
+        {
+          "apiVersion": "ocs.openshift.io/v1alpha1",
+          "kind": "StorageConsumer",
+          "metadata": {
+            "name": "storageconsumer-sample"
+          },
+          "spec": null
         }
       ]
     capabilities: Basic Install
@@ -79,6 +87,11 @@ spec:
       kind: StorageCluster
       name: storageclusters.ocs.openshift.io
       version: v1
+    - description: StorageConsumer is the Schema for the storageconsumers API
+      displayName: Storage Consumer
+      kind: StorageConsumer
+      name: storageconsumers.ocs.openshift.io
+      version: v1alpha1
   description: '""'
   displayName: OpenShift Container Storage Operator
   icon:
@@ -200,6 +213,26 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageconsumers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageconsumers/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - operators.coreos.com
           resources:
