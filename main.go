@@ -34,9 +34,11 @@ import (
 	"github.com/operator-framework/operator-lib/conditions"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/ocsinitialization"
 	"github.com/red-hat-storage/ocs-operator/controllers/persistentvolume"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
+	"github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -76,6 +78,7 @@ func init() {
 	utilruntime.Must(extv1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(quotav1.AddToScheme(scheme))
+	utilruntime.Must(ocsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -152,6 +155,14 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolume")
+		os.Exit(1)
+	}
+	if err = (&controllers.StorageConsumerReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("StorageConsumer"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumer")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
