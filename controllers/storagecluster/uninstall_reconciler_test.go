@@ -724,7 +724,7 @@ func assertTestDeleteCephObjectStores(
 		assert.NoError(t, err)
 	}
 
-	cephStores, err := reconciler.newCephObjectStoreInstances(sc)
+	cephStores, err := reconciler.newCephObjectStoreInstances(sc, nil)
 	assert.NoError(t, err)
 
 	for _, cephStore := range cephStores {

@@ -7,6 +7,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,8 +38,18 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStore.", "Platform", platform)
 		return nil
 	}
-
-	cephObjectStores, err := r.newCephObjectStoreInstances(instance)
+	kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, instance, r.Client)
+	if err != nil {
+		r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, KMSConfigMapName))
+		return err
+	}
+	if kmsConfigMap != nil {
+		if err = reachKMSProvider(kmsConfigMap); err != nil {
+			r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
+			return err
+		}
+	}
+	cephObjectStores, err := r.newCephObjectStoreInstances(instance, kmsConfigMap)
 	if err != nil {
 		return err
 	}
@@ -54,7 +65,7 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 // ensureDeleted deletes the CephObjectStores owned by the StorageCluster
 func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
 	foundCephObjectStore := &cephv1.CephObjectStore{}
-	cephObjectStores, err := r.newCephObjectStoreInstances(sc)
+	cephObjectStores, err := r.newCephObjectStoreInstances(sc, nil)
 	if err != nil {
 		return err
 	}
@@ -131,7 +142,7 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
-func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephObjectStore, error) {
+func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap) ([]*cephv1.CephObjectStore, error) {
 	gatewayInstances := initData.Spec.ManagedResources.CephObjectStores.GatewayInstances
 	if gatewayInstances == 0 {
 		gatewayInstances = getCephObjectStoreGatewayInstances(initData)
@@ -174,6 +185,25 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		if err != nil {
 			r.Log.Error(err, "Failed to set ControllerReference for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
 			return nil, err
+		}
+		// if kmsConfig is not 'nil', add the KMS details to ObjectStore spec
+		if kmsConfigMap != nil {
+			// Set default KMS_PROVIDER and VAULT_SECRET_ENGINE values, refer https://issues.redhat.com/browse/RHSTOR-1963
+			if _, ok := kmsConfigMap.Data["KMS_PROVIDER"]; !ok {
+				kmsConfigMap.Data["KMS_PROVIDER"] = "vault"
+			}
+			rgwConnDetails := make(map[string]string)
+			for key, value := range kmsConfigMap.Data {
+				// ignore kv engine related options
+				if key == "VAULT_BACKEND_PATH" || key == "VAULT_BACKEND" {
+					continue
+				}
+				rgwConnDetails[key] = value
+			}
+			// overwrite SecretEngine value to transit
+			rgwConnDetails["VAULT_SECRET_ENGINE"] = "transit"
+			obj.Spec.Security.KeyManagementService.ConnectionDetails = rgwConnDetails
+			obj.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 		}
 	}
 	return ret, nil
