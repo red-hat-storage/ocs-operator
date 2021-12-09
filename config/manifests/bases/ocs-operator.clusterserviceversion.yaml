@@ -22,6 +22,11 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
+    - description: StorageConsumer is the Schema for the storageconsumers API
+      displayName: Storage Consumer
+      kind: StorageConsumer
+      name: storageconsumers.ocs.openshift.io
+      version: v1alpha1
   description: '""'
   displayName: OpenShift Container Storage Operator
   icon:

@@ -1,0 +1,6 @@
+apiVersion: ocs.openshift.io/v1alpha1
+kind: StorageConsumer
+metadata:
+  name: storageconsumer-sample
+spec:
+  # Add fields here

@@ -1118,7 +1118,7 @@ metadata:
       \   }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","volumereplicationclasses.replication.storage.openshift.io","volumereplications.replication.storage.openshift.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","volumereplicationclasses.replication.storage.openshift.io","volumereplications.replication.storage.openshift.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -1154,6 +1154,11 @@ spec:
         name: noobaas.noobaa.io
         version: v1alpha1
       version: v1
+    - description: StorageConsumer is the Schema for the storageconsumers API
+      displayName: Storage Consumer
+      kind: StorageConsumer
+      name: storageconsumers.ocs.openshift.io
+      version: v1alpha1
     - description: Represents a Ceph cluster.
       displayName: Ceph Cluster
       kind: CephCluster
@@ -1571,6 +1576,26 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageconsumers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageconsumers/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - operators.coreos.com
           resources:
