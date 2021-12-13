@@ -4,4 +4,5 @@ USER nobody
 
 ADD _output/bin/ocs-operator /usr/local/bin/ocs-operator
 ADD _output/bin/metrics-exporter /usr/local/bin/metrics-exporter
+ADD _output/bin/provider-api /usr/local/bin/provider-api
 ADD _output/*rules*.yaml /ocs-prometheus-rules/
