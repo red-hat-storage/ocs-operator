@@ -149,6 +149,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Name:  "NOOBAA_DB_IMAGE",
 				Value: *noobaaDBContainerImage,
 			},
+			{
+				Name:  "PROVIDER_API_SERVER_IMAGE",
+				Value: *ocsContainerImage,
+			},
 		}
 
 		// append to env var list.

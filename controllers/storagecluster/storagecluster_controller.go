@@ -11,6 +11,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
@@ -117,5 +118,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&cephv1.CephCluster{}).
 		Owns(&nbv1.NooBaa{}).
 		Owns(&corev1.PersistentVolumeClaim{}, builder.WithPredicates(pvcPredicate)).
+		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
