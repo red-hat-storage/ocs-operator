@@ -177,6 +177,9 @@ type ExternalStorageClusterStatus struct {
 	// GrantedCapacity Will report the actual capacity
 	// granted to the consumer cluster by the provider cluster.
 	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
+
+	// ConsumerID will hold the identity of this cluster inside the attached provider cluster
+	ConsumerID string `json:"id,omitempty"`
 }
 
 // StorageDeviceSet defines a set of storage devices.
