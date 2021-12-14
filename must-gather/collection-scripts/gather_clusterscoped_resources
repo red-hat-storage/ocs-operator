@@ -72,3 +72,23 @@ for command_desc in "${commands_desc[@]}"; do
      COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/desc_${command_desc// /_}
     { oc describe "${command_desc}"; } >> "${COMMAND_OUTPUT_FILE}"
 done
+
+# Collect logs for drpolicy and mirrorpeers
+isMirrorPeer=$(timeout 60 oc get crd | grep mirrorpeers |awk '{print $1}')
+if [ "${isMirrorPeer}" == "mirrorpeers.multicluster.odf.openshift.io" ]; then
+        # Collect logs for oc get mirrorpeers
+        echo "collecting oc command get mirrorpeers" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+        COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/get_mirrorpeers
+        { oc get mirrorpeers; } >> "${COMMAND_OUTPUT_FILE}"
+        # Collect logs for oc get drpolicy
+        echo "collecting oc command get drpolicy" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+        COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/get_drpolicy
+        { oc get drpolicy; } >> "${COMMAND_OUTPUT_FILE}"
+        # Collect logs for oc describe drpolicy
+        echo "collecting oc command describe drpolicy" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+        COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/desc_drpolicy
+        { oc describe drpolicy; } >> "${COMMAND_OUTPUT_FILE}"
+        { oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect drpolicy --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+        else
+            { printf "No mirror peer CRD"; }
+        fi

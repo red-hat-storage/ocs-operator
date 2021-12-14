@@ -147,3 +147,25 @@ echo "collecting dump of oc get volumereplication all namespaces" | tee -a  "${B
 echo "collecting dump of oc get volumereplicationgroups all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get volumereplicationgroups --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/vrg_all_namespaces"
 { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect vrg --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+
+# Collect logs for Ramen DR Hub cluster Resources
+isMirrorPeer=$(timeout 60 oc get crd | grep mirrorpeers |awk '{print $1}')
+if [ "${isMirrorPeer}" == "mirrorpeers.multicluster.odf.openshift.io" ]; then
+            # For Channels of all namespaces
+            { oc get channel --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/channel_all_namespaces"
+            { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect channel --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+            # For DRPlacementControl of all namespaces
+            { oc get drplacementcontrol --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/drplacementcontrol_all_namespaces"
+            { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect drplacementcontrol --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+            # For placement rule of all namespaces
+            { oc get placementrule --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/placementrule_all_namespaces"
+            { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect placementrule --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+            # For subscription of all namespaces
+            { oc get subscription --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/subscription_all_namespaces"
+            { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect subscription --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+            # For ManagedClusterAddons of all namespaces
+            { oc get managedclusteraddons --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/managedclusteraddons_all_namespaces"
+            { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect managedclusteraddons --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+            else
+                { printf "No mirror peer CRD"; }
+            fi
