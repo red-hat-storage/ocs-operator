@@ -215,5 +215,5 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "services/provider/pb/provider.proto",
+	Metadata: "provider.proto",
 }
