@@ -107,3 +107,14 @@ OCS_MUST_GATHER_DIR="${OCS_MUST_GATHER_DIR:-ocs-must-gather}"
 OCP_MUST_GATHER_DIR="${OCP_MUST_GATHER_DIR:-ocp-must-gather}"
 
 OS_TYPE=$(uname)
+
+# Protobuf
+PROTOC_VERSION="3.14.0"
+PROTOC_GEN_GO_VERSION="1.26.0"
+PROTOC_GEN_GO_GRPC_VERSION="1.1.0"
+OUTDIR_GRPC="build/_output/grpc"
+OUTDIR_PROTO_DIST="build/_output/grpc/dist"
+OUTDIR_PROTO_GOOGLE="build/_output/grpc/google/protobuf"
+
+# gRPC services
+declare -a SERVICES=("provider")

@@ -18,6 +18,7 @@ all: ocs-operator ocs-registry ocs-must-gather
 
 .PHONY: \
 	build \
+	gen-protobuf \
 	build-go \
 	build-container \
 	clean \
@@ -57,7 +58,7 @@ operator-sdk:
 
 ocs-operator-openshift-ci-build: build
 
-build: deps-update generate build-go
+build: deps-update generate gen-protobuf build-go
 
 # Do not update/generate deps to ensure a consistent build with the current vendored deps.
 build-go:
@@ -79,6 +80,10 @@ ocs-must-gather:
 source-manifests: operator-sdk manifests kustomize
 	@echo "Sourcing CSV and CRD manifests from component-level operators"
 	hack/source-manifests.sh
+
+gen-protobuf:
+	@echo "Generating protobuf files for gRPC services"
+	hack/gen-protobuf.sh
 
 gen-latest-csv: operator-sdk manifests kustomize
 	@echo "Generating latest development CSV version using predefined ENV VARs."
