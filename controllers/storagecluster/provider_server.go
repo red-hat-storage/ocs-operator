@@ -28,11 +28,11 @@ type ocsProviderServer struct{}
 func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 
 	if !instance.Spec.AllowRemoteStorageConsumers {
-		r.Log.Info("nigoyal Spec.AllowRemoteStorageConsumers is disabled")
+		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
 		return o.ensureDeleted(r, instance)
 	}
 
-	r.Log.Info("nigoyal Spec.AllowRemoteStorageConsumers is enabled creating resources")
+	r.Log.Info("Spec.AllowRemoteStorageConsumers is enabled. Creating Provider API resources")
 
 	var finalErr error
 
@@ -71,13 +71,13 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 		err := r.Client.Delete(context.TODO(), resource)
 
 		if err != nil && !errors.IsNotFound(err) {
-			r.Log.Error(err, "nigoyal Failed to delete resource", "Kind", resource.GetObjectKind(), "Name", resource.GetName())
+			r.Log.Error(err, "Failed to delete resource", "Kind", resource.GetObjectKind(), "Name", resource.GetName())
 			multierr.AppendInto(&finalErr, err)
 		}
 	}
 
 	if finalErr == nil {
-		r.Log.Info("nigoyal Resource deletion for provider succeeded")
+		r.Log.Info("Resource deletion for provider succeeded")
 	}
 
 	return finalErr
@@ -105,17 +105,17 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 		},
 	)
 	if err != nil && !errors.IsAlreadyExists(err) {
-		r.Log.Error(err, "nigoyal Failed to create/update deployment", "Name", desiredDeployment.Name)
+		r.Log.Error(err, "Failed to create/update deployment", "Name", desiredDeployment.Name)
 		return err
 	}
 
 	err = o.ensureDeploymentReplica(actualDeployment, desiredDeployment)
 	if err != nil {
-		r.Log.Error(err, "nigoyal Deployment is not ready", "Name", desiredDeployment.Name)
+		r.Log.Error(err, "Deployment is not ready", "Name", desiredDeployment.Name)
 		return err
 	}
 
-	r.Log.Info("nigoyal Deployment is running as desired")
+	r.Log.Info("Deployment is running as desired")
 	return nil
 }
 
@@ -137,11 +137,11 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 		},
 	)
 	if err != nil && !errors.IsAlreadyExists(err) {
-		r.Log.Error(err, "nigoyal Failed to create/update service", "Name", desiredService.Name)
+		r.Log.Error(err, "Failed to create/update service", "Name", desiredService.Name)
 		return err
 	}
 
-	r.Log.Info("nigoyal Service create/update succeeded")
+	r.Log.Info("Service create/update succeeded")
 	return nil
 }
 
@@ -155,12 +155,12 @@ func (o *ocsProviderServer) createSecret(r *StorageClusterReconciler, instance *
 	if err != nil && errors.IsNotFound(err) {
 		err = r.Client.Create(context.TODO(), desiredSecret)
 		if err != nil {
-			r.Log.Error(err, "nigoyal Failed to create Secret", "Name", desiredSecret.Name)
+			r.Log.Error(err, "Failed to create secret", "Name", desiredSecret.Name)
 			return err
 		}
-		r.Log.Info("nigoyal Secret create succeeded", "Name", desiredSecret.Name)
+		r.Log.Info("Secret creation succeeded", "Name", desiredSecret.Name)
 	} else if err != nil {
-		r.Log.Error(err, "nigoyal Failed to get Secret", "Name", desiredSecret.Name)
+		r.Log.Error(err, "Failed to get secret", "Name", desiredSecret.Name)
 		return err
 	}
 
