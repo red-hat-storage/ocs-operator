@@ -316,7 +316,6 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   storageProviderKind:
-                    default: rhcs
                     description: StorageProviderKind Identify the type of storage
                       provider cluster this consumer cluster is going to connect to.
                     enum:
