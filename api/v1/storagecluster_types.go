@@ -158,7 +158,6 @@ type ExternalStorageClusterSpec struct {
 	// +optional
 	Enable bool `json:"enable,omitempty"`
 
-	//+kubebuilder:default:=rhcs
 	//+kubebuilder:validation:Enum=ocs;rhcs
 	// StorageProviderKind Identify the type of storage provider cluster this consumer cluster is going to connect to.
 	StorageProviderKind ExternalStorageKind `json:"storageProviderKind,omitempty"`
