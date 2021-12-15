@@ -132,6 +132,9 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 	_, err := controllerutil.CreateOrUpdate(
 		context.TODO(), r.Client, actualService,
 		func() error {
+			desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
+			desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
+
 			actualService.Spec = desiredService.Spec
 			return controllerutil.SetOwnerReference(instance, actualService, r.Client.Scheme())
 		},
