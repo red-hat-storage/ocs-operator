@@ -557,3 +557,52 @@ func TestExternalMonitoringResources(t *testing.T) {
 		})
 	}
 }
+
+func TestErasureCodedExternalResources(t *testing.T) {
+	cr := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocsinit",
+			Namespace: "openshift-storage",
+		},
+		Spec: api.StorageClusterSpec{
+			ExternalStorage: api.ExternalStorageClusterSpec{
+				Enable: true,
+			},
+			Monitoring: &api.MonitoringSpec{
+				ReconcileStrategy: string(ReconcileStrategyIgnore),
+			},
+		},
+	}
+	externalResource := []ExternalResource{
+		{
+			Name: "ceph-rbd",
+			Kind: "StorageClass",
+			Data: map[string]string{
+				"pool": generateNameForCephBlockPool(cr),
+			},
+		},
+		{
+			Name: "ceph-rbd-ec",
+			Kind: "StorageClass",
+			Data: map[string]string{
+				"dataPool": "ec-data-pool",
+				"pool":     "replicated-metadata-pool",
+			},
+		},
+	}
+
+	for _, extR := range externalResource {
+		t.Run(extR.Name, func(t *testing.T) {
+			actualSC := newCephBlockPoolStorageClassConfiguration(cr)
+			// To override the values for external cluster
+			for k, v := range extR.Data {
+				actualSC.storageClass.Parameters[k] = v
+			}
+			assert.NotEmpty(t, actualSC.storageClass.Parameters["clusterID"])
+			assert.Equal(t, extR.Data["dataPool"], actualSC.storageClass.Parameters["dataPool"])
+			assert.Equal(t, extR.Data["pool"], actualSC.storageClass.Parameters["pool"])
+			assert.NotEmpty(t, actualSC.storageClass.Parameters["csi.storage.k8s.io/provisioner-secret-name"])
+			assert.NotEmpty(t, actualSC.storageClass.Parameters["csi.storage.k8s.io/provisioner-secret-namespace"])
+		})
+	}
+}
