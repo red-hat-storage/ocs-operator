@@ -7,7 +7,7 @@
           {
             alert: 'OdfMirrorDaemonStatus',
             expr: |||
-              (ocs_mirror_daemon_status{%(ocsExporterSelector)s}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 2
+              ((count by(namespace) (ocs_mirror_daemon_count{%(ocsExporterSelector)s} == 0)) * on(namespace) group_left() (count by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s} == 1))) > 0
             ||| % $._config,
             'for': $._config.odfMirrorDaemonStatusAlertTime,
             labels: {
