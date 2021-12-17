@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 )
 
 const (
@@ -85,8 +86,16 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 
 func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 
-	if _, ok := os.LookupEnv(providerAPIServerImage); !ok {
-		return fmt.Errorf("ENV var %s not found", providerAPIServerImage)
+	var finalErr error
+
+	for _, env := range []string{providerAPIServerImage, util.WatchNamespaceEnvVar} {
+		if _, ok := os.LookupEnv(env); !ok {
+			multierr.AppendInto(&finalErr, fmt.Errorf("ENV var %s not found", env))
+		}
+	}
+
+	if finalErr != nil {
+		return finalErr
 	}
 
 	desiredDeployment := GetProviderAPIServerDeployment(instance)
@@ -202,6 +211,20 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 							Name:    "ocs-provider-api-server",
 							Image:   os.Getenv(providerAPIServerImage),
 							Command: []string{"/usr/local/bin/provider-api"},
+							Env: []corev1.EnvVar{
+								{
+									Name:  util.WatchNamespaceEnvVar,
+									Value: os.Getenv(util.WatchNamespaceEnvVar),
+								},
+								{
+									Name:  "STORAGE_CLUSTER_NAME",
+									Value: instance.Name,
+								},
+								{
+									Name:  "STORAGE_CLUSTER_UID",
+									Value: string(instance.UID),
+								},
+							},
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "ocs-provider",
