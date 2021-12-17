@@ -16,18 +16,18 @@ const (
 func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *options.Options) {
 	cephObjectStoreCollector := NewCephObjectStoreCollector(opts)
 	cephBlockPoolCollector := NewCephBlockPoolCollector(opts)
-	cephRBDMirrorCollector := NewCephRBDMirrorCollector(opts)
+	cephClusterCollector := NewCephClusterCollector(opts)
 	storageQuotaCollector := NewStorageQuotaCollector(opts)
 	OBMetricsCollector := NewObjectBucketCollector(opts)
 	cephObjectStoreCollector.Run(opts.StopCh)
 	cephBlockPoolCollector.Run(opts.StopCh)
-	cephRBDMirrorCollector.Run(opts.StopCh)
+	cephClusterCollector.Run(opts.StopCh)
 	storageQuotaCollector.Run(opts.StopCh)
 	OBMetricsCollector.Run(opts.StopCh)
 	registry.MustRegister(
 		cephObjectStoreCollector,
 		cephBlockPoolCollector,
-		cephRBDMirrorCollector,
+		cephClusterCollector,
 		storageQuotaCollector,
 		OBMetricsCollector,
 	)
