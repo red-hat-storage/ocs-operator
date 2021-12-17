@@ -92,7 +92,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        (ocs_mirror_daemon_status{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
+        ((count by(namespace) (ocs_mirror_daemon_count{job="ocs-metrics-exporter"} == 0)) * on(namespace) group_left() (count by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"} == 1))) > 0
       for: 1m
       labels:
         severity: critical
