@@ -5,6 +5,7 @@ import (
 
 	"github.com/red-hat-storage/ocs-operator/services/provider/server"
 	"google.golang.org/grpc"
+	"k8s.io/klog"
 )
 
 var (
@@ -13,6 +14,9 @@ var (
 
 func main() {
 	flag.Parse()
+
+	klog.Info("Starting Provider API server")
+
 	var opts []grpc.ServerOption
 	server.Start(*port, opts)
 }
