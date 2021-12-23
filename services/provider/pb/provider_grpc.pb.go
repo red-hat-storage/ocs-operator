@@ -18,13 +18,13 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OCSProviderClient interface {
-	// OnBoardConsumer RPC call to validate the consumer and create StorageConsumer
+	// OnboardConsumer RPC call to validate the consumer and create StorageConsumer
 	// resource on the StorageProvider cluster
-	OnBoardConsumer(ctx context.Context, in *OnBoardConsumerRequest, opts ...grpc.CallOption) (*OnBoardConsumerResponse, error)
+	OnboardConsumer(ctx context.Context, in *OnboardConsumerRequest, opts ...grpc.CallOption) (*OnboardConsumerResponse, error)
 	// GetStorageConfig RPC call to generate the json config for connecting to storage provider cluster
 	GetStorageConfig(ctx context.Context, in *StorageConfigRequest, opts ...grpc.CallOption) (*StorageConfigResponse, error)
 	// OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
-	OffBoardConsumer(ctx context.Context, in *OffBoardConsumerRequest, opts ...grpc.CallOption) (*OffBoardConsumerResponse, error)
+	OffboardConsumer(ctx context.Context, in *OffboardConsumerRequest, opts ...grpc.CallOption) (*OffboardConsumerResponse, error)
 	// UpdateCapacity PRC call to increase or decrease the block pool size
 	UpdateCapacity(ctx context.Context, in *UpdateCapacityRequest, opts ...grpc.CallOption) (*UpdateCapacityResponse, error)
 }
@@ -37,9 +37,9 @@ func NewOCSProviderClient(cc grpc.ClientConnInterface) OCSProviderClient {
 	return &oCSProviderClient{cc}
 }
 
-func (c *oCSProviderClient) OnBoardConsumer(ctx context.Context, in *OnBoardConsumerRequest, opts ...grpc.CallOption) (*OnBoardConsumerResponse, error) {
-	out := new(OnBoardConsumerResponse)
-	err := c.cc.Invoke(ctx, "/provider.OCSProvider/OnBoardConsumer", in, out, opts...)
+func (c *oCSProviderClient) OnboardConsumer(ctx context.Context, in *OnboardConsumerRequest, opts ...grpc.CallOption) (*OnboardConsumerResponse, error) {
+	out := new(OnboardConsumerResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/OnboardConsumer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,9 +55,9 @@ func (c *oCSProviderClient) GetStorageConfig(ctx context.Context, in *StorageCon
 	return out, nil
 }
 
-func (c *oCSProviderClient) OffBoardConsumer(ctx context.Context, in *OffBoardConsumerRequest, opts ...grpc.CallOption) (*OffBoardConsumerResponse, error) {
-	out := new(OffBoardConsumerResponse)
-	err := c.cc.Invoke(ctx, "/provider.OCSProvider/OffBoardConsumer", in, out, opts...)
+func (c *oCSProviderClient) OffboardConsumer(ctx context.Context, in *OffboardConsumerRequest, opts ...grpc.CallOption) (*OffboardConsumerResponse, error) {
+	out := new(OffboardConsumerResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/OffboardConsumer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,13 +77,13 @@ func (c *oCSProviderClient) UpdateCapacity(ctx context.Context, in *UpdateCapaci
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
 type OCSProviderServer interface {
-	// OnBoardConsumer RPC call to validate the consumer and create StorageConsumer
+	// OnboardConsumer RPC call to validate the consumer and create StorageConsumer
 	// resource on the StorageProvider cluster
-	OnBoardConsumer(context.Context, *OnBoardConsumerRequest) (*OnBoardConsumerResponse, error)
+	OnboardConsumer(context.Context, *OnboardConsumerRequest) (*OnboardConsumerResponse, error)
 	// GetStorageConfig RPC call to generate the json config for connecting to storage provider cluster
 	GetStorageConfig(context.Context, *StorageConfigRequest) (*StorageConfigResponse, error)
 	// OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
-	OffBoardConsumer(context.Context, *OffBoardConsumerRequest) (*OffBoardConsumerResponse, error)
+	OffboardConsumer(context.Context, *OffboardConsumerRequest) (*OffboardConsumerResponse, error)
 	// UpdateCapacity PRC call to increase or decrease the block pool size
 	UpdateCapacity(context.Context, *UpdateCapacityRequest) (*UpdateCapacityResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
@@ -93,14 +93,14 @@ type OCSProviderServer interface {
 type UnimplementedOCSProviderServer struct {
 }
 
-func (UnimplementedOCSProviderServer) OnBoardConsumer(context.Context, *OnBoardConsumerRequest) (*OnBoardConsumerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method OnBoardConsumer not implemented")
+func (UnimplementedOCSProviderServer) OnboardConsumer(context.Context, *OnboardConsumerRequest) (*OnboardConsumerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OnboardConsumer not implemented")
 }
 func (UnimplementedOCSProviderServer) GetStorageConfig(context.Context, *StorageConfigRequest) (*StorageConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStorageConfig not implemented")
 }
-func (UnimplementedOCSProviderServer) OffBoardConsumer(context.Context, *OffBoardConsumerRequest) (*OffBoardConsumerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method OffBoardConsumer not implemented")
+func (UnimplementedOCSProviderServer) OffboardConsumer(context.Context, *OffboardConsumerRequest) (*OffboardConsumerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OffboardConsumer not implemented")
 }
 func (UnimplementedOCSProviderServer) UpdateCapacity(context.Context, *UpdateCapacityRequest) (*UpdateCapacityResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateCapacity not implemented")
@@ -118,20 +118,20 @@ func RegisterOCSProviderServer(s grpc.ServiceRegistrar, srv OCSProviderServer) {
 	s.RegisterService(&OCSProvider_ServiceDesc, srv)
 }
 
-func _OCSProvider_OnBoardConsumer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OnBoardConsumerRequest)
+func _OCSProvider_OnboardConsumer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OnboardConsumerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(OCSProviderServer).OnBoardConsumer(ctx, in)
+		return srv.(OCSProviderServer).OnboardConsumer(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/provider.OCSProvider/OnBoardConsumer",
+		FullMethod: "/provider.OCSProvider/OnboardConsumer",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OCSProviderServer).OnBoardConsumer(ctx, req.(*OnBoardConsumerRequest))
+		return srv.(OCSProviderServer).OnboardConsumer(ctx, req.(*OnboardConsumerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -154,20 +154,20 @@ func _OCSProvider_GetStorageConfig_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _OCSProvider_OffBoardConsumer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OffBoardConsumerRequest)
+func _OCSProvider_OffboardConsumer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OffboardConsumerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(OCSProviderServer).OffBoardConsumer(ctx, in)
+		return srv.(OCSProviderServer).OffboardConsumer(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/provider.OCSProvider/OffBoardConsumer",
+		FullMethod: "/provider.OCSProvider/OffboardConsumer",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OCSProviderServer).OffBoardConsumer(ctx, req.(*OffBoardConsumerRequest))
+		return srv.(OCSProviderServer).OffboardConsumer(ctx, req.(*OffboardConsumerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -198,16 +198,16 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*OCSProviderServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "OnBoardConsumer",
-			Handler:    _OCSProvider_OnBoardConsumer_Handler,
+			MethodName: "OnboardConsumer",
+			Handler:    _OCSProvider_OnboardConsumer_Handler,
 		},
 		{
 			MethodName: "GetStorageConfig",
 			Handler:    _OCSProvider_GetStorageConfig_Handler,
 		},
 		{
-			MethodName: "OffBoardConsumer",
-			Handler:    _OCSProvider_OffBoardConsumer_Handler,
+			MethodName: "OffboardConsumer",
+			Handler:    _OCSProvider_OffboardConsumer_Handler,
 		},
 		{
 			MethodName: "UpdateCapacity",

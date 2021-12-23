@@ -2,21 +2,21 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
 	"google.golang.org/grpc"
-	"k8s.io/klog"
 )
 
-type ConsumerClient struct {
+type OCSProviderClient struct {
 	Client  pb.OCSProviderClient
 	timeout time.Duration
 }
 
-// NewConsumerClient creates a ConsumerClient to talk to OCS consumer server
-func NewConsumerClient(cc *grpc.ClientConn, timeout time.Duration) *ConsumerClient {
-	return &ConsumerClient{Client: pb.NewOCSProviderClient(cc), timeout: timeout}
+// NewProviderClient creates a client to talk to OCS provider server
+func NewProviderClient(cc *grpc.ClientConn, timeout time.Duration) *OCSProviderClient {
+	return &OCSProviderClient{Client: pb.NewOCSProviderClient(cc), timeout: timeout}
 }
 
 // NewGRPCConnection returns a grpc client connection which can be used to create the consumer client
@@ -24,27 +24,28 @@ func NewConsumerClient(cc *grpc.ClientConn, timeout time.Duration) *ConsumerClie
 func NewGRPCConnection(serverAddr string, opts []grpc.DialOption) (*grpc.ClientConn, error) {
 	conn, err := grpc.Dial(serverAddr, opts...)
 	if err != nil {
-		klog.Fatalf("failed to dial: %v", err)
+		return nil, fmt.Errorf("failed to dial: %v", err)
 	}
 	return conn, err
 }
 
-// OnBoardConsumer to validate the consumer and create StorageConsumer
+// OnboardConsumer to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
-func (cc *ConsumerClient) OnBoardConsumer(token, capacity string) (*pb.OnBoardConsumerResponse, error) {
-	req := &pb.OnBoardConsumerRequest{
-		Token:    token,
-		Capacity: capacity,
+func (cc *OCSProviderClient) OnboardConsumer(token, name, capacity string) (*pb.OnboardConsumerResponse, error) {
+	req := &pb.OnboardConsumerRequest{
+		Token:        token,
+		ConsumerName: name,
+		Capacity:     capacity,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cc.timeout)
 	defer cancel()
 
-	return cc.Client.OnBoardConsumer(ctx, req)
+	return cc.Client.OnboardConsumer(ctx, req)
 }
 
 // GetStorageConfig generates the json config for connecting to storage provider cluster
-func (cc *ConsumerClient) GetStorageConfig(consumerUUID string) (*pb.StorageConfigResponse, error) {
+func (cc *OCSProviderClient) GetStorageConfig(consumerUUID string) (*pb.StorageConfigResponse, error) {
 	req := &pb.StorageConfigRequest{
 		StorageConsumerUUID: consumerUUID,
 	}
@@ -55,20 +56,20 @@ func (cc *ConsumerClient) GetStorageConfig(consumerUUID string) (*pb.StorageConf
 	return cc.Client.GetStorageConfig(ctx, req)
 }
 
-// OffBoardConsumer deletes the StorageConsumer CR on the storage provider cluster
-func (cc *ConsumerClient) OffBoardConsumer(consumerUUID string) (*pb.OffBoardConsumerResponse, error) {
-	req := &pb.OffBoardConsumerRequest{
+// OffboardConsumer deletes the StorageConsumer CR on the storage provider cluster
+func (cc *OCSProviderClient) OffboardConsumer(consumerUUID string) (*pb.OffboardConsumerResponse, error) {
+	req := &pb.OffboardConsumerRequest{
 		StorageConsumerUUID: consumerUUID,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cc.timeout)
 	defer cancel()
 
-	return cc.Client.OffBoardConsumer(ctx, req)
+	return cc.Client.OffboardConsumer(ctx, req)
 }
 
 // UpdateCapacity increases or decreases the storage block pool size
-func (cc *ConsumerClient) UpdateCapacity(consumerUUID, capacity string) (*pb.UpdateCapacityResponse, error) {
+func (cc *OCSProviderClient) UpdateCapacity(consumerUUID, capacity string) (*pb.UpdateCapacityResponse, error) {
 	req := &pb.UpdateCapacityRequest{
 		StorageConsumerUUID: consumerUUID,
 		Capacity:            capacity,

@@ -15,8 +15,8 @@ type ocsProviderServer struct {
 }
 
 // OnBoardConsumer RPC call to onboard a new OCS consumer cluster.
-func (c *ocsProviderServer) OnBoardConsumer(ctx context.Context, req *pb.OnBoardConsumerRequest) (*pb.OnBoardConsumerResponse, error) {
-	return &pb.OnBoardConsumerResponse{}, nil
+func (c *ocsProviderServer) OnBoardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
+	return &pb.OnboardConsumerResponse{}, nil
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
@@ -25,8 +25,8 @@ func (c *ocsProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 }
 
 // OffBoardConsumer RPC call to delete the StorageConsumer CR
-func (c *ocsProviderServer) OffBoardConsumer(ctx context.Context, req *pb.OffBoardConsumerRequest) (*pb.OffBoardConsumerResponse, error) {
-	return &pb.OffBoardConsumerResponse{}, nil
+func (c *ocsProviderServer) OffBoardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
+	return &pb.OffboardConsumerResponse{}, nil
 }
 
 // UpdateCapacity PRC call to increase or decrease the storage pool size
