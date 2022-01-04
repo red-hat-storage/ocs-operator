@@ -420,12 +420,13 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 		{testLabel: "case 1", kmsProvider: "vault",
 			clusterWideEncryption: true, kmsAddress: "http://localhost:3053"},
 		{testLabel: "case 2", kmsProvider: "vault",
-			clusterWideEncryption: false, kmsAddress: "http://localhost:32123", failureExpected: true},
+			clusterWideEncryption: false, kmsAddress: "http://localhost:32123"},
 		// ocs-operator is agnostic to KMS Provider, here rook should be throwing error
 		{testLabel: "case 3", kmsProvider: "newKMSProvider",
 			clusterWideEncryption: true, kmsAddress: "http://127.0.0.1:15851"},
 		// invalid test case, with an unreachable KMS address
-		{testLabel: "case 4", kmsProvider: "vault", kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
+		{testLabel: "case 4", kmsProvider: "vault",
+			clusterWideEncryption: true, kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
 	}
 	for _, kmsArgs := range allKMSArgs {
 		assertNoobaaKMSConfiguration(t, kmsArgs)
@@ -443,7 +444,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	cr := createDefaultStorageCluster()
 	// enable KMS to true
 	cr.Spec.Encryption.KeyManagementService.Enable = true
-	cr.Spec.Encryption.Enable = kmsArgs.clusterWideEncryption
+	cr.Spec.Encryption.ClusterWide = kmsArgs.clusterWideEncryption
 	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress)
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
 	if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
@@ -491,9 +492,17 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	nb := &v1alpha1.NooBaa{}
 	err = reconciler.Client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
 	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
-	// check the provided KMS ConfigMap data is passed on to CephCluster
-	for k, v := range kmsCM.Data {
-		assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+	// check the provided KMS ConfigMap data is passed on to NooBaa
+	// only if clusterWide encryption in enabled, else data should not be passed
+	if kmsArgs.clusterWideEncryption {
+		for k, v := range kmsCM.Data {
+			assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+		}
+		assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+	} else {
+		for k, v := range kmsCM.Data {
+			assert.NotEqual(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be different", kmsArgs.testLabel, k))
+		}
+		assert.NotEqual(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe different", kmsArgs.testLabel))
 	}
-	assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
 }

@@ -38,20 +38,32 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStore.", "Platform", platform)
 		return nil
 	}
-	kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, instance, r.Client)
-	if err != nil {
-		r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, KMSConfigMapName))
-		return err
-	}
-	if kmsConfigMap != nil {
-		if err = reachKMSProvider(kmsConfigMap); err != nil {
-			r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
+	var cephObjectStores []*cephv1.CephObjectStore
+	// Add KMS details to cephObjectStores spec, only if
+	// cluster-wide encryption is enabled
+	// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True
+	// and KMS ConfigMap is available
+	if instance.Spec.Encryption.Enable || instance.Spec.Encryption.ClusterWide {
+		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, instance, r.Client)
+		if err != nil {
+			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, KMSConfigMapName))
 			return err
 		}
-	}
-	cephObjectStores, err := r.newCephObjectStoreInstances(instance, kmsConfigMap)
-	if err != nil {
-		return err
+		if kmsConfigMap != nil {
+			if err = reachKMSProvider(kmsConfigMap); err != nil {
+				r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
+				return err
+			}
+		}
+		cephObjectStores, err = r.newCephObjectStoreInstances(instance, kmsConfigMap)
+		if err != nil {
+			return err
+		}
+	} else {
+		cephObjectStores, err = r.newCephObjectStoreInstances(instance, nil)
+		if err != nil {
+			return err
+		}
 	}
 	err = r.createCephObjectStores(cephObjectStores, instance)
 	if err != nil {

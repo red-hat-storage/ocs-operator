@@ -230,6 +230,16 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	}
 }
 
+// newEncryptedCephBlockPoolStorageClassConfiguration generates configuration options for an encrypted Ceph Block Pool StorageClass.
+// when user has asked for PV encryption during deployment.
+func newEncryptedCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, serviceName string) StorageClassConfiguration {
+	encryptedStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
+	encryptedStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForEncryptedCephBlockPoolSC(initData)
+	encryptedStorageClassConfig.storageClass.Parameters["encrypted"] = "true"
+	encryptedStorageClassConfig.storageClass.Parameters["encryptionKMSID"] = serviceName
+	return encryptedStorageClassConfig
+}
+
 // newCephOBCStorageClassConfiguration generates configuration options for a Ceph Object Store StorageClass.
 func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	reclaimPolicy := corev1.PersistentVolumeReclaimDelete
@@ -271,5 +281,17 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	if initData.Spec.ExternalStorage.Enable || err == nil && !skip {
 		ret = append(ret, newCephOBCStorageClassConfiguration(initData))
 	}
+	// encrypted Ceph Block Pool storageclass will be returned only if
+	// storage-class wide encryption + kms is enabled and KMS ConfigMap is available
+	if initData.Spec.Encryption.StorageClass && initData.Spec.Encryption.KeyManagementService.Enable {
+		kmsConfig, err := getKMSConfigMap(KMSConfigMapName, initData, r.Client)
+		if err == nil && kmsConfig != nil {
+			serviceName := kmsConfig.Data["KMS_SERVICE_NAME"]
+			ret = append(ret, newEncryptedCephBlockPoolStorageClassConfiguration(initData, serviceName))
+		} else {
+			r.Log.Error(err, "Error while getting ConfigMap.", "ConfigMap", klog.KRef(initData.Namespace, KMSConfigMapName))
+		}
+	}
+
 	return ret, nil
 }

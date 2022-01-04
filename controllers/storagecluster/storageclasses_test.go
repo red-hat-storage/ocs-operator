@@ -8,31 +8,58 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/stretchr/testify/assert"
 	storagev1 "k8s.io/api/storage/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var allPlatforms = append(SkipObjectStorePlatforms,
-	configv1.NonePlatformType, configv1.PlatformType("NonCloudPlatform"), configv1.IBMCloudPlatformType)
+var (
+	allPlatforms = append(SkipObjectStorePlatforms,
+		configv1.NonePlatformType, configv1.PlatformType("NonCloudPlatform"), configv1.IBMCloudPlatformType)
+	dummyKmsAddress  = "http://localhost:3053"
+	dummyKmsProvider = "vault"
+	customSpec       = &api.StorageClusterSpec{
+		Encryption: api.EncryptionSpec{
+			StorageClass: true,
+			KeyManagementService: api.KeyManagementServiceSpec{
+				Enable: true,
+			},
+		},
+	}
+)
 
-func TestStorageClasses(t *testing.T) {
+func TestDefaultStorageClasses(t *testing.T) {
+	testStorageClasses(t, false, nil)
+}
+
+func TestEncryptedStorageClass(t *testing.T) {
+	testStorageClasses(t, true, customSpec)
+}
+
+func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.StorageClusterSpec) {
 	for _, eachPlatform := range allPlatforms {
 		cp := &Platform{platform: eachPlatform}
+		runtimeObjs := []client.Object{}
+		if pvEncryption {
+			runtimeObjs = append(runtimeObjs, createDummyKMSConfigMap(dummyKmsProvider, dummyKmsAddress))
+		}
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, nil, nil)
+			t, cp, runtimeObjs, customSpec)
 		assertStorageClasses(t, reconciler, cr, request)
 	}
-
 }
 
 func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+	pvEncryption := cr.Spec.Encryption.StorageClass && cr.Spec.Encryption.KeyManagementService.Enable
 	scNameCephfs := generateNameForCephFilesystemSC(cr)
 	scNameRbd := generateNameForCephBlockPoolSC(cr)
+	scNameEncryptedRbd := generateNameForEncryptedCephBlockPoolSC(cr)
 	scNameRgw := generateNameForCephRgwSC(cr)
 
 	actual := map[string]*storagev1.StorageClass{
-		scNameCephfs: {},
-		scNameRbd:    {},
-		scNameRgw:    {},
+		scNameCephfs:       {},
+		scNameRbd:          {},
+		scNameEncryptedRbd: {},
+		scNameRgw:          {},
 	}
 	expected, err := reconciler.newStorageClassConfigurations(cr)
 	assert.NoError(t, err)
@@ -42,10 +69,18 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 	skip, skipErr := reconciler.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, skipErr)
 	if skip {
-		assert.Equal(t, len(expected), 2)
+		if pvEncryption {
+			assert.Equal(t, len(expected), 3)
+		} else {
+			assert.Equal(t, len(expected), 2)
+		}
 	} else {
-		// if not a cloud platform, RGW StorageClass should be created/updated
-		assert.Equal(t, len(expected), 3)
+		if pvEncryption {
+			assert.Equal(t, len(expected), 4)
+		} else {
+			// if not a cloud platform, RGW StorageClass should be created/updated
+			assert.Equal(t, len(expected), 3)
+		}
 	}
 
 	for _, scConfig := range expected {
@@ -76,6 +111,10 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 				assert.NotEmpty(t, actualSc.Parameters["objectStoreName"], actualSc.Parameters)
 				assert.NotEmpty(t, actualSc.Parameters["region"], actualSc.Parameters)
 				assert.Equal(t, 3, len(actualSc.Parameters))
+			}
+			if scName == scNameEncryptedRbd {
+				assert.Equal(t, actualSc.Parameters["encrypted"], "true")
+				assert.NotEmpty(t, actualSc.Parameters["encryptionKMSID"])
 			}
 		}
 	}

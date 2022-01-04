@@ -43,6 +43,10 @@ func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
 }
 
+func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-ceph-rbd-encrypted", initData.Name)
+}
+
 // generateNameForSnapshotClass function generates 'SnapshotClass' name.
 // 'snapshotType' can be: 'rbdSnapshotter' or 'cephfsSnapshotter'
 func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
