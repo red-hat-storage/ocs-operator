@@ -144,7 +144,7 @@ func assertTestDeleteStorageClasses(t *testing.T, reconciler StorageClusterRecon
 
 	var obj ocsStorageClass
 	if !storageClassExists {
-		err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(&reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -157,7 +157,7 @@ func assertTestDeleteStorageClasses(t *testing.T, reconciler StorageClusterRecon
 		assert.Equal(t, !storageClassExists, errors.IsNotFound(err))
 	}
 
-	err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(&reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, scc := range sccs {
@@ -200,7 +200,7 @@ func assertTestDeleteSnapshotClasses(
 	var obj ocsSnapshotClass
 
 	if !SnapshotClassExists {
-		err := obj.ensureCreated(&reconciler, sc)
+		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -212,7 +212,7 @@ func assertTestDeleteSnapshotClasses(
 		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
 	}
 
-	err := obj.ensureCreated(&reconciler, sc)
+	_, err := obj.ensureCreated(&reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, vssc := range vsscs {
@@ -420,7 +420,7 @@ func assertTestDeleteCephCluster(
 	var obj ocsCephCluster
 
 	if !cephClusterExist {
-		err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(&reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -434,7 +434,7 @@ func assertTestDeleteCephCluster(
 		assert.True(t, errors.IsNotFound(err))
 	}
 
-	err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(&reconciler, sc)
 	assert.NoError(t, err)
 
 	cephCluster = &cephv1.CephCluster{}
@@ -476,7 +476,7 @@ func assertTestDeleteCephFilesystems(
 	var obj ocsCephFilesystems
 
 	if !cephFilesystemsExist {
-		err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(&reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -495,7 +495,7 @@ func assertTestDeleteCephFilesystems(
 		}
 	}
 
-	err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(&reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephFilesystem := range cephFilesystems {
@@ -540,7 +540,7 @@ func assertTestDeleteCephBlockPools(
 	var obj ocsCephBlockPools
 
 	if !cephBlockPoolsExist {
-		err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(&reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -559,7 +559,7 @@ func assertTestDeleteCephBlockPools(
 		}
 	}
 
-	err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(&reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephBlockPool := range cephBlockPools {
@@ -632,7 +632,7 @@ func assertTestDeleteCephObjectStoreUsers(
 	var obj ocsCephObjectStoreUsers
 
 	if !CephObjectStoreUsersExist {
-		err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(&reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -651,7 +651,7 @@ func assertTestDeleteCephObjectStoreUsers(
 		}
 	}
 
-	err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(&reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephStoreUser := range cephStoreUsers {
@@ -731,7 +731,7 @@ func assertTestDeleteCephObjectStores(
 	var obj ocsCephObjectStores
 
 	if !CephObjectStoreExist {
-		err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(&reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -750,7 +750,7 @@ func assertTestDeleteCephObjectStores(
 		}
 	}
 
-	err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(&reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephStore := range cephStores {

@@ -131,7 +131,7 @@ func TestDualStack(t *testing.T) {
 			Spec:       api.StorageClusterSpec{Network: &testCase.rookCephNetworkSpec},
 		}
 		cephConfigReconciler := &ocsCephConfig{}
-		err := cephConfigReconciler.ensureCreated(&r, sc)
+		_, err := cephConfigReconciler.ensureCreated(&r, sc)
 		if err != nil {
 			assert.NilError(t, err, "ensure created failed")
 		}

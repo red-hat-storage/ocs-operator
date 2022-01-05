@@ -105,7 +105,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		}
 
 		var obj ocsCephCluster
-		err := obj.ensureCreated(&reconciler, sc)
+		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
 		actual := &cephv1.CephCluster{}
@@ -165,7 +165,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		}
 
 		var obj ocsCephCluster
-		err := obj.ensureCreated(&reconciler, sc)
+		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
 		cc := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
@@ -511,7 +511,7 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	// have to initialize the image status,
 	// without which the code will throw a 'nil pointer' exception
 	reconciler.initializeImagesStatus(cr)
-	err := obj.ensureCreated(&reconciler, cr)
+	_, err := obj.ensureCreated(&reconciler, cr)
 	if kmsArgs.failureExpected && err == nil {
 		// case 1: if a failure is expected and we don't receive any error
 		t.Errorf("Failed: %q. Expected an error", kmsArgs.testLabel)

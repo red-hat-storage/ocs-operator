@@ -82,10 +82,10 @@ func TestStorageQuotaEnsureCreatedDeleted(t *testing.T) {
 	for _, tc := range testcases {
 		var obj ocsStorageQuota
 		r := createFakeStorageClusterWithQuotaReconciler(t)
-		err := obj.ensureCreated(r, tc.storageCluster)
+		_, err := obj.ensureCreated(r, tc.storageCluster)
 		assert.NoError(t, err)
 		assert.Equal(t, len(listStorageQuotas(t, r)), len(tc.storageCluster.Spec.OverprovisionControl))
-		err = obj.ensureDeleted(r, tc.storageCluster)
+		_, err = obj.ensureDeleted(r, tc.storageCluster)
 		assert.NoError(t, err)
 		assert.Equal(t, len(listStorageQuotas(t, r)), 0)
 	}
@@ -95,10 +95,10 @@ func TestStorageQuotaWithFullStorageCluster(t *testing.T) {
 	sc := createStorageClusterWithOverprovision()
 
 	var obj ocsStorageQuota
-	err := obj.ensureCreated(r, sc)
+	_, err := obj.ensureCreated(r, sc)
 	assert.NoError(t, err)
 	assert.Equal(t, len(listStorageQuotas(t, r)), len(sc.Spec.OverprovisionControl))
-	err = obj.ensureDeleted(r, sc)
+	_, err = obj.ensureDeleted(r, sc)
 	assert.NoError(t, err)
 	assert.Equal(t, len(listStorageQuotas(t, r)), 0)
 }
