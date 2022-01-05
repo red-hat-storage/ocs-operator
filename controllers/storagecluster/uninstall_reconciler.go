@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // CleanupPolicyType is a string representing cleanup policy
@@ -270,16 +271,16 @@ func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.Stora
 
 // deleteResources is the function where the storageClusterFinalizer is handled
 // Every function that is called within this function should be idempotent
-func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) error {
+func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	err := r.setRookUninstallandCleanupPolicy(sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	err = r.setNoobaaUninstallMode(sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	objs := []resourceManager{
@@ -297,20 +298,22 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) err
 	}
 
 	for _, obj := range objs {
-		err = obj.ensureDeleted(r, sc)
+		res, err := obj.ensureDeleted(r, sc)
 		if err != nil {
-			return err
+			return reconcile.Result{}, err
+		} else if !res.IsZero() {
+			return res, nil
 		}
 	}
 
 	err = r.deleteNodeTaint(sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	err = deleteKMSResources(r, sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	// TODO: skip the deletion of these labels till we figure out a way to wait
@@ -320,5 +323,5 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) err
 	//	return err
 	//}
 
-	return nil
+	return reconcile.Result{}, nil
 }

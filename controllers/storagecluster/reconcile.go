@@ -31,8 +31,8 @@ type ReconcileStrategy string
 type StorageClassProvisionerType string
 
 type resourceManager interface {
-	ensureCreated(*StorageClusterReconciler, *ocsv1.StorageCluster) error
-	ensureDeleted(*StorageClusterReconciler, *ocsv1.StorageCluster) error
+	ensureCreated(*StorageClusterReconciler, *ocsv1.StorageCluster) (reconcile.Result, error)
+	ensureDeleted(*StorageClusterReconciler, *ocsv1.StorageCluster) (reconcile.Result, error)
 }
 
 type ocsJobTemplates struct{}
@@ -321,10 +321,13 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		instance.Status.Phase = statusutil.PhaseDeleting
 
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
-			if err := r.deleteResources(instance); err != nil {
+			if res, err := r.deleteResources(instance); err != nil {
 				r.Log.Info("Uninstall in progress.", "Status", err)
 				r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonUninstallPending, err.Error())
 				return reconcile.Result{RequeueAfter: time.Second * time.Duration(1)}, nil
+			} else if !res.IsZero() {
+				// result is not empty
+				return res, nil
 			}
 			r.Log.Info("Removing finalizer from StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			// Once all finalizers have been removed, the object will be deleted
@@ -389,7 +392,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	}
 
 	for _, obj := range objs {
-		returnErr := obj.ensureCreated(r, instance)
+		returnRes, returnErr := obj.ensureCreated(r, instance)
 		if r.phase == statusutil.PhaseClusterExpanding {
 			message := "StorageCluster is expanding"
 			reason := "Expanding"
@@ -412,6 +415,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			instance.Status.Phase = statusutil.PhaseError
 			// don't want to overwrite the actual reconcile failure
 			return reconcile.Result{}, returnErr
+		} else if !returnRes.IsZero() {
+			// result is not empty
+			return returnRes, nil
 		}
 	}
 	// All component operators are in a happy state.
