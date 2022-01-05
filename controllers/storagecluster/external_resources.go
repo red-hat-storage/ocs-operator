@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -228,21 +229,21 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 
 // ensureCreated ensures that requested resources for the external cluster
 // being created
-func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	if r.sameExternalSecretData(instance) {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	err := r.createExternalStorageClusterResources(instance)
 	if err != nil {
 		r.Log.Error(err, "Could not create ExternalStorageClusterResource.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-		return err
+		return reconcile.Result{}, err
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted is dummy func for the ocsExternalResources
-func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	return nil
+func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	return reconcile.Result{}, nil
 }
 
 // createExternalStorageClusterResources creates external cluster resources

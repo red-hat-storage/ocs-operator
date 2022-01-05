@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephObjectStoreUsers struct{}
@@ -58,46 +59,46 @@ func (r *StorageClusterReconciler) newCephObjectStoreUserInstances(initData *ocs
 
 // ensureCreated ensures that cephObjectStoreUser resources exist in the desired
 // state.
-func (obj *ocsCephObjectStoreUsers) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsCephObjectStoreUsers) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStoreUsers.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	skip, err := r.PlatformsShouldSkipObjectStore()
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	if skip {
 		platform, err := r.platform.GetPlatform(r.Client)
 		if err != nil {
-			return err
+			return reconcile.Result{}, err
 		}
 		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStoreUser.", "Platform", platform)
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(instance)
 	if err != nil {
 		r.Log.Error(err, "Unable to create instances for CephObjectStoreUsers.")
-		return err
+		return reconcile.Result{}, err
 	}
 	err = r.createCephObjectStoreUsers(cephObjectStoreUsers, instance)
 	if err != nil {
 		r.Log.Error(err, "Could not create CephObjectStoresUsers.")
-		return err
+		return reconcile.Result{}, err
 	}
 
-	return err
+	return reconcile.Result{}, err
 }
 
 // ensureDeleted deletes the CephObjectStoreUsers owned by the StorageCluster
-func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	foundCephObjectStoreUser := &cephv1.CephObjectStoreUser{}
 	cephObjectStoreUsers, err := r.newCephObjectStoreUserInstances(sc)
 	if err != nil {
 		r.Log.Error(err, "Cannot create CephObjectStoreUser instances.")
-		return err
+		return reconcile.Result{}, err
 	}
 
 	for _, cephObjectStoreUser := range cephObjectStoreUsers {
@@ -108,7 +109,7 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 				continue
 			}
 			r.Log.Error(err, "Uninstall: Unable to retrieve CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
-			return fmt.Errorf("uninstall: Unable to retrieve CephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: Unable to retrieve CephObjectStoreUser %v: %v", cephObjectStoreUser.Name, err)
 		}
 
 		if cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -116,7 +117,7 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 			err = r.Client.Delete(context.TODO(), foundCephObjectStoreUser)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
-				return fmt.Errorf("uninstall: Failed to delete CephObjectStoreUser %v: %v", foundCephObjectStoreUser.Name, err)
+				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephObjectStoreUser %v: %v", foundCephObjectStoreUser.Name, err)
 			}
 		}
 
@@ -128,10 +129,10 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 			}
 		}
 		r.Log.Error(err, "Uninstall: Waiting for CephObjectStoreUser to be deleted.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
-		return fmt.Errorf("uninstall: Waiting for CephObjectStoreUser %v to be deleted", cephObjectStoreUser.Name)
+		return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for CephObjectStoreUser %v to be deleted", cephObjectStoreUser.Name)
 
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // createCephObjectStoreUsers creates CephObjectStoreUsers in the desired state

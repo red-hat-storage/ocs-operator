@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephRbdMirrors struct{}
@@ -70,14 +71,14 @@ func (r *StorageClusterReconciler) newCephRbdMirrorInstances(initData *ocsv1.Sto
 }
 
 // ensureCreated ensures that cephRbdMirror resources exist in the desired state.
-func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	cephRbdMirrors, err := r.newCephRbdMirrorInstances(instance)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	if !instance.Spec.Mirroring.Enabled {
-		return r.deleteCephRbdMirrorInstance(cephRbdMirrors)
+		return reconcile.Result{}, r.deleteCephRbdMirrorInstance(cephRbdMirrors)
 	}
 
 	for _, cephRbdMirror := range cephRbdMirrors {
@@ -89,17 +90,17 @@ func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instanc
 				err = r.Client.Create(context.TODO(), cephRbdMirror)
 				if err != nil {
 					r.Log.Error(err, "Failed to create CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-					return err
+					return reconcile.Result{}, err
 				}
 				continue
 			}
 			r.Log.Error(err, "Failed to get CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-			return err
+			return reconcile.Result{}, err
 		}
 
 		if existing.DeletionTimestamp != nil {
 			r.Log.Info("Unable to restore CephRbdMirror, It is marked for deletion.", "CephRbdMirror", klog.KRef(existing.Namespace, existing.Name))
-			return fmt.Errorf("failed to restore initialization object %s, It is marked for deletion", existing.Name)
+			return reconcile.Result{}, fmt.Errorf("failed to restore initialization object %s, It is marked for deletion", existing.Name)
 		}
 
 		r.Log.Info("Restoring original CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
@@ -108,17 +109,17 @@ func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instanc
 		err = r.Client.Update(context.TODO(), cephRbdMirror)
 		if err != nil {
 			r.Log.Error(err, "Failed to update CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-			return err
+			return reconcile.Result{}, err
 		}
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes the CephRbdMirrors owned by the StorageCluster
-func (obj *ocsCephRbdMirrors) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephRbdMirrors) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	cephRbdMirrors, err := r.newCephRbdMirrorInstances(sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
-	return r.deleteCephRbdMirrorInstance(cephRbdMirrors)
+	return reconcile.Result{}, r.deleteCephRbdMirrorInstance(cephRbdMirrors)
 }

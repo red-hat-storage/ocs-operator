@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // StorageClassConfiguration provides configuration options for a StorageClass.
@@ -29,27 +30,27 @@ type ocsStorageClass struct{}
 
 // ensureCreated ensures that StorageClass resources exist in the desired
 // state.
-func (obj *ocsStorageClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsStorageClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	scs, err := r.newStorageClassConfigurations(instance)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	err = r.createStorageClasses(scs)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes the storageClasses that the ocs-operator created
-func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	sccs, err := r.newStorageClassConfigurations(instance)
 	if err != nil {
 		r.Log.Error(err, "Uninstall: Unable to determine the StorageClass names.") //nolint:gosimple
-		return nil
+		return reconcile.Result{}, nil
 	}
 	for _, scc := range sccs {
 		sc := scc.storageClass
@@ -77,7 +78,7 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 			r.Log.Error(err, "Uninstall: Error while getting StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 		}
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration) error {

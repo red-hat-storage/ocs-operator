@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephCluster struct{}
@@ -71,14 +72,14 @@ func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 
 // ensureCreated ensures that a CephCluster resource exists with its Spec in
 // the desired state.
-func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephCluster.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
-		return fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
+		return reconcile.Result{}, fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
 
 	for i, ds := range sc.Spec.StorageDeviceSets {
@@ -87,7 +88,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 		diskSpeed, err := r.checkTuneStorageDevices(ds)
 		if err != nil {
-			return fmt.Errorf("Failed to check for known device types: %+v", err)
+			return reconcile.Result{}, fmt.Errorf("Failed to check for known device types: %+v", err)
 		}
 		switch diskSpeed {
 		case diskSpeedSlow:
@@ -102,7 +103,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		err := validateMultusSelectors(sc.Spec.Network.Selectors)
 		if err != nil {
 			r.Log.Error(err, "Failed to validate Multus Selectors specified in StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
-			return err
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -113,18 +114,18 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		if err != nil {
 			r.Log.Error(err, "Could not retrieve the External Cluster details.",
 				"CephCluster", klog.KRef(sc.Namespace, sc.Name))
-			return err
+			return reconcile.Result{}, err
 		}
 		endpointR, err := findNamedResourceFromArray(extRArr, "monitoring-endpoint")
 		if err != nil {
-			return err
+			return reconcile.Result{}, err
 		}
 		monitoringIP := endpointR.Data["MonitoringEndpoint"]
 		monitoringPort := endpointR.Data["MonitoringPort"]
 		if err := verifyMonitoringEndpoints(monitoringIP, monitoringPort, r.Log); err != nil {
 			r.Log.Error(err, "Could not connect to the Monitoring Endpoints.",
 				"CephCluster", klog.KRef(sc.Namespace, sc.Name))
-			return err
+			return reconcile.Result{}, err
 		}
 		r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
 		cephCluster = newExternalCephCluster(sc, r.images.Ceph, monitoringIP, monitoringPort)
@@ -137,12 +138,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
 			if err != nil {
 				r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, KMSConfigMapName))
-				return err
+				return reconcile.Result{}, err
 			}
 			if kmsConfigMap != nil {
 				if err = reachKMSProvider(kmsConfigMap); err != nil {
 					r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
-					return err
+					return reconcile.Result{}, err
 				}
 			}
 			cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, r.Log)
@@ -154,7 +155,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Set StorageCluster instance as the owner and controller
 	if err := controllerutil.SetControllerReference(sc, cephCluster, r.Scheme); err != nil {
 		r.Log.Error(err, "Unable to set controller reference for CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
-		return err
+		return reconcile.Result{}, err
 	}
 
 	platform, err := r.platform.GetPlatform(r.Client)
@@ -177,7 +178,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			}
 			if err := r.Client.Create(context.TODO(), cephCluster); err != nil {
 				r.Log.Error(err, "Unable to create CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
-				return err
+				return reconcile.Result{}, err
 			}
 			// Need to happen after the ceph cluster CR creation was confirmed
 			sc.Status.Images.Ceph.ActualImage = cephCluster.Spec.CephVersion.Image
@@ -185,12 +186,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			reason := "CephClusterStatus"
 			message := "CephCluster resource is not reporting status"
 			statusutil.MapCephClusterNoConditions(&r.conditions, reason, message)
-			return nil
+			return reconcile.Result{}, nil
 		}
 		r.Log.Error(err, "Unable to fetch CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
-		return err
+		return reconcile.Result{}, err
 	} else if reconcileStrategy == ReconcileStrategyInit {
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	// Record actual Ceph container image version before attempting update
@@ -200,12 +201,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	objectRef, err := reference.GetReference(r.Scheme, found)
 	if err != nil {
 		r.Log.Error(err, "Unable to get CephCluster ObjectReference.", "CephCluster", klog.KRef(found.Namespace, found.Name))
-		return err
+		return reconcile.Result{}, err
 	}
 	err = objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
 	if err != nil {
 		r.Log.Error(err, "Unable to add CephCluster to the list of Related Objects in StorageCluster.", "CephCluster", klog.KRef(objectRef.Namespace, objectRef.Name), "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
-		return err
+		return reconcile.Result{}, err
 	}
 
 	// Handle CephCluster resource status
@@ -266,25 +267,25 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		found.Spec = cephCluster.Spec
 		if err := r.Client.Update(context.TODO(), found); err != nil {
 			r.Log.Error(err, "Unable to update CephCluster.", "CephCluster", klog.KRef(found.Namespace, found.Name))
-			return err
+			return reconcile.Result{}, err
 		}
 	}
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
-func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	cephCluster := &rookCephv1.CephCluster{}
 	cephClusterName := generateNameForCephCluster(sc)
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephClusterName, Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: CephCluster not found.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
-			return nil
+			return reconcile.Result{}, nil
 		}
 		r.Log.Error(err, "Uninstall: Unable to retrieve CephCluster.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
-		return fmt.Errorf("Uninstall: Unable to retrieve cephCluster: %v", err)
+		return reconcile.Result{}, fmt.Errorf("Uninstall: Unable to retrieve cephCluster: %v", err)
 	}
 
 	if cephCluster.GetDeletionTimestamp().IsZero() {
@@ -292,7 +293,7 @@ func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.
 		err = r.Client.Delete(context.TODO(), cephCluster)
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Failed to delete CephCluster.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
-			return fmt.Errorf("uninstall: Failed to delete CephCluster: %v", err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephCluster: %v", err)
 		}
 	}
 
@@ -300,11 +301,11 @@ func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: CephCluster is deleted.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
-			return nil
+			return reconcile.Result{}, nil
 		}
 	}
 	r.Log.Error(err, "Uninstall: Waiting for CephCluster to be deleted.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
-	return fmt.Errorf("uninstall: Waiting for CephCluster to be deleted")
+	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for CephCluster to be deleted")
 
 }
 

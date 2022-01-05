@@ -18,11 +18,12 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsNoobaaSystem struct{}
 
-func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	var err error
 	var reconcileStrategy ReconcileStrategy
 
@@ -30,7 +31,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy = ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
 		if reconcileStrategy == ReconcileStrategyIgnore {
-			return nil
+			return reconcile.Result{}, nil
 		}
 	}
 
@@ -41,20 +42,20 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-				return nil
+				return reconcile.Result{}, nil
 			}
 			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-			return err
+			return reconcile.Result{}, err
 		}
 		if !sc.Spec.ExternalStorage.Enable {
 			if foundCeph.Status.State != cephv1.ClusterStateCreated {
 				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-				return nil
+				return reconcile.Result{}, nil
 			}
 		} else {
 			if foundCeph.Status.State != cephv1.ClusterStateConnected {
 				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
-				return nil
+				return reconcile.Result{}, nil
 			}
 		}
 	}
@@ -78,7 +79,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	err = controllerutil.SetControllerReference(sc, nb, r.Scheme)
 	if err != nil {
 		r.Log.Error(err, "Unable to set controller reference for Noobaa.", "Noobaa", klog.KRef(nb.Namespace, nb.Name))
-		return err
+		return reconcile.Result{}, err
 	}
 
 	// Reconcile the noobaa state, creating or updating if needed
@@ -87,7 +88,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	})
 	if err != nil {
 		r.Log.Error(err, "Failed to create or update NooBaa system.", "Noobaa", klog.KRef(nb.Namespace, nb.Name))
-		return err
+		return reconcile.Result{}, err
 	}
 	// Need to happen after the noobaa CR update was confirmed
 	sc.Status.Images.NooBaaCore.ActualImage = *nb.Spec.Image
@@ -95,15 +96,15 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 
 	objectRef, err := reference.GetReference(r.Scheme, nb)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 	err = objectreferencesv1.SetObjectReference(&sc.Status.RelatedObjects, *objectRef)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	statusutil.MapNoobaaNegativeConditions(&r.conditions, nb)
-	return nil
+	return reconcile.Result{}, nil
 }
 
 func getNooBaaMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
@@ -196,12 +197,12 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 }
 
 // ensureDeleted Delete noobaa system in the namespace
-func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	// Delete only if this is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)
 		if reconcileStrategy == ReconcileStrategyIgnore {
-			return nil
+			return reconcile.Result{}, nil
 		}
 	}
 	noobaa := &nbv1.NooBaa{}
@@ -215,15 +216,15 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 			}
 			err = r.Client.List(context.TODO(), pvcs, opts...)
 			if err != nil {
-				return err
+				return reconcile.Result{}, err
 			}
 			if len(pvcs.Items) > 0 {
-				return fmt.Errorf("Uninstall: Waiting on NooBaa PVCs to be deleted")
+				return reconcile.Result{}, fmt.Errorf("Uninstall: Waiting on NooBaa PVCs to be deleted")
 			}
 			r.Log.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
-			return nil
+			return reconcile.Result{}, nil
 		}
-		return fmt.Errorf("Uninstall: Failed to retrieve NooBaa system: %v", err)
+		return reconcile.Result{}, fmt.Errorf("Uninstall: Failed to retrieve NooBaa system: %v", err)
 	}
 
 	isOwned := false
@@ -236,7 +237,7 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	if !isOwned {
 		// if the noobaa found is not owned by our storagecluster, we skip it from deletion.
 		r.Log.Info("Uninstall: NooBaa object found, but ownerReference not set to storagecluster. Skipping Deletion.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
@@ -244,8 +245,8 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 		err = r.Client.Delete(context.TODO(), noobaa)
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
-			return fmt.Errorf("uninstall: Failed to delete NooBaa system %v : %v", noobaa.ObjectMeta.Name, err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete NooBaa system %v : %v", noobaa.ObjectMeta.Name, err)
 		}
 	}
-	return fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
+	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
 }

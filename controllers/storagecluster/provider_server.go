@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -26,7 +27,7 @@ const (
 
 type ocsProviderServer struct{}
 
-func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	if !instance.Spec.AllowRemoteStorageConsumers {
 		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
@@ -49,10 +50,10 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		}
 	}
 
-	return finalErr
+	return reconcile.Result{}, finalErr
 }
 
-func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	// We do not check instance.Spec.AllowRemoteStorageConsumers because provider can disable this functionality
 	// and we need to delete the resources even the flag is not enabled (uninstall case).
@@ -81,7 +82,7 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 		r.Log.Info("Resource deletion for provider succeeded")
 	}
 
-	return finalErr
+	return reconcile.Result{}, finalErr
 }
 
 func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
