@@ -230,9 +230,42 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 // ensureCreated ensures that requested resources for the external cluster
 // being created
 func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-	if r.sameExternalSecretData(instance) {
-		return reconcile.Result{}, nil
+
+	if isExternalOCSProvider(instance) {
+
+		externalClusterClient, err := r.newExternalClusterClient(instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		defer externalClusterClient.Close()
+
+		if instance.Status.ExternalStorage.ConsumerID == "" {
+			res, err := r.onboardConsumer(instance, externalClusterClient)
+			if err != nil || !res.IsZero() {
+				return res, err
+			}
+		} else if instance.Spec.ExternalStorage.RequestedCapacity.Equal(instance.Status.ExternalStorage.GrantedCapacity) {
+			res, err := r.updateConsumerCapacity(instance, externalClusterClient)
+			if err != nil || !res.IsZero() {
+				return res, err
+			}
+		}
+
+		if externalOCSResources[instance.UID] == nil {
+			externalConfig, res, err := r.getExternalConfigFromProvider(instance, externalClusterClient)
+			if err != nil || !res.IsZero() {
+				return res, err
+			}
+			externalOCSResources[instance.UID] = externalConfig
+		}
+		externalClusterClient.Close()
+	} else {
+		// rhcs external mode
+		if r.sameExternalSecretData(instance) {
+			return reconcile.Result{}, nil
+		}
 	}
+
 	err := r.createExternalStorageClusterResources(instance)
 	if err != nil {
 		r.Log.Error(err, "Could not create ExternalStorageClusterResource.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
@@ -243,6 +276,17 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 
 // ensureDeleted is dummy func for the ocsExternalResources
 func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+
+	if isExternalOCSProvider(instance) {
+		externalClusterClient, err := r.newExternalClusterClient(instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		defer externalClusterClient.Close()
+
+		return r.offboardConsumer(instance, externalClusterClient)
+	}
+
 	return reconcile.Result{}, nil
 }
 
