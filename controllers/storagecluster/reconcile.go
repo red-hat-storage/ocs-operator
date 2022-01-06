@@ -376,9 +376,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 
-	} else if instance.Spec.ExternalStorage.StorageProviderKind == ocsv1.KindOCS {
-		// ocs to ocs external mode
-		objs = []resourceManager{}
 	} else {
 		// for external cluster, we have a different set of ensure functions
 		// preserve list order
