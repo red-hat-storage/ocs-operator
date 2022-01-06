@@ -110,11 +110,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	var cephCluster *rookCephv1.CephCluster
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
-		extRArr, err := r.retrieveExternalSecretData(sc)
-		if err != nil {
-			r.Log.Error(err, "Could not retrieve the External Cluster details.",
-				"CephCluster", klog.KRef(sc.Namespace, sc.Name))
-			return reconcile.Result{}, err
+		extRArr, ok := externalOCSResources[sc.UID]
+		if !ok {
+			return reconcile.Result{}, fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
 		}
 		endpointR, err := findNamedResourceFromArray(extRArr, "monitoring-endpoint")
 		if err != nil {

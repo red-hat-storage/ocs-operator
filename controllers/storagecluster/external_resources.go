@@ -264,6 +264,13 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 		if r.sameExternalSecretData(instance) {
 			return reconcile.Result{}, nil
 		}
+
+		data, err := r.retrieveExternalSecretData(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to retrieve external secret resources.")
+			return reconcile.Result{}, err
+		}
+		externalOCSResources[instance.UID] = data
 	}
 
 	err := r.createExternalStorageClusterResources(instance)
@@ -292,6 +299,9 @@ func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, inst
 
 // createExternalStorageClusterResources creates external cluster resources
 func (r *StorageClusterReconciler) createExternalStorageClusterResources(instance *ocsv1.StorageCluster) error {
+
+	var err error
+
 	ownerRef := metav1.OwnerReference{
 		UID:        instance.UID,
 		APIVersion: instance.APIVersion,
@@ -302,11 +312,11 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
 	availableSCCs := []StorageClassConfiguration{}
-	data, err := r.retrieveExternalSecretData(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to retrieve external secret resources.")
-		return err
+	data, ok := externalOCSResources[instance.UID]
+	if !ok {
+		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
 	}
+
 	var extCephObjectStores []*cephv1.CephObjectStore
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{
