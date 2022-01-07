@@ -241,8 +241,9 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		return err
 	}
 
-	if instance.Spec.ExternalStorage.Enable && instance.Spec.ExternalStorage.StorageProviderKind == ocsv1.KindOCS && instance.Spec.ExternalStorage.ConnectionString == "" {
-		err := fmt.Errorf("spec.externalStorage.connectionString can not be empty when spec.externalStorage.storageProviderKind is set to ocs")
+	if isExternalOCSProvider(instance) && (instance.Spec.ExternalStorage.ConnectionString == "" || instance.Spec.ExternalStorage.RequestedCapacity == nil) {
+		err := fmt.Errorf("spec.externalStorage.connectionString or spec.externalStorage.requestedCapacity" +
+			" can not be empty when spec.externalStorage.storageProviderKind is set to ocs")
 		r.Log.Error(err, "Failed to validate Spec for ExternalStorage", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
