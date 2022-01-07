@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephConfig struct{}
@@ -41,17 +42,17 @@ osd_memory_target_cgroup_limit_ratio = 0.5
 
 // ensureCreated ensures that a ConfigMap resource exists with its Spec in
 // the desired state.
-func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephConfig.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	found := &corev1.ConfigMap{}
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
 	if err == nil && reconcileStrategy == ReconcileStrategyInit {
-		return nil
+		return reconcile.Result{}, nil
 	} else if err != nil && !errors.IsNotFound(err) {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	ownerRef := metav1.OwnerReference{
@@ -62,7 +63,7 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 	}
 	rookConfigData, configErr := getRookCephConfig(r, sc)
 	if configErr != nil {
-		return fmt.Errorf("failed to get rook ceph config data: %w", err)
+		return reconcile.Result{}, fmt.Errorf("failed to get rook ceph config data: %w", err)
 	}
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -80,9 +81,9 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 		err = r.Client.Create(context.TODO(), cm)
 		if err != nil {
 			r.Log.Error(err, "Failed to create Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
-			return err
+			return reconcile.Result{}, err
 		}
-		return err
+		return reconcile.Result{}, err
 	}
 
 	ownerRefFound := false
@@ -94,14 +95,14 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 	val, ok := found.Data["config"]
 	if !ok || val != defaultRookConfigData || !ownerRefFound {
 		r.Log.Info("Updating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, cm.Name))
-		return r.Client.Update(context.TODO(), cm)
+		return reconcile.Result{}, r.Client.Update(context.TODO(), cm)
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted is dummy func for the ocsCephConfig
-func (obj *ocsCephConfig) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	return nil
+func (obj *ocsCephConfig) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	return reconcile.Result{}, nil
 }
 
 // updateRookConfig(config string, section string, value string )(string, error)

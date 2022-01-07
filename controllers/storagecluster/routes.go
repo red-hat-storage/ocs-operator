@@ -11,49 +11,50 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephRGWRoutes struct{}
 
 // ensureCreated ensures that CephObjectStore resources exist in the desired
 // state.
-func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	skip, err := r.PlatformsShouldSkipObjectStore()
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 	if skip {
 		platform, err := r.platform.GetPlatform(r.Client)
 		if err != nil {
-			return err
+			return reconcile.Result{}, err
 		}
 		r.Log.Info("Platform is set to skip Ceph RGW Route. Not creating a Ceph RGW Route.", "platform", platform)
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	ocsCephRoutes, err := r.newCephRGWRoutes(instance)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 	err = r.createCephRGWRoutes(ocsCephRoutes, instance)
 	if err != nil {
 		r.Log.Error(err, "Could not create Ceph RGW Routes.")
-		return err
+		return reconcile.Result{}, err
 	}
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes the CephObjectStores owned by the StorageCluster
-func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	foundRoute := &routev1.Route{}
 	routes, err := r.newCephRGWRoutes(sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	for _, route := range routes {
@@ -63,7 +64,7 @@ func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv
 				r.Log.Info("Uninstall: Ceph RGW Route not found.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrieve route %v: %v", route.Name, err)
+			return reconcile.Result{}, fmt.Errorf("Uninstall: Unable to retrieve route %v: %v", route.Name, err)
 		}
 
 		if route.GetDeletionTimestamp().IsZero() {
@@ -71,7 +72,7 @@ func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv
 			err = r.Client.Delete(context.TODO(), foundRoute)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete Ceph RGW Route.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
-				return fmt.Errorf("Uninstall: Failed to delete Route %v: %v", route.Name, err)
+				return reconcile.Result{}, fmt.Errorf("Uninstall: Failed to delete Route %v: %v", route.Name, err)
 			}
 		}
 
@@ -82,10 +83,10 @@ func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv
 				continue
 			}
 		}
-		return fmt.Errorf("Uninstall: Waiting for Ceph RGW Route %v to be deleted", route.Name)
+		return reconcile.Result{}, fmt.Errorf("Uninstall: Waiting for Ceph RGW Route %v to be deleted", route.Name)
 
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // createCephObjectStore creates CephObjectStore in the desired state

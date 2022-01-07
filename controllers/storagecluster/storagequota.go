@@ -12,13 +12,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsStorageQuota struct{}
 
 // ensureCreated ensures that all ClusterResourceQuota resources exists with their Spec in
 // the desired state.
-func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	for _, opc := range sc.Spec.OverprovisionControl {
 		hardLimit := opc.Capacity
 		storageQuota := &quotav1.ClusterResourceQuota{
@@ -36,13 +37,13 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				r.Log.Error(err, fmt.Sprintf("get ClusterResourceQuota %s failed", storageQuota.Name))
-				return err
+				return reconcile.Result{}, err
 			}
 			r.Log.Info(fmt.Sprintf("creating ClusterResourceQuota %s with %+v", storageQuota.Name, storageQuota.Spec.Quota.Hard))
 			err := r.Client.Create(context.TODO(), storageQuota)
 			if err != nil {
 				r.Log.Error(err, "create ClusterResourceQuota failed", storageQuota.Name)
-				return err
+				return reconcile.Result{}, err
 			}
 			continue
 		}
@@ -53,15 +54,15 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 			err = r.Client.Update(context.TODO(), currentQuota)
 			if err != nil {
 				r.Log.Error(err, "update ClusterResourceQuota failed", storageQuota.Name)
-				return err
+				return reconcile.Result{}, err
 			}
 		}
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes all ClusterResourceQuota resources associated with StorageCluster
-func (obj *ocsStorageQuota) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsStorageQuota) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	for _, opc := range sc.Spec.OverprovisionControl {
 		quotaName := generateStorageQuotaName(opc.StorageClassName, opc.QuotaName)
 		currentQuota := &quotav1.ClusterResourceQuota{}
@@ -71,13 +72,13 @@ func (obj *ocsStorageQuota) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 			err = r.Client.Delete(context.TODO(), currentQuota)
 			if err != nil {
 				r.Log.Error(err, "delete ClusterResourceQuota failed", quotaName)
-				return err
+				return reconcile.Result{}, err
 			}
 		} else {
 			r.Log.Error(err, "failed to get ClusterResourceQuota", quotaName)
 		}
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 func resourceRequestName(storageClassName string) corev1.ResourceName {

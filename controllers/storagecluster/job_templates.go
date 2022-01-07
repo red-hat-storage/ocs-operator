@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var extendClusterCommand = []string{
@@ -36,7 +37,7 @@ var osdCleanupArgs = []string{
 }
 
 // ensureCreated ensures if the osd removal job template exists
-func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	tempFuncs := []func(*ocsv1.StorageCluster) *openshiftv1.Template{
 		osdCleanUpTemplate,
@@ -50,16 +51,16 @@ func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		})
 
 		if err != nil && !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create Template : %v", err.Error())
+			return reconcile.Result{}, fmt.Errorf("failed to create Template : %v", err.Error())
 		}
 	}
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted is dummy func for the ocsJobTemplates
-func (obj *ocsJobTemplates) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
-	return nil
+func (obj *ocsJobTemplates) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
+	return reconcile.Result{}, nil
 }
 
 func osdCleanUpTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
@@ -77,8 +78,8 @@ func osdCleanUpTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 				DisplayName: "OSD IDs",
 				Required:    true,
 				Description: `
-The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs 
-when a single job removes multiple OSDs. 
+The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs
+when a single job removes multiple OSDs.
 OSD removal is an advanced use case.
 In the event of errors or invalid user inputs,
 the Job will attempt to remove as many OSDs as can be processed and complete without returning an error condition.

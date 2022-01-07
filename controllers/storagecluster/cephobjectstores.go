@@ -13,30 +13,31 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephObjectStores struct{}
 
 // ensureCreated ensures that CephObjectStore resources exist in the desired
 // state.
-func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	skip, err := r.PlatformsShouldSkipObjectStore()
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	if skip {
 		platform, err := r.platform.GetPlatform(r.Client)
 		if err != nil {
-			return err
+			return reconcile.Result{}, err
 		}
 		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStore.", "Platform", platform)
-		return nil
+		return reconcile.Result{}, nil
 	}
 	var cephObjectStores []*cephv1.CephObjectStore
 	// Add KMS details to cephObjectStores spec, only if
@@ -47,39 +48,39 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, instance, r.Client)
 		if err != nil {
 			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, KMSConfigMapName))
-			return err
+			return reconcile.Result{}, err
 		}
 		if kmsConfigMap != nil {
 			if err = reachKMSProvider(kmsConfigMap); err != nil {
 				r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
-				return err
+				return reconcile.Result{}, err
 			}
 		}
 		cephObjectStores, err = r.newCephObjectStoreInstances(instance, kmsConfigMap)
 		if err != nil {
-			return err
+			return reconcile.Result{}, err
 		}
 	} else {
 		cephObjectStores, err = r.newCephObjectStoreInstances(instance, nil)
 		if err != nil {
-			return err
+			return reconcile.Result{}, err
 		}
 	}
 	err = r.createCephObjectStores(cephObjectStores, instance)
 	if err != nil {
 		r.Log.Error(err, "Unable to create CephObjectStores for StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-		return err
+		return reconcile.Result{}, err
 	}
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes the CephObjectStores owned by the StorageCluster
-func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	foundCephObjectStore := &cephv1.CephObjectStore{}
 	cephObjectStores, err := r.newCephObjectStoreInstances(sc, nil)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	for _, cephObjectStore := range cephObjectStores {
@@ -89,7 +90,7 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 				r.Log.Info("Uninstall: CephObjectStore not found.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 				continue
 			}
-			return fmt.Errorf("Uninstall: Unable to retrieve CephObjectStore %v: %v", cephObjectStore.Name, err)
+			return reconcile.Result{}, fmt.Errorf("Uninstall: Unable to retrieve CephObjectStore %v: %v", cephObjectStore.Name, err)
 		}
 
 		if cephObjectStore.GetDeletionTimestamp().IsZero() {
@@ -97,7 +98,7 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 			err = r.Client.Delete(context.TODO(), foundCephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephObjectStore.", klog.KRef(foundCephObjectStore.Namespace, foundCephObjectStore.Name))
-				return fmt.Errorf("uninstall: Failed to delete CephObjectStore %v: %v", foundCephObjectStore.Name, err)
+				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephObjectStore %v: %v", foundCephObjectStore.Name, err)
 			}
 		}
 
@@ -109,10 +110,10 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 			}
 		}
 		r.Log.Error(err, "Uninstall: Waiting for CephObjectStore to be deleted.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
-		return fmt.Errorf("uninstall: Waiting for CephObjectStore %v to be deleted", cephObjectStore.Name)
+		return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for CephObjectStore %v to be deleted", cephObjectStore.Name)
 
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // createCephObjectStore creates CephObjectStore in the desired state

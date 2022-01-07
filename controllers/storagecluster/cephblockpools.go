@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephBlockPools struct{}
@@ -78,15 +79,15 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 
 // ensureCreated ensures that cephBlockPool resources exist in the desired
 // state.
-func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	cephBlockPools, err := r.newCephBlockPoolInstances(instance)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 	for _, cephBlockPool := range cephBlockPools {
 		existing := cephv1.CephBlockPool{}
@@ -95,11 +96,11 @@ func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instanc
 		switch {
 		case err == nil:
 			if reconcileStrategy == ReconcileStrategyInit {
-				return nil
+				return reconcile.Result{}, nil
 			}
 			if existing.DeletionTimestamp != nil {
 				r.Log.Info("Unable to restore CephBlockPool because it is marked for deletion.", "CephBlockPool", klog.KRef(existing.Namespace, existing.Name))
-				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
+				return reconcile.Result{}, fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
 			}
 
 			r.Log.Info("Restoring original CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
@@ -108,27 +109,27 @@ func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instanc
 			err = r.Client.Update(context.TODO(), &existing)
 			if err != nil {
 				r.Log.Error(err, "Failed to update CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
-				return err
+				return reconcile.Result{}, err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 			err = r.Client.Create(context.TODO(), cephBlockPool)
 			if err != nil {
 				r.Log.Error(err, "Failed to create CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
-				return err
+				return reconcile.Result{}, err
 			}
 		}
 	}
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes the CephBlockPools owned by the StorageCluster
-func (obj *ocsCephBlockPools) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephBlockPools) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	foundCephBlockPool := &cephv1.CephBlockPool{}
 	cephBlockPools, err := r.newCephBlockPoolInstances(sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	for _, cephBlockPool := range cephBlockPools {
@@ -138,7 +139,7 @@ func (obj *ocsCephBlockPools) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 				r.Log.Info("Uninstall: CephBlockPool not found.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 				continue
 			}
-			return fmt.Errorf("uninstall: unable to retrieve CephBlockPool %v: %v", cephBlockPool.Name, err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: unable to retrieve CephBlockPool %v: %v", cephBlockPool.Name, err)
 		}
 
 		if cephBlockPool.GetDeletionTimestamp().IsZero() {
@@ -146,7 +147,7 @@ func (obj *ocsCephBlockPools) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 			err = r.Client.Delete(context.TODO(), foundCephBlockPool)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephBlockPool.", "CephBlockPool", klog.KRef(foundCephBlockPool.Namespace, foundCephBlockPool.Name))
-				return fmt.Errorf("uninstall: Failed to delete CephBlockPool %v: %v", foundCephBlockPool.Name, err)
+				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephBlockPool %v: %v", foundCephBlockPool.Name, err)
 			}
 		}
 
@@ -158,8 +159,8 @@ func (obj *ocsCephBlockPools) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 			}
 		}
 		r.Log.Error(err, "Uninstall: Waiting for CephBlockPool to be deleted.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
-		return fmt.Errorf("uninstall: Waiting for CephBlockPool %v to be deleted", cephBlockPool.Name)
+		return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for CephBlockPool %v to be deleted", cephBlockPool.Name)
 
 	}
-	return nil
+	return reconcile.Result{}, nil
 }

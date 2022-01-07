@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephFilesystems struct{}
@@ -59,15 +60,15 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 
 // ensureCreated ensures that cephFilesystem resources exist in the desired
 // state.
-func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
-		return nil
+		return reconcile.Result{}, nil
 	}
 
 	cephFilesystems, err := r.newCephFilesystemInstances(instance)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 	for _, cephFilesystem := range cephFilesystems {
 		existing := cephv1.CephFilesystem{}
@@ -75,11 +76,11 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 		switch {
 		case err == nil:
 			if reconcileStrategy == ReconcileStrategyInit {
-				return nil
+				return reconcile.Result{}, nil
 			}
 			if existing.DeletionTimestamp != nil {
 				r.Log.Info("Unable to restore CephFileSystem because it is marked for deletion.", "CephFileSystem", klog.KRef(existing.Namespace, existing.Name))
-				return fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
+				return reconcile.Result{}, fmt.Errorf("failed to restore initialization object %s because it is marked for deletion", existing.Name)
 			}
 
 			r.Log.Info("Restoring original CephFilesystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
@@ -88,27 +89,27 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 			err = r.Client.Update(context.TODO(), &existing)
 			if err != nil {
 				r.Log.Error(err, "Unable to update CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
-				return err
+				return reconcile.Result{}, err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 			err = r.Client.Create(context.TODO(), cephFilesystem)
 			if err != nil {
 				r.Log.Error(err, "Unable to create CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
-				return err
+				return reconcile.Result{}, err
 			}
 		}
 	}
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // ensureDeleted deletes the CephFilesystems owned by the StorageCluster
-func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	foundCephFilesystem := &cephv1.CephFilesystem{}
 	cephFilesystems, err := r.newCephFilesystemInstances(sc)
 	if err != nil {
-		return err
+		return reconcile.Result{}, err
 	}
 
 	for _, cephFilesystem := range cephFilesystems {
@@ -119,7 +120,7 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 				continue
 			}
 			r.Log.Error(err, "Uninstall: Unable to retrieve CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
-			return fmt.Errorf("uninstall: Unable to retrieve CephFileSystem %v: %v", cephFilesystem.Name, err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: Unable to retrieve CephFileSystem %v: %v", cephFilesystem.Name, err)
 		}
 
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
@@ -127,7 +128,7 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 			err = r.Client.Delete(context.TODO(), foundCephFilesystem)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephFileSystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))
-				return fmt.Errorf("uninstall: Failed to delete CephFileSystem %v: %v", foundCephFilesystem.Name, err)
+				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephFileSystem %v: %v", foundCephFilesystem.Name, err)
 			}
 		}
 
@@ -139,8 +140,8 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 			}
 		}
 		r.Log.Error(err, "Uninstall: Waiting for CephFileSystem to be deleted.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
-		return fmt.Errorf("uninstall: Waiting for CephFileSystem %v to be deleted", cephFilesystem.Name)
+		return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for CephFileSystem %v to be deleted", cephFilesystem.Name)
 
 	}
-	return nil
+	return reconcile.Result{}, nil
 }
