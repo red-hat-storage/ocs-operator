@@ -414,19 +414,28 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 		testLabel             string
 		kmsProvider           string
 		kmsAddress            string
+		enabled               bool
 		clusterWideEncryption bool
 		failureExpected       bool
+		authMethod            string
 	}{
-		{testLabel: "case 1", kmsProvider: "vault",
-			clusterWideEncryption: true, kmsAddress: "http://localhost:3053"},
-		{testLabel: "case 2", kmsProvider: "vault",
-			clusterWideEncryption: false, kmsAddress: "http://localhost:32123"},
+		{testLabel: "case 1", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:3053", authMethod: VaultTokenAuthMethod},
+		{testLabel: "case 2", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: false, kmsAddress: "http://localhost:32123", authMethod: VaultTokenAuthMethod},
 		// ocs-operator is agnostic to KMS Provider, here rook should be throwing error
 		{testLabel: "case 3", kmsProvider: "newKMSProvider",
 			clusterWideEncryption: true, kmsAddress: "http://127.0.0.1:15851"},
 		// invalid test case, with an unreachable KMS address
-		{testLabel: "case 4", kmsProvider: "vault",
-			clusterWideEncryption: true, kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
+		{testLabel: "case 4", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://unearchable.url.location:3366", failureExpected: true, authMethod: VaultTokenAuthMethod},
+		{testLabel: "case 5", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:1234", authMethod: VaultSAAuthMethod},
+		{testLabel: "case 6", kmsProvider: IbmKeyProtectKMSProvider,
+			clusterWideEncryption: true, kmsAddress: ""},
+		// backward compatible test
+		{testLabel: "case 7", kmsProvider: VaultKMSProvider,
+			enabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
 	}
 	for _, kmsArgs := range allKMSArgs {
 		assertNoobaaKMSConfiguration(t, kmsArgs)
@@ -437,15 +446,18 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	testLabel             string
 	kmsProvider           string
 	kmsAddress            string
+	enabled               bool
 	clusterWideEncryption bool
 	failureExpected       bool
+	authMethod            string
 }) {
 	ctxTodo := context.TODO()
 	cr := createDefaultStorageCluster()
 	// enable KMS to true
 	cr.Spec.Encryption.KeyManagementService.Enable = true
 	cr.Spec.Encryption.ClusterWide = kmsArgs.clusterWideEncryption
-	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress)
+	cr.Spec.Encryption.Enable = kmsArgs.enabled
+	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress, kmsArgs.authMethod)
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
 	if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
 		t.Errorf("Unable to create KMS configmap: %v, %v", err, kmsArgs.testLabel)
@@ -453,7 +465,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	reconciler.initializeImagesStatus(cr)
 	// start a dummy server, if we are not expecting any errors
-	if !kmsArgs.failureExpected {
+	if !kmsArgs.failureExpected || kmsArgs.kmsAddress != "" {
 		startServerAt(t, kmsArgs.kmsAddress)
 	}
 
@@ -494,15 +506,19 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
 	// check the provided KMS ConfigMap data is passed on to NooBaa
 	// only if clusterWide encryption in enabled, else data should not be passed
-	if kmsArgs.clusterWideEncryption {
+	if kmsArgs.enabled || kmsArgs.clusterWideEncryption {
 		for k, v := range kmsCM.Data {
 			assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
 		}
-		assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+		if kmsArgs.authMethod == VaultTokenAuthMethod {
+			assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+		}
 	} else {
 		for k, v := range kmsCM.Data {
 			assert.NotEqual(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be different", kmsArgs.testLabel, k))
 		}
-		assert.NotEqual(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe different", kmsArgs.testLabel))
+		if kmsArgs.authMethod == VaultTokenAuthMethod {
+			assert.NotEqual(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe different", kmsArgs.testLabel))
+		}
 	}
 }

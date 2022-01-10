@@ -407,15 +407,26 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 
 	// if kmsConfig is not 'nil', add the KMS details to CephCluster spec
 	if kmsConfigMap != nil {
-		// Set default KMS_PROVIDER and VAULT_SECRET_ENGINE values, refer https://issues.redhat.com/browse/RHSTOR-1963
+		// Set default KMS_PROVIDER. Possible values are: vault, ibmkeyprotect.
 		if _, ok := kmsConfigMap.Data["KMS_PROVIDER"]; !ok {
-			kmsConfigMap.Data["KMS_PROVIDER"] = "vault"
+			kmsConfigMap.Data["KMS_PROVIDER"] = VaultKMSProvider
 		}
-		if _, ok := kmsConfigMap.Data["VAULT_SECRET_ENGINE"]; !ok {
-			kmsConfigMap.Data["VAULT_SECRET_ENGINE"] = "kv"
+		// vault as a KMS service provider
+		if kmsConfigMap.Data["KMS_PROVIDER"] == VaultKMSProvider {
+			// Set default VAULT_SECRET_ENGINE values
+			if _, ok := kmsConfigMap.Data["VAULT_SECRET_ENGINE"]; !ok {
+				kmsConfigMap.Data["VAULT_SECRET_ENGINE"] = "kv"
+			}
+			// Set default VAULT_AUTH_METHOD. Possible values are: token, kubernetes.
+			if _, ok := kmsConfigMap.Data["VAULT_AUTH_METHOD"]; !ok {
+				kmsConfigMap.Data["VAULT_AUTH_METHOD"] = VaultTokenAuthMethod
+			}
+			// Set TokenSecretName only for vault token based auth method
+			if kmsConfigMap.Data["VAULT_AUTH_METHOD"] == VaultTokenAuthMethod {
+				cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
+			}
 		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
-		cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 	}
 	return cephCluster
 }

@@ -450,31 +450,57 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 }
 
-func createDummyKMSConfigMap(kmsProvider, kmsAddr string) *corev1.ConfigMap {
+func createDummyKMSConfigMap(kmsProvider, kmsAddr string, kmsAuthMethod string) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{}
 	cm.Name = KMSConfigMapName
 	cm.Data = make(map[string]string)
 	cm.Data["KMS_PROVIDER"] = kmsProvider
 	cm.Data["KMS_SERVICE_NAME"] = "my-connection"
-	cm.Data[kmsProviderAddressKeyMap[kmsProvider]] = kmsAddr
-	cm.Data["VAULT_BACKEND_PATH"] = "ocs"
-	cm.Data["VAULT_NAMESPACE"] = "my-ocs-namespace"
+
+	switch kmsProvider {
+	case VaultKMSProvider:
+		if kmsAuthMethod == VaultSAAuthMethod {
+			cm.Data["VAULT_AUTH_METHOD"] = VaultSAAuthMethod
+		}
+		cm.Data[kmsProviderAddressKeyMap[kmsProvider]] = kmsAddr
+		cm.Data["VAULT_BACKEND_PATH"] = "ocs"
+		cm.Data["VAULT_NAMESPACE"] = "my-ocs-namespace"
+	case IbmKeyProtectKMSProvider:
+		cm.Data["IBM_SERVICE_INSTANCE_ID"] = "my-instance-id"
+		cm.Data["IBM_KMS_KEY"] = "my-kms-key"
+		cm.Data["IBM_BASE_URL"] = "my-base-url"
+		cm.Data["IBM_TOKEN_URL"] = "my-token-url"
+	}
 	return cm
 }
 
 func TestKMSConfigChanges(t *testing.T) {
 	validKMSArgs := []struct {
-		testLabel       string
-		kmsProvider     string
-		kmsAddress      string
-		failureExpected bool
+		testLabel             string
+		kmsProvider           string
+		kmsAddress            string
+		enabled               bool
+		clusterWideEncryption bool
+		failureExpected       bool
+		authMethod            string
 	}{
-		{testLabel: "case 1", kmsProvider: "vault", kmsAddress: "http://localhost:5050"},
-		{testLabel: "case 2", kmsProvider: "vault", kmsAddress: "http://localhost:12321"},
+		{testLabel: "case 1", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:5050", authMethod: VaultTokenAuthMethod},
+		{testLabel: "case 2", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:12321", authMethod: VaultTokenAuthMethod},
 		// ocs-operator is agnostic to KMS Provider, here rook should be throwing error
-		{testLabel: "case 3", kmsProvider: "newKMSProvider", kmsAddress: "http://127.0.0.1:1553"},
+		{testLabel: "case 3", kmsProvider: "newKMSProvider",
+			clusterWideEncryption: true, kmsAddress: "http://127.0.0.1:1553"},
 		// invalid test cases, make sure label has a prefix 'invalid'
-		{testLabel: "case 4", kmsProvider: "vault", kmsAddress: "http://unearchable.url.location:3366", failureExpected: true},
+		{testLabel: "case 4", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://unearchable.url.location:3366", failureExpected: true, authMethod: VaultTokenAuthMethod},
+		{testLabel: "case 5", kmsProvider: VaultKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:1234", authMethod: VaultSAAuthMethod},
+		{testLabel: "case 6", kmsProvider: IbmKeyProtectKMSProvider,
+			clusterWideEncryption: true, kmsAddress: ""},
+		// backward compatible test
+		{testLabel: "case 7", kmsProvider: VaultKMSProvider,
+			enabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
 	}
 	for _, kmsArgs := range validKMSArgs {
 		t.Run(kmsArgs.testLabel, func(t *testing.T) {
@@ -484,13 +510,16 @@ func TestKMSConfigChanges(t *testing.T) {
 }
 
 func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
-	testLabel       string
-	kmsProvider     string
-	kmsAddress      string
-	failureExpected bool
+	testLabel             string
+	kmsProvider           string
+	kmsAddress            string
+	enabled               bool
+	clusterWideEncryption bool
+	failureExpected       bool
+	authMethod            string
 }) {
 	ctxTodo := context.TODO()
-	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress)
+	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress, kmsArgs.authMethod)
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
 	if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
 		t.Errorf("Unable to create KMS configmap: %v", err)
@@ -498,11 +527,12 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	// create a cephcluster CR and enable the KMS
 	cr := createDefaultStorageCluster()
-	cr.Spec.Encryption.ClusterWide = true
 	cr.Spec.Encryption.KeyManagementService.Enable = true
+	cr.Spec.Encryption.ClusterWide = kmsArgs.clusterWideEncryption
+	cr.Spec.Encryption.Enable = kmsArgs.enabled
 
 	// don't start dummy servers for invalid tests
-	if !kmsArgs.failureExpected {
+	if !kmsArgs.failureExpected || kmsArgs.kmsAddress != "" {
 		startServerAt(t, kmsArgs.kmsAddress)
 	}
 
@@ -535,10 +565,14 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 		t.FailNow()
 	}
 	// check the provided KMS ConfigMap data is passed on to CephCluster
-	for k, v := range kmsCM.Data {
-		assert.Equal(t, v, cephCluster.Spec.Security.KeyManagementService.ConnectionDetails[k], "Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k)
+	if kmsArgs.enabled || kmsArgs.clusterWideEncryption {
+		for k, v := range kmsCM.Data {
+			assert.Equal(t, v, cephCluster.Spec.Security.KeyManagementService.ConnectionDetails[k], "Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k)
+		}
+		if kmsArgs.authMethod == VaultTokenAuthMethod {
+			assert.Equal(t, KMSTokenSecretName, cephCluster.Spec.Security.KeyManagementService.TokenSecretName, "Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel)
+		}
 	}
-	assert.Equal(t, KMSTokenSecretName, cephCluster.Spec.Security.KeyManagementService.TokenSecretName, "Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel)
 }
 
 func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {

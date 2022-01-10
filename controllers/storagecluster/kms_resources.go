@@ -25,6 +25,12 @@ const (
 	KMSProviderKey = "KMS_PROVIDER"
 	// VaultKMSProvider a constant to represent 'vault' KMS provider
 	VaultKMSProvider = "vault"
+	// VaultTokenAuthMethod is the key to represent vault token based authentication
+	VaultTokenAuthMethod = "token"
+	// VaultSAAuthMethod is the key to represent vault k8s service account based authentication
+	VaultSAAuthMethod = "kubernetes"
+	// IbmKeyProtectKMSProvider a constant to represent IBM hpcs KMS provider
+	IbmKeyProtectKMSProvider = "ibmkeyprotect"
 )
 
 var (
