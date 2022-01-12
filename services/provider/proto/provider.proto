@@ -8,33 +8,34 @@ option go_package = "./;providerpb";
 
 // OCSProvider holds the RPC methods that the OCS consumer can use to communicate with remote OCS provider cluster
 service OCSProvider {
-  // OnBoardConsumer RPC call to validate the consumer and create StorageConsumer
+  // OnboardConsumer RPC call to validate the consumer and create StorageConsumer
   // resource on the StorageProvider cluster
-  rpc OnBoardConsumer (OnBoardConsumerRequest)
-  returns (OnBoardConsumerResponse) {}
+  rpc OnboardConsumer (OnboardConsumerRequest)
+  returns (OnboardConsumerResponse) {}
   // GetStorageConfig RPC call to generate the json config for connecting to storage provider cluster
   rpc GetStorageConfig(StorageConfigRequest)
   returns (StorageConfigResponse){}
   // OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
-  rpc OffBoardConsumer (OffBoardConsumerRequest)
-  returns (OffBoardConsumerResponse) {}
+  rpc OffboardConsumer (OffboardConsumerRequest)
+  returns (OffboardConsumerResponse) {}
   // UpdateCapacity PRC call to increase or decrease the block pool size
   rpc UpdateCapacity(UpdateCapacityRequest)
   returns (UpdateCapacityResponse){}
 }
 
-
-// OnBoardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
+// OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
-message OnBoardConsumerRequest{
-    // token provided by the provider cluster admin to authenticate the consumer
-    string token =1;
+message OnboardConsumerRequest{
+    // token authenticates the storage consumer cluster
+    string token = 1;
+    // consumerName is the name of the consumer that is used to create the storageConsumer resource
+    string consumerName = 2;
     // capacity is the desired storage requested by the consumer cluster
-    string capacity = 2;
+    string capacity = 3;
 }
 
-// OnBoardConsumerResponse holds the response for OnBoardConsumer API request
-message OnBoardConsumerResponse{
+// OnboardConsumerResponse holds the response for OnboardConsumer API request
+message OnboardConsumerResponse{
     // K8s UID (UUID) of the consumer cluster
     string storageConsumerUUID =1;
     // grantedCapacity is the storage granted by the provider cluster
@@ -55,14 +56,14 @@ message StorageConfigResponse{
  }
 
 
-// OffBoardConsumerRequest holds the required information to delete the StorageConsumer CR on the storage provider cluster.
-message OffBoardConsumerRequest{
+// OffboardConsumerRequest holds the required information to delete the StorageConsumer CR on the storage provider cluster.
+message OffboardConsumerRequest{
     // K8s UID (UUID) of the consumer cluster
     string storageConsumerUUID =1;
 }
 
-// OffBoardConsumerResponse holds the response for the OffBoardConsumer API request
-message OffBoardConsumerResponse{
+// OffboardConsumerResponse holds the response for the OffboardConsumer API request
+message OffboardConsumerResponse{
 
 }
 
