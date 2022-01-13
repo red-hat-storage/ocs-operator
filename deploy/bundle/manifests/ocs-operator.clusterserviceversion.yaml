@@ -1499,6 +1499,15 @@ spec:
         - apiGroups:
           - config.openshift.io
           resources:
+          - clusterversions
+          - networks
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
           - infrastructures
           - networks
           verbs:
