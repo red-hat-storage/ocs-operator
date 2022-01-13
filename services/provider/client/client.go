@@ -21,11 +21,20 @@ func NewProviderClient(cc *grpc.ClientConn, timeout time.Duration) *OCSProviderC
 
 // NewGRPCConnection returns a grpc client connection which can be used to create the consumer client
 // Note: Close the connection after use
-func NewGRPCConnection(serverAddr string, opts []grpc.DialOption) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(serverAddr, opts...)
+func NewGRPCConnection(serverAddr string, timeout time.Duration) (*grpc.ClientConn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithBlock(),
+	}
+
+	conn, err := grpc.DialContext(ctx, serverAddr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %v", err)
 	}
+
 	return conn, err
 }
 
