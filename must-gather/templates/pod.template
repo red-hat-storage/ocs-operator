@@ -33,7 +33,9 @@ spec:
     name: must-gather-helper
     securityContext:
       privileged: true
-      runAsUser: 1000
+      runAsNonRoot: true
+      runAsUser: 2016
+      runAsGroup: 2016
     volumeMounts:
       - mountPath: /dev
         name: dev
