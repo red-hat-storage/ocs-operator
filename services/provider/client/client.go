@@ -10,19 +10,14 @@ import (
 )
 
 type OCSProviderClient struct {
-	Client  pb.OCSProviderClient
-	timeout time.Duration
+	Client     pb.OCSProviderClient
+	clientConn *grpc.ClientConn
+	timeout    time.Duration
 }
 
-// NewProviderClient creates a client to talk to OCS provider server
-func NewProviderClient(cc *grpc.ClientConn, timeout time.Duration) *OCSProviderClient {
-	return &OCSProviderClient{Client: pb.NewOCSProviderClient(cc), timeout: timeout}
-}
-
-// NewGRPCConnection returns a grpc client connection which can be used to create the consumer client
-// Note: Close the connection after use
-func NewGRPCConnection(serverAddr string, timeout time.Duration) (*grpc.ClientConn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+// NewProviderClient creates a client to talk to the external OCS storage provider server
+func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Duration) (*OCSProviderClient, error) {
+	apiCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	opts := []grpc.DialOption{
@@ -30,62 +25,88 @@ func NewGRPCConnection(serverAddr string, timeout time.Duration) (*grpc.ClientCo
 		grpc.WithBlock(),
 	}
 
-	conn, err := grpc.DialContext(ctx, serverAddr, opts...)
+	conn, err := grpc.DialContext(apiCtx, serverAddr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %v", err)
 	}
 
-	return conn, err
+	return &OCSProviderClient{
+		Client:     pb.NewOCSProviderClient(conn),
+		clientConn: conn,
+		timeout:    timeout}, nil
+}
+
+// Close closes the gRPC connection of the external OCS storage provider client
+func (cc *OCSProviderClient) Close() {
+	_ = cc.clientConn.Close()
+	cc.clientConn = nil
+	cc.Client = nil
 }
 
 // OnboardConsumer to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
-func (cc *OCSProviderClient) OnboardConsumer(token, name, capacity string) (*pb.OnboardConsumerResponse, error) {
+func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, token, name, capacity string) (*pb.OnboardConsumerResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
 	req := &pb.OnboardConsumerRequest{
 		Token:        token,
 		ConsumerName: name,
 		Capacity:     capacity,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cc.timeout)
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
 	defer cancel()
 
-	return cc.Client.OnboardConsumer(ctx, req)
+	return cc.Client.OnboardConsumer(apiCtx, req)
 }
 
 // GetStorageConfig generates the json config for connecting to storage provider cluster
-func (cc *OCSProviderClient) GetStorageConfig(consumerUUID string) (*pb.StorageConfigResponse, error) {
+func (cc *OCSProviderClient) GetStorageConfig(ctx context.Context, consumerUUID string) (*pb.StorageConfigResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
 	req := &pb.StorageConfigRequest{
 		StorageConsumerUUID: consumerUUID,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cc.timeout)
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
 	defer cancel()
 
-	return cc.Client.GetStorageConfig(ctx, req)
+	return cc.Client.GetStorageConfig(apiCtx, req)
 }
 
 // OffboardConsumer deletes the StorageConsumer CR on the storage provider cluster
-func (cc *OCSProviderClient) OffboardConsumer(consumerUUID string) (*pb.OffboardConsumerResponse, error) {
+func (cc *OCSProviderClient) OffboardConsumer(ctx context.Context, consumerUUID string) (*pb.OffboardConsumerResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
 	req := &pb.OffboardConsumerRequest{
 		StorageConsumerUUID: consumerUUID,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cc.timeout)
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
 	defer cancel()
 
-	return cc.Client.OffboardConsumer(ctx, req)
+	return cc.Client.OffboardConsumer(apiCtx, req)
 }
 
 // UpdateCapacity increases or decreases the storage block pool size
-func (cc *OCSProviderClient) UpdateCapacity(consumerUUID, capacity string) (*pb.UpdateCapacityResponse, error) {
+func (cc *OCSProviderClient) UpdateCapacity(ctx context.Context, consumerUUID, capacity string) (*pb.UpdateCapacityResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
 	req := &pb.UpdateCapacityRequest{
 		StorageConsumerUUID: consumerUUID,
 		Capacity:            capacity,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cc.timeout)
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
 	defer cancel()
 
-	return cc.Client.UpdateCapacity(ctx, req)
+	return cc.Client.UpdateCapacity(apiCtx, req)
 }
