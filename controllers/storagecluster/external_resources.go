@@ -230,9 +230,49 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 // ensureCreated ensures that requested resources for the external cluster
 // being created
 func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-	if r.sameExternalSecretData(instance) {
-		return reconcile.Result{}, nil
+
+	if isExternalOCSProvider(instance) {
+
+		externalClusterClient, err := r.newExternalClusterClient(instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		defer externalClusterClient.Close()
+
+		if instance.Status.ExternalStorage.ConsumerID == "" {
+			res, err := r.onboardConsumer(instance, externalClusterClient)
+			if err != nil || !res.IsZero() {
+				return res, err
+			}
+		} else if instance.Spec.ExternalStorage.RequestedCapacity.Equal(instance.Status.ExternalStorage.GrantedCapacity) {
+			res, err := r.updateConsumerCapacity(instance, externalClusterClient)
+			if err != nil || !res.IsZero() {
+				return res, err
+			}
+		}
+
+		if externalOCSResources[instance.UID] == nil {
+			externalConfig, res, err := r.getExternalConfigFromProvider(instance, externalClusterClient)
+			if err != nil || !res.IsZero() {
+				return res, err
+			}
+			externalOCSResources[instance.UID] = externalConfig
+		}
+		externalClusterClient.Close()
+	} else {
+		// rhcs external mode
+		if r.sameExternalSecretData(instance) {
+			return reconcile.Result{}, nil
+		}
+
+		data, err := r.retrieveExternalSecretData(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to retrieve external secret resources.")
+			return reconcile.Result{}, err
+		}
+		externalOCSResources[instance.UID] = data
 	}
+
 	err := r.createExternalStorageClusterResources(instance)
 	if err != nil {
 		r.Log.Error(err, "Could not create ExternalStorageClusterResource.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
@@ -243,11 +283,25 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 
 // ensureDeleted is dummy func for the ocsExternalResources
 func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+
+	if isExternalOCSProvider(instance) {
+		externalClusterClient, err := r.newExternalClusterClient(instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		defer externalClusterClient.Close()
+
+		return r.offboardConsumer(instance, externalClusterClient)
+	}
+
 	return reconcile.Result{}, nil
 }
 
 // createExternalStorageClusterResources creates external cluster resources
 func (r *StorageClusterReconciler) createExternalStorageClusterResources(instance *ocsv1.StorageCluster) error {
+
+	var err error
+
 	ownerRef := metav1.OwnerReference{
 		UID:        instance.UID,
 		APIVersion: instance.APIVersion,
@@ -258,11 +312,11 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
 	availableSCCs := []StorageClassConfiguration{}
-	data, err := r.retrieveExternalSecretData(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to retrieve external secret resources.")
-		return err
+	data, ok := externalOCSResources[instance.UID]
+	if !ok {
+		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
 	}
+
 	var extCephObjectStores []*cephv1.CephObjectStore
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{

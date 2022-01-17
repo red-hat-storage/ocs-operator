@@ -117,6 +117,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshots;volumesnapshotclasses,verbs=*
 // +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=*
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures;networks,verbs=get;list;watch
+// +kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=console.openshift.io,resources=consolequickstarts,verbs=*
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=*
@@ -241,8 +242,9 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		return err
 	}
 
-	if instance.Spec.ExternalStorage.Enable && instance.Spec.ExternalStorage.StorageProviderKind == ocsv1.KindOCS && instance.Spec.ExternalStorage.ConnectionString == "" {
-		err := fmt.Errorf("spec.externalStorage.connectionString can not be empty when spec.externalStorage.storageProviderKind is set to ocs")
+	if isExternalOCSProvider(instance) && (instance.Spec.ExternalStorage.ConnectionString == "" || instance.Spec.ExternalStorage.RequestedCapacity == nil) {
+		err := fmt.Errorf("spec.externalStorage.connectionString or spec.externalStorage.requestedCapacity" +
+			" can not be empty when spec.externalStorage.storageProviderKind is set to ocs")
 		r.Log.Error(err, "Failed to validate Spec for ExternalStorage", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
@@ -376,9 +378,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 
-	} else if instance.Spec.ExternalStorage.StorageProviderKind == ocsv1.KindOCS {
-		// ocs to ocs external mode
-		objs = []resourceManager{}
 	} else {
 		// for external cluster, we have a different set of ensure functions
 		// preserve list order
