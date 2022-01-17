@@ -34,9 +34,22 @@ func mockGetStorageConfig(mockError common.MockError) (*pb.StorageConfigResponse
 	case common.StorageConfigConsumerNotReady:
 		return nil, status.Errorf(codes.Unavailable, "mock error message")
 	}
-	resp, _ := json.Marshal(common.MockExternalResource)
+
+	monSecretData, _ := json.Marshal(common.MockMonSecretData)
+	monConfigMapData, _ := json.Marshal(common.MockMonConfigMapData)
 	return &pb.StorageConfigResponse{
-		Data: resp,
+		ExternalResource: []*pb.ExternalResource{
+			{
+				Name: "rook-ceph-mon",
+				Kind: "Secret",
+				Data: monSecretData,
+			},
+			{
+				Name: "rook-ceph-mon-endpoints",
+				Kind: "ConfigMap",
+				Data: monConfigMapData,
+			},
+		},
 	}, nil
 }
 
