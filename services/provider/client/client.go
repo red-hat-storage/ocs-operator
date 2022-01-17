@@ -38,8 +38,10 @@ func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Dura
 
 // Close closes the gRPC connection of the external OCS storage provider client
 func (cc *OCSProviderClient) Close() {
-	_ = cc.clientConn.Close()
-	cc.clientConn = nil
+	if cc.clientConn != nil {
+		_ = cc.clientConn.Close()
+		cc.clientConn = nil
+	}
 	cc.Client = nil
 }
 
