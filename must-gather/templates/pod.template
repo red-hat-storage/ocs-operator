@@ -11,11 +11,12 @@ spec:
     effect: "NoSchedule"
   containers:
   - args:
-    - -g
-    - --
+    - -m
+    - -c
     - /usr/local/bin/toolbox.sh
     command:
-    - /tini
+    - /bin/bash
+    tty: true
     env:
     - name: ROOK_CEPH_USERNAME
       valueFrom:
@@ -32,7 +33,9 @@ spec:
     name: must-gather-helper
     securityContext:
       privileged: true
-      runAsUser: 1000
+      runAsNonRoot: true
+      runAsUser: 2016
+      runAsGroup: 2016
     volumeMounts:
       - mountPath: /dev
         name: dev
