@@ -26,8 +26,8 @@ service OCSProvider {
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
 message OnboardConsumerRequest{
-    // token authenticates the storage consumer cluster
-    string token = 1;
+    // onboardingTicket authenticates the storage consumer cluster
+    string onboardingTicket = 1;
     // consumerName is the name of the consumer that is used to create the storageConsumer resource
     string consumerName = 2;
     // capacity is the desired storage requested by the consumer cluster
@@ -49,10 +49,21 @@ message StorageConfigRequest{
      string storageConsumerUUID =1;
  }
 
+
+ // ExternalResource holds the configuration data of the resources in external storage cluster
+message ExternalResource {
+    // Name of the external storage cluster resource
+    string Name = 1;
+    // Kind of the external storage cluster resource
+    string kind = 2;
+    // Data contains the contents of the external cluster resource
+    bytes Data = 3;
+}
+
 // StorageConfigResponse holds the response for the GetStorageConfig API request
 message StorageConfigResponse{
-     // data contains the json blob to be used by the consumer cluster to connect with the provider cluster
-     bytes data = 1;
+     // ExternalResource holds the configuration data of external storage cluster
+     repeated ExternalResource externalResource = 1;
  }
 
 

@@ -45,15 +45,15 @@ func (cc *OCSProviderClient) Close() {
 
 // OnboardConsumer to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
-func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, token, name, capacity string) (*pb.OnboardConsumerResponse, error) {
+func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, ticket, name, capacity string) (*pb.OnboardConsumerResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
 
 	req := &pb.OnboardConsumerRequest{
-		Token:        token,
-		ConsumerName: name,
-		Capacity:     capacity,
+		OnboardingTicket: ticket,
+		ConsumerName:     name,
+		Capacity:         capacity,
 	}
 
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
