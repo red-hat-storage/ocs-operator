@@ -261,16 +261,16 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 		externalClusterClient.Close()
 	} else {
 		// rhcs external mode
-		if r.sameExternalSecretData(instance) {
-			return reconcile.Result{}, nil
-		}
-
 		data, err := r.retrieveExternalSecretData(instance)
 		if err != nil {
 			r.Log.Error(err, "Failed to retrieve external secret resources.")
 			return reconcile.Result{}, err
 		}
 		externalOCSResources[instance.UID] = data
+
+		if r.sameExternalSecretData(instance) {
+			return reconcile.Result{}, nil
+		}
 	}
 
 	err := r.createExternalStorageClusterResources(instance)
