@@ -466,10 +466,10 @@ func createDummyKMSConfigMap(kmsProvider, kmsAddr string, kmsAuthMethod string) 
 		cm.Data["VAULT_BACKEND_PATH"] = "ocs"
 		cm.Data["VAULT_NAMESPACE"] = "my-ocs-namespace"
 	case IbmKeyProtectKMSProvider:
-		cm.Data["IBM_SERVICE_INSTANCE_ID"] = "my-instance-id"
-		cm.Data["IBM_KMS_KEY"] = "my-kms-key"
-		cm.Data["IBM_BASE_URL"] = "my-base-url"
-		cm.Data["IBM_TOKEN_URL"] = "my-token-url"
+		cm.Data["IBM_KP_SERVICE_INSTANCE_ID"] = "my-instance-id"
+		cm.Data["IBM_KP_SECRET_NAME"] = "my-kms-key"
+		cm.Data["IBM_KP_BASE_URL"] = "my-base-url"
+		cm.Data["IBM_KP_TOKEN_URL"] = "my-token-url"
 	}
 	return cm
 }
