@@ -3,12 +3,16 @@ package storagecluster
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -17,7 +21,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func TestReconcileUninstallAnnotations(t *testing.T) {
@@ -827,4 +834,54 @@ func assertTestSetNoobaaUninstallMode(
 	assert.NoError(t, err)
 
 	assert.Equal(t, NoobaaUninstallMode, noobaa.Spec.CleanupPolicy.Confirmation)
+}
+
+func TestVerifyNoStorageConsumerExist(t *testing.T) {
+
+	createSetup := func() (*StorageClusterReconciler, *ocsv1.StorageCluster) {
+
+		scheme := createFakeScheme(t)
+
+		frecorder := record.NewFakeRecorder(1024)
+		reporter := util.NewEventReporter(frecorder)
+
+		r := &StorageClusterReconciler{
+			Client:   fake.NewClientBuilder().WithScheme(scheme).Build(),
+			Scheme:   scheme,
+			Log:      logf.Log.WithName("controller_storagecluster_test"),
+			recorder: reporter,
+		}
+
+		instance := &ocsv1.StorageCluster{}
+
+		return r, instance
+	}
+
+	t.Run("Raise error when storageConsumer exist", func(t *testing.T) {
+
+		r, instance := createSetup()
+
+		// create storageConsumer
+		storageConsumer := &ocsv1alpha1.StorageConsumer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "fake",
+			},
+		}
+		err := r.Client.Create(context.TODO(), storageConsumer)
+		assert.NoError(t, err)
+
+		err = r.verifyNoStorageConsumerExist(instance)
+		assert.Error(t, err)
+		expectedErr := fmt.Errorf("Failed to uninstall storage cluster. StorageConsumers are present in the  namespace. " +
+			"Clean all StorageConsumers for the uninstallation to proceed")
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("Do not Raise error when storageConsumer does not exist", func(t *testing.T) {
+
+		r, instance := createSetup()
+
+		err := r.verifyNoStorageConsumerExist(instance)
+		assert.NoError(t, err)
+	})
 }
