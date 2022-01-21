@@ -345,6 +345,7 @@ func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
 	data["CSI_PROVISIONER_TOLERATIONS"] = defaultCSIToleration
 	data["CSI_PLUGIN_TOLERATIONS"] = defaultCSIToleration
 	data["CSI_LOG_LEVEL"] = "5"
+	data["CSI_ENABLE_CSIADDONS"] = "true"
 	config.Data = data
 
 	return config
