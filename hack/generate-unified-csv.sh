@@ -64,4 +64,5 @@ $CSV_MERGER \
 	--crds-directory="$OUTDIR_CRDS" \
 	--manifests-directory=$BUNDLEMANIFESTS_DIR \
 	--olm-bundle-directory="$OCS_FINAL_DIR" \
-	--timestamp="$TIMESTAMP"
+	--timestamp="$TIMESTAMP" \
+	--rook-csiaddons-image="$ROOK_CSIADDONS_IMAGE"
