@@ -421,8 +421,12 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			}
 			// Set TokenSecretName only for vault token based auth method
 			if kmsConfigMap.Data["VAULT_AUTH_METHOD"] == VaultTokenAuthMethod {
+				// Secret is created by UI in "openshift-storage" namespace
 				cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 			}
+		} else if kmsConfigMap.Data["KMS_PROVIDER"] == IbmKeyProtectKMSProvider {
+			// Secret is created by UI in "openshift-storage" namespace
+			cephCluster.Spec.Security.KeyManagementService.TokenSecretName = kmsConfigMap.Data["IBM_KP_SECRET_NAME"]
 		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 	}

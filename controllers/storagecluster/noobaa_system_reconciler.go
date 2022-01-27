@@ -200,8 +200,12 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 				}
 				// Set TokenSecretName only for vault token based auth method
 				if kmsConfig.Data["VAULT_AUTH_METHOD"] == VaultTokenAuthMethod {
+					// Secret is created by UI in "openshift-storage" namespace
 					nb.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 				}
+			} else if kmsConfig.Data["KMS_PROVIDER"] == IbmKeyProtectKMSProvider {
+				// Secret is created by UI in "openshift-storage" namespace
+				nb.Spec.Security.KeyManagementService.TokenSecretName = kmsConfig.Data["IBM_KP_SECRET_NAME"]
 			}
 			nb.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfig.Data
 		}
