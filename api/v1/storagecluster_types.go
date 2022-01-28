@@ -244,8 +244,9 @@ type StorageDeviceSet struct {
 	WalPVCTemplate      *corev1.PersistentVolumeClaim `json:"walPVCTemplate,omitempty"`
 }
 
-// StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
 // TODO: Fill in the members when the actual configurable options are defined in rook-ceph
+
+// StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
 type StorageDeviceSetConfig struct {
 	// TuneSlowDeviceClass tunes the OSD when running on a slow Device Class
 	// +optional
