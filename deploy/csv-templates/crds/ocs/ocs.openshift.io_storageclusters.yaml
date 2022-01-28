@@ -1929,10 +1929,8 @@ spec:
                     It configures the StorageClassDeviceSets field in Rook-Ceph.
                   properties:
                     config:
-                      description: 'StorageDeviceSetConfig defines Ceph OSD specific
-                        config options for the StorageDeviceSet TODO: Fill in the
-                        members when the actual configurable options are defined in
-                        rook-ceph'
+                      description: StorageDeviceSetConfig defines Ceph OSD specific
+                        config options for the StorageDeviceSet
                       properties:
                         tuneFastDeviceClass:
                           description: TuneFastDeviceClass tunes the OSD when running
