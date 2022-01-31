@@ -2420,6 +2420,8 @@ spec:
                   value: "true"
                 - name: CSI_VOLUME_REPLICATION_IMAGE
                   value: quay.io/csiaddons/volumereplication-operator:v0.1.0
+                - name: ROOK_CSIADDONS_IMAGE
+                  value: quay.io/csiaddons/k8s-sidecar:v0.2.1
                 - name: CSI_PROVISIONER_TOLERATIONS
                   value: |2-
 
@@ -2724,6 +2726,8 @@ spec:
     name: ceph-container
   - image: quay.io/csiaddons/volumereplication-operator:v0.1.0
     name: volume-replication-operator
+  - image: quay.io/csiaddons/k8s-sidecar:v0.2.1
+    name: csiaddons-sidecar
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
   version: 4.9.0
