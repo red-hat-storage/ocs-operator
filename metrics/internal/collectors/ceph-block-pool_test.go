@@ -24,7 +24,7 @@ var (
 			Name:      "mockCephBlockPool-1",
 			Namespace: "openshift-storage",
 		},
-		Spec:   cephv1.PoolSpec{},
+		Spec:   cephv1.NamedBlockPoolSpec{},
 		Status: &cephv1.CephBlockPoolStatus{},
 	}
 	mockCephBlockPool2 = cephv1.CephBlockPool{
@@ -32,7 +32,7 @@ var (
 			Name:      "mockCephBlockPool-2",
 			Namespace: "openshift-storage",
 		},
-		Spec:   cephv1.PoolSpec{},
+		Spec:   cephv1.NamedBlockPoolSpec{},
 		Status: &cephv1.CephBlockPoolStatus{},
 	}
 )
@@ -218,14 +218,18 @@ func TestCollectPoolMirroringStatus(t *testing.T) {
 
 	objEnabled := mockCephBlockPool1.DeepCopy()
 	objEnabled.Name = objEnabled.Name + "enabled"
-	objEnabled.Spec = cephv1.PoolSpec{
-		Mirroring: cephv1.MirroringSpec{Enabled: true},
+	objEnabled.Spec = cephv1.NamedBlockPoolSpec{
+		PoolSpec: cephv1.PoolSpec{
+			Mirroring: cephv1.MirroringSpec{Enabled: true},
+		},
 	}
 
 	objDisabled := mockCephBlockPool1.DeepCopy()
 	objDisabled.Name = objDisabled.Name + "disabled"
-	objDisabled.Spec = cephv1.PoolSpec{
-		Mirroring: cephv1.MirroringSpec{Enabled: false},
+	objDisabled.Spec = cephv1.NamedBlockPoolSpec{
+		PoolSpec: cephv1.PoolSpec{
+			Mirroring: cephv1.MirroringSpec{Enabled: false},
+		},
 	}
 
 	tests := Tests{

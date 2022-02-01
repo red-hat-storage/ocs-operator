@@ -7,9 +7,8 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookCore "github.com/rook/rook/pkg/apis/rook.io"
-
 	"github.com/stretchr/testify/assert"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -56,7 +55,7 @@ var workerNodeSelector = corev1.NodeSelector{
 var workerNodeAffinity = corev1.NodeAffinity{
 	RequiredDuringSchedulingIgnoredDuringExecution: &workerNodeSelector,
 }
-var workerPlacements = map[rookCore.KeyType]rookCephv1.Placement{
+var workerPlacements = map[rookCephv1.KeyType]rookCephv1.Placement{
 	"all": {
 		NodeAffinity: &workerNodeAffinity,
 	},
@@ -71,7 +70,7 @@ var workerPlacements = map[rookCore.KeyType]rookCephv1.Placement{
 var emptyLabelSelector = metav1.LabelSelector{
 	MatchExpressions: []metav1.LabelSelectorRequirement{},
 }
-var emptyPlacements = map[rookCore.KeyType]rookCephv1.Placement{
+var emptyPlacements = map[rookCephv1.KeyType]rookCephv1.Placement{
 	"all": {},
 	"mds": {},
 	"mon": {},
