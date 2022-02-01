@@ -285,6 +285,13 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	if isExternalOCSProvider(instance) {
+
+		// skip offboarding if consumer is not onboarded
+		if instance.Status.ExternalStorage.ConsumerID == "" {
+			r.Log.Info("Consumer is not onboarded. Skipping the offboarding request.")
+			return reconcile.Result{}, nil
+		}
+
 		externalClusterClient, err := r.newExternalClusterClient(instance)
 		if err != nil {
 			return reconcile.Result{}, err
