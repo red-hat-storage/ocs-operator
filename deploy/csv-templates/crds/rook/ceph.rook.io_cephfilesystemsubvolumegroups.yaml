@@ -6,14 +6,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
   creationTimestamp: null
-  name: cephobjectrealms.ceph.rook.io
+  name: cephfilesystemsubvolumegroups.ceph.rook.io
 spec:
   group: ceph.rook.io
   names:
-    kind: CephObjectRealm
-    listKind: CephObjectRealmList
-    plural: cephobjectrealms
-    singular: cephobjectrealm
+    kind: CephFilesystemSubVolumeGroup
+    listKind: CephFilesystemSubVolumeGroupList
+    plural: cephfilesystemsubvolumegroups
+    singular: cephfilesystemsubvolumegroup
   scope: Namespaced
   versions:
   - name: v1
@@ -27,27 +27,26 @@ spec:
           metadata:
             type: object
           spec:
-            nullable: true
             properties:
-              pull:
-                properties:
-                  endpoint:
-                    pattern: ^https*://
-                    type: string
-                required:
-                - endpoint
-                type: object
+              filesystemName:
+                type: string
             required:
-            - pull
+            - filesystemName
             type: object
           status:
             properties:
+              info:
+                additionalProperties:
+                  type: string
+                nullable: true
+                type: object
               phase:
                 type: string
             type: object
             x-kubernetes-preserve-unknown-fields: true
         required:
         - metadata
+        - spec
         type: object
     served: true
     storage: true
