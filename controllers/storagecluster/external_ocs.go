@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -33,47 +32,16 @@ const (
 	GetStorageConfig = "GetStorageConfig"
 )
 
-type connectionDetails struct {
-	OnboardingTicket string `json:"onboardingTicket"`
-	ServerAddress    string `json:"serverAddress"`
-}
-
 // isExternalOCSProvider returns true if it is ocs to ocs ExternalStorage consumer cluster
 func isExternalOCSProvider(instance *ocsv1.StorageCluster) bool {
 	return instance.Spec.ExternalStorage.Enable && instance.Spec.ExternalStorage.StorageProviderKind == ocsv1.KindOCS
 }
 
-func (r *StorageClusterReconciler) getConnectionDetails(instance *ocsv1.StorageCluster) (*connectionDetails, error) {
-
-	connectionInfo, err := base64.StdEncoding.DecodeString(instance.Spec.ExternalStorage.ConnectionString)
-	if err != nil {
-		r.Log.Error(err, "ConnectionString is Invalid, Not able to decode ConnectionString with base64",
-			"ConnectionString", instance.Spec.ExternalStorage.ConnectionString)
-		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "Invalid", "ConnectionString is Invalid")
-		return nil, err
-	}
-
-	var c connectionDetails
-	err = json.Unmarshal(connectionInfo, &c)
-	if err != nil {
-		r.Log.Error(err, "Failed to parse connection details, some keys are missing")
-		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "Invalid", "ConnectionString is Invalid")
-		return nil, err
-	}
-
-	return &c, nil
-}
-
 // newExternalClusterClient returns the *externalClient.OCSProviderClient
 func (r *StorageClusterReconciler) newExternalClusterClient(instance *ocsv1.StorageCluster) (*externalClient.OCSProviderClient, error) {
 
-	connectionInfo, err := r.getConnectionDetails(instance)
-	if err != nil {
-		return nil, err
-	}
-
 	consumerClient, err := externalClient.NewProviderClient(
-		context.Background(), connectionInfo.ServerAddress, time.Second*10)
+		context.Background(), instance.Spec.ExternalStorage.StorageProviderEndpoint, time.Second*10)
 	if err != nil {
 		return nil, err
 	}
@@ -91,14 +59,9 @@ func (r *StorageClusterReconciler) onboardConsumer(instance *ocsv1.StorageCluste
 		return reconcile.Result{}, err
 	}
 
-	connectionInfo, err := r.getConnectionDetails(instance)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
 	name := fmt.Sprintf("ocs-consumer-%s", clusterVersion.Spec.ClusterID)
 	response, err := externalClusterClient.OnboardConsumer(
-		context.Background(), connectionInfo.OnboardingTicket, name,
+		context.Background(), instance.Spec.ExternalStorage.OnboardingTicket, name,
 		instance.Spec.ExternalStorage.RequestedCapacity.String())
 	if err != nil {
 		if s, ok := status.FromError(err); ok {
