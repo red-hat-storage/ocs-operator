@@ -20,12 +20,15 @@ gather_noobaa_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 
 storageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
 externalStorageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.externalStorage.enable}}{{"\n"}}{{end}}')
+reconcileStrategy=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.multiCloudGateway.reconcileStrategy}}{{"\n"}}{{end}}')
 
 if [ "${externalStorageClusterPresent}" == true ]; then
     echo "Collecting limited ceph logs since external cluster is present" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
     gather_common_ceph_resources "${BASE_COLLECTION_PATH}" "${SINCE_TIME}"
 elif [ -z "${storageClusterPresent}" ]; then
     echo "Skipping ceph collection as Storage Cluster is not present" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+elif [ "${reconcileStrategy}" = "standalone" ]; then
+    echo "Skipping ceph collection as this is a MCG only cluster" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
 else
     echo "Collecting entire ceph logs" | tee -a "${BASE_COLLECTION_PATH}"/gather-debug.log
     gather_ceph_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
