@@ -1,6 +1,8 @@
 #!/bin/bash
 
-if [ -n "$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')" ]; then
+reconcileStrategy=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.multiCloudGateway.reconcileStrategy}}{{"\n"}}{{end}}')
+
+if [ -n "$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')" ] && [ "${reconcileStrategy}" != "standalone" ]; then
     oc delete -f pod_helper.yaml
 fi
 
