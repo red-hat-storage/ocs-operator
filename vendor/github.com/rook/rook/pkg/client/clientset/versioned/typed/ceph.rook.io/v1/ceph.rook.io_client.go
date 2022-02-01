@@ -27,10 +27,13 @@ import (
 type CephV1Interface interface {
 	RESTClient() rest.Interface
 	CephBlockPoolsGetter
+	CephBucketNotificationsGetter
+	CephBucketTopicsGetter
 	CephClientsGetter
 	CephClustersGetter
 	CephFilesystemsGetter
 	CephFilesystemMirrorsGetter
+	CephFilesystemSubVolumeGroupsGetter
 	CephNFSesGetter
 	CephObjectRealmsGetter
 	CephObjectStoresGetter
@@ -49,6 +52,14 @@ func (c *CephV1Client) CephBlockPools(namespace string) CephBlockPoolInterface {
 	return newCephBlockPools(c, namespace)
 }
 
+func (c *CephV1Client) CephBucketNotifications(namespace string) CephBucketNotificationInterface {
+	return newCephBucketNotifications(c, namespace)
+}
+
+func (c *CephV1Client) CephBucketTopics(namespace string) CephBucketTopicInterface {
+	return newCephBucketTopics(c, namespace)
+}
+
 func (c *CephV1Client) CephClients(namespace string) CephClientInterface {
 	return newCephClients(c, namespace)
 }
@@ -63,6 +74,10 @@ func (c *CephV1Client) CephFilesystems(namespace string) CephFilesystemInterface
 
 func (c *CephV1Client) CephFilesystemMirrors(namespace string) CephFilesystemMirrorInterface {
 	return newCephFilesystemMirrors(c, namespace)
+}
+
+func (c *CephV1Client) CephFilesystemSubVolumeGroups(namespace string) CephFilesystemSubVolumeGroupInterface {
+	return newCephFilesystemSubVolumeGroups(c, namespace)
 }
 
 func (c *CephV1Client) CephNFSes(namespace string) CephNFSInterface {
