@@ -8,17 +8,17 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/blang/semver/v4 v4.0.0
 	github.com/ceph/ceph-csi/api v0.0.0-20211006172825-b9beb2106b70
-	github.com/ceph/go-ceph v0.11.0
+	github.com/ceph/go-ceph v0.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v0.4.0
 	github.com/imdario/mergo v0.3.12
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210818162813-3eee31c01875
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220105185820-c1da9586e05b
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20210912161037-7eb9969404e4
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.14.0
+	github.com/onsi/gomega v1.15.0
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/openshift/build-machinery-go v0.0.0-20210702090207-9c7b89e8633a
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
@@ -29,7 +29,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/rook/rook v1.7.3
+	github.com/rook/rook v1.8.3
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/multierr v1.6.0
@@ -37,13 +37,13 @@ require (
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/ini.v1 v1.57.0
 	gotest.tools/v3 v3.0.3
-	k8s.io/api v0.21.3
-	k8s.io/apiextensions-apiserver v0.21.3
-	k8s.io/apimachinery v0.21.3
+	k8s.io/api v0.22.2
+	k8s.io/apiextensions-apiserver v0.22.2
+	k8s.io/apimachinery v0.22.2
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.8.0
-	sigs.k8s.io/controller-runtime v0.9.5
+	sigs.k8s.io/controller-runtime v0.10.2
 )
 
 replace (
@@ -74,6 +74,7 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.21.3
 	k8s.io/mount-utils => k8s.io/mount-utils v0.21.3
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.21.3
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.9.5
 )
 
 // This tag doesn't exist, but is imported by github.com/portworx/sched-ops.

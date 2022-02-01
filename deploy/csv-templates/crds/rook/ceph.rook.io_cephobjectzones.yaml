@@ -32,7 +32,6 @@ spec:
                 nullable: true
                 properties:
                   compressionMode:
-                    default: none
                     enum:
                     - none
                     - passive
@@ -54,11 +53,9 @@ spec:
                       algorithm:
                         type: string
                       codingChunks:
-                        maximum: 9
                         minimum: 0
                         type: integer
                       dataChunks:
-                        maximum: 9
                         minimum: 0
                         type: integer
                     required:
@@ -161,7 +158,6 @@ spec:
                 nullable: true
                 properties:
                   compressionMode:
-                    default: none
                     enum:
                     - none
                     - passive
@@ -183,11 +179,9 @@ spec:
                       algorithm:
                         type: string
                       codingChunks:
-                        maximum: 9
                         minimum: 0
                         type: integer
                       dataChunks:
-                        maximum: 9
                         minimum: 0
                         type: integer
                     required:

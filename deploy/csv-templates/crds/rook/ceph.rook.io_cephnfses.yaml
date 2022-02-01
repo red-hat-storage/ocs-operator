@@ -31,14 +31,12 @@ spec:
           spec:
             properties:
               rados:
+                nullable: true
                 properties:
                   namespace:
                     type: string
                   pool:
                     type: string
-                required:
-                - namespace
-                - pool
                 type: object
               server:
                 properties:
@@ -496,7 +494,6 @@ spec:
                 - active
                 type: object
             required:
-            - rados
             - server
             type: object
           status:

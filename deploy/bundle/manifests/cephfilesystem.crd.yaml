@@ -41,7 +41,6 @@ spec:
                 items:
                   properties:
                     compressionMode:
-                      default: none
                       enum:
                       - none
                       - passive
@@ -63,11 +62,9 @@ spec:
                         algorithm:
                           type: string
                         codingChunks:
-                          maximum: 9
                           minimum: 0
                           type: integer
                         dataChunks:
-                          maximum: 9
                           minimum: 0
                           type: integer
                       required:
@@ -102,6 +99,8 @@ spec:
                             type: object
                           type: array
                       type: object
+                    name:
+                      type: string
                     parameters:
                       additionalProperties:
                         type: string
@@ -172,7 +171,6 @@ spec:
                 nullable: true
                 properties:
                   compressionMode:
-                    default: none
                     enum:
                     - none
                     - passive
@@ -194,11 +192,9 @@ spec:
                       algorithm:
                         type: string
                       codingChunks:
-                        maximum: 9
                         minimum: 0
                         type: integer
                       dataChunks:
-                        maximum: 9
                         minimum: 0
                         type: integer
                     required:
@@ -814,6 +810,25 @@ spec:
             type: object
           status:
             properties:
+              conditions:
+                items:
+                  properties:
+                    lastHeartbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
               info:
                 additionalProperties:
                   type: string

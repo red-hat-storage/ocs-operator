@@ -4,7 +4,6 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +14,7 @@ import (
 // getPlacement returns placement configuration for ceph components with appropriate topology
 func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
 	placement := rookCephv1.Placement{}
-	in, ok := sc.Spec.Placement[rookv1.KeyType(component)]
+	in, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]
 	if ok {
 		(&in).DeepCopyInto(&placement)
 	} else {

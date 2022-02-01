@@ -31,10 +31,12 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 					Replicated:    generateCephReplicatedSpec(initData, "metadata"),
 					FailureDomain: initData.Status.FailureDomain,
 				},
-				DataPools: []cephv1.PoolSpec{
+				DataPools: []cephv1.NamedPoolSpec{
 					{
-						Replicated:    generateCephReplicatedSpec(initData, "data"),
-						FailureDomain: initData.Status.FailureDomain,
+						PoolSpec: cephv1.PoolSpec{
+							Replicated:    generateCephReplicatedSpec(initData, "data"),
+							FailureDomain: initData.Status.FailureDomain,
+						},
 					},
 				},
 				MetadataServer: cephv1.MetadataServerSpec{

@@ -59,11 +59,13 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 				Name:      poolName,
 				Namespace: poolNamespace,
 			},
-			Spec: cephv1.PoolSpec{
-				FailureDomain:  getFailureDomain(initData),
-				Replicated:     generateCephReplicatedSpec(initData, "data"),
-				EnableRBDStats: true,
-				Mirroring:      mirroringSpec,
+			Spec: cephv1.NamedBlockPoolSpec{
+				PoolSpec: cephv1.PoolSpec{
+					FailureDomain:  getFailureDomain(initData),
+					Replicated:     generateCephReplicatedSpec(initData, "data"),
+					EnableRBDStats: true,
+					Mirroring:      mirroringSpec,
+				},
 			},
 		},
 	}
