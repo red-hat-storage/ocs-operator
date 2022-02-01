@@ -43,8 +43,10 @@ function dump_noobaa_csv() {
 	echo "Dumping Noobaa csv and crds"
 	${OCS_OC_PATH} image extract --confirm "${NOOBAA_IMAGE}" --path /usr/local/bin/noobaa-operator:./
 	chmod +x ./noobaa-operator
-	./noobaa-operator $noobaa_dump_csv_cmd > $NOOBAA_CSV
-	./noobaa-operator $noobaa_dump_crds_cmd > $noobaa_crds_outdir/noobaa-crd.yaml
+    # shellcheck disable=SC2086
+	./noobaa-operator $noobaa_dump_csv_cmd > "$NOOBAA_CSV"
+    # shellcheck disable=SC2086
+	./noobaa-operator $noobaa_dump_crds_cmd > "$noobaa_crds_outdir/noobaa-crd.yaml"
 	rm -f ./noobaa-operator
 }
 
@@ -62,20 +64,20 @@ function dump_rook_csv() {
 	temp_dir=$(mktemp -d)
 
 	echo "Dumping rook csv and crds"
-	${OCS_OC_PATH} image extract ${ROOK_IMAGE} --path ${rook_template_dir_parent}/${rook_template_dir}:${temp_dir}
+	${OCS_OC_PATH} image extract "${ROOK_IMAGE}" --path "${rook_template_dir_parent}/${rook_template_dir}:${temp_dir}"
 
-	if [ -z "$(ls -A ${temp_dir})" ]; then
+	if [ -z "$(ls -A "${temp_dir}")" ]; then
 		echo "[FATAL] Failed to extract template dir from Rook image"
-		rm -rf ${temp_dir}
+		rm -rf "${temp_dir}"
 		exit 1
 	fi
 
-	cat ${temp_dir}/${rook_template_dir}/${rook_csv_template} > $ROOK_CSV
+	cat "${temp_dir}/${rook_template_dir}/${rook_csv_template}" > "$ROOK_CSV"
 
-	for i in $(ls ${temp_dir}/${rook_crds_dir}); do
-		cat ${temp_dir}/${rook_crds_dir}/${i} > $rook_crds_outdir/"$(basename "$i")"
+	for i in "${temp_dir}/${rook_crds_dir}"/*; do
+		cat "${i}" > "$rook_crds_outdir/$(basename "$i")"
 	done
-	rm -rf ${temp_dir}
+	rm -rf "${temp_dir}"
 }
 
 # ==== DUMP OCS YAMLS ====
