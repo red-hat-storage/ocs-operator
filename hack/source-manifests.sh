@@ -40,17 +40,18 @@ function dump_noobaa_csv() {
 	rm -rf $noobaa_crds_outdir
 	mkdir -p $noobaa_crds_outdir
 
-	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
-	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
-	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
-	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $noobaa_crds_outdir/noobaa-crd.yaml
+	echo "Dumping Noobaa csv and crds"
+	${OCS_OC_PATH} image extract --confirm "${NOOBAA_IMAGE}" --path /usr/local/bin/noobaa-operator:./
+	chmod +x ./noobaa-operator
+	./noobaa-operator $noobaa_dump_csv_cmd > $NOOBAA_CSV
+	./noobaa-operator $noobaa_dump_crds_cmd > $noobaa_crds_outdir/noobaa-crd.yaml
+	rm -f ./noobaa-operator
 }
 
 # ==== DUMP ROOK YAMLS ====
 function dump_rook_csv() {
-	rook_template_dir="/etc/ceph-csv-templates"
+	rook_template_dir_parent="/etc"
+	rook_template_dir="ceph-csv-templates"
 	rook_csv_template="rook-ceph-ocp.vVERSION.clusterserviceversion.yaml.in"
 	rook_crds_dir=$rook_template_dir/crds
 	rook_crds_outdir="$OUTDIR_CRDS/rook"
@@ -58,19 +59,23 @@ function dump_rook_csv() {
 	rm -rf $rook_crds_outdir
 	mkdir -p $rook_crds_outdir
 
-	crd_list=$(mktemp)
-	echo "Dumping rook csv using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
-	$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template > $ROOK_CSV
-	echo "Listing rook crds using command: $IMAGE_RUN_CMD --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/"
-	$IMAGE_RUN_CMD --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ > "$crd_list"
-	# shellcheck disable=SC2013
-	for i in $(cat "$crd_list"); do
-	        # shellcheck disable=SC2059
-		crd_file=$(printf ${rook_crds_dir}/"$i" | tr -d '[:space:]')
-		echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $crd_file"
-		($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $rook_crds_outdir/"$(basename "$crd_file")"
-	done;
-	rm -f "$crd_list"
+	temp_dir=$(mktemp -d)
+
+	echo "Dumping rook csv and crds"
+	${OCS_OC_PATH} image extract ${ROOK_IMAGE} --path ${rook_template_dir_parent}/${rook_template_dir}:${temp_dir}
+
+	if [ -z "$(ls -A ${temp_dir})" ]; then
+		echo "[FATAL] Failed to extract template dir from Rook image"
+		rm -rf ${temp_dir}
+		exit 1
+	fi
+
+	cat ${temp_dir}/${rook_template_dir}/${rook_csv_template} > $ROOK_CSV
+
+	for i in $(ls ${temp_dir}/${rook_crds_dir}); do
+		cat ${temp_dir}/${rook_crds_dir}/${i} > $rook_crds_outdir/"$(basename "$i")"
+	done
+	rm -rf ${temp_dir}
 }
 
 # ==== DUMP OCS YAMLS ====
@@ -94,12 +99,8 @@ function gen_ocs_csv() {
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
-if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ]; then
-	source hack/docker-common.sh
-	dump_noobaa_csv
-	dump_rook_csv
-fi
-
+dump_noobaa_csv
+dump_rook_csv
 gen_ocs_csv
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
