@@ -162,9 +162,11 @@ type ExternalStorageClusterSpec struct {
 	// StorageProviderKind Identify the type of storage provider cluster this consumer cluster is going to connect to.
 	StorageProviderKind ExternalStorageKind `json:"storageProviderKind,omitempty"`
 
-	// ConnectionString An encoded string holding connection and identity information
-	// that is needed in order to establish connection with the storage providing cluster.
-	ConnectionString string `json:"connectionString,omitempty"`
+	// StorageProviderEndpoint holds info to establish connection with the storage providing cluster.
+	StorageProviderEndpoint string `json:"storageProviderEndpoint,omitempty"`
+
+	// OnboardingTicket holds an identity information required for consumer to onboard.
+	OnboardingTicket string `json:"onboardingTicket,omitempty"`
 
 	// RequestedCapacity Will define the desired capacity requested by a consumer cluster.
 	RequestedCapacity *resource.Quantity `json:"requestedCapacity,omitempty"`
