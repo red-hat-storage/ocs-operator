@@ -7,6 +7,7 @@ import (
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -269,11 +270,40 @@ func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.Stora
 	return nil
 }
 
+// verifyNoStorageConsumerExist verifies there are no storageConsumers on the same namespace
+func (r *StorageClusterReconciler) verifyNoStorageConsumerExist(instance *ocsv1.StorageCluster) error {
+
+	if !instance.Spec.AllowRemoteStorageConsumers {
+		return nil
+	}
+
+	storageConsumers := &ocsv1alpha1.StorageConsumerList{}
+	err := r.Client.List(context.TODO(), storageConsumers, &client.ListOptions{Namespace: instance.Namespace})
+	if err != nil {
+		return err
+	}
+
+	if len(storageConsumers.Items) != 0 {
+		err = fmt.Errorf("Failed to uninstall storage cluster. StorageConsumers are present in the %s namespace. "+
+			"Clean all StorageConsumers for the uninstallation to proceed", instance.Namespace)
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "", err.Error())
+		r.Log.Error(err, "Uninstall: Waiting for StorageConsumers to be deleted via user.")
+		return err
+	}
+
+	return nil
+}
+
 // deleteResources is the function where the storageClusterFinalizer is handled
 // Every function that is called within this function should be idempotent
 func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	err := r.setRookUninstallandCleanupPolicy(sc)
+	err := r.verifyNoStorageConsumerExist(sc)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = r.setRookUninstallandCleanupPolicy(sc)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
