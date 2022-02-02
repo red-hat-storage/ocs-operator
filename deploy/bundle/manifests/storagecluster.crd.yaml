@@ -305,13 +305,12 @@ spec:
                   set to true, OCS will connect to an external OCS Storage Cluster
                   instead of provisioning one locally.
                 properties:
-                  connectionString:
-                    description: ConnectionString An encoded string holding connection
-                      and identity information that is needed in order to establish
-                      connection with the storage providing cluster.
-                    type: string
                   enable:
                     type: boolean
+                  onboardingTicket:
+                    description: OnboardingTicket holds an identity information required
+                      for consumer to onboard.
+                    type: string
                   requestedCapacity:
                     anyOf:
                     - type: integer
@@ -320,6 +319,10 @@ spec:
                       requested by a consumer cluster.
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
+                  storageProviderEndpoint:
+                    description: StorageProviderEndpoint holds info to establish connection
+                      with the storage providing cluster.
+                    type: string
                   storageProviderKind:
                     description: StorageProviderKind Identify the type of storage
                       provider cluster this consumer cluster is going to connect to.
