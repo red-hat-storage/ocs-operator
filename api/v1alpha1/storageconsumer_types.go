@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -62,8 +61,6 @@ type StorageConsumerStatus struct {
 	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	CephResources []CephResourcesSpec `json:"cephResources,omitempty"`
-	// ConnectionDetails holds the reference to secret containing external connection details
-	ConnectionDetails *v1.SecretKeySelector `json:"connectionDetails,omitempty"`
 }
 
 //+kubebuilder:object:root=true
