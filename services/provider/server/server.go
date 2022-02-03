@@ -11,6 +11,7 @@ import (
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +25,8 @@ import (
 
 const (
 	TicketAnnotation = "ocs.openshift.io/provider-onboarding-ticket"
+
+	ProviderCertsMountPoint = "/mnt/cert"
 )
 
 type OCSProviderServer struct {
@@ -155,6 +158,15 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 		klog.Fatalf("failed to listen: %v", err)
 	}
 
+	certFile := ProviderCertsMountPoint + "/tls.crt"
+	keyFile := ProviderCertsMountPoint + "/tls.key"
+	creds, sslErr := credentials.NewServerTLSFromFile(certFile, keyFile)
+	if sslErr != nil {
+		klog.Fatalf("Failed loading certificates: %v", sslErr)
+		return
+	}
+
+	opts = append(opts, grpc.Creds(creds))
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterOCSProviderServer(grpcServer, s)
 	// Register reflection service on gRPC server.
