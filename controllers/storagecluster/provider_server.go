@@ -294,6 +294,23 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 									ContainerPort: ocsProviderServicePort,
 								},
 							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "cert-secret",
+									MountPath: "/mnt/cert",
+									ReadOnly:  true,
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "cert-secret",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: ocsProviderCertSecretName,
+								},
+							},
 						},
 					},
 				},
