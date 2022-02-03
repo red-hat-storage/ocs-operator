@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -23,6 +24,9 @@ import (
 const (
 	ocsProviderServerName  = "ocs-provider-server"
 	providerAPIServerImage = "PROVIDER_API_SERVER_IMAGE"
+
+	ocsProviderServicePort     = int32(50051)
+	ocsProviderServiceNodePort = int32(31659)
 )
 
 type ocsProviderServer struct{}
@@ -80,6 +84,7 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 
 	if finalErr == nil {
 		r.Log.Info("Resource deletion for provider succeeded")
+		instance.Status.StorageProviderEndpoint = ""
 	}
 
 	return reconcile.Result{}, finalErr
@@ -155,6 +160,20 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 	}
 
 	r.Log.Info("Service create/update succeeded")
+
+	nodeAddresses, err := r.getWorkerNodesInternalIPAddresses()
+	if err != nil {
+		return err
+	}
+
+	if len(nodeAddresses) == 0 {
+		return fmt.Errorf("Did not found any worker node addresses")
+	}
+
+	instance.Status.StorageProviderEndpoint = nodeAddresses[0] + ":" + fmt.Sprint(ocsProviderServiceNodePort)
+
+	r.Log.Info("status.storageProviderEndpoint is updated", "Endpoint", instance.Status.StorageProviderEndpoint)
+
 	return nil
 }
 
@@ -187,6 +206,36 @@ func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Depl
 	}
 
 	return nil
+}
+
+// getWorkerNodesInternalIPAddresses return slice of Internal IPAddress of worker nodes
+func (r *StorageClusterReconciler) getWorkerNodesInternalIPAddresses() ([]string, error) {
+
+	nodes := &corev1.NodeList{}
+
+	err := r.Client.List(context.TODO(), nodes)
+	if err != nil {
+		r.Log.Error(err, "Failed to list nodes")
+		return nil, err
+	}
+
+	nodeAddresses := []string{}
+
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+		if _, ok := node.ObjectMeta.Labels["node-role.kubernetes.io/worker"]; ok {
+			for _, address := range node.Status.Addresses {
+				if address.Type == corev1.NodeInternalIP {
+					nodeAddresses = append(nodeAddresses, address.Address)
+					break
+				}
+			}
+		}
+	}
+
+	sort.Strings(nodeAddresses)
+
+	return nodeAddresses, nil
 }
 
 func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Deployment {
@@ -232,7 +281,7 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "ocs-provider",
-									ContainerPort: int32(50051),
+									ContainerPort: ocsProviderServicePort,
 								},
 							},
 						},
@@ -256,7 +305,8 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Port:       int32(50051),
+					NodePort:   ocsProviderServiceNodePort,
+					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},

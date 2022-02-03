@@ -348,6 +348,10 @@ type StorageClusterStatus struct {
 	// +optional
 	FailureDomainValues []string `json:"failureDomainValues,omitempty"`
 
+	// StorageProviderEndpoint holds endpoint info on Provider cluster which is required
+	// for consumer to establish connection with the storage providing cluster.
+	StorageProviderEndpoint string `json:"storageProviderEndpoint,omitempty"`
+
 	// ExternalSecretHash holds the checksum value of external secret data.
 	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
 
