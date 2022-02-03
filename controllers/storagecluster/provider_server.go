@@ -19,6 +19,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/services/provider/server"
 )
 
 const (
@@ -297,7 +298,7 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "cert-secret",
-									MountPath: "/mnt/cert",
+									MountPath: server.ProviderCertsMountPoint,
 									ReadOnly:  true,
 								},
 							},
