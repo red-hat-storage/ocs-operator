@@ -19,6 +19,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/services/provider/server"
 )
 
 const (
@@ -27,6 +28,8 @@ const (
 
 	ocsProviderServicePort     = int32(50051)
 	ocsProviderServiceNodePort = int32(31659)
+
+	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
 )
 
 type ocsProviderServer struct{}
@@ -149,6 +152,14 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 		func() error {
 			desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
 			desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
+
+			if actualService.Annotations == nil {
+				actualService.Annotations = map[string]string{}
+			}
+
+			for key, value := range desiredService.Annotations {
+				actualService.Annotations[key] = value
+			}
 
 			actualService.Spec = desiredService.Spec
 			return controllerutil.SetOwnerReference(instance, actualService, r.Client.Scheme())
@@ -284,6 +295,23 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 									ContainerPort: ocsProviderServicePort,
 								},
 							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "cert-secret",
+									MountPath: server.ProviderCertsMountPoint,
+									ReadOnly:  true,
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "cert-secret",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: ocsProviderCertSecretName,
+								},
+							},
 						},
 					},
 				},
@@ -298,6 +326,9 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ocsProviderServerName,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
+			},
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
