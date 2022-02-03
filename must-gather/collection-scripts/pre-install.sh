@@ -19,12 +19,16 @@ nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-heade
 
 # storing storagecluster name
 storageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
+# checking for mcg standalone cluster
+reconcileStrategy=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.multiCloudGateway.reconcileStrategy}}{{"\n"}}{{end}}')
 deploy(){
      operatorImage=$(oc get pods -l app=rook-ceph-operator -n openshift-storage -o jsonpath="{range .items[*]}{@.spec.containers[0].image}+{end}" | tr "+" "\n" | head -n1)
      if [ -z "${storageClusterPresent}" ]; then
         echo "not creating helper pod since storagecluster is not present" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
      elif [ "${operatorImage}" = "" ]; then
         echo "not able to find the rook's operator image. Skipping collection of ceph command output" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+     elif [ "${reconcileStrategy}" = "standalone" ]; then
+        echo "not creating helper pod as this is a MCG only cluster" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
      else
           echo "creating helper pod" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
           apply_helper_pod "$ns" "$operatorImage"
@@ -37,7 +41,7 @@ deploy(){
 }
 
 labels(){
-    if [ -n "${storageClusterPresent}" ]; then
+    if [ -n "${storageClusterPresent}" ] && [ "${reconcileStrategy}" != "standalone" ]; then
      oc label pod -n openshift-storage "${HOSTNAME}"-helper must-gather-helper-pod=''
     fi
 }
@@ -77,7 +81,7 @@ cleanup
 deploy
 labels
 pids=()
-if [ -n "${storageClusterPresent}" ]; then
+if [ -n "${storageClusterPresent}" ] && [ "${reconcileStrategy}" != "standalone" ]; then
     check_for_helper_pod &
     pids+=($!)
 fi
