@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,12 +41,16 @@ type StorageConsumerSpec struct {
 	Capacity resource.Quantity `json:"capacity"`
 }
 
-// CephObjectsSpec hold details of created ceph objects required for external storage
-type CephObjectsSpec struct {
-	// BlockPoolName holds the name of created ceph block pool.
-	BlockPoolName string `json:"blockPoolName,omitempty"`
-	// CephUser holds the name of created ceph user.
-	CephUser string `json:"cephUser,omitempty"`
+// CephResourcesSpec hold details of created ceph resources required for external storage
+type CephResourcesSpec struct {
+	// Kind describes the kind of created ceph resource
+	Kind string `json:"kind,omitempty"`
+	// Name describes the name of created ceph resource
+	Name string `json:"name,omitempty"`
+	// Phase describes the phase of created ceph resource
+	Phase string `json:"status,omitempty"`
+	// CephClients holds the name of CephClients mapped to the created ceph resource
+	CephClients map[string]string `json:"cephClients,omitempty"`
 }
 
 // StorageConsumerStatus defines the observed state of StorageConsumer
@@ -56,10 +59,8 @@ type StorageConsumerStatus struct {
 	State StorageConsumerState `json:"state,omitempty"`
 	// GrantedCapacity holds granted capacity value for the consumer
 	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
-	// CephObjects provide details of ceph created objects required for external storage
-	CephObjects CephObjectsSpec `json:"cephObjects,omitempty"`
-	// ConnectionDetails holds the reference to secret containing external connection details
-	ConnectionDetails *v1.SecretKeySelector `json:"connectionDetails,omitempty"`
+	// CephResources provide details of created ceph resources required for external storage
+	CephResources []CephResourcesSpec `json:"cephResources,omitempty"`
 }
 
 //+kubebuilder:object:root=true

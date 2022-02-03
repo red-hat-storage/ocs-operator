@@ -47,36 +47,30 @@ spec:
           status:
             description: StorageConsumerStatus defines the observed state of StorageConsumer
             properties:
-              cephObjects:
-                description: CephObjects provide details of ceph created objects required
-                  for external storage
-                properties:
-                  blockPoolName:
-                    description: BlockPoolName holds the name of created ceph block
-                      pool.
-                    type: string
-                  cephUser:
-                    description: CephUser holds the name of created ceph user.
-                    type: string
-                type: object
-              connectionDetails:
-                description: ConnectionDetails holds the reference to secret containing
-                  external connection details
-                properties:
-                  key:
-                    description: The key of the secret to select from.  Must be a
-                      valid secret key.
-                    type: string
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?'
-                    type: string
-                  optional:
-                    description: Specify whether the Secret or its key must be defined
-                    type: boolean
-                required:
-                - key
-                type: object
+              cephResources:
+                description: CephResources provide details of created ceph resources
+                  required for external storage
+                items:
+                  description: CephResourcesSpec hold details of created ceph resources
+                    required for external storage
+                  properties:
+                    cephClients:
+                      additionalProperties:
+                        type: string
+                      description: CephClients holds the name of CephClients mapped
+                        to the created ceph resource
+                      type: object
+                    kind:
+                      description: Kind describes the kind of created ceph resource
+                      type: string
+                    name:
+                      description: Name describes the name of created ceph resource
+                      type: string
+                    status:
+                      description: Phase describes the phase of created ceph resource
+                      type: string
+                  type: object
+                type: array
               grantedCapacity:
                 anyOf:
                 - type: integer
