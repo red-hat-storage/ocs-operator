@@ -2,7 +2,13 @@ package server
 
 import (
 	"context"
+	"crypto"
+	"crypto/md5"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"os"
@@ -32,9 +38,9 @@ import (
 )
 
 const (
-	TicketAnnotation = "ocs.openshift.io/provider-onboarding-ticket"
-
-	ProviderCertsMountPoint = "/mnt/cert"
+	TicketAnnotation          = "ocs.openshift.io/provider-onboarding-ticket"
+	ProviderCertsMountPoint   = "/mnt/cert"
+	onboardingTicketKeySecret = "onboarding-ticket-key"
 )
 
 const (
@@ -81,9 +87,16 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 	}
 
 	// Validate onboardingTicket
-	// TODO: check if ticket is already used.
 	// TODO: check expiry of the ticket
-	// TODO: validate ticket with public key
+	pubKey, err := s.getOnboardingValidationKey(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
+	}
+
+	if err := validateTicket(req.OnboardingTicket, pubKey); err != nil {
+		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
+	}
 
 	storageConsumerUUID, err := s.consumerManager.Create(ctx, req.ConsumerName, req.OnboardingTicket, capacity)
 	if err != nil {
@@ -356,10 +369,61 @@ func (s *OCSProviderServer) getCephClientSecretName(ctx context.Context, name st
 	return cephClient.Status.Info["secretName"], nil
 }
 
+func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rsa.PublicKey, error) {
+	pubKeySecret := &corev1.Secret{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: onboardingTicketKeySecret, Namespace: s.namespace}, pubKeySecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get public key secret %q", onboardingTicketKeySecret)
+	}
+
+	pubKeyBytes := pubKeySecret.Data["key"]
+	if len(pubKeyBytes) == 0 {
+		return nil, fmt.Errorf("public key is not found inside the secret %q", onboardingTicketKeySecret)
+	}
+
+	block, _ := pem.Decode(pubKeyBytes)
+	if block == nil {
+		return nil, fmt.Errorf("invalid PEM block")
+	}
+
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key. %v", err)
+	}
+
+	return key.(*rsa.PublicKey), nil
+}
+
 func mustMarshal(data map[string]string) []byte {
 	newData, err := json.Marshal(data)
 	if err != nil {
 		panic("failed to marshal")
 	}
 	return newData
+}
+
+func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
+	ticketArr := strings.Split(string(ticket), ".")
+	if len(ticketArr) != 2 {
+		return fmt.Errorf("invalid ticket")
+	}
+
+	message, err := base64.StdEncoding.DecodeString(ticketArr[0])
+	if err != nil {
+		return fmt.Errorf("failed to decode payload. %v", err)
+	}
+	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])
+	if err != nil {
+		return fmt.Errorf("failed to decode signature. %v", err)
+	}
+
+	hash := md5.Sum(message)
+	err = rsa.VerifyPKCS1v15(pubKey, crypto.MD5, hash[:], signature)
+	if err != nil {
+		return fmt.Errorf("failed to verify onboarding ticket signature. %v", err)
+	}
+
+	klog.Info("Successfully verified onboarding ticket")
+
+	return nil
 }
