@@ -59,7 +59,7 @@ func (r *StorageClusterReconciler) onboardConsumer(instance *ocsv1.StorageCluste
 		return reconcile.Result{}, err
 	}
 
-	name := fmt.Sprintf("ocs-consumer-%s", clusterVersion.Spec.ClusterID)
+	name := fmt.Sprintf("storageconsumer-%s", clusterVersion.Spec.ClusterID)
 	response, err := externalClusterClient.OnboardConsumer(
 		context.Background(), instance.Spec.ExternalStorage.OnboardingTicket, name,
 		instance.Spec.ExternalStorage.RequestedCapacity.String())
