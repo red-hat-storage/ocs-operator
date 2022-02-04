@@ -29,7 +29,6 @@ spec:
           spec:
             properties:
               compressionMode:
-                default: none
                 enum:
                 - none
                 - passive
@@ -51,11 +50,9 @@ spec:
                   algorithm:
                     type: string
                   codingChunks:
-                    maximum: 9
                     minimum: 0
                     type: integer
                   dataChunks:
-                    maximum: 9
                     minimum: 0
                     type: integer
                 required:
@@ -90,6 +87,11 @@ spec:
                       type: object
                     type: array
                 type: object
+              name:
+                enum:
+                - device_health_metrics
+                - .nfs
+                type: string
               parameters:
                 additionalProperties:
                   type: string
