@@ -314,6 +314,7 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 							},
 						},
 					},
+					ServiceAccountName: ocsProviderServerName,
 				},
 			},
 		},
