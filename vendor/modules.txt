@@ -269,10 +269,6 @@ github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
 # github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
 ## explicit
-github.com/openshift/client-go/quota/clientset/versioned
-github.com/openshift/client-go/quota/clientset/versioned/scheme
-github.com/openshift/client-go/quota/clientset/versioned/typed/quota/v1
-github.com/openshift/client-go/quota/listers/quota/v1
 github.com/openshift/client-go/security/clientset/versioned/scheme
 github.com/openshift/client-go/security/clientset/versioned/typed/security/v1
 github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake
