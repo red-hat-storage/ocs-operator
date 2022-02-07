@@ -50,17 +50,21 @@ type StorageConsumerReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	ctx                      context.Context
-	storageConsumer          *ocsv1alpha1.StorageConsumer
-	cephBlockPool            *rookCephv1.CephBlockPool
-	cephClientRBDProvisioner *rookCephv1.CephClient
-	cephClientRBDNode        *rookCephv1.CephClient
-	cephClientHealthChecker  *rookCephv1.CephClient
-	namespace                string
+	ctx                          context.Context
+	storageConsumer              *ocsv1alpha1.StorageConsumer
+	cephBlockPool                *rookCephv1.CephBlockPool
+	cephFilesystemSubVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup
+	cephClientRBDProvisioner     *rookCephv1.CephClient
+	cephClientRBDNode            *rookCephv1.CephClient
+	cephClientCephFSProvisioner  *rookCephv1.CephClient
+	cephClientCephFSNode         *rookCephv1.CephClient
+	cephClientHealthChecker      *rookCephv1.CephClient
+	namespace                    string
 }
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
+//+kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
@@ -124,6 +128,10 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.cephBlockPool.Name = fmt.Sprintf("%s-%s", "cephblockpool", r.storageConsumer.Name)
 	r.cephBlockPool.Namespace = r.namespace
 
+	r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
+	r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("%s-%s", "cephFilesystemSubVolumeGroup", r.storageConsumer.Name)
+	r.cephFilesystemSubVolumeGroup.Namespace = r.namespace
+
 	r.cephClientRBDProvisioner = &rookCephv1.CephClient{}
 	r.cephClientRBDProvisioner.Name = fmt.Sprintf("%s-%s", "cephclient-rbd-provisioner", r.storageConsumer.Name)
 	r.cephClientRBDProvisioner.Namespace = r.namespace
@@ -131,6 +139,14 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.cephClientRBDNode = &rookCephv1.CephClient{}
 	r.cephClientRBDNode.Name = fmt.Sprintf("%s-%s", "cephclient-rbd-node", r.storageConsumer.Name)
 	r.cephClientRBDNode.Namespace = r.namespace
+
+	r.cephClientCephFSProvisioner = &rookCephv1.CephClient{}
+	r.cephClientCephFSProvisioner.Name = fmt.Sprintf("%s-%s", "cephclient-cephfs-provisioner", r.storageConsumer.Name)
+	r.cephClientCephFSProvisioner.Namespace = r.namespace
+
+	r.cephClientCephFSNode = &rookCephv1.CephClient{}
+	r.cephClientCephFSNode.Name = fmt.Sprintf("%s-%s", "cephclient-cephfs-node", r.storageConsumer.Name)
+	r.cephClientCephFSNode.Namespace = r.namespace
 
 	r.cephClientHealthChecker = &rookCephv1.CephClient{}
 	r.cephClientHealthChecker.Name = fmt.Sprintf("%s-%s", "cephclient-health-checker", r.storageConsumer.Name)
@@ -152,15 +168,27 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 			}
 		}
 
-		if err := r.reconcileCephBlockPool(); err != nil {
-			return reconcile.Result{}, err
-		}
-
 		if err := r.reconcileCephClientRBDProvisioner(); err != nil {
 			return reconcile.Result{}, err
 		}
 
 		if err := r.reconcileCephClientRBDNode(); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if err := r.reconcileCephBlockPool(); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if err := r.reconcileCephClientCephFSProvisioner(); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if err := r.reconcileCephClientCephFSNode(); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if err := r.reconcileCephFilesystemSubVolumeGroup(); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -208,6 +236,13 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 					cephBlockPool.Namespace = r.namespace
 					if err := r.delete(cephBlockPool); err != nil {
 						return ctrl.Result{}, fmt.Errorf("unable to delete CephBlockPool : %v", err)
+					}
+				case "CephFilesystemSubVolumeGroup":
+					cephFilesystemSubVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
+					cephFilesystemSubVolumeGroup.Name = cephResource.Name
+					cephFilesystemSubVolumeGroup.Namespace = r.namespace
+					if err := r.delete(cephFilesystemSubVolumeGroup); err != nil {
+						return ctrl.Result{}, fmt.Errorf("unable to delete CephFilesystemSubVolumeGroup : %v", err)
 					}
 				}
 			}
@@ -282,6 +317,63 @@ func (r *StorageConsumerReconciler) reconcileCephBlockPool() error {
 	r.storageConsumer.Status.GrantedCapacity = r.storageConsumer.Spec.Capacity
 
 	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup() error {
+
+	cephFilesystemList := rookCephv1.CephFilesystemList{}
+	if err := r.Client.List(r.ctx, &cephFilesystemList, client.InNamespace(r.namespace)); err != nil {
+		return fmt.Errorf("Error fetching CephFilesystemList. %+v", err)
+	}
+
+	var cephFileSystemName string
+	availableCephFileSystems := len(cephFilesystemList.Items)
+	if availableCephFileSystems == 0 {
+		return fmt.Errorf("No CephFileSystem found in the cluster")
+	}
+	if availableCephFileSystems > 1 {
+		klog.Warningf("More than one CephFileSystem found in the cluster, selecting the first one")
+	}
+
+	cephFileSystemName = cephFilesystemList.Items[0].Name
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephFilesystemSubVolumeGroup, func() error {
+		if err := r.own(r.cephFilesystemSubVolumeGroup); err != nil {
+			return err
+		}
+
+		r.cephFilesystemSubVolumeGroup.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
+			FilesystemName: cephFileSystemName,
+		}
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(
+			err,
+			"Failed to update CephFilesystemSubVolumeGroup.",
+			"CephFilesystemSubVolumeGroup",
+			klog.KRef(r.cephFilesystemSubVolumeGroup.Namespace, r.cephFilesystemSubVolumeGroup.Name),
+		)
+		return err
+	}
+
+	cephFilesystemSubVolumeGroupDetails := &ocsv1alpha1.CephResourcesSpec{
+		Kind: r.cephFilesystemSubVolumeGroup.Kind,
+		Name: r.cephFilesystemSubVolumeGroup.Name,
+		CephClients: map[string]string{
+			"provisioner": r.cephClientCephFSProvisioner.Name,
+			"node":        r.cephClientCephFSNode.Name,
+		},
+	}
+	if r.cephFilesystemSubVolumeGroup.Status != nil {
+		cephFilesystemSubVolumeGroupDetails.Phase = string(r.cephFilesystemSubVolumeGroup.Status.Phase)
+	}
+
+	r.updateCephResourceStatus(cephFilesystemSubVolumeGroupDetails)
+
+	return nil
+
 }
 
 func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner() error {
@@ -361,6 +453,87 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode() error {
 	return nil
 }
 
+func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner() error {
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientCephFSProvisioner, func() error {
+		if err := r.own(r.cephClientCephFSProvisioner); err != nil {
+			return err
+		}
+
+		r.cephClientCephFSProvisioner.Spec = rookCephv1.ClientSpec{
+			Caps: map[string]string{
+				"mon": "allow r",
+				"mgr": "allow rw",
+				"osd": fmt.Sprintf("allow rw tag cephfs metadata=* path=%s", r.cephFilesystemSubVolumeGroup.Name),
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(
+			err,
+			"Failed to update CephClient.",
+			"CephClient",
+			klog.KRef(r.cephClientCephFSProvisioner.Namespace, r.cephClientCephFSProvisioner.Name),
+		)
+		return err
+	}
+
+	cephClientCephFSProvisionerDetails := &ocsv1alpha1.CephResourcesSpec{
+		Kind: r.cephClientCephFSProvisioner.Kind,
+		Name: r.cephClientCephFSProvisioner.Name,
+	}
+	if r.cephClientCephFSProvisioner.Status != nil {
+		cephClientCephFSProvisionerDetails.Phase = string(r.cephClientCephFSProvisioner.Status.Phase)
+	}
+
+	r.updateCephResourceStatus(cephClientCephFSProvisionerDetails)
+
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode() error {
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientCephFSNode, func() error {
+		if err := r.own(r.cephClientCephFSNode); err != nil {
+			return err
+		}
+
+		r.cephClientCephFSNode.Spec = rookCephv1.ClientSpec{
+			Caps: map[string]string{
+				"mon": "allow r",
+				"mgr": "allow rw",
+				"osd": fmt.Sprintf("allow rw tag cephfs *=* path=%s", r.cephFilesystemSubVolumeGroup.Name),
+				"mds": fmt.Sprintf("allow rw path=%s", r.cephFilesystemSubVolumeGroup.Name),
+			},
+		}
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(
+			err,
+			"Failed to update CephClient.",
+			"CephClient",
+			klog.KRef(r.cephClientCephFSNode.Namespace, r.cephClientCephFSNode.Name),
+		)
+		return err
+	}
+
+	cephClientCephFSNodeDetails := &ocsv1alpha1.CephResourcesSpec{
+		Kind: r.cephClientCephFSNode.Kind,
+		Name: r.cephClientCephFSNode.Name,
+	}
+	if r.cephClientCephFSNode.Status != nil {
+		cephClientCephFSNodeDetails.Phase = string(r.cephClientCephFSNode.Status.Phase)
+	}
+
+	r.updateCephResourceStatus(cephClientCephFSNodeDetails)
+
+	return nil
+}
+
 func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 
 	desired := &rookCephv1.CephClient{
@@ -415,6 +588,13 @@ func (r *StorageConsumerReconciler) verifyCephResourcesDoNotExist() bool {
 			cephBlockPool.Name = cephResource.Name
 			cephBlockPool.Namespace = r.namespace
 			if err := r.get(cephBlockPool); err == nil || !errors.IsNotFound(err) {
+				return false
+			}
+		case "CephFilesystemSubVolumeGroup":
+			cephFilesystemSubVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
+			cephFilesystemSubVolumeGroup.Name = cephResource.Name
+			cephFilesystemSubVolumeGroup.Namespace = r.namespace
+			if err := r.get(cephFilesystemSubVolumeGroup); err == nil || !errors.IsNotFound(err) {
 				return false
 			}
 		}
@@ -475,6 +655,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1alpha1.StorageConsumer{}).
 		Owns(&rookCephv1.CephBlockPool{}).
+		Owns(&rookCephv1.CephFilesystemSubVolumeGroup{}).
 		Owns(&rookCephv1.CephClient{}).
 		Complete(r)
 }
