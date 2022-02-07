@@ -6,10 +6,12 @@ import (
 
 	api "github.com/red-hat-storage/ocs-operator/api/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -55,6 +57,9 @@ func newFakeClient(t *testing.T, obj ...runtime.Object) client.Client {
 
 	err = ocsv1alpha1.AddToScheme(scheme)
 	assert.NoError(t, err, "failed to add ocsv1alpha1 scheme")
+
+	err = rookCephv1.AddToScheme(scheme)
+	assert.NoError(t, err, "failed to add rookCephv1 scheme")
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 }
