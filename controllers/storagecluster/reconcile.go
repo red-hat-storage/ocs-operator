@@ -646,6 +646,8 @@ func osdCleanUpTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 		"osd",
 		"remove",
 		"--osd-ids=${FAILED_OSD_IDS}",
+		"--force-osd-removal",
+		"${FORCE_OSD_REMOVAL}",
 	}
 	return &openshiftv1.Template{
 		ObjectMeta: metav1.ObjectMeta{
@@ -658,12 +660,23 @@ func osdCleanUpTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 				DisplayName: "OSD IDs",
 				Required:    true,
 				Description: `
-The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs 
-when a single job removes multiple OSDs. 
+The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs
+when a single job removes multiple OSDs.
 OSD removal is an advanced use case.
 In the event of errors or invalid user inputs,
 the Job will attempt to remove as many OSDs as can be processed and complete without returning an error condition.
 Users should always check for errors and success in the log of the finished OSD removal Job.`,
+			},
+			{
+				Name:        "FORCE_OSD_REMOVAL",
+				DisplayName: "Force OSD Removal",
+				Required:    false,
+				Value:       "false",
+				Description: `
+A flag indicating whether the OSD should be forcefully removed. Valid values are true or false.
+The default value is false. If an OSD is being removed that could lead to data loss, the OSD
+will not be removed by default. If you see the osd removal fails and you are sure the OSD
+should be removed, set this flag to true and run the job again.`,
 			},
 		},
 		Objects: []runtime.RawExtension{
