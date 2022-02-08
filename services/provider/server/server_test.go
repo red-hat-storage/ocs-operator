@@ -131,7 +131,7 @@ var (
 	consumerResource = &ocsv1alpha1.StorageConsumer{
 		ObjectMeta: metav1.ObjectMeta{Name: "consumer", UID: "uid"},
 		Status: ocsv1alpha1.StorageConsumerStatus{
-			CephResources: []ocsv1alpha1.CephResourcesSpec{
+			CephResources: []*ocsv1alpha1.CephResourcesSpec{
 				{
 					Name: "cephblockpool",
 					Kind: "CephBlockPool",
@@ -200,7 +200,7 @@ var (
 	consumerResource5 = &ocsv1alpha1.StorageConsumer{
 		ObjectMeta: metav1.ObjectMeta{Name: "consumer5", UID: "uid5"},
 		Status: ocsv1alpha1.StorageConsumerStatus{
-			CephResources: []ocsv1alpha1.CephResourcesSpec{{
+			CephResources: []*ocsv1alpha1.CephResourcesSpec{{
 				Name: "cephblockpool",
 				Kind: "CephBlockPool",
 				CephClients: map[string]string{

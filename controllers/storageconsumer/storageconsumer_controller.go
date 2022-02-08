@@ -39,11 +39,6 @@ const (
 	storageConsumerFinalizer = "storagesconsumer.ocs.openshift.io"
 )
 
-var (
-	cephResourceIndexMap = map[string]int{}
-	cephResourceIndex    int
-)
-
 // StorageConsumerReconciler reconciles a StorageConsumer object
 type StorageConsumerReconciler struct {
 	client.Client
@@ -59,6 +54,7 @@ type StorageConsumerReconciler struct {
 	cephClientCephFSProvisioner  *rookCephv1.CephClient
 	cephClientCephFSNode         *rookCephv1.CephClient
 	cephClientHealthChecker      *rookCephv1.CephClient
+	cephResourcesByName          map[string]*ocsv1alpha1.CephResourcesSpec
 	namespace                    string
 }
 
@@ -158,6 +154,10 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 
 	r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
 
+	for _, cephResourceSpec := range r.storageConsumer.Status.CephResources {
+		r.cephResourcesByName[cephResourceSpec.Name] = cephResourceSpec
+	}
+
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
 		if !contains(r.storageConsumer.GetFinalizers(), storageConsumerFinalizer) {
 			r.Log.Info("Finalizer not found for StorageConsumer. Adding finalizer.", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
@@ -197,8 +197,7 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 		}
 
 		cephResourcesReady := true
-		for index := range r.storageConsumer.Status.CephResources {
-			cephResource := &r.storageConsumer.Status.CephResources[index]
+		for _, cephResource := range r.storageConsumer.Status.CephResources {
 			if cephResource.Phase != "Ready" {
 				cephResourcesReady = false
 				break
@@ -220,8 +219,7 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 				return reconcile.Result{}, err
 			}
 		} else {
-			for index := range r.storageConsumer.Status.CephResources {
-				cephResource := &r.storageConsumer.Status.CephResources[index]
+			for _, cephResource := range r.storageConsumer.Status.CephResources {
 				switch cephResource.Kind {
 				case "CephClient":
 					cephClient := &rookCephv1.CephClient{}
@@ -268,8 +266,13 @@ func (r *StorageConsumerReconciler) reconcileCephBlockPool() error {
 	failureDomain = storageClusterList.Items[0].Status.FailureDomain
 
 	capacity := r.storageConsumer.Spec.Capacity.String()
-	desired := &rookCephv1.CephBlockPool{
-		Spec: rookCephv1.NamedBlockPoolSpec{
+
+	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephBlockPool, func() error {
+		if err := r.own(r.cephBlockPool); err != nil {
+			return err
+		}
+
+		r.cephBlockPool.Spec = rookCephv1.NamedBlockPoolSpec{
 			PoolSpec: rookCephv1.PoolSpec{
 				FailureDomain: failureDomain,
 				Replicated: rookCephv1.ReplicatedSpec{
@@ -283,36 +286,30 @@ func (r *StorageConsumerReconciler) reconcileCephBlockPool() error {
 					MaxSize: &capacity,
 				},
 			},
-		},
-	}
-
-	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephBlockPool, func() error {
-		if err := r.own(r.cephBlockPool); err != nil {
-			return err
 		}
-
-		r.cephBlockPool.Spec = desired.Spec
 		return nil
 	})
 
-	cephBlockPoolDetails := &ocsv1alpha1.CephResourcesSpec{
-		Kind: r.cephBlockPool.Kind,
-		Name: r.cephBlockPool.Name,
-		CephClients: map[string]string{
-			"provisioner": r.cephClientRBDProvisioner.Name,
-			"node":        r.cephClientRBDNode.Name,
-		},
-	}
-	if r.cephBlockPool.Status != nil {
-		cephBlockPoolDetails.Phase = string(r.cephBlockPool.Status.Phase)
-	}
-
-	r.updateCephResourceStatus(cephBlockPoolDetails)
-
 	if err != nil {
-		r.Log.Error(err, "Failed to update CephBlockPool.", "CephBlockPool", klog.KRef(r.cephBlockPool.Namespace, r.cephBlockPool.Name))
+		r.Log.Error(
+			err,
+			"Failed to update CephBlockPool.",
+			"CephBlockPool",
+			klog.KRef(r.cephBlockPool.Namespace, r.cephBlockPool.Name),
+		)
 		return err
 	}
+
+	cephClients := map[string]string{
+		"provisioner": r.cephClientRBDProvisioner.Name,
+		"node":        r.cephClientRBDNode.Name,
+	}
+	phase := ""
+	if r.cephBlockPool.Status != nil {
+		phase = string(r.cephBlockPool.Status.Phase)
+	}
+
+	r.setCephResourceStatus(r.cephBlockPool.Name, r.cephBlockPool.Kind, phase, cephClients)
 
 	r.storageConsumer.Status.GrantedCapacity = r.storageConsumer.Spec.Capacity
 
@@ -358,19 +355,16 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup() erro
 		return err
 	}
 
-	cephFilesystemSubVolumeGroupDetails := &ocsv1alpha1.CephResourcesSpec{
-		Kind: r.cephFilesystemSubVolumeGroup.Kind,
-		Name: r.cephFilesystemSubVolumeGroup.Name,
-		CephClients: map[string]string{
-			"provisioner": r.cephClientCephFSProvisioner.Name,
-			"node":        r.cephClientCephFSNode.Name,
-		},
+	cephClients := map[string]string{
+		"provisioner": r.cephClientCephFSProvisioner.Name,
+		"node":        r.cephClientCephFSNode.Name,
 	}
+	phase := ""
 	if r.cephFilesystemSubVolumeGroup.Status != nil {
-		cephFilesystemSubVolumeGroupDetails.Phase = string(r.cephFilesystemSubVolumeGroup.Status.Phase)
+		phase = string(r.cephFilesystemSubVolumeGroup.Status.Phase)
 	}
 
-	r.updateCephResourceStatus(cephFilesystemSubVolumeGroupDetails)
+	r.setCephResourceStatus(r.cephFilesystemSubVolumeGroup.Name, r.cephFilesystemSubVolumeGroup.Kind, phase, cephClients)
 
 	return nil
 
@@ -397,20 +391,21 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner() error {
 		return nil
 	})
 
-	cephClientRBDProvisionerDetails := &ocsv1alpha1.CephResourcesSpec{
-		Kind: r.cephClientRBDProvisioner.Kind,
-		Name: r.cephClientRBDProvisioner.Name,
-	}
-	if r.cephClientRBDProvisioner.Status != nil {
-		cephClientRBDProvisionerDetails.Phase = string(r.cephClientRBDProvisioner.Status.Phase)
-	}
-
-	r.updateCephResourceStatus(cephClientRBDProvisionerDetails)
-
 	if err != nil {
-		r.Log.Error(err, "Failed to update CephClient.", "CephClient", klog.KRef(r.cephClientRBDProvisioner.Namespace, r.cephClientRBDProvisioner.Name))
+		r.Log.Error(err,
+			"Failed to update CephClient.",
+			"CephClient",
+			klog.KRef(r.cephClientRBDProvisioner.Namespace, r.cephClientRBDProvisioner.Name),
+		)
 		return err
 	}
+
+	phase := ""
+	if r.cephClientRBDProvisioner.Status != nil {
+		phase = string(r.cephClientRBDProvisioner.Status.Phase)
+	}
+
+	r.setCephResourceStatus(r.cephClientRBDProvisioner.Name, r.cephClientRBDProvisioner.Kind, phase, nil)
 
 	return nil
 }
@@ -435,20 +430,22 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode() error {
 		return nil
 	})
 
-	cephClientRBDNodeDetails := &ocsv1alpha1.CephResourcesSpec{
-		Kind: r.cephClientRBDNode.Kind,
-		Name: r.cephClientRBDNode.Name,
-	}
-	if r.cephClientRBDNode.Status != nil {
-		cephClientRBDNodeDetails.Phase = string(r.cephClientRBDNode.Status.Phase)
-	}
-
-	r.updateCephResourceStatus(cephClientRBDNodeDetails)
-
 	if err != nil {
-		r.Log.Error(err, "Failed to update CephClient.", "CephClient", klog.KRef(r.cephClientRBDNode.Namespace, r.cephClientRBDNode.Name))
+		r.Log.Error(
+			err,
+			"Failed to update CephClient.",
+			"CephClient",
+			klog.KRef(r.cephClientRBDNode.Namespace, r.cephClientRBDNode.Name),
+		)
 		return err
 	}
+
+	phase := ""
+	if r.cephClientRBDNode.Status != nil {
+		phase = string(r.cephClientRBDNode.Status.Phase)
+	}
+
+	r.setCephResourceStatus(r.cephClientRBDNode.Name, r.cephClientRBDNode.Kind, phase, nil)
 
 	return nil
 }
@@ -480,15 +477,12 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner() error
 		return err
 	}
 
-	cephClientCephFSProvisionerDetails := &ocsv1alpha1.CephResourcesSpec{
-		Kind: r.cephClientCephFSProvisioner.Kind,
-		Name: r.cephClientCephFSProvisioner.Name,
-	}
+	phase := ""
 	if r.cephClientCephFSProvisioner.Status != nil {
-		cephClientCephFSProvisionerDetails.Phase = string(r.cephClientCephFSProvisioner.Status.Phase)
+		phase = string(r.cephClientCephFSProvisioner.Status.Phase)
 	}
 
-	r.updateCephResourceStatus(cephClientCephFSProvisionerDetails)
+	r.setCephResourceStatus(r.cephClientCephFSProvisioner.Name, r.cephClientCephFSProvisioner.Kind, phase, nil)
 
 	return nil
 }
@@ -521,15 +515,12 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode() error {
 		return err
 	}
 
-	cephClientCephFSNodeDetails := &ocsv1alpha1.CephResourcesSpec{
-		Kind: r.cephClientCephFSNode.Kind,
-		Name: r.cephClientCephFSNode.Name,
-	}
+	phase := ""
 	if r.cephClientCephFSNode.Status != nil {
-		cephClientCephFSNodeDetails.Phase = string(r.cephClientCephFSNode.Status.Phase)
+		phase = string(r.cephClientCephFSNode.Status.Phase)
 	}
 
-	r.updateCephResourceStatus(cephClientCephFSNodeDetails)
+	r.setCephResourceStatus(r.cephClientCephFSNode.Name, r.cephClientCephFSNode.Kind, phase, nil)
 
 	return nil
 }
@@ -554,27 +545,28 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 		return nil
 	})
 
-	cephClientHealthCheckerDetails := &ocsv1alpha1.CephResourcesSpec{
-		Kind: r.cephClientHealthChecker.Kind,
-		Name: r.cephClientHealthChecker.Name,
-	}
-	if r.cephClientHealthChecker.Status != nil {
-		cephClientHealthCheckerDetails.Phase = string(r.cephClientHealthChecker.Status.Phase)
-	}
-
-	r.updateCephResourceStatus(cephClientHealthCheckerDetails)
-
 	if err != nil {
-		r.Log.Error(err, "Failed to update CephClient.", "CephClient", klog.KRef(r.cephClientHealthChecker.Namespace, r.cephClientHealthChecker.Name))
+		r.Log.Error(
+			err,
+			"Failed to update CephClient.",
+			"CephClient",
+			klog.KRef(r.cephClientHealthChecker.Namespace, r.cephClientHealthChecker.Name),
+		)
 		return err
 	}
+
+	phase := ""
+	if r.cephClientHealthChecker.Status != nil {
+		phase = string(r.cephClientHealthChecker.Status.Phase)
+	}
+
+	r.setCephResourceStatus(r.cephClientHealthChecker.Name, r.cephClientHealthChecker.Kind, phase, nil)
 
 	return nil
 }
 
 func (r *StorageConsumerReconciler) verifyCephResourcesDoNotExist() bool {
-	for index := range r.storageConsumer.Status.CephResources {
-		cephResource := &r.storageConsumer.Status.CephResources[index]
+	for _, cephResource := range r.storageConsumer.Status.CephResources {
 		switch cephResource.Kind {
 		case "CephClient":
 			cephClient := &rookCephv1.CephClient{}
@@ -602,14 +594,21 @@ func (r *StorageConsumerReconciler) verifyCephResourcesDoNotExist() bool {
 	return true
 }
 
-func (r *StorageConsumerReconciler) updateCephResourceStatus(cephResource *ocsv1alpha1.CephResourcesSpec) {
-	if val, ok := cephResourceIndexMap[cephResource.Name]; ok {
-		r.storageConsumer.Status.CephResources[val] = *cephResource
-	} else {
-		r.storageConsumer.Status.CephResources = append(r.storageConsumer.Status.CephResources, *cephResource)
-		cephResourceIndexMap[cephResource.Name] = cephResourceIndex
+func (r *StorageConsumerReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
+
+	cephResourceSpec := r.cephResourcesByName[name]
+
+	if cephResourceSpec == nil {
+		cephResourceSpec = &ocsv1alpha1.CephResourcesSpec{
+			Name:        name,
+			Kind:        kind,
+			CephClients: cephClients,
+		}
+		r.storageConsumer.Status.CephResources = append(r.storageConsumer.Status.CephResources, cephResourceSpec)
+		r.cephResourcesByName[name] = cephResourceSpec
 	}
-	cephResourceIndex++
+
+	cephResourceSpec.Phase = phase
 }
 
 func (r *StorageConsumerReconciler) get(obj client.Object) error {

@@ -60,7 +60,7 @@ type StorageConsumerStatus struct {
 	// GrantedCapacity holds granted capacity value for the consumer
 	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
-	CephResources []CephResourcesSpec `json:"cephResources,omitempty"`
+	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 }
 
 //+kubebuilder:object:root=true
