@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -362,6 +363,18 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			err := r.createExternalStorageClusterSecret(sec, found, objectKey)
 			if err != nil {
 				r.Log.Error(err, "Could not create ExternalStorageClusterSecret.", "Secret", klog.KRef(sec.Namespace, sec.Name))
+				return err
+			}
+		case "CephFilesystemSubVolumeGroup":
+			found := &cephv1.CephFilesystemSubVolumeGroup{ObjectMeta: objectMeta}
+			_, err := ctrl.CreateOrUpdate(context.TODO(), r.Client, found, func() error {
+				found.Spec = cephv1.CephFilesystemSubVolumeGroupSpec{
+					FilesystemName: d.Data["filesystemName"],
+				}
+				return nil
+			})
+			if err != nil {
+				r.Log.Error(err, "Could not create CephFilesystemSubVolumeGroup.", "CephFilesystemSubVolumeGroup", klog.KRef(found.Namespace, found.Name))
 				return err
 			}
 		case "StorageClass":
