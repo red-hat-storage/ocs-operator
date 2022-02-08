@@ -197,8 +197,7 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 		}
 
 		cephResourcesReady := true
-		for index := range r.storageConsumer.Status.CephResources {
-			cephResource := &r.storageConsumer.Status.CephResources[index]
+		for _, cephResource := range r.storageConsumer.Status.CephResources {
 			if cephResource.Phase != "Ready" {
 				cephResourcesReady = false
 				break
@@ -220,8 +219,7 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 				return reconcile.Result{}, err
 			}
 		} else {
-			for index := range r.storageConsumer.Status.CephResources {
-				cephResource := &r.storageConsumer.Status.CephResources[index]
+			for _, cephResource := range r.storageConsumer.Status.CephResources {
 				switch cephResource.Kind {
 				case "CephClient":
 					cephClient := &rookCephv1.CephClient{}
@@ -573,8 +571,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 }
 
 func (r *StorageConsumerReconciler) verifyCephResourcesDoNotExist() bool {
-	for index := range r.storageConsumer.Status.CephResources {
-		cephResource := &r.storageConsumer.Status.CephResources[index]
+	for _, cephResource := range r.storageConsumer.Status.CephResources {
 		switch cephResource.Kind {
 		case "CephClient":
 			cephClient := &rookCephv1.CephClient{}
@@ -604,9 +601,9 @@ func (r *StorageConsumerReconciler) verifyCephResourcesDoNotExist() bool {
 
 func (r *StorageConsumerReconciler) updateCephResourceStatus(cephResource *ocsv1alpha1.CephResourcesSpec) {
 	if val, ok := cephResourceIndexMap[cephResource.Name]; ok {
-		r.storageConsumer.Status.CephResources[val] = *cephResource
+		r.storageConsumer.Status.CephResources[val] = cephResource
 	} else {
-		r.storageConsumer.Status.CephResources = append(r.storageConsumer.Status.CephResources, *cephResource)
+		r.storageConsumer.Status.CephResources = append(r.storageConsumer.Status.CephResources, cephResource)
 		cephResourceIndexMap[cephResource.Name] = cephResourceIndex
 	}
 	cephResourceIndex++
