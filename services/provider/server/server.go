@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"crypto"
-	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -16,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/services/provider/common"
@@ -55,6 +55,11 @@ type OCSProviderServer struct {
 	client          client.Client
 	consumerManager *ocsConsumerManager
 	namespace       string
+}
+
+type onboardingTicket struct {
+	ID             string `json:"id"`
+	ExpirationDate int64  `json:"expirationDate"`
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
@@ -455,20 +460,31 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 
 	message, err := base64.StdEncoding.DecodeString(ticketArr[0])
 	if err != nil {
-		return fmt.Errorf("failed to decode payload. %v", err)
-	}
-	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])
-	if err != nil {
-		return fmt.Errorf("failed to decode signature. %v", err)
+		return fmt.Errorf("failed to decode onboarding ticket: %v", err)
 	}
 
-	hash := md5.Sum(message)
-	err = rsa.VerifyPKCS1v15(pubKey, crypto.MD5, hash[:], signature)
+	var ticketData onboardingTicket
+	err = json.Unmarshal(message, &ticketData)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)
+	}
+
+	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])
+	if err != nil {
+		return fmt.Errorf("failed to decode onboarding ticket %s signature: %v", ticketData.ID, err)
+	}
+
+	hash := sha256.Sum256(message)
+	err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hash[:], signature)
 	if err != nil {
 		return fmt.Errorf("failed to verify onboarding ticket signature. %v", err)
 	}
 
-	klog.Info("Successfully verified onboarding ticket")
+	if ticketData.ExpirationDate < time.Now().Unix() {
+		return fmt.Errorf("onboarding ticket %s is expired", ticketData.ID)
+	}
+
+	klog.Infof("onboarding ticket %s has been verified successfully", ticketData.ID)
 
 	return nil
 }
