@@ -127,9 +127,13 @@ func (in *StorageConsumerStatus) DeepCopyInto(out *StorageConsumerStatus) {
 	out.GrantedCapacity = in.GrantedCapacity.DeepCopy()
 	if in.CephResources != nil {
 		in, out := &in.CephResources, &out.CephResources
-		*out = make([]CephResourcesSpec, len(*in))
+		*out = make([]*CephResourcesSpec, len(*in))
 		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(CephResourcesSpec)
+				(*in).DeepCopyInto(*out)
+			}
 		}
 	}
 }
