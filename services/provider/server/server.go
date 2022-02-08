@@ -2,13 +2,20 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/services/provider/common"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+
+	v1 "k8s.io/api/core/v1"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -18,6 +25,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -27,6 +35,11 @@ const (
 	TicketAnnotation = "ocs.openshift.io/provider-onboarding-ticket"
 
 	ProviderCertsMountPoint = "/mnt/cert"
+)
+
+const (
+	monConfigMap = "rook-ceph-mon-endpoints"
+	monSecret    = "rook-ceph-mon"
 )
 
 type OCSProviderServer struct {
@@ -107,8 +120,11 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	case ocsv1alpha1.StorageConsumerStateDeleting:
 		return nil, status.Errorf(codes.NotFound, "storageConsumer is already in deleting phase")
 	case ocsv1alpha1.StorageConsumerStateReady:
-		// TODO: Return json connection details
-		return &pb.StorageConfigResponse{}, nil
+		conString, err := s.getExternalResources(ctx, consumerObj)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
+		}
+		return &pb.StorageConfigResponse{ExternalResource: conString}, nil
 	}
 
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
@@ -200,4 +216,150 @@ func newClient() (client.Client, error) {
 	}
 
 	return client, nil
+}
+func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
+	var extR []*pb.ExternalResource
+
+	// Configmap with mon endpoints
+	configmap := &v1.ConfigMap{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: monConfigMap, Namespace: s.namespace}, configmap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
+	}
+
+	// Get address of first mon from the monConfigMap configmap
+	cmData := strings.Split(configmap.Data["data"], ",")
+	if len(cmData) == 0 {
+		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: monConfigMap,
+		Kind: "ConfigMap",
+		Data: mustMarshal(map[string]string{
+			"data":     cmData[0], // Address of first mon
+			"maxMonId": "0",
+			"mapping":  "{}",
+		})})
+
+	scMon := &v1.Secret{}
+	// Secret storing cluster mon.admin key, fsid and name
+	err = s.client.Get(ctx, types.NamespacedName{Name: monSecret, Namespace: s.namespace}, scMon)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s secret. %v", monSecret, err)
+	}
+
+	fsid := string(scMon.Data["fsid"])
+	if fsid == "" {
+		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: monSecret,
+		Kind: "Secret",
+		Data: mustMarshal(map[string]string{
+			"fsid":         fsid,
+			"mon-secret":   "mon-secret",
+			"admin-secret": "admin-secret",
+		})})
+
+	// Service for monitoring endpoints
+	scMonitoring := &v1.Service{}
+	err = s.client.Get(ctx, types.NamespacedName{Name: "rook-ceph-mgr", Namespace: s.namespace}, scMonitoring)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rook-ceph-mgr service. %v", err)
+	}
+
+	if scMonitoring.Spec.ClusterIP == "" || strconv.Itoa(int(scMonitoring.Spec.Ports[0].Port)) == "" {
+		return nil, fmt.Errorf("service rook-ceph-mgr clusterIP or port is empty")
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: "monitoring-endpoint",
+		Kind: "CephCluster",
+		Data: mustMarshal(map[string]string{
+			"MonitoringEndpoint": scMonitoring.Spec.ClusterIP,
+			"MonitoringPort":     strconv.Itoa(int(scMonitoring.Spec.Ports[0].Port)),
+		})})
+
+	for _, i := range consumerResource.Status.CephResources {
+		switch i.Kind {
+		case "CephClient":
+			clientSecretName, err := s.getCephClientSecretName(ctx, i.Name)
+			if err != nil {
+				return nil, err
+			}
+
+			cephUserSecret := &v1.Secret{}
+			err = s.client.Get(ctx, types.NamespacedName{Name: clientSecretName, Namespace: s.namespace}, cephUserSecret)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get %s secret. %v", clientSecretName, err)
+			}
+
+			idProp := "userID"
+			keyProp := "userKey"
+			if strings.Contains(i.Name, "-cephfs-") {
+				idProp = "adminID"
+				keyProp = "adminKey"
+			}
+			extR = append(extR, &pb.ExternalResource{
+				Name: clientSecretName,
+				Kind: "Secret",
+				Data: mustMarshal(map[string]string{
+					idProp:  i.Name,
+					keyProp: string(cephUserSecret.Data[i.Name]),
+				}),
+			})
+		case "CephBlockPool":
+			nodeCephClientSecret, err := s.getCephClientSecretName(ctx, i.CephClients["node"])
+			if err != nil {
+				return nil, err
+			}
+
+			provisionerCephClientSecret, err := s.getCephClientSecretName(ctx, i.CephClients["provisioner"])
+			if err != nil {
+				return nil, err
+			}
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: "ceph-rbd",
+				Kind: "StorageClass",
+				Data: mustMarshal(map[string]string{
+					"clusterID":                 s.namespace,
+					"pool":                      i.Name,
+					"imageFeatures":             "layering",
+					"csi.storage.k8s.io/fstype": "ext4",
+					"imageFormat":               "2",
+					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
+					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
+					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
+				})})
+		}
+	}
+
+	return extR, nil
+}
+
+func (s *OCSProviderServer) getCephClientSecretName(ctx context.Context, name string) (string, error) {
+	cephClient := &rookCephv1.CephClient{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: name, Namespace: s.namespace}, cephClient)
+	if err != nil {
+		return "", fmt.Errorf("failed to get rook ceph client %s secret. %v", name, err)
+	}
+	if cephClient.Status == nil {
+		return "", fmt.Errorf("rook ceph client %s status is nil", name)
+	}
+	if cephClient.Status.Info == nil {
+		return "", fmt.Errorf("rook ceph client %s Status.Info is empty", name)
+	}
+
+	return cephClient.Status.Info["secretName"], nil
+}
+
+func mustMarshal(data map[string]string) []byte {
+	newData, err := json.Marshal(data)
+	if err != nil {
+		panic("failed to marshal")
+	}
+	return newData
 }
