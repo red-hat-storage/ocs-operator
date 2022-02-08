@@ -77,7 +77,7 @@ ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
 	hack/build-must-gather.sh
 
-source-manifests: operator-sdk manifests kustomize
+source-manifests: operator-sdk manifests kustomize oc
 	@echo "Sourcing CSV and CRD manifests from component-level operators"
 	hack/source-manifests.sh
 
@@ -85,7 +85,7 @@ gen-protobuf:
 	@echo "Generating protobuf files for gRPC services"
 	hack/gen-protobuf.sh
 
-gen-latest-csv: operator-sdk manifests kustomize
+gen-latest-csv: operator-sdk manifests kustomize oc
 	@echo "Generating latest development CSV version using predefined ENV VARs."
 	hack/generate-latest-csv.sh
 
@@ -101,7 +101,7 @@ verify-latest-deploy-yaml: gen-latest-deploy-yaml
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
 
-gen-release-csv: operator-sdk manifests kustomize
+gen-release-csv: operator-sdk manifests kustomize oc
 	@echo "Generating unified CSV from sourced component-level operators"
 	hack/generate-unified-csv.sh
 
@@ -230,4 +230,21 @@ ifeq (, $(shell which kustomize))
 export KUSTOMIZE=$(GOBIN)/kustomize
 else
 export KUSTOMIZE=$(shell which kustomize)
+endif
+
+oc:
+ifeq (, $(shell which oc))
+	@{ \
+	set -e ;\
+	OC_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$OC_GEN_TMP_DIR ;\
+	export latest_oc_client_version=$$(curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/ 2>/dev/null | grep -o \"openshift-client-linux-4.*tar.gz\" | tr -d \") ;\
+	curl -JL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/$${latest_oc_client_version} -o oc.tar.gz ;\
+	tar -xzvf oc.tar.gz ;\
+	mv oc ${GOBIN}/oc ;\
+	rm -rf $$OC_GEN_TMP_DIR ;\
+	}
+export OCS_OC_PATH=$(GOBIN)/oc
+else
+export OCS_OC_PATH=$(shell which oc)
 endif
