@@ -23,7 +23,7 @@ func TestJobTemplates(t *testing.T) {
 	}{
 		{
 			jobTemplateName:    "ocs-osd-removal",
-			templateParameters: []string{"FAILED_OSD_IDS"},
+			templateParameters: []string{"FAILED_OSD_IDS", "FORCE_OSD_REMOVAL"},
 			jobCmds:            osdCleanupArgs,
 			jobFunc:            newosdCleanUpJob,
 		},
