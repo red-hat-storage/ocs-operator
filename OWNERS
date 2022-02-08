@@ -6,6 +6,7 @@ approvers:
   - agarwal-mudit
   - nbalacha
   - BlaineEXE
+  - nb-ohad
 # review == this code is good /lgtm
 reviewers:
   - jarrpa
@@ -14,3 +15,4 @@ reviewers:
   - agarwal-mudit
   - nbalacha
   - BlaineEXE
+  - nb-ohad
