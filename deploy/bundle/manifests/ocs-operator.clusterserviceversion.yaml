@@ -1839,6 +1839,17 @@ spec:
           - update
           - watch
         - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephfilesystemsubvolumegroups
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - config.openshift.io
           resources:
           - clusterversions
