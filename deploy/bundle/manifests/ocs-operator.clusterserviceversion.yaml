@@ -1828,6 +1828,17 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephclients
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - config.openshift.io
           resources:
           - clusterversions
