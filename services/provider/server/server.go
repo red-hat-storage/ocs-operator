@@ -5,8 +5,10 @@ import (
 	"crypto"
 	"crypto/md5"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -347,6 +349,39 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
 					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
 				})})
+		case "CephFilesystemSubVolumeGroup":
+			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
+			err := s.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: s.namespace}, subVolumeGroup)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get %s cephFilesystemSubVolumeGroup. %v", i.Name, err)
+			}
+
+			nodeCephClientSecret, err := s.getCephClientSecretName(ctx, i.CephClients["node"])
+			if err != nil {
+				return nil, err
+			}
+
+			provisionerCephClientSecret, err := s.getCephClientSecretName(ctx, i.CephClients["provisioner"])
+			if err != nil {
+				return nil, err
+			}
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: "cephfs",
+				Kind: "StorageClass",
+				Data: mustMarshal(map[string]string{
+					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
+					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
+					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
+					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
+				})})
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: i.Name,
+				Kind: i.Kind,
+				Data: mustMarshal(map[string]string{
+					"filesystemName": subVolumeGroup.Spec.FilesystemName,
+				})})
 		}
 	}
 
@@ -400,6 +435,16 @@ func mustMarshal(data map[string]string) []byte {
 		panic("failed to marshal")
 	}
 	return newData
+}
+func getSubVolumeGroupClusterID(subVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup) string {
+	str := fmt.Sprintf(
+		"%s-%s-file-%s",
+		subVolumeGroup.Namespace,
+		subVolumeGroup.Spec.FilesystemName,
+		subVolumeGroup.Name,
+	)
+	hash := sha256.Sum256([]byte(str))
+	return hex.EncodeToString(hash[:16])
 }
 
 func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
