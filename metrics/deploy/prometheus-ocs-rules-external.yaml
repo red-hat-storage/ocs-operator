@@ -66,22 +66,6 @@ spec:
         system_type: OCS
         system_vendor: Red Hat
       record: odf_system_latency_seconds
-  - name: odf-overprovision-alert.rules
-    rules:
-    - alert: OdfClusterResourceQuotaNearLimit
-      annotations:
-        description: ClusterResourceQuota used more than 80%. PVC provisioning via
-          ODF StorageClass {{$labels.storageclass}} will be blocked for any request
-          which would take the usage beyond the hard limit. Please check the current
-          configuration in ClusterResourceQuota Custom Resource {{$labels.name}}.
-        message: ClusterResourceQuota {{$labels.name}} used more than 80%.
-        severity_level: warning
-        storage_type: ceph
-      expr: |
-        (ocs_clusterresourcequota_used/ocs_clusterresourcequota_hard) > 0.80
-      for: 0s
-      labels:
-        severity: warning
   - name: odf-obc-quota-alert.rules
     rules:
     - alert: ObcQuotaBytesAlert
