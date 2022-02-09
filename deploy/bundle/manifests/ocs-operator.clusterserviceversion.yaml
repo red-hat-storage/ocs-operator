@@ -1436,7 +1436,7 @@ metadata:
       \   }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io","volumereplications.replication.storage.openshift.io","volumereplicationclasses.replication.storage.openshift.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -1687,6 +1687,19 @@ spec:
       - kind: StatefulSet
         name: statefulsets.apps
         version: v1
+      version: v1alpha1
+    - description: VolumeReplication is a namespaced resource that contains references
+        to storage object to be replicated and VolumeReplicationClass corresponding
+        to the driver providing replication.
+      displayName: Volume Replication
+      kind: VolumeReplication
+      name: volumereplications.replication.storage.openshift.io
+      version: v1alpha1
+    - description: VolumeReplicationClass is a cluster scoped resource that contains
+        driver related configuration parameters.
+      displayName: Volume Replication Class
+      kind: VolumeReplicationClass
+      name: volumereplicationclasses.replication.storage.openshift.io
       version: v1alpha1
     required:
     - description: A NooBaa system - Create this to start
