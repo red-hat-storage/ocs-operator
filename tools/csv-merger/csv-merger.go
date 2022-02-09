@@ -404,10 +404,33 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
 	rookCSV := unmarshalCSV(*rookCSVStr)
 	noobaaCSV := unmarshalCSV(*noobaaCSVStr)
+	volumeReplicationCSV := &csvv1.ClusterServiceVersion{
+		Spec: csvv1.ClusterServiceVersionSpec{
+			CustomResourceDefinitions: csvv1.CustomResourceDefinitions{
+				Owned: []csvv1.CRDDescription{
+					{
+						Name:        "volumereplications.replication.storage.openshift.io",
+						Kind:        "VolumeReplication",
+						Version:     "v1alpha1",
+						DisplayName: "Volume Replication",
+						Description: "VolumeReplication is a namespaced resource that contains references to storage object to be replicated and VolumeReplicationClass corresponding to the driver providing replication.",
+					},
+					{
+						Name:        "volumereplicationclasses.replication.storage.openshift.io",
+						Kind:        "VolumeReplicationClass",
+						Version:     "v1alpha1",
+						DisplayName: "Volume Replication Class",
+						Description: "VolumeReplicationClass is a cluster scoped resource that contains driver related configuration parameters.",
+					},
+				},
+			},
+		},
+	}
 
 	mergeCsvs := []*csvv1.ClusterServiceVersion{
 		rookCSV,
 		noobaaCSV,
+		volumeReplicationCSV,
 	}
 
 	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
