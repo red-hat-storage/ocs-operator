@@ -108,6 +108,23 @@ var mockExtR = []externalResource{
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
+	{
+		Name: "cephfs",
+		Kind: "StorageClass",
+		Data: map[string]string{
+			"clusterID": "8d26c7378c1b0ec9c2455d1c3601c4cd",
+			"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-cephuser-rbd-provisioner",
+			"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-cephuser-rbd-node",
+			"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-cephuser-rbd-provisioner",
+		},
+	},
+	{
+		Name: "cephFilesystemSubVolumeGroup",
+		Kind: "CephFilesystemSubVolumeGroup",
+		Data: map[string]string{
+			"filesystemName": "myfs",
+		},
+	},
 }
 
 var (
@@ -122,10 +139,6 @@ var (
 						"node":        "cephuser-rbd-node",
 						"provisioner": "cephuser-rbd-provisioner",
 					},
-				},
-				{
-					Name: "cephFilesystemSubVolumeGroup",
-					Kind: "CephFilesystemSubVolumeGroup",
 				},
 				{
 					Name: "cephuser-rbd-provisioner",
@@ -146,6 +159,14 @@ var (
 				{
 					Name: "cephuser-health-checker",
 					Kind: "CephClient",
+				},
+				{
+					Name: "cephFilesystemSubVolumeGroup",
+					Kind: "CephFilesystemSubVolumeGroup",
+					CephClients: map[string]string{
+						"node":        "cephuser-rbd-node",
+						"provisioner": "cephuser-rbd-provisioner",
+					},
 				},
 			},
 			State: ocsv1alpha1.StorageConsumerStateReady,
@@ -206,6 +227,7 @@ func TestGetExternalResources(t *testing.T) {
 		consumerResource3,
 		consumerResource4,
 		consumerResource5,
+		&rookCephv1.CephFilesystemSubVolumeGroup{},
 	}
 
 	client := newFakeClient(t, objects...)
@@ -245,6 +267,15 @@ func TestGetExternalResources(t *testing.T) {
 	assert.NoError(t, client.Create(ctx, monSc))
 	assert.NoError(t, client.Create(ctx, mgrSvc))
 
+	subVolGroup := &rookCephv1.CephFilesystemSubVolumeGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: "cephFilesystemSubVolumeGroup", Namespace: server.namespace},
+		Spec: rookCephv1.CephFilesystemSubVolumeGroupSpec{
+			FilesystemName: "myfs",
+		},
+	}
+
+	assert.NoError(t, client.Create(ctx, subVolGroup))
+
 	// When ocsv1alpha1.StorageConsumerStateReady
 	req := pb.StorageConfigRequest{
 		StorageConsumerUUID: string(consumerResource.UID),
@@ -256,7 +287,7 @@ func TestGetExternalResources(t *testing.T) {
 	for i := range mockExtR {
 		data, err := json.Marshal(mockExtR[i].Data)
 		assert.NoError(t, err)
-		assert.Equal(t, storageConRes.ExternalResource[i].Data, data)
+		assert.Equal(t, string(storageConRes.ExternalResource[i].Data), string(data))
 		assert.Equal(t, storageConRes.ExternalResource[i].Kind, mockExtR[i].Kind)
 		assert.Equal(t, storageConRes.ExternalResource[i].Name, mockExtR[i].Name)
 	}
