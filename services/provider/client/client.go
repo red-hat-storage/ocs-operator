@@ -4,9 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/red-hat-storage/ocs-operator/services/provider/common"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
+	"github.com/red-hat-storage/ocs-operator/services/provider/server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -54,6 +57,12 @@ func (cc *OCSProviderClient) Close() {
 // OnboardConsumer to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
 func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, ticket, name, capacity string) (*pb.OnboardConsumerResponse, error) {
+
+	mock := os.Getenv(common.MockProviderAPI)
+	if mock != "" {
+		return server.MockOnboardConsumer(common.MockError(mock))
+	}
+
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
@@ -72,6 +81,12 @@ func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, ticket, name, 
 
 // GetStorageConfig generates the json config for connecting to storage provider cluster
 func (cc *OCSProviderClient) GetStorageConfig(ctx context.Context, consumerUUID string) (*pb.StorageConfigResponse, error) {
+
+	mock := os.Getenv(common.MockProviderAPI)
+	if mock != "" {
+		return server.MockGetStorageConfig(common.MockError(mock))
+	}
+
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
@@ -88,6 +103,12 @@ func (cc *OCSProviderClient) GetStorageConfig(ctx context.Context, consumerUUID 
 
 // OffboardConsumer deletes the StorageConsumer CR on the storage provider cluster
 func (cc *OCSProviderClient) OffboardConsumer(ctx context.Context, consumerUUID string) (*pb.OffboardConsumerResponse, error) {
+
+	mock := os.Getenv(common.MockProviderAPI)
+	if mock != "" {
+		return server.MockOffboardConsumer(common.MockError(mock))
+	}
+
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
@@ -104,6 +125,12 @@ func (cc *OCSProviderClient) OffboardConsumer(ctx context.Context, consumerUUID 
 
 // UpdateCapacity increases or decreases the storage block pool size
 func (cc *OCSProviderClient) UpdateCapacity(ctx context.Context, consumerUUID, capacity string) (*pb.UpdateCapacityResponse, error) {
+
+	mock := os.Getenv(common.MockProviderAPI)
+	if mock != "" {
+		return server.MockUpdateCapacity(common.MockError(mock))
+	}
+
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
