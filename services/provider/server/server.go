@@ -85,7 +85,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
 	mock := os.Getenv(common.MockProviderAPI)
 	if mock != "" {
-		return mockOnboardConsumer(common.MockError(mock))
+		return MockOnboardConsumer(common.MockError(mock))
 	}
 
 	// Validate capacity
@@ -122,7 +122,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
 	mock := os.Getenv(common.MockProviderAPI)
 	if mock != "" {
-		return mockGetStorageConfig(common.MockError(mock))
+		return MockGetStorageConfig(common.MockError(mock))
 	}
 
 	// Get storage consumer resource using UUID
@@ -155,7 +155,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 func (s *OCSProviderServer) UpdateCapacity(ctx context.Context, req *pb.UpdateCapacityRequest) (*pb.UpdateCapacityResponse, error) {
 	mock := os.Getenv(common.MockProviderAPI)
 	if mock != "" {
-		return mockUpdateCapacity(common.MockError(mock))
+		return MockUpdateCapacity(common.MockError(mock))
 	}
 
 	capacity, err := resource.ParseQuantity(req.Capacity)
@@ -177,7 +177,7 @@ func (s *OCSProviderServer) UpdateCapacity(ctx context.Context, req *pb.UpdateCa
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
 	mock := os.Getenv(common.MockProviderAPI)
 	if mock != "" {
-		return mockOffboardConsumer(common.MockError(mock))
+		return MockOffboardConsumer(common.MockError(mock))
 	}
 
 	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)

@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func mockOnboardConsumer(mockError common.MockError) (*pb.OnboardConsumerResponse, error) {
+func MockOnboardConsumer(mockError common.MockError) (*pb.OnboardConsumerResponse, error) {
 	switch mockError {
 	case common.OnboardInternalError:
 		return nil, status.Errorf(codes.Internal, "mock error message")
@@ -25,7 +25,7 @@ func mockOnboardConsumer(mockError common.MockError) (*pb.OnboardConsumerRespons
 	}, nil
 }
 
-func mockGetStorageConfig(mockError common.MockError) (*pb.StorageConfigResponse, error) {
+func MockGetStorageConfig(mockError common.MockError) (*pb.StorageConfigResponse, error) {
 	switch mockError {
 	case common.StorageConfigInternalError:
 		return nil, status.Errorf(codes.Internal, "mock error message")
@@ -53,7 +53,7 @@ func mockGetStorageConfig(mockError common.MockError) (*pb.StorageConfigResponse
 	}, nil
 }
 
-func mockUpdateCapacity(mockError common.MockError) (*pb.UpdateCapacityResponse, error) {
+func MockUpdateCapacity(mockError common.MockError) (*pb.UpdateCapacityResponse, error) {
 	switch mockError {
 	case common.UpdateInternalError:
 		return nil, status.Errorf(codes.Internal, "mock error message")
@@ -69,7 +69,7 @@ func mockUpdateCapacity(mockError common.MockError) (*pb.UpdateCapacityResponse,
 	}, nil
 }
 
-func mockOffboardConsumer(mockError common.MockError) (*pb.OffboardConsumerResponse, error) {
+func MockOffboardConsumer(mockError common.MockError) (*pb.OffboardConsumerResponse, error) {
 	switch mockError {
 	case common.OffboardInternalError:
 		return nil, status.Errorf(codes.Internal, "mock error message")
