@@ -214,7 +214,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 			Parameters: map[string]string{
 				"clusterID":                 initData.Namespace,
 				"pool":                      generateNameForCephBlockPool(initData),
-				"imageFeatures":             "layering",
+				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 				"csi.storage.k8s.io/fstype": "ext4",
 				"imageFormat":               "2",
 				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
