@@ -27,9 +27,9 @@ type ocsConsumerManager struct {
 	mutex        sync.RWMutex
 }
 
-func newConsumerManager(ctx context.Context, client client.Client, namespace string) (*ocsConsumerManager, error) {
+func newConsumerManager(ctx context.Context, cl client.Client, namespace string) (*ocsConsumerManager, error) {
 	consumers := &ocsv1alpha1.StorageConsumerList{}
-	err := client.List(ctx, consumers)
+	err := cl.List(ctx, consumers, client.InNamespace(namespace))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list storage consumers. %v", err)
 	}
@@ -46,7 +46,7 @@ func newConsumerManager(ctx context.Context, client client.Client, namespace str
 	}
 
 	return &ocsConsumerManager{
-		client:       client,
+		client:       cl,
 		namespace:    namespace,
 		nameByTicket: nameByTicket,
 		nameByUID:    nameByUID,
