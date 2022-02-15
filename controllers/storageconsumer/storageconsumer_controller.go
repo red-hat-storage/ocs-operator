@@ -115,6 +115,7 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.ctx = context.Background()
 	r.namespace = request.Namespace
+	r.cephResourcesByName = map[string]*ocsv1alpha1.CephResourcesSpec{}
 
 	r.storageConsumer = &ocsv1alpha1.StorageConsumer{}
 	r.storageConsumer.Name = request.Name
@@ -125,7 +126,7 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.cephBlockPool.Namespace = r.namespace
 
 	r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
-	r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("%s-%s", "cephFilesystemSubVolumeGroup", r.storageConsumer.Name)
+	r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("%s-%s", "cephfilesystemsubvolumegroup", r.storageConsumer.Name)
 	r.cephFilesystemSubVolumeGroup.Namespace = r.namespace
 
 	r.cephClientRBDProvisioner = &rookCephv1.CephClient{}
