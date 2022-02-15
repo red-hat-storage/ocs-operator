@@ -172,13 +172,15 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 
 	r.Log.Info("Service create/update succeeded")
 
-	nodeAddresses, err := r.getWorkerNodesInternalIPAddresses(desiredService.Namespace)
+	nodeAddresses, err := r.getWorkerNodesInternalIPAddresses()
 	if err != nil {
 		return err
 	}
 
 	if len(nodeAddresses) == 0 {
-		return fmt.Errorf("Did not found any worker node addresses")
+		err = fmt.Errorf("Did not found any worker node addresses")
+		r.Log.Error(err, "Worker nodes count is zero")
+		return err
 	}
 
 	instance.Status.StorageProviderEndpoint = nodeAddresses[0] + ":" + fmt.Sprint(ocsProviderServiceNodePort)
@@ -220,11 +222,11 @@ func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Depl
 }
 
 // getWorkerNodesInternalIPAddresses return slice of Internal IPAddress of worker nodes
-func (r *StorageClusterReconciler) getWorkerNodesInternalIPAddresses(namespace string) ([]string, error) {
+func (r *StorageClusterReconciler) getWorkerNodesInternalIPAddresses() ([]string, error) {
 
 	nodes := &corev1.NodeList{}
 
-	err := r.Client.List(context.TODO(), nodes, client.InNamespace(namespace))
+	err := r.Client.List(context.TODO(), nodes)
 	if err != nil {
 		r.Log.Error(err, "Failed to list nodes")
 		return nil, err
