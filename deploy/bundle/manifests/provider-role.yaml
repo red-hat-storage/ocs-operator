@@ -12,12 +12,6 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - list
-- apiGroups:
   - ocs.openshift.io
   resources:
   - storageconsumers
