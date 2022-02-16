@@ -59,7 +59,7 @@ type OCSProviderServer struct {
 
 type onboardingTicket struct {
 	ID             string `json:"id"`
-	ExpirationDate int64  `json:"expirationDate"`
+	ExpirationDate int64  `json:"expirationDate,string"`
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
