@@ -245,7 +245,7 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 			if err != nil || !res.IsZero() {
 				return res, err
 			}
-		} else if instance.Spec.ExternalStorage.RequestedCapacity.Equal(instance.Status.ExternalStorage.GrantedCapacity) {
+		} else if !instance.Spec.ExternalStorage.RequestedCapacity.Equal(instance.Status.ExternalStorage.GrantedCapacity) {
 			res, err := r.updateConsumerCapacity(instance, externalClusterClient)
 			if err != nil || !res.IsZero() {
 				return res, err
