@@ -274,15 +274,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
 	}
 
-	extR = append(extR, &pb.ExternalResource{
-		Name: monSecret,
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"fsid":         fsid,
-			"mon-secret":   "mon-secret",
-			"admin-secret": "admin-secret",
-		})})
-
 	// Service for monitoring endpoints
 	scMonitoring := &v1.Service{}
 	err = s.client.Get(ctx, types.NamespacedName{Name: "rook-ceph-mgr", Namespace: s.namespace}, scMonitoring)
@@ -330,6 +321,20 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 					keyProp: string(cephUserSecret.Data[i.Name]),
 				}),
 			})
+
+			if strings.Contains(i.Name, "cephclient-health-checker") {
+				// TODO
+				// This is just a temporary fix to get the ceph client name. In the future, we'll change it and will not depend on string conditions.
+				extR = append(extR, &pb.ExternalResource{
+					Name: monSecret,
+					Kind: "Secret",
+					Data: mustMarshal(map[string]string{
+						"fsid":          fsid,
+						"mon-secret":    "mon-secret",
+						"ceph-username": fmt.Sprintf("%s-%s", "cephclient-health-checker", consumerResource.Name),
+						"ceph-secret":   string(cephUserSecret.Data[i.Name]),
+					})})
+			}
 		case "CephBlockPool":
 			nodeCephClientSecret, err := s.getCephClientSecretName(ctx, i.CephClients["node"])
 			if err != nil {
