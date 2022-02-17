@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type OCSProviderClient struct {
@@ -20,8 +22,12 @@ func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Dura
 	apiCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	config := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(credentials.NewTLS(config)),
 		grpc.WithBlock(),
 	}
 
