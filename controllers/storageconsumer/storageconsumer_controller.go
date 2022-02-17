@@ -457,12 +457,12 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner() error
 		if err := r.own(r.cephClientCephFSProvisioner); err != nil {
 			return err
 		}
-
 		r.cephClientCephFSProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "allow r",
 				"mgr": "allow rw",
-				"osd": fmt.Sprintf("allow rw tag cephfs metadata=* path=%s", r.cephFilesystemSubVolumeGroup.Name),
+				"mds": fmt.Sprintf("allow rw path=/volumes/%s", r.cephFilesystemSubVolumeGroup.Name),
+				"osd": "allow rw tag cephfs metadata=*",
 			},
 		}
 		return nil
@@ -494,13 +494,12 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode() error {
 		if err := r.own(r.cephClientCephFSNode); err != nil {
 			return err
 		}
-
 		r.cephClientCephFSNode.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "allow r",
 				"mgr": "allow rw",
-				"osd": fmt.Sprintf("allow rw tag cephfs *=* path=%s", r.cephFilesystemSubVolumeGroup.Name),
-				"mds": fmt.Sprintf("allow rw path=%s", r.cephFilesystemSubVolumeGroup.Name),
+				"osd": "allow rw tag cephfs *=*",
+				"mds": fmt.Sprintf("allow rw path=/volumes/%s", r.cephFilesystemSubVolumeGroup.Name),
 			},
 		}
 		return nil
