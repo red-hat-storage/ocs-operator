@@ -33,8 +33,8 @@ const (
 	GetStorageConfig = "GetStorageConfig"
 )
 
-// isExternalOCSProvider returns true if it is ocs to ocs ExternalStorage consumer cluster
-func isExternalOCSProvider(instance *ocsv1.StorageCluster) bool {
+// isOCSConsumerMode returns true if it is ocs to ocs ExternalStorage consumer cluster
+func isOCSConsumerMode(instance *ocsv1.StorageCluster) bool {
 	return instance.Spec.ExternalStorage.Enable && instance.Spec.ExternalStorage.StorageProviderKind == ocsv1.KindOCS
 }
 
