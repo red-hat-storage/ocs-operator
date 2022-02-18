@@ -27,8 +27,8 @@ type externalResource struct {
 	Name string            `json:"name"`
 }
 
-var mockExtR = []externalResource{
-	{
+var mockExtR = map[string]*externalResource{
+	"rook-ceph-mon-endpoints": {
 		Name: "rook-ceph-mon-endpoints",
 		Kind: "ConfigMap",
 		Data: map[string]string{
@@ -37,16 +37,17 @@ var mockExtR = []externalResource{
 			"mapping":  "{}",
 		},
 	},
-	{
+	"rook-ceph-mon": {
 		Name: "rook-ceph-mon",
 		Kind: "Secret",
 		Data: map[string]string{
-			"admin-secret": "admin-secret",
-			"fsid":         "b88c2d78-9de9-4227-9313-a63f62f78743",
-			"mon-secret":   "mon-secret",
+			"ceph-username": "cephclient-health-checker-consumer",
+			"fsid":          "b88c2d78-9de9-4227-9313-a63f62f78743",
+			"mon-secret":    "mon-secret",
+			"ceph-secret":   "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
-	{
+	"monitoring-endpoint": {
 		Name: "monitoring-endpoint",
 		Kind: "CephCluster",
 		Data: map[string]string{
@@ -54,7 +55,7 @@ var mockExtR = []externalResource{
 			"MonitoringPort":     "9283",
 		},
 	},
-	{
+	"ceph-rbd": {
 		Name: "ceph-rbd",
 		Kind: "StorageClass",
 		Data: map[string]string{
@@ -68,7 +69,7 @@ var mockExtR = []externalResource{
 			"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-cephuser-rbd-provisioner",
 		},
 	},
-	{
+	"rook-ceph-client-cephuser-rbd-provisioner": {
 		Name: "rook-ceph-client-cephuser-rbd-provisioner",
 		Kind: "Secret",
 		Data: map[string]string{
@@ -76,7 +77,7 @@ var mockExtR = []externalResource{
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
-	{
+	"rook-ceph-client-cephuser-rbd-node": {
 		Name: "rook-ceph-client-cephuser-rbd-node",
 		Kind: "Secret",
 		Data: map[string]string{
@@ -84,7 +85,7 @@ var mockExtR = []externalResource{
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
-	{
+	"rook-ceph-client-cephuser-cephfs-provisioner": {
 		Name: "rook-ceph-client-cephuser-cephfs-provisioner",
 		Kind: "Secret",
 		Data: map[string]string{
@@ -92,7 +93,7 @@ var mockExtR = []externalResource{
 			"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
-	{
+	"rook-ceph-client-cephuser-cephfs-node": {
 		Name: "rook-ceph-client-cephuser-cephfs-node",
 		Kind: "Secret",
 		Data: map[string]string{
@@ -100,15 +101,15 @@ var mockExtR = []externalResource{
 			"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
-	{
-		Name: "rook-ceph-client-cephuser-health-checker",
+	"rook-ceph-client-cephclient-health-checker": {
+		Name: "rook-ceph-client-cephclient-health-checker",
 		Kind: "Secret",
 		Data: map[string]string{
-			"userID":  "cephuser-health-checker",
+			"userID":  "cephclient-health-checker",
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
-	{
+	"cephfs": {
 		Name: "cephfs",
 		Kind: "StorageClass",
 		Data: map[string]string{
@@ -118,7 +119,7 @@ var mockExtR = []externalResource{
 			"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-cephuser-rbd-provisioner",
 		},
 	},
-	{
+	"cephFilesystemSubVolumeGroup": {
 		Name: "cephFilesystemSubVolumeGroup",
 		Kind: "CephFilesystemSubVolumeGroup",
 		Data: map[string]string{
@@ -157,7 +158,7 @@ var (
 					Kind: "CephClient",
 				},
 				{
-					Name: "cephuser-health-checker",
+					Name: "cephclient-health-checker",
 					Kind: "CephClient",
 				},
 				{
@@ -284,12 +285,16 @@ func TestGetExternalResources(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, storageConRes)
 
-	for i := range mockExtR {
-		data, err := json.Marshal(mockExtR[i].Data)
+	for i := range storageConRes.ExternalResource {
+		extResource := storageConRes.ExternalResource[i]
+		mockResoruce, ok := mockExtR[extResource.Name]
+		assert.True(t, ok)
+
+		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
-		assert.Equal(t, string(storageConRes.ExternalResource[i].Data), string(data))
-		assert.Equal(t, storageConRes.ExternalResource[i].Kind, mockExtR[i].Kind)
-		assert.Equal(t, storageConRes.ExternalResource[i].Name, mockExtR[i].Name)
+		assert.Equal(t, string(extResource.Data), string(data))
+		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
+		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
 
 	// When ocsv1alpha1.StorageConsumerStateReady but ceph resources is empty
@@ -304,12 +309,17 @@ func TestGetExternalResources(t *testing.T) {
 	}
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
 	assert.NoError(t, err)
+	assert.NotEqual(t, storageConRes.ExternalResource, mockExtR)
 	for i := range storageConRes.ExternalResource {
-		data, err := json.Marshal(mockExtR[i].Data)
+		extResource := storageConRes.ExternalResource[i]
+		mockResoruce, ok := mockExtR[extResource.Name]
+		assert.True(t, ok)
+
+		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
-		assert.Equal(t, storageConRes.ExternalResource[i].Data, data)
-		assert.Equal(t, storageConRes.ExternalResource[i].Kind, mockExtR[i].Kind)
-		assert.Equal(t, storageConRes.ExternalResource[i].Name, mockExtR[i].Name)
+		assert.Equal(t, string(extResource.Data), string(data))
+		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
+		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
 
 	// When ocsv1alpha1.StorageConsumerStateReady but secret is not ready
