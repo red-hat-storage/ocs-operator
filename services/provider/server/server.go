@@ -169,8 +169,7 @@ func (s *OCSProviderServer) UpdateCapacity(ctx context.Context, req *pb.UpdateCa
 		return nil, status.Errorf(codes.Internal, "failed to update capacity in the storageConsumer resource: %v", err)
 	}
 
-	// TODO: Return granted capacity correctly.
-	return &pb.UpdateCapacityResponse{}, nil
+	return &pb.UpdateCapacityResponse{GrantedCapacity: req.Capacity}, nil
 }
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
