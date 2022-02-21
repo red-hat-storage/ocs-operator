@@ -220,7 +220,6 @@ func TestGetExternalResources(t *testing.T) {
 	objects := []runtime.Object{
 		&v1.ConfigMap{},
 		&v1.Secret{},
-		&v1.Service{},
 		&rookCephv1.CephClient{},
 		consumerResource,
 		consumerResource1,
@@ -236,6 +235,26 @@ func TestGetExternalResources(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = consumerManager.Create(ctx, "consumer", "ticket", resource.MustParse("1G"))
+	assert.NoError(t, err)
+
+	port, _ := strconv.Atoi("9283")
+	mgrpod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mgr-test",
+			Namespace: "openshift-storage",
+			Labels: map[string]string{
+				"app": "rook-ceph-mgr",
+			},
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{{Name: "mgr", Ports: []v1.ContainerPort{{Name: "http-metrics", ContainerPort: int32(port)}}}},
+		},
+		Status: v1.PodStatus{
+			HostIP: "10.105.164.231",
+		},
+	}
+
+	err = client.Create(ctx, &mgrpod)
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{
@@ -263,10 +282,9 @@ func TestGetExternalResources(t *testing.T) {
 		}
 	}
 
-	monCm, monSc, mgrSvc := createMonConfigMapAndSecret(server)
+	monCm, monSc := createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
 	assert.NoError(t, client.Create(ctx, monSc))
-	assert.NoError(t, client.Create(ctx, mgrSvc))
 
 	subVolGroup := &rookCephv1.CephFilesystemSubVolumeGroup{
 		ObjectMeta: metav1.ObjectMeta{Name: "cephFilesystemSubVolumeGroup", Namespace: server.namespace},
@@ -445,17 +463,16 @@ func TestGetExternalResources(t *testing.T) {
 		}
 	}
 
-	monCm, monSc, mgrSvc = createMonConfigMapAndSecret(server)
+	monCm, monSc = createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
 	assert.NoError(t, client.Create(ctx, monSc))
-	assert.NoError(t, client.Create(ctx, mgrSvc))
 
 	exR, err = server.getExternalResources(ctx, consumerResource)
 	assert.Error(t, err)
 	assert.NotEqual(t, len(mockExtR), len(exR))
 }
 
-func createMonConfigMapAndSecret(server *OCSProviderServer) (*v1.ConfigMap, *v1.Secret, *v1.Service) {
+func createMonConfigMapAndSecret(server *OCSProviderServer) (*v1.ConfigMap, *v1.Secret) {
 	monCm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: monConfigMap, Namespace: server.namespace},
 		Data:       map[string]string{"data": "a=10.99.45.27:6789", "mapping": "{}", "maxMonId": "0"},
@@ -468,18 +485,7 @@ func createMonConfigMapAndSecret(server *OCSProviderServer) (*v1.ConfigMap, *v1.
 		},
 	}
 
-	port, _ := strconv.Atoi("9283")
-	mgrSvc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mgr", Namespace: server.namespace},
-		Spec: v1.ServiceSpec{
-			ClusterIP: "10.105.164.231",
-			Ports: []v1.ServicePort{{
-				Port: int32(port),
-			}},
-		},
-	}
-
-	return monCm, monSc, mgrSvc
+	return monCm, monSc
 }
 
 func createCephClientAndSecret(name string, server *OCSProviderServer) (*rookCephv1.CephClient, *v1.Secret) {
