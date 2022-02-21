@@ -12,6 +12,13 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephfilesystemsubvolumegroups
+  verbs:
+  - get
+  - list
+- apiGroups:
   - ocs.openshift.io
   resources:
   - storageconsumers
