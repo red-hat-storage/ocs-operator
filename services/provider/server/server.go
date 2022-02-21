@@ -335,7 +335,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 					Data: mustMarshal(map[string]string{
 						"fsid":          fsid,
 						"mon-secret":    "mon-secret",
-						"ceph-username": fmt.Sprintf("%s-%s", "cephclient-health-checker", consumerResource.Name),
+						"ceph-username": fmt.Sprintf("client.cephclient-health-checker-%s", consumerResource.Name),
 						"ceph-secret":   string(cephUserSecret.Data[i.Name]),
 					})})
 			}

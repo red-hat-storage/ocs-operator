@@ -41,7 +41,7 @@ var mockExtR = map[string]*externalResource{
 		Name: "rook-ceph-mon",
 		Kind: "Secret",
 		Data: map[string]string{
-			"ceph-username": "cephclient-health-checker-consumer",
+			"ceph-username": "client.cephclient-health-checker-consumer",
 			"fsid":          "b88c2d78-9de9-4227-9313-a63f62f78743",
 			"mon-secret":    "mon-secret",
 			"ceph-secret":   "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
