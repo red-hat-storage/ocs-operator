@@ -277,23 +277,44 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
 	}
 
-	// Service for monitoring endpoints
-	scMonitoring := &v1.Service{}
-	err = s.client.Get(ctx, types.NamespacedName{Name: "rook-ceph-mgr", Namespace: s.namespace}, scMonitoring)
+	// Get mgr pod hostIP
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(s.namespace),
+		client.MatchingLabels(map[string]string{"app": "rook-ceph-mgr"}),
+	}
+	err = s.client.List(ctx, podList, listOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get rook-ceph-mgr service. %v", err)
+		return nil, fmt.Errorf("failed to list pod with rook-ceph-mgr label. %v", err)
+	}
+	if len(podList.Items) == 0 {
+		return nil, fmt.Errorf("no pods available with rook-ceph-mgr label")
 	}
 
-	if scMonitoring.Spec.ClusterIP == "" || strconv.Itoa(int(scMonitoring.Spec.Ports[0].Port)) == "" {
-		return nil, fmt.Errorf("service rook-ceph-mgr clusterIP or port is empty")
+	mgrPod := &podList.Items[0]
+	var port int32 = -1
+
+	for i := range mgrPod.Spec.Containers {
+		container := &mgrPod.Spec.Containers[i]
+		if container.Name == "mgr" {
+			for j := range container.Ports {
+				if container.Ports[j].Name == "http-metrics" {
+					port = container.Ports[j].ContainerPort
+				}
+			}
+		}
+	}
+
+	if port < 0 {
+		return nil, fmt.Errorf("mgr pod port is empty")
 	}
 
 	extR = append(extR, &pb.ExternalResource{
 		Name: "monitoring-endpoint",
 		Kind: "CephCluster",
 		Data: mustMarshal(map[string]string{
-			"MonitoringEndpoint": scMonitoring.Spec.ClusterIP,
-			"MonitoringPort":     strconv.Itoa(int(scMonitoring.Spec.Ports[0].Port)),
+			"MonitoringEndpoint": mgrPod.Status.HostIP,
+			"MonitoringPort":     strconv.Itoa(int(port)),
 		})})
 
 	for _, i := range consumerResource.Status.CephResources {

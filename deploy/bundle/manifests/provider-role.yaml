@@ -34,3 +34,10 @@ rules:
   - cephclients
   verbs:
   - get
+- apiGroups:
+    - ""
+  resources:
+    - pods
+  verbs:
+    - get
+    - list
