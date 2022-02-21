@@ -223,6 +223,10 @@ func newClient() (client.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
 	}
+	err = rookCephv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add rookCephv1 to scheme. %v", err)
+	}
 
 	config, err := config.GetConfig()
 	if err != nil {
