@@ -242,7 +242,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		return err
 	}
 
-	if isExternalOCSProvider(instance) &&
+	if isOCSConsumerMode(instance) &&
 		(instance.Spec.ExternalStorage.StorageProviderEndpoint == "" ||
 			instance.Spec.ExternalStorage.OnboardingTicket == "" ||
 			instance.Spec.ExternalStorage.RequestedCapacity == nil) {

@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
@@ -32,8 +33,8 @@ const (
 	GetStorageConfig = "GetStorageConfig"
 )
 
-// isExternalOCSProvider returns true if it is ocs to ocs ExternalStorage consumer cluster
-func isExternalOCSProvider(instance *ocsv1.StorageCluster) bool {
+// isOCSConsumerMode returns true if it is ocs to ocs ExternalStorage consumer cluster
+func isOCSConsumerMode(instance *ocsv1.StorageCluster) bool {
 	return instance.Spec.ExternalStorage.Enable && instance.Spec.ExternalStorage.StorageProviderKind == ocsv1.KindOCS
 }
 
@@ -117,10 +118,8 @@ func (r *StorageClusterReconciler) updateConsumerCapacity(instance *ocsv1.Storag
 	}
 
 	if !instance.Spec.ExternalStorage.RequestedCapacity.Equal(responseQuantity) {
-		r.Log.Error(err, "GrantedCapacity is not equal to the RequestedCapacity in the UpdateCapacity response.",
+		klog.Warningf("GrantedCapacity is not equal to the RequestedCapacity in the UpdateCapacity response.",
 			"GrantedCapacity", response.GrantedCapacity, "RequestedCapacity", instance.Spec.ExternalStorage.RequestedCapacity)
-		r.Log.Error(err, "empty response")
-		return reconcile.Result{}, err
 	}
 
 	instance.Status.ExternalStorage.GrantedCapacity = responseQuantity
