@@ -310,7 +310,7 @@ func (r *StorageConsumerReconciler) reconcileCephBlockPool() error {
 		phase = string(r.cephBlockPool.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephBlockPool.Name, r.cephBlockPool.Kind, phase, cephClients)
+	r.setCephResourceStatus(r.cephBlockPool.Name, "CephBlockPool", phase, cephClients)
 
 	r.storageConsumer.Status.GrantedCapacity = r.storageConsumer.Spec.Capacity
 
@@ -365,7 +365,7 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup() erro
 		phase = string(r.cephFilesystemSubVolumeGroup.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephFilesystemSubVolumeGroup.Name, r.cephFilesystemSubVolumeGroup.Kind, phase, cephClients)
+	r.setCephResourceStatus(r.cephFilesystemSubVolumeGroup.Name, "CephFilesystemSubVolumeGroup", phase, cephClients)
 
 	return nil
 
@@ -406,7 +406,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner() error {
 		phase = string(r.cephClientRBDProvisioner.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephClientRBDProvisioner.Name, r.cephClientRBDProvisioner.Kind, phase, nil)
+	r.setCephResourceStatus(r.cephClientRBDProvisioner.Name, "CephClient", phase, nil)
 
 	return nil
 }
@@ -446,7 +446,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode() error {
 		phase = string(r.cephClientRBDNode.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephClientRBDNode.Name, r.cephClientRBDNode.Kind, phase, nil)
+	r.setCephResourceStatus(r.cephClientRBDNode.Name, "CephClient", phase, nil)
 
 	return nil
 }
@@ -483,7 +483,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner() error
 		phase = string(r.cephClientCephFSProvisioner.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephClientCephFSProvisioner.Name, r.cephClientCephFSProvisioner.Kind, phase, nil)
+	r.setCephResourceStatus(r.cephClientCephFSProvisioner.Name, "CephClient", phase, nil)
 
 	return nil
 }
@@ -520,7 +520,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode() error {
 		phase = string(r.cephClientCephFSNode.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephClientCephFSNode.Name, r.cephClientCephFSNode.Kind, phase, nil)
+	r.setCephResourceStatus(r.cephClientCephFSNode.Name, "CephClient", phase, nil)
 
 	return nil
 }
@@ -560,7 +560,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 		phase = string(r.cephClientHealthChecker.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephClientHealthChecker.Name, r.cephClientHealthChecker.Kind, phase, nil)
+	r.setCephResourceStatus(r.cephClientHealthChecker.Name, "CephClient", phase, nil)
 
 	return nil
 }
