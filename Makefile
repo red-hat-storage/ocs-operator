@@ -161,7 +161,7 @@ golangci-lint:
 # use 'make functest' to run just the functional tests
 unit-test:
 	@echo "Executing unit tests"
-	go test -v -cover `go list ./... | grep -v "functest"`
+	hack/unit-test.sh
 
 ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-deploy-yaml
 

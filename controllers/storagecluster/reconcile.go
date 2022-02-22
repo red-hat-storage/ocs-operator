@@ -200,6 +200,12 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		r.Log.Error(err, "Failed to validate StorageCluster version.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
+		instance.Status.Conditions = append(instance.Status.Conditions, conditionsv1.Condition{
+			Type:    conditionsv1.ConditionDegraded,
+			Status:  corev1.ConditionTrue,
+			Reason:  statusutil.EventReasonValidationFailed,
+			Message: err.Error(),
+		})
 		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
 			r.Log.Error(updateErr, "Failed to update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			return updateErr

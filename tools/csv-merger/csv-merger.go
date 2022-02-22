@@ -781,7 +781,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 
 func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 
-	relatedImages := []interface{}{}
+	var relatedImages []interface{}
 
 	if *rookContainerImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
