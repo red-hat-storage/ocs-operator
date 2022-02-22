@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -1028,6 +1029,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = quotav1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add quotav1 scheme")
+	}
+
+	err = ocsv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add ocsv1alpha1 scheme")
 	}
 
 	return scheme

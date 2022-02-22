@@ -38,6 +38,9 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 
 	if !instance.Spec.AllowRemoteStorageConsumers {
 		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
+		if err := r.verifyNoStorageConsumerExist(instance); err != nil {
+			return reconcile.Result{}, err
+		}
 		return o.ensureDeleted(r, instance)
 	}
 

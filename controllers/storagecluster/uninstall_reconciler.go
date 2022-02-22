@@ -273,10 +273,6 @@ func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.Stora
 // verifyNoStorageConsumerExist verifies there are no storageConsumers on the same namespace
 func (r *StorageClusterReconciler) verifyNoStorageConsumerExist(instance *ocsv1.StorageCluster) error {
 
-	if !instance.Spec.AllowRemoteStorageConsumers {
-		return nil
-	}
-
 	storageConsumers := &ocsv1alpha1.StorageConsumerList{}
 	err := r.Client.List(context.TODO(), storageConsumers, &client.ListOptions{Namespace: instance.Namespace})
 	if err != nil {
