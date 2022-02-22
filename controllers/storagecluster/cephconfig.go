@@ -36,7 +36,7 @@ mon_max_pg_per_osd = 600
 mon_pg_warn_max_object_skew = 0
 mon_data_avail_warn = 15
 [osd]
-osd_memory_target_cgroup_limit_ratio = 0.5
+osd_memory_target_cgroup_limit_ratio = 0.8
 `
 )
 
