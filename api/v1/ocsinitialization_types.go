@@ -30,6 +30,11 @@ type OCSInitializationSpec struct {
 	// Defaults to false
 	// +optional
 	EnableCephTools bool `json:"enableCephTools,omitempty"`
+
+	// Tolerations if specified set toolbox ceph tools pod tolerations
+	// Defaults to empty
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // OCSInitializationStatus defines the observed state of OCSInitialization
