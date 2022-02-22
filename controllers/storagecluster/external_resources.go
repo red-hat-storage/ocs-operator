@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -299,7 +300,27 @@ func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, inst
 		}
 		defer externalClusterClient.Close()
 
-		return r.offboardConsumer(instance, externalClusterClient)
+		if res, err := r.offboardConsumer(instance, externalClusterClient); err != nil {
+			return res, err
+		}
+
+		cephFilesystemSubVolumeGroupList := &cephv1.CephFilesystemSubVolumeGroupList{}
+
+		if err = r.Client.List(context.TODO(), cephFilesystemSubVolumeGroupList, client.InNamespace(instance.Namespace)); err != nil {
+			return reconcile.Result{}, fmt.Errorf("uninstall: Failed to fetch cephFilesystemSubVolumeGroupList. %v", err)
+		}
+
+		for _, cephFilesystemSubVolumeGroup := range cephFilesystemSubVolumeGroupList.Items {
+			if err = r.Client.Delete(context.TODO(), &cephFilesystemSubVolumeGroup); err != nil && !errors.IsNotFound(err) {
+				r.Log.Error(
+					err,
+					"Uninstall: Failed to delete CephFilesystemSubVolumeGroup.",
+					"CephFilesystemSubVolumeGroup",
+					klog.KRef(cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Name),
+				)
+				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephFilesystemSubVolumeGroup %q. %v", cephFilesystemSubVolumeGroup.Name, err)
+			}
+		}
 	}
 
 	return reconcile.Result{}, nil
