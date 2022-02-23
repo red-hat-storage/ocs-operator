@@ -36,6 +36,7 @@
       },
       {
         name: 'ODF_standardized_metrics.rules',
+        interval: '30s',
         rules: [
           {
             record: 'odf_system_health_status',
