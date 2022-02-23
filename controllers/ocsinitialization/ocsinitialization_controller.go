@@ -53,7 +53,7 @@ type OCSInitializationReconciler struct {
 	RookImage      string
 }
 
-func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
+func newToolsDeployment(namespace string, rookImage string, tolerations []corev1.Toleration) *appsv1.Deployment {
 
 	name := rookCephToolDeploymentName
 	var replicaOne int32 = 1
@@ -125,14 +125,7 @@ func newToolsDeployment(namespace string, rookImage string) *appsv1.Deployment {
 							},
 						},
 					},
-					Tolerations: []corev1.Toleration{
-						{
-							Key:      defaults.NodeTolerationKey,
-							Operator: corev1.TolerationOpEqual,
-							Value:    "true",
-							Effect:   corev1.TaintEffectNoSchedule,
-						},
-					},
+					Tolerations: tolerations,
 					// if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
 					HostNetwork: true,
 					Volumes: []corev1.Volume{
@@ -157,7 +150,16 @@ func (r *OCSInitializationReconciler) ensureToolsDeployment(initialData *ocsv1.O
 	var isFound bool
 	namespace := initialData.Namespace
 
-	toolsDeployment := newToolsDeployment(namespace, r.RookImage)
+	tolerations := []corev1.Toleration{{
+		Key:      defaults.NodeTolerationKey,
+		Operator: corev1.TolerationOpEqual,
+		Value:    "true",
+		Effect:   corev1.TaintEffectNoSchedule,
+	}}
+
+	tolerations = append(tolerations, initialData.Spec.Tolerations...)
+
+	toolsDeployment := newToolsDeployment(namespace, r.RookImage, tolerations)
 	foundToolsDeployment := &appsv1.Deployment{}
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
 
