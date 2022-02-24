@@ -318,7 +318,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 
-		if err := r.reconcileUninstallAnnotations(instance); err != nil {
+		if scWasUpdated, err := r.reconcileUninstallAnnotations(instance); err != nil {
+			return reconcile.Result{}, err
+		} else if scWasUpdated {
+			r.Log.Info("exiting reconcile loop immediately after updating the storagecluster annotations")
 			return reconcile.Result{}, err
 		}
 
