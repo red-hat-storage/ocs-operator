@@ -338,7 +338,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				keyProp = "adminKey"
 			}
 			extR = append(extR, &pb.ExternalResource{
-				Name: clientSecretName,
+				Name: strings.ReplaceAll(clientSecretName, "-"+consumerResource.Name, ""),
 				Kind: "Secret",
 				Data: mustMarshal(map[string]string{
 					idProp:  i.Name,
@@ -365,10 +365,14 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				return nil, err
 			}
 
+			nodeCephClientSecret = strings.ReplaceAll(nodeCephClientSecret, "-"+consumerResource.Name, "")
+
 			provisionerCephClientSecret, err := s.getCephClientSecretName(ctx, i.CephClients["provisioner"])
 			if err != nil {
 				return nil, err
 			}
+
+			provisionerCephClientSecret = strings.ReplaceAll(provisionerCephClientSecret, "-"+consumerResource.Name, "")
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: "ceph-rbd",
@@ -395,10 +399,14 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				return nil, err
 			}
 
+			nodeCephClientSecret = strings.ReplaceAll(nodeCephClientSecret, "-"+consumerResource.Name, "")
+
 			provisionerCephClientSecret, err := s.getCephClientSecretName(ctx, i.CephClients["provisioner"])
 			if err != nil {
 				return nil, err
 			}
+
+			provisionerCephClientSecret = strings.ReplaceAll(provisionerCephClientSecret, "-"+consumerResource.Name, "")
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: "cephfs",
