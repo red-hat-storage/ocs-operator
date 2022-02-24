@@ -62,6 +62,10 @@ var mockStorageCluster = &api.StorageCluster{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      mockStorageClusterRequest.Name,
 		Namespace: mockStorageClusterRequest.Namespace,
+		Annotations: map[string]string{
+			UninstallModeAnnotation: string(UninstallModeGraceful),
+			CleanupPolicyAnnotation: string(CleanupPolicyDelete),
+		},
 	},
 	Spec: api.StorageClusterSpec{
 		Monitoring: &api.MonitoringSpec{
