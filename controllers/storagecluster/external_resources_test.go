@@ -593,7 +593,7 @@ func TestErasureCodedExternalResources(t *testing.T) {
 
 	for _, extR := range externalResource {
 		t.Run(extR.Name, func(t *testing.T) {
-			actualSC := newCephBlockPoolStorageClassConfiguration(cr)
+			actualSC := newCephBlockPoolStorageClassConfiguration(cr, true)
 			// To override the values for external cluster
 			for k, v := range extR.Data {
 				actualSC.storageClass.Parameters[k] = v
