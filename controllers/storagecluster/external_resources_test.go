@@ -132,6 +132,10 @@ func createExternalClusterReconcilerFromCustomResources(
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit",
+			Annotations: map[string]string{
+				UninstallModeAnnotation: string(UninstallModeGraceful),
+				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
+			},
 		},
 		Spec: api.StorageClusterSpec{
 			ExternalStorage: api.ExternalStorageClusterSpec{
