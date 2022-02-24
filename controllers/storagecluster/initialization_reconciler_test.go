@@ -34,6 +34,10 @@ func createStorageCluster(scName, failureDomainName string,
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: scName,
+			Annotations: map[string]string{
+				UninstallModeAnnotation: string(UninstallModeGraceful),
+				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
+			},
 		},
 		Spec: api.StorageClusterSpec{
 			Monitoring: &api.MonitoringSpec{

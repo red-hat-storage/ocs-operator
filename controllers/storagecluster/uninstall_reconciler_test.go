@@ -26,29 +26,32 @@ func TestReconcileUninstallAnnotations(t *testing.T) {
 		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
 
 		// verify it set default value when nothing is set
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful)
+		delete(sc.Annotations, UninstallModeAnnotation)
+		delete(sc.Annotations, CleanupPolicyAnnotation)
+		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, true)
 
 		// verify it does not return error when there is no update required
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful)
+		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, false)
 
 		// verify it corrects wrong value
 		sc.ObjectMeta.Annotations[UninstallModeAnnotation] = "blablabla"
 		sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = "blablabla"
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful)
+		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, true)
 
 		// verify it does not change if !default value is set
 		sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallModeForced)
 		sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = string(CleanupPolicyRetain)
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyRetain, UninstallModeForced)
+		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyRetain, UninstallModeForced, false)
 	}
 }
 
 func assertStorageClusterUninstallAnnotation(
 	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
-	CleanupPolicy CleanupPolicyType, UninstallMode UninstallModeType) {
+	CleanupPolicy CleanupPolicyType, UninstallMode UninstallModeType, ShouldSCUpdate bool) {
 
-	err := reconciler.reconcileUninstallAnnotations(sc)
+	wasSCUpdated, err := reconciler.reconcileUninstallAnnotations(sc)
 	assert.NoError(t, err)
+	assert.Equal(t, ShouldSCUpdate, wasSCUpdated)
 
 	if val, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
 		assert.FailNow(t, "UninstallModeAnnotation not found")
@@ -72,7 +75,7 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 		// there are two annotations which will be 4 combinations, test all 4 combinations
 
 		// set default uninstall annotations
-		err := reconciler.reconcileUninstallAnnotations(sc)
+		_, err := reconciler.reconcileUninstallAnnotations(sc)
 		assert.NoError(t, err)
 
 		combinationsList := []struct {
@@ -814,7 +817,7 @@ func assertTestSetNoobaaUninstallMode(
 	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
 	UninstallMode UninstallModeType, NoobaaUninstallMode nbv1.CleanupConfirmationProperty) {
 
-	err := reconciler.reconcileUninstallAnnotations(sc)
+	_, err := reconciler.reconcileUninstallAnnotations(sc)
 	assert.NoError(t, err)
 
 	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallMode)
