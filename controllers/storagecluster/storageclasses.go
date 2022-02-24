@@ -195,8 +195,9 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 }
 
 // newCephBlockPoolStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass.
-func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, allowVolumeExpansion bool) StorageClassConfiguration {
+func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
+	allowVolumeExpansion := true
 	managementSpec := initData.Spec.ManagedResources.CephBlockPools
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
@@ -233,9 +234,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, a
 // newEncryptedCephBlockPoolStorageClassConfiguration generates configuration options for an encrypted Ceph Block Pool StorageClass.
 // when user has asked for PV encryption during deployment.
 func newEncryptedCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, serviceName string) StorageClassConfiguration {
-	// PV resize of encrypted volume is not officially supported in ODF 4.10 hence setting it to False
-	allowVolumeExpansion := false
-	encryptedStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData, allowVolumeExpansion)
+	encryptedStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
 	encryptedStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForEncryptedCephBlockPoolSC(initData)
 	encryptedStorageClassConfig.storageClass.Parameters["encrypted"] = "true"
 	encryptedStorageClassConfig.storageClass.Parameters["encryptionKMSID"] = serviceName
@@ -271,10 +270,9 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 // newStorageClassConfigurations returns the StorageClassConfiguration instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1.StorageCluster) ([]StorageClassConfiguration, error) {
-	allowVolumeExpansion := true
 	ret := []StorageClassConfiguration{
 		newCephFilesystemStorageClassConfiguration(initData),
-		newCephBlockPoolStorageClassConfiguration(initData, allowVolumeExpansion),
+		newCephBlockPoolStorageClassConfiguration(initData),
 	}
 	// OBC storageclass will be returned only in TWO conditions,
 	// a. either 'externalStorage' is enabled
