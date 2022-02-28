@@ -35,6 +35,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	go.mongodb.org/mongo-driver v1.5.1 // indirect
 	go.uber.org/multierr v1.6.0
+	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
 	google.golang.org/grpc v1.36.1
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/ini.v1 v1.57.0
