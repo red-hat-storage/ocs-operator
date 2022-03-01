@@ -103,6 +103,12 @@ var (
 				getOcsToleration(),
 			},
 		},
+
+		"rbd-mirror": {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+		},
 	}
 )
 
