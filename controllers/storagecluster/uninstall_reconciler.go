@@ -136,19 +136,9 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (er
 }
 
 // setRookUninstallandCleanupPolicy sets the uninstall mode and cleanup policy for rook based on the annotation on the StorageCluster
-func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster) (err error) {
+func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *ocsv1.StorageCluster, cephCluster *cephv1.CephCluster) (err error) {
 
-	cephCluster := &cephv1.CephCluster{}
 	var updateRequired bool
-
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(instance), Namespace: instance.Namespace}, cephCluster)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			r.Log.Info("Uninstall: CephCluster not found, can't set the cleanup policy and uninstall mode.", "CephCluster", klog.KRef(instance.Namespace, generateNameForCephCluster(instance)))
-			return nil
-		}
-		return fmt.Errorf("Uninstall: Unable to retrieve the CephCluster: %v", err)
-	}
 
 	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
 		if (v == string(CleanupPolicyDelete)) && (cephCluster.Spec.CleanupPolicy.Confirmation != cephv1.DeleteDataDirOnHostsConfirmation) {
@@ -301,9 +291,22 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 		return reconcile.Result{}, err
 	}
 
-	err = r.setRookUninstallandCleanupPolicy(sc)
-	if err != nil {
+	cephCluster := &cephv1.CephCluster{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	if err != nil && !errors.IsNotFound(err) {
 		return reconcile.Result{}, err
+	}
+
+	if !errors.IsNotFound(err) && cephCluster.GetDeletionTimestamp().IsZero() {
+		err = r.setRookUninstallandCleanupPolicy(sc, cephCluster)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		err = r.Client.Delete(context.TODO(), cephCluster)
+		if err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+
 	}
 
 	err = r.setNoobaaUninstallMode(sc)
