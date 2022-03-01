@@ -104,12 +104,14 @@ func assertCephClusterCleanupPolicy(
 	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
 	CleanupPolicyConfirmation cephv1.CleanupConfirmationProperty, AllowUninstallWithVolumes bool) {
 
-	// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
-	err := reconciler.setRookUninstallandCleanupPolicy(sc)
-	assert.NoError(t, err)
+	var err error
 
 	cephCluster := &cephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	assert.NoError(t, err)
+
+	// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
+	err = reconciler.setRookUninstallandCleanupPolicy(sc, cephCluster)
 	assert.NoError(t, err)
 
 	assert.Equal(t, CleanupPolicyConfirmation, cephCluster.Spec.CleanupPolicy.Confirmation)
