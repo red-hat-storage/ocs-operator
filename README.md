@@ -40,7 +40,7 @@ watching and configuring their CustomResources (CRs).
 
 OCS Operator will install its components only on nodes labelled for OCS with `cluster.ocs.openshift.io/openshift-storage=''`.
 
-To label the nodes from CLI,
+To label the worker nodes from CLI,
 
 ```console
 $ oc label nodes <NodeName> cluster.ocs.openshift.io/openshift-storage=''
