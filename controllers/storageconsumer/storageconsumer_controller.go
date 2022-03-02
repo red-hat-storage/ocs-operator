@@ -18,6 +18,9 @@ package controllers
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -36,7 +39,10 @@ import (
 )
 
 const (
-	storageConsumerFinalizer = "storagesconsumer.ocs.openshift.io"
+	storageConsumerFinalizer      = "storagesconsumer.ocs.openshift.io"
+	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
+	StorageClaimAnnotation        = "ocs.openshift.io.storageclaim"
+	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -130,25 +136,24 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.cephFilesystemSubVolumeGroup.Namespace = r.namespace
 
 	r.cephClientRBDProvisioner = &rookCephv1.CephClient{}
-	r.cephClientRBDProvisioner.Name = fmt.Sprintf("%s-%s", "cephclient-rbd-provisioner", r.storageConsumer.Name)
+	r.cephClientRBDProvisioner.Name = generateHashForCephClient(r.storageConsumer.Name, "rbd", "provisioner")
 	r.cephClientRBDProvisioner.Namespace = r.namespace
 
 	r.cephClientRBDNode = &rookCephv1.CephClient{}
-	r.cephClientRBDNode.Name = fmt.Sprintf("%s-%s", "cephclient-rbd-node", r.storageConsumer.Name)
+	r.cephClientRBDNode.Name = generateHashForCephClient(r.storageConsumer.Name, "rbd", "node")
 	r.cephClientRBDNode.Namespace = r.namespace
 
 	r.cephClientCephFSProvisioner = &rookCephv1.CephClient{}
-	r.cephClientCephFSProvisioner.Name = fmt.Sprintf("%s-%s", "cephclient-cephfs-provisioner", r.storageConsumer.Name)
+	r.cephClientCephFSProvisioner.Name = generateHashForCephClient(r.storageConsumer.Name, "cephfs", "provisioner")
 	r.cephClientCephFSProvisioner.Namespace = r.namespace
 
 	r.cephClientCephFSNode = &rookCephv1.CephClient{}
-	r.cephClientCephFSNode.Name = fmt.Sprintf("%s-%s", "cephclient-cephfs-node", r.storageConsumer.Name)
+	r.cephClientCephFSNode.Name = generateHashForCephClient(r.storageConsumer.Name, "cephfs", "node")
 	r.cephClientCephFSNode.Namespace = r.namespace
 
 	r.cephClientHealthChecker = &rookCephv1.CephClient{}
-	r.cephClientHealthChecker.Name = fmt.Sprintf("%s-%s", "cephclient-health-checker", r.storageConsumer.Name)
+	r.cephClientHealthChecker.Name = generateHashForCephClient(r.storageConsumer.Name, "global", "healthChecker")
 	r.cephClientHealthChecker.Namespace = r.namespace
-
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
@@ -388,6 +393,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner() error {
 			return err
 		}
 
+		addStorageRelatedAnnotations(r.cephClientRBDProvisioner, r.storageConsumer.Name, "rbd", "provisioner")
 		r.cephClientRBDProvisioner.Spec = desired.Spec
 		return nil
 	})
@@ -422,11 +428,13 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode() error {
 			},
 		},
 	}
+
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientRBDNode, func() error {
 		if err := r.own(r.cephClientRBDNode); err != nil {
 			return err
 		}
 
+		addStorageRelatedAnnotations(r.cephClientRBDNode, r.storageConsumer.Name, "rbd", "node")
 		r.cephClientRBDNode.Spec = desired.Spec
 		return nil
 	})
@@ -457,6 +465,8 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner() error
 		if err := r.own(r.cephClientCephFSProvisioner); err != nil {
 			return err
 		}
+
+		addStorageRelatedAnnotations(r.cephClientCephFSProvisioner, r.storageConsumer.Name, "cephfs", "provisioner")
 		r.cephClientCephFSProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "allow r",
@@ -494,6 +504,8 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode() error {
 		if err := r.own(r.cephClientCephFSNode); err != nil {
 			return err
 		}
+
+		addStorageRelatedAnnotations(r.cephClientCephFSNode, r.storageConsumer.Name, "cephfs", "node")
 		r.cephClientCephFSNode.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "allow r",
@@ -541,6 +553,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 			return err
 		}
 
+		addStorageRelatedAnnotations(r.cephClientHealthChecker, r.storageConsumer.Name, "global", "healthchecker")
 		r.cephClientHealthChecker.Spec = desired.Spec
 		return nil
 	})
@@ -657,4 +670,36 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rookCephv1.CephFilesystemSubVolumeGroup{}).
 		Owns(&rookCephv1.CephClient{}).
 		Complete(r)
+}
+
+func generateHashForCephClient(storageConsumerName, claimID, cephUserType string) string {
+	var c struct {
+		StorageConsumerName string `json:"id"`
+		ClaimID             string `json:"claimId"`
+		CephUserType        string `json:"cephUserType"`
+	}
+
+	c.StorageConsumerName = storageConsumerName
+	c.ClaimID = claimID
+	c.CephUserType = cephUserType
+
+	cephClient, err := json.Marshal(c)
+	if err != nil {
+		klog.Errorf("failed to marshal ceph client name for consumer %s. %v", storageConsumerName, err)
+		panic("failed to marshal")
+	}
+	name := md5.Sum([]byte(cephClient))
+	return hex.EncodeToString(name[:16])
+}
+
+func addStorageRelatedAnnotations(obj client.Object, storageConsumerName, storageClaim, cephUserType string) {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+		obj.SetAnnotations(annotations)
+	}
+
+	annotations[StorageConsumerAnnotation] = storageConsumerName
+	annotations[StorageClaimAnnotation] = storageClaim
+	annotations[StorageCephUserTypeAnnotation] = cephUserType
 }
