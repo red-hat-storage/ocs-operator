@@ -49,6 +49,8 @@ $ oc label nodes <NodeName> cluster.ocs.openshift.io/openshift-storage=''
 OCS requires at least 3 nodes labelled this way.
 
 > Note: When deploying via Console, the creation wizard takes care of labelling the selected nodes.
+>
+> OpenShift cluster's "master" nodes will need to add toleration for all taints to be used, do this, or choose "worker" nodes to install on.
 
 ### Dedicated nodes
 
