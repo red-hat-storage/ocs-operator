@@ -51,6 +51,8 @@ commands_get+=("rolebinding")
 commands_get+=("volumesnapshot -A")
 commands_get+=("volumesnapshotclass")
 commands_get+=("volumesnapshotcontent")
+commands_get+=("storageconsumer")
+commands_get+=("cephfilesystemsubvolumegroups.ceph.rook.io")
 
 # collect oc output of OC desc commands
 commands_desc=()
@@ -60,6 +62,8 @@ commands_desc+=("storagecluster")
 commands_desc+=("volumesnapshot -A")
 commands_desc+=("volumesnapshotclass")
 commands_desc+=("volumesnapshotcontent")
+commands_desc+=("storageconsumer")
+commands_desc+=("cephfilesystemsubvolumegroups.ceph.rook.io")
 
 # collect yaml output of OC commands
 oc_yamls=()
@@ -100,6 +104,7 @@ done
 # NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
 { oc get storageclusters -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagecluster.yaml" 2>&1
 { oc get storagesystem -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagesystem.yaml" 2>&1
+{ oc get storageconsumer -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storageconsumer.yaml" 2>&1
 
 # Create the dir for data from all namespaces
 mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
