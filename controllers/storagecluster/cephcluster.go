@@ -123,6 +123,10 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		if err := verifyMonitoringEndpoints(monitoringIP, monitoringPort, r.Log); err != nil {
 			r.Log.Error(err, "Could not connect to the Monitoring Endpoints.",
 				"CephCluster", klog.KRef(sc.Namespace, sc.Name))
+			// reset the external resources cache line for this storagecluster to nil,
+			// to allow the next reconcile to fetch an updated  external resources information
+			// from the provider cluster
+			externalOCSResources[sc.UID] = nil
 			return reconcile.Result{}, err
 		}
 		r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
