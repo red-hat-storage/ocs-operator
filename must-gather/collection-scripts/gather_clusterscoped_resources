@@ -49,6 +49,7 @@ commands_desc+=("infrastructures.config")
 commands_desc+=("clusterrole")
 commands_desc+=("clusterrolebinding")
 commands_desc+=("scc")
+commands_desc+=("volumereplicationclass")
 
 # collection path for OC commands
 mkdir -p "${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/"
