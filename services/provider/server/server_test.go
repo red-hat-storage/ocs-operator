@@ -379,7 +379,7 @@ func TestGetExternalResources(t *testing.T) {
 			Name:      "cephclient-health-checker",
 			Namespace: server.namespace,
 			Annotations: map[string]string{
-				controllers.StorageCephUserTypeAnnotation: "healthChecker",
+				controllers.StorageCephUserTypeAnnotation: "healthchecker",
 			},
 		},
 		Status: &rookCephv1.CephClientStatus{
