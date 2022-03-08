@@ -26,7 +26,9 @@ import (
 
 type OperatorsV1Interface interface {
 	RESTClient() rest.Interface
+	OLMConfigsGetter
 	OperatorsGetter
+	OperatorConditionsGetter
 	OperatorGroupsGetter
 }
 
@@ -35,8 +37,16 @@ type OperatorsV1Client struct {
 	restClient rest.Interface
 }
 
+func (c *OperatorsV1Client) OLMConfigs() OLMConfigInterface {
+	return newOLMConfigs(c)
+}
+
 func (c *OperatorsV1Client) Operators() OperatorInterface {
 	return newOperators(c)
+}
+
+func (c *OperatorsV1Client) OperatorConditions(namespace string) OperatorConditionInterface {
+	return newOperatorConditions(c, namespace)
 }
 
 func (c *OperatorsV1Client) OperatorGroups(namespace string) OperatorGroupInterface {

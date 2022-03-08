@@ -6,7 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// returns a Conditions interface to Get or Set OperatorConditions
+// NewUpgradeable returns a Conditions interface to Get or Set OperatorConditions
 func NewUpgradeable(cl client.Client) (conditions.Condition, error) {
-	return conditions.NewCondition(cl, apiv2.ConditionType(apiv2.Upgradeable))
+	return conditions.InClusterFactory{Client: cl}.NewCondition(apiv2.ConditionType(apiv2.Upgradeable))
 }
