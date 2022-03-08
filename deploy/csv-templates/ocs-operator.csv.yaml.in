@@ -71,7 +71,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: ocs-operator.v4.10.0
+  name: ocs-operator.v4.11.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -383,4 +383,4 @@ spec:
   provider:
     name: '""'
     url: '""'
-  version: 4.10.0
+  version: 4.11.0
