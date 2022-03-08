@@ -191,7 +191,7 @@ func (r *OCSInitializationReconciler) ensureToolsDeployment(initialData *ocsv1.O
 	return nil
 }
 
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=ocsinitializations;storageclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;update
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=get;create;update
 
