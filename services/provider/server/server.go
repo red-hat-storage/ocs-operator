@@ -347,7 +347,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				}),
 			})
 
-			if cephUserType == "healthChecker" {
+			if cephUserType == "healthchecker" {
 				// TODO
 				// This is just a temporary fix to get the ceph client name. In the future, we'll change it and will not depend on string conditions.
 				extR = append(extR, &pb.ExternalResource{
