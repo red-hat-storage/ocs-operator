@@ -55,3 +55,8 @@ tools/csv-checksum/csv-checksum
 tools/cluster-deploy/cluster-deploy
 tools/shellcheck
 metrics/mixin/build/vendor
+
+# Ignore ticketgen output
+hack/ticketgen/*.pem
+hack/ticketgen/*.pub
+hack/ticketgen/*.txt
