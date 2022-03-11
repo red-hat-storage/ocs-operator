@@ -94,8 +94,6 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "%q is not a valid storageConsumer capacity: %v", req.Capacity, err)
 	}
 
-	// Validate onboardingTicket
-	// TODO: check expiry of the ticket
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
@@ -108,14 +106,37 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 
 	storageConsumerUUID, err := s.consumerManager.Create(ctx, req.ConsumerName, req.OnboardingTicket, capacity)
 	if err != nil {
-		if kerrors.IsAlreadyExists(err) || err == errTicketAlreadyExists {
+		if !kerrors.IsAlreadyExists(err) || err != errTicketAlreadyExists {
+			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
+		}
+
+		stoageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)
+		}
+
+		if stoageConsumer.Spec.Enable {
+			err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", req.ConsumerName)
 			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
 		}
-		return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
+		storageConsumerUUID = string(stoageConsumer.UID)
 	}
 
 	// TODO: send correct granted capacity
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID, GrantedCapacity: req.Capacity}, nil
+}
+
+// AcknowledgeOnboarding acknowledge the onboarding is complete
+func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
+
+	if err := s.consumerManager.EnableStorageConsumer(ctx, req.StorageConsumerUUID); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "storageConsumer not found. %v", err)
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to update the storageConsumer. %v", err)
+	}
+
+	return &pb.AcknowledgeOnboardingResponse{}, nil
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
@@ -133,6 +154,8 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 	// Verify Status
 	switch consumerObj.Status.State {
+	case ocsv1alpha1.StorageConsumerStateDisabled:
+		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer is in disabled state")
 	case ocsv1alpha1.StorageConsumerStateFailed:
 		// TODO: get correct error message from the storageConsumer status
 		return nil, status.Errorf(codes.Internal, "storageConsumer status failed")
@@ -166,6 +189,8 @@ func (s *OCSProviderServer) UpdateCapacity(ctx context.Context, req *pb.UpdateCa
 	if err := s.consumerManager.UpdateCapacity(ctx, req.StorageConsumerUUID, capacity); err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil, status.Errorf(codes.NotFound, "failed to update capacity in the storageConsumer resource: %v", err)
+		} else if err == errFailedPrecondition {
+			return nil, status.Errorf(codes.FailedPrecondition, "failed to update capacity in the storageConsumer resource: %v", err)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to update capacity in the storageConsumer resource: %v", err)
 	}
