@@ -43,7 +43,7 @@ var mockExtR = map[string]*externalResource{
 		Name: "rook-ceph-mon",
 		Kind: "Secret",
 		Data: map[string]string{
-			"ceph-username": "client.cephclient-health-checker-consumer",
+			"ceph-username": "client.7c1507bffc3030e301cdd0f9b6ecd56e",
 			"fsid":          "b88c2d78-9de9-4227-9313-a63f62f78743",
 			"mon-secret":    "mon-secret",
 			"ceph-secret":   "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
@@ -103,11 +103,11 @@ var mockExtR = map[string]*externalResource{
 			"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
-	"rook-ceph-client-cephclient-health-checker": {
-		Name: "rook-ceph-client-cephclient-health-checker",
+	"rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e": {
+		Name: "rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e",
 		Kind: "Secret",
 		Data: map[string]string{
-			"userID":  "cephclient-health-checker",
+			"userID":  "7c1507bffc3030e301cdd0f9b6ecd56e",
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 		},
 	},
@@ -160,7 +160,7 @@ var (
 					Kind: "CephClient",
 				},
 				{
-					Name: "cephclient-health-checker",
+					Name: "7c1507bffc3030e301cdd0f9b6ecd56e",
 					Kind: "CephClient",
 				},
 				{
@@ -275,7 +275,9 @@ func TestGetExternalResources(t *testing.T) {
 			Name:      "995e66248ad3e8642de868f461cdd827",
 			Namespace: server.namespace,
 			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation: "rbd",
+				controllers.StorageClaimAnnotation:        "rbd",
+				controllers.StorageCephUserTypeAnnotation: "node",
+				controllers.StorageConsumerAnnotation:     "consumer",
 			},
 		},
 		Status: &rookCephv1.CephClientStatus{
@@ -300,7 +302,9 @@ func TestGetExternalResources(t *testing.T) {
 			Name:      "3de200d5c23524a4612bde1fdbeb717e",
 			Namespace: server.namespace,
 			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation: "rbd",
+				controllers.StorageClaimAnnotation:        "rbd",
+				controllers.StorageCephUserTypeAnnotation: "provisioner",
+				controllers.StorageConsumerAnnotation:     "consumer",
 			},
 		},
 		Status: &rookCephv1.CephClientStatus{
@@ -325,7 +329,9 @@ func TestGetExternalResources(t *testing.T) {
 			Name:      "1b042fcc8812fe4203689eec38fdfbfa",
 			Namespace: server.namespace,
 			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation: "cephfs",
+				controllers.StorageClaimAnnotation:        "cephfs",
+				controllers.StorageCephUserTypeAnnotation: "node",
+				controllers.StorageConsumerAnnotation:     "consumer",
 			},
 		},
 		Status: &rookCephv1.CephClientStatus{
@@ -350,7 +356,9 @@ func TestGetExternalResources(t *testing.T) {
 			Name:      "4ffcb503ff8044c8699dac415f82d604",
 			Namespace: server.namespace,
 			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation: "cephfs",
+				controllers.StorageClaimAnnotation:        "cephfs",
+				controllers.StorageCephUserTypeAnnotation: "provisioner",
+				controllers.StorageConsumerAnnotation:     "consumer",
 			},
 		},
 		Status: &rookCephv1.CephClientStatus{
@@ -376,23 +384,25 @@ func TestGetExternalResources(t *testing.T) {
 
 	cephClient = &rookCephv1.CephClient{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cephclient-health-checker",
+			Name:      "7c1507bffc3030e301cdd0f9b6ecd56e",
 			Namespace: server.namespace,
 			Annotations: map[string]string{
 				controllers.StorageCephUserTypeAnnotation: "healthchecker",
+				controllers.StorageClaimAnnotation:        "global",
+				controllers.StorageConsumerAnnotation:     "consumer",
 			},
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-cephclient-health-checker",
+				"secretName": "rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-cephclient-health-checker", Namespace: server.namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e", Namespace: server.namespace},
 		Data: map[string][]byte{
-			"cephclient-health-checker": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
+			"7c1507bffc3030e301cdd0f9b6ecd56e": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
 		},
 	}
 

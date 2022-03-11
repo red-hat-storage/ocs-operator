@@ -318,10 +318,10 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			"MonitoringPort":     strconv.Itoa(int(port)),
 		})})
 
-	for _, i := range consumerResource.Status.CephResources {
-		switch i.Kind {
+	for _, cephRes := range consumerResource.Status.CephResources {
+		switch cephRes.Kind {
 		case "CephClient":
-			clientSecretName, cephClaim, cephUserType, err := s.getCephClientInformation(ctx, i.Name)
+			clientSecretName, cephClaim, cephUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -342,8 +342,8 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				Name: clientSecretName,
 				Kind: "Secret",
 				Data: mustMarshal(map[string]string{
-					idProp:  i.Name,
-					keyProp: string(cephUserSecret.Data[i.Name]),
+					idProp:  cephRes.Name,
+					keyProp: string(cephUserSecret.Data[cephRes.Name]),
 				}),
 			})
 
@@ -356,17 +356,17 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 					Data: mustMarshal(map[string]string{
 						"fsid":          fsid,
 						"mon-secret":    "mon-secret",
-						"ceph-username": fmt.Sprintf("client.cephclient-health-checker-%s", consumerResource.Name),
-						"ceph-secret":   string(cephUserSecret.Data[i.Name]),
+						"ceph-username": fmt.Sprintf("client.%s", cephRes.Name),
+						"ceph-secret":   string(cephUserSecret.Data[cephRes.Name]),
 					})})
 			}
 		case "CephBlockPool":
-			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, i.CephClients["node"])
+			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
 			if err != nil {
 				return nil, err
 			}
 
-			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, i.CephClients["provisioner"])
+			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
 			if err != nil {
 				return nil, err
 			}
@@ -376,7 +376,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				Kind: "StorageClass",
 				Data: mustMarshal(map[string]string{
 					"clusterID":                 s.namespace,
-					"pool":                      i.Name,
+					"pool":                      cephRes.Name,
 					"imageFeatures":             "layering",
 					"csi.storage.k8s.io/fstype": "ext4",
 					"imageFormat":               "2",
@@ -386,17 +386,17 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				})})
 		case "CephFilesystemSubVolumeGroup":
 			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
-			err := s.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: s.namespace}, subVolumeGroup)
+			err := s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, subVolumeGroup)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get %s cephFilesystemSubVolumeGroup. %v", i.Name, err)
+				return nil, fmt.Errorf("failed to get %s cephFilesystemSubVolumeGroup. %v", cephRes.Name, err)
 			}
 
-			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, i.CephClients["node"])
+			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
 			if err != nil {
 				return nil, err
 			}
 
-			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, i.CephClients["provisioner"])
+			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
 			if err != nil {
 				return nil, err
 			}
@@ -412,8 +412,8 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				})})
 
 			extR = append(extR, &pb.ExternalResource{
-				Name: i.Name,
-				Kind: i.Kind,
+				Name: cephRes.Name,
+				Kind: cephRes.Kind,
 				Data: mustMarshal(map[string]string{
 					"filesystemName": subVolumeGroup.Spec.FilesystemName,
 				})})
