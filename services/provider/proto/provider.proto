@@ -21,6 +21,10 @@ service OCSProvider {
   // UpdateCapacity PRC call to increase or decrease the block pool size
   rpc UpdateCapacity(UpdateCapacityRequest)
   returns (UpdateCapacityResponse){}
+
+  // AcknowledgeOnboarding RPC call acknowledge the onboarding
+  rpc AcknowledgeOnboarding(AcknowledgeOnboardingRequest)
+  returns (AcknowledgeOnboardingResponse){}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -92,4 +96,16 @@ message UpdateCapacityRequest{
 message UpdateCapacityResponse{
     // grantedCapacity is the storage granted by the provider cluster
     string grantedCapacity = 2;
+}
+
+
+// AcknowledgeOnboardingRequest holds the information required to acknowledge the onboarding
+message AcknowledgeOnboardingRequest{
+    // K8s UID (UUID) of the consumer cluster
+    string storageConsumerUUID =1;
+}
+
+// AcknowledgeOnboardingResponse holds the response for the AcknowledgeOnboarding API request
+message AcknowledgeOnboardingResponse{
+
 }
