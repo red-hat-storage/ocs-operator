@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -242,10 +243,9 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 		defer externalClusterClient.Close()
 
 		if instance.Status.ExternalStorage.ConsumerID == "" {
-			res, err := r.onboardConsumer(instance, externalClusterClient)
-			if err != nil || !res.IsZero() {
-				return res, err
-			}
+			return r.onboardConsumer(instance, externalClusterClient)
+		} else if instance.Status.Phase == statusutil.PhaseOnboarding {
+			return r.acknowledgeOnboarding(instance, externalClusterClient)
 		} else if !instance.Spec.ExternalStorage.RequestedCapacity.Equal(instance.Status.ExternalStorage.GrantedCapacity) {
 			res, err := r.updateConsumerCapacity(instance, externalClusterClient)
 			if err != nil || !res.IsZero() {

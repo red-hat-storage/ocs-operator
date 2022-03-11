@@ -411,6 +411,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				Message: message,
 			})
 		} else if instance.Status.Phase != statusutil.PhaseReady &&
+			instance.Status.Phase != statusutil.PhaseOnboarding &&
 			instance.Status.Phase != statusutil.PhaseConnecting {
 			instance.Status.Phase = statusutil.PhaseProgressing
 		}
