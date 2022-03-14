@@ -33,6 +33,8 @@ const (
 	StorageConsumerStateDeleting StorageConsumerState = "Deleting"
 	// StorageConsumerStateFailed represents Failed state of StorageConsumer
 	StorageConsumerStateFailed StorageConsumerState = "Failed"
+	// StorageConsumerStateDisabled represents Disabled state of StorageConsumer
+	StorageConsumerStateDisabled StorageConsumerState = "Disabled"
 )
 
 // StorageConsumerSpec defines the desired state of StorageConsumer
