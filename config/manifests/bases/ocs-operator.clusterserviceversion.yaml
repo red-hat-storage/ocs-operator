@@ -6,21 +6,21 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: ocs-operator.vX.Y.Z
+  name: ocs-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: StorageCluster is the Schema for the storageclusters API
-      displayName: Storage Cluster
-      kind: StorageCluster
-      name: storageclusters.ocs.openshift.io
-      version: v1
     - description: OCSInitialization is the Schema for the ocsinitialization API
       displayName: OCSInitialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
+      version: v1
+    - description: StorageCluster is the Schema for the storageclusters API
+      displayName: Storage Cluster
+      kind: StorageCluster
+      name: storageclusters.ocs.openshift.io
       version: v1
     - description: StorageConsumer is the Schema for the storageconsumers API
       displayName: Storage Consumer
