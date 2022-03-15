@@ -311,6 +311,13 @@ type MirroringSpec struct {
 	PeerSecretNames []string `json:"peerSecretNames,omitempty"`
 }
 
+// KMSServerConnectionStatus defines the observed connection state to the KMS
+// server.
+type KMSServerConnectionStatus struct {
+	KMSServerAddress         string `json:"kmsServerAddress,omitempty"`
+	KMSServerConnectionError string `json:"kmsServerConnectionError,omitempty"`
+}
+
 // StorageClusterStatus defines the observed state of StorageCluster
 type StorageClusterStatus struct {
 	// Phase describes the Phase of StorageCluster
@@ -360,6 +367,9 @@ type StorageClusterStatus struct {
 
 	// Images holds the image reconcile status for all images reconciled by the operator
 	Images ImagesStatus `json:"images,omitempty"`
+
+	// KMSServerConnection holds the connection state to the KMS server.
+	KMSServerConnection KMSServerConnectionStatus `json:"kmsServerConnection,omitempty"`
 }
 
 // ImagesStatus maps every component image name it's reconciliation status information
