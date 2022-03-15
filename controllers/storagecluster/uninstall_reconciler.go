@@ -272,10 +272,10 @@ func (r *StorageClusterReconciler) verifyNoStorageConsumerExist(instance *ocsv1.
 	}
 
 	if len(storageConsumers.Items) != 0 {
-		err = fmt.Errorf("Failed to uninstall storage cluster. StorageConsumers are present in the %s namespace. "+
-			"Clean all StorageConsumers for the uninstallation to proceed", instance.Namespace)
-		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "", err.Error())
-		r.Log.Error(err, "Uninstall: Waiting for StorageConsumers to be deleted via user.")
+		err = fmt.Errorf("Failed to cleanup provider resources. StorageConsumers are present in the %s namespace. "+
+			"Offboard all consumer clusters for the provider cleanup to proceed", instance.Namespace)
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "ProviderCleanup", err.Error())
+		r.Log.Error(err, "Waiting for all consumer clusters to offboard.")
 		return err
 	}
 
