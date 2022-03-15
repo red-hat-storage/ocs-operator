@@ -4830,6 +4830,15 @@ spec:
                         type: string
                     type: object
                 type: object
+              kmsServerConnection:
+                description: KMSServerConnection holds the connection state to the
+                  KMS server.
+                properties:
+                  kmsServerAddress:
+                    type: string
+                  kmsServerConnectionError:
+                    type: string
+                type: object
               nodeTopologies:
                 description: NodeTopologies is a list of topology labels on all nodes
                   matching the StorageCluster's placement selector.
