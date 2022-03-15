@@ -233,7 +233,7 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 // being created
 func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if isOCSConsumerMode(instance) {
+	if IsOCSConsumerMode(instance) {
 
 		externalClusterClient, err := r.newExternalClusterClient(instance)
 		if err != nil {
@@ -286,7 +286,7 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 // ensureDeleted is dummy func for the ocsExternalResources
 func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if isOCSConsumerMode(instance) {
+	if IsOCSConsumerMode(instance) {
 
 		// skip offboarding if consumer is not onboarded
 		if instance.Status.ExternalStorage.ConsumerID == "" {
