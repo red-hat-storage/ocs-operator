@@ -877,8 +877,8 @@ func TestVerifyNoStorageConsumerExist(t *testing.T) {
 
 		err = r.verifyNoStorageConsumerExist(instance)
 		assert.Error(t, err)
-		expectedErr := fmt.Errorf("Failed to uninstall storage cluster. StorageConsumers are present in the  namespace. " +
-			"Clean all StorageConsumers for the uninstallation to proceed")
+		expectedErr := fmt.Errorf("Failed to cleanup provider resources. StorageConsumers are present in the  namespace. " +
+			"Offboard all consumer clusters for the provider cleanup to proceed")
 		assert.Equal(t, expectedErr, err)
 	})
 
