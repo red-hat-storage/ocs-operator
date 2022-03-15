@@ -82,6 +82,9 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
+    - kind: StorageClassClaim
+      name: storageclassclaims.ocs.openshift.io
+      version: v1alpha1
     - description: StorageCluster is the Schema for the storageclusters API
       displayName: Storage Cluster
       kind: StorageCluster
@@ -244,6 +247,26 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclassclaims
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclassclaims/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - ocs.openshift.io
           resources:
