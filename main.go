@@ -37,9 +37,11 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/ocsinitialization"
 	"github.com/red-hat-storage/ocs-operator/controllers/persistentvolume"
+	"github.com/red-hat-storage/ocs-operator/controllers/storageclassclaim"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -50,7 +52,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	retry "k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -157,12 +159,21 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolume")
 		os.Exit(1)
 	}
+
 	if err = (&controllers.StorageConsumerReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("StorageConsumer"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumer")
+		os.Exit(1)
+	}
+
+	if err = (&storageclassclaim.StorageClassClaimReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageClassClaim")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
