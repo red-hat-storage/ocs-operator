@@ -108,7 +108,8 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	for _, c := range cases {
 		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
-		reconciler.Client.Create(context.TODO(), &cephCluster) //nolint //ignoring err check as causes failure
+		err := reconciler.Client.Create(context.TODO(), cephCluster.DeepCopy())
+		assert.NoError(t, err)
 
 		if c.isCreate {
 			err := reconciler.Client.Get(context.TODO(), namespacedName, &c.noobaa)
@@ -117,7 +118,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			err := reconciler.Client.Create(context.TODO(), &c.noobaa)
 			assert.NoError(t, err)
 		}
-		_, err := obj.ensureCreated(&reconciler, &sc)
+		_, err = obj.ensureCreated(&reconciler, &sc)
 		assert.NoError(t, err)
 
 		_ = reconciler.Client.Get(context.TODO(), namespacedName, &noobaa)

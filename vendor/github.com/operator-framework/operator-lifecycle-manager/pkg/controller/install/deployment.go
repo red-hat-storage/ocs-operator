@@ -6,11 +6,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/utils/pointer"
 
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/api/wrappers"
+	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/operators/olm/overrides/inject"
 	hashutil "github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/pkg/util/hash"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/ownerutil"
 )
@@ -85,7 +89,7 @@ func NewStrategyDeploymentInstaller(strategyClient wrappers.InstallStrategyDeplo
 
 func (i *StrategyDeploymentInstaller) installDeployments(deps []v1alpha1.StrategyDeploymentSpec) error {
 	for _, d := range deps {
-		deployment, _, err := i.deploymentForSpec(d.Name, d.Spec)
+		deployment, _, err := i.deploymentForSpec(d.Name, d.Spec, d.Label)
 		if err != nil {
 			return err
 		}
@@ -94,14 +98,14 @@ func (i *StrategyDeploymentInstaller) installDeployments(deps []v1alpha1.Strateg
 			return err
 		}
 
-		if err := i.createOrUpdateCertResourcesForDeployment(deployment.GetName()); err != nil {
+		if err := i.createOrUpdateCertResourcesForDeployment(); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (i *StrategyDeploymentInstaller) createOrUpdateCertResourcesForDeployment(deploymentName string) error {
+func (i *StrategyDeploymentInstaller) createOrUpdateCertResourcesForDeployment() error {
 	for _, desc := range i.getCertResources() {
 		switch d := desc.(type) {
 		case *apiServiceDescriptionsWithCAPEM:
@@ -121,26 +125,29 @@ func (i *StrategyDeploymentInstaller) createOrUpdateCertResourcesForDeployment(d
 				return err
 			}
 		default:
-			return fmt.Errorf("Unsupported CA Resource")
+			return fmt.Errorf("unsupported CA Resource")
 		}
 	}
 	return nil
 }
 
-func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1.DeploymentSpec) (deployment *appsv1.Deployment, hash string, err error) {
+func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1.DeploymentSpec, specLabels k8slabels.Set) (deployment *appsv1.Deployment, hash string, err error) {
 	dep := &appsv1.Deployment{Spec: spec}
 	dep.SetName(name)
 	dep.SetNamespace(i.owner.GetNamespace())
 
 	// Merge annotations (to avoid losing info from pod template)
 	annotations := map[string]string{}
-	for k, v := range i.templateAnnotations {
-		annotations[k] = v
-	}
 	for k, v := range dep.Spec.Template.GetAnnotations() {
 		annotations[k] = v
 	}
+	for k, v := range i.templateAnnotations {
+		annotations[k] = v
+	}
 	dep.Spec.Template.SetAnnotations(annotations)
+
+	// Set custom labels before CSV owner labels
+	dep.SetLabels(specLabels)
 
 	ownerutil.AddNonBlockingOwner(dep, i.owner)
 	ownerutil.AddOwnerLabelsForKind(dep, i.owner, v1alpha1.ClusterServiceVersionKind)
@@ -150,35 +157,26 @@ func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1
 		return
 	}
 
+	podSpec := &dep.Spec.Template.Spec
+	if injectErr := inject.InjectEnvIntoDeployment(podSpec, []corev1.EnvVar{{
+		Name:  "OPERATOR_CONDITION_NAME",
+		Value: i.owner.GetName(),
+	}}); injectErr != nil {
+		err = injectErr
+		return
+	}
+
 	// OLM does not support Rollbacks.
 	// By default, each deployment created by OLM could spawn up to 10 replicaSets.
 	// By setting the deployments revisionHistoryLimit to 1, OLM will only create up
 	// to 2 ReplicaSets per deployment it manages, saving memory.
-	revisionHistoryLimit := int32(1)
-	dep.Spec.RevisionHistoryLimit = &revisionHistoryLimit
+	dep.Spec.RevisionHistoryLimit = pointer.Int32Ptr(1)
 
 	hash = HashDeploymentSpec(dep.Spec)
 	dep.Labels[DeploymentSpecHashLabelKey] = hash
 
 	deployment = dep
 	return
-}
-
-func (i *StrategyDeploymentInstaller) cleanupPrevious(current *v1alpha1.StrategyDetailsDeployment, previous *v1alpha1.StrategyDetailsDeployment) error {
-	previousDeploymentsMap := map[string]struct{}{}
-	for _, d := range previous.DeploymentSpecs {
-		previousDeploymentsMap[d.Name] = struct{}{}
-	}
-	for _, d := range current.DeploymentSpecs {
-		delete(previousDeploymentsMap, d.Name)
-	}
-	log.Debugf("preparing to cleanup: %s", previousDeploymentsMap)
-	// delete deployments in old strategy but not new
-	var err error = nil
-	for name := range previousDeploymentsMap {
-		err = i.strategyClient.DeleteDeployment(name)
-	}
-	return err
 }
 
 func (i *StrategyDeploymentInstaller) Install(s Strategy) error {
@@ -220,11 +218,6 @@ func (i *StrategyDeploymentInstaller) CheckInstalled(s Strategy) (installed bool
 }
 
 func (i *StrategyDeploymentInstaller) checkForDeployments(deploymentSpecs []v1alpha1.StrategyDeploymentSpec) error {
-	var depNames []string
-	for _, dep := range deploymentSpecs {
-		depNames = append(depNames, dep.Name)
-	}
-
 	// Check the owner is a CSV
 	csv, ok := i.owner.(*v1alpha1.ClusterServiceVersion)
 	if !ok {
@@ -239,7 +232,7 @@ func (i *StrategyDeploymentInstaller) checkForDeployments(deploymentSpecs []v1al
 	// compare deployments to see if any need to be created/updated
 	existingMap := map[string]*appsv1.Deployment{}
 	for _, d := range existingDeployments {
-		existingMap[d.GetName()] = d
+		existingMap[d.GetName()] = d.DeepCopy()
 	}
 	for _, spec := range deploymentSpecs {
 		dep, exists := existingMap[spec.Name]
@@ -258,7 +251,7 @@ func (i *StrategyDeploymentInstaller) checkForDeployments(deploymentSpecs []v1al
 
 		// check annotations
 		if len(i.templateAnnotations) > 0 && dep.Spec.Template.Annotations == nil {
-			return StrategyError{Reason: StrategyErrReasonAnnotationsMissing, Message: fmt.Sprintf("no annotations found on deployment")}
+			return StrategyError{Reason: StrategyErrReasonAnnotationsMissing, Message: "no annotations found on deployment"}
 		}
 		for key, value := range i.templateAnnotations {
 			if actualValue, ok := dep.Spec.Template.Annotations[key]; !ok {
@@ -271,14 +264,14 @@ func (i *StrategyDeploymentInstaller) checkForDeployments(deploymentSpecs []v1al
 		// check that the deployment spec hasn't changed since it was created
 		labels := dep.GetLabels()
 		if len(labels) == 0 {
-			return StrategyError{Reason: StrategyErrDeploymentUpdated, Message: fmt.Sprintf("deployment doesn't have a spec hash, update it")}
+			return StrategyError{Reason: StrategyErrDeploymentUpdated, Message: fmt.Sprintf("deployment %s doesn't have a spec hash, update it", dep.Name)}
 		}
 		existingDeploymentSpecHash, ok := labels[DeploymentSpecHashLabelKey]
 		if !ok {
-			return StrategyError{Reason: StrategyErrDeploymentUpdated, Message: fmt.Sprintf("deployment doesn't have a spec hash, update it")}
+			return StrategyError{Reason: StrategyErrDeploymentUpdated, Message: fmt.Sprintf("deployment %s doesn't have a spec hash, update it", dep.Name)}
 		}
 
-		_, calculatedDeploymentHash, err := i.deploymentForSpec(spec.Name, spec.Spec)
+		_, calculatedDeploymentHash, err := i.deploymentForSpec(spec.Name, spec.Spec, labels)
 		if err != nil {
 			return StrategyError{Reason: StrategyErrDeploymentUpdated, Message: fmt.Sprintf("couldn't calculate deployment spec hash: %v", err)}
 		}
