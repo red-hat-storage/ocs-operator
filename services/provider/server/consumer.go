@@ -17,6 +17,7 @@ import (
 
 var (
 	errTicketAlreadyExists = errors.New("onboarding ticket already used by another storageConsumer")
+	errFailedPrecondition  = errors.New("storageConsumer is in disabled state")
 )
 
 type ocsConsumerManager struct {
@@ -73,6 +74,7 @@ func (c *ocsConsumerManager) Create(ctx context.Context, name, ticket string, ca
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
 			Capacity: capacity,
+			Enable:   false,
 		},
 	}
 
@@ -142,6 +144,11 @@ func (c *ocsConsumerManager) UpdateCapacity(ctx context.Context, id string, capa
 		return err
 	}
 
+	if consumerObj.Status.State == ocsv1alpha1.StorageConsumerStateDisabled || !consumerObj.Spec.Enable {
+		klog.Warningf("storageConsumer %s is in disabled state", consumerObj.Name)
+		return errFailedPrecondition
+	}
+
 	consumerObj.Spec.Capacity = capacity
 	err = c.client.Update(ctx, consumerObj)
 	if err != nil {
@@ -151,6 +158,37 @@ func (c *ocsConsumerManager) UpdateCapacity(ctx context.Context, id string, capa
 	klog.Infof("successfully updated requested capacity field in the StorageConsumer resource %q", consumerObj.Name)
 
 	return nil
+}
+
+// EnableStorageConsumer enables storageConsumer resource
+func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, id string) error {
+	// Get storage consumer resource using UID
+	consumerObj, err := c.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	consumerObj.Spec.Enable = true
+	err = c.client.Update(ctx, consumerObj)
+	if err != nil {
+		return fmt.Errorf("failed to update storageConsumer resource %q. %v", consumerObj.Name, err)
+	}
+
+	klog.Infof("successfully Enabled the StorageConsumer resource %q", consumerObj.Name)
+
+	return nil
+}
+
+// GetByName returns a storageConsumer resource using the Name
+func (c *ocsConsumerManager) GetByName(ctx context.Context, name string) (*ocsv1alpha1.StorageConsumer, error) {
+
+	consumerObj := &ocsv1alpha1.StorageConsumer{}
+	if err := c.client.Get(ctx, types.NamespacedName{Name: name, Namespace: c.namespace}, consumerObj); err != nil {
+		klog.Errorf("Failed to get the storageConsumer %s: %v", name, err)
+		return nil, err
+	}
+
+	return consumerObj, nil
 }
 
 // Get returns a storageConsumer resource using the UID

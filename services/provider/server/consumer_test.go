@@ -33,6 +33,7 @@ var (
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
 			Capacity: resource.MustParse("1G"),
+			Enable:   true,
 		},
 	}
 
@@ -163,6 +164,15 @@ func TestUpdateCapacity(t *testing.T) {
 	consumer, err = consumerManager.Get(ctx, "uid1")
 	assert.NoError(t, err)
 	assert.Equal(t, consumer.Spec.Capacity, resource.MustParse("10G"))
+
+	// update fails if consumer is disabled
+	consumer.Spec.Enable = false
+	err = consumerManager.client.Update(ctx, consumer)
+	assert.NoError(t, err)
+	err = consumerManager.UpdateCapacity(ctx, "uid1", resource.MustParse("10G"))
+	assert.Error(t, err)
+	assert.Equal(t, errFailedPrecondition, err)
+
 }
 
 func TestGetStorageConsumer(t *testing.T) {

@@ -33,12 +33,17 @@ const (
 	StorageConsumerStateDeleting StorageConsumerState = "Deleting"
 	// StorageConsumerStateFailed represents Failed state of StorageConsumer
 	StorageConsumerStateFailed StorageConsumerState = "Failed"
+	// StorageConsumerStateDisabled represents Disabled state of StorageConsumer
+	StorageConsumerStateDisabled StorageConsumerState = "Disabled"
 )
 
 // StorageConsumerSpec defines the desired state of StorageConsumer
 type StorageConsumerSpec struct {
 	// Capacity is the total quota size allocated to a consumer.
 	Capacity resource.Quantity `json:"capacity"`
+
+	// Enable flag ignores a reconcile if set to false
+	Enable bool `json:"enable,omitempty"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage

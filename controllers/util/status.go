@@ -29,6 +29,8 @@ var (
 	PhaseDeleting = "Deleting"
 	// PhaseConnecting is used when cluster is connecting to external cluster
 	PhaseConnecting = "Connecting"
+	// PhaseOnboarding is used when consumer is Onboarding
+	PhaseOnboarding = "Onboarding"
 )
 
 const (

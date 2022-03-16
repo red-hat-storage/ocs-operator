@@ -118,3 +118,18 @@ func (cc *OCSProviderClient) UpdateCapacity(ctx context.Context, consumerUUID, c
 
 	return cc.Client.UpdateCapacity(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) AcknowledgeOnboarding(ctx context.Context, consumerUUID string) (*pb.AcknowledgeOnboardingResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.AcknowledgeOnboardingRequest{
+		StorageConsumerUUID: consumerUUID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.AcknowledgeOnboarding(apiCtx, req)
+}
