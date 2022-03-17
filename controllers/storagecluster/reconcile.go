@@ -296,6 +296,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	if instance.Status.Phase != statusutil.PhaseReady &&
 		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 		instance.Status.Phase != statusutil.PhaseDeleting &&
+		instance.Status.Phase != statusutil.PhaseOnboarding &&
 		instance.Status.Phase != statusutil.PhaseConnecting {
 		instance.Status.Phase = statusutil.PhaseProgressing
 	}
@@ -419,7 +420,11 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", returnErr)
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
-			instance.Status.Phase = statusutil.PhaseError
+
+			if instance.Status.Phase != statusutil.PhaseOnboarding {
+				instance.Status.Phase = statusutil.PhaseError
+			}
+
 			// don't want to overwrite the actual reconcile failure
 			return reconcile.Result{}, returnErr
 		} else if !returnRes.IsZero() {
