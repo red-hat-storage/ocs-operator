@@ -171,6 +171,7 @@ func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, id strin
 	consumerObj.Spec.Enable = true
 	err = c.client.Update(ctx, consumerObj)
 	if err != nil {
+		klog.Errorf("Failed to enable storageConsumer %v", err)
 		return fmt.Errorf("failed to update storageConsumer resource %q. %v", consumerObj.Name, err)
 	}
 
