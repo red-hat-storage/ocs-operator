@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	externalClient "github.com/red-hat-storage/ocs-operator/services/provider/client"
 )
 
@@ -27,10 +28,11 @@ var (
 
 const (
 	// grpcCallNames
-	OnboardConsumer  = "OnboardConsumer"
-	OffboardConsumer = "OffboardConsumer"
-	UpdateCapacity   = "UpdateCapacity"
-	GetStorageConfig = "GetStorageConfig"
+	OnboardConsumer       = "OnboardConsumer"
+	OffboardConsumer      = "OffboardConsumer"
+	UpdateCapacity        = "UpdateCapacity"
+	GetStorageConfig      = "GetStorageConfig"
+	AcknowledgeOnboarding = "AcknowledgeOnboarding"
 )
 
 // isOCSConsumerMode returns true if it is ocs to ocs ExternalStorage consumer cluster
@@ -79,8 +81,24 @@ func (r *StorageClusterReconciler) onboardConsumer(instance *ocsv1.StorageCluste
 
 	instance.Status.ExternalStorage.ConsumerID = response.StorageConsumerUUID
 	instance.Status.ExternalStorage.GrantedCapacity = resource.MustParse(response.GrantedCapacity)
+	instance.Status.Phase = statusutil.PhaseOnboarding
 
-	return reconcile.Result{}, nil
+	return reconcile.Result{Requeue: true}, nil
+}
+
+func (r *StorageClusterReconciler) acknowledgeOnboarding(instance *ocsv1.StorageCluster, externalClusterClient *externalClient.OCSProviderClient) (reconcile.Result, error) {
+
+	_, err := externalClusterClient.AcknowledgeOnboarding(context.Background(), instance.Status.ExternalStorage.ConsumerID)
+	if err != nil {
+		if s, ok := status.FromError(err); ok {
+			r.logGrpcErrorAndReportEvent(instance, AcknowledgeOnboarding, err, s.Code())
+		}
+		return reconcile.Result{}, err
+	}
+
+	instance.Status.Phase = statusutil.PhaseProgressing
+
+	return reconcile.Result{Requeue: true}, nil
 }
 
 // offboardConsumer makes an API call to the external storage provider cluster for offboarding
@@ -178,6 +196,12 @@ func (r *StorageClusterReconciler) logGrpcErrorAndReportEvent(instance *ocsv1.St
 		} else if errCode == codes.AlreadyExists {
 			msg = "Token is already used. Contact provider admin for a new token"
 			eventReason = "TokenAlreadyUsed"
+			eventType = corev1.EventTypeWarning
+		}
+	} else if grpcCallName == AcknowledgeOnboarding {
+		if errCode == codes.NotFound {
+			msg = "StorageConsumer not found. Contact the provider admin"
+			eventReason = "NotFound"
 			eventType = corev1.EventTypeWarning
 		}
 	} else if grpcCallName == OffboardConsumer {

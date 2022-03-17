@@ -158,6 +158,11 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
 
+	if !r.storageConsumer.Spec.Enable {
+		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDisabled
+		return reconcile.Result{}, nil
+	}
+
 	r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
 
 	for _, cephResourceSpec := range r.storageConsumer.Status.CephResources {
