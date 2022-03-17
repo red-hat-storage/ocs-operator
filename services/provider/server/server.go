@@ -152,6 +152,8 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 		return nil, err
 	}
 
+	klog.Infof("Found storageConsumer for GetStorageConfig")
+
 	// Verify Status
 	switch consumerObj.Status.State {
 	case ocsv1alpha1.StorageConsumerStateDisabled:
@@ -168,6 +170,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
 		}
+		klog.Infof("successfully returned the config details to the consumer.")
 		return &pb.StorageConfigResponse{ExternalResource: conString}, nil
 	}
 
