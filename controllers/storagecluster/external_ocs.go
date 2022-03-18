@@ -83,6 +83,7 @@ func (r *StorageClusterReconciler) onboardConsumer(instance *ocsv1.StorageCluste
 	instance.Status.ExternalStorage.GrantedCapacity = resource.MustParse(response.GrantedCapacity)
 	instance.Status.Phase = statusutil.PhaseOnboarding
 
+	r.Log.Info("External-OCS:Onboarding is succeed, will save status.")
 	return reconcile.Result{Requeue: true}, nil
 }
 
@@ -93,11 +94,13 @@ func (r *StorageClusterReconciler) acknowledgeOnboarding(instance *ocsv1.Storage
 		if s, ok := status.FromError(err); ok {
 			r.logGrpcErrorAndReportEvent(instance, AcknowledgeOnboarding, err, s.Code())
 		}
+		r.Log.Error(err, "External-OCS:Failed to acknowledge onboarding.")
 		return reconcile.Result{}, err
 	}
 
 	instance.Status.Phase = statusutil.PhaseProgressing
 
+	r.Log.Info("External-OCS:Onboarding is acknowledged successfully.")
 	return reconcile.Result{Requeue: true}, nil
 }
 
