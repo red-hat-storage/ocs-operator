@@ -639,7 +639,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 	// Feature disablement flag for Console. The array values are unique identifiers provided by the console.
 	// To be used to disable UI components. This is used to track migration of features.
 	// Example: "features.ocs.openshift.io/disabled": `["external", "foo1", "foo2", ...]`
-	ocsCSV.Annotations["features.ocs.openshift.io/disabled"] = `["ss-list"]`
+	ocsCSV.Annotations["features.ocs.openshift.io/disabled"] = `["ss-list", "wizard"]`
 	// Used by UI to validate user uploaded metdata
 	// Metadata is used to connect to an external cluster
 	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}`
