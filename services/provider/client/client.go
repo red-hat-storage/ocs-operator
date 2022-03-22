@@ -133,3 +133,50 @@ func (cc *OCSProviderClient) AcknowledgeOnboarding(ctx context.Context, consumer
 
 	return cc.Client.AcknowledgeOnboarding(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) FulFillStorageClassClaim(ctx context.Context, consumerID, encryptionMethod string, storageType pb.FulFillStorageClassClaimRequest_StorageType) (*pb.FulFillStorageClassClaimResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.FulFillStorageClassClaimRequest{
+		StorageConsumerID: consumerID,
+		EncryptionMethod:  encryptionMethod,
+		StorageType:       storageType,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.FulFillStorageClassClaim(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) RevokeStorageClassClaim(ctx context.Context, claimID string) (*pb.RevokeStorageClassClaimResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.RevokeStorageClassClaimRequest{
+		StorageClassClaimID: claimID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.RevokeStorageClassClaim(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) GetStorageClassClaimConfig(ctx context.Context, claimID string) (*pb.StorageClassClaimConfigResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.StorageClassClaimConfigRequest{
+		StorageClassClaimID: claimID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetStorageClassClaimConfig(apiCtx, req)
+}

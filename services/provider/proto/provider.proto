@@ -25,6 +25,19 @@ service OCSProvider {
   // AcknowledgeOnboarding RPC call acknowledge the onboarding
   rpc AcknowledgeOnboarding(AcknowledgeOnboardingRequest)
   returns (AcknowledgeOnboardingResponse){}
+
+  // FulFillStorageClassClaim RPC call to create the StorageclassClaim CR on
+  // provider cluster.
+  rpc FulFillStorageClassClaim(FulFillStorageClassClaimRequest)
+  returns (FulFillStorageClassClaimResponse){}
+  // RevokeStorageClassClaim RPC call to delete the StorageclassClaim CR
+  // on provider cluster.
+  rpc RevokeStorageClassClaim(RevokeStorageClassClaimRequest)
+  returns (RevokeStorageClassClaimResponse){}
+  // GetStorageClassClaimConfig RPC call to generate the json config for claim
+  // specific resources.
+  rpc GetStorageClassClaimConfig(StorageClassClaimConfigRequest)
+  returns (StorageClassClaimConfigResponse){}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -41,7 +54,7 @@ message OnboardConsumerRequest{
 // OnboardConsumerResponse holds the response for OnboardConsumer API request
 message OnboardConsumerResponse{
     // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID =1;
+    string storageConsumerUUID = 1;
     // grantedCapacity is the storage granted by the provider cluster
     string grantedCapacity = 2;
 }
@@ -50,8 +63,8 @@ message OnboardConsumerResponse{
 // StorageConfigRequest holds the information required generate the json config for connecting to storage provider cluster
 message StorageConfigRequest{
     // K8s UID (UUID) of the consumer cluster
-     string storageConsumerUUID =1;
- }
+    string storageConsumerUUID = 1;
+}
 
 
  // ExternalResource holds the configuration data of the resources in external storage cluster
@@ -68,13 +81,13 @@ message ExternalResource {
 message StorageConfigResponse{
      // ExternalResource holds the configuration data of external storage cluster
      repeated ExternalResource externalResource = 1;
- }
+}
 
 
 // OffboardConsumerRequest holds the required information to delete the StorageConsumer CR on the storage provider cluster.
 message OffboardConsumerRequest{
     // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID =1;
+    string storageConsumerUUID = 1;
 }
 
 // OffboardConsumerResponse holds the response for the OffboardConsumer API request
@@ -87,7 +100,7 @@ message OffboardConsumerResponse{
 // on the provider cluster
 message UpdateCapacityRequest{
     // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID =1;
+    string storageConsumerUUID = 1;
     // capacity is the desired storage requested by the consumer cluster
     string capacity = 2;
 }
@@ -102,10 +115,55 @@ message UpdateCapacityResponse{
 // AcknowledgeOnboardingRequest holds the information required to acknowledge the onboarding
 message AcknowledgeOnboardingRequest{
     // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID =1;
+    string storageConsumerUUID = 1;
 }
 
 // AcknowledgeOnboardingResponse holds the response for the AcknowledgeOnboarding API request
 message AcknowledgeOnboardingResponse{
 
+}
+
+// FulFillStorageClassClaimRequest holds the information required to
+// create the StorageclassClaim CR on provider cluster.
+message FulFillStorageClassClaimRequest{
+    // ID of the consumer cluster
+    string storageConsumerID = 1;
+    // encryption method of the storageclassclaim.
+    string encryptionMethod = 2;
+    // StorageType of the storageclassClaim
+    enum StorageType {
+      SHAREDFILESYSTEM = 0;
+      BLOCKPOOL = 1;
+   }
+   StorageType storageType = 3;
+}
+
+// FulFillStorageClassClaimResponse holds the response for the FulFillStorageClassClaim API request.
+message FulFillStorageClassClaimResponse{
+    // storageclassClaim Identified on the provider cluster.
+    string storageClassClaimID = 1;
+}
+
+// RevokeStorageClassClaimRequest holds the information required to delete the
+// StorageclassClaim CR on provider cluster.
+message RevokeStorageClassClaimRequest{
+    // storageclassClaim Identified on the provider cluster.
+    string storageClassClaimID = 1;
+}
+
+// RevokeStorageClassClaimResponse holds the response for the RevokeStorageClassClaim API request.
+message RevokeStorageClassClaimResponse{
+}
+
+// StorageClassClaimConfigRequest holds the information required to generate the
+// json config for StorageClassClaim specific resources.
+message StorageClassClaimConfigRequest{
+     // storageclassClaim Identified on the provider cluster.
+    string storageClassClaimID = 1;
+}
+
+// StorageClassClaimConfigResponse holds the response for the StorageClassClaimConfig API request.
+message StorageClassClaimConfigResponse{
+     // ExternalResource holds the configuration data of external storage cluster
+     repeated ExternalResource externalResource = 1;
 }

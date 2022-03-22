@@ -553,3 +553,20 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 
 	return nil
 }
+
+// FulFillStorageClassClaim RPC call to create the StorageclassClaim CR on
+// provider cluster.
+func (s *OCSProviderServer) FulFillStorageClassClaim(ctx context.Context, req *pb.FulFillStorageClassClaimRequest) (*pb.FulFillStorageClassClaimResponse, error) {
+	return &pb.FulFillStorageClassClaimResponse{}, nil
+}
+
+// RevokeStorageClassClaim RPC call to delete the StorageclassClaim CR on
+// provider cluster.
+func (s *OCSProviderServer) RevokeStorageClassClaim(ctx context.Context, req *pb.RevokeStorageClassClaimRequest) (*pb.RevokeStorageClassClaimResponse, error) {
+	return &pb.RevokeStorageClassClaimResponse{}, nil
+}
+
+// GetStorageClassClaim RPC call to get the ceph resources for the StorageclassClaim.
+func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req *pb.StorageClassClaimConfigRequest) (*pb.StorageClassClaimConfigResponse, error) {
+	return &pb.StorageClassClaimConfigResponse{}, nil
+}
