@@ -407,8 +407,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		// If no operator whose conditions we are watching reports an error, then it is safe
 		// to set upgradeable to true.
-		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
-			!instance.Spec.ExternalStorage.Enable {
+		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
 			instance.Status.Phase = statusutil.PhaseReady
 			returnErr := r.SetOperatorConditions(message, reason, metav1.ConditionTrue, nil)
 			if returnErr != nil {
