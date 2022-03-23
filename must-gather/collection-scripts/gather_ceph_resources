@@ -19,6 +19,8 @@ CEPH_COLLECTION_PATH="${BASE_COLLECTION_PATH}/ceph"
 ceph_resources=()
 ceph_resources+=(cephblockpools)
 ceph_resources+=(cephfilesystems)
+ceph_resources+=(cephclient)
+ceph_resources+=(cephfilesystemsubvolumegroups)
 
 # Ceph commands
 ceph_commands=()
