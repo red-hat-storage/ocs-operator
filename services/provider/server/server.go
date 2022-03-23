@@ -22,6 +22,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/services/provider/common"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -53,9 +54,10 @@ const (
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
-	client          client.Client
-	consumerManager *ocsConsumerManager
-	namespace       string
+	client            client.Client
+	consumerManager   *ocsConsumerManager
+	storageClassClaim *ocsStorageClassClaim
+	namespace         string
 }
 
 type onboardingTicket struct {
@@ -349,33 +351,19 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	for _, cephRes := range consumerResource.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
-			clientSecretName, cephClaim, cephUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
+
+			clientSecretName, _, cephUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
 			if err != nil {
 				return nil, err
 			}
 
-			cephUserSecret := &v1.Secret{}
-			err = s.client.Get(ctx, types.NamespacedName{Name: clientSecretName, Namespace: s.namespace}, cephUserSecret)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get %s secret. %v", clientSecretName, err)
-			}
-
-			idProp := "userID"
-			keyProp := "userKey"
-			if cephClaim == "cephfs" {
-				idProp = "adminID"
-				keyProp = "adminKey"
-			}
-			extR = append(extR, &pb.ExternalResource{
-				Name: clientSecretName,
-				Kind: "Secret",
-				Data: mustMarshal(map[string]string{
-					idProp:  cephRes.Name,
-					keyProp: string(cephUserSecret.Data[cephRes.Name]),
-				}),
-			})
-
 			if cephUserType == "healthchecker" {
+				cephUserSecret := &v1.Secret{}
+				err = s.client.Get(ctx, types.NamespacedName{Name: clientSecretName, Namespace: s.namespace}, cephUserSecret)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get %s secret. %v", clientSecretName, err)
+				}
+
 				// TODO
 				// This is just a temporary fix to get the ceph client name. In the future, we'll change it and will not depend on string conditions.
 				extR = append(extR, &pb.ExternalResource{
@@ -388,63 +376,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 						"ceph-secret":   string(cephUserSecret.Data[cephRes.Name]),
 					})})
 			}
-		case "CephBlockPool":
-			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
-			if err != nil {
-				return nil, err
-			}
-
-			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
-			if err != nil {
-				return nil, err
-			}
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: "ceph-rbd",
-				Kind: "StorageClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID":                 s.namespace,
-					"pool":                      cephRes.Name,
-					"imageFeatures":             "layering",
-					"csi.storage.k8s.io/fstype": "ext4",
-					"imageFormat":               "2",
-					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
-				})})
-		case "CephFilesystemSubVolumeGroup":
-			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
-			err := s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, subVolumeGroup)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get %s cephFilesystemSubVolumeGroup. %v", cephRes.Name, err)
-			}
-
-			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
-			if err != nil {
-				return nil, err
-			}
-
-			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
-			if err != nil {
-				return nil, err
-			}
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: "cephfs",
-				Kind: "StorageClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
-					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
-				})})
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: cephRes.Name,
-				Kind: cephRes.Kind,
-				Data: mustMarshal(map[string]string{
-					"filesystemName": subVolumeGroup.Spec.FilesystemName,
-				})})
 		}
 	}
 
@@ -557,6 +488,13 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 // FulFillStorageClassClaim RPC call to create the StorageclassClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulFillStorageClassClaim(ctx context.Context, req *pb.FulFillStorageClassClaimRequest) (*pb.FulFillStorageClassClaimResponse, error) {
+	err := s.storageClassClaim.Create(ctx, fmt.Sprintf("%s-%s", rand.String(5), req.StorageConsumerID), req.StorageType.String(), req.EncryptionMethod, req.StorageConsumerID)
+	if err != nil {
+		if !kerrors.IsAlreadyExists(err) {
+			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", "", err)
+		}
+	}
+
 	return &pb.FulFillStorageClassClaimResponse{}, nil
 }
 
@@ -568,5 +506,134 @@ func (s *OCSProviderServer) RevokeStorageClassClaim(ctx context.Context, req *pb
 
 // GetStorageClassClaim RPC call to get the ceph resources for the StorageclassClaim.
 func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req *pb.StorageClassClaimConfigRequest) (*pb.StorageClassClaimConfigResponse, error) {
-	return &pb.StorageClassClaimConfigResponse{}, nil
+
+	consumerClaimObj, err := s.storageClassClaim.Get(ctx, req.StorageClassClaimID)
+	if err != nil {
+		return nil, err
+	}
+
+	conString, err := s.getExternalResourcesClaim(ctx, consumerClaimObj)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
+	}
+	klog.Infof("successfully returned the config details to the consumer.")
+
+	return &pb.StorageClassClaimConfigResponse{ExternalResource: conString}, nil
+}
+
+func (s *OCSProviderServer) getExternalResourcesClaim(ctx context.Context, consumerClaim *ocsv1alpha1.StorageClassClaim) ([]*pb.ExternalResource, error) {
+	var extR []*pb.ExternalResource
+
+	ownerRef := consumerClaim.GetOwnerReferences()
+	if len(ownerRef) == 0 {
+		return nil, fmt.Errorf("owner references on consumerClaim is empty")
+	}
+	cephClient := rookCephv1.CephClient{}
+	for _, cephRes := range ownerRef {
+		if cephRes.Kind == cephClient.Kind {
+
+			clientSecretName, cephClaim, _, err := s.getCephClientInformation(ctx, cephRes.Name)
+			if err != nil {
+				return nil, err
+			}
+
+			cephUserSecret := &v1.Secret{}
+			err = s.client.Get(ctx, types.NamespacedName{Name: clientSecretName, Namespace: s.namespace}, cephUserSecret)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get %s secret. %v", clientSecretName, err)
+			}
+
+			idProp := "userID"
+			keyProp := "userKey"
+			if cephClaim == "cephfs" {
+				idProp = "adminID"
+				keyProp = "adminKey"
+			}
+			extR = append(extR, &pb.ExternalResource{
+				Name: clientSecretName,
+				Kind: "Secret",
+				Data: mustMarshal(map[string]string{
+					idProp:  cephRes.Name,
+					keyProp: string(cephUserSecret.Data[cephRes.Name]),
+				}),
+			})
+		}
+
+		cephBlockPool := rookCephv1.CephBlockPool{}
+		if consumerClaim.Spec.Type == cephBlockPool.Kind {
+			var nodeCephClientSecret, provisionerCephClientSecret string
+			var err error
+			if cephRes.Name == "node" {
+				nodeCephClientSecret, _, _, err = s.getCephClientInformation(ctx, cephRes.Name)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if cephRes.Name == "provisioner" {
+				provisionerCephClientSecret, _, _, err = s.getCephClientInformation(ctx, cephRes.Name)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: "ceph-rbd",
+				Kind: "StorageClass",
+				Data: mustMarshal(map[string]string{
+					"clusterID":                 s.namespace,
+					"pool":                      cephRes.Name,
+					"imageFeatures":             "layering",
+					"csi.storage.k8s.io/fstype": "ext4",
+					"imageFormat":               "2",
+					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
+					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
+					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
+				})})
+		}
+		cephSubVolumeGroup := rookCephv1.CephFilesystemSubVolumeGroup{}
+		if consumerClaim.Spec.Type == cephSubVolumeGroup.Kind {
+			var nodeCephClientSecret, provisionerCephClientSecret string
+			var err error
+
+			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
+			err = s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, subVolumeGroup)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get %s cephFilesystemSubVolumeGroup. %v", cephRes.Name, err)
+			}
+
+			if cephRes.Name == "node" {
+				nodeCephClientSecret, _, _, err = s.getCephClientInformation(ctx, cephRes.Name)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if cephRes.Name == "provisioner" {
+				provisionerCephClientSecret, _, _, err = s.getCephClientInformation(ctx, cephRes.Name)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: "cephfs",
+				Kind: "StorageClass",
+				Data: mustMarshal(map[string]string{
+					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
+					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
+					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
+					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
+				})})
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: cephRes.Name,
+				Kind: cephRes.Kind,
+				Data: mustMarshal(map[string]string{
+					"filesystemName": subVolumeGroup.Spec.FilesystemName,
+				})})
+		}
+	}
+
+	return extR, nil
 }
