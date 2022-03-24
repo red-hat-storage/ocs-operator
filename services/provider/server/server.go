@@ -23,14 +23,13 @@ import (
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
-	v1 "k8s.io/api/core/v1"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,9 +52,10 @@ const (
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
-	client          client.Client
-	consumerManager *ocsConsumerManager
-	namespace       string
+	client                   client.Client
+	consumerManager          *ocsConsumerManager
+	storageClassClaimManager *storageClassClaimManager
+	namespace                string
 }
 
 type onboardingTicket struct {
@@ -74,10 +74,16 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
+	storageClassClaimManager, err := newStorageClassClaimManager(ctx, client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new StorageClassClaim instance. %v", err)
+	}
+
 	return &OCSProviderServer{
-		client:          client,
-		consumerManager: consumerManager,
-		namespace:       namespace,
+		client:                   client,
+		consumerManager:          consumerManager,
+		storageClassClaimManager: storageClassClaimManager,
+		namespace:                namespace,
 	}, nil
 }
 
@@ -557,6 +563,23 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 // FulfillStorageClassClaim RPC call to create the StorageclassClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulfillStorageClassClaim(ctx context.Context, req *pb.FulfillStorageClassClaimRequest) (*pb.FulfillStorageClassClaimResponse, error) {
+	// Get storage consumer resource using UUID
+	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
+	klog.Infof("Found StorageConsumer %q (%q)", consumerObj.Name, req.StorageConsumerUUID)
+
+	err = s.storageClassClaimManager.Create(ctx, consumerObj, req.StorageClassClaimName, req.StorageType.String(), req.EncryptionMethod)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to fulfill storage class claim for %q. %v", req.StorageConsumerUUID, err)
+		if kerrors.IsAlreadyExists(err) {
+			return nil, status.Error(codes.AlreadyExists, errMsg)
+		}
+		return nil, status.Error(codes.Internal, errMsg)
+	}
+
 	return &pb.FulfillStorageClassClaimResponse{}, nil
 }
 
