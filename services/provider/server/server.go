@@ -593,6 +593,11 @@ func (s *OCSProviderServer) FulfillStorageClassClaim(ctx context.Context, req *p
 // RevokeStorageClassClaim RPC call to delete the StorageclassClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) RevokeStorageClassClaim(ctx context.Context, req *pb.RevokeStorageClassClaimRequest) (*pb.RevokeStorageClassClaimResponse, error) {
+	err := s.storageClassClaimManager.Delete(ctx, req.StorageClassClaimID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete storageClassClaim resource with the provided ID %q. %v", req.StorageClassClaimID, err)
+	}
+
 	return &pb.RevokeStorageClassClaimResponse{}, nil
 }
 

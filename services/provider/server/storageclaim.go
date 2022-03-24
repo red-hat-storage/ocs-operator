@@ -72,3 +72,42 @@ func (c *ocsStorageClassClaimManager) Create(ctx context.Context, name, consumer
 
 	return string(storageClassClaimObj.GetUID()), nil
 }
+
+// Delete deletes the storageClassClaim resource using UID and updates the claim cache
+func (c *ocsStorageClassClaimManager) Delete(ctx context.Context, id string) error {
+	uid := types.UID(id)
+	c.mutex.RLock()
+	claimName, ok := c.nameByUID[uid]
+	if !ok {
+		klog.Warningf("no storageClassClaim found with ID %q", id)
+		c.mutex.RUnlock()
+		return nil
+	}
+	c.mutex.RUnlock()
+
+	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      claimName,
+			Namespace: c.namespace,
+		},
+	}
+	if err := c.client.Delete(ctx, storageClassClaimObj); err != nil {
+		if kerrors.IsNotFound(err) {
+			// update uidStore
+			c.mutex.Lock()
+			delete(c.nameByUID, uid)
+			c.mutex.Unlock()
+			klog.Warningf("storageClassClaim %q not found.", claimName)
+			return nil
+		}
+		return fmt.Errorf("failed to delete storageClassClaim %q. %v", claimName, err)
+	}
+
+	c.mutex.Lock()
+	delete(c.nameByUID, uid)
+	c.mutex.Unlock()
+
+	klog.Infof("successfully deleted storageClassClaim resource %q", claimName)
+
+	return nil
+}
