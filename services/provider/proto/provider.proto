@@ -126,16 +126,18 @@ message AcknowledgeOnboardingResponse{
 // FulfillStorageClassClaimRequest holds the information required to
 // create the StorageclassClaim CR on provider cluster.
 message FulfillStorageClassClaimRequest{
-    // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID = 1;
+    // name of the storageclassclaim on the consumer cluster.
+    string storageClassClaimName = 1;
+    // K8s UID (UUID) of the consumer cluster.
+    string storageConsumerUUID = 2;
     // encryption method of the storageclassclaim.
-    string encryptionMethod = 2;
+    string encryptionMethod = 3;
     // StorageType of the storageclassClaim
     enum StorageType {
       SHAREDFILESYSTEM = 0;
       BLOCKPOOL = 1;
-   }
-   StorageType storageType = 3;
+    }
+    StorageType storageType = 4;
 }
 
 // FulfillStorageClassClaimResponse holds the response for the FulfillStorageClassClaim API request.
@@ -147,8 +149,10 @@ message FulfillStorageClassClaimResponse{
 // RevokeStorageClassClaimRequest holds the information required to delete the
 // StorageclassClaim CR on provider cluster.
 message RevokeStorageClassClaimRequest{
-    // storageclassClaim Identified on the provider cluster.
-    string storageClassClaimID = 1;
+    // name of the storageclassclaim on the consumer cluster.
+    string storageClassClaimName = 1;
+    // K8s UID (UUID) of the consumer cluster.
+    string storageConsumerUUID = 2;
 }
 
 // RevokeStorageClassClaimResponse holds the response for the RevokeStorageClassClaim API request.
@@ -158,12 +162,14 @@ message RevokeStorageClassClaimResponse{
 // StorageClassClaimConfigRequest holds the information required to generate the
 // json config for StorageClassClaim specific resources.
 message StorageClassClaimConfigRequest{
-     // storageclassClaim Identified on the provider cluster.
-    string storageClassClaimID = 1;
+    // name of the storageclassclaim on the consumer cluster.
+    string storageClassClaimName = 1;
+    // K8s UID (UUID) of the consumer cluster.
+    string storageConsumerUUID = 2;
 }
 
 // StorageClassClaimConfigResponse holds the response for the StorageClassClaimConfig API request.
 message StorageClassClaimConfigResponse{
-     // ExternalResource holds the configuration data of external storage cluster
-     repeated ExternalResource externalResource = 1;
+    // ExternalResource holds the configuration data of external storage cluster
+    repeated ExternalResource externalResource = 1;
 }
