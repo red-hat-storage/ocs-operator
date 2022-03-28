@@ -98,3 +98,26 @@ func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1al
 
 	return nil
 }
+
+// Delete deletes the storageClassClaim resource using storageClassClaimName
+// and consumerUUID.
+func (s *storageClassClaimManager) Delete(ctx context.Context, consumerUUID, storageClassClaimName string) error {
+	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
+	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generatedClaimName,
+			Namespace: s.namespace,
+		},
+	}
+	if err := s.client.Delete(ctx, storageClassClaimObj); err != nil {
+		if kerrors.IsNotFound(err) {
+			klog.Warningf("StorageClassClaim %q not found for consumer %q and claim %q", generatedClaimName, consumerUUID, storageClassClaimName)
+			return nil
+		}
+		return fmt.Errorf("failed to delete StorageClassClaim %q for consumer %q and claim %q. %v", generatedClaimName, consumerUUID, storageClassClaimName, err)
+	}
+
+	klog.Infof("successfully deleted StorageClassClaim %q for consumer %q and claim %q", generatedClaimName, consumerUUID, storageClassClaimName)
+
+	return nil
+}
