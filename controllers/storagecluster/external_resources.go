@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -39,6 +41,11 @@ const (
 const (
 	rookCephOperatorConfigName = "rook-ceph-operator-config"
 	rookEnableCephFSCSIKey     = "ROOK_CSI_ENABLE_CEPHFS"
+)
+
+const (
+	// defaultStorageClassClaimLabel is added to all default storage class claims
+	defaultStorageClassClaimLabel = "storageclassclaim.ocs.openshift.io/default"
 )
 
 // ExternalResource contains a list of External Cluster Resources
@@ -288,6 +295,11 @@ func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, inst
 
 	if IsOCSConsumerMode(instance) {
 
+		err := r.deleteDefaultStorageClassClaims(instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
 		// skip offboarding if consumer is not onboarded
 		if instance.Status.ExternalStorage.ConsumerID == "" {
 			r.Log.Info("Consumer is not onboarded. Skipping the offboarding request.")
@@ -324,6 +336,107 @@ func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, inst
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// claims should be created only once and should not be created/updated again if user deletes/update it.
+func (r *StorageClusterReconciler) createDefaultStorageClassClaims(instance *ocsv1.StorageCluster) error {
+
+	storageClassClaimFile := &ocsv1alpha1.StorageClassClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephFilesystemSC(instance),
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				defaultStorageClassClaimLabel: "true",
+			},
+		},
+		Spec: ocsv1alpha1.StorageClassClaimSpec{
+			Type: "sharedfilesystem",
+		},
+	}
+
+	storageClassClaimBlock := &ocsv1alpha1.StorageClassClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephBlockPoolSC(instance),
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				defaultStorageClassClaimLabel: "true",
+			},
+		},
+		Spec: ocsv1alpha1.StorageClassClaimSpec{
+			Type: "blockpool",
+		},
+	}
+
+	err := r.createAndOwnStorageClassClaim(instance, storageClassClaimFile)
+	if err != nil {
+		return err
+	}
+
+	err = r.createAndOwnStorageClassClaim(instance, storageClassClaimBlock)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *StorageClusterReconciler) createAndOwnStorageClassClaim(
+	instance *ocsv1.StorageCluster, claim *ocsv1alpha1.StorageClassClaim) error {
+
+	err := controllerutil.SetOwnerReference(instance, claim, r.Client.Scheme())
+	if err != nil {
+		return err
+	}
+
+	err = r.Client.Create(context.TODO(), claim)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageClusterReconciler) deleteDefaultStorageClassClaims(instance *ocsv1.StorageCluster) error {
+
+	storageClassClaims := &ocsv1alpha1.StorageClassClaimList{}
+	err := r.Client.List(context.TODO(), storageClassClaims, &client.ListOptions{
+		Raw: &metav1.ListOptions{LabelSelector: defaultStorageClassClaimLabel}})
+	if err != nil {
+		return err
+	}
+
+	for i := range storageClassClaims.Items {
+		storageClassClaim := &storageClassClaims.Items[i]
+
+		err = r.Client.Delete(context.TODO(), storageClassClaim)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *StorageClusterReconciler) verifyNoStorageClassClaimsExist(instance *ocsv1.StorageCluster) error {
+
+	storageClassClaims := &ocsv1alpha1.StorageClassClaimList{}
+	err := r.Client.List(context.TODO(), storageClassClaims)
+	if err != nil {
+		return err
+	}
+
+	for i := range storageClassClaims.Items {
+		storageClassClaim := &storageClassClaims.Items[i]
+
+		if _, ok := storageClassClaim.Labels[defaultStorageClassClaimLabel]; !ok {
+			err = fmt.Errorf("Failed to cleanup resources. storageClassClaims are present." +
+				"Delete all storageClassClaims for the cleanup to proceed")
+			r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "Cleanup", err.Error())
+			r.Log.Error(err, "Waiting for all storageClassClaims to be deleted.")
+			return err
+		}
+	}
+
+	return nil
 }
 
 // createExternalStorageClusterResources creates external cluster resources

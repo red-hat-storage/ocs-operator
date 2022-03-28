@@ -98,6 +98,12 @@ func (r *StorageClusterReconciler) acknowledgeOnboarding(instance *ocsv1.Storage
 		return reconcile.Result{}, err
 	}
 
+	// claims should be created only once and should not be created/updated again if user deletes/update it.
+	err = r.createDefaultStorageClassClaims(instance)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	instance.Status.Phase = statusutil.PhaseProgressing
 
 	r.Log.Info("External-OCS:Onboarding is acknowledged successfully.")
