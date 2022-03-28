@@ -142,8 +142,6 @@ message FulfillStorageClassClaimRequest{
 
 // FulfillStorageClassClaimResponse holds the response for the FulfillStorageClassClaim API request.
 message FulfillStorageClassClaimResponse{
-    // storageclassClaim Identified on the provider cluster.
-    string storageClassClaimID = 1;
 }
 
 // RevokeStorageClassClaimRequest holds the information required to delete the
