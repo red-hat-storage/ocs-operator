@@ -20,20 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// StorageClassClaimState represent a StorageClassClaimState's state
-type StorageClassClaimState string
-
-const (
-	// StorageClassClaimStateReady represents Ready state of StorageClassClaimState
-	StorageClassClaimStateReady StorageClassClaimState = "Ready"
-	// StorageClassClaimStateInitializing represents Initializing state of StorageClassClaimState
-	StorageClassClaimStateInitializing StorageClassClaimState = "Initializing"
-	// StorageClassClaimStateCreating represents Creating state of StorageClassClaimState
-	StorageClassClaimStateCreating StorageClassClaimState = "Creating"
-	// StorageClassClaimStateDeleting represents Deleting state of StorageClassClaimState
-	StorageClassClaimStateDeleting StorageClassClaimState = "Deleting"
-)
-
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // StorageClassClaimSpec defines the desired state of StorageClassClaim
@@ -43,9 +29,26 @@ type StorageClassClaimSpec struct {
 	EncryptionMethod string `json:"encryptionMethod,omitempty"`
 }
 
+type storageClassClaimState string
+
+const (
+	// StorageClassClaimInitializing represents Initializing state of StorageClassClaim
+	StorageClassClaimInitializing storageClassClaimState = "Initializing"
+	// StorageClassClaimValidating represents Validating state of StorageClassClaim
+	StorageClassClaimValidating storageClassClaimState = "Validating"
+	// StorageClassClaimFailed represents Failed state of StorageClassClaim
+	StorageClassClaimFailed storageClassClaimState = "Failed"
+	// StorageClassClaimCreating represents Configuring state of StorageClassClaim
+	StorageClassClaimCreating storageClassClaimState = "Creating"
+	// StorageClassClaimConfiguring represents Configuring state of StorageClassClaim
+	StorageClassClaimConfiguring storageClassClaimState = "Configuring"
+	// StorageClassClaimReady represents Ready state of StorageClassClaim
+	StorageClassClaimReady storageClassClaimState = "Ready"
+)
+
 // StorageClassClaimStatus defines the observed state of StorageClassClaim
 type StorageClassClaimStatus struct {
-	Phase string `json:"phase,omitempty"`
+	Phase storageClassClaimState `json:"phase,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 }

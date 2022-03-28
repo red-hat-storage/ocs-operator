@@ -18,24 +18,28 @@ package storageclassclaim
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"k8s.io/klog/v2"
+	"reflect"
+	"time"
 
 	"github.com/go-logr/logr"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
+	providerclient "github.com/red-hat-storage/ocs-operator/services/provider/client"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -50,27 +54,33 @@ const (
 // nolint
 type StorageClassClaimReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	log    logr.Logger
-	ctx    context.Context
-
-	storageConsumer              *ocsv1alpha1.StorageConsumer
+	Scheme                       *runtime.Scheme
+	log                          logr.Logger
+	ctx                          context.Context
+	storageConsumer              *v1alpha1.StorageConsumer
 	storageCluster               *v1.StorageCluster
-	storageClassClaim            *ocsv1alpha1.StorageClassClaim
+	storageClassClaim            *v1alpha1.StorageClassClaim
 	cephBlockPool                *rookCephv1.CephBlockPool
 	cephFilesystemSubVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup
 	cephClientProvisioner        *rookCephv1.CephClient
 	cephClientNode               *rookCephv1.CephClient
-	cephResourcesByName          map[string]*ocsv1alpha1.CephResourcesSpec
-
-	namespace string
+	cephResourcesByName          map[string]*v1alpha1.CephResourcesSpec
+	namespace                    string
 }
+
+const (
+	StorageClassClaimFinalizer = "storageclassclaim.ocs.openshift.io"
+	StorageClassFinalizer      = "storageclass.ocs.openshift.io"
+)
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpools,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters,verbs=get;watch;list
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch
 
 func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	r.log = ctrllog.FromContext(ctx, "StorageClassClaim", request)
@@ -79,7 +89,7 @@ func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request rec
 	r.log.Info("Reconciling StorageClassClaim.")
 
 	// Fetch the StorageClassClaim instance
-	r.storageClassClaim = &ocsv1alpha1.StorageClassClaim{}
+	r.storageClassClaim = &v1alpha1.StorageClassClaim{}
 	r.storageClassClaim.Name = request.Name
 	r.storageClassClaim.Namespace = r.namespace
 
@@ -92,26 +102,44 @@ func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
+	r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimInitializing
+
 	storageClusterList := &v1.StorageClusterList{}
-	if err := r.Client.List(ctx, storageClusterList, client.InNamespace(request.Namespace)); err != nil {
+	if err := r.list(storageClusterList, client.InNamespace(r.namespace)); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if len(storageClusterList.Items) > 1 {
+	switch l := len(storageClusterList.Items); {
+	case l == 0:
+		return reconcile.Result{}, fmt.Errorf("no StorageCluster found")
+	case l != 1:
 		return reconcile.Result{}, fmt.Errorf("multiple StorageCluster found")
 	}
 	r.storageCluster = &storageClusterList.Items[0]
 
+	// StorageCluster checks for required fields.
+	switch storageCluster := r.storageCluster; {
+	case storageCluster.Status.ExternalStorage.ConsumerID == "":
+		return reconcile.Result{}, fmt.Errorf("no external storage consumer id found on the " +
+			"StorageCluster status, cannot determine mode")
+	case storageCluster.Spec.ExternalStorage.StorageProviderEndpoint == "":
+		return reconcile.Result{}, fmt.Errorf("no external storage provider endpoint found on the " +
+			"StorageCluster spec, cannot determine mode")
+	}
+
 	var result reconcile.Result
 	var reconcileError error
 	if storagecluster.IsOCSConsumerMode(r.storageCluster) {
-		result, reconcileError = r.reconcileConsumerPhases(ctx, r.storageCluster)
+		result, reconcileError = r.reconcileConsumerPhases()
 	} else {
 		result, reconcileError = r.reconcileProviderPhases()
 	}
 
 	// Apply status changes to the StorageClassClaim
-	statusError := r.Client.Status().Update(ctx, r.storageClassClaim)
+	statusError := r.Client.Status().Update(r.ctx, r.storageClassClaim)
+	if statusError != nil {
+		r.log.Info("Failed to update StorageClassClaim status.")
+	}
 
 	// Reconcile errors have higher priority than status update errors
 	if reconcileError != nil {
@@ -127,25 +155,171 @@ func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request rec
 
 func (r *StorageClassClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1alpha1.StorageClassClaim{}, builder.WithPredicates(
+		For(&v1alpha1.StorageClassClaim{}, builder.WithPredicates(
 			predicate.GenerationChangedPredicate{},
 		)).
 		Owns(&rookCephv1.CephBlockPool{}).
 		Owns(&rookCephv1.CephFilesystemSubVolumeGroup{}).
 		Owns(&rookCephv1.CephClient{}).
+		Owns(&storagev1.StorageClass{}).
 		Complete(r)
 }
 
-func (r *StorageClassClaimReconciler) reconcileConsumerPhases(ctx context.Context, storagecluster *v1.StorageCluster) (reconcile.Result, error) {
-	log := ctrllog.FromContext(ctx)
-	log.Info("Running StorageClassClaim controller in Consumer Mode")
+func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Result, error) {
+	r.log.Info("Running StorageClassClaim controller in Consumer Mode")
+
+	providerClient, err := providerclient.NewProviderClient(
+		r.ctx,
+		r.storageCluster.Spec.ExternalStorage.StorageProviderEndpoint,
+		10*time.Second,
+	)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// Close client-side connections.
+	defer providerClient.Close()
+
+	if r.storageClassClaim.GetDeletionTimestamp().IsZero() {
+
+		// TODO: Phases do not have checks at the moment, in order to make them more predictable and less error-prone, at the expense of increased computation cost.
+		// Validation phase.
+		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimValidating
+
+		// If a StorageClass already exists:
+		// 	StorageClassClaim passes validation and is promoted to the configuring phase if:
+		//  * the StorageClassClaim has the same type as the StorageClass.
+		// 	* the StorageClassClaim has no encryption method specified when the type is filesystem.
+		// 	* the StorageClassClaim has a blockpool type and:
+		// 		 * the StorageClassClaim has an encryption method specified.
+		// 	  * the StorageClassClaim has the same encryption method as the StorageClass.
+		// 	StorageClassClaim fails validation and falls back to a failed phase indefinitely (no reconciliation happens).
+		existing := &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: r.storageClassClaim.Name,
+			},
+		}
+		if err = r.get(existing); err == nil {
+			sccType := r.storageClassClaim.Spec.Type
+			sccEncryptionMethod := r.storageClassClaim.Spec.EncryptionMethod
+			_, scIsFSType := existing.Parameters["fsName"]
+			scEncryptionMethod, scHasEncryptionMethod := existing.Parameters["encryptionMethod"]
+			if !((sccType == "filesystem" && scIsFSType && !scHasEncryptionMethod) ||
+				(sccType == "blockpool" && !scIsFSType && sccEncryptionMethod == scEncryptionMethod)) {
+				r.log.Error(fmt.Errorf("storageClassClaim is not compatible with existing StorageClass"),
+					"StorageClassClaim validation failed.")
+				r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimFailed
+				return reconcile.Result{}, nil
+			}
+		} else if err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, fmt.Errorf("failed to get StorageClass [%v]: %s", existing.ObjectMeta, err)
+		}
+
+		// Configuration phase.
+		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimConfiguring
+
+		// Check if finalizers are present, if not, add them.
+		if !contains(r.storageClassClaim.GetFinalizers(), StorageClassClaimFinalizer) {
+			storageClassClaimRef := klog.KRef(r.storageClassClaim.Name, r.storageClassClaim.Namespace)
+			r.log.Info("Finalizer not found for StorageClassClaim. Adding finalizer.", "StorageClassClaim", storageClassClaimRef)
+			r.storageClassClaim.SetFinalizers(append(r.storageClassClaim.GetFinalizers(), StorageClassClaimFinalizer))
+			if err := r.update(r.storageClassClaim); err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to update StorageClassClaim [%v] with finalizer: %s", storageClassClaimRef, err)
+			}
+		}
+
+		// storageClassClaimStorageType is the storage type of the StorageClassClaim
+		var storageClassClaimStorageType providerclient.StorageType
+		switch r.storageClassClaim.Spec.Type {
+		case "blockpool":
+			storageClassClaimStorageType = providerclient.StorageTypeBlockpool
+		case "sharedfilesystem":
+			storageClassClaimStorageType = providerclient.StorageTypeSharedfilesystem
+		default:
+			return reconcile.Result{}, fmt.Errorf("unsupported storage type: %s", r.storageClassClaim.Spec.Type)
+		}
+
+		// Call the `FulfillStorageClassClaim` service on the provider server with StorageClassClaim as a request message.
+		_, err = providerClient.FulfillStorageClassClaim(
+			r.ctx,
+			r.storageCluster.Status.ExternalStorage.ConsumerID,
+			r.storageClassClaim.Name,
+			r.storageClassClaim.Spec.EncryptionMethod,
+			storageClassClaimStorageType,
+		)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to initiate fulfillment of StorageClassClaim: %v", err)
+		}
+
+		// Call the `GetStorageClassClaimConfig` service on the provider server with StorageClassClaim as a request message.
+		response, err := providerClient.GetStorageClassClaimConfig(
+			r.ctx,
+			r.storageCluster.Status.ExternalStorage.ConsumerID,
+			r.storageClassClaim.Name,
+		)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to get StorageClassClaim config: %v", err)
+		}
+		resources := response.ExternalResource
+		if resources == nil {
+			return reconcile.Result{}, fmt.Errorf("no configuration data recieved")
+		}
+
+		// Go over the received objects and operate on them accordingly.
+		for _, resource := range resources {
+			data := map[string]string{}
+			err = json.Unmarshal(resource.Data, &data)
+			if err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to unmarshal StorageClassClaim configuration response: %v", err)
+			}
+
+			// Create the received resources, if necessary.
+			switch resource.Kind {
+			case "Secret":
+				secret := &corev1.Secret{}
+				secret.Name = resource.Name
+				secret.Namespace = r.storageClassClaim.Namespace
+				_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, secret, func() error {
+					err := r.own(secret)
+					if err != nil {
+						return fmt.Errorf("failed to own Secret: %v", err)
+					}
+					for k, v := range data {
+						secret.Data[k] = []byte(v)
+					}
+					return nil
+				})
+				if err != nil {
+					return reconcile.Result{}, fmt.Errorf("failed to create or update secret %v: %s", secret, err)
+				}
+			case "StorageClass":
+				var storageClass *storagev1.StorageClass
+				if resource.Name == "cephfs" {
+					storageClass = r.getCephFSStorageClass(data)
+				} else if resource.Name == "ceph-rbd" {
+					storageClass = r.getCephRBDStorageClass(data)
+				}
+				err = r.createOrReplaceStorageClass(storageClass)
+				if err != nil {
+					return reconcile.Result{}, fmt.Errorf("failed to create or update StorageClass: %s", err)
+				}
+			}
+		}
+
+		// Readiness phase.
+		// Update the StorageClassClaim status.
+		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimReady
+
+	}
+	// TODO(@rexagod): Deletion flow for SCC on Consumer side
+
 	return reconcile.Result{}, nil
 }
 
 func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Result, error) {
 	r.log.Info("Running StorageClassClaim controller in Converged/Provider Mode")
 
-	r.storageClassClaim.Status.Phase = string(v1alpha1.StorageClassClaimStateInitializing)
+	r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimInitializing
 
 	// reading storageConsumer Name from storageClassClaim ownerReferences
 	ownerRefs := r.storageClassClaim.GetOwnerReferences()
@@ -155,7 +329,7 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 		}
 	}
 	if r.storageConsumer.Name == "" {
-		return reconcile.Result{}, fmt.Errorf("No storage consumer owner ref on the storage class claim")
+		return reconcile.Result{}, fmt.Errorf("no storage consumer owner ref on the storage class claim")
 	}
 
 	if err := r.get(r.storageConsumer); err != nil {
@@ -186,7 +360,7 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 		r.cephResourcesByName[cephResourceSpec.Name] = cephResourceSpec
 	}
 
-	r.storageClassClaim.Status.Phase = string(v1alpha1.StorageClassClaimStateCreating)
+	r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimCreating
 
 	if r.storageClassClaim.GetDeletionTimestamp().IsZero() {
 		if !controllers.Contains(r.storageClassClaim.GetFinalizers(), storageClassClaimFinalizer) {
@@ -233,12 +407,98 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 		}
 
 		if cephResourcesReady {
-			r.storageClassClaim.Status.Phase = string(v1alpha1.StorageClassClaimStateReady)
+			r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimReady
 		}
 
 	}
-
 	return reconcile.Result{}, nil
+}
+
+func (r *StorageClassClaimReconciler) getCephFSStorageClass(data map[string]string) *storagev1.StorageClass {
+	pvReclaimPolicy := corev1.PersistentVolumeReclaimDelete
+	allowVolumeExpansion := true
+	storageClass := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.storageClassClaim.Name,
+			Namespace: r.storageClassClaim.Namespace,
+			Annotations: map[string]string{
+				"description": "Provides RWO and RWX Filesystem volumes",
+			},
+			Finalizers: []string{
+				StorageClassFinalizer,
+			},
+		},
+		ReclaimPolicy:        &pvReclaimPolicy,
+		AllowVolumeExpansion: &allowVolumeExpansion,
+		Provisioner:          fmt.Sprintf("%s.cephfs.csi.ceph.com", r.storageCluster.Namespace),
+		Parameters:           data,
+	}
+	return storageClass
+}
+
+func (r *StorageClassClaimReconciler) getCephRBDStorageClass(data map[string]string) *storagev1.StorageClass {
+	pvReclaimPolicy := corev1.PersistentVolumeReclaimDelete
+	allowVolumeExpansion := true
+	storageClass := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.storageClassClaim.Name,
+			Namespace: r.storageClassClaim.Namespace,
+			Annotations: map[string]string{
+				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+			},
+			Finalizers: []string{
+				StorageClassFinalizer,
+			},
+		},
+		ReclaimPolicy:        &pvReclaimPolicy,
+		AllowVolumeExpansion: &allowVolumeExpansion,
+		Provisioner:          fmt.Sprintf("%s.rbd.csi.ceph.com", r.storageCluster.Namespace),
+		Parameters:           data,
+	}
+	return storageClass
+}
+
+func (r *StorageClassClaimReconciler) createOrReplaceStorageClass(storageClass *storagev1.StorageClass) error {
+	existing := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.storageClassClaim.Name,
+		},
+	}
+
+	if err := r.get(existing); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get StorageClass: %v", err)
+	}
+
+	// If present then compare the existing StorageClass with the received StorageClass, and only proceed if they differ.
+	if reflect.DeepEqual(existing.Parameters, storageClass.Parameters) {
+		return nil
+	}
+
+	// StorageClass already exists, but parameters have changed. Delete the existing StorageClass and create a new one.
+	if existing.UID != "" {
+
+		// Since we have to update the existing StorageClass, so we will delete the existing storageclass and create a new one.
+		r.log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", klog.KRef(storageClass.Namespace, existing.Name))
+
+		// Remove finalizer from StorageClass.
+		storageClass.SetFinalizers(remove(storageClass.Finalizers, StorageClassFinalizer))
+		if err := r.update(storageClass); err != nil {
+			return fmt.Errorf("failed to remove finalizer from StorageClass: %s", err)
+		}
+
+		// Delete the StorageClass.
+		err := r.delete(existing)
+		if err != nil {
+			r.log.Error(err, "Failed to delete StorageClass.", "StorageClass", klog.KRef(storageClass.Namespace, existing.Name))
+			return err
+		}
+	}
+	r.log.Info("Creating StorageClass.", "StorageClass", klog.KRef(storageClass.Namespace, existing.Name))
+	err := r.Client.Create(r.ctx, storageClass)
+	if err != nil {
+		return fmt.Errorf("failed to create StorageClass: %v", err)
+	}
+	return nil
 }
 
 func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
@@ -298,14 +558,14 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 func (r *StorageClassClaimReconciler) reconcileCephFilesystemSubVolumeGroup() error {
 
 	cephFilesystemList := rookCephv1.CephFilesystemList{}
-	if err := r.list(&cephFilesystemList, []client.ListOption{client.InNamespace(r.namespace)}); err != nil {
-		return fmt.Errorf("Error fetching CephFilesystemList. %+v", err)
+	if err := r.list(&cephFilesystemList, client.InNamespace(r.namespace)); err != nil {
+		return fmt.Errorf("error fetching CephFilesystemList. %+v", err)
 	}
 
 	var cephFileSystemName string
 	availableCephFileSystems := len(cephFilesystemList.Items)
 	if availableCephFileSystems == 0 {
-		return fmt.Errorf("No CephFileSystem found in the cluster")
+		return fmt.Errorf("no CephFileSystem found in the cluster")
 	}
 	if availableCephFileSystems > 1 {
 		klog.Warningf("More than one CephFileSystem found in the cluster, selecting the first one")
@@ -505,7 +765,7 @@ func (r *StorageClassClaimReconciler) setCephResourceStatus(name string, kind st
 	cephResourceSpec := r.cephResourcesByName[name]
 
 	if cephResourceSpec == nil {
-		cephResourceSpec = &ocsv1alpha1.CephResourcesSpec{
+		cephResourceSpec = &v1alpha1.CephResourcesSpec{
 			Name:        name,
 			Kind:        kind,
 			CephClients: cephClients,
@@ -529,11 +789,6 @@ func addStorageRelatedAnnotations(obj client.Object, storageClassClaimName, stor
 	annotations[controllers.StorageCephUserTypeAnnotation] = cephUserType
 }
 
-func (r *StorageClassClaimReconciler) own(resource metav1.Object) error {
-	// Ensure storageClassClaim ownership on a resource
-	return ctrl.SetControllerReference(r.storageClassClaim, resource, r.Scheme)
-}
-
 func (r *StorageClassClaimReconciler) get(obj client.Object) error {
 	key := client.ObjectKeyFromObject(obj)
 	return r.Client.Get(r.ctx, key, obj)
@@ -543,6 +798,36 @@ func (r *StorageClassClaimReconciler) update(obj client.Object) error {
 	return r.Client.Update(r.ctx, obj)
 }
 
-func (r *StorageClassClaimReconciler) list(obj client.ObjectList, listOpt []client.ListOption) error {
-	return r.Client.List(r.ctx, obj, listOpt...)
+func (r *StorageClassClaimReconciler) list(obj client.ObjectList, listOptions ...client.ListOption) error {
+	return r.Client.List(r.ctx, obj, listOptions...)
+}
+
+func (r *StorageClassClaimReconciler) delete(obj client.Object) error {
+	if err := r.Client.Delete(r.ctx, obj); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageClassClaimReconciler) own(resource metav1.Object) error {
+	// Ensure StorageClassClaim ownership on a resource
+	return controllerutil.SetOwnerReference(r.storageClassClaim, resource, r.Scheme)
+}
+
+func contains(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func remove(slice []string, s string) []string {
+	for i, item := range slice {
+		if item == s {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
 }

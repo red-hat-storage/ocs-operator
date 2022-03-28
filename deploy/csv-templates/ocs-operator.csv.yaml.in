@@ -284,6 +284,14 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
+          - storageclusters
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
           - storageconsumers
           verbs:
           - create
@@ -356,7 +364,13 @@ spec:
           - storageclasses
           verbs:
           - '*'
+          - create
+          - delete
           - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - template.openshift.io
           resources:
