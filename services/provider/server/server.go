@@ -352,132 +352,73 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			"MonitoringPort":     strconv.Itoa(int(port)),
 		})})
 
+	healthCheckSecretName := ""
+	healthCheckName := ""
 	for _, cephRes := range consumerResource.Status.CephResources {
-		switch cephRes.Kind {
-		case "CephClient":
-			clientSecretName, cephClaim, cephUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
+		if cephRes.Kind == "CephClient" {
+			clientSecretName, cephUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
 			if err != nil {
 				return nil, err
+			} else if cephUserType == "healthchecker" {
+				healthCheckSecretName = clientSecretName
+				healthCheckName = cephRes.Name
 			}
-
-			cephUserSecret := &v1.Secret{}
-			err = s.client.Get(ctx, types.NamespacedName{Name: clientSecretName, Namespace: s.namespace}, cephUserSecret)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get %s secret. %v", clientSecretName, err)
-			}
-
-			idProp := "userID"
-			keyProp := "userKey"
-			if cephClaim == "cephfs" {
-				idProp = "adminID"
-				keyProp = "adminKey"
-			}
-			extR = append(extR, &pb.ExternalResource{
-				Name: clientSecretName,
-				Kind: "Secret",
-				Data: mustMarshal(map[string]string{
-					idProp:  cephRes.Name,
-					keyProp: string(cephUserSecret.Data[cephRes.Name]),
-				}),
-			})
-
-			if cephUserType == "healthchecker" {
-				// TODO
-				// This is just a temporary fix to get the ceph client name. In the future, we'll change it and will not depend on string conditions.
-				extR = append(extR, &pb.ExternalResource{
-					Name: monSecret,
-					Kind: "Secret",
-					Data: mustMarshal(map[string]string{
-						"fsid":          fsid,
-						"mon-secret":    "mon-secret",
-						"ceph-username": fmt.Sprintf("client.%s", cephRes.Name),
-						"ceph-secret":   string(cephUserSecret.Data[cephRes.Name]),
-					})})
-			}
-		case "CephBlockPool":
-			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
-			if err != nil {
-				return nil, err
-			}
-
-			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
-			if err != nil {
-				return nil, err
-			}
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: "ceph-rbd",
-				Kind: "StorageClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID":                 s.namespace,
-					"pool":                      cephRes.Name,
-					"imageFeatures":             "layering",
-					"csi.storage.k8s.io/fstype": "ext4",
-					"imageFormat":               "2",
-					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
-				})})
-		case "CephFilesystemSubVolumeGroup":
-			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
-			err := s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, subVolumeGroup)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get %s cephFilesystemSubVolumeGroup. %v", cephRes.Name, err)
-			}
-
-			nodeCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
-			if err != nil {
-				return nil, err
-			}
-
-			provisionerCephClientSecret, _, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
-			if err != nil {
-				return nil, err
-			}
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: "cephfs",
-				Kind: "StorageClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
-					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
-				})})
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: cephRes.Name,
-				Kind: cephRes.Kind,
-				Data: mustMarshal(map[string]string{
-					"filesystemName": subVolumeGroup.Spec.FilesystemName,
-				})})
 		}
 	}
+
+	if healthCheckSecretName == "" {
+		return nil, fmt.Errorf("no healthchecker secret found")
+	}
+
+	cephUserSecret := &v1.Secret{}
+	err = s.client.Get(ctx, types.NamespacedName{Name: healthCheckSecretName, Namespace: s.namespace}, cephUserSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s secret. %v", healthCheckSecretName, err)
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: healthCheckSecretName,
+		Kind: "Secret",
+		Data: mustMarshal(map[string]string{
+			"userID":  healthCheckName,
+			"userKey": string(cephUserSecret.Data[healthCheckName]),
+		}),
+	})
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: monSecret,
+		Kind: "Secret",
+		Data: mustMarshal(map[string]string{
+			"fsid":          fsid,
+			"mon-secret":    "mon-secret",
+			"ceph-username": fmt.Sprintf("client.%s", healthCheckName),
+			"ceph-secret":   string(cephUserSecret.Data[healthCheckName]),
+		})})
 
 	return extR, nil
 }
 
-func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name string) (string, string, string, error) {
+func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name string) (string, string, error) {
 	cephClient := &rookCephv1.CephClient{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: name, Namespace: s.namespace}, cephClient)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to get rook ceph client %s secret. %v", name, err)
+		return "", "", fmt.Errorf("failed to get rook ceph client %s secret. %v", name, err)
 	}
 	if cephClient.Status == nil {
-		return "", "", "", fmt.Errorf("rook ceph client %s status is nil", name)
+		return "", "", fmt.Errorf("rook ceph client %s status is nil", name)
 	}
 	if cephClient.Status.Info == nil {
-		return "", "", "", fmt.Errorf("rook ceph client %s Status.Info is empty", name)
+		return "", "", fmt.Errorf("rook ceph client %s Status.Info is empty", name)
 	}
 
 	if len(cephClient.Annotations) == 0 {
-		return "", "", "", fmt.Errorf("rook ceph client %s annotation is empty", name)
+		return "", "", fmt.Errorf("rook ceph client %s annotation is empty", name)
 	}
 	if cephClient.Annotations[controllers.StorageClaimAnnotation] == "" || cephClient.Annotations[controllers.StorageCephUserTypeAnnotation] == "" {
 		klog.Warningf("rook ceph client %s has missing storage annotations", name)
 	}
 
-	return cephClient.Status.Info["secretName"], cephClient.Annotations[controllers.StorageClaimAnnotation], cephClient.Annotations[controllers.StorageCephUserTypeAnnotation], nil
+	return cephClient.Status.Info["secretName"], cephClient.Annotations[controllers.StorageCephUserTypeAnnotation], nil
 }
 
 func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rsa.PublicKey, error) {
