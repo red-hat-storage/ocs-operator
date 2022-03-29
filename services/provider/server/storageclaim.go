@@ -64,6 +64,10 @@ func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1al
 			Name:            generatedClaimName,
 			Namespace:       s.namespace,
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Labels: map[string]string{
+				consumerUUIDLabel:          consumerUUID,
+				storageClassClaimNameLabel: storageClassClaimName,
+			},
 		},
 		Spec: ocsv1alpha1.StorageClassClaimSpec{
 			Type:             claimType,
