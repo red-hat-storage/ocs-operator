@@ -12,6 +12,7 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -124,4 +125,18 @@ func (s *storageClassClaimManager) Delete(ctx context.Context, consumerUUID, sto
 	klog.Infof("successfully deleted StorageClassClaim %q for consumer %q and claim %q", generatedClaimName, consumerUUID, storageClassClaimName)
 
 	return nil
+}
+
+// Get returns the storageClassClaim resource using storageClassClaimName
+// and consumerUUID.
+func (s *storageClassClaimManager) Get(ctx context.Context, consumerUUID, storageClassClaimName string) (*ocsv1alpha1.StorageClassClaim, error) {
+	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
+	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: generatedClaimName, Namespace: s.namespace}, storageClassClaimObj)
+	if err != nil {
+		klog.Errorf("failed to get a StorageClassClaim named %q for consumer %q and claim %q. %v", generatedClaimName, consumerUUID, storageClassClaimName, err)
+		return nil, err
+	}
+
+	return storageClassClaimObj, nil
 }
