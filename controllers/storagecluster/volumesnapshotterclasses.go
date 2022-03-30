@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -53,6 +54,32 @@ func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType Snap
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
+
+	// this is for ocs-ocs mode where csi secret is dynamic
+	if IsOCSConsumerMode(instance) {
+		externalConfig, ok := externalOCSResources[instance.UID]
+		if !ok {
+			klog.Errorf("Unable to retrieve external resource from externalOCSResources")
+			return nil
+		}
+
+		for _, data := range externalConfig {
+			switch data.Kind {
+			case "StorageClass":
+				if strings.Contains(data.Name, fmt.Sprintf("%s", snapShotterType)) {
+					for field, val := range data.Data {
+						if field == "csi.storage.k8s.io/provisioner-secret-name" {
+							if _, ok := retSC.Parameters[snapshotterSecretName]; ok {
+								retSC.Parameters[snapshotterSecretName] = val
+							}
+
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return retSC
 }
 
