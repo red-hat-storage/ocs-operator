@@ -3,8 +3,11 @@
 usage() {
   cat << EOF
 
-Generate an ODF-to-ODF onboarding ticket to STDOUT
-USAGE: $0 <private_key_file>"
+Generate an OCS Provider/Consumer onboarding ticket to STDOUT
+USAGE: $0 [-h] <private_key_file>
+
+private_key_file:
+    A file containing a valid RSA private key.
 
 Example of how to generate a new private/public key pair:
   openssl genrsa -out key.pem 4096
