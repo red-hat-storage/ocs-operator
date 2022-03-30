@@ -249,20 +249,33 @@ for ns in $namespaces; do
         # Inspecting ceph block pools for ceph rbd
         blockpools=$(timeout 60 oc get cephblockpools.ceph.rook.io -n openshift-storage -o jsonpath="{range .items[*]}{@.metadata.name}{'\n'}{end}")
         for bp in $blockpools; do
+            printf "Collecting image and snap info for images in: %s\n" "${bp}" >> "${COMMAND_OUTPUT_FILE}"
             images=$(timeout 60 oc -n openshift-storage exec "${HOSTNAME}"-helper -- bash -c "rbd ls -p $bp")
+            pids_rbd=()
             for image in $images; do
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd info $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-image-"${image}"-debug.log 2>&1 &
-                pids_ceph+=($!)
-                { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all $image --pool $bp" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-snap-"${image}"-debug.log 2>&1 &
-                pids_ceph+=($!)
+                printf "collecting vol and snapshot info for %s\n" "${image}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+                { 
+                    printf "Collecting image info for: %s/%s\n" "${bp}" "${image}";
+                    timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd info $image --pool $bp" 2>> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-image-"${image}"-debug.log;
+                    printf "Collecting snap info for: %s/%s\n" "${bp}" "${image}";
+                    timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all $image --pool $bp" 2>> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-snap-"${image}"-debug.log; 
+                } >> "${COMMAND_OUTPUT_DIR}"/rbd_vol_and_snap_info_"${image}".part &
+                pids_rbd+=($!)
             done
+            if [ -n "${pids_rbd[*]}" ]; then
+                # wait for all pids
+                echo "waiting for ${pids_rbd[*]} to terminate" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+                wait "${pids_rbd[@]}"
+            fi
+            find "${COMMAND_OUTPUT_DIR}" -name "rbd_vol_and_snap_info_*.part" -print0 | xargs -0 cat >> "${COMMAND_OUTPUT_FILE}"
+            find "${COMMAND_OUTPUT_DIR}" -name "rbd_vol_and_snap_info_*.part" -print0 | xargs -0 rm -f             
         done
 
         # Collecting rbd mirroring info for ceph rbd volumes
         printf "collecting rbd mirroring info for ceph rbd volumes \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
         COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/rbd_vol_and_mirror_info
         # Checking snapshot schedule status
-        { printf "checking snapshot schedule status \n" >> "${COMMAND_OUTPUT_FILE}"; }
+        printf "checking snapshot schedule status \n" >> "${COMMAND_OUTPUT_FILE}"
         printf "collecting snapshot schedule status \n" | tee -a "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
         { timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd mirror snapshot schedule status --format=json" >> "${COMMAND_OUTPUT_FILE}"; } >> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-mirror-snap-schedule-status-debug.log 2>&1 &
         pids_ceph+=($!)
