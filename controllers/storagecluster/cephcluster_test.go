@@ -25,6 +25,7 @@ import (
 
 func TestEnsureCephCluster(t *testing.T) {
 	// cases for testing
+	testSkipPrometheusRules = true
 	cases := []struct {
 		label            string
 		shouldCreate     bool
@@ -769,6 +770,16 @@ func TestNewCephDaemonResources(t *testing.T) {
 		got := newCephDaemonResources(c.spec)
 		assert.DeepEqual(t, c.expected, got)
 	}
+}
+
+func TestParsePrometheusRules(t *testing.T) {
+	prometheusRules, err := parsePrometheusRule(localPrometheusRules)
+	assert.NilError(t, err)
+	assert.Equal(t, 11, len(prometheusRules.Spec.Groups))
+
+	prometheusRules, err = parsePrometheusRule(externalPrometheusRules)
+	assert.NilError(t, err)
+	assert.Equal(t, 1, len(prometheusRules.Spec.Groups))
 }
 
 func TestGetNetworkSpec(t *testing.T) {

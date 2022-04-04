@@ -26,6 +26,7 @@ require (
 	github.com/operator-framework/operator-lib v0.10.0
 	github.com/operator-framework/operator-lifecycle-manager v0.20.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.46.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/rook/rook v1.8.3
