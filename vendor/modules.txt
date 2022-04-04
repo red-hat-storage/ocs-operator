@@ -383,6 +383,13 @@ github.com/pmezard/go-difflib/difflib
 ## explicit; go 1.14
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1
+# github.com/prometheus-operator/prometheus-operator/pkg/client v0.46.0
+## explicit; go 1.14
+github.com/prometheus-operator/prometheus-operator/pkg/client/versioned
+github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/scheme
+github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/typed/monitoring/v1
+github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/typed/monitoring/v1alpha1
 # github.com/prometheus/client_golang v1.11.0
 ## explicit; go 1.13
 github.com/prometheus/client_golang/prometheus
