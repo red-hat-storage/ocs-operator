@@ -47,6 +47,30 @@ spec:
           status:
             description: StorageClassClaimStatus defines the observed state of StorageClassClaim
             properties:
+              cephResources:
+                description: CephResources provide details of created ceph resources
+                  required for external storage
+                items:
+                  description: CephResourcesSpec hold details of created ceph resources
+                    required for external storage
+                  properties:
+                    cephClients:
+                      additionalProperties:
+                        type: string
+                      description: CephClients holds the name of CephClients mapped
+                        to the created ceph resource
+                      type: object
+                    kind:
+                      description: Kind describes the kind of created ceph resource
+                      type: string
+                    name:
+                      description: Name describes the name of created ceph resource
+                      type: string
+                    status:
+                      description: Phase describes the phase of created ceph resource
+                      type: string
+                  type: object
+                type: array
               phase:
                 type: string
             type: object

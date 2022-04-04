@@ -32,6 +32,8 @@ type StorageClassClaimSpec struct {
 // StorageClassClaimStatus defines the observed state of StorageClassClaim
 type StorageClassClaimStatus struct {
 	Phase string `json:"phase,omitempty"`
+	// CephResources provide details of created ceph resources required for external storage
+	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 }
 
 // +kubebuilder:object:root=true

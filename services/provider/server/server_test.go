@@ -43,7 +43,7 @@ var mockExtR = map[string]*externalResource{
 		Name: "rook-ceph-mon",
 		Kind: "Secret",
 		Data: map[string]string{
-			"ceph-username": "client.7c1507bffc3030e301cdd0f9b6ecd56e",
+			"ceph-username": "client.995e66248ad3e8642de868f461cdd827",
 			"fsid":          "b88c2d78-9de9-4227-9313-a63f62f78743",
 			"mon-secret":    "mon-secret",
 			"ceph-secret":   "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
@@ -57,75 +57,12 @@ var mockExtR = map[string]*externalResource{
 			"MonitoringPort":     "9283",
 		},
 	},
-	"ceph-rbd": {
-		Name: "ceph-rbd",
-		Kind: "StorageClass",
-		Data: map[string]string{
-			"clusterID":                 "openshift-storage",
-			"pool":                      "cephblockpool",
-			"imageFeatures":             "layering",
-			"csi.storage.k8s.io/fstype": "ext4",
-			"imageFormat":               "2",
-			"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
-			"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
-			"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
-		},
-	},
-	"rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e": {
-		Name: "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
-		Kind: "Secret",
-		Data: map[string]string{
-			"userID":  "3de200d5c23524a4612bde1fdbeb717e",
-			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
-	},
 	"rook-ceph-client-995e66248ad3e8642de868f461cdd827": {
 		Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
 		Kind: "Secret",
 		Data: map[string]string{
 			"userID":  "995e66248ad3e8642de868f461cdd827",
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
-	},
-	"rook-ceph-client-4ffcb503ff8044c8699dac415f82d604": {
-		Name: "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
-		Kind: "Secret",
-		Data: map[string]string{
-			"adminID":  "4ffcb503ff8044c8699dac415f82d604",
-			"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
-	},
-	"rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa": {
-		Name: "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
-		Kind: "Secret",
-		Data: map[string]string{
-			"adminID":  "1b042fcc8812fe4203689eec38fdfbfa",
-			"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
-	},
-	"rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e": {
-		Name: "rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e",
-		Kind: "Secret",
-		Data: map[string]string{
-			"userID":  "7c1507bffc3030e301cdd0f9b6ecd56e",
-			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
-	},
-	"cephfs": {
-		Name: "cephfs",
-		Kind: "StorageClass",
-		Data: map[string]string{
-			"clusterID": "8d26c7378c1b0ec9c2455d1c3601c4cd",
-			"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
-			"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
-			"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
-		},
-	},
-	"cephFilesystemSubVolumeGroup": {
-		Name: "cephFilesystemSubVolumeGroup",
-		Kind: "CephFilesystemSubVolumeGroup",
-		Data: map[string]string{
-			"filesystemName": "myfs",
 		},
 	},
 }
@@ -136,40 +73,8 @@ var (
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			CephResources: []*ocsv1alpha1.CephResourcesSpec{
 				{
-					Name: "cephblockpool",
-					Kind: "CephBlockPool",
-					CephClients: map[string]string{
-						"node":        "995e66248ad3e8642de868f461cdd827",
-						"provisioner": "3de200d5c23524a4612bde1fdbeb717e",
-					},
-				},
-				{
-					Name: "3de200d5c23524a4612bde1fdbeb717e",
-					Kind: "CephClient",
-				},
-				{
 					Name: "995e66248ad3e8642de868f461cdd827",
 					Kind: "CephClient",
-				},
-				{
-					Name: "4ffcb503ff8044c8699dac415f82d604",
-					Kind: "CephClient",
-				},
-				{
-					Name: "1b042fcc8812fe4203689eec38fdfbfa",
-					Kind: "CephClient",
-				},
-				{
-					Name: "7c1507bffc3030e301cdd0f9b6ecd56e",
-					Kind: "CephClient",
-				},
-				{
-					Name: "cephFilesystemSubVolumeGroup",
-					Kind: "CephFilesystemSubVolumeGroup",
-					CephClients: map[string]string{
-						"node":        "1b042fcc8812fe4203689eec38fdfbfa",
-						"provisioner": "4ffcb503ff8044c8699dac415f82d604",
-					},
 				},
 			},
 			State: ocsv1alpha1.StorageConsumerStateReady,
@@ -203,16 +108,8 @@ var (
 	consumerResource5 = &ocsv1alpha1.StorageConsumer{
 		ObjectMeta: metav1.ObjectMeta{Name: "consumer5", UID: "uid5"},
 		Status: ocsv1alpha1.StorageConsumerStatus{
-			CephResources: []*ocsv1alpha1.CephResourcesSpec{{
-				Name: "cephblockpool",
-				Kind: "CephBlockPool",
-				CephClients: map[string]string{
-					"node":        "995e66248ad3e8642de868f461cdd827",
-					"provisioner": "3de200d5c23524a4612bde1fdbeb717e",
-				},
-			},
-			},
-			State: ocsv1alpha1.StorageConsumerStateReady,
+			CephResources: []*ocsv1alpha1.CephResourcesSpec{{}},
+			State:         ocsv1alpha1.StorageConsumerStateReady,
 		},
 	}
 )
@@ -229,7 +126,6 @@ func TestGetExternalResources(t *testing.T) {
 		consumerResource3,
 		consumerResource4,
 		consumerResource5,
-		&rookCephv1.CephFilesystemSubVolumeGroup{},
 	}
 
 	client := newFakeClient(t, objects...)
@@ -275,8 +171,8 @@ func TestGetExternalResources(t *testing.T) {
 			Name:      "995e66248ad3e8642de868f461cdd827",
 			Namespace: server.namespace,
 			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation:        "rbd",
-				controllers.StorageCephUserTypeAnnotation: "node",
+				controllers.StorageCephUserTypeAnnotation: "healthchecker",
+				controllers.StorageClaimAnnotation:        "global",
 				controllers.StorageConsumerAnnotation:     "consumer",
 			},
 		},
@@ -297,126 +193,9 @@ func TestGetExternalResources(t *testing.T) {
 	assert.NoError(t, client.Create(ctx, cephClient))
 	assert.NoError(t, client.Create(ctx, secret))
 
-	cephClient = &rookCephv1.CephClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "3de200d5c23524a4612bde1fdbeb717e",
-			Namespace: server.namespace,
-			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation:        "rbd",
-				controllers.StorageCephUserTypeAnnotation: "provisioner",
-				controllers.StorageConsumerAnnotation:     "consumer",
-			},
-		},
-		Status: &rookCephv1.CephClientStatus{
-			Info: map[string]string{
-				"secretName": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
-			},
-		},
-	}
-
-	secret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e", Namespace: server.namespace},
-		Data: map[string][]byte{
-			"3de200d5c23524a4612bde1fdbeb717e": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
-		},
-	}
-
-	assert.NoError(t, client.Create(ctx, cephClient))
-	assert.NoError(t, client.Create(ctx, secret))
-
-	cephClient = &rookCephv1.CephClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "1b042fcc8812fe4203689eec38fdfbfa",
-			Namespace: server.namespace,
-			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation:        "cephfs",
-				controllers.StorageCephUserTypeAnnotation: "node",
-				controllers.StorageConsumerAnnotation:     "consumer",
-			},
-		},
-		Status: &rookCephv1.CephClientStatus{
-			Info: map[string]string{
-				"secretName": "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
-			},
-		},
-	}
-
-	secret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa", Namespace: server.namespace},
-		Data: map[string][]byte{
-			"1b042fcc8812fe4203689eec38fdfbfa": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
-		},
-	}
-
-	assert.NoError(t, client.Create(ctx, cephClient))
-	assert.NoError(t, client.Create(ctx, secret))
-
-	cephClient = &rookCephv1.CephClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "4ffcb503ff8044c8699dac415f82d604",
-			Namespace: server.namespace,
-			Annotations: map[string]string{
-				controllers.StorageClaimAnnotation:        "cephfs",
-				controllers.StorageCephUserTypeAnnotation: "provisioner",
-				controllers.StorageConsumerAnnotation:     "consumer",
-			},
-		},
-		Status: &rookCephv1.CephClientStatus{
-			Info: map[string]string{
-				"secretName": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
-			},
-		},
-	}
-
-	secret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604", Namespace: server.namespace},
-		Data: map[string][]byte{
-			"4ffcb503ff8044c8699dac415f82d604": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
-		},
-	}
-
-	assert.NoError(t, client.Create(ctx, cephClient))
-	assert.NoError(t, client.Create(ctx, secret))
-
 	monCm, monSc := createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
 	assert.NoError(t, client.Create(ctx, monSc))
-
-	cephClient = &rookCephv1.CephClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "7c1507bffc3030e301cdd0f9b6ecd56e",
-			Namespace: server.namespace,
-			Annotations: map[string]string{
-				controllers.StorageCephUserTypeAnnotation: "healthchecker",
-				controllers.StorageClaimAnnotation:        "global",
-				controllers.StorageConsumerAnnotation:     "consumer",
-			},
-		},
-		Status: &rookCephv1.CephClientStatus{
-			Info: map[string]string{
-				"secretName": "rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e",
-			},
-		},
-	}
-
-	secret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-7c1507bffc3030e301cdd0f9b6ecd56e", Namespace: server.namespace},
-		Data: map[string][]byte{
-			"7c1507bffc3030e301cdd0f9b6ecd56e": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
-		},
-	}
-
-	assert.NoError(t, client.Create(ctx, cephClient))
-	assert.NoError(t, client.Create(ctx, secret))
-
-	subVolGroup := &rookCephv1.CephFilesystemSubVolumeGroup{
-		ObjectMeta: metav1.ObjectMeta{Name: "cephFilesystemSubVolumeGroup", Namespace: server.namespace},
-		Spec: rookCephv1.CephFilesystemSubVolumeGroupSpec{
-			FilesystemName: "myfs",
-		},
-	}
-
-	assert.NoError(t, client.Create(ctx, subVolGroup))
 
 	// When ocsv1alpha1.StorageConsumerStateReady
 	req := pb.StorageConfigRequest{
@@ -449,19 +228,8 @@ func TestGetExternalResources(t *testing.T) {
 		consumerResource5.UID: consumerResource5.Name,
 	}
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
-	assert.NoError(t, err)
-	assert.NotEqual(t, storageConRes.ExternalResource, mockExtR)
-	for i := range storageConRes.ExternalResource {
-		extResource := storageConRes.ExternalResource[i]
-		mockResoruce, ok := mockExtR[extResource.Name]
-		assert.True(t, ok)
-
-		data, err := json.Marshal(mockResoruce.Data)
-		assert.NoError(t, err)
-		assert.Equal(t, string(extResource.Data), string(data))
-		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		assert.Equal(t, extResource.Name, mockResoruce.Name)
-	}
+	assert.Error(t, err)
+	assert.Nil(t, storageConRes)
 
 	// When ocsv1alpha1.StorageConsumerStateReady but secret is not ready
 	for _, i := range consumerResource.Status.CephResources {
