@@ -16,7 +16,11 @@ spec:
     singular: cephblockpool
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         properties:
@@ -91,6 +95,7 @@ spec:
                 enum:
                 - device_health_metrics
                 - .nfs
+                - .mgr
                 type: string
               parameters:
                 additionalProperties:
@@ -227,6 +232,9 @@ spec:
                         type: object
                     type: object
                 type: object
+              observedGeneration:
+                format: int64
+                type: integer
               phase:
                 type: string
               snapshotScheduleStatus:

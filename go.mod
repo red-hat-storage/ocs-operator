@@ -29,7 +29,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.46.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/rook/rook v1.8.3
+	github.com/rook/rook v1.9.0-beta.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	go.mongodb.org/mongo-driver v1.5.1 // indirect

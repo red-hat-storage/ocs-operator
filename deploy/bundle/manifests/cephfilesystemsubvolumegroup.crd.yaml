@@ -14,7 +14,11 @@ spec:
     singular: cephfilesystemsubvolumegroup
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         properties:
@@ -38,6 +42,9 @@ spec:
                   type: string
                 nullable: true
                 type: object
+              observedGeneration:
+                format: int64
+                type: integer
               phase:
                 type: string
             type: object
