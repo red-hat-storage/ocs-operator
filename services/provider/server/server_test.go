@@ -16,10 +16,7 @@ import (
 
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -143,9 +140,6 @@ var (
 func TestGetExternalResources(t *testing.T) {
 	ctx := context.TODO()
 	objects := []runtime.Object{
-		&v1.ConfigMap{},
-		&v1.Secret{},
-		&rookCephv1.CephClient{},
 		consumerResource,
 		consumerResource1,
 		consumerResource2,
@@ -156,9 +150,6 @@ func TestGetExternalResources(t *testing.T) {
 
 	client := newFakeClient(t, objects...)
 	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
-	assert.NoError(t, err)
-
-	_, err = consumerManager.Create(ctx, "consumer", "ticket", resource.MustParse("1G"))
 	assert.NoError(t, err)
 
 	port, _ := strconv.Atoi("9283")
@@ -182,14 +173,9 @@ func TestGetExternalResources(t *testing.T) {
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{
-		client:    client,
-		namespace: serverNamespace,
-		consumerManager: &ocsConsumerManager{
-			nameByUID: map[types.UID]string{
-				consumerResource.UID: consumerResource.Name,
-			},
-			client: client,
-		},
+		client:          client,
+		namespace:       serverNamespace,
+		consumerManager: consumerManager,
 	}
 
 	cephClient := &rookCephv1.CephClient{
@@ -244,15 +230,7 @@ func TestGetExternalResources(t *testing.T) {
 	}
 
 	// When ocsv1alpha1.StorageConsumerStateReady but ceph resources is empty
-	_, err = consumerManager.Create(ctx, "consumer5", "ticket5", resource.MustParse("1G"))
-	assert.NoError(t, err)
-	req = pb.StorageConfigRequest{
-		StorageConsumerUUID: string(consumerResource5.UID),
-	}
-
-	server.consumerManager.nameByUID = map[types.UID]string{
-		consumerResource5.UID: consumerResource5.Name,
-	}
+	req.StorageConsumerUUID = string(consumerResource5.UID)
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
 	assert.Error(t, err)
 	assert.Nil(t, storageConRes)
@@ -270,13 +248,7 @@ func TestGetExternalResources(t *testing.T) {
 		}
 	}
 
-	req = pb.StorageConfigRequest{
-		StorageConsumerUUID: string(consumerResource1.UID),
-	}
-
-	server.consumerManager.nameByUID = map[types.UID]string{
-		consumerResource1.UID: consumerResource1.Name,
-	}
+	req.StorageConsumerUUID = string(consumerResource1.UID)
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
 	errCode, _ := status.FromError(err)
 	assert.Error(t, err)
@@ -284,15 +256,6 @@ func TestGetExternalResources(t *testing.T) {
 	assert.Nil(t, storageConRes)
 
 	// When ocsv1alpha1.StorageConsumerStateFailed
-	_, err = consumerManager.Create(ctx, "consumer1", "ticket1", resource.MustParse("1G"))
-	assert.NoError(t, err)
-	req = pb.StorageConfigRequest{
-		StorageConsumerUUID: string(consumerResource1.UID),
-	}
-
-	server.consumerManager.nameByUID = map[types.UID]string{
-		consumerResource1.UID: consumerResource1.Name,
-	}
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
@@ -300,15 +263,7 @@ func TestGetExternalResources(t *testing.T) {
 	assert.Nil(t, storageConRes)
 
 	// When ocsv1alpha1.StorageConsumerConfiguring
-	_, err = consumerManager.Create(ctx, "consumer2", "ticket2", resource.MustParse("1G"))
-	assert.NoError(t, err)
-	req = pb.StorageConfigRequest{
-		StorageConsumerUUID: string(consumerResource2.UID),
-	}
-
-	server.consumerManager.nameByUID = map[types.UID]string{
-		consumerResource2.UID: consumerResource2.Name,
-	}
+	req.StorageConsumerUUID = string(consumerResource2.UID)
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
 	assert.Error(t, err)
 	errCode, _ = status.FromError(err)
@@ -316,15 +271,7 @@ func TestGetExternalResources(t *testing.T) {
 	assert.Nil(t, storageConRes)
 
 	// When ocsv1alpha1.StorageConsumerDeleting
-	_, err = consumerManager.Create(ctx, "consumer3", "ticket3", resource.MustParse("1G"))
-	assert.NoError(t, err)
-	req = pb.StorageConfigRequest{
-		StorageConsumerUUID: string(consumerResource3.UID),
-	}
-
-	server.consumerManager.nameByUID = map[types.UID]string{
-		consumerResource3.UID: consumerResource3.Name,
-	}
+	req.StorageConsumerUUID = string(consumerResource3.UID)
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
