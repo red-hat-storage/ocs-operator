@@ -516,6 +516,8 @@ spec:
                   cephObjectStores:
                     description: ManageCephObjectStores defines how to reconcile CephObjectStores
                     properties:
+                      disableRoute:
+                        type: boolean
                       disableStorageClass:
                         type: boolean
                       gatewayInstances:
