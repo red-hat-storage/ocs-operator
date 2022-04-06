@@ -19,6 +19,9 @@ type ocsCephRGWRoutes struct{}
 // ensureCreated ensures that CephObjectStore resources exist in the desired
 // state.
 func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	if instance.Spec.ManagedResources.CephObjectStores.DisableRoute {
+		return reconcile.Result{}, nil
+	}
 	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return reconcile.Result{}, nil
@@ -51,6 +54,9 @@ func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance
 
 // ensureDeleted deletes the CephObjectStores owned by the StorageCluster
 func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
+	if sc.Spec.ManagedResources.CephObjectStores.DisableRoute {
+		return reconcile.Result{}, nil
+	}
 	foundRoute := &routev1.Route{}
 	routes, err := r.newCephRGWRoutes(sc)
 	if err != nil {
