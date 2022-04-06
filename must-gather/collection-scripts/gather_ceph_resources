@@ -376,4 +376,4 @@ for ns in $namespaces; do
 done
 
 cat "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-rm -rf "${BASE_COLLECTION_PATH}/"gather-ceph-debug.log >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+rm -rf "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
