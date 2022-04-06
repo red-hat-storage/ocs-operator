@@ -29,6 +29,8 @@ type externalResource struct {
 	Name string            `json:"name"`
 }
 
+var serverNamespace = "openshift-storage"
+
 var mockExtR = map[string]*externalResource{
 	"rook-ceph-mon-endpoints": {
 		Name: "rook-ceph-mon-endpoints",
@@ -69,7 +71,11 @@ var mockExtR = map[string]*externalResource{
 
 var (
 	consumerResource = &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{Name: "consumer", UID: "uid"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer",
+			UID:       "uid",
+			Namespace: serverNamespace,
+		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			CephResources: []*ocsv1alpha1.CephResourcesSpec{
 				{
@@ -82,31 +88,51 @@ var (
 	}
 
 	consumerResource1 = &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{Name: "consumer1", UID: "uid1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer1",
+			UID:       "uid1",
+			Namespace: serverNamespace,
+		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			State: ocsv1alpha1.StorageConsumerStateFailed,
 		},
 	}
 
 	consumerResource2 = &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{Name: "consumer2", UID: "uid2"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer2",
+			UID:       "uid2",
+			Namespace: serverNamespace,
+		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			State: ocsv1alpha1.StorageConsumerStateConfiguring,
 		},
 	}
 	consumerResource3 = &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{Name: "consumer3", UID: "uid3"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer3",
+			UID:       "uid3",
+			Namespace: serverNamespace,
+		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			State: ocsv1alpha1.StorageConsumerStateDeleting,
 		},
 	}
 	consumerResource4 = &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{Name: "consumer4", UID: "uid4"},
-		Status:     ocsv1alpha1.StorageConsumerStatus{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer4",
+			UID:       "uid4",
+			Namespace: serverNamespace,
+		},
+		Status: ocsv1alpha1.StorageConsumerStatus{},
 	}
 
 	consumerResource5 = &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{Name: "consumer5", UID: "uid5"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer5",
+			UID:       "uid5",
+			Namespace: serverNamespace,
+		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			CephResources: []*ocsv1alpha1.CephResourcesSpec{{}},
 			State:         ocsv1alpha1.StorageConsumerStateReady,
@@ -129,7 +155,7 @@ func TestGetExternalResources(t *testing.T) {
 	}
 
 	client := newFakeClient(t, objects...)
-	consumerManager, err := newConsumerManager(ctx, client, "openshift-storage")
+	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
 	assert.NoError(t, err)
 
 	_, err = consumerManager.Create(ctx, "consumer", "ticket", resource.MustParse("1G"))
@@ -139,7 +165,7 @@ func TestGetExternalResources(t *testing.T) {
 	mgrpod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-ceph-mgr-test",
-			Namespace: "openshift-storage",
+			Namespace: serverNamespace,
 			Labels: map[string]string{
 				"app": "rook-ceph-mgr",
 			},
@@ -157,7 +183,7 @@ func TestGetExternalResources(t *testing.T) {
 
 	server := &OCSProviderServer{
 		client:    client,
-		namespace: "openshift-storage",
+		namespace: serverNamespace,
 		consumerManager: &ocsConsumerManager{
 			nameByUID: map[types.UID]string{
 				consumerResource.UID: consumerResource.Name,
@@ -314,7 +340,7 @@ func TestGetExternalResources(t *testing.T) {
 	client = newFakeClient(t, objects...)
 	server = &OCSProviderServer{
 		client:    client,
-		namespace: "openshift-storage",
+		namespace: serverNamespace,
 	}
 
 	for _, i := range consumerResource.Status.CephResources {
@@ -339,7 +365,7 @@ func TestGetExternalResources(t *testing.T) {
 	client = newFakeClient(t, objects...)
 	server = &OCSProviderServer{
 		client:    client,
-		namespace: "openshift-storage",
+		namespace: serverNamespace,
 	}
 
 	for _, i := range consumerResource.Status.CephResources {
