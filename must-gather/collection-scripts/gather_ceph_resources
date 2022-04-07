@@ -258,6 +258,13 @@ for ns in $namespaces; do
             done
         done
 
+        # CRI-O have a limitation to upper limit to number of PIDs, so we found that when `ps aux | wc -l` exceeds 115 the resource cannot be collected
+        # hence to keep a buffer, we are waiting for 2 seconds until we have PIDs available, https://access.redhat.com/solutions/5597061
+        while [ "$(ps aux | wc -l)" -gt 100 ]
+            do
+               printf "waiting for PIDs to be empty before proceeding \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
+               sleep 2
+        done
         # Collecting rbd mirroring info for ceph rbd volumes
         printf "collecting rbd mirroring info for ceph rbd volumes \n" | tee -a  "${BASE_COLLECTION_PATH}"/gather-ceph-debug.log
         COMMAND_OUTPUT_FILE=${COMMAND_OUTPUT_DIR}/rbd_vol_and_mirror_info
