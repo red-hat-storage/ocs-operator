@@ -24,6 +24,13 @@ resources:
   kind: StorageConsumer
   path: github.com/red-hat-storage/ocs-operator/api/v1alpha1
   version: v1alpha1
+-
+  controller: true
+  domain: openshift.io
+  group: ocs
+  kind: StorageClassClaim
+  path: github.com/red-hat-storage/ocs-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"
 plugins:
   go.sdk.operatorframework.io/v2-alpha: {}
