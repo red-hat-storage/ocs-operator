@@ -147,10 +147,6 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 					Kind: "Service",
 					Name: generateNameForCephObjectStoreService(initData),
 				},
-				TLS: &routev1.TLSConfig{
-					Termination:                   routev1.TLSTerminationReencrypt,
-					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
-				},
 			},
 		},
 	}
