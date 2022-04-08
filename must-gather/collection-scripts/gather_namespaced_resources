@@ -48,9 +48,6 @@ commands_get+=("events")
 commands_get+=("all -o wide")
 commands_get+=("role")
 commands_get+=("rolebinding")
-commands_get+=("volumesnapshot -A")
-commands_get+=("volumesnapshotclass")
-commands_get+=("volumesnapshotcontent")
 commands_get+=("storageconsumer")
 commands_get+=("cephfilesystemsubvolumegroups.ceph.rook.io")
 
@@ -59,9 +56,6 @@ commands_desc=()
 commands_desc+=("pods")
 commands_desc+=("subscription")
 commands_desc+=("storagecluster")
-commands_desc+=("volumesnapshot -A")
-commands_desc+=("volumesnapshotclass")
-commands_desc+=("volumesnapshotcontent")
 commands_desc+=("storageconsumer")
 commands_desc+=("cephfilesystemsubvolumegroups.ceph.rook.io")
 
@@ -70,9 +64,6 @@ oc_yamls=()
 oc_yamls+=("csv")
 oc_yamls+=("subscription")
 oc_yamls+=("installplan")
-oc_yamls+=("volumesnapshot -A")
-oc_yamls+=("volumesnapshotclass")
-oc_yamls+=("volumesnapshotcontent")
 
 echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
 oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
@@ -144,6 +135,12 @@ fi
 echo "collecting dump of oc get pvc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get pvc --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/pvc_all_namespaces"
 { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect pvc --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+
+# For volumesnapshot of all namespaces
+echo "collecting dump of oc get volumesnapshot all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+{ oc get volumesnapshot --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_volumesnapshot_all_namespaces"
+{ oc describe volumesnapshot --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_volumesnapshot_all_namespaces"
+{ oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect volumesnapshot --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
 
 # For obc of all namespaces
 echo "collecting dump of oc get obc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"

@@ -24,6 +24,8 @@ commands_get+=("clusterrole")
 commands_get+=("clusterrolebinding")
 commands_get+=("scc")
 commands_get+=("volumereplicationclass")
+commands_get+=("volumesnapshotclass")
+commands_get+=("volumesnapshotcontent")
 
 # collect yaml output of OC commands
 oc_yamls=()
@@ -37,6 +39,8 @@ oc_yamls+=("clusterrole")
 oc_yamls+=("clusterrolebinding")
 oc_yamls+=("scc")
 oc_yamls+=("volumereplicationclass")
+oc_yamls+=("volumesnapshotclass")
+oc_yamls+=("volumesnapshotcontent")
 
 # collect describe output of OC commands
 commands_desc=()
@@ -50,6 +54,8 @@ commands_desc+=("clusterrole")
 commands_desc+=("clusterrolebinding")
 commands_desc+=("scc")
 commands_desc+=("volumereplicationclass")
+commands_desc+=("volumesnapshotclass")
+commands_desc+=("volumesnapshotcontent")
 
 # collection path for OC commands
 mkdir -p "${BASE_COLLECTION_PATH}/cluster-scoped-resources/oc_output/"
