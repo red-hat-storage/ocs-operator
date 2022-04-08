@@ -46,6 +46,7 @@ type StorageClusterSpec struct {
 	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
 	MultiCloudGateway  *MultiCloudGatewaySpec                 `json:"multiCloudGateway,omitempty"`
+	NFS                *NFSSpec                               `json:"nfs,omitempty"`
 	// Monitoring controls the configuration of resources for exposing OCS metrics
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 	// Version specifies the version of StorageCluster
@@ -275,6 +276,13 @@ type MultiCloudGatewaySpec struct {
 	// deployment.
 	// +optional
 	Endpoints *nbv1.EndpointsSpec `json:"endpoints,omitempty"`
+}
+
+// NFSSpec defines specific nfs configuration options
+type NFSSpec struct {
+	// Enable specifies whether to enable NFS.
+	// +optional
+	Enable bool `json:"enable,omitempty"`
 }
 
 // MonitoringSpec controls the configuration of resources for exposing OCS metrics

@@ -962,6 +962,13 @@ spec:
                     nullable: true
                     type: object
                 type: object
+              nfs:
+                description: NFSSpec defines specific nfs configuration options
+                properties:
+                  enable:
+                    description: Enable specifies whether to enable NFS.
+                    type: boolean
+                type: object
               nodeTopologies:
                 description: NodeTopologies specifies the nodes available for the
                   storage cluster, preferred failure domain and location for the arbiter
