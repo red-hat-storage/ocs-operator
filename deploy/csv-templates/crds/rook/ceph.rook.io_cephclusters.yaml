@@ -26,8 +26,7 @@ spec:
         - jsonPath: .metadata.creationTimestamp
           name: Age
           type: date
-        - description: Phase
-          jsonPath: .status.phase
+        - jsonPath: .status.phase
           name: Phase
           type: string
         - description: Message
@@ -727,12 +726,26 @@ spec:
                       maximum: 65535
                       minimum: 0
                       type: integer
-                    rulesNamespace:
-                      type: string
                   type: object
                 network:
                   nullable: true
                   properties:
+                    connections:
+                      nullable: true
+                      properties:
+                        compression:
+                          nullable: true
+                          properties:
+                            enabled:
+                              type: boolean
+                          type: object
+                        encryption:
+                          nullable: true
+                          properties:
+                            enabled:
+                              type: boolean
+                          type: object
+                      type: object
                     dualStack:
                       type: boolean
                     hostNetwork:
@@ -2658,6 +2671,8 @@ spec:
                           - severity
                         type: object
                       type: object
+                    fsid:
+                      type: string
                     health:
                       type: string
                     lastChanged:
@@ -2723,6 +2738,9 @@ spec:
                   type: array
                 message:
                   type: string
+                observedGeneration:
+                  format: int64
+                  type: integer
                 phase:
                   type: string
                 state:

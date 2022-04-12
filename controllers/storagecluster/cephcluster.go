@@ -1,6 +1,10 @@
 package storagecluster
 
 import (
+	// The embed package is required for the prometheus rule files
+	_ "embed"
+
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -11,6 +15,8 @@ import (
 	"github.com/go-logr/logr"
 	v1 "github.com/openshift/api/config/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -21,7 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -62,8 +70,18 @@ const (
 
 const (
 	// PriorityClasses for cephCluster
-	systemNodeCritical    = "system-node-critical"
-	openshiftUserCritical = "openshift-user-critical"
+	systemNodeCritical         = "system-node-critical"
+	openshiftUserCritical      = "openshift-user-critical"
+	prometheusLocalRuleName    = "prometheus-ceph-rules"
+	prometheusExternalRuleName = "prometheus-ceph-rules-external"
+)
+
+var (
+	//go:embed prometheus/externalcephrules.yaml
+	externalPrometheusRules string
+	//go:embed prometheus/localcephrules.yaml
+	localPrometheusRules    string
+	testSkipPrometheusRules = false
 )
 
 func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
@@ -273,6 +291,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
+	// Create the prometheus rules if required by the cephcluster CR
+	if err := createPrometheusRules(r, sc, cephCluster); err != nil {
+		r.Log.Error(err, "Unable to create or update prometheus rules.", "CephCluster", klog.KRef(found.Namespace, found.Name))
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -351,8 +375,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				SSL:     sc.Spec.ManagedResources.CephDashboard.SSL,
 			},
 			Monitoring: rookCephv1.MonitoringSpec{
-				Enabled:        true,
-				RulesNamespace: "openshift-storage",
+				Enabled: true,
 			},
 			Storage: rookCephv1.StorageScopeSpec{
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
@@ -477,7 +500,6 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 
 	if monitoringIP != "" {
 		monitoringSpec.Enabled = true
-		monitoringSpec.RulesNamespace = sc.Namespace
 		// replace any comma with space and collect all the non-empty items
 		monIPArr := parseMonitoringIPs(monitoringIP)
 		monitoringSpec.ExternalMgrEndpoints = make([]corev1.EndpointAddress, len(monIPArr))
@@ -913,4 +935,107 @@ func addStrictFailureDomainTSC(placement *rookCephv1.Placement, topologyKey stri
 	newTSC.WhenUnsatisfiable = "DoNotSchedule"
 
 	placement.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{newTSC, placement.TopologySpreadConstraints[0]}
+}
+
+// ensureCreated ensures that cephFilesystem resources exist in the desired
+// state.
+func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, cluster *rookCephv1.CephCluster) error {
+	if !cluster.Spec.Monitoring.Enabled {
+		r.Log.Info("prometheus rules skipped", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+		return nil
+	}
+	if testSkipPrometheusRules {
+		r.Log.Info("skipping prometheus rules in test")
+		return nil
+	}
+
+	rules := localPrometheusRules
+	name := prometheusLocalRuleName
+	if cluster.Spec.External.Enable {
+		rules = externalPrometheusRules
+		name = prometheusExternalRuleName
+	}
+	prometheusRule, err := parsePrometheusRule(rules)
+	if err != nil {
+		r.Log.Error(err, "Unable to retrieve prometheus rules.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+		return err
+	}
+	prometheusRule.SetName(name)
+	prometheusRule.SetNamespace(sc.Namespace)
+	if err := controllerutil.SetControllerReference(sc, prometheusRule, r.Scheme); err != nil {
+		r.Log.Error(err, "Unable to set controller reference for prometheus rules.", "CephCluster")
+		return err
+	}
+	applyLabels(getCephClusterMonitoringLabels(*sc), &prometheusRule.ObjectMeta)
+
+	if err := createOrUpdatePrometheusRule(r, sc, prometheusRule); err != nil {
+		r.Log.Error(err, "Prometheus rules could not be created.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+		return err
+	}
+
+	r.Log.Info("prometheus rules deployed", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+
+	return nil
+}
+
+// applyLabels adds labels to object meta, overwriting keys that are already defined.
+func applyLabels(labels map[string]string, t *metav1.ObjectMeta) {
+	if t.Labels == nil {
+		t.Labels = map[string]string{}
+	}
+	for k, v := range labels {
+		t.Labels[k] = v
+	}
+}
+
+// parsePrometheusRule returns provided prometheus rules or an error
+func parsePrometheusRule(rules string) (*monitoringv1.PrometheusRule, error) {
+	var rule monitoringv1.PrometheusRule
+	err := k8sYAML.NewYAMLOrJSONDecoder(bytes.NewBufferString(string(rules)), 1000).Decode(&rule)
+	if err != nil {
+		return nil, fmt.Errorf("prometheusRules could not be decoded. %v", err)
+	}
+	return &rule, nil
+}
+
+// createOrUpdatePrometheusRule creates a prometheusRule object or an error
+func createOrUpdatePrometheusRule(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, prometheusRule *monitoringv1.PrometheusRule) error {
+	name := prometheusRule.GetName()
+	namespace := prometheusRule.GetNamespace()
+	client, err := getMonitoringClient()
+	if err != nil {
+		return fmt.Errorf("failed to get monitoring client. %v", err)
+	}
+	_, err = client.MonitoringV1().PrometheusRules(namespace).Create(context.TODO(), prometheusRule, metav1.CreateOptions{})
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create prometheusRules. %v", err)
+		}
+		// Get current PrometheusRule so the ResourceVersion can be set as needed
+		// for the object update operation
+		promRule, err := client.MonitoringV1().PrometheusRules(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get prometheusRule object. %v", err)
+		}
+		promRule.Spec = prometheusRule.Spec
+		promRule.ObjectMeta.Labels = prometheusRule.ObjectMeta.Labels
+		_, err = client.MonitoringV1().PrometheusRules(namespace).Update(context.TODO(), promRule, metav1.UpdateOptions{})
+		if err != nil {
+			r.Log.Error(err, "failed to update prometheus rules.", "CephCluster")
+			return err
+		}
+	}
+	return nil
+}
+
+func getMonitoringClient() (*monitoringclient.Clientset, error) {
+	cfg, err := clientcmd.BuildConfigFromFlags("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to build config foo. %v", err)
+	}
+	client, err := monitoringclient.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get monitoring client bar. %v", err)
+	}
+	return client, nil
 }
