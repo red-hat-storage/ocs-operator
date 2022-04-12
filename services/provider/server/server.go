@@ -12,14 +12,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
-	"github.com/red-hat-storage/ocs-operator/services/provider/common"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
@@ -91,10 +89,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
-	mock := os.Getenv(common.MockProviderAPI)
-	if mock != "" {
-		return mockOnboardConsumer(common.MockError(mock))
-	}
 
 	// Validate capacity
 	capacity, err := resource.ParseQuantity(req.Capacity)
@@ -149,10 +143,6 @@ func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.A
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
-	mock := os.Getenv(common.MockProviderAPI)
-	if mock != "" {
-		return mockGetStorageConfig(common.MockError(mock))
-	}
 
 	// Get storage consumer resource using UUID
 	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
@@ -187,10 +177,6 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 // UpdateCapacity PRC call to increase or decrease the storage pool size
 func (s *OCSProviderServer) UpdateCapacity(ctx context.Context, req *pb.UpdateCapacityRequest) (*pb.UpdateCapacityResponse, error) {
-	mock := os.Getenv(common.MockProviderAPI)
-	if mock != "" {
-		return mockUpdateCapacity(common.MockError(mock))
-	}
 
 	capacity, err := resource.ParseQuantity(req.Capacity)
 	if err != nil {
@@ -211,10 +197,6 @@ func (s *OCSProviderServer) UpdateCapacity(ctx context.Context, req *pb.UpdateCa
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
-	mock := os.Getenv(common.MockProviderAPI)
-	if mock != "" {
-		return mockOffboardConsumer(common.MockError(mock))
-	}
 
 	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
 	if err != nil {
