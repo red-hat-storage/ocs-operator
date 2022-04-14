@@ -109,3 +109,5 @@ mv bundle/manifests $OCS_FINAL_DIR
 mv bundle/metadata "$(dirname $OCS_FINAL_DIR)"/metadata
 rm -rf bundle
 rm bundle.Dockerfile
+
+cp config/metadata/dependencies.yaml "$(dirname $OCS_FINAL_DIR)"/metadata
