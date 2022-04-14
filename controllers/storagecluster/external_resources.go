@@ -397,9 +397,20 @@ func (r *StorageClusterReconciler) createAndOwnStorageClassClaim(
 
 func (r *StorageClusterReconciler) deleteDefaultStorageClassClaims(instance *ocsv1.StorageCluster) error {
 
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      defaultStorageClassClaimLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
 	storageClassClaims := &ocsv1alpha1.StorageClassClaimList{}
-	err := r.Client.List(context.TODO(), storageClassClaims, &client.ListOptions{
-		Raw: &metav1.ListOptions{LabelSelector: defaultStorageClassClaimLabel}})
+	err = r.Client.List(context.TODO(), storageClassClaims, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return err
 	}
