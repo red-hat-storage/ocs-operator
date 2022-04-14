@@ -209,6 +209,10 @@ func main() {
 	apiClient, err := apiclient.New(mgr.GetConfig(), apiclient.Options{
 		Scheme: mgr.GetScheme(),
 	})
+	if err != nil {
+		setupLog.Error(err, "Unable to get Client")
+		os.Exit(1)
+	}
 
 	// Set OperatorCondition Upgradeable to True
 	// We have to at least default the condition to True or
