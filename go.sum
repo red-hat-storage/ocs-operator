@@ -334,8 +334,8 @@ github.com/cenkalti/backoff/v3 v3.0.0/go.mod h1:cIeZDE3IrqwwJl6VUwCN6trj1oXrTS4r
 github.com/cenkalti/backoff/v4 v4.0.2/go.mod h1:eEew/i+1Q6OrCDZh3WiXYv3+nJwBASZ8Bog/87DQnVg=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/centrify/cloud-golang-sdk v0.0.0-20190214225812-119110094d0f/go.mod h1:C0rtzmGXgN78pYR0tGJFhtHgkbAs0lIbHwkB81VxDQE=
-github.com/ceph/ceph-csi/api v0.0.0-20211006172825-b9beb2106b70 h1:QOGXUOQKNB8+8+7lzqr0B2kGHCINE1gWNNtjPGNXmJU=
-github.com/ceph/ceph-csi/api v0.0.0-20211006172825-b9beb2106b70/go.mod h1:H15KD1Pe+9+a/zk5IEC+bMZ2A39hwAvqbkt1ncuuQBk=
+github.com/ceph/ceph-csi/api v0.0.0-20220413173542-2205145654cd h1:JC4LA3XXZTVnOQfCniIKn1QYBeqh71vQiY6taY7MmnU=
+github.com/ceph/ceph-csi/api v0.0.0-20220413173542-2205145654cd/go.mod h1:EwnbYHK8lmLFjQ1ZEk/KMDLNQUSdaamMOg6IUtua2Nw=
 github.com/ceph/go-ceph v0.9.1-0.20210607162346-8179bd4437f9/go.mod h1:mafFpf5Vg8Ai8Bd+FAMvKBHLmtdpTXdRP/TNq8XWegY=
 github.com/ceph/go-ceph v0.12.0 h1:nlFgKQZXOFR4oMnzXsKwTr79Y6EYDwqTrpigICGy/Tw=
 github.com/ceph/go-ceph v0.12.0/go.mod h1:mafFpf5Vg8Ai8Bd+FAMvKBHLmtdpTXdRP/TNq8XWegY=

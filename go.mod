@@ -6,7 +6,7 @@ require (
 	github.com/RHsyseng/operator-utils v1.4.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi/api v0.0.0-20211006172825-b9beb2106b70
+	github.com/ceph/ceph-csi/api v0.0.0-20220413173542-2205145654cd
 	github.com/ceph/go-ceph v0.12.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v1.2.0
