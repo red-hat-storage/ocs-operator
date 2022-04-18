@@ -59,6 +59,14 @@ func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) str
 	return fmt.Sprintf("%s-ceph-rbd-encrypted", initData.Name)
 }
 
+func generateNameForCephNetworkFilesystemSC(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-ceph-nfs", initData.Name)
+}
+
+func generateNameForNFSCSIProvisioner(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s.nfs.csi.ceph.com", initData.Namespace)
+}
+
 // generateNameForSnapshotClass function generates 'SnapshotClass' name.
 // 'snapshotType' can be: 'rbdSnapshotter' or 'cephfsSnapshotter'
 func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
