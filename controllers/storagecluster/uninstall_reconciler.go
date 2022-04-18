@@ -333,6 +333,7 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 		&ocsCephObjectStores{},
 		&ocsCephRbdMirrors{},
 		&ocsCephNFS{},
+		&ocsCephNFSService{},
 		&ocsCephFilesystems{},
 		&ocsCephBlockPools{},
 		&ocsSnapshotClass{},

@@ -14,6 +14,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -85,6 +86,11 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephnfs-builtin-pool",
 		},
 	}
+	cnfssvc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephnfs-service",
+		},
+	}
 	cbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -95,7 +101,7 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephrbdmirror",
 		},
 	}
-	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm, cnfs, cnfsbp}
+	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm, cnfs, cnfsbp, cnfssvc}
 
 	skip, err := r.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, err)
@@ -208,6 +214,12 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
+	cnfssvc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephnfs-service",
+		},
+	}
+
 	cbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -217,7 +229,7 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
-	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp)
+	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}

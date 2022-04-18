@@ -371,6 +371,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephBlockPools{},
 				&ocsCephFilesystems{},
 				&ocsCephNFS{},
+				&ocsCephNFSService{},
 				&ocsCephObjectStores{},
 				&ocsCephObjectStoreUsers{},
 				&ocsCephRGWRoutes{},
