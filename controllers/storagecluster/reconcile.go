@@ -107,7 +107,7 @@ var validTopologyLabelKeys = []string{
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephobjectstores;cephobjectstoreusers;cephrbdmirrors,verbs=*
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephnfses;cephobjectstores;cephobjectstoreusers;cephrbdmirrors,verbs=*
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaas,verbs=*
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=*
 // +kubebuilder:rbac:groups=core,resources=pods;services;endpoints;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=*
@@ -370,6 +370,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephCluster{},
 				&ocsCephBlockPools{},
 				&ocsCephFilesystems{},
+				&ocsCephNFS{},
 				&ocsCephObjectStores{},
 				&ocsCephObjectStoreUsers{},
 				&ocsCephRGWRoutes{},

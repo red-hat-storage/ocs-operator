@@ -43,6 +43,9 @@ func createStorageCluster(scName, failureDomainName string,
 			Monitoring: &api.MonitoringSpec{
 				ReconcileStrategy: string(ReconcileStrategyIgnore),
 			},
+			NFS: &api.NFSSpec{
+				Enable: true,
+			},
 		},
 		Status: api.StorageClusterStatus{
 			FailureDomain: failureDomainName,
@@ -72,6 +75,11 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephfilesystem",
 		},
 	}
+	cnfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephnfs",
+		},
+	}
 	cbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -82,7 +90,7 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephrbdmirror",
 		},
 	}
-	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm}
+	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm, cnfs}
 
 	skip, err := r.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, err)
@@ -181,6 +189,13 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
+	cnfs := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{Name: "ocsinit-cephnfs"},
+		Status: &cephv1.Status{
+			Phase: util.PhaseReady,
+		},
+	}
+
 	cbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -190,7 +205,7 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
-	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs)
+	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}
