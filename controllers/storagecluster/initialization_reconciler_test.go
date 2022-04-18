@@ -80,6 +80,11 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephnfs",
 		},
 	}
+	cnfsbp := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephnfs-builtin-pool",
+		},
+	}
 	cbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -90,7 +95,7 @@ func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReco
 			Name: "ocsinit-cephrbdmirror",
 		},
 	}
-	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm, cnfs}
+	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm, cnfs, cnfsbp}
 
 	skip, err := r.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, err)
@@ -196,6 +201,13 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
+	cnfsbp := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{Name: "ocsinit-cephnfs-builtin-pool"},
+		Status: &cephv1.CephBlockPoolStatus{
+			Phase: cephv1.ConditionType(util.PhaseReady),
+		},
+	}
+
 	cbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -205,7 +217,7 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
-	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs)
+	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}

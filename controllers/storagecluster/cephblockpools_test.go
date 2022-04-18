@@ -42,6 +42,7 @@ func TestCephBlockPools(t *testing.T) {
 				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
 			}
 			assertCephBlockPools(t, reconciler, cr, request, false, false)
+			assertCephNFSBlockPool(t, reconciler, cr, request)
 		}
 	}
 }
@@ -161,4 +162,23 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	assert.Equal(t, expectedCbp[0].ObjectMeta.Name, actualCbp.ObjectMeta.Name)
 	assert.Equal(t, expectedCbp[0].Spec, actualCbp.Spec)
+}
+
+func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+	actualNFSBlockPool := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephnfs-builtin-pool",
+		},
+	}
+	request.Name = "ocsinit-cephnfs-builtin-pool"
+	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualNFSBlockPool)
+	assert.NoError(t, err)
+
+	expectedAf, err := reconciler.newCephBlockPoolInstances(cr)
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(expectedAf[1].OwnerReferences), 1)
+
+	assert.Equal(t, expectedAf[1].ObjectMeta.Name, actualNFSBlockPool.ObjectMeta.Name)
+	assert.Equal(t, expectedAf[1].Spec, actualNFSBlockPool.Spec)
 }

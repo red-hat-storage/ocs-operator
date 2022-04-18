@@ -23,6 +23,10 @@ func generateNameForCephNFS(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephnfs", initData.Name)
 }
 
+func generateNameForCephNFSBlockPool(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-builtin-pool", generateNameForCephNFS(initData))
+}
+
 func generateNameForCephObjectStoreUser(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephobjectstoreuser", initData.Name)
 }
