@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+FROM quay.io/ceph/ceph:v17
 
 ADD ./metrics-exporter /
 
