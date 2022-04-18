@@ -134,16 +134,29 @@ func (cc *OCSProviderClient) AcknowledgeOnboarding(ctx context.Context, consumer
 	return cc.Client.AcknowledgeOnboarding(apiCtx, req)
 }
 
-func (cc *OCSProviderClient) FulfillStorageClassClaim(ctx context.Context, consumerUUID, storageClassClaimName, encryptionMethod string, storageType pb.FulfillStorageClassClaimRequest_StorageType) (*pb.FulfillStorageClassClaimResponse, error) {
+type StorageType uint
+
+const (
+	StorageTypeBlockpool StorageType = iota
+	StorageTypeSharedfilesystem
+)
+
+func (cc *OCSProviderClient) FulfillStorageClassClaim(ctx context.Context, consumerUUID, storageClassClaimName, encryptionMethod string, storageType StorageType) (*pb.FulfillStorageClassClaimResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
+	}
+	var st pb.FulfillStorageClassClaimRequest_StorageType
+	if storageType == StorageTypeSharedfilesystem {
+		st = pb.FulfillStorageClassClaimRequest_SHAREDFILESYSTEM
+	} else if storageType == StorageTypeBlockpool {
+		st = pb.FulfillStorageClassClaimRequest_BLOCKPOOL
 	}
 
 	req := &pb.FulfillStorageClassClaimRequest{
 		StorageConsumerUUID:   consumerUUID,
 		StorageClassClaimName: storageClassClaimName,
 		EncryptionMethod:      encryptionMethod,
-		StorageType:           storageType,
+		StorageType:           st,
 	}
 
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
