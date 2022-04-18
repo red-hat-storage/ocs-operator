@@ -49,9 +49,19 @@ func main() {
 	// Add custom resource collectors to the registry.
 	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
 
+	// Add persistent volume attributes collector to the registry.
+	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
+
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry)
+
+	rbdRegistry := prometheus.NewRegistry()
+	// Add rbd mirror metrics collector to registry
+	collectors.RegisterRBDMirrorCollector(rbdRegistry, opts)
+
+	// server rbd mirror metrics
+	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry)
 
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
