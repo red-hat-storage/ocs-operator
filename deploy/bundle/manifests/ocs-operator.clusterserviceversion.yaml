@@ -1622,6 +1622,7 @@ spec:
           - cephblockpools
           - cephclusters
           - cephfilesystems
+          - cephnfses
           - cephobjectstores
           - cephobjectstoreusers
           - cephrbdmirrors

@@ -89,7 +89,8 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		}
 		sc := scc.storageClass
 
-		if strings.Contains(sc.Name, "-ceph-rbd") && !scc.isClusterExternal {
+		switch {
+		case strings.Contains(sc.Name, "-ceph-rbd") && !scc.isClusterExternal:
 			// wait for CephBlockPool to be ready
 			cephBlockPool := cephv1.CephBlockPool{}
 			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: sc.Parameters["clusterID"]}
@@ -102,7 +103,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-		} else if strings.Contains(sc.Name, "-cephfs") && !scc.isClusterExternal {
+		case strings.Contains(sc.Name, "-cephfs") && !scc.isClusterExternal:
 			// wait for CephFilesystem to be ready
 			cephFilesystem := cephv1.CephFilesystem{}
 			key := types.NamespacedName{Name: sc.Parameters["fsName"], Namespace: sc.Parameters["clusterID"]}
@@ -110,6 +111,19 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 			if err != nil || cephFilesystem.Status == nil || cephFilesystem.Status.Phase != cephv1.ConditionType(util.PhaseReady) {
 				r.Log.Info("Waiting for CephFilesystem to be Ready. Skip reconciling StorageClass",
 					"CephFilesystem", klog.KRef(key.Name, key.Namespace),
+					"StorageClass", klog.KRef("", sc.Name),
+				)
+				skippedSC = append(skippedSC, sc.Name)
+				continue
+			}
+		case strings.Contains(sc.Name, "-nfs"):
+			// wait for CephNFS to be ready
+			cephNFS := cephv1.CephNFS{}
+			key := types.NamespacedName{Name: sc.Parameters["nfsCluster"], Namespace: sc.Parameters["clusterID"]}
+			err := r.Client.Get(context.TODO(), key, &cephNFS)
+			if err != nil || cephNFS.Status == nil || cephNFS.Status.Phase != util.PhaseReady {
+				r.Log.Info("Waiting for CephNFS to be Ready. Skip reconciling StorageClass",
+					"CephNFS", klog.KRef(key.Name, key.Namespace),
 					"StorageClass", klog.KRef("", sc.Name),
 				)
 				skippedSC = append(skippedSC, sc.Name)
@@ -231,6 +245,39 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	}
 }
 
+// newCephNFSStorageClassConfiguration generates configuration options for a Ceph Filesystem StorageClass.
+func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
+	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
+	// VolumeExpansion is not yet supported for nfs.
+	allowVolumeExpansion := false
+	return StorageClassConfiguration{
+		storageClass: &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: generateNameForCephNetworkFilesystemSC(initData),
+				Annotations: map[string]string{
+					"description": "Provides RWO and RWX Filesystem volumes",
+				},
+			},
+			Provisioner:          generateNameForNFSCSIProvisioner(initData),
+			ReclaimPolicy:        &persistentVolumeReclaimDelete,
+			AllowVolumeExpansion: &allowVolumeExpansion,
+			Parameters: map[string]string{
+				"clusterID":        initData.Namespace,
+				"nfsCluster":       generateNameForCephNFS(initData),
+				"fsName":           generateNameForCephFilesystem(initData),
+				"server":           generateNameForNFSService(initData),
+				"volumeNamePrefix": "nfs-export-",
+				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
+				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
+				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
+			},
+		},
+	}
+}
+
 // newEncryptedCephBlockPoolStorageClassConfiguration generates configuration options for an encrypted Ceph Block Pool StorageClass.
 // when user has asked for PV encryption during deployment.
 func newEncryptedCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, serviceName string) StorageClassConfiguration {
@@ -276,6 +323,9 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	ret := []StorageClassConfiguration{
 		newCephFilesystemStorageClassConfiguration(initData),
 		newCephBlockPoolStorageClassConfiguration(initData),
+	}
+	if initData.Spec.NFS != nil && initData.Spec.NFS.Enable {
+		ret = append(ret, newCephNFSStorageClassConfiguration(initData))
 	}
 	// OBC storageclass will be returned only in TWO conditions,
 	// a. either 'externalStorage' is enabled

@@ -91,6 +91,9 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					},
 				},
 			},
+			NFS: &ocsv1.NFSSpec{
+				Enable: true,
+			},
 			// Setting empty ResourceLists to prevent ocs-operator from setting the
 			// default resource requirements
 			Resources: map[string]corev1.ResourceRequirements{
@@ -99,6 +102,10 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					Limits:   corev1.ResourceList{},
 				},
 				"mds": {
+					Requests: corev1.ResourceList{},
+					Limits:   corev1.ResourceList{},
+				},
+				"nfs": {
 					Requests: corev1.ResourceList{},
 					Limits:   corev1.ResourceList{},
 				},

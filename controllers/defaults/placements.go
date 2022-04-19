@@ -98,6 +98,17 @@ var (
 			},
 		},
 
+		"nfs": {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					getPodAffinityTerm("rook-ceph-nfs"),
+				},
+			},
+		},
+
 		"noobaa-core": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),

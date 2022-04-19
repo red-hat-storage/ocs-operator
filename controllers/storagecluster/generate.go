@@ -19,6 +19,18 @@ func generateNameForCephFilesystem(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephfilesystem", initData.Name)
 }
 
+func generateNameForCephNFS(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-cephnfs", initData.Name)
+}
+
+func generateNameForNFSService(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-service", generateNameForCephNFS(initData))
+}
+
+func generateNameForCephNFSBlockPool(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-builtin-pool", generateNameForCephNFS(initData))
+}
+
 func generateNameForCephObjectStoreUser(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephobjectstoreuser", initData.Name)
 }
@@ -45,6 +57,14 @@ func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 
 func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-ceph-rbd-encrypted", initData.Name)
+}
+
+func generateNameForCephNetworkFilesystemSC(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-ceph-nfs", initData.Name)
+}
+
+func generateNameForNFSCSIProvisioner(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s.nfs.csi.ceph.com", initData.Namespace)
 }
 
 // generateNameForSnapshotClass function generates 'SnapshotClass' name.

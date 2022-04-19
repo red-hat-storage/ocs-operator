@@ -69,6 +69,27 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 			},
 		},
 	}
+
+	// create `.nfs` cephblockpool if NFS is enabled.
+	if initData.Spec.NFS != nil && initData.Spec.NFS.Enable {
+		ret = append(ret,
+			&cephv1.CephBlockPool{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      generateNameForCephNFSBlockPool(initData),
+					Namespace: initData.Namespace,
+				},
+				Spec: cephv1.NamedBlockPoolSpec{
+					Name: ".nfs",
+					PoolSpec: cephv1.PoolSpec{
+						FailureDomain:  getFailureDomain(initData),
+						Replicated:     generateCephReplicatedSpec(initData, "data"),
+						EnableRBDStats: true,
+					},
+				},
+			},
+		)
+	}
+
 	for _, obj := range ret {
 		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {

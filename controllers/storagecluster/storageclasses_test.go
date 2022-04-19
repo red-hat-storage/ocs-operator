@@ -51,12 +51,14 @@ func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.Storage
 func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	pvEncryption := cr.Spec.Encryption.StorageClass && cr.Spec.Encryption.KeyManagementService.Enable
 	scNameCephfs := generateNameForCephFilesystemSC(cr)
+	scNameNfs := generateNameForCephNetworkFilesystemSC(cr)
 	scNameRbd := generateNameForCephBlockPoolSC(cr)
 	scNameEncryptedRbd := generateNameForEncryptedCephBlockPoolSC(cr)
 	scNameRgw := generateNameForCephRgwSC(cr)
 
 	actual := map[string]*storagev1.StorageClass{
 		scNameCephfs:       {},
+		scNameNfs:          {},
 		scNameRbd:          {},
 		scNameEncryptedRbd: {},
 		scNameRgw:          {},
@@ -70,16 +72,16 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 	assert.NoError(t, skipErr)
 	if skip {
 		if pvEncryption {
-			assert.Equal(t, len(expected), 3)
+			assert.Equal(t, len(expected), 4)
 		} else {
-			assert.Equal(t, len(expected), 2)
+			assert.Equal(t, len(expected), 3)
 		}
 	} else {
 		if pvEncryption {
-			assert.Equal(t, len(expected), 4)
+			assert.Equal(t, len(expected), 5)
 		} else {
 			// if not a cloud platform, RGW StorageClass should be created/updated
-			assert.Equal(t, len(expected), 3)
+			assert.Equal(t, len(expected), 4)
 		}
 	}
 
