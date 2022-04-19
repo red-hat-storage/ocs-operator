@@ -36,19 +36,21 @@ fi
 
 # In case the system doesn't have uuidgen, fall back to /dev/urandom
 NEW_CONSUMER_ID="$(uuidgen || (tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 36 | head -n 1) || echo "00000000-0000-0000-0000-000000000000")"
+EXPIRATION_DATE="$(( $(date +%s) + 172800 ))"
 
-declare -A DATA
-DATA=(
-  ["id"]="${NEW_CONSUMER_ID}"
-  ["expirationDate"]="$(( $(date +%s) + 172800 ))"
-)
+declare JSON
+add_var() {
+  if [[ -n "${JSON}" ]]; then
+    JSON+=","
+  fi
 
-JSON="{"
-for k in "${!DATA[@]}"; do
-  JSON+="\"$k\":\"${DATA[$k]}\","
-done
-JSON="${JSON:0:-1}}"
+  JSON+="$(printf '"%s":"%s"' "${1}" "${2}")"
+}
 
-PAYLOAD="$(echo -n "${JSON}" | base64 -w 0)"
-SIG="$(echo -n "${JSON}"| openssl dgst -sign "${KEY_FILE}" | base64 -w 0)"
+## Add ticket values here
+add_var "id" "${NEW_CONSUMER_ID}"
+add_var "expirationDate" "${EXPIRATION_DATE}"
+
+PAYLOAD="$(echo -n "{${JSON}}" | base64 | tr -d "\n")"
+SIG="$(echo -n "{${JSON}}"| openssl dgst -sign "${KEY_FILE}" | base64 | tr -d "\n")"
 cat <<< "${PAYLOAD}.${SIG}"
