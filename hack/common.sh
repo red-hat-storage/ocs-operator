@@ -48,11 +48,7 @@ LATEST_ROOK_IMAGE="rook/ceph:v1.9.0"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:master-20210912"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:master-20210912"
 LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
-# The stretch cluster feature will come in ceph pacific(v16).  We don't have an
-# image for it yet. Meanwhile, we will use an image that has the required
-# patches. This is required for the CI and does not impact anything else.
-# TODO: revert to using ceph/ceph image once v16 is out.)
-LATEST_CEPH_IMAGE="ceph/daemon-base:latest-pacific"
+LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v16"
 LATEST_VOLUME_REPLICATION_OPERATOR_IMAGE="csiaddons/volumereplication-operator:v0.1.0"
 LATEST_ROOK_CSIADDONS_IMAGE="csiaddons/k8s-sidecar:v0.2.1"
 LATEST_ROOK_CSI_NFS_IMAGE="k8s.gcr.io/sig-storage/nfsplugin:v3.1.0"
