@@ -2597,7 +2597,7 @@ spec:
                 - name: ROOK_CEPH_IMAGE
                   value: rook/ceph:v1.9.0
                 - name: CEPH_IMAGE
-                  value: ceph/daemon-base:latest-pacific
+                  value: quay.io/ceph/ceph:v16
                 - name: NOOBAA_CORE_IMAGE
                   value: noobaa/noobaa-core:master-20210912
                 - name: NOOBAA_DB_IMAGE
@@ -3047,7 +3047,7 @@ spec:
   relatedImages:
   - image: rook/ceph:v1.9.0
     name: rook-container
-  - image: ceph/daemon-base:latest-pacific
+  - image: quay.io/ceph/ceph:v16
     name: ceph-container
   - image: quay.io/csiaddons/volumereplication-operator:v0.1.0
     name: volume-replication-operator
