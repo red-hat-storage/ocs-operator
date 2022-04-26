@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -157,4 +158,80 @@ func TestDualStack(t *testing.T) {
 
 	}
 
+}
+
+func TestRookConfigs(t *testing.T) {
+	testTable := []struct {
+		label               string
+		storageCluster      *api.StorageCluster
+		expectConfigs       map[string]bool
+		expectedConfigValue map[string]string
+	}{
+		{
+			label: "Case #1 AllowRemoteStorageConsumers is enabled",
+			storageCluster: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "config-test",
+					Namespace: "test",
+				},
+				Spec: api.StorageClusterSpec{
+					AllowRemoteStorageConsumers: true,
+				},
+			},
+			expectConfigs: map[string]bool{
+				"osd_pool_default_pg_autoscale_mode": true,
+				"osd_pool_default_pg_num":            true,
+				"osd_pool_default_pgp_num":           true,
+			},
+			expectedConfigValue: map[string]string{
+				"osd_pool_default_pg_autoscale_mode": "off",
+				"osd_pool_default_pg_num":            "128",
+				"osd_pool_default_pgp_num":           "128",
+			},
+		},
+		{
+			label: "Case #2 AllowRemoteStorageConsumers is disabled",
+			storageCluster: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "config-test",
+					Namespace: "test",
+				},
+				Spec: api.StorageClusterSpec{
+					AllowRemoteStorageConsumers: false,
+				},
+			},
+			expectConfigs: map[string]bool{
+				"osd_pool_default_pg_autoscale_mode": false,
+				"osd_pool_default_pg_num":            false,
+				"osd_pool_default_pgp_num":           false,
+			},
+		},
+	}
+	for i, testCase := range testTable {
+		t.Logf("Case #%+v", i+1)
+		r := createFakeStorageClusterReconciler(t, testCase.storageCluster)
+		cephConfigReconciler := &ocsCephConfig{}
+		configMap := &corev1.ConfigMap{}
+		_, err := cephConfigReconciler.ensureCreated(&r, testCase.storageCluster)
+		if err != nil {
+			assert.NilError(t, err, "ensure created failed")
+		}
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: "test"}, configMap)
+		assert.NilError(t, err, "expected to find configmap %q: %+v", rookConfigMapName, err)
+
+		cfg, err := ini.Load([]byte(configMap.Data["config"]))
+		assert.NilError(t, err, "expected ini string to load")
+
+		sect, err := cfg.GetSection(globalSectionKey)
+		assert.NilError(t, err, "expected section to exist")
+
+		for key, value := range testCase.expectConfigs {
+			keyFound := sect.HasKey(key)
+			assert.Equal(t, keyFound, testCase.expectConfigs[key])
+
+			if value && keyFound {
+				assert.Equal(t, sect.Key(key).Value(), testCase.expectedConfigValue[key], fmt.Sprintf("expected %v value to match", key))
+			}
+		}
+	}
 }
