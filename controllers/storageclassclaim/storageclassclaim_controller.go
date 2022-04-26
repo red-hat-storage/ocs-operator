@@ -711,7 +711,7 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 			return err
 		}
 		deviceSetList := r.storageCluster.Spec.StorageDeviceSets
-		var deviceSet *v1.StorageDeviceSet = nil
+		var deviceSet *v1.StorageDeviceSet
 		for i := range deviceSetList {
 			ds := &deviceSetList[i]
 			if ds.Name == "default" {

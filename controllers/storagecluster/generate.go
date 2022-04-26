@@ -126,7 +126,7 @@ func generateStorageQuotaName(storageClassName, quotaName string) string {
 // GenerateCephFSProviderParameters function generates extra parameters required for provider storage clusters
 func GenerateCephFSProviderParameters(initData *ocsv1.StorageCluster) (map[string]string, error) {
 	deviceSetList := initData.Spec.StorageDeviceSets
-	var deviceSet *ocsv1.StorageDeviceSet = nil
+	var deviceSet *ocsv1.StorageDeviceSet
 	for i := range deviceSetList {
 		ds := &deviceSetList[i]
 		if ds.Name == "default" {
