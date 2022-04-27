@@ -28,6 +28,17 @@ rules:
   - ceph.rook.io
   resources:
   - cephblockpools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephblockpools
   - cephclusters
   - cephfilesystems
   - cephobjectstores
