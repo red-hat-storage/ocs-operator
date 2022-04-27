@@ -36,6 +36,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 						PoolSpec: cephv1.PoolSpec{
 							Replicated:    generateCephReplicatedSpec(initData, "data"),
 							FailureDomain: initData.Status.FailureDomain,
+							Parameters:    generateCephFSProviderParameters(initData),
 						},
 					},
 				},

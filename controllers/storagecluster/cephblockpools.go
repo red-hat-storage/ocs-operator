@@ -65,6 +65,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 					Replicated:     generateCephReplicatedSpec(initData, "data"),
 					EnableRBDStats: true,
 					Mirroring:      mirroringSpec,
+					Parameters:     generateCephRBDProviderParameters(initData),
 				},
 			},
 		},

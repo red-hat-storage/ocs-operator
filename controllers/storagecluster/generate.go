@@ -83,3 +83,29 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 func generateStorageQuotaName(storageClassName, quotaName string) string {
 	return fmt.Sprintf("ocs-%s-%s", storageClassName, quotaName)
 }
+
+// generateCephFSProviderParameters function generates extra parameters required for provider storage clusters
+func generateCephFSProviderParameters(initData *ocsv1.StorageCluster) map[string]string {
+	if initData.Spec.AllowRemoteStorageConsumers {
+		providerParameters := map[string]string{
+			"pg_autoscale_mode": "off",
+			"pg_num":            "512",
+			"pgp_num":           "512",
+		}
+		return providerParameters
+	}
+	return nil
+}
+
+// generateCephFSProviderParameters function generates extra parameters required for provider storage clusters
+func generateCephRBDProviderParameters(initData *ocsv1.StorageCluster) map[string]string {
+	if initData.Spec.AllowRemoteStorageConsumers {
+		providerParameters := map[string]string{
+			"pg_autoscale_mode": "off",
+			"pg_num":            "128",
+			"pgp_num":           "128",
+		}
+		return providerParameters
+	}
+	return nil
+}
