@@ -176,7 +176,7 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 			client.MatchingLabels(map[string]string{StorageConsumerNameLabel: r.storageConsumer.Name}),
 		}
 
-		if err := r.list(cephBlockPoolList, cephBlockPoolListOption); err != nil && len(cephBlockPoolList.Items) > 0 {
+		if err := r.list(cephBlockPoolList, cephBlockPoolListOption); err == nil && len(cephBlockPoolList.Items) > 0 {
 			r.storageConsumer.Status.GrantedCapacity = r.storageConsumer.Spec.Capacity
 		}
 
