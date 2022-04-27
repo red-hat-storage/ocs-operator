@@ -64,7 +64,9 @@ func TestEnsureCephCluster(t *testing.T) {
 		},
 	}
 
+	k := 1
 	for i, c := range cases {
+		k++
 		t.Logf("Case %d: %s\n", i+1, c.label)
 
 		sc := &api.StorageCluster{}
@@ -130,6 +132,31 @@ func TestEnsureCephCluster(t *testing.T) {
 				assert.Equal(t, condition.Status, reconciler.conditions[i].Status)
 			}
 		}
+	}
+	{
+		t.Logf("Case %d: %s\n", k, "Unreachable KMS error handling")
+		sc := &api.StorageCluster{}
+		mockStorageCluster.DeepCopyInto(sc)
+		sc.Spec.Encryption.Enable = true
+		sc.Spec.Encryption.KeyManagementService.Enable = true
+		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+		KMSConfigMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      KMSConfigMapName,
+				Namespace: sc.Namespace,
+			},
+			Data: map[string]string{
+				"KMS_PROVIDER": "vault",
+				"VAULT_ADDR":   "http://vault.example.com:9000",
+			},
+		}
+
+		reconciler := createFakeStorageClusterReconciler(t, KMSConfigMap)
+
+		var obj ocsCephCluster
+		_, err := obj.ensureCreated(&reconciler, sc)
+		assert.Equal(t, sc.Status.KMSServerConnection.KMSServerAddress, KMSConfigMap.Data["VAULT_ADDR"])
+		assert.Equal(t, sc.Status.KMSServerConnection.KMSServerConnectionError, err.Error())
 	}
 }
 
