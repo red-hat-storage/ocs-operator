@@ -19,6 +19,9 @@ spec:
   - port: metrics
     path: /metrics
     interval: 1m
+  - port: metrics
+    path: /metrics/rbd-mirror
+    interval: 1m
   - port: exporter
     path: /metrics
     interval: 1m

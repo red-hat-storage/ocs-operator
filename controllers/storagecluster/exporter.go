@@ -15,11 +15,12 @@ import (
 )
 
 const (
-	exporterName   = "ocs-metrics-exporter"
-	portMetrics    = "metrics"
-	portExporter   = "exporter"
-	metricsPath    = "/metrics"
-	scrapeInterval = "1m"
+	exporterName         = "ocs-metrics-exporter"
+	portMetrics          = "metrics"
+	portExporter         = "exporter"
+	metricsPath          = "/metrics"
+	rbdMirrorMetricsPath = "/metrics/rbd-mirror"
+	scrapeInterval       = "1m"
 )
 
 var exporterLabels = map[string]string{
@@ -73,6 +74,7 @@ func getMetricsExporterService(instance *ocsv1.StorageCluster) *corev1.Service {
 						StrVal: "8080",
 					},
 				},
+
 				{
 					Name:     portExporter,
 					Port:     int32(8081),
@@ -150,6 +152,12 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 				{
 					Port:           portMetrics,
 					Path:           metricsPath,
+					Interval:       scrapeInterval,
+					RelabelConfigs: []*monitoringv1.RelabelConfig{&relabelConfig},
+				},
+				{
+					Port:           portMetrics,
+					Path:           rbdMirrorMetricsPath,
 					Interval:       scrapeInterval,
 					RelabelConfigs: []*monitoringv1.RelabelConfig{&relabelConfig},
 				},
