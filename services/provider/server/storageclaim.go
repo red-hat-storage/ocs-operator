@@ -9,6 +9,7 @@ import (
 	"reflect"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
+	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,8 +67,8 @@ func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1al
 			Namespace:       s.namespace,
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
 			Labels: map[string]string{
-				consumerUUIDLabel:          consumerUUID,
-				storageClassClaimNameLabel: storageClassClaimName,
+				controllers.ConsumerUUIDLabel: consumerUUID,
+				storageClassClaimNameLabel:    storageClassClaimName,
 			},
 		},
 		Spec: ocsv1alpha1.StorageClassClaimSpec{

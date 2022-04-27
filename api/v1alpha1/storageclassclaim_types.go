@@ -20,6 +20,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// StorageClassClaimState represent a StorageClassClaimState's state
+type StorageClassClaimState string
+
+const (
+	// StorageClassClaimStateReady represents Ready state of StorageClassClaimState
+	StorageClassClaimStateReady StorageClassClaimState = "Ready"
+	// StorageClassClaimStateInitializing represents Initializing state of StorageClassClaimState
+	StorageClassClaimStateInitializing StorageClassClaimState = "Initializing"
+	// StorageClassClaimStateCreating represents Creating state of StorageClassClaimState
+	StorageClassClaimStateCreating StorageClassClaimState = "Creating"
+	// StorageClassClaimStateDeleting represents Deleting state of StorageClassClaimState
+	StorageClassClaimStateDeleting StorageClassClaimState = "Deleting"
+)
+
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // StorageClassClaimSpec defines the desired state of StorageClassClaim
