@@ -2786,7 +2786,7 @@ spec:
                 - containerPort: 8081
                 resources: {}
                 securityContext:
-                  runAsNonRoot: true
+                  privileged: true
               serviceAccountName: ocs-metrics-exporter
               tolerations:
               - effect: NoSchedule
@@ -3083,4 +3083,6 @@ spec:
     name: rook-csi-nfs
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
+  - image: quay.io/ocs-dev/ocs-operator:latest
+    name: ocs-metrics-exporter
   version: 4.11.0
