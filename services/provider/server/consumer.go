@@ -115,7 +115,12 @@ func (c *ocsConsumerManager) Delete(ctx context.Context, id string) error {
 			Namespace: c.namespace,
 		},
 	}
-	if err := c.client.Delete(ctx, consumerObj); err != nil {
+
+	foregroundDelete := metav1.DeletePropagationForeground
+	deleteOption := client.DeleteOptions{
+		PropagationPolicy: &foregroundDelete,
+	}
+	if err := c.client.Delete(ctx, consumerObj, &deleteOption); err != nil {
 		if kerrors.IsNotFound(err) {
 			// update uidStore
 			c.mutex.Lock()

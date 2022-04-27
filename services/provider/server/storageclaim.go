@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -56,10 +57,11 @@ func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1al
 	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
 
 	ownerRef := metav1.OwnerReference{
-		UID:        consumer.UID,
-		APIVersion: consumer.APIVersion,
-		Kind:       consumer.Kind,
-		Name:       consumer.Name,
+		UID:                consumer.UID,
+		APIVersion:         consumer.APIVersion,
+		Kind:               consumer.Kind,
+		Name:               consumer.Name,
+		BlockOwnerDeletion: pointer.BoolPtr(true),
 	}
 	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -115,7 +117,12 @@ func (s *storageClassClaimManager) Delete(ctx context.Context, consumerUUID, sto
 			Namespace: s.namespace,
 		},
 	}
-	if err := s.client.Delete(ctx, storageClassClaimObj); err != nil {
+
+	foregroundDelete := metav1.DeletePropagationForeground
+	deleteOption := client.DeleteOptions{
+		PropagationPolicy: &foregroundDelete,
+	}
+	if err := s.client.Delete(ctx, storageClassClaimObj, &deleteOption); err != nil {
 		if kerrors.IsNotFound(err) {
 			klog.Warningf("StorageClassClaim %q not found for consumer %q and claim %q", generatedClaimName, consumerUUID, storageClassClaimName)
 			return nil
