@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -30,6 +31,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	providerclient "github.com/red-hat-storage/ocs-operator/services/provider/client"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -578,7 +580,19 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 		if err := r.own(r.cephBlockPool); err != nil {
 			return err
 		}
-
+		deviceSetList := r.storageCluster.Spec.StorageDeviceSets
+		var deviceSet *v1.StorageDeviceSet = nil
+		for i := range deviceSetList {
+			ds := &deviceSetList[i]
+			if ds.Name == "default" {
+				deviceSet = ds
+				break
+			}
+		}
+		if deviceSet == nil {
+			return fmt.Errorf("Could not find  device set named default in Storage cluster")
+		}
+		pgUnitSize := util.GetPGBaseUnitSize(deviceSet.Count)
 		r.cephBlockPool.Labels[controllers.StorageConsumerNameLabel] = r.storageConsumer.Name
 		r.cephBlockPool.Spec = rookCephv1.NamedBlockPoolSpec{
 			PoolSpec: rookCephv1.PoolSpec{
@@ -589,6 +603,9 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 				},
 				Parameters: map[string]string{
 					"target_size_ratio": ".49",
+					"pg_autoscale_mode": "off",
+					"pg_num":            strconv.Itoa(pgUnitSize),
+					"pgp_num":           strconv.Itoa(pgUnitSize),
 				},
 				Quotas: rookCephv1.QuotaSpec{
 					MaxSize: &capacity,
