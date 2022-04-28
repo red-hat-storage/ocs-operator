@@ -40,13 +40,6 @@ osd_memory_target_cgroup_limit_ratio = 0.8
 `
 )
 
-const providerSCRookConfigs = `
-[global]
-osd_pool_default_pg_autoscale_mode = off
-osd_pool_default_pg_num = 128
-osd_pool_default_pgp_num = 128
-`
-
 // ensureCreated ensures that a ConfigMap resource exists with its Spec in
 // the desired state.
 func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
@@ -158,18 +151,6 @@ func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (s
 			return "", fmt.Errorf("failed to set network configuration for rook: %v", err)
 		}
 	}
-	// Additional rook configs for provider storage cluster
-	if sc.Spec.AllowRemoteStorageConsumers {
-		cfg, err := ini.Load([]byte(rookConfigData), []byte(providerSCRookConfigs))
-		if err != nil {
-			return "", fmt.Errorf("failed to load configData by ini Loader : %v", err)
-		}
-		var b bytes.Buffer
-		_, err = cfg.WriteTo(&b)
-		if err != nil {
-			return "", fmt.Errorf("failed to write to bytes buffer from ini cfg: %v", err)
-		}
-		rookConfigData = b.String()
-	}
+
 	return rookConfigData, nil
 }

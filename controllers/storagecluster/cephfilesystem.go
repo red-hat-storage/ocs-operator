@@ -20,6 +20,14 @@ type ocsCephFilesystems struct{}
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
+	var parameters map[string]string = nil
+	var err error
+	if initData.Spec.AllowRemoteStorageConsumers {
+		parameters, err = generateCephFSProviderParameters(initData)
+		if err != nil {
+			return nil, err
+		}
+	}
 	ret := []*cephv1.CephFilesystem{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -36,6 +44,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 						PoolSpec: cephv1.PoolSpec{
 							Replicated:    generateCephReplicatedSpec(initData, "data"),
 							FailureDomain: initData.Status.FailureDomain,
+							Parameters:    parameters,
 						},
 					},
 				},

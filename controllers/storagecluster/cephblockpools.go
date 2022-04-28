@@ -86,7 +86,10 @@ func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instanc
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return reconcile.Result{}, nil
 	}
-
+	// not creating a default Ceph Block pool for Provider clusters
+	if instance.Spec.AllowRemoteStorageConsumers {
+		return reconcile.Result{}, nil
+	}
 	cephBlockPools, err := r.newCephBlockPoolInstances(instance)
 	if err != nil {
 		return reconcile.Result{}, err
