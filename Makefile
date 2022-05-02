@@ -73,6 +73,10 @@ ocs-operator: build
 	@echo "Building the ocs-operator image"
 	hack/build-operator.sh
 
+ocs-metrics-exporter: build
+	@echo "Building the ocs-metrics-exporter image"
+	hack/build-metrics-exporter.sh
+
 ocs-must-gather:
 	@echo "Building the ocs-must-gather image"
 	hack/build-must-gather.sh
