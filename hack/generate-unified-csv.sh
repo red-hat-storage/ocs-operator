@@ -10,6 +10,7 @@ CSV_MERGER="tools/csv-merger/csv-merger"
 function help_txt() {
 	echo "Environment Variables"
 	echo "    OCS_IMAGE:            (required) The ocs operator container image to integrate with"
+	echo "    OCS_METRICS_EXPORTER_IMAGE:            (required) The ocs metrics exporter container image to integrate with"
 	echo "    NOOBAA_IMAGE:         (required) The noobaa operator container image to integrate with"
 	echo "    NOOBAA_CORE_IMAGE:    (required) The noobaa core container image to integrate with"
 	echo "    NOOBAA_DB_IMAGE: 		(required) DB container image that is used by noobaa"
@@ -31,7 +32,8 @@ function help_txt() {
 
 # check required env vars
 if [ -z "$NOOBAA_IMAGE" ] || [ -z "$NOOBAA_CORE_IMAGE" ] || [ -z "$NOOBAA_DB_IMAGE" ] || \
-   [ -z "$ROOK_IMAGE" ] || [ -z "$CSV_VERSION" ] || [ -z "$OCS_IMAGE" ] || [ -z "$CEPH_IMAGE" ]; then
+   [ -z "$ROOK_IMAGE" ] || [ -z "$CSV_VERSION" ] || [ -z "$OCS_IMAGE" ] || [ -z "$OCS_METRICS_EXPORTER_IMAGE" ] || \
+   [ -z "$CEPH_IMAGE" ]; then
 	help_txt
 	echo ""
 	echo "ERROR: Missing required environment variables"
@@ -59,6 +61,7 @@ $CSV_MERGER \
 	--noobaa-core-image="$NOOBAA_CORE_IMAGE" \
 	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
 	--ocs-image="$OCS_IMAGE" \
+	--ocs-metrics-exporter-image="$OCS_METRICS_EXPORTER_IMAGE" \
 	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
 	--vol-repl-image="$VOLUME_REPLICATION_OPERATOR_IMAGE" \
 	--crds-directory="$OUTDIR_CRDS" \
