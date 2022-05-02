@@ -9,31 +9,75 @@ import (
 
 // User is GO representation of the json output of a user creation
 type User struct {
-	ID                  string        `json:"user_id" url:"uid"`
-	DisplayName         string        `json:"display_name" url:"display-name"`
-	Email               string        `json:"email" url:"email"`
-	Suspended           *int          `json:"suspended" url:"suspended"`
-	MaxBuckets          *int          `json:"max_buckets" url:"max-buckets"`
-	Subusers            []interface{} `json:"subusers"`
-	Keys                []UserKeySpec `json:"keys"`
-	SwiftKeys           []interface{} `json:"swift_keys"`
-	Caps                []UserCapSpec `json:"caps"`
-	OpMask              string        `json:"op_mask"`
-	DefaultPlacement    string        `json:"default_placement"`
-	DefaultStorageClass string        `json:"default_storage_class"`
-	PlacementTags       []interface{} `json:"placement_tags"`
-	BucketQuota         QuotaSpec     `json:"bucket_quota"`
-	UserQuota           QuotaSpec     `json:"user_quota"`
-	TempURLKeys         []interface{} `json:"temp_url_keys"`
-	Type                string        `json:"type"`
-	MfaIds              []interface{} `json:"mfa_ids"`
-	KeyType             string        `url:"key-type"`
-	Tenant              string        `url:"tenant"`
-	GenerateKey         *bool         `url:"generate-key"`
-	PurgeData           *int          `url:"purge-data"`
-	GenerateStat        *bool         `url:"stats"`
-	Stat                UserStat      `json:"stats"`
-	UserCaps            string        `url:"user-caps"`
+	ID                  string         `json:"user_id" url:"uid"`
+	DisplayName         string         `json:"display_name" url:"display-name"`
+	Email               string         `json:"email" url:"email"`
+	Suspended           *int           `json:"suspended" url:"suspended"`
+	MaxBuckets          *int           `json:"max_buckets" url:"max-buckets"`
+	Subusers            []SubuserSpec  `json:"subusers" url:"-"`
+	Keys                []UserKeySpec  `json:"keys"`
+	SwiftKeys           []SwiftKeySpec `json:"swift_keys" url:"-"`
+	Caps                []UserCapSpec  `json:"caps"`
+	OpMask              string         `json:"op_mask"`
+	DefaultPlacement    string         `json:"default_placement"`
+	DefaultStorageClass string         `json:"default_storage_class"`
+	PlacementTags       []interface{}  `json:"placement_tags"`
+	BucketQuota         QuotaSpec      `json:"bucket_quota"`
+	UserQuota           QuotaSpec      `json:"user_quota"`
+	TempURLKeys         []interface{}  `json:"temp_url_keys"`
+	Type                string         `json:"type"`
+	MfaIds              []interface{}  `json:"mfa_ids"`
+	KeyType             string         `url:"key-type"`
+	Tenant              string         `url:"tenant"`
+	GenerateKey         *bool          `url:"generate-key"`
+	PurgeData           *int           `url:"purge-data"`
+	GenerateStat        *bool          `url:"stats"`
+	Stat                UserStat       `json:"stats"`
+	UserCaps            string         `url:"user-caps"`
+}
+
+// SubuserSpec represents a subusers of a ceph-rgw user
+type SubuserSpec struct {
+	Name   string        `json:"id" url:"subuser"`
+	Access SubuserAccess `json:"permissions" url:"access"`
+
+	// these are always nil in answers, they are only relevant in requests
+	GenerateKey *bool   `json:"-" url:"generate-key"`
+	SecretKey   *string `json:"-" url:"secret-key"`
+	Secret      *string `json:"-" url:"secret"`
+	PurgeKeys   *bool   `json:"-" url:"purge-keys"`
+	KeyType     *string `json:"-" url:"key-type"`
+}
+
+// SubuserAccess represents an access level for a subuser
+type SubuserAccess string
+
+// The possible values of SubuserAccess
+//
+// There are two sets of constants as the API parameters and the
+// values returned by the API do not match.  The SubuserAccess* values
+// must be used when setting access level, the SubuserAccessReply*
+// values are the ones that may be returned. This is a design problem
+// of the upstream API. We do not feel confident to do the mapping in
+// the library.
+const (
+	SubuserAccessNone      SubuserAccess = ""
+	SubuserAccessRead      SubuserAccess = "read"
+	SubuserAccessWrite     SubuserAccess = "write"
+	SubuserAccessReadWrite SubuserAccess = "readwrite"
+	SubuserAccessFull      SubuserAccess = "full"
+
+	SubuserAccessReplyNone      SubuserAccess = "<none>"
+	SubuserAccessReplyRead      SubuserAccess = "read"
+	SubuserAccessReplyWrite     SubuserAccess = "write"
+	SubuserAccessReplyReadWrite SubuserAccess = "read-write"
+	SubuserAccessReplyFull      SubuserAccess = "full-control"
+)
+
+// SwiftKeySpec represents the secret key associated to a subuser
+type SwiftKeySpec struct {
+	User      string `json:"user"`
+	SecretKey string `json:"secret_key"`
 }
 
 // UserCapSpec represents a user capability which gives access to certain ressources
@@ -58,11 +102,20 @@ type UserStat struct {
 
 // GetUser retrieves a given object store user
 func (api *API) GetUser(ctx context.Context, user User) (User, error) {
-	if user.ID == "" {
+	if user.ID == "" && len(user.Keys) == 0 {
 		return User{}, errMissingUserID
 	}
+	if len(user.Keys) > 0 {
+		for _, key := range user.Keys {
+			if key.AccessKey == "" {
+				return User{}, errMissingUserAccessKey
+			}
+		}
+	}
 
-	body, err := api.call(ctx, http.MethodGet, "/user", valueToURLParams(user))
+	//  valid parameters not supported by go-ceph: sync
+	body, err := api.call(ctx, http.MethodGet, "/user", valueToURLParams(user, []string{"uid", "access-key", "stats"}))
+
 	if err != nil {
 		return User{}, err
 	}
@@ -100,8 +153,8 @@ func (api *API) CreateUser(ctx context.Context, user User) (User, error) {
 		return User{}, errMissingUserDisplayName
 	}
 
-	// Send request
-	body, err := api.call(ctx, http.MethodPut, "/user", valueToURLParams(user))
+	//  valid parameters not supported by go-ceph: system, exclusive, default-placement, placement-tags
+	body, err := api.call(ctx, http.MethodPut, "/user", valueToURLParams(user, []string{"uid", "display-name", "email", "key-type", "access-key", "secret-key", "user-caps", "tenant", "generate-key", "max-buckets", "suspended", "op-mask"}))
 	if err != nil {
 		return User{}, err
 	}
@@ -122,7 +175,7 @@ func (api *API) RemoveUser(ctx context.Context, user User) error {
 		return errMissingUserID
 	}
 
-	_, err := api.call(ctx, http.MethodDelete, "/user", valueToURLParams(user))
+	_, err := api.call(ctx, http.MethodDelete, "/user", valueToURLParams(user, []string{"uid", "purge-data"}))
 	if err != nil {
 		return err
 	}
@@ -136,7 +189,8 @@ func (api *API) ModifyUser(ctx context.Context, user User) (User, error) {
 		return User{}, errMissingUserID
 	}
 
-	body, err := api.call(ctx, http.MethodPost, "/user", valueToURLParams(user))
+	// valid parameters not supported by go-ceph: system, default-placement, placement-tags
+	body, err := api.call(ctx, http.MethodPost, "/user", valueToURLParams(user, []string{"uid", "display-name", "email", "generate-key", "access-key", "secret-key", "key-type", "max-buckets", "suspended", "op-mask"}))
 	if err != nil {
 		return User{}, err
 	}
