@@ -7,6 +7,7 @@ import (
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/ocp"
 	secv1 "github.com/openshift/api/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,46 +61,10 @@ func blankSCC() *secv1.SecurityContextConstraints {
 }
 
 func newRookCephSCC(namespace string) *secv1.SecurityContextConstraints {
-	scc := blankSCC()
-
-	scc.Name = "rook-ceph"
-	scc.AllowPrivilegedContainer = true
+	scc := cephv1.NewSecurityContextConstraints("rook-ceph", namespace)
+	// host networking could still be enabled in the cluster for prototyping
 	scc.AllowHostNetwork = true
-	scc.AllowHostDirVolumePlugin = true
 	scc.AllowHostPorts = true
-	scc.AllowHostPID = true
-	scc.AllowHostIPC = true
-	scc.ReadOnlyRootFilesystem = false
-	scc.RequiredDropCapabilities = []corev1.Capability{}
-	scc.DefaultAddCapabilities = []corev1.Capability{"MKNOD"}
-	scc.RunAsUser = secv1.RunAsUserStrategyOptions{
-		Type: secv1.RunAsUserStrategyRunAsAny,
-	}
-	scc.SELinuxContext = secv1.SELinuxContextStrategyOptions{
-		Type: secv1.SELinuxStrategyMustRunAs,
-	}
-	scc.FSGroup = secv1.FSGroupStrategyOptions{
-		Type: secv1.FSGroupStrategyMustRunAs,
-	}
-	scc.SupplementalGroups = secv1.SupplementalGroupsStrategyOptions{
-		Type: secv1.SupplementalGroupsStrategyRunAsAny,
-	}
-	scc.Volumes = []secv1.FSType{
-		secv1.FSTypeConfigMap,
-		secv1.FSTypeDownwardAPI,
-		secv1.FSTypeEmptyDir,
-		secv1.FSTypeHostPath,
-		secv1.FSTypePersistentVolumeClaim,
-		secv1.FSProjected,
-		secv1.FSTypeSecret,
-	}
-	scc.Users = []string{
-		fmt.Sprintf("system:serviceaccount:%s:rook-ceph-system", namespace),
-		fmt.Sprintf("system:serviceaccount:%s:default", namespace),
-		fmt.Sprintf("system:serviceaccount:%s:rook-ceph-mgr", namespace),
-		fmt.Sprintf("system:serviceaccount:%s:rook-ceph-osd", namespace),
-	}
-
 	return scc
 }
 
