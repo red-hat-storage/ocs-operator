@@ -68,6 +68,38 @@
               severity_level: 'error',
             },
           },
+          {
+            alert: 'ODFPersistentVolumeMirrorStatus',
+            expr: |||
+              ocs_rbd_mirror_image_state{%(ocsExporterSelector)s} * on(image,pool_name) group_left(name,namespace) ocs_rbd_pv_metadata{%(ocsExporterSelector)s} == 1
+            ||| % $._config,
+            'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
+            labels: {
+              severity: 'critical',
+            },
+            annotations: {
+              message: 'Persistent volume {{ $labels.name }}/{{ $labels.namespace }} is not mirrored properly to peer site {{ $labels.site_name }}.',
+              description: 'Persistent volume {{ $labels.name }}/{{ $labels.namespace }} is not mirrored properly to peer site {{ $labels.site_name }} for more than %s. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}.' % $._config.odfPoolMirroringImageHealthWarningAlertTime,
+              storage_type: $._config.cephStorageType,
+              severity_level: 'error',
+            },
+          },
+          {
+            alert: 'ODFPersistentVolumeMirrorStatus',
+            expr: |||
+              ocs_rbd_mirror_image_state{%(ocsExporterSelector)s} * on(image,pool_name) group_left(name,namespace) ocs_rbd_pv_metadata{%(ocsExporterSelector)s} == 0
+            ||| % $._config,
+            'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
+            labels: {
+              severity: 'warning',
+            },
+            annotations: {
+              message: 'Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} mirroring to peer site {{ $labels.site_name }}.',
+              description: 'Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} to peer site {{ $labels.site_name }} for more than %s. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}.' % $._config.odfPoolMirroringImageHealthWarningAlertTime,
+              storage_type: $._config.cephStorageType,
+              severity_level: 'warning',
+            },
+          },
         ],
       },
     ],
