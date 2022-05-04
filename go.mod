@@ -48,6 +48,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.11.1
 )
 
+require k8s.io/utils v0.0.0-20211116205334-6203023598ed
+
 require (
 	cloud.google.com/go v0.90.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
@@ -134,7 +136,6 @@ require (
 	k8s.io/component-base v0.23.4 // indirect
 	k8s.io/kube-aggregator v0.22.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
-	k8s.io/utils v0.0.0-20211116205334-6203023598ed // indirect
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
