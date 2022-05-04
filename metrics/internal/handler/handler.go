@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	metricsPath = "/metrics"
-	healthzPath = "/healthz"
+	metricsPath    = "/metrics"
+	healthzPath    = "/healthz"
+	rbdMetricsPath = metricsPath + "/rbd-mirror"
 )
 
 // RegisterExporterMuxHandlers registers the handlers needed to serve the
@@ -17,6 +18,12 @@ const (
 func RegisterExporterMuxHandlers(mux *http.ServeMux, exporterRegistry *prometheus.Registry) {
 	metricsHandler := promhttp.HandlerFor(exporterRegistry, promhttp.HandlerOpts{})
 	mux.Handle(metricsPath, metricsHandler)
+}
+
+// RegisterRBDMirrorMuxHandlers registers handlers needed to serve RBD mirror metrics
+func RegisterRBDMirrorMuxHandlers(mux *http.ServeMux, rbdRegistry *prometheus.Registry) {
+	metricsHandler := promhttp.HandlerFor(rbdRegistry, promhttp.HandlerOpts{})
+	mux.Handle(rbdMetricsPath, metricsHandler)
 }
 
 // RegisterCustomResourceMuxHandlers registers the handlers needed to serve metrics

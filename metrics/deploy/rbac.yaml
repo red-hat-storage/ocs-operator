@@ -1,6 +1,6 @@
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ocs-metrics-exporter
 rules:
@@ -11,9 +11,21 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ceph.rook.io
   resources:
   - cephobjectstores
+  - cephclusters
+  - cephblockpools
   verbs:
     - get
     - list
@@ -42,7 +54,7 @@ rules:
     - list
 ---
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ocs-metrics-exporter
 roleRef:
@@ -55,7 +67,7 @@ subjects:
   namespace: openshift-storage
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ocs-metrics-svc
   namespace: openshift-storage
@@ -72,7 +84,7 @@ rules:
     - watch
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ocs-metrics-svc
   namespace: openshift-storage

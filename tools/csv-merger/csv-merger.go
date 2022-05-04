@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
-	yaml "github.com/ghodss/yaml"
+	"github.com/ghodss/yaml"
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsversion "github.com/red-hat-storage/ocs-operator/version"
@@ -46,6 +46,7 @@ var (
 	noobaaCoreContainerImage         = flag.String("noobaa-core-image", "", "noobaa core container image")
 	noobaaDBContainerImage           = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage                = flag.String("ocs-image", "", "ocs operator container image")
+	ocsMetricsExporterImage          = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
 	ocsMustGatherImage               = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	volumeReplicationControllerImage = flag.String("vol-repl-image", "", "volume replication operator container image")
 	rookCsiAddonsImage               = flag.String("rook-csiaddons-image", "", "csi-addons container image")
@@ -540,7 +541,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	// Set api maturity
 	ocsCSV.Spec.Maturity = "alpha"
 
-	//set Install Modes
+	// set Install Modes
 	ocsCSV.Spec.InstallModes = []csvv1.InstallMode{
 		{
 			Type:      csvv1.InstallModeTypeOwnNamespace,
@@ -860,7 +861,12 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 			"image": *ocsMustGatherImage,
 		})
 	}
-
+	if *ocsMetricsExporterImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "ocs-metrics-exporter",
+			"image": *ocsMetricsExporterImage,
+		})
+	}
 	return unstructured.SetNestedSlice(r.Object, relatedImages, "spec", "relatedImages")
 }
 
@@ -948,7 +954,7 @@ func copyManifests() {
 
 func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 	replica := int32(1)
-	runAsNonRoot := true
+	privileged := true
 	deployment := appsv1.DeploymentSpec{
 		Replicas: &replica,
 		Selector: &metav1.LabelSelector{
@@ -968,8 +974,11 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Name:    "ocs-metrics-exporter",
-						Image:   *ocsContainerImage,
+						Name: "ocs-metrics-exporter",
+						SecurityContext: &corev1.SecurityContext{
+							Privileged: &privileged,
+						},
+						Image:   *ocsMetricsExporterImage,
 						Command: []string{"/usr/local/bin/metrics-exporter"},
 						Args:    []string{"--namespaces=openshift-storage"},
 						Ports: []corev1.ContainerPort{
@@ -979,9 +988,6 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 							{
 								ContainerPort: 8081,
 							},
-						},
-						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot: &runAsNonRoot,
 						},
 					},
 				},
@@ -1013,6 +1019,8 @@ func main() {
 		log.Fatal("--noobaa-db-image is required")
 	} else if *ocsContainerImage == "" {
 		log.Fatal("--ocs-image is required")
+	} else if *ocsMetricsExporterImage == "" {
+		log.Fatal("--ocs-metrics-exporter-image is required")
 	} else if *inputCrdsDir == "" {
 		log.Fatal("--crds-directory is required")
 	} else if *outputDir == "" {

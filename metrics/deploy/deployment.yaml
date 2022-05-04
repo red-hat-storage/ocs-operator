@@ -30,6 +30,4 @@ spec:
         - /usr/local/bin/metrics-exporter
         args:
           - --namespaces=openshift-storage
-      securityContext:
-        runAsNonRoot: true
       serviceAccountName: ocs-metrics-exporter
