@@ -58,6 +58,6 @@ JSON="$(echo "${PAYLOAD}" | base64 -d)"
 echo "${JSON}"
 echo -n "${SIG}" | base64 -d > "${SIG_FILE}"
 
-echo -n "${JSON}" | openssl dgst -verify "${KEY_FILE}" -signature "${SIG_FILE}"
+echo -n "${JSON}" | openssl dgst -sha256 -verify "${KEY_FILE}" -signature "${SIG_FILE}"
 
 rm "${SIG_FILE}"
