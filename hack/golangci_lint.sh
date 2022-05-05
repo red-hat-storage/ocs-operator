@@ -9,7 +9,7 @@ source hack/common.sh
 echo "Installing golangci-lint"
 
 mkdir -p ${OUTDIR_TOOLS}
-curl -JL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${OUTDIR_TOOLS}" v1.31.0
+curl -JL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${OUTDIR_TOOLS}" v1.45.2
 chmod +x "${OUTDIR_TOOLS}"/golangci-lint
 
 echo "Running golangci-lint"

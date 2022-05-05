@@ -20,10 +20,11 @@ export VOLUME_REPLICATION_OPERATOR_IMAGE=${VOLUME_REPLICATION_OPERATOR_IMAGE:-"$
 echo "=== Generating DEV CSV with the following vars ==="
 echo -e "\tCSV_VERSION=$CSV_VERSION"
 echo -e "\tROOK_IMAGE=$ROOK_IMAGE"
+echo -e "\tCEPH_IMAGE=$CEPH_IMAGE"
 echo -e "\tNOOBAA_IMAGE=$NOOBAA_IMAGE"
 echo -e "\tNOOBAA_CORE_IMAGE=$NOOBAA_CORE_IMAGE"
 echo -e "\tNOOBAA_DB_IMAGE=$NOOBAA_DB_IMAGE"
-echo -e "\tCEPH_IMAGE=$CEPH_IMAGE"
 echo -e "\tOCS_IMAGE=$OCS_IMAGE"
+echo -e "\tOCS_MUST_GATHER_IMAGE=$OCS_MUST_GATHER_IMAGE"
 
 hack/generate-unified-csv.sh
