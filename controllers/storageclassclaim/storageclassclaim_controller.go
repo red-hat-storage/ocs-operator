@@ -70,7 +70,6 @@ type StorageClassClaimReconciler struct {
 
 const (
 	StorageClassClaimFinalizer = "storageclassclaim.ocs.openshift.io"
-	StorageClassFinalizer      = "storageclass.ocs.openshift.io"
 )
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims,verbs=get;list;watch;create;update;patch;delete
@@ -310,8 +309,56 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 		// Update the StorageClassClaim status.
 		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimReady
 
+		// Initiate deletion phase if the StorageClassClaim exists.
+	} else if r.storageClassClaim.UID != "" {
+
+		// Deletion phase.
+		// Update the StorageClassClaim status.
+		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimDeleting
+
+		// Delete StorageClass.
+		// Make sure there are no StorageClass consumers left.
+		// Check if StorageClass is in use, if yes, then fail.
+		// Wait until all PVs using the StorageClass under deletion are removed.
+		// Check for any PVs using the StorageClass.
+		pvList := corev1.PersistentVolumeList{}
+		err := r.list(&pvList, client.MatchingFields{
+			"spec.storageClassName": r.storageClassClaim.Name,
+		})
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to list PersistentVolumes: %s", err)
+		}
+		if len(pvList.Items) > 0 {
+			return reconcile.Result{}, fmt.Errorf("StorageClass %s is still in use by one or more PV(s)",
+				r.storageClassClaim.Name)
+		}
+
+		// Call `RevokeStorageClassClaim` service on the provider server with StorageClassClaim as a request message.
+		// Check if StorageClassClaim is still exists (it might have been manually removed during the StorageClass
+		// removal above).
+		_, err = providerClient.RevokeStorageClassClaim(
+			r.ctx,
+			r.storageCluster.Status.ExternalStorage.ConsumerID,
+			r.storageClassClaim.Name,
+		)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		storageClass := &storagev1.StorageClass{}
+		storageClass.Name = r.storageClassClaim.Name
+		if err = r.get(storageClass); err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, fmt.Errorf("failed to get StorageClass %s: %s", storageClass.Name, err)
+		}
+		if storageClass.UID != "" {
+
+			if err = r.delete(storageClass); err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to delete StorageClass %s: %s", storageClass.Name, err)
+			}
+		} else {
+			r.log.Info("StorageClass already deleted.")
+		}
 	}
-	// TODO(@rexagod): Deletion flow for SCC on Consumer side
 
 	return reconcile.Result{}, nil
 }
@@ -424,9 +471,6 @@ func (r *StorageClassClaimReconciler) getCephFSStorageClass(data map[string]stri
 			Annotations: map[string]string{
 				"description": "Provides RWO and RWX Filesystem volumes",
 			},
-			Finalizers: []string{
-				StorageClassFinalizer,
-			},
 		},
 		ReclaimPolicy:        &pvReclaimPolicy,
 		AllowVolumeExpansion: &allowVolumeExpansion,
@@ -446,9 +490,6 @@ func (r *StorageClassClaimReconciler) getCephRBDStorageClass(data map[string]str
 			Annotations: map[string]string{
 				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 			},
-			Finalizers: []string{
-				StorageClassFinalizer,
-			},
 		},
 		ReclaimPolicy:        &pvReclaimPolicy,
 		AllowVolumeExpansion: &allowVolumeExpansion,
@@ -459,11 +500,8 @@ func (r *StorageClassClaimReconciler) getCephRBDStorageClass(data map[string]str
 }
 
 func (r *StorageClassClaimReconciler) createOrReplaceStorageClass(storageClass *storagev1.StorageClass) error {
-	existing := &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: r.storageClassClaim.Name,
-		},
-	}
+	existing := &storagev1.StorageClass{}
+	existing.Name = r.storageClassClaim.Name
 
 	if err := r.get(existing); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get StorageClass: %v", err)
@@ -477,14 +515,8 @@ func (r *StorageClassClaimReconciler) createOrReplaceStorageClass(storageClass *
 	// StorageClass already exists, but parameters have changed. Delete the existing StorageClass and create a new one.
 	if existing.UID != "" {
 
-		// Since we have to update the existing StorageClass, so we will delete the existing storageclass and create a new one.
+		// Since we have to update the existing StorageClass, so we will delete the existing StorageClass and create a new one.
 		r.log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", klog.KRef(storageClass.Namespace, existing.Name))
-
-		// Remove finalizer from StorageClass.
-		storageClass.SetFinalizers(remove(storageClass.Finalizers, StorageClassFinalizer))
-		if err := r.update(storageClass); err != nil {
-			return fmt.Errorf("failed to remove finalizer from StorageClass: %s", err)
-		}
 
 		// Delete the StorageClass.
 		err := r.delete(existing)
@@ -821,13 +853,4 @@ func contains(slice []string, s string) bool {
 		}
 	}
 	return false
-}
-
-func remove(slice []string, s string) []string {
-	for i, item := range slice {
-		if item == s {
-			return append(slice[:i], slice[i+1:]...)
-		}
-	}
-	return slice
 }

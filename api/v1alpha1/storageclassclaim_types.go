@@ -44,6 +44,8 @@ const (
 	StorageClassClaimConfiguring storageClassClaimState = "Configuring"
 	// StorageClassClaimReady represents Ready state of StorageClassClaim
 	StorageClassClaimReady storageClassClaimState = "Ready"
+	// StorageClassClaimDeleting represents Deleting state of StorageClassClaim
+	StorageClassClaimDeleting storageClassClaimState = "Deleting"
 )
 
 // StorageClassClaimStatus defines the observed state of StorageClassClaim
