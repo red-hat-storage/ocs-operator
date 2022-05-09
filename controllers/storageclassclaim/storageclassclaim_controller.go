@@ -20,9 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/klog/v2"
 	"reflect"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	"github.com/go-logr/logr"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
@@ -45,11 +46,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	storageClassClaimFinalizer  = "storagesclassclaim.ocs.openshift.io"
-	StorageClassClaimAnnotation = "ocs.openshift.io.storagesclassclaim"
-)
-
 // StorageClassClaimReconciler reconciles a StorageClassClaim object
 // nolint
 type StorageClassClaimReconciler struct {
@@ -69,7 +65,8 @@ type StorageClassClaimReconciler struct {
 }
 
 const (
-	StorageClassClaimFinalizer = "storageclassclaim.ocs.openshift.io"
+	StorageClassClaimFinalizer  = "storageclassclaim.ocs.openshift.io"
+	StorageClassClaimAnnotation = "ocs.openshift.io.storagesclassclaim"
 )
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims,verbs=get;list;watch;create;update;patch;delete
@@ -410,14 +407,6 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 	r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimCreating
 
 	if r.storageClassClaim.GetDeletionTimestamp().IsZero() {
-		if !controllers.Contains(r.storageClassClaim.GetFinalizers(), storageClassClaimFinalizer) {
-			r.log.Info("Finalizer not found for StorageClassClaim. Adding finalizer.", "StorageClassClaim", klog.KRef(r.storageClassClaim.Namespace, r.storageClassClaim.Name))
-			r.storageClassClaim.SetFinalizers(append(r.storageClassClaim.GetFinalizers(), storageClassClaimFinalizer))
-			if err := r.update(r.storageClassClaim); err != nil {
-				r.log.Error(err, "Failed to update StorageClassClaim with finalizer.", "StorageClassClaim", klog.KRef(r.storageClassClaim.Namespace, r.storageClassClaim.Name))
-				return reconcile.Result{}, err
-			}
-		}
 		if r.storageClassClaim.Spec.Type == "blockpool" {
 
 			if err := r.reconcileCephClientRBDProvisioner(); err != nil {
@@ -457,6 +446,8 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 			r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimReady
 		}
 
+	} else {
+		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimDeleting
 	}
 	return reconcile.Result{}, nil
 }

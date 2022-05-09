@@ -21,7 +21,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
@@ -43,7 +42,6 @@ import (
 )
 
 const (
-	storageConsumerFinalizer      = "storagesconsumer.ocs.openshift.io"
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
 	StorageClaimAnnotation        = "ocs.openshift.io.storageclaim"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
@@ -67,6 +65,7 @@ type StorageConsumerReconciler struct {
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims,verbs=get;list;
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
@@ -145,14 +144,6 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	}
 
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
-		if !Contains(r.storageConsumer.GetFinalizers(), storageConsumerFinalizer) {
-			r.Log.Info("Finalizer not found for StorageConsumer. Adding finalizer.", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
-			r.storageConsumer.ObjectMeta.Finalizers = append(r.storageConsumer.ObjectMeta.Finalizers, storageConsumerFinalizer)
-			if err := r.Client.Update(r.ctx, r.storageConsumer); err != nil {
-				r.Log.Error(err, "Failed to update StorageConsumer with finalizer.", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
-				return reconcile.Result{}, err
-			}
-		}
 
 		if err := r.reconcileCephClientHealthChecker(); err != nil {
 			return reconcile.Result{}, err
@@ -182,27 +173,6 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 
 	} else {
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
-
-		if r.verifyCephResourcesDoNotExist() {
-			r.Log.Info("Removing finalizer from StorageConsumer.", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
-			r.storageConsumer.ObjectMeta.Finalizers = remove(r.storageConsumer.ObjectMeta.Finalizers, storageConsumerFinalizer)
-			if err := r.Client.Update(r.ctx, r.storageConsumer); err != nil {
-				r.Log.Error(err, "Failed to remove finalizer from StorageConsumer", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
-				return reconcile.Result{}, err
-			}
-		} else {
-			for _, cephResource := range r.storageConsumer.Status.CephResources {
-				switch cephResource.Kind {
-				case "CephClient":
-					cephClient := &rookCephv1.CephClient{}
-					cephClient.Name = cephResource.Name
-					cephClient.Namespace = r.namespace
-					if err := r.delete(cephClient); err != nil {
-						return ctrl.Result{}, fmt.Errorf("unable to delete CephClient : %v", err)
-					}
-				}
-			}
-		}
 	}
 
 	return reconcile.Result{}, nil
@@ -249,21 +219,6 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 	return nil
 }
 
-func (r *StorageConsumerReconciler) verifyCephResourcesDoNotExist() bool {
-	for _, cephResource := range r.storageConsumer.Status.CephResources {
-		switch cephResource.Kind {
-		case "CephClient":
-			cephClient := &rookCephv1.CephClient{}
-			cephClient.Name = cephResource.Name
-			cephClient.Namespace = r.namespace
-			if err := r.get(cephClient); err == nil || !errors.IsNotFound(err) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func (r *StorageConsumerReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
 
 	cephResourceSpec := r.cephResourcesByName[name]
@@ -286,37 +241,9 @@ func (r *StorageConsumerReconciler) get(obj client.Object) error {
 	return r.Client.Get(r.ctx, key, obj)
 }
 
-func (r *StorageConsumerReconciler) delete(obj client.Object) error {
-	if err := r.Client.Delete(r.ctx, obj); err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-	return nil
-}
-
-// Checks whether a string is contained within a slice
-func Contains(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *StorageConsumerReconciler) own(resource metav1.Object) error {
 	// Ensure storageConsumer ownership on a resource
 	return ctrl.SetControllerReference(r.storageConsumer, resource, r.Scheme)
-}
-
-// Removes a given string from a slice and returns the new slice
-func remove(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
 }
 
 // SetupWithManager sets up the controller with the Manager.
