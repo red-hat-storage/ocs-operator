@@ -582,10 +582,9 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 						Kind: "CephClient",
 					},
 				},
-				// TODO add phase here
+				Phase: ocsv1alpha1.StorageClassClaimReady,
 			},
 		}
-		// TODO add block pool tests for different phases.
 
 		shareFilesystemClaimName      = "shared-filesystem-claim"
 		sharedFilesystemClaimResource = &ocsv1alpha1.StorageClassClaim{
@@ -615,10 +614,39 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 						Kind: "CephClient",
 					},
 				},
-				// TODO add phase here
+				Phase: ocsv1alpha1.StorageClassClaimReady,
 			},
 		}
-		// TODO add shared filesystem tests for different phases.
+		claimInitializing         = "claim-initializing"
+		claimCreating             = "claim-creating"
+		claimFailed               = "claim-failed"
+		claimResourceInitializing = &ocsv1alpha1.StorageClassClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getStorageClassClaimName(string(consumerResource.UID), claimInitializing),
+				Namespace: serverNamespace,
+			},
+			Status: ocsv1alpha1.StorageClassClaimStatus{
+				Phase: ocsv1alpha1.StorageClassClaimInitializing,
+			},
+		}
+		claimResourceCreating = &ocsv1alpha1.StorageClassClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getStorageClassClaimName(string(consumerResource.UID), claimCreating),
+				Namespace: serverNamespace,
+			},
+			Status: ocsv1alpha1.StorageClassClaimStatus{
+				Phase: ocsv1alpha1.StorageClassClaimCreating,
+			},
+		}
+		claimResourceFailed = &ocsv1alpha1.StorageClassClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getStorageClassClaimName(string(consumerResource.UID), claimFailed),
+				Namespace: serverNamespace,
+			},
+			Status: ocsv1alpha1.StorageClassClaimStatus{
+				Phase: ocsv1alpha1.StorageClassClaimFailed,
+			},
+		}
 	)
 
 	ctx := context.TODO()
@@ -626,6 +654,9 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		consumerResource,
 		blockPoolClaimResource,
 		sharedFilesystemClaimResource,
+		claimResourceInitializing,
+		claimResourceCreating,
+		claimResourceFailed,
 	}
 
 	// Create a fake client to mock API calls.
@@ -832,6 +863,30 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 
 	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
 	errCode, _ := status.FromError(err)
+	assert.Error(t, err)
+	assert.Equal(t, errCode.Code(), codes.Internal)
+	assert.Nil(t, storageConRes)
+
+	// when claim in in Initializing phase
+	req.StorageClassClaimName = claimInitializing
+	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	errCode, _ = status.FromError(err)
+	assert.Error(t, err)
+	assert.Equal(t, errCode.Code(), codes.Unavailable)
+	assert.Nil(t, storageConRes)
+
+	// when claim in in Creating phase
+	req.StorageClassClaimName = claimCreating
+	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	errCode, _ = status.FromError(err)
+	assert.Error(t, err)
+	assert.Equal(t, errCode.Code(), codes.Unavailable)
+	assert.Nil(t, storageConRes)
+
+	// when claim in in Failed phase
+	req.StorageClassClaimName = claimFailed
+	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Internal)
 	assert.Nil(t, storageConRes)

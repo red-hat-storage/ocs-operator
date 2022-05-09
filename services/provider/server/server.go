@@ -530,9 +530,22 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 		return nil, status.Errorf(codes.Internal, "failed to get storage class claim config %q for %q. %v", req.StorageClassClaimName, req.StorageConsumerUUID, err)
 	}
 
-	// TODO: add status.Phase validation here to check claim is in expected
-	// state or not before extracting the ceph resources from the StorageClassClaim CR status
-
+	// Verify Status.Phase
+	msg := fmt.Sprintf("storage class claim %q for %q is in %q phase", req.StorageClassClaimName, req.StorageConsumerUUID, storageClassClaim.Status.Phase)
+	if storageClassClaim.Status.Phase != ocsv1alpha1.StorageClassClaimReady {
+		switch storageClassClaim.Status.Phase {
+		case ocsv1alpha1.StorageClassClaimFailed:
+			return nil, status.Error(codes.Internal, msg)
+		case ocsv1alpha1.StorageClassClaimInitializing:
+			return nil, status.Error(codes.Unavailable, msg)
+		case ocsv1alpha1.StorageClassClaimCreating:
+			return nil, status.Error(codes.Unavailable, msg)
+		case "":
+			return nil, status.Errorf(codes.Unavailable, "status is not set for storage class claim %q for %q", req.StorageClassClaimName, req.StorageConsumerUUID)
+		default:
+			return nil, status.Error(codes.Internal, msg)
+		}
+	}
 	var extR []*pb.ExternalResource
 	for _, cephRes := range storageClassClaim.Status.CephResources {
 		switch cephRes.Kind {
@@ -627,6 +640,6 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				})})
 		}
 	}
-
 	return &pb.StorageClassClaimConfigResponse{ExternalResource: extR}, nil
+
 }
