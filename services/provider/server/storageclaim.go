@@ -17,6 +17,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 type storageClassClaimManager struct {
@@ -56,18 +57,10 @@ func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1al
 	consumerUUID := string(consumer.GetUID())
 	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
 
-	ownerRef := metav1.OwnerReference{
-		UID:                consumer.UID,
-		APIVersion:         consumer.APIVersion,
-		Kind:               consumer.Kind,
-		Name:               consumer.Name,
-		BlockOwnerDeletion: pointer.BoolPtr(true),
-	}
 	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            generatedClaimName,
-			Namespace:       s.namespace,
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Name:      generatedClaimName,
+			Namespace: s.namespace,
 			Labels: map[string]string{
 				controllers.ConsumerUUIDLabel: consumerUUID,
 				storageClassClaimNameLabel:    storageClassClaimName,
@@ -78,8 +71,26 @@ func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1al
 			EncryptionMethod: encryptionMethod,
 		},
 	}
+	if consumer.GetUID() == "" {
+		return fmt.Errorf("empty UID for consumer %q", consumerUUID)
+	}
 
-	err := s.client.Create(ctx, storageClassClaimObj)
+	gvk, err := apiutil.GVKForObject(consumer, s.client.Scheme())
+	if err != nil {
+		return fmt.Errorf("failed to get gvk for consumer %q. %w", consumerUUID, err)
+	}
+
+	storageClassClaimObj.SetOwnerReferences([]metav1.OwnerReference{
+		{
+			APIVersion:         gvk.GroupVersion().String(),
+			Kind:               gvk.Kind,
+			UID:                consumer.GetUID(),
+			Name:               consumer.GetName(),
+			BlockOwnerDeletion: pointer.BoolPtr(true),
+		},
+	})
+
+	err = s.client.Create(ctx, storageClassClaimObj)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create a StorageClassClaim named %q for consumer %q and claim %q. %w", generatedClaimName, consumerUUID, storageClassClaimName, err)
