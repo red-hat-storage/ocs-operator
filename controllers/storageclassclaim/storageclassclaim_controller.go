@@ -280,6 +280,9 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 					if err != nil {
 						return fmt.Errorf("failed to own Secret: %v", err)
 					}
+					if secret.Data == nil {
+						secret.Data = map[string][]byte{}
+					}
 					for k, v := range data {
 						secret.Data[k] = []byte(v)
 					}
@@ -368,11 +371,14 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 	// reading storageConsumer Name from storageClassClaim ownerReferences
 	ownerRefs := r.storageClassClaim.GetOwnerReferences()
 	for i := range ownerRefs {
-		if ownerRefs[i].Kind == r.storageConsumer.Kind {
+		if ownerRefs[i].Kind == "StorageConsumer" {
+			r.storageConsumer = &v1alpha1.StorageConsumer{}
 			r.storageConsumer.Name = ownerRefs[i].Name
+			r.storageConsumer.Namespace = r.storageCluster.Namespace
+			break
 		}
 	}
-	if r.storageConsumer.Name == "" {
+	if r.storageConsumer == nil {
 		return reconcile.Result{}, fmt.Errorf("no storage consumer owner ref on the storage class claim")
 	}
 
@@ -384,7 +390,9 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 		r.cephBlockPool = &rookCephv1.CephBlockPool{}
 		r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s", r.storageConsumer.Name)
 		r.cephBlockPool.Namespace = r.namespace
-		r.cephBlockPool.Labels[controllers.StorageConsumerNameLabel] = r.storageConsumer.Name
+		r.cephBlockPool.Labels = map[string]string{
+			controllers.StorageConsumerNameLabel: r.storageConsumer.Name,
+		}
 
 	} else if r.storageClassClaim.Spec.Type == "sharedfilesystem" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
@@ -399,6 +407,8 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 	r.cephClientNode = &rookCephv1.CephClient{}
 	r.cephClientNode.Name = controllers.GenerateHashForCephClient(r.storageClassClaim.Name, "node")
 	r.cephClientNode.Namespace = r.namespace
+
+	r.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
 
 	for _, cephResourceSpec := range r.storageClassClaim.Status.CephResources {
 		r.cephResourcesByName[cephResourceSpec.Name] = cephResourceSpec
