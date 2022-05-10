@@ -113,19 +113,19 @@ func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request rec
 	}
 	r.storageCluster = &storageClusterList.Items[0]
 
-	// StorageCluster checks for required fields.
-	switch storageCluster := r.storageCluster; {
-	case storageCluster.Status.ExternalStorage.ConsumerID == "":
-		return reconcile.Result{}, fmt.Errorf("no external storage consumer id found on the " +
-			"StorageCluster status, cannot determine mode")
-	case storageCluster.Spec.ExternalStorage.StorageProviderEndpoint == "":
-		return reconcile.Result{}, fmt.Errorf("no external storage provider endpoint found on the " +
-			"StorageCluster spec, cannot determine mode")
-	}
-
 	var result reconcile.Result
 	var reconcileError error
 	if storagecluster.IsOCSConsumerMode(r.storageCluster) {
+
+		// StorageCluster checks for required fields.
+		switch storageCluster := r.storageCluster; {
+		case storageCluster.Status.ExternalStorage.ConsumerID == "":
+			return reconcile.Result{}, fmt.Errorf("no external storage consumer id found on the " +
+				"StorageCluster status, cannot determine mode")
+		case storageCluster.Spec.ExternalStorage.StorageProviderEndpoint == "":
+			return reconcile.Result{}, fmt.Errorf("no external storage provider endpoint found on the " +
+				"StorageCluster spec, cannot determine mode")
+		}
 		result, reconcileError = r.reconcileConsumerPhases()
 	} else {
 		result, reconcileError = r.reconcileProviderPhases()
@@ -319,15 +319,16 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 		// Wait until all PVs using the StorageClass under deletion are removed.
 		// Check for any PVs using the StorageClass.
 		pvList := corev1.PersistentVolumeList{}
-		err := r.list(&pvList, client.MatchingFields{
-			"spec.storageClassName": r.storageClassClaim.Name,
-		})
+		err := r.list(&pvList)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("failed to list PersistentVolumes: %s", err)
 		}
-		if len(pvList.Items) > 0 {
-			return reconcile.Result{}, fmt.Errorf("StorageClass %s is still in use by one or more PV(s)",
-				r.storageClassClaim.Name)
+		for i := range pvList.Items {
+			pv := &pvList.Items[i]
+			if pv.Spec.StorageClassName == r.storageClassClaim.Name {
+				return reconcile.Result{}, fmt.Errorf("StorageClass %s is still in use by one or more PV(s)",
+					r.storageClassClaim.Name)
+			}
 		}
 
 		// Call `RevokeStorageClassClaim` service on the provider server with StorageClassClaim as a request message.
@@ -354,6 +355,12 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			}
 		} else {
 			r.log.Info("StorageClass already deleted.")
+		}
+		if contains(r.storageClassClaim.GetFinalizers(), StorageClassClaimFinalizer) {
+			r.storageClassClaim.Finalizers = remove(r.storageClassClaim.Finalizers, StorageClassClaimFinalizer)
+			if err := r.update(r.storageClassClaim); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from storageClassClaim: %s", err)
+			}
 		}
 	}
 
@@ -844,4 +851,15 @@ func contains(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// Removes a given string from a slice and returns the new slice
+func remove(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }
