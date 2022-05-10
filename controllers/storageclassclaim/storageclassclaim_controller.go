@@ -290,6 +290,10 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 				}
 			case "StorageClass":
 				var storageClass *storagev1.StorageClass
+				data["csi.storage.k8s.io/provisioner-secret-namespace"] = r.storageClassClaim.Namespace
+				data["csi.storage.k8s.io/node-stage-secret-namespace"] = r.storageClassClaim.Namespace
+				data["csi.storage.k8s.io/controller-expand-secret-namespace"] = r.storageClassClaim.Namespace
+
 				if resource.Name == "cephfs" {
 					storageClass = r.getCephFSStorageClass(data)
 				} else if resource.Name == "ceph-rbd" {
