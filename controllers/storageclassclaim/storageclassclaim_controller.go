@@ -289,18 +289,21 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 					return reconcile.Result{}, fmt.Errorf("failed to create or update secret %v: %s", secret, err)
 				}
 			case "CephFilesystemSubVolumeGroup":
-				found := &rookCephv1.CephFilesystemSubVolumeGroup{ObjectMeta: metav1.ObjectMeta{
+				subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{ObjectMeta: metav1.ObjectMeta{
 					Name:      resource.Name,
 					Namespace: r.storageClassClaim.Namespace,
 				}}
-				_, err := ctrl.CreateOrUpdate(context.TODO(), r.Client, found, func() error {
-					found.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
+				_, err = ctrl.CreateOrUpdate(context.TODO(), r.Client, subVolumeGroup, func() error {
+					if err := r.own(subVolumeGroup); err != nil {
+						return err
+					}
+					subVolumeGroup.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
 						FilesystemName: data["filesystemName"],
 					}
 					return nil
 				})
 				if err != nil {
-					r.log.Error(err, "Could not create CephFilesystemSubVolumeGroup.", "CephFilesystemSubVolumeGroup", klog.KRef(found.Namespace, found.Name))
+					r.log.Error(err, "Could not create CephFilesystemSubVolumeGroup.", "CephFilesystemSubVolumeGroup", klog.KRef(subVolumeGroup.Namespace, subVolumeGroup.Name))
 					return reconcile.Result{}, err
 				}
 			case "StorageClass":
