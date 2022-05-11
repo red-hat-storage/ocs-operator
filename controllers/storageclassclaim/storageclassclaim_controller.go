@@ -503,8 +503,7 @@ func (r *StorageClassClaimReconciler) getCephFSStorageClass(data map[string]stri
 	allowVolumeExpansion := true
 	storageClass := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.storageClassClaim.Name,
-			Namespace: r.storageClassClaim.Namespace,
+			Name: r.storageClassClaim.Name,
 			Annotations: map[string]string{
 				"description": "Provides RWO and RWX Filesystem volumes",
 			},
@@ -522,8 +521,7 @@ func (r *StorageClassClaimReconciler) getCephRBDStorageClass(data map[string]str
 	allowVolumeExpansion := true
 	storageClass := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.storageClassClaim.Name,
-			Namespace: r.storageClassClaim.Namespace,
+			Name: r.storageClassClaim.Name,
 			Annotations: map[string]string{
 				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 			},
