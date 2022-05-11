@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -199,6 +200,19 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			},
 		}
 		if err = r.get(existing); err == nil {
+			annotation, found := existing.GetAnnotations()[StorageClassClaimAnnotation]
+			if !found {
+				r.log.Error(fmt.Errorf("storageClass %q does not belong to any storageclass claim", existing.Name), "StorageClassClaim validation failed.")
+				r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimFailed
+				return reconcile.Result{}, nil
+			}
+			claimNamespacedName := strings.Split(annotation, "/")
+			if claimNamespacedName[0] != r.storageClassClaim.Namespace {
+				r.log.Error(fmt.Errorf("storageClass belongs to %q storageclass claim in %q namespace", r.storageClassClaim.Name, r.storageClassClaim.Namespace), "StorageClassClaim validation failed.")
+				r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimFailed
+				return reconcile.Result{}, nil
+			}
+
 			sccType := r.storageClassClaim.Spec.Type
 			sccEncryptionMethod := r.storageClassClaim.Spec.EncryptionMethod
 			_, scIsFSType := existing.Parameters["fsName"]
