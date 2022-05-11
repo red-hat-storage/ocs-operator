@@ -40,6 +40,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -397,10 +398,14 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 
 	r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimInitializing
 
+	gvk, err := apiutil.GVKForObject(r.storageConsumer, r.Client.Scheme())
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get gvk for consumer  %w", err)
+	}
 	// reading storageConsumer Name from storageClassClaim ownerReferences
 	ownerRefs := r.storageClassClaim.GetOwnerReferences()
 	for i := range ownerRefs {
-		if ownerRefs[i].Kind == "StorageConsumer" {
+		if ownerRefs[i].Kind == gvk.Kind {
 			r.storageConsumer = &v1alpha1.StorageConsumer{}
 			r.storageConsumer.Name = ownerRefs[i].Name
 			r.storageConsumer.Namespace = r.storageCluster.Namespace
