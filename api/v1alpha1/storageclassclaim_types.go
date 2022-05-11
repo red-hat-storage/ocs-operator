@@ -57,6 +57,8 @@ type StorageClassClaimStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="StorageType",type="string",JSONPath=".spec.type"
+// +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
 
 // StorageClassClaim is the Schema for the storageclassclaims API
 type StorageClassClaim struct {
