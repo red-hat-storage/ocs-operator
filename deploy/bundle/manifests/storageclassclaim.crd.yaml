@@ -14,7 +14,14 @@ spec:
     singular: storageclassclaim
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: StorageType
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: StorageClassClaim is the Schema for the storageclassclaims API
