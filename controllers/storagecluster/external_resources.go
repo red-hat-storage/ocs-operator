@@ -561,9 +561,13 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		r.Log.Error(err, "Failed to create needed StorageClasses.")
 		return err
 	}
-	if err = r.setRookCSICephFS(enableRookCSICephFS, instance); err != nil {
-		r.Log.Error(err, "Failed to set RookEnableCephFSCSIKey to EnableRookCSICephFS.", "RookEnableCephFSCSIKey", rookEnableCephFSCSIKey, "EnableRookCSICephFS", enableRookCSICephFS)
-		return err
+	// We do not want to disable CephFS csi driver in consumer mode since
+	// CephFS storageclass is available by default.
+	if !IsOCSConsumerMode(instance) {
+		if err = r.setRookCSICephFS(enableRookCSICephFS, instance); err != nil {
+			r.Log.Error(err, "Failed to set RookEnableCephFSCSIKey to EnableRookCSICephFS.", "RookEnableCephFSCSIKey", rookEnableCephFSCSIKey, "EnableRookCSICephFS", enableRookCSICephFS)
+			return err
+		}
 	}
 	if extCephObjectStores != nil {
 		if err = r.createCephObjectStores(extCephObjectStores, instance); err != nil {
