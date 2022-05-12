@@ -1616,7 +1616,13 @@ spec:
           - replicasets
           - statefulsets
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ceph.rook.io
           resources:
@@ -1634,12 +1640,16 @@ spec:
           - cephblockpools
           - cephclusters
           - cephfilesystems
-          - cephnfses
           - cephobjectstores
           - cephobjectstoreusers
           - cephrbdmirrors
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - ceph.rook.io
           resources:
@@ -1685,7 +1695,11 @@ spec:
           resources:
           - consolequickstarts
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
         - apiGroups:
           - coordination.k8s.io
           resources:
@@ -1707,7 +1721,13 @@ spec:
           - secrets
           - services
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ""
           resources:
@@ -1740,11 +1760,16 @@ spec:
           resources:
           - noobaas
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - watch
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - '*'
+          - ocsinitializations
+          - storageclusters
           verbs:
           - create
           - delete
@@ -1818,13 +1843,19 @@ spec:
           resources:
           - clusterresourcequotas
           verbs:
-          - '*'
+          - get
+          - list
+          - watch
         - apiGroups:
           - route.openshift.io
           resources:
           - routes
           verbs:
-          - '*'
+          - create
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - security.openshift.io
           resources:
@@ -1849,13 +1880,15 @@ spec:
           - volumesnapshotclasses
           - volumesnapshots
           verbs:
-          - '*'
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - storage.k8s.io
           resources:
           - storageclasses
           verbs:
-          - '*'
           - create
           - delete
           - get
@@ -1868,7 +1901,12 @@ spec:
           resources:
           - templates
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         serviceAccountName: ocs-operator
       - rules:
         - apiGroups:
@@ -2621,7 +2659,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.9.0
+                  value: docker.io/rook/ceph:v1.9.0
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v16
                 - name: NOOBAA_CORE_IMAGE
@@ -2728,7 +2766,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: rook/ceph:v1.9.0
+                image: docker.io/rook/ceph:v1.9.0
                 name: rook-ceph-operator
                 ports:
                 - containerPort: 9443
@@ -3071,7 +3109,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: rook/ceph:v1.9.0
+  - image: docker.io/rook/ceph:v1.9.0
     name: rook-container
   - image: quay.io/ceph/ceph:v16
     name: ceph-container

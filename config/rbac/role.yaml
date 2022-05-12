@@ -23,7 +23,13 @@ rules:
   - replicasets
   - statefulsets
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - ceph.rook.io
   resources:
@@ -41,12 +47,16 @@ rules:
   - cephblockpools
   - cephclusters
   - cephfilesystems
-  - cephnfses
   - cephobjectstores
   - cephobjectstoreusers
   - cephrbdmirrors
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - ceph.rook.io
   resources:
@@ -92,7 +102,11 @@ rules:
   resources:
   - consolequickstarts
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - update
 - apiGroups:
   - coordination.k8s.io
   resources:
@@ -114,7 +128,13 @@ rules:
   - secrets
   - services
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -147,11 +167,16 @@ rules:
   resources:
   - noobaas
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - watch
 - apiGroups:
   - ocs.openshift.io
   resources:
-  - '*'
+  - ocsinitializations
+  - storageclusters
   verbs:
   - create
   - delete
@@ -225,13 +250,19 @@ rules:
   resources:
   - clusterresourcequotas
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
 - apiGroups:
   - route.openshift.io
   resources:
   - routes
   verbs:
-  - '*'
+  - create
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - security.openshift.io
   resources:
@@ -256,13 +287,15 @@ rules:
   - volumesnapshotclasses
   - volumesnapshots
   verbs:
-  - '*'
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses
   verbs:
-  - '*'
   - create
   - delete
   - get
@@ -275,4 +308,9 @@ rules:
   resources:
   - templates
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
