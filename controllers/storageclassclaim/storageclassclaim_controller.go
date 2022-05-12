@@ -398,7 +398,7 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 
 	r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimInitializing
 
-	gvk, err := apiutil.GVKForObject(r.storageConsumer, r.Client.Scheme())
+	gvk, err := apiutil.GVKForObject(&v1alpha1.StorageConsumer{}, r.Client.Scheme())
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get gvk for consumer  %w", err)
 	}
