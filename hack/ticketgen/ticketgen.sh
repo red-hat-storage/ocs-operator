@@ -52,5 +52,5 @@ add_var "id" "${NEW_CONSUMER_ID}"
 add_var "expirationDate" "${EXPIRATION_DATE}"
 
 PAYLOAD="$(echo -n "{${JSON}}" | base64 | tr -d "\n")"
-SIG="$(echo -n "{${JSON}}"| openssl dgst -sign "${KEY_FILE}" | base64 | tr -d "\n")"
+SIG="$(echo -n "{${JSON}}"| openssl dgst -sha256 -sign "${KEY_FILE}" | base64 | tr -d "\n")"
 cat <<< "${PAYLOAD}.${SIG}"
