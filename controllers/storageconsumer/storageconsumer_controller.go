@@ -22,10 +22,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -277,6 +279,19 @@ func (r *StorageConsumerReconciler) reconcileCephBlockPool() error {
 	failureDomain = storageClusterList.Items[0].Status.FailureDomain
 
 	capacity := r.storageConsumer.Spec.Capacity.String()
+	deviceSetList := storageClusterList.Items[0].Spec.StorageDeviceSets
+	var deviceSet *ocsv1.StorageDeviceSet = nil
+	for i := range deviceSetList {
+		ds := &deviceSetList[i]
+		if ds.Name == "default" {
+			deviceSet = ds
+			break
+		}
+	}
+	if deviceSet == nil {
+		return fmt.Errorf("Could not find  device set named default in Storage cluster")
+	}
+	pgUnitSize := util.GetPGBaseUnitSize(deviceSet.Count)
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephBlockPool, func() error {
 		if err := r.own(r.cephBlockPool); err != nil {
@@ -292,6 +307,9 @@ func (r *StorageConsumerReconciler) reconcileCephBlockPool() error {
 				},
 				Parameters: map[string]string{
 					"target_size_ratio": ".49",
+					"pg_autoscale_mode": "off",
+					"pg_num":            strconv.Itoa(pgUnitSize),
+					"pgp_num":           strconv.Itoa(pgUnitSize),
 				},
 				Quotas: rookCephv1.QuotaSpec{
 					MaxSize: &capacity,
