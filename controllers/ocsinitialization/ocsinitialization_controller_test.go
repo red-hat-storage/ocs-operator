@@ -10,7 +10,6 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -75,7 +74,6 @@ func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconci
 		Client:         client,
 		SecurityClient: secClient,
 		Log:            log,
-		RookImage:      "rook/ceph",
 	}
 }
 
@@ -291,133 +289,6 @@ func assertCondition(ocs v1.OCSInitialization, conditionType conditionsv1.Condit
 		}
 	}
 	return false
-}
-
-func TestEnsureToolsDeployment(t *testing.T) {
-	testcases := []struct {
-		label           string
-		enableCephTools bool
-		tolerations     []corev1.Toleration
-	}{
-		{
-			label:           "Case 1",
-			enableCephTools: true,
-			tolerations:     []corev1.Toleration{},
-		},
-		{
-			label:           "Case 2",
-			enableCephTools: false,
-			tolerations:     []corev1.Toleration{},
-		},
-		{
-			label:           "Case 3",
-			enableCephTools: true,
-			tolerations: []corev1.Toleration{{
-				Key:      "test-toleration",
-				Operator: corev1.TolerationOpEqual,
-				Value:    "true",
-				Effect:   corev1.TaintEffectNoSchedule,
-			}},
-		},
-	}
-
-	defaultTolerations := []corev1.Toleration{{
-		Key:      defaults.NodeTolerationKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
-
-	for _, tc := range testcases {
-		ocs, request, reconciler := getTestParams(false, t)
-		ocs.Spec.EnableCephTools = tc.enableCephTools
-		ocs.Spec.Tolerations = tc.tolerations
-
-		err := reconciler.ensureToolsDeployment(&ocs)
-		assert.NoErrorf(t, err, "[%s] failed to create ceph tools", tc.label)
-		if tc.enableCephTools {
-			cephtoolsDeployment := &appsv1.Deployment{}
-			err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
-			assert.NoErrorf(t, err, "[%s] failed to create ceph tools", tc.label)
-
-			assert.Equalf(
-				t, cephtoolsDeployment.Spec.Template.Spec.Tolerations, append(defaultTolerations, tc.tolerations...),
-				"[%s]: failed to add toleration to the ceph tool deployment resource", tc.label,
-			)
-		}
-	}
-}
-
-func TestEnsureToolsDeploymentUpdate(t *testing.T) {
-	var replicaTwo int32 = 2
-
-	testcases := []struct {
-		label           string
-		enableCephTools bool
-		tolerations     []corev1.Toleration
-	}{
-		{
-			label:           "Case 1", // existing ceph tools pod should get updated
-			enableCephTools: true,
-			tolerations:     []corev1.Toleration{},
-		},
-		{
-			label:           "Case 2", // existing ceph tool pod should get deleted
-			enableCephTools: false,
-		},
-		{
-			label:           "Case 3",
-			enableCephTools: true,
-			tolerations: []corev1.Toleration{{
-				Key:      "test-toleration",
-				Operator: corev1.TolerationOpEqual,
-				Value:    "true",
-				Effect:   corev1.TaintEffectNoSchedule,
-			}},
-		},
-	}
-
-	defaultTolerations := []corev1.Toleration{{
-		Key:      defaults.NodeTolerationKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
-
-	for _, tc := range testcases {
-		ocs, request, reconciler := getTestParams(false, t)
-		ocs.Spec.EnableCephTools = tc.enableCephTools
-		ocs.Spec.Tolerations = tc.tolerations
-
-		cephTools := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      rookCephToolDeploymentName,
-				Namespace: request.Namespace,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &replicaTwo,
-			},
-		}
-		err := reconciler.Client.Create(context.TODO(), cephTools)
-		assert.NoError(t, err)
-		err = reconciler.ensureToolsDeployment(&ocs)
-		assert.NoErrorf(t, err, "[%s] failed to create ceph tools deployment", tc.label)
-
-		cephtoolsDeployment := &appsv1.Deployment{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
-		if tc.enableCephTools {
-			assert.NoErrorf(t, err, "[%s] failed to get ceph tools deployment", tc.label)
-			assert.Equalf(t, int32(1), *cephtoolsDeployment.Spec.Replicas, "[%s] failed to update the ceph tools pod", tc.label)
-
-			assert.Equalf(
-				t, cephtoolsDeployment.Spec.Template.Spec.Tolerations, append(defaultTolerations, tc.tolerations...),
-				"[%s]: failed to add toleration to the ceph tool deployment resource", tc.label,
-			)
-
-		} else {
-			assert.Errorf(t, err, "[%s] failed to delete ceph tools deployment when it was disabled in the spec", tc.label)
-		}
-	}
 }
 
 func TestEnsureRookCephOperatorConfig(t *testing.T) {
