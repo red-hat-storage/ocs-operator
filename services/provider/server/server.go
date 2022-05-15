@@ -268,9 +268,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
 	}
 
-	// Get address of first mon from the monConfigMap configmap
-	cmData := strings.Split(configmap.Data["data"], ",")
-	if len(cmData) == 0 {
+	if configmap.Data["data"] == "" {
 		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
 	}
 
@@ -278,7 +276,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		Name: monConfigMap,
 		Kind: "ConfigMap",
 		Data: mustMarshal(map[string]string{
-			"data":     cmData[0], // Address of first mon
+			"data":     configmap.Data["data"], // IP Address of all mon's
 			"maxMonId": "0",
 			"mapping":  "{}",
 		})})
