@@ -21,6 +21,8 @@ const (
 	CSIKMSConfigMapName = "csi-kms-connection-details"
 	// KMSTokenSecretName is the name of the secret which has KMS token details
 	KMSTokenSecretName = "ocs-kms-token"
+	// CSIKMSTokenSecretName is the name of the secret which has the KMS token details of encrypted storage class
+	CSIKMSTokenSecretName = "ceph-csi-kms-token"
 	// KMSProviderKey is the key in config map to get the KMS provider name
 	KMSProviderKey = "KMS_PROVIDER"
 	// VaultKMSProvider a constant to represent 'vault' KMS provider
@@ -66,10 +68,17 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 		return getKMSSecretToken(sc, client)
 	}
 
+	getCSIKMSSecretTokenAsRuntimeObject := func(
+		sc *ocsv1.StorageCluster,
+		client client.Client) (client.Object, error) {
+		return getCSIKMSSecretToken(sc, client)
+	}
+
 	resourceNameGetFuncMap := map[string]getKMSResourceFunc{
-		KMSConfigMapName:    getKMSConfigMapAsRuntimeObject,
-		CSIKMSConfigMapName: getCSIKMSConfigMapAsRuntimeObject,
-		KMSTokenSecretName:  getKMSSecretTokenAsRuntimeObject,
+		KMSConfigMapName:      getKMSConfigMapAsRuntimeObject,
+		CSIKMSConfigMapName:   getCSIKMSConfigMapAsRuntimeObject,
+		KMSTokenSecretName:    getKMSSecretTokenAsRuntimeObject,
+		CSIKMSTokenSecretName: getCSIKMSSecretTokenAsRuntimeObject,
 	}
 	// collect all the errors into a single return error
 	var returnError error
@@ -153,6 +162,23 @@ func getKMSSecretToken(instance *ocsv1.StorageCluster, client client.Client) (*c
 		kmsSecretToken,
 	)
 	return kmsSecretToken, err
+}
+
+// getCSIKMSSecretToken function try to return the KMS Secret Token of encrypted storageClass
+func getCSIKMSSecretToken(instance *ocsv1.StorageCluster, client client.Client) (*corev1.Secret, error) {
+	// if 'KMS' is not enabled, nothing to fetch
+	if !instance.Spec.Encryption.KeyManagementService.Enable {
+		return nil, nil
+	}
+	csiKMSSecretToken := &corev1.Secret{}
+	err := client.Get(context.TODO(),
+		types.NamespacedName{
+			Name:      CSIKMSTokenSecretName,
+			Namespace: instance.ObjectMeta.Namespace,
+		},
+		csiKMSSecretToken,
+	)
+	return csiKMSSecretToken, err
 }
 
 // reachKMSProvider function checks whether the provided address is reachable or not.
