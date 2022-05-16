@@ -132,6 +132,10 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		if !ok {
 			return reconcile.Result{}, fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
 		}
+		err := initConsumerCSIKMSConfigMap(r, sc)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("Unable to initialize Consumer CSI KMS configmap %q: %w", CSIKMSConfigMapName, err)
+		}
 		endpointR, err := findNamedResourceFromArray(extRArr, "monitoring-endpoint")
 		if err != nil {
 			return reconcile.Result{}, err
@@ -339,6 +343,52 @@ func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.
 	r.Log.Error(err, "Uninstall: Waiting for CephCluster to be deleted.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
 	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for CephCluster to be deleted")
 
+}
+
+// initConsumerCSIKMSConfigMap creates/updates the required `csi-kms-connection-details` configmap
+// with default aws-sts-metadata kms configuration.
+func initConsumerCSIKMSConfigMap(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	const (
+		kmsIDAWSSTSMetadata     = "aws-sts-metadata"
+		kmsConfigAWSSTSMEtadata = `
+		{
+			"encryptionKMSType": "aws-sts-metadata",
+			"secretName": "tenant-aws-secret"
+		}
+		`
+	)
+	kmsConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      CSIKMSConfigMapName,
+			Namespace: sc.Namespace,
+		},
+		Data: map[string]string{
+			kmsIDAWSSTSMetadata: kmsConfigAWSSTSMEtadata,
+		},
+	}
+
+	err := controllerutil.SetControllerReference(sc, kmsConfigMap, r.Scheme)
+	if err != nil {
+		r.Log.Error(err, "Unable to set controller reference for CSI KMS configmap.", "CephCluster",
+			klog.KRef(sc.Namespace, CSIKMSConfigMapName))
+
+		return fmt.Errorf("Unable to set controller reference: %v", err)
+	}
+
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, kmsConfigMap, func() error {
+		kmsConfigMap.Data[kmsIDAWSSTSMetadata] = kmsConfigAWSSTSMEtadata
+
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Unable to create/update CSI KMS configmap.", "CephCluster", klog.KRef(sc.Namespace, CSIKMSConfigMapName))
+
+		return err
+	}
+	r.Log.Info("Successfully created/updated CSI KMS configmap.", "CephCluster", klog.KRef(sc.Namespace, CSIKMSConfigMapName))
+
+	return nil
 }
 
 func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {

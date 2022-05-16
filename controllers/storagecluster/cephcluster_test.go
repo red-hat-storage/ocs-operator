@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"reflect"
 	"testing"
@@ -961,6 +962,85 @@ func TestGetCephClusterMonitoringLabels(t *testing.T) {
 			if got := getCephClusterMonitoringLabels(tt.args.sc); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getCephClusterMonitoringLabels() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_initConsumerCSIKMSConfigMap(t *testing.T) {
+	type args struct {
+		r  *StorageClusterReconciler
+		sc *ocsv1.StorageCluster
+	}
+	reconciler := createFakeStorageClusterReconciler(t)
+	tests := []struct {
+		name        string
+		args        args
+		PreCreateCM bool
+	}{
+		{
+			name: "Test Creation of ConfigMap",
+			args: args{
+				r: &reconciler,
+				sc: &ocsv1.StorageCluster{
+					Spec: ocsv1.StorageClusterSpec{
+						ExternalStorage: ocsv1.ExternalStorageClusterSpec{
+							Enable: true,
+						},
+					},
+				},
+			},
+			PreCreateCM: false,
+		},
+		{
+			name: "Test Updation of ConfigMap",
+			args: args{
+				r: &reconciler,
+				sc: &ocsv1.StorageCluster{
+					Spec: ocsv1.StorageClusterSpec{
+						ExternalStorage: ocsv1.ExternalStorageClusterSpec{
+							Enable: true,
+						},
+					},
+				},
+			},
+			PreCreateCM: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			preCM := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      CSIKMSConfigMapName,
+					Namespace: tt.args.sc.Namespace,
+				},
+				Data: map[string]string{
+					"aws-sts-metadata": "",
+					"other-kms-key":    "other-kms-value",
+				},
+			}
+			if tt.PreCreateCM {
+				err := tt.args.r.Client.Create(context.TODO(), &preCM)
+				assert.NilError(t, err)
+			}
+
+			err := initConsumerCSIKMSConfigMap(tt.args.r, tt.args.sc)
+			assert.NilError(t, err)
+
+			cm := corev1.ConfigMap{}
+			err = tt.args.r.Client.Get(context.TODO(), types.NamespacedName{Name: CSIKMSConfigMapName, Namespace: tt.args.sc.Namespace}, &cm)
+			assert.NilError(t, err)
+			assert.Equal(t, cm.Data["aws-sts-metadata"], `
+		{
+			"encryptionKMSType": "aws-sts-metadata",
+			"secretName": "tenant-aws-secret"
+		}
+		`)
+			// check if other keys & values are preserved.
+			if tt.PreCreateCM {
+				assert.Equal(t, cm.Data["other-kms-key"], "other-kms-value")
+			}
+			tt.args.r.Client.Delete(context.TODO(), &cm)
+			assert.NilError(t, err)
 		})
 	}
 }
