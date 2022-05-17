@@ -121,59 +121,71 @@ func (c *RBDMirrorCollector) Collect(ch chan<- prometheus.Metric) {
 		for _, image := range poolData.MirrorStatus.Images {
 			if image.Description == "local image is primary" {
 				for _, site := range image.PeerSites {
-					siteDescription := strings.SplitN(site.Description, ", ", 2)
-					state := siteDescription[0]
-					description := siteDescription[1]
-					switch state {
-					case "unknown":
-						ch <- prometheus.MustNewConstMetric(
-							c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateUnknown,
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					case "error":
-						ch <- prometheus.MustNewConstMetric(
-							c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateError,
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					case "syncing":
-						ch <- prometheus.MustNewConstMetric(
-							c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateSyncing,
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					case "starting_replay":
-						ch <- prometheus.MustNewConstMetric(
-							c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateStartingReplay,
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					case "replaying":
-						ch <- prometheus.MustNewConstMetric(
-							c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateReplaying,
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					case "stopping_replay":
-						ch <- prometheus.MustNewConstMetric(
-							c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateStoppingReplay,
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					case "stopped":
-						ch <- prometheus.MustNewConstMetric(
-							c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateStopped,
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					default:
-						klog.Errorf("Unknown state %q of image %q", site.State, image.Name)
+					// site.State can have values like up+stopped, up+error etc.
+					state := strings.SplitN(site.State, "+", 2)
+					if len(state) != 2 {
+						klog.Errorf("Unexpected mirror state %q of image %q to site %q.", site.State, image.Name, site.SiteName)
+					} else {
+						switch state[1] {
+						case "unknown":
+							ch <- prometheus.MustNewConstMetric(
+								c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateUnknown,
+								image.Name, poolData.PoolName, site.SiteName,
+							)
+						case "error":
+							ch <- prometheus.MustNewConstMetric(
+								c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateError,
+								image.Name, poolData.PoolName, site.SiteName,
+							)
+						case "syncing":
+							ch <- prometheus.MustNewConstMetric(
+								c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateSyncing,
+								image.Name, poolData.PoolName, site.SiteName,
+							)
+						case "starting_replay":
+							ch <- prometheus.MustNewConstMetric(
+								c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateStartingReplay,
+								image.Name, poolData.PoolName, site.SiteName,
+							)
+						case "replaying":
+							ch <- prometheus.MustNewConstMetric(
+								c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateReplaying,
+								image.Name, poolData.PoolName, site.SiteName,
+							)
+						case "stopping_replay":
+							ch <- prometheus.MustNewConstMetric(
+								c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateStoppingReplay,
+								image.Name, poolData.PoolName, site.SiteName,
+							)
+						case "stopped":
+							ch <- prometheus.MustNewConstMetric(
+								c.ImageStatusState, prometheus.GaugeValue, mirrorImageStatusStateStopped,
+								image.Name, poolData.PoolName, site.SiteName,
+							)
+						default:
+							klog.Errorf("Unknown state %q of image %q", site.State, image.Name)
+						}
 					}
-
+					// site.Description can have values like "replaying,{...}" "split-brain" etc.
+					siteDescription := strings.SplitN(site.Description, ", ", 2)
+					if len(siteDescription) != 2 {
+						klog.Errorf("Unexpected mirror peer site description %q of image %q to site %q.", site.Description, image.Name, site.SiteName)
+						continue
+					}
+					description := siteDescription[1]
 					desc := cache.RBDMirrorPeerSiteDescription{}
 					err := json.Unmarshal([]byte(description), &desc)
 					if err != nil {
 						klog.Errorf("Failed to unmarshal description of image %q from site %q: %v", image.Name, site.SiteName, err)
-						return
+						continue
 					}
-					ch <- prometheus.MustNewConstMetric(
-						c.PrimarySnapshotTimestamp, prometheus.GaugeValue, float64(desc.LocalSnapshotTimestamp),
-						image.Name, poolData.PoolName, site.SiteName,
-					)
+					// LocalSnapshotTimestamp could be unavailable for a while during image resync.
+					if desc.LocalSnapshotTimestamp > 0 {
+						ch <- prometheus.MustNewConstMetric(
+							c.PrimarySnapshotTimestamp, prometheus.GaugeValue, float64(desc.LocalSnapshotTimestamp),
+							image.Name, poolData.PoolName, site.SiteName,
+						)
+					}
 					ch <- prometheus.MustNewConstMetric(
 						c.SecondarySnapshotTimestamp, prometheus.GaugeValue, float64(desc.RemoteSnapshotTimestamp),
 						image.Name, poolData.PoolName, site.SiteName,
