@@ -1199,8 +1199,8 @@ metadata:
     external.features.ocs.openshift.io/validation: '{"secrets":["rook-ceph-operator-creds",
       "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints",
       "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}'
-    features.ocs.openshift.io/disabled: '["ss-list", "install-wizard", "add-capacity",
-      "block-pool", "mcg-resource", "odf-dashboard", "common"]'
+    features.ocs.openshift.io/disabled: '["ss-list", "install-wizard", "block-pool",
+      "mcg-resource", "odf-dashboard", "common"]'
     features.ocs.openshift.io/enabled: '["kms", "arbiter", "flexible-scaling", "multus",
       "pool-management", "namespace-store", "mcg-standalone", "taint-nodes", "vault-sa-kms",
       "hpcs-kms"]'
