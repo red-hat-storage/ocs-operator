@@ -1,11 +1,10 @@
 package storagecluster
 
 import (
-	// The embed package is required for the prometheus rule files
-	_ "embed"
-
 	"bytes"
 	"context"
+	// The embed package is required for the prometheus rule files
+	_ "embed"
 	"fmt"
 	"os"
 	"reflect"
@@ -1091,11 +1090,36 @@ func parsePrometheusRule(rules string) (*monitoringv1.PrometheusRule, error) {
 
 // createOrUpdatePrometheusRule creates a prometheusRule object or an error
 func createOrUpdatePrometheusRule(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, prometheusRule *monitoringv1.PrometheusRule) error {
+	r.Log.Info("creating prometheus rules", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
 	name := prometheusRule.GetName()
 	namespace := prometheusRule.GetNamespace()
 	client, err := getMonitoringClient()
 	if err != nil {
 		return fmt.Errorf("failed to get monitoring client. %v", err)
+	}
+	// Check if the prometheusRule for Ceph already exist.
+	cephRules, err := client.MonitoringV1().PrometheusRules(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "prometheus=rook-prometheus",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list rules: %v", err)
+	}
+	// Delete all existing prometheusRules for Ceph.
+	for _, cephRule := range cephRules.Items {
+		r.Log.Info("", "got:", cephRule.GetName(), "want:", name)
+		if cephRule.GetName() == name {
+			// Don't delete the prometheusRule if it is the same as the one we are trying to create.
+			continue
+		}
+		err = client.MonitoringV1().PrometheusRules(namespace).Delete(
+			context.TODO(),
+			cephRule.GetName(),
+			metav1.DeleteOptions{},
+		)
+		if err != nil {
+			r.Log.Error(err, "failed to delete prometheusRule", "prometheusRule", name)
+			return err
+		}
 	}
 	_, err = client.MonitoringV1().PrometheusRules(namespace).Create(context.TODO(), prometheusRule, metav1.CreateOptions{})
 	if err != nil {
