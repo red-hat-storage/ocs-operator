@@ -3,8 +3,6 @@ package ocsinitialization
 import (
 	"context"
 	"fmt"
-	"os"
-	"reflect"
 
 	"github.com/go-logr/logr"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
@@ -29,7 +27,6 @@ var watchNamespace string
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
 
 const (
-	rookCephToolDeploymentName = "rook-ceph-tools"
 	// This name is predefined by Rook
 	rookCephOperatorConfigName = "rook-ceph-operator-config"
 )
@@ -50,145 +47,6 @@ type OCSInitializationReconciler struct {
 	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	SecurityClient secv1client.SecurityV1Interface
-	RookImage      string
-}
-
-func newToolsDeployment(namespace string, rookImage string, tolerations []corev1.Toleration) *appsv1.Deployment {
-
-	name := rookCephToolDeploymentName
-	var replicaOne int32 = 1
-
-	// privileged needs to be true due to permission issues
-	privilegedContainer := true
-	runAsNonRoot := true
-	var runAsUser, runAsGroup int64 = 2016, 2016
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicaOne,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "rook-ceph-tools",
-				},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": "rook-ceph-tools",
-					},
-				},
-				Spec: corev1.PodSpec{
-					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
-					Containers: []corev1.Container{
-						{
-							Name:    name,
-							Image:   rookImage,
-							Command: []string{"/bin/bash"},
-							Args: []string{
-								"-m",
-								"-c",
-								"/usr/local/bin/toolbox.sh",
-							},
-							TTY: true,
-							Env: []corev1.EnvVar{
-								{
-									Name: "ROOK_CEPH_USERNAME",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "ceph-username",
-										},
-									},
-								},
-								{
-									Name: "ROOK_CEPH_SECRET",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "ceph-secret",
-										},
-									},
-								},
-							},
-							SecurityContext: &corev1.SecurityContext{
-								Privileged:   &privilegedContainer,
-								RunAsNonRoot: &runAsNonRoot,
-								RunAsUser:    &runAsUser,
-								RunAsGroup:   &runAsGroup,
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{Name: "ceph-config", MountPath: "/etc/ceph"},
-								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
-							},
-						},
-					},
-					Tolerations: tolerations,
-					// if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
-					HostNetwork: true,
-					Volumes: []corev1.Volume{
-						{Name: "ceph-config", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/etc/ceph"}}},
-						{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
-								Items: []corev1.KeyToPath{
-									{Key: "data", Path: "mon-endpoints"},
-								},
-							},
-						},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func (r *OCSInitializationReconciler) ensureToolsDeployment(initialData *ocsv1.OCSInitialization) error {
-
-	var isFound bool
-	namespace := initialData.Namespace
-
-	tolerations := []corev1.Toleration{{
-		Key:      defaults.NodeTolerationKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
-
-	tolerations = append(tolerations, initialData.Spec.Tolerations...)
-
-	toolsDeployment := newToolsDeployment(namespace, r.RookImage, tolerations)
-	foundToolsDeployment := &appsv1.Deployment{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
-
-	if err == nil {
-		isFound = true
-	} else if errors.IsNotFound(err) {
-		isFound = false
-	} else {
-		return err
-	}
-
-	if initialData.Spec.EnableCephTools {
-		// Create or Update if ceph tools is enabled.
-
-		if !isFound {
-			return r.Client.Create(context.TODO(), toolsDeployment)
-		} else if !reflect.DeepEqual(foundToolsDeployment.Spec, toolsDeployment.Spec) {
-
-			updateDeployment := foundToolsDeployment.DeepCopy()
-			updateDeployment.Spec = *toolsDeployment.Spec.DeepCopy()
-
-			return r.Client.Update(context.TODO(), updateDeployment)
-		}
-	} else if isFound {
-		// delete if ceph tools exists and is disabled
-		return r.Client.Delete(context.TODO(), foundToolsDeployment)
-	}
-
-	return nil
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -282,12 +140,6 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	err = r.ensureToolsDeployment(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to process ceph tools deployment.", "CephToolDeployment", klog.KRef(instance.Namespace, rookCephToolDeploymentName))
-		return reconcile.Result{}, err
-	}
-
 	if !instance.Status.RookCephOperatorConfigCreated {
 		// if true, no need to ensure presence of ConfigMap
 		// if false, ensure ConfigMap and update the status
@@ -316,12 +168,6 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	watchNamespace = ns
-
-	rookImage := os.Getenv("ROOK_CEPH_IMAGE")
-	if rookImage == "" {
-		return fmt.Errorf("No ROOK_CEPH_IMAGE environment variable set")
-	}
-	r.RookImage = rookImage
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}).

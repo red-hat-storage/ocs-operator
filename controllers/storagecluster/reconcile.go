@@ -160,6 +160,13 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases(sc, request)
 
+	// Ensure that cephtoolbox is deployed as instructed by the user
+	err := r.ensureToolsDeployment(sc)
+	if err != nil {
+		r.Log.Error(err, "Failed to process ceph tools deployment.", "CephToolDeployment", klog.KRef(sc.Namespace, rookCephToolDeploymentName))
+		return reconcile.Result{}, err
+	}
+
 	// Apply status changes to the storagecluster
 	statusError := r.Client.Status().Update(ctx, sc)
 	if statusError != nil {
