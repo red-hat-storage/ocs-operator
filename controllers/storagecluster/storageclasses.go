@@ -199,6 +199,11 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	managementSpec := initData.Spec.ManagedResources.CephBlockPools
+	disableStorageClass := managementSpec.DisableStorageClass
+	// Disabling creation of default CephBlock Pool StorageClass for Provider clusters
+	if initData.Spec.AllowRemoteStorageConsumers {
+		disableStorageClass = true
+	}
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
@@ -226,7 +231,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 			},
 		},
 		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
-		disable:           managementSpec.DisableStorageClass,
+		disable:           disableStorageClass,
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
 }
