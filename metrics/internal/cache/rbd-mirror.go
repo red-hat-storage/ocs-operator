@@ -5,17 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"sync"
 	"time"
 
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
@@ -91,6 +95,23 @@ type RBDMirrorPeerSiteDescription struct {
 	ReplayState             string  `json:"replay_state"`
 }
 
+const (
+	cephConfigRoot = "/etc/ceph"
+	cephConfigPath = "/etc/ceph/ceph.conf"
+	keyRing        = "/etc/ceph/keyring"
+)
+
+var cephConfig = []byte(`[global]
+auth_cluster_required = cephx
+auth_service_required = cephx
+auth_client_required = cephx
+`)
+
+type csiClusterConfig struct {
+	ClusterID string   `json:"clusterID"`
+	Monitors  []string `json:"monitors"`
+}
+
 // Cache mirror data for all CephBlockPools with mirroring enabled
 
 var _ cache.Store = &RBDMirrorStore{}
@@ -100,21 +121,81 @@ var _ cache.Store = &RBDMirrorStore{}
 type RBDMirrorStore struct {
 	Mutex sync.RWMutex
 	// Store is a map of Pool UID to RBDMirrorPoolStatusVerbose
-	Store           map[types.UID]RBDMirrorPoolStatusVerbose
-	rbdCommandInput rbdCommandInput
+	Store map[types.UID]RBDMirrorPoolStatusVerbose
+	// rbdCommandInput is a struct that contains the input for the rbd command
+	// for each AllowdNamespaces
+	rbdCommandInput   map[string]*rbdCommandInput
+	kubeclient        clientset.Interface
+	allowedNamespaces []string
 }
 
-func NewRBDMirrorStore() *RBDMirrorStore {
+func NewRBDMirrorStore(opts *options.Options) *RBDMirrorStore {
+	// write Ceph config file before issuing RBD mirror commands
+	err := writeCephConfig()
+	if err != nil {
+		// With the current implementation, this is not possible.
+		panic(err)
+	}
 	return &RBDMirrorStore{
-		Store:           map[types.UID]RBDMirrorPoolStatusVerbose{},
-		rbdCommandInput: rbdCommandInput{},
+		Store:             map[types.UID]RBDMirrorPoolStatusVerbose{},
+		rbdCommandInput:   map[string]*rbdCommandInput{},
+		kubeclient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
+		allowedNamespaces: opts.AllowedNamespaces,
 	}
 }
 
-func (s *RBDMirrorStore) WithRBDCommandInput(monitor, id, key string) {
-	s.rbdCommandInput.monitor = monitor
-	s.rbdCommandInput.id = id
-	s.rbdCommandInput.key = key
+func (s *RBDMirrorStore) WithRBDCommandInput(namespace string) error {
+	var allow bool
+	for _, item := range s.allowedNamespaces {
+		if item == namespace {
+			allow = true
+			break
+		}
+	}
+	if !allow {
+		return fmt.Errorf("rbd-mirror metrics collection from namespace %q is not allowed", namespace)
+	}
+
+	secret, err := s.kubeclient.CoreV1().Secrets(namespace).Get(context.TODO(), "rook-ceph-mon", v1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get secret in namespace %q: %v", namespace, err)
+	}
+	key, ok := secret.Data["ceph-secret"]
+	if !ok {
+		return fmt.Errorf("failed to get client key from secret in namespace %q", namespace)
+	}
+	id := "admin"
+
+	configmap, err := s.kubeclient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "rook-ceph-csi-config", v1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get configmap in namespace %q: %v", namespace, err)
+	}
+
+	data, ok := configmap.Data["csi-cluster-config-json"]
+	if !ok {
+		return fmt.Errorf("failed to get CSI cluster config from configmap in namespace %q", namespace)
+	}
+
+	var clusterConfig []csiClusterConfig
+	err = json.Unmarshal([]byte(data), &clusterConfig)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal csi-cluster-config-json in namespace %q: %v", namespace, err)
+	}
+
+	if len(clusterConfig) == 0 {
+		return fmt.Errorf("expected 1 or more CSI cluster config but found 0 from configmap in namespace %q", namespace)
+	}
+	if len(clusterConfig[0].Monitors) == 0 {
+		return fmt.Errorf("expected 1 or more monitors but found 0 from configmap in namespace %q", namespace)
+	}
+
+	input := rbdCommandInput{}
+	input.monitor = clusterConfig[0].Monitors[0]
+	input.id = id
+	input.key = string(key)
+	s.rbdCommandInput[namespace] = &input
+
+	return nil
 }
 
 func (s *RBDMirrorStore) Add(obj interface{}) error {
@@ -133,7 +214,15 @@ func (s *RBDMirrorStore) Add(obj interface{}) error {
 		return nil
 	}
 
-	mirrorStatus, err := s.rbdCommandInput.rbdImageStatus(pool.Name)
+	if _, ok := s.rbdCommandInput[pool.Namespace]; !ok {
+		err := s.WithRBDCommandInput(pool.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to initialize rbd command input for pool %s/%s: %v", pool.Namespace, pool.Name, err)
+			return fmt.Errorf("rbd command error for pool %s/%s : %v", pool.Namespace, pool.Name, err)
+		}
+	}
+
+	mirrorStatus, err := s.rbdCommandInput[pool.Namespace].rbdImageStatus(pool.Name)
 	if err != nil {
 		return fmt.Errorf("rbd command error: %v", err)
 	}
@@ -205,9 +294,17 @@ func (s *RBDMirrorStore) Resync() error {
 	defer s.Mutex.Unlock()
 
 	for poolUUID, poolStatusVerbose := range s.Store {
-		mirrorStatus, err := s.rbdCommandInput.rbdImageStatus(poolStatusVerbose.PoolName)
+		if _, ok := s.rbdCommandInput[poolStatusVerbose.PoolNamespace]; !ok {
+			err := s.WithRBDCommandInput(poolStatusVerbose.PoolNamespace)
+			if err != nil {
+				klog.Errorf("Failed to initialize rbd command input for pool %s/%s: %v", poolStatusVerbose.PoolNamespace, poolStatusVerbose.PoolName, err)
+				continue
+			}
+		}
+
+		mirrorStatus, err := s.rbdCommandInput[poolStatusVerbose.PoolNamespace].rbdImageStatus(poolStatusVerbose.PoolName)
 		if err != nil {
-			klog.Errorf("unable to collect RBD mirror data for CephBlockPool %q in %q namespace", poolStatusVerbose.PoolName, poolStatusVerbose.PoolNamespace)
+			klog.Errorf("rbd command error: %v", err)
 			continue
 		}
 
@@ -262,4 +359,42 @@ func (in *rbdCommandInput) rbdImageStatus(poolName string) (RBDMirrorStatusVerbo
 func execCommand(command string, args []string) ([]byte, error) {
 	cmd := exec.Command(command, args...)
 	return cmd.CombinedOutput()
+}
+
+/*
+	Copied from https://github.com/ceph/ceph-csi/blob/70fc6db2cfe3f00945c030f0d7f83ea1e2d21a00/internal/util/cephconf.go
+	Functions to create ceph.conf and keyring files internally.
+*/
+
+func createCephConfigRoot() error {
+	return os.MkdirAll(cephConfigRoot, 0o755)
+}
+
+// createKeyRingFile creates the keyring files to fix above error message logging.
+func createKeyRingFile() error {
+	var err error
+	if _, err = os.Stat(keyRing); os.IsNotExist(err) {
+		_, err = os.Create(keyRing)
+	}
+
+	return err
+}
+
+// writeCephConfig writes out a basic ceph.conf file, making it easy to use
+// ceph related CLIs.
+func writeCephConfig() error {
+	var err error
+	if err = createCephConfigRoot(); err != nil {
+		return err
+	}
+
+	if _, err = os.Stat(cephConfigPath); os.IsNotExist(err) {
+		err = os.WriteFile(cephConfigPath, cephConfig, 0o600)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return createKeyRingFile()
 }
