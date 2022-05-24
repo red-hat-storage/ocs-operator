@@ -22,6 +22,7 @@ rules:
   - ocs.openshift.io
   resources:
   - storageconsumers
+  - storageconsumers/finalizers
   verbs:
   - get
   - list
