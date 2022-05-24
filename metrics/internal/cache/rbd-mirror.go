@@ -345,7 +345,7 @@ func (in *rbdCommandInput) rbdImageStatus(poolName string) (RBDMirrorStatusVerbo
 		return rbdMirrorStatusVerbose, errors.New("unable to get RBD mirror data. RBD command input not specified")
 	}
 
-	args := []string{"mirror", "pool", "status", poolName, "--verbose", "--format", "json", "-m", in.monitor, "--id", in.id, "--key", in.key}
+	args := []string{"mirror", "pool", "status", poolName, "--verbose", "--format", "json", "-m", in.monitor, "--id", in.id, "--key", in.key, "--debug-rbd", "0"}
 	cmd, err := execCommand("rbd", args)
 	if err != nil {
 		return rbdMirrorStatusVerbose, err
