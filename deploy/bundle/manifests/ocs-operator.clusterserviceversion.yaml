@@ -2779,7 +2779,7 @@ spec:
                 - --namespaces=openshift-storage
                 command:
                 - /usr/local/bin/metrics-exporter
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 name: ocs-metrics-exporter
                 ports:
                 - containerPort: 8080
@@ -3083,6 +3083,6 @@ spec:
     name: rook-csi-nfs
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
-  - image: quay.io/ocs-dev/ocs-operator:latest
+  - image: quay.io/ocs-dev/ocs-metrics-exporter:latest
     name: ocs-metrics-exporter
   version: 4.11.0
