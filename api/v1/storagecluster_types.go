@@ -514,8 +514,6 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *ap
 	name := "rook-ceph-tools"
 	namespace := r.ObjectMeta.Namespace
 	rookImage := os.Getenv("ROOK_CEPH_IMAGE")
-	// privileged needs to be true due to permission issues
-	privilegedContainer := true
 	runAsNonRoot := true
 	var runAsUser, runAsGroup int64 = 2016, 2016
 	return &appsv1.Deployment{
@@ -570,7 +568,6 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *ap
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
-								Privileged:   &privilegedContainer,
 								RunAsNonRoot: &runAsNonRoot,
 								RunAsUser:    &runAsUser,
 								RunAsGroup:   &runAsGroup,
@@ -582,10 +579,8 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *ap
 						},
 					},
 					Tolerations: tolerations,
-					// if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
-					HostNetwork: true,
 					Volumes: []corev1.Volume{
-						{Name: "ceph-config", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/etc/ceph"}}},
+						{Name: "ceph-config", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 						{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
 								Items: []corev1.KeyToPath{
