@@ -57,7 +57,9 @@ import (
 // nolint
 type StorageClassClaimReconciler struct {
 	client.Client
-	Scheme                       *runtime.Scheme
+	Scheme            *runtime.Scheme
+	OperatorNamespace string
+
 	log                          logr.Logger
 	ctx                          context.Context
 	storageConsumer              *v1alpha1.StorageConsumer
@@ -68,7 +70,6 @@ type StorageClassClaimReconciler struct {
 	cephClientProvisioner        *rookCephv1.CephClient
 	cephClientNode               *rookCephv1.CephClient
 	cephResourcesByName          map[string]*v1alpha1.CephResourcesSpec
-	namespace                    string
 }
 
 const (
@@ -88,13 +89,12 @@ const (
 func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	r.log = ctrllog.FromContext(ctx, "StorageClassClaim", request)
 	r.ctx = ctrllog.IntoContext(ctx, r.log)
-	r.namespace = request.Namespace
 	r.log.Info("Reconciling StorageClassClaim.")
 
 	// Fetch the StorageClassClaim instance
 	r.storageClassClaim = &v1alpha1.StorageClassClaim{}
 	r.storageClassClaim.Name = request.Name
-	r.storageClassClaim.Namespace = r.namespace
+	r.storageClassClaim.Namespace = request.Namespace
 
 	if err := r.get(r.storageClassClaim); err != nil {
 		if errors.IsNotFound(err) {
@@ -108,7 +108,7 @@ func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request rec
 	r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimInitializing
 
 	storageClusterList := &v1.StorageClusterList{}
-	if err := r.list(storageClusterList, client.InNamespace(r.namespace)); err != nil {
+	if err := r.list(storageClusterList, client.InNamespace(r.OperatorNamespace)); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -442,7 +442,7 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 		if ownerRefs[i].Kind == gvk.Kind {
 			r.storageConsumer = &v1alpha1.StorageConsumer{}
 			r.storageConsumer.Name = ownerRefs[i].Name
-			r.storageConsumer.Namespace = r.storageCluster.Namespace
+			r.storageConsumer.Namespace = r.OperatorNamespace
 			break
 		}
 	}
@@ -457,7 +457,7 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 	if r.storageClassClaim.Spec.Type == "blockpool" {
 		r.cephBlockPool = &rookCephv1.CephBlockPool{}
 		r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s", r.storageConsumer.Name)
-		r.cephBlockPool.Namespace = r.namespace
+		r.cephBlockPool.Namespace = r.OperatorNamespace
 		r.cephBlockPool.Labels = map[string]string{
 			controllers.StorageConsumerNameLabel: r.storageConsumer.Name,
 		}
@@ -465,16 +465,16 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 	} else if r.storageClassClaim.Spec.Type == "sharedfilesystem" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
 		r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", r.storageConsumer.Name)
-		r.cephFilesystemSubVolumeGroup.Namespace = r.namespace
+		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
 	}
 
 	r.cephClientProvisioner = &rookCephv1.CephClient{}
 	r.cephClientProvisioner.Name = controllers.GenerateHashForCephClient(r.storageClassClaim.Name, "provisioner")
-	r.cephClientProvisioner.Namespace = r.namespace
+	r.cephClientProvisioner.Namespace = r.OperatorNamespace
 
 	r.cephClientNode = &rookCephv1.CephClient{}
 	r.cephClientNode.Name = controllers.GenerateHashForCephClient(r.storageClassClaim.Name, "node")
-	r.cephClientNode.Namespace = r.namespace
+	r.cephClientNode.Namespace = r.OperatorNamespace
 
 	r.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
 
@@ -674,7 +674,7 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 func (r *StorageClassClaimReconciler) reconcileCephFilesystemSubVolumeGroup() error {
 
 	cephFilesystemList := rookCephv1.CephFilesystemList{}
-	if err := r.list(&cephFilesystemList, client.InNamespace(r.namespace)); err != nil {
+	if err := r.list(&cephFilesystemList, client.InNamespace(r.OperatorNamespace)); err != nil {
 		return fmt.Errorf("error fetching CephFilesystemList. %+v", err)
 	}
 
