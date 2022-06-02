@@ -15,13 +15,13 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Management Endpoints
-      jsonPath: .status.services.serviceMgmt.nodePorts
-      name: Mgmt-Endpoints
-      type: string
     - description: S3 Endpoints
       jsonPath: .status.services.serviceS3.nodePorts
       name: S3-Endpoints
+      type: string
+    - description: STS Endpoints
+      jsonPath: .status.services.serviceSts.nodePorts
+      name: Sts-Endpoints
       type: string
     - description: Actual Image
       jsonPath: .status.actualImage
@@ -343,7 +343,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -499,7 +499,7 @@ spec:
                                 the ones listed in the namespaces field. null selector
                                 and null or empty namespaces list means "this pod's
                                 namespace". An empty selector ({}) matches all namespaces.
-                                This field is alpha-level and is only honored when
+                                This field is beta-level and is only honored when
                                 PodAffinityNamespaceSelector feature is enabled.
                               properties:
                                 matchExpressions:
@@ -652,7 +652,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -808,7 +808,7 @@ spec:
                                 the ones listed in the namespaces field. null selector
                                 and null or empty namespaces list means "this pod's
                                 namespace". An empty selector ({}) matches all namespaces.
-                                This field is alpha-level and is only honored when
+                                This field is beta-level and is only honored when
                                 PodAffinityNamespaceSelector feature is enabled.
                               properties:
                                 matchExpressions:
@@ -894,6 +894,8 @@ spec:
                 description: CleanupPolicy (optional) Indicates user's policy for
                   deletion
                 properties:
+                  allowNoobaaDeletion:
+                    type: boolean
                   confirmation:
                     description: CleanupConfirmationProperty is a string that specifies
                       cleanup confirmation
@@ -926,6 +928,10 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                     type: object
                 type: object
+              dbConf:
+                description: DBConf (optional) overrides the default postgresql db
+                  config
+                type: string
               dbImage:
                 description: DBImage (optional) overrides the default image for the
                   db container
@@ -1010,6 +1016,220 @@ spec:
                 - warn
                 - default_level
                 type: integer
+              defaultBackingStoreSpec:
+                description: BackingStoreSpec defines the desired state of BackingStore
+                properties:
+                  awsS3:
+                    description: AWSS3Spec specifies a backing store of type aws-s3
+                    properties:
+                      awsSTSRoleARN:
+                        type: string
+                      region:
+                        description: Region is the AWS region
+                        type: string
+                      secret:
+                        description: Secret refers to a secret that provides the credentials
+                          The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                      sslDisabled:
+                        description: SSLDisabled allows to disable SSL and use plain
+                          http
+                        type: boolean
+                      targetBucket:
+                        description: TargetBucket is the name of the target S3 bucket
+                        type: string
+                    required:
+                    - targetBucket
+                    type: object
+                  azureBlob:
+                    description: AzureBlob specifies a backing store of type azure-blob
+                    properties:
+                      secret:
+                        description: Secret refers to a secret that provides the credentials
+                          The secret should define AccountName and AccountKey as provided
+                          by Azure Blob.
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                      targetBlobContainer:
+                        description: TargetBlobContainer is the name of the target
+                          Azure Blob container
+                        type: string
+                    required:
+                    - secret
+                    - targetBlobContainer
+                    type: object
+                  googleCloudStorage:
+                    description: GoogleCloudStorage specifies a backing store of type
+                      google-cloud-storage
+                    properties:
+                      secret:
+                        description: Secret refers to a secret that provides the credentials
+                          The secret should define GoogleServiceAccountPrivateKeyJson
+                          containing the entire json string as provided by Google.
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                      targetBucket:
+                        description: TargetBucket is the name of the target S3 bucket
+                        type: string
+                    required:
+                    - secret
+                    - targetBucket
+                    type: object
+                  ibmCos:
+                    description: IBMCos specifies a backing store of type ibm-cos
+                    properties:
+                      endpoint:
+                        description: 'Endpoint is the IBM COS compatible endpoint:
+                          http(s)://host:port'
+                        type: string
+                      secret:
+                        description: Secret refers to a secret that provides the credentials
+                          The secret should define IBM_COS_ACCESS_KEY_ID and IBM_COS_SECRET_ACCESS_KEY
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                      signatureVersion:
+                        description: SignatureVersion specifies the client signature
+                          version to use when signing requests.
+                        type: string
+                      targetBucket:
+                        description: TargetBucket is the name of the target IBM COS
+                          bucket
+                        type: string
+                    required:
+                    - endpoint
+                    - secret
+                    - targetBucket
+                    type: object
+                  pvPool:
+                    description: PVPool specifies a backing store of type pv-pool
+                    properties:
+                      numVolumes:
+                        description: NumVolumes is the number of volumes to allocate
+                        type: integer
+                      resources:
+                        description: VolumeResources represents the minimum resources
+                          each volume should have.
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute
+                              resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of
+                              compute resources required. If Requests is omitted for
+                              a container, it defaults to Limits if that is explicitly
+                              specified, otherwise to an implementation-defined value.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                      secret:
+                        description: Secret refers to a secret that provides the agent
+                          configuration The secret should define AGENT_CONFIG containing
+                          agent_configuration from noobaa-core.
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                      storageClass:
+                        description: StorageClass is the name of the storage class
+                          to use for the PV's
+                        type: string
+                    required:
+                    - numVolumes
+                    type: object
+                  s3Compatible:
+                    description: S3Compatible specifies a backing store of type s3-compatible
+                    properties:
+                      endpoint:
+                        description: 'Endpoint is the S3 compatible endpoint: http(s)://host:port'
+                        type: string
+                      secret:
+                        description: Secret refers to a secret that provides the credentials
+                          The secret should define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                      signatureVersion:
+                        description: SignatureVersion specifies the client signature
+                          version to use when signing requests.
+                        type: string
+                      targetBucket:
+                        description: TargetBucket is the name of the target S3 bucket
+                        type: string
+                    required:
+                    - endpoint
+                    - secret
+                    - targetBucket
+                    type: object
+                  type:
+                    description: Type is an enum of supported types
+                    type: string
+                required:
+                - type
+                type: object
+              disableLoadBalancerService:
+                description: DisableLoadBalancerService (optional) sets the service
+                  type to ClusterIP instead of LoadBalancer
+                nullable: true
+                type: boolean
               endpoints:
                 description: Endpoints (optional) sets configuration info for the
                   noobaa endpoint deployment.
@@ -1430,6 +1650,59 @@ spec:
                           type: string
                         type: array
                     type: object
+                  serviceSts:
+                    description: ServiceStatus is the status info and network addresses
+                      of a service
+                    properties:
+                      externalDNS:
+                        description: ExternalDNS are external public addresses for
+                          the service
+                        items:
+                          type: string
+                        type: array
+                      externalIP:
+                        description: ExternalIP are external public addresses for
+                          the service LoadBalancerPorts such as AWS ELB provide public
+                          address and load balancing for the service IngressPorts
+                          are manually created public addresses for the service https://kubernetes.io/docs/concepts/services-networking/service/#external-ips
+                          https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer
+                          https://kubernetes.io/docs/concepts/services-networking/ingress/
+                        items:
+                          type: string
+                        type: array
+                      internalDNS:
+                        description: InternalDNS are internal addresses of the service
+                          inside the cluster
+                        items:
+                          type: string
+                        type: array
+                      internalIP:
+                        description: InternalIP are internal addresses of the service
+                          inside the cluster https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+                        items:
+                          type: string
+                        type: array
+                      nodePorts:
+                        description: NodePorts are the most basic network available.
+                          NodePorts use the networks available on the hosts of kubernetes
+                          nodes. This generally works from within a pod, and from
+                          the internal network of the nodes, but may fail from public
+                          network. https://kubernetes.io/docs/concepts/services-networking/service/#nodeport
+                        items:
+                          type: string
+                        type: array
+                      podPorts:
+                        description: 'PodPorts are the second most basic network address.
+                          Every pod has an IP in the cluster and the pods network
+                          is a mesh so the operator running inside a pod in the cluster
+                          can use this address. Note: pod IPs are not guaranteed to
+                          persist over restarts, so should be rediscovered. Note2:
+                          when running the operator outside of the cluster, pod IP
+                          is not accessible.'
+                        items:
+                          type: string
+                        type: array
+                    type: object
                 required:
                 - serviceMgmt
                 - serviceS3
@@ -1499,6 +1772,8 @@ spec:
               awsS3:
                 description: AWSS3Spec specifies a backing store of type aws-s3
                 properties:
+                  awsSTSRoleARN:
+                    type: string
                   region:
                     description: Region is the AWS region
                     type: string
@@ -1522,7 +1797,6 @@ spec:
                     description: TargetBucket is the name of the target S3 bucket
                     type: string
                 required:
-                - secret
                 - targetBucket
                 type: object
               azureBlob:
@@ -1868,6 +2142,8 @@ spec:
               awsS3:
                 description: AWSS3Spec specifies a namespace store of type aws-s3
                 properties:
+                  awsSTSRoleARN:
+                    type: string
                   region:
                     description: Region is the AWS region
                     type: string
@@ -1891,7 +2167,6 @@ spec:
                     description: TargetBucket is the name of the target S3 bucket
                     type: string
                 required:
-                - secret
                 - targetBucket
                 type: object
               azureBlob:
@@ -2153,6 +2428,10 @@ spec:
       jsonPath: .spec.namespacePolicy
       name: NamespacePolicy
       type: string
+    - description: Quota
+      jsonPath: .spec.quota
+      name: Quota
+      type: string
     - description: Phase
       jsonPath: .status.phase
       name: Phase
@@ -2258,6 +2537,17 @@ spec:
                       type: object
                     type: array
                 type: object
+              quota:
+                description: Quota specifies the quota configuration for the bucket
+                  class
+                properties:
+                  maxObjects:
+                    description: limits the max total quantity of objects per bucket
+                    type: string
+                  maxSize:
+                    description: limits the max total size of objects per bucket
+                    type: string
+                type: object
               replicationPolicy:
                 description: ReplicationPolicy specifies a json of replication rules
                   for the bucketclass
@@ -2301,6 +2591,204 @@ spec:
               phase:
                 description: Phase is a simple, high-level summary of where the System
                   is in its lifecycle
+                type: string
+              relatedObjects:
+                description: RelatedObjects is a list of objects related to this operator.
+                items:
+                  description: 'ObjectReference contains enough information to let
+                    you inspect or modify the referred object. --- New uses of this
+                    type are discouraged because of difficulty describing its usage
+                    when embedded in APIs.  1. Ignored fields.  It includes many fields
+                    which are not generally honored.  For instance, ResourceVersion
+                    and FieldPath are both very rarely valid in actual usage.  2.
+                    Invalid usage help.  It is impossible to add specific help for
+                    individual usage.  In most embedded usages, there are particular     restrictions
+                    like, "must refer only to types A and B" or "UID not honored"
+                    or "name must be restricted".     Those cannot be well described
+                    when embedded.  3. Inconsistent validation.  Because the usages
+                    are different, the validation rules are different by usage, which
+                    makes it hard for users to predict what will happen.  4. The fields
+                    are both imprecise and overly precise.  Kind is not a precise
+                    mapping to a URL. This can produce ambiguity     during interpretation
+                    and require a REST mapping.  In most cases, the dependency is
+                    on the group,resource tuple     and the version of the actual
+                    struct is irrelevant.  5. We cannot easily change it.  Because
+                    this type is embedded in many locations, updates to this type     will
+                    affect numerous schemas.  Don''t make new APIs embed an underspecified
+                    API type they do not control. Instead of using this type, create
+                    a locally provided and used type that is well-focused on your
+                    reference. For example, ServiceReferences for admission registration:
+                    https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533
+                    .'
+                  properties:
+                    apiVersion:
+                      description: API version of the referent.
+                      type: string
+                    fieldPath:
+                      description: 'If referring to a piece of an object instead of
+                        an entire object, this string should contain a valid JSON/Go
+                        field access statement, such as desiredState.manifest.containers[2].
+                        For example, if the object reference is to a container within
+                        a pod, this would take on a value like: "spec.containers{name}"
+                        (where "name" refers to the name of the container that triggered
+                        the event) or if no container name is specified "spec.containers[2]"
+                        (container with index 2 in this pod). This syntax is chosen
+                        only to have some well-defined way of referencing a part of
+                        an object. TODO: this design is not final and this field is
+                        subject to change in the future.'
+                      type: string
+                    kind:
+                      description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                      type: string
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                      type: string
+                    namespace:
+                      description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                      type: string
+                    resourceVersion:
+                      description: 'Specific resourceVersion to which this reference
+                        is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                      type: string
+                    uid:
+                      description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: noobaaaccounts.noobaa.io
+spec:
+  group: noobaa.io
+  names:
+    kind: NooBaaAccount
+    listKind: NooBaaAccountList
+    plural: noobaaaccounts
+    singular: noobaaaccount
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: NooBaaAccount is the Schema for the NooBaaAccounts API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Specification of the desired behavior of the NooBaaAccount.
+            properties:
+              allow_bucket_creation:
+                description: AllowBucketCreate specifies if new buckets can be created
+                  by this account
+                type: boolean
+              allowed_buckets:
+                description: AllowedBuckets specifies which buckets this account can
+                  access
+                properties:
+                  full_permission:
+                    type: boolean
+                  permission_list:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - full_permission
+                - permission_list
+                type: object
+              default_resource:
+                description: DefaultResource specifies which backingstore this account
+                  will use to create new buckets
+                type: string
+              nsfs_account_config:
+                description: NsfsAccountConfig specifies the configurations on Namespace
+                  FS
+                nullable: true
+                properties:
+                  gid:
+                    type: integer
+                  new_buckets_path:
+                    type: string
+                  nsfs_only:
+                    type: boolean
+                  uid:
+                    type: integer
+                required:
+                - gid
+                - new_buckets_path
+                - nsfs_only
+                - uid
+                type: object
+            required:
+            - allow_bucket_creation
+            - allowed_buckets
+            type: object
+          status:
+            description: Most recently observed status of the NooBaaAccount.
+            properties:
+              conditions:
+                description: Conditions is a list of conditions related to operator
+                  reconciliation
+                items:
+                  description: Condition represents the state of the operator's reconciliation
+                    functionality.
+                  properties:
+                    lastHeartbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              phase:
+                description: Phase is a simple, high-level summary of where the noobaa
+                  user is in its lifecycle
                 type: string
               relatedObjects:
                 description: RelatedObjects is a list of objects related to this operator.
