@@ -39,7 +39,8 @@ import (
 	"github.com/red-hat-storage/ocs-operator/controllers/persistentvolume"
 	"github.com/red-hat-storage/ocs-operator/controllers/storageclassclaim"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
-	"github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
+	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -169,9 +170,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	operatorNamespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		setupLog.Error(err, "unable to get opeartor namespace")
+		os.Exit(1)
+	}
 	if err = (&storageclassclaim.StorageClassClaimReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageClassClaim")
 		os.Exit(1)

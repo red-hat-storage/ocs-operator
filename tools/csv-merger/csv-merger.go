@@ -17,6 +17,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -155,6 +156,14 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "PROVIDER_API_SERVER_IMAGE",
 				Value: *ocsContainerImage,
+			},
+			{
+				Name: util.OperatorNamespaceEnvVar,
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
+					},
+				},
 			},
 		}
 
