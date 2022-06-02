@@ -2,17 +2,17 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{},"security":{"kms":{}}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"NamespaceStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{},"status":{}}]'
+    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{},"security":{"kms":{}}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"NamespaceStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{},"status":{}},{"kind":"NooBaaAccount","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"allow_bucket_creation":false,"allowed_buckets":{"full_permission":false,"permission_list":null}},"status":{}}]'
     capabilities: Basic Install
     categories: Storage,Big Data
     certified: "false"
-    containerImage: noobaa/noobaa-operator:5.9.0
+    containerImage: noobaa/noobaa-operator:5.12.0
     createdAt: "2019-07-08T13:10:20.940Z"
     description: NooBaa is an object data service for hybrid and multi cloud environments.
     repository: https://github.com/noobaa/noobaa-operator
     support: Red Hat
   creationTimestamp: null
-  name: noobaa-operator.v5.9.0
+  name: noobaa-operator.v5.12.0
   namespace: noobaa
 spec:
   apiservicedefinitions: {}
@@ -418,6 +418,22 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:fieldGroup:namespacePolicy
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
+    - kind: NooBaaAccount
+      name: noobaaaccounts.noobaa.io
+      resources:
+      - kind: Service
+        name: services
+        version: v1
+      - kind: Secret
+        name: secrets
+        version: v1
+      - kind: ConfigMap
+        name: configmaps
+        version: v1
+      - kind: StatefulSet
+        name: statefulsets.apps
+        version: v1
+      version: v1alpha1
     required:
     - description: Claim a bucket just like claiming a PV. Automate you app bucket
         provisioning by creating OBC with your app deployment. A secret and configmap
@@ -570,6 +586,14 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
+        - apiGroups:
+          - admissionregistration.k8s.io
+          resources:
+          - validatingwebhookconfigurations
+          verbs:
+          - get
+          - update
+          - list
         serviceAccountName: noobaa
       deployments:
       - name: noobaa-operator
@@ -598,13 +622,24 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:5.9.0
+                image: noobaa/noobaa-operator:5.12.0
                 name: noobaa-operator
                 resources:
                   limits:
                     cpu: 250m
                     memory: 512Mi
+                volumeMounts:
+                - mountPath: /var/run/secrets/openshift/serviceaccount
+                  name: oidc-token
               serviceAccountName: noobaa
+              volumes:
+              - name: oidc-token
+                projected:
+                  sources:
+                  - serviceAccountToken:
+                      audience: api
+                      expirationSeconds: 3600
+                      path: oidc-token
       permissions:
       - rules:
         - apiGroups:
@@ -788,6 +823,17 @@ spec:
           verbs:
           - use
         serviceAccountName: noobaa-endpoint
+      - rules:
+        - apiGroups:
+          - noobaa.io
+          resources:
+          - noobaas
+          - bucketclasses
+          verbs:
+          - get
+          - watch
+          - list
+        serviceAccountName: noobaa-odf-ui
     strategy: deployment
   installModes:
   - supported: true
@@ -830,6 +876,60 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: NooBaa
-  version: 5.9.0
+  version: 5.12.0
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    - v1beta1
+    containerPort: 443
+    deploymentName: noobaa-operator
+    failurePolicy: Ignore
+    generateName: admissionwebhook.noobaa.io
+    matchPolicy: Equivalent
+    rules:
+    - apiGroups:
+      - noobaa.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - backingstores
+      - namespacestores
+      scope: Namespaced
+    - apiGroups:
+      - noobaa.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      resources:
+      - bucketclasses
+      scope: Namespaced
+    - apiGroups:
+      - noobaa.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - noobaaaccounts
+      scope: Namespaced
+    - apiGroups:
+      - noobaa.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - DELETE
+      resources:
+      - noobaas
+      scope: Namespaced
+    sideEffects: None
+    targetPort: 8080
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate
 status:
   cleanup: {}
