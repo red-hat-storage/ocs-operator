@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -39,14 +40,17 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // StorageClassClaimReconciler reconciles a StorageClassClaim object
@@ -153,14 +157,33 @@ func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request rec
 }
 
 func (r *StorageClassClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
+		func(obj client.Object) []reconcile.Request {
+			annotations := obj.GetAnnotations()
+			if annotation, found := annotations[StorageClassClaimAnnotation]; found {
+				parts := strings.Split(annotation, "/")
+				return []reconcile.Request{{
+					NamespacedName: types.NamespacedName{
+						Namespace: parts[0],
+						Name:      parts[1],
+					},
+				}}
+			}
+			return []reconcile.Request{}
+		})
+	// As we are not setting the Controller OwnerReference on the ceph
+	// resources we are creating as part of the StorageClassClaim, we need to
+	// set IsController to false to get Reconcile Request of StorageClassClaim
+	// for the owned ceph resources updates.
+	enqueueForNonControllerOwner := &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.StorageClassClaim{}, IsController: false}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.StorageClassClaim{}, builder.WithPredicates(
 			predicate.GenerationChangedPredicate{},
 		)).
-		Owns(&rookCephv1.CephBlockPool{}).
-		Owns(&rookCephv1.CephFilesystemSubVolumeGroup{}).
-		Owns(&rookCephv1.CephClient{}).
-		Owns(&storagev1.StorageClass{}).
+		Watches(&source.Kind{Type: &rookCephv1.CephBlockPool{}}, enqueueForNonControllerOwner).
+		Watches(&source.Kind{Type: &rookCephv1.CephFilesystemSubVolumeGroup{}}, enqueueForNonControllerOwner).
+		Watches(&source.Kind{Type: &rookCephv1.CephClient{}}, enqueueForNonControllerOwner).
+		Watches(&source.Kind{Type: &storagev1.StorageClass{}}, enqueueStorageConsumerRequest).
 		Complete(r)
 }
 
@@ -322,6 +345,15 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 					storageClass = r.getCephFSStorageClass(data)
 				} else if resource.Name == "ceph-rbd" {
 					storageClass = r.getCephRBDStorageClass(data)
+				}
+				storageClassClaimNamespacedName := r.getNamespacedName()
+
+				if annotations := storageClass.GetAnnotations(); annotations == nil {
+					storageClass.SetAnnotations(map[string]string{
+						StorageClassClaimAnnotation: storageClassClaimNamespacedName,
+					})
+				} else {
+					annotations[StorageClassClaimAnnotation] = storageClassClaimNamespacedName
 				}
 				err = r.createOrReplaceStorageClass(storageClass)
 				if err != nil {
@@ -698,7 +730,7 @@ func (r *StorageClassClaimReconciler) reconcileCephClientRBDProvisioner() error 
 			return err
 		}
 
-		addStorageRelatedAnnotations(r.cephClientProvisioner, r.storageClassClaim.Name, "rbd", "provisioner")
+		addStorageRelatedAnnotations(r.cephClientProvisioner, r.getNamespacedName(), "rbd", "provisioner")
 		r.cephClientProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "profile rbd",
@@ -734,7 +766,7 @@ func (r *StorageClassClaimReconciler) reconcileCephClientRBDNode() error {
 			return err
 		}
 
-		addStorageRelatedAnnotations(r.cephClientNode, r.storageClassClaim.Name, "rbd", "node")
+		addStorageRelatedAnnotations(r.cephClientNode, r.getNamespacedName(), "rbd", "node")
 		r.cephClientNode.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "profile rbd",
@@ -773,7 +805,7 @@ func (r *StorageClassClaimReconciler) reconcileCephClientCephFSProvisioner() err
 			return err
 		}
 
-		addStorageRelatedAnnotations(r.cephClientProvisioner, r.storageClassClaim.Name, "cephfs", "provisioner")
+		addStorageRelatedAnnotations(r.cephClientProvisioner, r.getNamespacedName(), "cephfs", "provisioner")
 		r.cephClientProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "allow r",
@@ -812,7 +844,7 @@ func (r *StorageClassClaimReconciler) reconcileCephClientCephFSNode() error {
 			return err
 		}
 
-		addStorageRelatedAnnotations(r.cephClientNode, r.storageClassClaim.Name, "cephfs", "node")
+		addStorageRelatedAnnotations(r.cephClientNode, r.getNamespacedName(), "cephfs", "node")
 		r.cephClientNode.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "allow r",
@@ -861,14 +893,14 @@ func (r *StorageClassClaimReconciler) setCephResourceStatus(name string, kind st
 	cephResourceSpec.Phase = phase
 }
 
-func addStorageRelatedAnnotations(obj client.Object, storageClassClaimName, storageClaim, cephUserType string) {
+func addStorageRelatedAnnotations(obj client.Object, storageClassClaimNamespacedName, storageClaim, cephUserType string) {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
 		obj.SetAnnotations(annotations)
 	}
 
-	annotations[StorageClassClaimAnnotation] = storageClassClaimName
+	annotations[StorageClassClaimAnnotation] = storageClassClaimNamespacedName
 	annotations[controllers.StorageClaimAnnotation] = storageClaim
 	annotations[controllers.StorageCephUserTypeAnnotation] = cephUserType
 }
@@ -896,6 +928,10 @@ func (r *StorageClassClaimReconciler) delete(obj client.Object) error {
 func (r *StorageClassClaimReconciler) own(resource metav1.Object) error {
 	// Ensure StorageClassClaim ownership on a resource
 	return controllerutil.SetOwnerReference(r.storageClassClaim, resource, r.Scheme)
+}
+
+func (r *StorageClassClaimReconciler) getNamespacedName() string {
+	return fmt.Sprintf("%s/%s", r.storageClassClaim.Namespace, r.storageClassClaim.Name)
 }
 
 func contains(slice []string, s string) bool {
