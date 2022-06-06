@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -135,10 +136,14 @@ func createSetupForOcsProviderTest(t *testing.T, allowRemoteStorageConsumers boo
 
 	scheme := createFakeScheme(t)
 
+	frecorder := record.NewFakeRecorder(1024)
+	reporter := util.NewEventReporter(frecorder)
+
 	r := &StorageClusterReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node).Build(),
-		Scheme: scheme,
-		Log:    logf.Log.WithName("controller_storagecluster_test"),
+		recorder: reporter,
+		Client:   fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node).Build(),
+		Scheme:   scheme,
+		Log:      logf.Log.WithName("controller_storagecluster_test"),
 	}
 
 	instance := &ocsv1.StorageCluster{
@@ -241,12 +246,11 @@ func GetProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.
 			},
 			Ports: []corev1.ServicePort{
 				{
-					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},
-			Type: corev1.ServiceTypeNodePort,
+			Type: corev1.ServiceTypeLoadBalancer,
 		},
 	}
 }
