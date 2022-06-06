@@ -245,7 +245,8 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 
 		externalClusterClient, err := r.newExternalClusterClient(instance)
 		if err != nil {
-			return reconcile.Result{}, err
+			r.Log.Error(err, "Failed to connect to the provider cluster")
+			return reconcile.Result{}, fmt.Errorf("%s: %s", err.Error(), "Failed to connect to the provider cluster")
 		}
 		defer externalClusterClient.Close()
 
@@ -308,7 +309,8 @@ func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, inst
 
 		externalClusterClient, err := r.newExternalClusterClient(instance)
 		if err != nil {
-			return reconcile.Result{}, err
+			r.Log.Error(err, "Failed to connect to the provider cluster")
+			return reconcile.Result{}, fmt.Errorf("%s: %s", err.Error(), "Failed to connect to the provider cluster")
 		}
 		defer externalClusterClient.Close()
 
