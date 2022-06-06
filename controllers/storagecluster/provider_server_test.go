@@ -28,19 +28,52 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		r, instance := createSetupForOcsProviderTest(t, true)
 
 		obj := &ocsProviderServer{}
-		_, err := obj.ensureCreated(r, instance)
+		res, err := obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.False(t, res.IsZero())
 
-		assert.Error(t, err)
-		assert.Equal(t, "Deployment ocs-provider-server is not ready", err.Error())
+		// storagecluster controller waits for svc status to fetch the IP and it requeue
+		// as we are using a fake client and it does not fill the status automatically.
+		// update the required status feild of the svc to overcome the failure and requeue.
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+			{
+				Hostname: "fake",
+			},
+		}
+		err = r.Update(context.TODO(), service)
+		assert.NoError(t, err)
 
+		// call ensureCreated again after filling the status of svc, It will fail on deployment now
+		res, err = obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.False(t, res.IsZero())
+
+		// storagecluster controller waits for deployment status to fetch the replica count and it requeue
+		// as we are using a fake client and it does not fill the status automatically.
+		// update the required status feild of the deployment to overcome the failure and requeue.
 		deployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		deployment.Status.AvailableReplicas = 1
+		err = r.Update(context.TODO(), deployment)
+		assert.NoError(t, err)
+
+		// call ensureCreated again after filling the status of deployment, It will pass now
+		res, err = obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.True(t, res.IsZero())
+
+		deployment = &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
 		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
 		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
 
-		service := &corev1.Service{
+		service = &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
