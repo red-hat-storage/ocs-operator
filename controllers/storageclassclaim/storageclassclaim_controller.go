@@ -458,10 +458,6 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 		r.cephBlockPool = &rookCephv1.CephBlockPool{}
 		r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s", r.storageConsumer.Name)
 		r.cephBlockPool.Namespace = r.OperatorNamespace
-		r.cephBlockPool.Labels = map[string]string{
-			controllers.StorageConsumerNameLabel: r.storageConsumer.Name,
-		}
-
 	} else if r.storageClassClaim.Spec.Type == "sharedfilesystem" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
 		r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", r.storageConsumer.Name)
@@ -625,7 +621,8 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 			return fmt.Errorf("Could not find  device set named default in Storage cluster")
 		}
 		pgUnitSize := util.GetPGBaseUnitSize(deviceSet.Count)
-		r.cephBlockPool.Labels[controllers.StorageConsumerNameLabel] = r.storageConsumer.Name
+		addLabel(r.cephBlockPool, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
+
 		r.cephBlockPool.Spec = rookCephv1.NamedBlockPoolSpec{
 			PoolSpec: rookCephv1.PoolSpec{
 				FailureDomain: failureDomain,
@@ -952,4 +949,14 @@ func remove(slice []string, s string) (result []string) {
 		result = append(result, item)
 	}
 	return
+}
+
+// addLabel add a label to a resource metadata
+func addLabel(obj metav1.Object, key string, value string) {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+		obj.SetLabels(labels)
+	}
+	labels[key] = value
 }
