@@ -192,6 +192,12 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
 	}
 
+	// Explicitly allow deletion of NooBaa CR
+	if !noobaa.Spec.CleanupPolicy.AllowNoobaaDeletion {
+		noobaa.Spec.CleanupPolicy.AllowNoobaaDeletion = true
+		updateRequired = true
+	}
+
 	// The CleanupPolicy attribute in the Noobaa spec decides the uninstall mode.
 	// Unlike the Rook CleanupPolicy which decides whether the data needs to be erased.
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
