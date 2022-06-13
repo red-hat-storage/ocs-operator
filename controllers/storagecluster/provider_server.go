@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"sort"
+	"time"
 
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -26,8 +26,7 @@ const (
 	ocsProviderServerName  = "ocs-provider-server"
 	providerAPIServerImage = "PROVIDER_API_SERVER_IMAGE"
 
-	ocsProviderServicePort     = int32(50051)
-	ocsProviderServiceNodePort = int32(31659)
+	ocsProviderServicePort = int32(50051)
 
 	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
 )
@@ -46,21 +45,23 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 
 	r.Log.Info("Spec.AllowRemoteStorageConsumers is enabled. Creating Provider API resources")
 
-	var finalErr error
-
-	for _, f := range []func(*StorageClusterReconciler, *ocsv1.StorageCluster) error{
-		o.createSecret,
-		o.createService,
-		o.createDeployment,
-	} {
-		err := f(r, instance)
-		if err != nil {
-			multierr.AppendInto(&finalErr, err)
-			continue
-		}
+	if err := o.createSecret(r, instance); err != nil {
+		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{}, finalErr
+	if res, err := o.createService(r, instance); err != nil {
+		return reconcile.Result{}, err
+	} else if !res.IsZero() {
+		return res, nil
+	}
+
+	if res, err := o.createDeployment(r, instance); err != nil {
+		return reconcile.Result{}, err
+	} else if !res.IsZero() {
+		return res, nil
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
@@ -96,7 +97,7 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	return reconcile.Result{}, finalErr
 }
 
-func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	var finalErr error
 
@@ -107,7 +108,7 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 	}
 
 	if finalErr != nil {
-		return finalErr
+		return reconcile.Result{}, finalErr
 	}
 
 	desiredDeployment := GetProviderAPIServerDeployment(instance)
@@ -127,20 +128,21 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 	)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		r.Log.Error(err, "Failed to create/update deployment", "Name", desiredDeployment.Name)
-		return err
+		return reconcile.Result{}, err
 	}
 
 	err = o.ensureDeploymentReplica(actualDeployment, desiredDeployment)
 	if err != nil {
-		r.Log.Error(err, "Deployment is not ready", "Name", desiredDeployment.Name)
-		return err
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeNormal, "Waiting", "Waiting for Deployment to become ready "+desiredDeployment.Name)
+		r.Log.Info("Waiting for Deployment to become ready", "Name", desiredDeployment.Name)
+		return reconcile.Result{RequeueAfter: time.Second * 5}, nil
 	}
 
 	r.Log.Info("Deployment is running as desired")
-	return nil
+	return reconcile.Result{}, nil
 }
 
-func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	desiredService := GetProviderAPIServerService(instance)
 	actualService := &corev1.Service{
@@ -168,29 +170,34 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 			return controllerutil.SetOwnerReference(instance, actualService, r.Client.Scheme())
 		},
 	)
-	if err != nil && !errors.IsAlreadyExists(err) {
+	if err != nil {
 		r.Log.Error(err, "Failed to create/update service", "Name", desiredService.Name)
-		return err
+		return reconcile.Result{}, err
 	}
 
 	r.Log.Info("Service create/update succeeded")
 
-	nodeAddresses, err := r.getWorkerNodesInternalIPAddresses()
-	if err != nil {
-		return err
+	endpoint := ""
+
+	if len(actualService.Status.LoadBalancer.Ingress) != 0 {
+		if actualService.Status.LoadBalancer.Ingress[0].IP != "" {
+			endpoint = actualService.Status.LoadBalancer.Ingress[0].IP
+		} else if actualService.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			endpoint = actualService.Status.LoadBalancer.Ingress[0].Hostname
+		}
 	}
 
-	if len(nodeAddresses) == 0 {
-		err = fmt.Errorf("Did not found any worker node addresses")
-		r.Log.Error(err, "Worker nodes count is zero")
-		return err
+	if endpoint == "" {
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeNormal, "Waiting", "Waiting for Ingress on service "+actualService.Name)
+		r.Log.Info("Waiting for Ingress on service", "Service", actualService.Name, "Status", actualService.Status)
+		return reconcile.Result{RequeueAfter: time.Second * 5}, nil
 	}
 
-	instance.Status.StorageProviderEndpoint = nodeAddresses[0] + ":" + fmt.Sprint(ocsProviderServiceNodePort)
+	instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", endpoint, ocsProviderServicePort)
 
 	r.Log.Info("status.storageProviderEndpoint is updated", "Endpoint", instance.Status.StorageProviderEndpoint)
 
-	return nil
+	return reconcile.Result{}, nil
 }
 
 func (o *ocsProviderServer) createSecret(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
@@ -222,36 +229,6 @@ func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Depl
 	}
 
 	return nil
-}
-
-// getWorkerNodesInternalIPAddresses return slice of Internal IPAddress of worker nodes
-func (r *StorageClusterReconciler) getWorkerNodesInternalIPAddresses() ([]string, error) {
-
-	nodes := &corev1.NodeList{}
-
-	err := r.Client.List(context.TODO(), nodes)
-	if err != nil {
-		r.Log.Error(err, "Failed to list nodes")
-		return nil, err
-	}
-
-	nodeAddresses := []string{}
-
-	for i := range nodes.Items {
-		node := &nodes.Items[i]
-		if _, ok := node.ObjectMeta.Labels["node-role.kubernetes.io/worker"]; ok {
-			for _, address := range node.Status.Addresses {
-				if address.Type == corev1.NodeInternalIP {
-					nodeAddresses = append(nodeAddresses, address.Address)
-					break
-				}
-			}
-		}
-	}
-
-	sort.Strings(nodeAddresses)
-
-	return nodeAddresses, nil
 }
 
 func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Deployment {
@@ -342,12 +319,11 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
-					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},
-			Type: corev1.ServiceTypeNodePort,
+			Type: corev1.ServiceTypeLoadBalancer,
 		},
 	}
 }
