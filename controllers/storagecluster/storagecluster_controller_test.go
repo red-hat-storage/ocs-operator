@@ -279,7 +279,7 @@ func TestVersionCheck(t *testing.T) {
 					Name:      "storage-test",
 					Namespace: "storage-test-ns",
 				},
-				Spec: api.StorageClusterSpec{
+				Status: api.StorageClusterStatus{
 					Version: getSemVer(version.Version, 1, true),
 				},
 			},
@@ -293,7 +293,7 @@ func TestVersionCheck(t *testing.T) {
 					Name:      "storage-test",
 					Namespace: "storage-test-ns",
 				},
-				Spec: api.StorageClusterSpec{
+				Status: api.StorageClusterStatus{
 					Version: getSemVer(version.Version, 1, false),
 				},
 			},
@@ -310,7 +310,7 @@ func TestVersionCheck(t *testing.T) {
 			continue
 		}
 		assert.NoError(t, err)
-		assert.Equalf(t, tc.expectedVersion, tc.storageCluster.Spec.Version, "[%q]: failed to get correct version", tc.label)
+		assert.Equalf(t, tc.expectedVersion, tc.storageCluster.Status.Version, "[%q]: failed to get correct version", tc.label)
 	}
 
 }

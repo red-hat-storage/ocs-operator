@@ -53,6 +53,7 @@ type StorageClusterSpec struct {
 	// Monitoring controls the configuration of resources for exposing OCS metrics
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 	// Version specifies the version of StorageCluster
+	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future versions. Use `StorageCluster.Status.Version` instead."
 	Version string `json:"version,omitempty"`
 	// Network represents cluster network settings
 	Network *rookCephv1.NetworkSpec `json:"network,omitempty"`
@@ -347,6 +348,9 @@ type KMSServerConnectionStatus struct {
 
 // StorageClusterStatus defines the observed state of StorageCluster
 type StorageClusterStatus struct {
+	// Version specifies the version of StorageCluster
+	Version string `json:"version,omitempty"`
+
 	// Phase describes the Phase of StorageCluster
 	// This is used by OLM UI to provide status information
 	// to the user
@@ -463,7 +467,7 @@ const (
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=.status.phase,description="Current Phase"
 // +kubebuilder:printcolumn:name="External",type=boolean,JSONPath=.spec.externalStorage.enable,description="External Storage Cluster"
 // +kubebuilder:printcolumn:name="Created At",type=string,JSONPath=.metadata.creationTimestamp
-// +kubebuilder:printcolumn:name="Version",type=string,JSONPath=.spec.version,description="Storage Cluster Version"
+// +kubebuilder:printcolumn:name="Version",type=string,JSONPath=.status.version,description="Storage Cluster Version"
 
 // StorageCluster is the Schema for the storageclusters API
 type StorageCluster struct {
