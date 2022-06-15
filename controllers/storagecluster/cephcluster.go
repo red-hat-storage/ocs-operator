@@ -187,7 +187,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	platform, err := r.platform.GetPlatform(r.Client)
 	if err != nil {
 		r.Log.Error(err, "Failed to get Platform.", "Platform", platform)
-	} else if platform == v1.IBMCloudPlatformType || platform == IBMCloudCosPlatformType {
+	} else if platform == v1.IBMCloudPlatformType {
 		r.Log.Info("Increasing Mon failover timeout to 15m.", "Platform", platform)
 		cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
 	}

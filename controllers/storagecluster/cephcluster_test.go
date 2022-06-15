@@ -174,10 +174,6 @@ func TestCephClusterMonTimeout(t *testing.T) {
 			label:    "case 2", // when platform is IBMCloudPlatformType
 			platform: v1.IBMCloudPlatformType,
 		},
-		{
-			label:    "case 3", // when platform is IBMCloudCosPlatformType
-			platform: IBMCloudCosPlatformType,
-		},
 	}
 
 	for _, c := range cases {
@@ -199,7 +195,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		cc := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
 		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
 		assert.NilError(t, err)
-		if c.platform == v1.IBMCloudPlatformType || c.platform == IBMCloudCosPlatformType {
+		if c.platform == v1.IBMCloudPlatformType {
 			assert.Equal(t, "15m", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
 		} else {
 			assert.Equal(t, "", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
