@@ -156,3 +156,11 @@ echo "collecting dump of oc get volumereplication all namespaces" | tee -a  "${B
 echo "collecting dump of oc get volumereplicationgroups all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
 { oc get volumereplicationgroups --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/vrg_all_namespaces"
 { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect vrg --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+
+# Collect details of storageclassclaim of all namespaces for managed services
+echo "collecting dump of oc get storageclassclaim all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+if [ "$(oc get storageclassclaim --no-headers -A | awk '{print $2}')" != "" ] ; then
+     { oc get storageclassclaim --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_storageclassclaim_all_ns"
+     { oc describe storageclassclaim --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_storageclassclaim_all_ns"
+     { oc get storageclassclaim -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_storageclassclaim_all_ns"
+fi
