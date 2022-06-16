@@ -31,7 +31,7 @@ spec:
       name: Created At
       type: string
     - description: Storage Cluster Version
-      jsonPath: .spec.version
+      jsonPath: .status.version
       name: Version
       type: string
     name: v1
@@ -5383,6 +5383,9 @@ spec:
                 description: StorageProviderEndpoint holds endpoint info on Provider
                   cluster which is required for consumer to establish connection with
                   the storage providing cluster.
+                type: string
+              version:
+                description: Version specifies the version of StorageCluster
                 type: string
             type: object
         type: object

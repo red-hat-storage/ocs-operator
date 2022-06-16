@@ -523,10 +523,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 // versionCheck populates the `.Spec.Version` field
 func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
-	if sc.Spec.Version == "" {
-		sc.Spec.Version = version.Version
-	} else if sc.Spec.Version != version.Version { // check anything else only if the versions mis-match
-		storClustSemV1, err := semver.Make(sc.Spec.Version)
+	if sc.Status.Version == "" {
+		sc.Status.Version = version.Version
+	} else if sc.Status.Version != version.Version { // check anything else only if the versions mis-match
+		storClustSemV1, err := semver.Make(sc.Status.Version)
 		if err != nil {
 			reqLogger.Error(err, "Error while parsing Storage Cluster version")
 			return err
@@ -540,13 +540,13 @@ func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 		// return error
 		if storClustSemV1.GT(ocsSemV1) {
 			err = fmt.Errorf("Storage cluster version (%s) is higher than the OCS Operator version (%s)",
-				sc.Spec.Version, version.Version)
+				sc.Status.Version, version.Version)
 			reqLogger.Error(err, "Incompatible Storage cluster version")
 			return err
 		}
 		// if the storage cluster version is less than the OCS Operator version,
 		// just update.
-		sc.Spec.Version = version.Version
+		sc.Status.Version = version.Version
 	}
 	return nil
 }
