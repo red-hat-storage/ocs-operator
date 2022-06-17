@@ -411,10 +411,12 @@ func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconcile
 
 func TestNoobaaKMSConfiguration(t *testing.T) {
 	allKMSArgs := []struct {
-		testLabel             string
-		kmsProvider           string
-		kmsAddress            string
-		enabled               bool
+		testLabel   string
+		kmsProvider string
+		kmsAddress  string
+		// explicitly disable kms
+		kmsDisabled           bool
+		encryptionEnabled     bool // deprecated
 		clusterWideEncryption bool
 		failureExpected       bool
 		authMethod            string
@@ -435,7 +437,16 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 			clusterWideEncryption: true, kmsAddress: ""},
 		// backward compatible test
 		{testLabel: "case 7", kmsProvider: VaultKMSProvider,
-			enabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
+			encryptionEnabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
+		// disabling both kms and cluster wide encryption
+		{testLabel: "case 8", kmsProvider: VaultKMSProvider, kmsDisabled: true,
+			clusterWideEncryption: false, kmsAddress: "http://localhost:4054", authMethod: VaultTokenAuthMethod},
+		// enabling only kms and not cluster wide encryption
+		{testLabel: "case 9", kmsProvider: VaultKMSProvider, kmsDisabled: false,
+			clusterWideEncryption: false, kmsAddress: "http://localhost:3055", authMethod: VaultTokenAuthMethod},
+		// enabling only  cluster wide encryption and not kms
+		{testLabel: "case 10", kmsProvider: VaultKMSProvider, kmsDisabled: true,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:5043", authMethod: VaultTokenAuthMethod},
 	}
 	for _, kmsArgs := range allKMSArgs {
 		assertNoobaaKMSConfiguration(t, kmsArgs)
@@ -443,30 +454,38 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 }
 
 func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
-	testLabel             string
-	kmsProvider           string
-	kmsAddress            string
-	enabled               bool
+	testLabel   string
+	kmsProvider string
+	kmsAddress  string
+	// explicitly disable kms
+	kmsDisabled           bool
+	encryptionEnabled     bool // deprecated
 	clusterWideEncryption bool
 	failureExpected       bool
 	authMethod            string
 }) {
 	ctxTodo := context.TODO()
 	cr := createDefaultStorageCluster()
-	// enable KMS to true
-	cr.Spec.Encryption.KeyManagementService.Enable = true
+	// enable/disable KMS as per args
+	cr.Spec.Encryption.KeyManagementService.Enable = !kmsArgs.kmsDisabled
 	cr.Spec.Encryption.ClusterWide = kmsArgs.clusterWideEncryption
-	cr.Spec.Encryption.Enable = kmsArgs.enabled
+	cr.Spec.Encryption.Enable = kmsArgs.encryptionEnabled
 	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress, kmsArgs.authMethod)
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
-		t.Errorf("Unable to create KMS configmap: %v, %v", err, kmsArgs.testLabel)
-		t.FailNow()
+	// if kms is not disabled, create the kms ConfigMap
+	if !kmsArgs.kmsDisabled {
+		if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
+			t.Errorf("Unable to create KMS configmap: %v, %v", err, kmsArgs.testLabel)
+			t.FailNow()
+		}
 	}
 	reconciler.initializeImagesStatus(cr)
 	// start a dummy server, if we are not expecting any errors
 	if !kmsArgs.failureExpected || kmsArgs.kmsAddress != "" {
-		startServerAt(t, kmsArgs.kmsAddress)
+		// start the server only when kms is not disabled
+		if !kmsArgs.kmsDisabled {
+			startServerAt(t, kmsArgs.kmsAddress)
+		}
 	}
 
 	var obj ocsCephCluster
@@ -504,14 +523,22 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	nb := &nbv1.NooBaa{}
 	err = reconciler.Client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
 	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
+
 	// check the provided KMS ConfigMap data is passed on to NooBaa
-	// only if clusterWide encryption in enabled, else data should not be passed
-	if kmsArgs.enabled || kmsArgs.clusterWideEncryption {
-		for k, v := range kmsCM.Data {
-			assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
-		}
-		if kmsArgs.authMethod == VaultTokenAuthMethod {
-			assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+	// when clusterWide or kms encryption is enabled
+	if kmsArgs.encryptionEnabled || kmsArgs.clusterWideEncryption || !kmsArgs.kmsDisabled {
+		if kmsArgs.kmsDisabled {
+			// if kms is disabled, then the respective KMS fields should be empty in noobaa object
+			assert.Empty(t, nb.Spec.Security.KeyManagementService.ConnectionDetails)
+			assert.Empty(t, nb.Spec.Security.KeyManagementService.TokenSecretName)
+		} else {
+			// if kms is enabled then only we should see the values populated
+			for k, v := range kmsCM.Data {
+				assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+			}
+			if kmsArgs.authMethod == VaultTokenAuthMethod {
+				assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+			}
 		}
 	} else {
 		for k, v := range kmsCM.Data {
