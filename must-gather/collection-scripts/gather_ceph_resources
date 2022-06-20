@@ -381,7 +381,7 @@ for ns in $namespaces; do
     # Collecting ceph prepare volume logs
     volume_collection(){
         printf "collecting prepare volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/log "${NODE_OUTPUT_DIR}"
+        oc rsync -n "${ns}" "$(oc get pods -n "${ns}"| grep "${node//./}-debug"| awk '{print $1}')":/host/var/lib/rook/openshift-storage/log "${VOLUME_OUTPUT_DIR}"
     }
 
     crash_collection(){
