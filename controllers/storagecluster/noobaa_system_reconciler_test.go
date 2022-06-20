@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -47,7 +46,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			},
 		},
 	}
-	noobaa := v1alpha1.NooBaa{
+	noobaa := nbv1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespacedName.Name,
 			Namespace: namespacedName.Namespace,
@@ -69,7 +68,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		label          string
 		namespacedName types.NamespacedName
 		sc             v1.StorageCluster
-		noobaa         v1alpha1.NooBaa
+		noobaa         nbv1.NooBaa
 		isCreate       bool
 	}{
 		{
@@ -89,13 +88,13 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			label:          "case 3", //equal, no update
 			namespacedName: namespacedName,
 			sc:             *sc.DeepCopy(),
-			noobaa: v1alpha1.NooBaa{
+			noobaa: nbv1.NooBaa{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      namespacedName.Name,
 					Namespace: namespacedName.Namespace,
 					SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 				},
-				Spec: v1alpha1.NooBaaSpec{
+				Spec: nbv1.NooBaaSpec{
 					DBStorageClass:            &addressableStorageClass,
 					PVPoolDefaultStorageClass: &addressableStorageClass,
 				},
@@ -106,7 +105,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	var obj ocsNoobaaSystem
 
 	for _, c := range cases {
-		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
 		err := reconciler.Client.Create(context.TODO(), cephCluster.DeepCopy())
 		assert.NoError(t, err)
@@ -206,7 +205,7 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		c.sc.Status.Images.NooBaaCore = &v1.ComponentImageStatus{}
 		c.sc.Status.Images.NooBaaDB = &v1.ComponentImageStatus{}
 
-		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
 
 		cephCluster := cephv1.CephCluster{}
@@ -222,7 +221,7 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		_, err = obj.ensureCreated(&reconciler, &c.sc)
 		assert.NoError(t, err)
 
-		noobaa := v1alpha1.NooBaa{}
+		noobaa := nbv1.NooBaa{}
 		err = reconciler.Client.Get(context.TODO(), namespacedName, &noobaa)
 		if c.isCreate {
 			assert.NoError(t, err)
@@ -299,7 +298,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		}
 		_ = reconciler.initializeImageVars()
 
-		noobaa := v1alpha1.NooBaa{
+		noobaa := nbv1.NooBaa{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "NooBaa",
 				APIVersion: "noobaa.io/v1alpha1'",
@@ -376,7 +375,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 	// calling 'ensureNoobaaSystem()' function and the expectation is that 'Noobaa' system is not be created
 	_, err = obj.ensureCreated(&reconciler, cr)
 	assert.NoError(t, err)
-	fNoobaa := &v1alpha1.NooBaa{}
+	fNoobaa := &nbv1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is not to get any Noobaa object
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, fNoobaa)
@@ -390,7 +389,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 	// when ceph cluster is connected to an external cluster
 	_, err = obj.ensureCreated(&reconciler, cr)
 	assert.NoError(t, err)
-	fNoobaa = &v1alpha1.NooBaa{}
+	fNoobaa = &nbv1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is to get an appropriate Noobaa object
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, fNoobaa)
@@ -502,7 +501,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 
 	_, err = objNoobaa.ensureCreated(&reconciler, cr)
 	assert.NoError(t, err, fmt.Sprintf("Failed to ensure Noobaa system: %v, %v", err, kmsArgs.testLabel))
-	nb := &v1alpha1.NooBaa{}
+	nb := &nbv1.NooBaa{}
 	err = reconciler.Client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
 	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
 	// check the provided KMS ConfigMap data is passed on to NooBaa
