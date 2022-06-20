@@ -48,7 +48,7 @@ func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType Snap
 		Driver: generateNameForSnapshotClassDriver(instance, snapShotterType),
 		Parameters: map[string]string{
 			"clusterID":                instance.Namespace,
-			snapshotterSecretName:      generateNameForSnapshotClassSecret(snapShotterType),
+			snapshotterSecretName:      generateNameForSnapshotClassSecret(instance, snapShotterType),
 			snapshotterSecretNamespace: instance.Namespace,
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
