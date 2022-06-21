@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -47,7 +46,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			},
 		},
 	}
-	noobaa := v1alpha1.NooBaa{
+	noobaa := nbv1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespacedName.Name,
 			Namespace: namespacedName.Namespace,
@@ -69,7 +68,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		label          string
 		namespacedName types.NamespacedName
 		sc             v1.StorageCluster
-		noobaa         v1alpha1.NooBaa
+		noobaa         nbv1.NooBaa
 		isCreate       bool
 	}{
 		{
@@ -89,13 +88,13 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			label:          "case 3", //equal, no update
 			namespacedName: namespacedName,
 			sc:             *sc.DeepCopy(),
-			noobaa: v1alpha1.NooBaa{
+			noobaa: nbv1.NooBaa{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      namespacedName.Name,
 					Namespace: namespacedName.Namespace,
 					SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 				},
-				Spec: v1alpha1.NooBaaSpec{
+				Spec: nbv1.NooBaaSpec{
 					DBStorageClass:            &addressableStorageClass,
 					PVPoolDefaultStorageClass: &addressableStorageClass,
 				},
@@ -106,7 +105,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	var obj ocsNoobaaSystem
 
 	for _, c := range cases {
-		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
 		err := reconciler.Client.Create(context.TODO(), cephCluster.DeepCopy())
 		assert.NoError(t, err)
@@ -206,7 +205,7 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		c.sc.Status.Images.NooBaaCore = &v1.ComponentImageStatus{}
 		c.sc.Status.Images.NooBaaDB = &v1.ComponentImageStatus{}
 
-		reconciler := getReconciler(t, &v1alpha1.NooBaa{})
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
 
 		cephCluster := cephv1.CephCluster{}
@@ -222,7 +221,7 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		_, err = obj.ensureCreated(&reconciler, &c.sc)
 		assert.NoError(t, err)
 
-		noobaa := v1alpha1.NooBaa{}
+		noobaa := nbv1.NooBaa{}
 		err = reconciler.Client.Get(context.TODO(), namespacedName, &noobaa)
 		if c.isCreate {
 			assert.NoError(t, err)
@@ -299,7 +298,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		}
 		_ = reconciler.initializeImageVars()
 
-		noobaa := v1alpha1.NooBaa{
+		noobaa := nbv1.NooBaa{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "NooBaa",
 				APIVersion: "noobaa.io/v1alpha1'",
@@ -376,7 +375,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 	// calling 'ensureNoobaaSystem()' function and the expectation is that 'Noobaa' system is not be created
 	_, err = obj.ensureCreated(&reconciler, cr)
 	assert.NoError(t, err)
-	fNoobaa := &v1alpha1.NooBaa{}
+	fNoobaa := &nbv1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is not to get any Noobaa object
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, fNoobaa)
@@ -390,7 +389,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 	// when ceph cluster is connected to an external cluster
 	_, err = obj.ensureCreated(&reconciler, cr)
 	assert.NoError(t, err)
-	fNoobaa = &v1alpha1.NooBaa{}
+	fNoobaa = &nbv1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is to get an appropriate Noobaa object
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, fNoobaa)
@@ -412,10 +411,12 @@ func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconcile
 
 func TestNoobaaKMSConfiguration(t *testing.T) {
 	allKMSArgs := []struct {
-		testLabel             string
-		kmsProvider           string
-		kmsAddress            string
-		enabled               bool
+		testLabel   string
+		kmsProvider string
+		kmsAddress  string
+		// explicitly disable kms
+		kmsDisabled           bool
+		encryptionEnabled     bool // deprecated
 		clusterWideEncryption bool
 		failureExpected       bool
 		authMethod            string
@@ -436,7 +437,16 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 			clusterWideEncryption: true, kmsAddress: ""},
 		// backward compatible test
 		{testLabel: "case 7", kmsProvider: VaultKMSProvider,
-			enabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
+			encryptionEnabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
+		// disabling both kms and cluster wide encryption
+		{testLabel: "case 8", kmsProvider: VaultKMSProvider, kmsDisabled: true,
+			clusterWideEncryption: false, kmsAddress: "http://localhost:4054", authMethod: VaultTokenAuthMethod},
+		// enabling only kms and not cluster wide encryption
+		{testLabel: "case 9", kmsProvider: VaultKMSProvider, kmsDisabled: false,
+			clusterWideEncryption: false, kmsAddress: "http://localhost:3055", authMethod: VaultTokenAuthMethod},
+		// enabling only  cluster wide encryption and not kms
+		{testLabel: "case 10", kmsProvider: VaultKMSProvider, kmsDisabled: true,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:5043", authMethod: VaultTokenAuthMethod},
 	}
 	for _, kmsArgs := range allKMSArgs {
 		assertNoobaaKMSConfiguration(t, kmsArgs)
@@ -444,30 +454,38 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 }
 
 func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
-	testLabel             string
-	kmsProvider           string
-	kmsAddress            string
-	enabled               bool
+	testLabel   string
+	kmsProvider string
+	kmsAddress  string
+	// explicitly disable kms
+	kmsDisabled           bool
+	encryptionEnabled     bool // deprecated
 	clusterWideEncryption bool
 	failureExpected       bool
 	authMethod            string
 }) {
 	ctxTodo := context.TODO()
 	cr := createDefaultStorageCluster()
-	// enable KMS to true
-	cr.Spec.Encryption.KeyManagementService.Enable = true
+	// enable/disable KMS as per args
+	cr.Spec.Encryption.KeyManagementService.Enable = !kmsArgs.kmsDisabled
 	cr.Spec.Encryption.ClusterWide = kmsArgs.clusterWideEncryption
-	cr.Spec.Encryption.Enable = kmsArgs.enabled
+	cr.Spec.Encryption.Enable = kmsArgs.encryptionEnabled
 	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress, kmsArgs.authMethod)
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
-		t.Errorf("Unable to create KMS configmap: %v, %v", err, kmsArgs.testLabel)
-		t.FailNow()
+	// if kms is not disabled, create the kms ConfigMap
+	if !kmsArgs.kmsDisabled {
+		if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
+			t.Errorf("Unable to create KMS configmap: %v, %v", err, kmsArgs.testLabel)
+			t.FailNow()
+		}
 	}
 	reconciler.initializeImagesStatus(cr)
 	// start a dummy server, if we are not expecting any errors
 	if !kmsArgs.failureExpected || kmsArgs.kmsAddress != "" {
-		startServerAt(t, kmsArgs.kmsAddress)
+		// start the server only when kms is not disabled
+		if !kmsArgs.kmsDisabled {
+			startServerAt(t, kmsArgs.kmsAddress)
+		}
 	}
 
 	var obj ocsCephCluster
@@ -502,17 +520,25 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 
 	_, err = objNoobaa.ensureCreated(&reconciler, cr)
 	assert.NoError(t, err, fmt.Sprintf("Failed to ensure Noobaa system: %v, %v", err, kmsArgs.testLabel))
-	nb := &v1alpha1.NooBaa{}
+	nb := &nbv1.NooBaa{}
 	err = reconciler.Client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
 	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
+
 	// check the provided KMS ConfigMap data is passed on to NooBaa
-	// only if clusterWide encryption in enabled, else data should not be passed
-	if kmsArgs.enabled || kmsArgs.clusterWideEncryption {
-		for k, v := range kmsCM.Data {
-			assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
-		}
-		if kmsArgs.authMethod == VaultTokenAuthMethod {
-			assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+	// when clusterWide or kms encryption is enabled
+	if kmsArgs.encryptionEnabled || kmsArgs.clusterWideEncryption || !kmsArgs.kmsDisabled {
+		if kmsArgs.kmsDisabled {
+			// if kms is disabled, then the respective KMS fields should be empty in noobaa object
+			assert.Empty(t, nb.Spec.Security.KeyManagementService.ConnectionDetails)
+			assert.Empty(t, nb.Spec.Security.KeyManagementService.TokenSecretName)
+		} else {
+			// if kms is enabled then only we should see the values populated
+			for k, v := range kmsCM.Data {
+				assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+			}
+			if kmsArgs.authMethod == VaultTokenAuthMethod {
+				assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+			}
 		}
 	} else {
 		for k, v := range kmsCM.Data {
