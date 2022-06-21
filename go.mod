@@ -14,7 +14,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220105185820-c1da9586e05b
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20210912161037-7eb9969404e4
+	github.com/noobaa/noobaa-operator/v5 v5.11.0-12052022.0.20220601080237-28e143e0b16b
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
@@ -62,7 +62,6 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emicklei/go-restful v2.10.0+incompatible // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -99,7 +98,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec // indirect
+	github.com/libopenstorage/secrets v0.0.0-20210908194121-a1d19aa9713a // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
