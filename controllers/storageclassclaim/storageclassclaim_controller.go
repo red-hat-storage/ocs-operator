@@ -227,7 +227,7 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			_, scIsFSType := existing.Parameters["fsName"]
 			scEncryptionMethod, scHasEncryptionMethod := existing.Parameters["encryptionMethod"]
 			if !((sccType == "sharedfilesystem" && scIsFSType && !scHasEncryptionMethod) ||
-				(sccType == "blockpool" && !scIsFSType && sccEncryptionMethod == scEncryptionMethod)) {
+				(sccType == "blockpool" && !scIsFSType && sccEncryptionMethod != scEncryptionMethod)) {
 				r.log.Error(fmt.Errorf("storageClassClaim is not compatible with existing StorageClass"),
 					"StorageClassClaim validation failed.")
 				r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimFailed
