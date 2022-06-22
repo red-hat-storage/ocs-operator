@@ -275,6 +275,9 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 		if err := r.createClaimsFor410DefaultStorageClasses(instance); err != nil {
 			return reconcile.Result{}, err
 		}
+		if err := r.delete410SnapshotClasses(instance); err != nil {
+			return reconcile.Result{}, err
+		}
 
 	} else {
 		// rhcs external mode
@@ -315,6 +318,19 @@ func (r *StorageClusterReconciler) createClaimsFor410DefaultStorageClasses(insta
 		err := r.createDefaultStorageClassClaimsForRBD(instance)
 		if err != nil {
 			return fmt.Errorf("failed to created blockpool storageClassClaim %s. %v", cephRbdStorageClassName, err)
+		}
+	}
+
+	return nil
+}
+
+func (r *StorageClusterReconciler) delete410SnapshotClasses(instance *ocsv1.StorageCluster) error {
+	snapshotClassConfiguration := newSnapshotClassConfigurations(instance)
+	for i := range snapshotClassConfiguration {
+		sc := snapshotClassConfiguration[i].snapshotClass
+
+		if err := r.Client.Delete(r.ctx, sc); err != nil && !errors.IsNotFound(err) {
+			r.Log.Error(err, "error deleting VolumeSnapshotClass.", "VolumeSnapshotClass", sc.Name)
 		}
 	}
 
