@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -76,6 +77,7 @@ type ImageMap struct {
 //nolint
 type StorageClusterReconciler struct {
 	client.Client
+	ctx                context.Context
 	Log                logr.Logger
 	Scheme             *runtime.Scheme
 	serverVersion      *version.Info

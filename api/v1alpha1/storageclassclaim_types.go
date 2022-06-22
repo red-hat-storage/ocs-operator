@@ -48,6 +48,11 @@ const (
 	StorageClassClaimDeleting storageClassClaimState = "Deleting"
 )
 
+const (
+	StorageClassClaimFinalizer  = "storageclassclaim.ocs.openshift.io"
+	StorageClassClaimAnnotation = "ocs.openshift.io.storagesclassclaim"
+)
+
 // StorageClassClaimStatus defines the observed state of StorageClassClaim
 type StorageClassClaimStatus struct {
 	Phase storageClassClaimState `json:"phase,omitempty"`

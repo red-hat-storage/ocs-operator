@@ -20,6 +20,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -135,6 +136,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	prevLogger := r.Log
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.ctx = ctrllog.IntoContext(ctx, r.Log)
 
 	// Fetch the StorageCluster instance
 	sc := &ocsv1.StorageCluster{}
