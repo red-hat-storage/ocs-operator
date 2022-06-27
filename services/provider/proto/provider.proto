@@ -38,6 +38,9 @@ service OCSProvider {
   // specific resources.
   rpc GetStorageClassClaimConfig(StorageClassClaimConfigRequest)
   returns (StorageClassClaimConfigResponse){}
+
+  rpc ReportStatus(ReportStatusRequest)
+  returns (ReportStatusResponse){}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -171,3 +174,9 @@ message StorageClassClaimConfigResponse{
     // ExternalResource holds the configuration data of external storage cluster
     repeated ExternalResource externalResource = 1;
 }
+
+message ReportStatusRequest{
+    string storageConsumerUUID = 1;
+}
+
+message ReportStatusResponse{}

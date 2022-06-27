@@ -674,3 +674,16 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 	return &pb.StorageClassClaimConfigResponse{ExternalResource: extR}, nil
 
 }
+
+// ReportStatus rpc call to check if a consumer can reach to the provider.
+func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStatusRequest) (*pb.ReportStatusResponse, error) {
+	// Update the status in storageConsumer CR
+	if err := s.consumerManager.UpdateStatusLastHeatbeat(ctx, req.StorageConsumerUUID); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Failed to update lastHeartbeat in the storageConsumer resource: %v", err)
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat in the storageConsumer resource: %v", err)
+	}
+
+	return &pb.ReportStatusResponse{}, nil
+}
