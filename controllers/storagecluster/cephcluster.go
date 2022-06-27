@@ -72,6 +72,11 @@ func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 // ensureCreated ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) error {
+	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephCluster.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return nil
+	}
+
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
@@ -153,6 +158,8 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			return nil
 		}
 		return err
+	} else if reconcileStrategy == ReconcileStrategyInit {
+		return nil
 	}
 
 	// Record actual Ceph container image version before attempting update

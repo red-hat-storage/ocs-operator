@@ -369,6 +369,13 @@ spec:
                       reconcileStrategy:
                         type: string
                     type: object
+                  cephCluster:
+                    description: ManageCephCluster defines how to reconcile the Ceph
+                      cluster definition
+                    properties:
+                      reconcileStrategy:
+                        type: string
+                    type: object
                   cephConfig:
                     description: ManageCephConfig defines how to reconcile the Ceph
                       configuration

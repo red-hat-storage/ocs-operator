@@ -11,7 +11,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-CONTROLLER_GEN_VERSION=v0.4.1
+KUSTOMIZE_VERSION=v4.5.2
+CONTROLLER_GEN_VERSION=v0.8.0
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 all: ocs-operator ocs-registry ocs-must-gather
@@ -184,11 +185,8 @@ controller-gen:
 ifeq (, $(shell which controller-gen))
 	@{ \
 	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION) ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	go install -mod=readonly sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION) ;\
+	echo "Installed controller-gen@$(CONTROLLER_GEN_VERSION)" ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
@@ -199,11 +197,8 @@ kustomize:
 ifeq (, $(shell which kustomize))
 	@{ \
 	set -e ;\
-	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
-	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
+	go install -mod=readonly sigs.k8s.io/kustomize/kustomize/v4@${KUSTOMIZE_VERSION} ;\
+	echo "Installed kustomize/v4@${KUSTOMIZE_VERSION}" ;\
 	}
 export KUSTOMIZE=$(GOBIN)/kustomize
 else
