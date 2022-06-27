@@ -23,12 +23,14 @@ rules:
   resources:
   - storageconsumers
   - storageconsumers/finalizers
+  - storageconsumers/status
   verbs:
   - get
   - list
   - create
   - delete
   - update
+  - patch
 - apiGroups:
   - ceph.rook.io
   resources:

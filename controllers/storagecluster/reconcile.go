@@ -125,6 +125,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=operatorconditions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=*
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;create;update;watch
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
