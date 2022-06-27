@@ -491,7 +491,14 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 			templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
 			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
-			ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, csv.Spec.CustomResourceDefinitions.Owned...)
+			for _, definition := range csv.Spec.CustomResourceDefinitions.Owned {
+				// do not add vr and vrc to csv, this will be owned by csi-addons now.
+				if !(definition.Name == "volumereplications.replication.storage.openshift.io" ||
+					definition.Name == "volumereplicationclasses.replication.storage.openshift.io") {
+					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
+				}
+			}
+
 		}
 	}
 	// whitelisting APIs
