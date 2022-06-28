@@ -488,7 +488,7 @@ func TestOCSProviderServerRevokeStorageClassClaim(t *testing.T) {
 func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	var (
 		mockBlockPoolClaimExtR = map[string]*externalResource{
-			"ceph-rbd": {
+			"ceph-rbd-storageclass": {
 				Name: "ceph-rbd",
 				Kind: "StorageClass",
 				Data: map[string]string{
@@ -500,6 +500,14 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
 					"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
 					"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+				},
+			},
+			"ceph-rbd-volumesnapshotclass": {
+				Name: "ceph-rbd",
+				Kind: "VolumeSnapshotClass",
+				Data: map[string]string{
+					"clusterID": serverNamespace,
+					"csi.storage.k8s.io/snapshotter-secret-name": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
 				},
 			},
 			"rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e": {
@@ -521,7 +529,7 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		}
 
 		mockShareFilesystemClaimExtR = map[string]*externalResource{
-			"cephfs": {
+			"cephfs-storageclass": {
 				Name: "cephfs",
 				Kind: "StorageClass",
 				Data: map[string]string{
@@ -530,6 +538,14 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
 					"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
 					"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+				},
+			},
+			"cephfs-volumesnapshotclass": {
+				Name: "cephfs",
+				Kind: "VolumeSnapshotClass",
+				Data: map[string]string{
+					"clusterID": "8d26c7378c1b0ec9c2455d1c3601c4cd",
+					"csi.storage.k8s.io/snapshotter-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
 				},
 			},
 			"rook-ceph-client-4ffcb503ff8044c8699dac415f82d604": {
@@ -818,7 +834,13 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 
 	for i := range storageConRes.ExternalResource {
 		extResource := storageConRes.ExternalResource[i]
-		mockResoruce, ok := mockBlockPoolClaimExtR[extResource.Name]
+		name := extResource.Name
+		if extResource.Kind == "VolumeSnapshotClass" {
+			name = fmt.Sprintf("%s-volumesnapshotclass", name)
+		} else if extResource.Kind == "StorageClass" {
+			name = fmt.Sprintf("%s-storageclass", name)
+		}
+		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
 
 		data, err := json.Marshal(mockResoruce.Data)
@@ -839,7 +861,13 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 
 	for i := range storageConRes.ExternalResource {
 		extResource := storageConRes.ExternalResource[i]
-		mockResoruce, ok := mockShareFilesystemClaimExtR[extResource.Name]
+		name := extResource.Name
+		if extResource.Kind == "VolumeSnapshotClass" {
+			name = fmt.Sprintf("%s-volumesnapshotclass", name)
+		} else if extResource.Kind == "StorageClass" {
+			name = fmt.Sprintf("%s-storageclass", name)
+		}
+		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
 
 		data, err := json.Marshal(mockResoruce.Data)
