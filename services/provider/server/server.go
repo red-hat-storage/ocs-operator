@@ -618,6 +618,14 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				Kind: "StorageClass",
 				Data: mustMarshal(rbdStorageClass)})
 
+			extR = append(extR, &pb.ExternalResource{
+				Name: "ceph-rbd",
+				Kind: "VolumeSnapshotClass",
+				Data: mustMarshal(map[string]string{
+					"clusterID": s.namespace,
+					"csi.storage.k8s.io/snapshotter-secret-name": provisionerCephClientSecret,
+				})})
+
 		case "CephFilesystemSubVolumeGroup":
 			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
 			err := s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, subVolumeGroup)
@@ -651,6 +659,14 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				Kind: cephRes.Kind,
 				Data: mustMarshal(map[string]string{
 					"filesystemName": subVolumeGroup.Spec.FilesystemName,
+				})})
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: "cephfs",
+				Kind: "VolumeSnapshotClass",
+				Data: mustMarshal(map[string]string{
+					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
+					"csi.storage.k8s.io/snapshotter-secret-name": provisionerCephClientSecret,
 				})})
 		}
 	}

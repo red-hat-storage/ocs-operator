@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/go-logr/logr"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
@@ -84,6 +85,7 @@ const (
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpools,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters,verbs=get;watch;list
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch
 
 func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -184,6 +186,7 @@ func (r *StorageClassClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: &rookCephv1.CephFilesystemSubVolumeGroup{}}, enqueueForNonControllerOwner).
 		Watches(&source.Kind{Type: &rookCephv1.CephClient{}}, enqueueForNonControllerOwner).
 		Watches(&source.Kind{Type: &storagev1.StorageClass{}}, enqueueStorageConsumerRequest).
+		Watches(&source.Kind{Type: &snapapi.VolumeSnapshotClass{}}, enqueueStorageConsumerRequest).
 		Complete(r)
 }
 
@@ -346,18 +349,24 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 				} else if resource.Name == "ceph-rbd" {
 					storageClass = r.getCephRBDStorageClass(data)
 				}
-				storageClassClaimNamespacedName := r.getNamespacedName()
-
-				if annotations := storageClass.GetAnnotations(); annotations == nil {
-					storageClass.SetAnnotations(map[string]string{
-						StorageClassClaimAnnotation: storageClassClaimNamespacedName,
-					})
-				} else {
-					annotations[StorageClassClaimAnnotation] = storageClassClaimNamespacedName
-				}
+				addAnnotation(storageClass, StorageClassClaimAnnotation, r.getNamespacedName())
 				err = r.createOrReplaceStorageClass(storageClass)
 				if err != nil {
 					return reconcile.Result{}, fmt.Errorf("failed to create or update StorageClass: %s", err)
+				}
+
+			case "VolumeSnapshotClass":
+				var volumeSnapshotClass *snapapi.VolumeSnapshotClass
+				data["csi.storage.k8s.io/snapshotter-secret-namespace"] = r.storageClassClaim.Namespace
+
+				if resource.Name == "cephfs" {
+					volumeSnapshotClass = r.getCephFSVolumeSnapshotClass(data)
+				} else if resource.Name == "ceph-rbd" {
+					volumeSnapshotClass = r.getCephRBDVolumeSnapshotClass(data)
+				}
+				addAnnotation(volumeSnapshotClass, StorageClassClaimAnnotation, r.getNamespacedName())
+				if err := r.createOrReplaceVolumeSnapshotClass(volumeSnapshotClass); err != nil {
+					return reconcile.Result{}, fmt.Errorf("failed to create or update VolumeSnapshotClass: %s", err)
 				}
 			}
 		}
@@ -416,6 +425,20 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 		} else {
 			r.log.Info("StorageClass already deleted.")
 		}
+
+		volumeSnapshotClass := &snapapi.VolumeSnapshotClass{}
+		volumeSnapshotClass.Name = r.storageClassClaim.Name
+		if err = r.get(volumeSnapshotClass); err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, fmt.Errorf("failed to get VolumeSnapshotClass %s: %s", volumeSnapshotClass.Name, err)
+		}
+		if volumeSnapshotClass.UID != "" {
+			if err = r.delete(volumeSnapshotClass); err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to delete VolumeSnapshotClass %s: %s", volumeSnapshotClass.Name, err)
+			}
+		} else {
+			r.log.Info("VolumeSnapshotClass already deleted", "Name", volumeSnapshotClass.Name)
+		}
+
 		if contains(r.storageClassClaim.GetFinalizers(), StorageClassClaimFinalizer) {
 			r.storageClassClaim.Finalizers = remove(r.storageClassClaim.Finalizers, StorageClassClaimFinalizer)
 			if err := r.update(r.storageClassClaim); err != nil {
@@ -564,6 +587,30 @@ func (r *StorageClassClaimReconciler) getCephRBDStorageClass(data map[string]str
 	return storageClass
 }
 
+func (r *StorageClassClaimReconciler) getCephFSVolumeSnapshotClass(data map[string]string) *snapapi.VolumeSnapshotClass {
+	volumesnapshotclass := &snapapi.VolumeSnapshotClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.storageClassClaim.Name,
+		},
+		Driver:         fmt.Sprintf("%s.cephfs.csi.ceph.com", r.storageCluster.Namespace),
+		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+		Parameters:     data,
+	}
+	return volumesnapshotclass
+}
+
+func (r *StorageClassClaimReconciler) getCephRBDVolumeSnapshotClass(data map[string]string) *snapapi.VolumeSnapshotClass {
+	volumesnapshotclass := &snapapi.VolumeSnapshotClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.storageClassClaim.Name,
+		},
+		Driver:         fmt.Sprintf("%s.rbd.csi.ceph.com", r.storageCluster.Namespace),
+		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+		Parameters:     data,
+	}
+	return volumesnapshotclass
+}
+
 func (r *StorageClassClaimReconciler) createOrReplaceStorageClass(storageClass *storagev1.StorageClass) error {
 	existing := &storagev1.StorageClass{}
 	existing.Name = r.storageClassClaim.Name
@@ -594,6 +641,38 @@ func (r *StorageClassClaimReconciler) createOrReplaceStorageClass(storageClass *
 	err := r.Client.Create(r.ctx, storageClass)
 	if err != nil {
 		return fmt.Errorf("failed to create StorageClass: %v", err)
+	}
+	return nil
+}
+
+func (r *StorageClassClaimReconciler) createOrReplaceVolumeSnapshotClass(volumeSnapshotClass *snapapi.VolumeSnapshotClass) error {
+	existing := &snapapi.VolumeSnapshotClass{}
+	existing.Name = r.storageClassClaim.Name
+
+	if err := r.get(existing); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get VolumeSnapshotClass: %v", err)
+	}
+
+	// If present then compare the existing VolumeSnapshotClass parameters with
+	// the received VolumeSnapshotClass parameters, and only proceed if they differ.
+	if reflect.DeepEqual(existing.Parameters, volumeSnapshotClass.Parameters) {
+		return nil
+	}
+
+	// VolumeSnapshotClass already exists, but parameters have changed. Delete the existing VolumeSnapshotClass and create a new one.
+	if existing.UID != "" {
+		// Since we have to update the existing VolumeSnapshotClass, so we will delete the existing VolumeSnapshotClass and create a new one.
+		r.log.Info("VolumeSnapshotClass needs to be updated, deleting it.", "Name", existing.Name)
+
+		// Delete the VolumeSnapshotClass.
+		if err := r.delete(existing); err != nil {
+			r.log.Error(err, "Failed to delete VolumeSnapshotClass.", "Name", existing.Name)
+			return err
+		}
+	}
+	r.log.Info("Creating VolumeSnapshotClass.", "Name", existing.Name)
+	if err := r.Client.Create(r.ctx, volumeSnapshotClass); err != nil {
+		return fmt.Errorf("failed to create VolumeSnapshotClass: %v", err)
 	}
 	return nil
 }
@@ -959,4 +1038,14 @@ func addLabel(obj metav1.Object, key string, value string) {
 		obj.SetLabels(labels)
 	}
 	labels[key] = value
+}
+
+// addAnnotation add a annotation to a resource metadata
+func addAnnotation(obj metav1.Object, key string, value string) {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+		obj.SetAnnotations(annotations)
+	}
+	annotations[key] = value
 }
