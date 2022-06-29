@@ -11,8 +11,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-KUSTOMIZE_VERSION=v4.5.2
-CONTROLLER_GEN_VERSION=v0.8.0
+KUSTOMIZE_VERSION=v3.4.5
+CONTROLLER_GEN_VERSION=v0.4.1
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 all: ocs-operator ocs-registry ocs-must-gather
