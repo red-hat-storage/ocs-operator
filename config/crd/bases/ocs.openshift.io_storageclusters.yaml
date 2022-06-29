@@ -82,6 +82,23 @@ spec:
                         type: string
                       metadata:
                         description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          finalizers:
+                            items:
+                              type: string
+                            type: array
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          name:
+                            type: string
+                          namespace:
+                            type: string
                         type: object
                       spec:
                         description: 'Spec defines the desired characteristics of
@@ -352,6 +369,48 @@ spec:
                   enable:
                     type: boolean
                 type: object
+              backingStorageClasses:
+                description: BackingStorageClasses is a list of storage classes that
+                  will be provisioned by the storagecluster controller to be used
+                  in storageDeviceSets section of the CR.
+                items:
+                  description: BackingStorageClass defines the backing storageclass
+                    for StorageDeviceSet
+                  properties:
+                    metadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        finalizers:
+                          items:
+                            type: string
+                          type: array
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    parameters:
+                      additionalProperties:
+                        type: string
+                      description: Parameters holds the parameters for the provisioner
+                        that should create volumes of this storage class.
+                      type: object
+                    provisioner:
+                      description: Provisioner indicates the type of the provisioner.
+                      type: string
+                  type: object
+                type: array
+              defaultStorageProfile:
+                description: DefaultStorageProfile is the default storage profile
+                  to use for the storageclassclaims as StorageProfile is optional.
+                type: string
               enableCephTools:
                 description: EnableCephTools toggles on whether or not the ceph tools
                   pod should be deployed. Defaults to false
@@ -648,6 +707,23 @@ spec:
                     type: string
                   metadata:
                     description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      finalizers:
+                        items:
+                          type: string
+                        type: array
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      name:
+                        type: string
+                      namespace:
+                        type: string
                     type: object
                   spec:
                     description: 'Spec defines the desired characteristics of a volume
@@ -2240,6 +2316,23 @@ spec:
                           type: string
                         metadata:
                           description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                          properties:
+                            annotations:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            finalizers:
+                              items:
+                                type: string
+                              type: array
+                            labels:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            name:
+                              type: string
+                            namespace:
+                              type: string
                           type: object
                         spec:
                           description: 'Spec defines the desired characteristics of
@@ -2553,6 +2646,23 @@ spec:
                           type: string
                         metadata:
                           description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                          properties:
+                            annotations:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            finalizers:
+                              items:
+                                type: string
+                              type: array
+                            labels:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            name:
+                              type: string
+                            namespace:
+                              type: string
                           type: object
                         spec:
                           description: 'Spec defines the desired characteristics of
@@ -4981,6 +5091,23 @@ spec:
                           type: string
                         metadata:
                           description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                          properties:
+                            annotations:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            finalizers:
+                              items:
+                                type: string
+                              type: array
+                            labels:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            name:
+                              type: string
+                            namespace:
+                              type: string
                           type: object
                         spec:
                           description: 'Spec defines the desired characteristics of
@@ -5255,6 +5382,38 @@ spec:
                   required:
                   - count
                   - dataPVCTemplate
+                  - name
+                  type: object
+                type: array
+              storageProfiles:
+                items:
+                  description: StorageProfile is the storage profile to use for the
+                    storageclassclaims.
+                  properties:
+                    blockPoolConfiguration:
+                      description: configurations to use for  profile specific blockpool.
+                      properties:
+                        parameters:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
+                    deviceClass:
+                      description: DeviceClass is the deviceclass name.
+                      type: string
+                    name:
+                      description: Name of the storage profile.
+                      type: string
+                    sharedFilesystemConfiguration:
+                      description: configurations to use for cephfilesystem.
+                      properties:
+                        parameters:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
+                  required:
+                  - deviceClass
                   - name
                   type: object
                 type: array

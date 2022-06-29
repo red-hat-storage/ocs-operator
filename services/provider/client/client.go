@@ -142,7 +142,14 @@ const (
 	StorageTypeSharedfilesystem
 )
 
-func (cc *OCSProviderClient) FulfillStorageClassClaim(ctx context.Context, consumerUUID, storageClassClaimName, encryptionMethod string, storageType StorageType) (*pb.FulfillStorageClassClaimResponse, error) {
+func (cc *OCSProviderClient) FulfillStorageClassClaim(
+	ctx context.Context,
+	consumerUUID string,
+	storageClassClaimName string,
+	storageType StorageType,
+	storageProfile string,
+	encryptionMethod string,
+) (*pb.FulfillStorageClassClaimResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
@@ -158,6 +165,7 @@ func (cc *OCSProviderClient) FulfillStorageClassClaim(ctx context.Context, consu
 		StorageClassClaimName: storageClassClaimName,
 		EncryptionMethod:      encryptionMethod,
 		StorageType:           st,
+		StorageProfile:        storageProfile,
 	}
 
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)

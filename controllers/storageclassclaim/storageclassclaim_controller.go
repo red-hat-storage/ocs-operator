@@ -21,19 +21,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
-	"k8s.io/klog/v2"
-
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	providerclient "github.com/red-hat-storage/ocs-operator/services/provider/client"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,6 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,6 +73,7 @@ type StorageClassClaimReconciler struct {
 	cephClientProvisioner        *rookCephv1.CephClient
 	cephClientNode               *rookCephv1.CephClient
 	cephResourcesByName          map[string]*v1alpha1.CephResourcesSpec
+	storageProfile               *v1.StorageProfile
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims,verbs=get;list;watch;create;update;patch;delete
@@ -292,8 +291,9 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			r.ctx,
 			r.storageCluster.Status.ExternalStorage.ConsumerID,
 			r.storageClassClaim.Name,
-			r.storageClassClaim.Spec.EncryptionMethod,
 			storageClassClaimStorageType,
+			r.storageClassClaim.Spec.StorageProfile,
+			r.storageClassClaim.Spec.EncryptionMethod,
 		)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("failed to initiate fulfillment of StorageClassClaim: %v", err)
@@ -500,14 +500,49 @@ func (r *StorageClassClaimReconciler) reconcileProviderPhases() (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
+	// check claim status already contains the name of the resource. if not, add it.
 	if r.storageClassClaim.Spec.Type == "blockpool" {
 		r.cephBlockPool = &rookCephv1.CephBlockPool{}
-		r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s", r.storageConsumer.Name)
 		r.cephBlockPool.Namespace = r.OperatorNamespace
+		for _, res := range r.storageClassClaim.Status.CephResources {
+			if res.Kind == "CephBlockPool" {
+				r.cephBlockPool.Name = res.Name
+				break
+			}
+		}
+		if r.cephBlockPool.Name == "" {
+			r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
+		}
+
 	} else if r.storageClassClaim.Spec.Type == "sharedfilesystem" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
-		r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", r.storageConsumer.Name)
 		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
+		for _, res := range r.storageClassClaim.Status.CephResources {
+			if res.Kind == "CephFilesystemSubVolumeGroup" {
+				r.cephFilesystemSubVolumeGroup.Name = res.Name
+				break
+			}
+		}
+		if r.cephFilesystemSubVolumeGroup.Name == "" {
+			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s-%s", r.storageConsumer.Name, generateUUID())
+		}
+	}
+
+	profileName := r.storageClassClaim.Spec.StorageProfile
+	if profileName == "" {
+		profileName = r.storageCluster.Spec.DefaultStorageProfile
+	}
+
+	for i := range r.storageCluster.Spec.StorageProfiles {
+		profile := &r.storageCluster.Spec.StorageProfiles[i]
+		if profile.Name == profileName {
+			r.storageProfile = profile
+			break
+		}
+	}
+
+	if r.storageProfile == nil {
+		return reconcile.Result{}, fmt.Errorf("no storage profile definition found for storage profile %s", profileName)
 	}
 
 	r.cephClientProvisioner = &rookCephv1.CephClient{}
@@ -710,34 +745,33 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 		if err := r.own(r.cephBlockPool); err != nil {
 			return err
 		}
+		deviceClass := r.storageProfile.DeviceClass
 		deviceSetList := r.storageCluster.Spec.StorageDeviceSets
 		var deviceSet *v1.StorageDeviceSet
 		for i := range deviceSetList {
 			ds := &deviceSetList[i]
-			if ds.Name == "default" {
+			// get the required deviceSetName of the profile
+			if deviceClass == ds.DeviceClass {
 				deviceSet = ds
 				break
 			}
 		}
+
 		if deviceSet == nil {
-			return fmt.Errorf("Could not find  device set named default in Storage cluster")
+			return fmt.Errorf("could not find device set definition named %s in storagecluster", deviceClass)
 		}
-		pgUnitSize := util.GetPGBaseUnitSize(deviceSet.Count)
+
 		addLabel(r.cephBlockPool, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
 
 		r.cephBlockPool.Spec = rookCephv1.NamedBlockPoolSpec{
 			PoolSpec: rookCephv1.PoolSpec{
 				FailureDomain: failureDomain,
+				DeviceClass:   deviceClass,
 				Replicated: rookCephv1.ReplicatedSpec{
 					Size:                     3,
 					ReplicasPerFailureDomain: 1,
 				},
-				Parameters: map[string]string{
-					"target_size_ratio": ".49",
-					"pg_autoscale_mode": "off",
-					"pg_num":            strconv.Itoa(pgUnitSize),
-					"pgp_num":           strconv.Itoa(pgUnitSize),
-				},
+				Parameters: r.storageProfile.BlockPoolConfiguration.Parameters,
 				Quotas: rookCephv1.QuotaSpec{
 					MaxSize: &capacity,
 				},
@@ -772,29 +806,40 @@ func (r *StorageClassClaimReconciler) reconcileCephBlockPool() error {
 
 func (r *StorageClassClaimReconciler) reconcileCephFilesystemSubVolumeGroup() error {
 
-	cephFilesystemList := rookCephv1.CephFilesystemList{}
-	if err := r.list(&cephFilesystemList, client.InNamespace(r.OperatorNamespace)); err != nil {
-		return fmt.Errorf("error fetching CephFilesystemList. %+v", err)
+	cephFilesystem := rookCephv1.CephFilesystem{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-cephfilesystem", r.storageCluster.Name),
+			Namespace: r.storageCluster.Namespace,
+		},
 	}
-
-	var cephFileSystemName string
-	availableCephFileSystems := len(cephFilesystemList.Items)
-	if availableCephFileSystems == 0 {
-		return fmt.Errorf("no CephFileSystem found in the cluster")
+	if err := r.get(&cephFilesystem); err != nil {
+		return fmt.Errorf("error fetching CephFilesystem. %+v", err)
 	}
-	if availableCephFileSystems > 1 {
-		klog.Warningf("More than one CephFileSystem found in the cluster, selecting the first one")
-	}
-
-	cephFileSystemName = cephFilesystemList.Items[0].Name
 
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephFilesystemSubVolumeGroup, func() error {
 		if err := r.own(r.cephFilesystemSubVolumeGroup); err != nil {
 			return err
 		}
+		deviceClass := r.storageProfile.DeviceClass
+		dataPool := &rookCephv1.NamedPoolSpec{}
+		for i := range cephFilesystem.Spec.DataPools {
+			if cephFilesystem.Spec.DataPools[i].DeviceClass == deviceClass {
+				dataPool = &cephFilesystem.Spec.DataPools[i]
+				break
+			}
+		}
+		if dataPool == nil {
+			return fmt.Errorf("no CephFileSystem found in the cluster for storage profile %s", r.storageClassClaim.Spec.StorageProfile)
+		}
+
+		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
+		// This label is required to set the dataPool on the CephFS
+		// storageclass so that each PVC created from CephFS storageclass can
+		// use correct dataPool backed by deviceclass.
+		addLabel(r.cephFilesystemSubVolumeGroup, v1alpha1.CephFileSystemDataPoolLabel, dataPool.Name)
 
 		r.cephFilesystemSubVolumeGroup.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
-			FilesystemName: cephFileSystemName,
+			FilesystemName: cephFilesystem.Name,
 		}
 		return nil
 	})
@@ -1071,4 +1116,10 @@ func addAnnotation(obj metav1.Object, key string, value string) {
 		obj.SetAnnotations(annotations)
 	}
 	annotations[key] = value
+}
+
+// generateUUID generates a random UUID string and return first 8 characters.
+func generateUUID() string {
+	newUUID := uuid.New()
+	return string(newUUID[:8])
 }

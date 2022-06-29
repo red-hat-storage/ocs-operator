@@ -141,6 +141,8 @@ message FulfillStorageClassClaimRequest{
       BLOCKPOOL = 1;
     }
     StorageType storageType = 4;
+    // storageProfile of the storageclassclaim.
+    string storageProfile = 5;
 }
 
 // FulfillStorageClassClaimResponse holds the response for the FulfillStorageClassClaim API request.

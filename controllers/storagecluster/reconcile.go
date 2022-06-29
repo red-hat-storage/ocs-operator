@@ -375,6 +375,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			// preserve list order
 			objs = []resourceManager{
 				&ocsProviderServer{},
+				&backingStorageClasses{},
 				&ocsTopologyMap{},
 				&ocsStorageQuota{},
 				&ocsCephConfig{},
