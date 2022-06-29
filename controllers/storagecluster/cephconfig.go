@@ -28,6 +28,7 @@ const (
 var (
 	defaultRookConfigData = `
 [global]
+rbd_mirror_die_after_seconds = 3600
 bdev_flock_retry = 20
 mon_osd_full_ratio = .85
 mon_osd_backfillfull_ratio = .8
