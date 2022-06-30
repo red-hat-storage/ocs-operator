@@ -29,7 +29,8 @@ const (
 	ocsProviderServicePort     = int32(50051)
 	ocsProviderServiceNodePort = int32(31659)
 
-	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
+	ocsProviderServerLoadBalancerServiceName = ocsProviderServerName + "-loadbalancer-svc"
+	ocsProviderCertSecretName                = ocsProviderServerName + "-cert"
 )
 
 type ocsProviderServer struct{}
@@ -50,7 +51,7 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		return reconcile.Result{}, err
 	}
 
-	if res, err := o.createService(r, instance); err != nil {
+	if res, err := o.createLoadBalancerService(r, instance); err != nil {
 		return reconcile.Result{}, err
 	} else if !res.IsZero() {
 		return res, nil
@@ -87,7 +88,7 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 
 	for _, resource := range []client.Object{
 		GetProviderAPIServerSecret(instance),
-		GetProviderAPIServerService(instance),
+		GetProviderAPIServerLoadBalancerService(instance),
 		GetProviderAPIServerDeployment(instance),
 	} {
 		err := r.Client.Delete(context.TODO(), resource)
@@ -151,9 +152,9 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 	return reconcile.Result{}, nil
 }
 
-func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+func (o *ocsProviderServer) createLoadBalancerService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	desiredService := GetProviderAPIServerService(instance)
+	desiredService := GetProviderAPIServerLoadBalancerService(instance)
 	actualService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      desiredService.Name,
@@ -211,7 +212,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 
 func (o *ocsProviderServer) createNodePortService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 
-	desiredService := GetProviderAPIServerServiceWithNodePort(instance)
+	desiredService := GetProviderAPIServerNodePortService(instance)
 	actualService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      desiredService.Name,
@@ -350,11 +351,11 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 	}
 }
 
-func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service {
+func GetProviderAPIServerLoadBalancerService(instance *ocsv1.StorageCluster) *corev1.Service {
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsProviderServerName,
+			Name:      ocsProviderServerLoadBalancerServiceName,
 			Namespace: instance.Namespace,
 			Annotations: map[string]string{
 				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
@@ -375,11 +376,11 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 	}
 }
 
-func GetProviderAPIServerServiceWithNodePort(instance *ocsv1.StorageCluster) *corev1.Service {
+func GetProviderAPIServerNodePortService(instance *ocsv1.StorageCluster) *corev1.Service {
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsProviderServerName + "-node-port-svc",
+			Name:      ocsProviderServerName,
 			Namespace: instance.Namespace,
 			Annotations: map[string]string{
 				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
