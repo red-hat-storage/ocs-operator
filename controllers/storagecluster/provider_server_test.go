@@ -36,7 +36,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		// as we are using a fake client and it does not fill the status automatically.
 		// update the required status feild of the svc to overcome the failure and requeue.
 		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerLoadBalancerServiceName},
 		}
 		service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
 			{
@@ -74,7 +74,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
 
 		service = &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerLoadBalancerServiceName},
 		}
 		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
 		expectedService := GetProviderAPIServerServiceForTest(instance)
@@ -138,7 +138,7 @@ func assertNotFoundProviderResources(t *testing.T, cli client.Client) {
 	assert.True(t, errors.IsNotFound(cli.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment)))
 
 	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerLoadBalancerServiceName},
 	}
 	assert.True(t, errors.IsNotFound(cli.Get(context.TODO(), client.ObjectKeyFromObject(service), service)))
 
@@ -267,7 +267,7 @@ func GetProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsProviderServerName,
+			Name:      ocsProviderServerLoadBalancerServiceName,
 			Namespace: instance.Namespace,
 			Annotations: map[string]string{
 				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
