@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -79,7 +80,23 @@ func generateNameForSnapshotClassDriver(initData *ocsv1.StorageCluster, snapshot
 	return fmt.Sprintf("%s.%s.csi.ceph.com", initData.Namespace, snapshotType)
 }
 
-func generateNameForSnapshotClassSecret(snapshotType SnapshotterType) string {
+func generateNameForSnapshotClassSecret(instance *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
+	if instance.Spec.ExternalStorage.Enable {
+		data, ok := externalOCSResources[instance.UID]
+		if !ok {
+			log.Error(fmt.Errorf("Unable to retrieve external resource from externalOCSResources"),
+				"unable to generate name for snapshot class secret for external mode")
+		}
+		// print the Secret name which contains the prefix as the rook-csi-rbd/cephfs-provisioner default secret name
+		// for example if the secret name is rook-csi-rbd-node-rookStorage-replicapool it will check the prefix with rook-csi-rbd-node if it matches it will return that name
+		for _, d := range data {
+			if d.Kind == "Secret" {
+				if strings.Contains(d.Name, fmt.Sprintf("rook-csi-%s-provisioner", snapshotType)) {
+					return d.Name
+				}
+			}
+		}
+	}
 	return fmt.Sprintf("rook-csi-%s-provisioner", snapshotType)
 }
 
