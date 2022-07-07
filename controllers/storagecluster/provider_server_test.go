@@ -279,6 +279,7 @@ func GetProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.
 			},
 			Ports: []corev1.ServicePort{
 				{
+					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},

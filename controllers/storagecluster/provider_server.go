@@ -56,14 +56,6 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		return res, nil
 	}
 
-	// TODO: we are keeping this to enable the transition of node port based connectivity
-	// to load balancer based connectivity during 4.11 lifetime.
-	// In future versions, node port based connectivity will be deprecated
-	// and this code will be removed from the code base
-	if err := o.createNodePortService(r, instance); err != nil {
-		return reconcile.Result{}, err
-	}
-
 	if res, err := o.createDeployment(r, instance); err != nil {
 		return reconcile.Result{}, err
 	} else if !res.IsZero() {
@@ -209,44 +201,6 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 	return reconcile.Result{}, nil
 }
 
-func (o *ocsProviderServer) createNodePortService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-
-	desiredService := GetProviderAPIServerServiceWithNodePort(instance)
-	actualService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      desiredService.Name,
-			Namespace: desiredService.Namespace,
-		},
-	}
-
-	_, err := controllerutil.CreateOrUpdate(
-		context.TODO(), r.Client, actualService,
-		func() error {
-			desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
-			desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
-
-			if actualService.Annotations == nil {
-				actualService.Annotations = map[string]string{}
-			}
-
-			for key, value := range desiredService.Annotations {
-				actualService.Annotations[key] = value
-			}
-
-			actualService.Spec = desiredService.Spec
-			return controllerutil.SetOwnerReference(instance, actualService, r.Client.Scheme())
-		},
-	)
-	if err != nil {
-		r.Log.Error(err, "Failed to create/update service", "Name", desiredService.Name)
-		return err
-	}
-
-	r.Log.Info("Service create/update succeeded", "Name", desiredService.Name)
-
-	return nil
-}
-
 func (o *ocsProviderServer) createSecret(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 
 	desiredSecret := GetProviderAPIServerSecret(instance)
@@ -366,38 +320,12 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Port:       ocsProviderServicePort,
-					TargetPort: intstr.FromString("ocs-provider"),
-				},
-			},
-			Type: corev1.ServiceTypeLoadBalancer,
-		},
-	}
-}
-
-func GetProviderAPIServerServiceWithNodePort(instance *ocsv1.StorageCluster) *corev1.Service {
-
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsProviderServerName + "-node-port-svc",
-			Namespace: instance.Namespace,
-			Annotations: map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
-			},
-		},
-		Spec: corev1.ServiceSpec{
-
-			Selector: map[string]string{
-				"app": "ocsProviderApiServer",
-			},
-			Ports: []corev1.ServicePort{
-				{
 					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},
-			Type: corev1.ServiceTypeNodePort,
+			Type: corev1.ServiceTypeLoadBalancer,
 		},
 	}
 }
