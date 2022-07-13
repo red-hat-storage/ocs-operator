@@ -1419,7 +1419,7 @@ metadata:
       \   }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.operatorframework.io/builder: operator-sdk-v1.19.0+git
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassclaims.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io","objectbucketclaims.objectbucket.io","objectbuckets.objectbucket.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassclaims.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -1636,45 +1636,6 @@ spec:
       kind: CephBlockPoolRadosNamespace
       name: cephblockpoolradosnamespaces.ceph.rook.io
       version: v1
-    - description: Claim a bucket just like claiming a PV. Automate you app bucket
-        provisioning by creating OBC with your app deployment. A secret and configmap
-        (name=claim) will be created with access details for the app pods.
-      displayName: Object Bucket Claim
-      kind: ObjectBucketClaim
-      name: objectbucketclaims.objectbucket.io
-      resources:
-      - kind: Service
-        name: services
-        version: v1
-      - kind: Secret
-        name: secrets
-        version: v1
-      - kind: ConfigMap
-        name: configmaps
-        version: v1
-      - kind: StatefulSet
-        name: statefulsets.apps
-        version: v1
-      version: v1alpha1
-    - description: Used under-the-hood. Created per ObjectBucketClaim and keeps provisioning
-        information.
-      displayName: Object Bucket
-      kind: ObjectBucket
-      name: objectbuckets.objectbucket.io
-      resources:
-      - kind: Service
-        name: services
-        version: v1
-      - kind: Secret
-        name: secrets
-        version: v1
-      - kind: ConfigMap
-        name: configmaps
-        version: v1
-      - kind: StatefulSet
-        name: statefulsets.apps
-        version: v1
-      version: v1alpha1
   description: |2
 
     **Red Hat OpenShift Container Storage** deploys three operators.
