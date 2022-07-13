@@ -457,12 +457,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	// Merge CSVs into Unified CSV
 	for _, csv := range mergeCsvs {
 		if csv == noobaaCSV {
-			for _, definition := range csv.Spec.CustomResourceDefinitions.Required {
-				// Move ob and obc to Owned list instead to Required
-				if definition.Name == "objectbucketclaims.objectbucket.io" || definition.Name == "objectbuckets.objectbucket.io" {
-					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				}
-			}
+			continue
 		} else {
 			strategySpec := csv.Spec.InstallStrategy.StrategySpec
 
