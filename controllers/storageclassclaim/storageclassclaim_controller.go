@@ -73,11 +73,6 @@ type StorageClassClaimReconciler struct {
 	cephResourcesByName          map[string]*v1alpha1.CephResourcesSpec
 }
 
-const (
-	StorageClassClaimFinalizer  = "storageclassclaim.ocs.openshift.io"
-	StorageClassClaimAnnotation = "ocs.openshift.io.storagesclassclaim"
-)
-
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
@@ -162,7 +157,7 @@ func (r *StorageClassClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
 		func(obj client.Object) []reconcile.Request {
 			annotations := obj.GetAnnotations()
-			if annotation, found := annotations[StorageClassClaimAnnotation]; found {
+			if annotation, found := annotations[v1alpha1.StorageClassClaimAnnotation]; found {
 				parts := strings.Split(annotation, "/")
 				return []reconcile.Request{{
 					NamespacedName: types.NamespacedName{
@@ -229,8 +224,31 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			sccEncryptionMethod := r.storageClassClaim.Spec.EncryptionMethod
 			_, scIsFSType := existing.Parameters["fsName"]
 			scEncryptionMethod, scHasEncryptionMethod := existing.Parameters["encryptionMethod"]
-			if !((sccType == "sharedfilesystem" && scIsFSType && !scHasEncryptionMethod) ||
-				(sccType == "blockpool" && !scIsFSType && sccEncryptionMethod != scEncryptionMethod)) {
+
+			validStorageClassConfig := true
+			if sccType == "sharedfilesystem" {
+				// valdiate that the request is not asking to change the sc type
+				if !scIsFSType {
+					validStorageClassConfig = false
+				}
+
+				// validate that encryption is disabled
+				if scHasEncryptionMethod {
+					validStorageClassConfig = false
+				}
+			} else if sccType == "blockpool" {
+				// valdiate that the request is not asking to change the sc type
+				if scIsFSType {
+					validStorageClassConfig = false
+				}
+
+				// validate that the request is not asking to change encryption type
+				if sccEncryptionMethod != scEncryptionMethod {
+					validStorageClassConfig = false
+				}
+			}
+
+			if !validStorageClassConfig {
 				r.log.Error(fmt.Errorf("storageClassClaim is not compatible with existing StorageClass"),
 					"StorageClassClaim validation failed.")
 				r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimFailed
@@ -244,10 +262,10 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimConfiguring
 
 		// Check if finalizers are present, if not, add them.
-		if !contains(r.storageClassClaim.GetFinalizers(), StorageClassClaimFinalizer) {
+		if !contains(r.storageClassClaim.GetFinalizers(), v1alpha1.StorageClassClaimFinalizer) {
 			storageClassClaimRef := klog.KRef(r.storageClassClaim.Name, r.storageClassClaim.Namespace)
 			r.log.Info("Finalizer not found for StorageClassClaim. Adding finalizer.", "StorageClassClaim", storageClassClaimRef)
-			r.storageClassClaim.SetFinalizers(append(r.storageClassClaim.GetFinalizers(), StorageClassClaimFinalizer))
+			r.storageClassClaim.SetFinalizers(append(r.storageClassClaim.GetFinalizers(), v1alpha1.StorageClassClaimFinalizer))
 			if err := r.update(r.storageClassClaim); err != nil {
 				return reconcile.Result{}, fmt.Errorf("failed to update StorageClassClaim [%v] with finalizer: %s", storageClassClaimRef, err)
 			}
@@ -349,7 +367,7 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 				} else if resource.Name == "ceph-rbd" {
 					storageClass = r.getCephRBDStorageClass(data)
 				}
-				addAnnotation(storageClass, StorageClassClaimAnnotation, r.getNamespacedName())
+				addAnnotation(storageClass, v1alpha1.StorageClassClaimAnnotation, r.getNamespacedName())
 				err = r.createOrReplaceStorageClass(storageClass)
 				if err != nil {
 					return reconcile.Result{}, fmt.Errorf("failed to create or update StorageClass: %s", err)
@@ -364,7 +382,7 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 				} else if resource.Name == "ceph-rbd" {
 					volumeSnapshotClass = r.getCephRBDVolumeSnapshotClass(data)
 				}
-				addAnnotation(volumeSnapshotClass, StorageClassClaimAnnotation, r.getNamespacedName())
+				addAnnotation(volumeSnapshotClass, v1alpha1.StorageClassClaimAnnotation, r.getNamespacedName())
 				if err := r.createOrReplaceVolumeSnapshotClass(volumeSnapshotClass); err != nil {
 					return reconcile.Result{}, fmt.Errorf("failed to create or update VolumeSnapshotClass: %s", err)
 				}
@@ -439,8 +457,8 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			r.log.Info("VolumeSnapshotClass already deleted", "Name", volumeSnapshotClass.Name)
 		}
 
-		if contains(r.storageClassClaim.GetFinalizers(), StorageClassClaimFinalizer) {
-			r.storageClassClaim.Finalizers = remove(r.storageClassClaim.Finalizers, StorageClassClaimFinalizer)
+		if contains(r.storageClassClaim.GetFinalizers(), v1alpha1.StorageClassClaimFinalizer) {
+			r.storageClassClaim.Finalizers = remove(r.storageClassClaim.Finalizers, v1alpha1.StorageClassClaimFinalizer)
 			if err := r.update(r.storageClassClaim); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from storageClassClaim: %s", err)
 			}
@@ -976,7 +994,7 @@ func addStorageRelatedAnnotations(obj client.Object, storageClassClaimNamespaced
 		obj.SetAnnotations(annotations)
 	}
 
-	annotations[StorageClassClaimAnnotation] = storageClassClaimNamespacedName
+	annotations[v1alpha1.StorageClassClaimAnnotation] = storageClassClaimNamespacedName
 	annotations[controllers.StorageClaimAnnotation] = storageClaim
 	annotations[controllers.StorageCephUserTypeAnnotation] = cephUserType
 }

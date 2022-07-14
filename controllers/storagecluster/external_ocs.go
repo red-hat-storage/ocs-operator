@@ -99,8 +99,10 @@ func (r *StorageClusterReconciler) acknowledgeOnboarding(instance *ocsv1.Storage
 	}
 
 	// claims should be created only once and should not be created/updated again if user deletes/update it.
-	err = r.createDefaultStorageClassClaims(instance)
-	if err != nil {
+	if err := r.createDefaultStorageClassClaimsForRBD(instance); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := r.createDefaultStorageClassClaimsForCephFS(instance); err != nil {
 		return reconcile.Result{}, err
 	}
 
