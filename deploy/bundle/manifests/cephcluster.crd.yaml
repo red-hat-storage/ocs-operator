@@ -199,6 +199,16 @@ spec:
                             failureThreshold:
                               format: int32
                               type: integer
+                            grpc:
+                              properties:
+                                port:
+                                  format: int32
+                                  type: integer
+                                service:
+                                  type: string
+                              required:
+                              - port
+                              type: object
                             httpGet:
                               properties:
                                 host:
@@ -274,6 +284,16 @@ spec:
                             failureThreshold:
                               format: int32
                               type: integer
+                            grpc:
+                              properties:
+                                port:
+                                  format: int32
+                                  type: integer
+                                service:
+                                  type: string
+                              required:
+                              - port
+                              type: object
                             httpGet:
                               properties:
                                 host:
@@ -501,6 +521,14 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    allocatedResources:
+                                      additionalProperties:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      type: object
                                     capacity:
                                       additionalProperties:
                                         anyOf:
@@ -532,6 +560,8 @@ spec:
                                         type: object
                                       type: array
                                     phase:
+                                      type: string
+                                    resizeStatus:
                                       type: string
                                   type: object
                               type: object
@@ -650,6 +680,14 @@ spec:
                             items:
                               type: string
                             type: array
+                          allocatedResources:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            type: object
                           capacity:
                             additionalProperties:
                               anyOf:
@@ -681,6 +719,8 @@ spec:
                               type: object
                             type: array
                           phase:
+                            type: string
+                          resizeStatus:
                             type: string
                         type: object
                     type: object
@@ -1424,6 +1464,14 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  allocatedResources:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    type: object
                                   capacity:
                                     additionalProperties:
                                       anyOf:
@@ -1455,6 +1503,8 @@ spec:
                                       type: object
                                     type: array
                                   phase:
+                                    type: string
+                                  resizeStatus:
                                     type: string
                                 type: object
                             type: object
@@ -2443,6 +2493,14 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  allocatedResources:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    type: object
                                   capacity:
                                     additionalProperties:
                                       anyOf:
@@ -2474,6 +2532,8 @@ spec:
                                       type: object
                                     type: array
                                   phase:
+                                    type: string
+                                  resizeStatus:
                                     type: string
                                 type: object
                             type: object
@@ -2600,6 +2660,14 @@ spec:
                               items:
                                 type: string
                               type: array
+                            allocatedResources:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              type: object
                             capacity:
                               additionalProperties:
                                 anyOf:
@@ -2631,6 +2699,8 @@ spec:
                                 type: object
                               type: array
                             phase:
+                              type: string
+                            resizeStatus:
                               type: string
                           type: object
                       type: object
