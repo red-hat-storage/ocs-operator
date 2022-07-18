@@ -54,6 +54,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+const (
+	storageClassEncryptionParamKey = "encryptionKMSID"
+)
+
 // StorageClassClaimReconciler reconciles a StorageClassClaim object
 // nolint
 type StorageClassClaimReconciler struct {
@@ -223,7 +227,8 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			sccType := r.storageClassClaim.Spec.Type
 			sccEncryptionMethod := r.storageClassClaim.Spec.EncryptionMethod
 			_, scIsFSType := existing.Parameters["fsName"]
-			scEncryptionMethod, scHasEncryptionMethod := existing.Parameters["encryptionMethod"]
+
+			scEncryptionMethod, scHasEncryptionMethod := existing.Parameters[storageClassEncryptionParamKey]
 
 			validStorageClassConfig := true
 			if sccType == "sharedfilesystem" {
@@ -249,7 +254,7 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 			}
 
 			if !validStorageClassConfig {
-				r.log.Error(fmt.Errorf("storageClassClaim is not compatible with existing StorageClass"),
+				r.log.Error(fmt.Errorf("storageClassClaim %s is not compatible with existing StorageClass.%t %s %s", sccType, scHasEncryptionMethod, sccEncryptionMethod, scEncryptionMethod),
 					"StorageClassClaim validation failed.")
 				r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimFailed
 				return reconcile.Result{}, nil
