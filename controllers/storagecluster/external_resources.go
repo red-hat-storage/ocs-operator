@@ -18,6 +18,7 @@ import (
 	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -268,7 +269,16 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 			}
 			externalOCSResources[instance.UID] = externalConfig
 		}
+
 		externalClusterClient.Close()
+
+		if err := r.createClaimsFor410DefaultStorageClasses(instance); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.delete410SnapshotClasses(instance); err != nil {
+			return reconcile.Result{}, err
+		}
+
 	} else {
 		// rhcs external mode
 		data, err := r.retrieveExternalSecretData(instance)
@@ -289,6 +299,42 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
+}
+
+func (r *StorageClusterReconciler) createClaimsFor410DefaultStorageClasses(instance *ocsv1.StorageCluster) error {
+
+	cephFsStorageClass := &storagev1.StorageClass{}
+	cephFsStorageClassName := generateNameForCephFilesystemSC(instance)
+	if err := r.Client.Get(r.ctx, types.NamespacedName{Name: cephFsStorageClassName}, cephFsStorageClass); err == nil {
+		err = r.createDefaultStorageClassClaimsForCephFS(instance)
+		if err != nil {
+			return fmt.Errorf("failed to created sharedfilesystem storageClassClaim %s. %v", cephFsStorageClassName, err)
+		}
+	}
+
+	cephRbdStorageClass := &storagev1.StorageClass{}
+	cephRbdStorageClassName := generateNameForCephBlockPoolSC(instance)
+	if err := r.Client.Get(r.ctx, types.NamespacedName{Name: cephRbdStorageClassName}, cephRbdStorageClass); err == nil {
+		err := r.createDefaultStorageClassClaimsForRBD(instance)
+		if err != nil {
+			return fmt.Errorf("failed to created blockpool storageClassClaim %s. %v", cephRbdStorageClassName, err)
+		}
+	}
+
+	return nil
+}
+
+func (r *StorageClusterReconciler) delete410SnapshotClasses(instance *ocsv1.StorageCluster) error {
+	snapshotClassConfiguration := newSnapshotClassConfigurations(instance)
+	for i := range snapshotClassConfiguration {
+		sc := snapshotClassConfiguration[i].snapshotClass
+
+		if err := r.Client.Delete(r.ctx, sc); err != nil && !errors.IsNotFound(err) {
+			r.Log.Error(err, "error deleting VolumeSnapshotClass.", "VolumeSnapshotClass", sc.Name)
+		}
+	}
+
+	return nil
 }
 
 // ensureDeleted is dummy func for the ocsExternalResources
@@ -340,22 +386,7 @@ func (obj *ocsExternalResources) ensureDeleted(r *StorageClusterReconciler, inst
 	return reconcile.Result{}, nil
 }
 
-// claims should be created only once and should not be created/updated again if user deletes/update it.
-func (r *StorageClusterReconciler) createDefaultStorageClassClaims(instance *ocsv1.StorageCluster) error {
-
-	storageClassClaimFile := &ocsv1alpha1.StorageClassClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephFilesystemSC(instance),
-			Namespace: instance.Namespace,
-			Labels: map[string]string{
-				defaultStorageClassClaimLabel: "true",
-			},
-		},
-		Spec: ocsv1alpha1.StorageClassClaimSpec{
-			Type: "sharedfilesystem",
-		},
-	}
-
+func (r *StorageClusterReconciler) createDefaultStorageClassClaimsForRBD(instance *ocsv1.StorageCluster) error {
 	storageClassClaimBlock := &ocsv1alpha1.StorageClassClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNameForCephBlockPoolSC(instance),
@@ -369,14 +400,28 @@ func (r *StorageClusterReconciler) createDefaultStorageClassClaims(instance *ocs
 		},
 	}
 
-	err := r.createAndOwnStorageClassClaim(instance, storageClassClaimFile)
-	if err != nil {
-		return err
+	if err := r.createAndOwnStorageClassClaim(instance, storageClassClaimBlock); err != nil {
+		return fmt.Errorf("failed to create default blockpool storageClassClaim %s. %v", storageClassClaimBlock.Name, err)
+	}
+	return nil
+}
+
+func (r *StorageClusterReconciler) createDefaultStorageClassClaimsForCephFS(instance *ocsv1.StorageCluster) error {
+	storageClassClaimFile := &ocsv1alpha1.StorageClassClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephFilesystemSC(instance),
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				defaultStorageClassClaimLabel: "true",
+			},
+		},
+		Spec: ocsv1alpha1.StorageClassClaimSpec{
+			Type: "sharedfilesystem",
+		},
 	}
 
-	err = r.createAndOwnStorageClassClaim(instance, storageClassClaimBlock)
-	if err != nil {
-		return err
+	if err := r.createAndOwnStorageClassClaim(instance, storageClassClaimFile); err != nil {
+		return fmt.Errorf("failed to create default blockpool storageClassClaim %s. %v", storageClassClaimFile.Name, err)
 	}
 
 	return nil
