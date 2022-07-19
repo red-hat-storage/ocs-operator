@@ -1627,7 +1627,13 @@ spec:
           - replicasets
           - statefulsets
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ceph.rook.io
           resources:
@@ -1645,12 +1651,16 @@ spec:
           - cephblockpools
           - cephclusters
           - cephfilesystems
-          - cephnfses
           - cephobjectstores
           - cephobjectstoreusers
           - cephrbdmirrors
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - ceph.rook.io
           resources:
@@ -1696,7 +1706,11 @@ spec:
           resources:
           - consolequickstarts
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
         - apiGroups:
           - coordination.k8s.io
           resources:
@@ -1718,7 +1732,13 @@ spec:
           - secrets
           - services
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ""
           resources:
@@ -1751,11 +1771,16 @@ spec:
           resources:
           - noobaas
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - watch
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - '*'
+          - ocsinitializations
+          - storageclusters
           verbs:
           - create
           - delete
@@ -1829,13 +1854,19 @@ spec:
           resources:
           - clusterresourcequotas
           verbs:
-          - '*'
+          - get
+          - list
+          - watch
         - apiGroups:
           - route.openshift.io
           resources:
           - routes
           verbs:
-          - '*'
+          - create
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - security.openshift.io
           resources:
@@ -1870,13 +1901,15 @@ spec:
           - volumesnapshotclasses
           - volumesnapshots
           verbs:
-          - '*'
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - storage.k8s.io
           resources:
           - storageclasses
           verbs:
-          - '*'
           - create
           - delete
           - get
@@ -1889,7 +1922,12 @@ spec:
           resources:
           - templates
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         serviceAccountName: ocs-operator
       - rules:
         - apiGroups:
