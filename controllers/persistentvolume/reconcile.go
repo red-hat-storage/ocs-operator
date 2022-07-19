@@ -15,7 +15,7 @@ import (
 type ensureFunc func(*corev1.PersistentVolume) error
 
 // +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch;create;update;delete
 
 // Reconcile ...
 func (r *PersistentVolumeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
