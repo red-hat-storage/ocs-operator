@@ -8,6 +8,11 @@ metadata:
   namespace: rook-ceph
 spec:
   groups:
+  - name: ceph.rules
+    rules:
+    - expr: |
+        count(kube_persistentvolume_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})
+      record: job:kube_pv:count
   - name: persistent-volume-alert.rules
     rules:
     - alert: PersistentVolumeUsageNearFull

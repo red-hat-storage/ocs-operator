@@ -802,7 +802,7 @@ func TestParsePrometheusRules(t *testing.T) {
 
 	prometheusRules, err = parsePrometheusRule(externalPrometheusRules)
 	assert.NilError(t, err)
-	assert.Equal(t, 1, len(prometheusRules.Spec.Groups))
+	assert.Equal(t, 2, len(prometheusRules.Spec.Groups))
 }
 
 func TestGetNetworkSpec(t *testing.T) {
