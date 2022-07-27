@@ -36,7 +36,6 @@
       },
       {
         name: 'ODF_standardized_metrics.rules',
-        interval: '30s',
         rules: [
           {
             record: 'odf_system_health_status',
@@ -91,7 +90,7 @@
           {
             record: 'odf_system_latency_seconds',
             expr: |||
-              avg by (namespace, managedBy, job, service)
+              sum by (namespace, managedBy, job, service)
               (
                 topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"}, "instance", "$1", "exported_instance", "(.*)"), "device", "$1", "device", "/dev/(.*)")) 
                 * on(instance, device) group_left() topk by (instance,device) 
@@ -101,9 +100,9 @@
                         rate(node_disk_read_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))
                     ) +
                     (
-                        rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))
+                        rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))
                     )
-                  )/2
+                  )
                 )
               )
             ||| % $._config,
