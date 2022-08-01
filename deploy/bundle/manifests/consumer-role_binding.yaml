@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ocs-status-reporter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ocs-status-reporter
+subjects:
+- kind: ServiceAccount
+  name: ocs-status-reporter

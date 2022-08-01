@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -223,4 +224,38 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	}
 
 	return consumerObj, nil
+}
+
+func (c *ocsConsumerManager) UpdateStatusLastHeatbeat(ctx context.Context, id string) error {
+	uid := types.UID(id)
+
+	c.mutex.RLock()
+	consumerName, ok := c.nameByUID[uid]
+	if !ok {
+		c.mutex.RUnlock()
+		klog.Warningf("no storageConsumer found with UID %q", id)
+		return nil
+	}
+	c.mutex.RUnlock()
+
+	patchInfo := struct {
+		Op    string      `json:"op"`
+		Path  string      `json:"path"`
+		Value interface{} `json:"value"`
+	}{
+		Op:    "replace",
+		Path:  "/status/lastHeartbeat",
+		Value: metav1.Now(),
+	}
+	jsonPatchInfo, _ := json.Marshal([]interface{}{patchInfo})
+	patch := client.RawPatch(types.JSONPatchType, jsonPatchInfo)
+
+	consumerObj := &ocsv1alpha1.StorageConsumer{}
+	consumerObj.Name = consumerName
+	consumerObj.Namespace = c.namespace
+	if err := c.client.Status().Patch(ctx, consumerObj, patch); err != nil {
+		return fmt.Errorf("Failed to patch Status.LastHeartbeat for StorageConsumer %v: %v", consumerName, err)
+	}
+	klog.Infof("successfully updated Status.LastHeartbeat for StorageConsumer %v", consumerName)
+	return nil
 }

@@ -38,6 +38,7 @@ type OCSProviderClient interface {
 	// GetStorageClassClaimConfig RPC call to generate the json config for claim
 	// specific resources.
 	GetStorageClassClaimConfig(ctx context.Context, in *StorageClassClaimConfigRequest, opts ...grpc.CallOption) (*StorageClassClaimConfigResponse, error)
+	ReportStatus(ctx context.Context, in *ReportStatusRequest, opts ...grpc.CallOption) (*ReportStatusResponse, error)
 }
 
 type oCSProviderClient struct {
@@ -120,6 +121,15 @@ func (c *oCSProviderClient) GetStorageClassClaimConfig(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *oCSProviderClient) ReportStatus(ctx context.Context, in *ReportStatusRequest, opts ...grpc.CallOption) (*ReportStatusResponse, error) {
+	out := new(ReportStatusResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/ReportStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OCSProviderServer is the server API for OCSProvider service.
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
@@ -144,6 +154,7 @@ type OCSProviderServer interface {
 	// GetStorageClassClaimConfig RPC call to generate the json config for claim
 	// specific resources.
 	GetStorageClassClaimConfig(context.Context, *StorageClassClaimConfigRequest) (*StorageClassClaimConfigResponse, error)
+	ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
 
@@ -174,6 +185,9 @@ func (UnimplementedOCSProviderServer) RevokeStorageClassClaim(context.Context, *
 }
 func (UnimplementedOCSProviderServer) GetStorageClassClaimConfig(context.Context, *StorageClassClaimConfigRequest) (*StorageClassClaimConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStorageClassClaimConfig not implemented")
+}
+func (UnimplementedOCSProviderServer) ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReportStatus not implemented")
 }
 func (UnimplementedOCSProviderServer) mustEmbedUnimplementedOCSProviderServer() {}
 
@@ -332,6 +346,24 @@ func _OCSProvider_GetStorageClassClaimConfig_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OCSProvider_ReportStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).ReportStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/ReportStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).ReportStatus(ctx, req.(*ReportStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OCSProvider_ServiceDesc is the grpc.ServiceDesc for OCSProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -370,6 +402,10 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStorageClassClaimConfig",
 			Handler:    _OCSProvider_GetStorageClassClaimConfig_Handler,
+		},
+		{
+			MethodName: "ReportStatus",
+			Handler:    _OCSProvider_ReportStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
