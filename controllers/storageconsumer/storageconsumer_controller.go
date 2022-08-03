@@ -58,7 +58,6 @@ type StorageConsumerReconciler struct {
 	ctx                     context.Context
 	storageConsumer         *ocsv1alpha1.StorageConsumer
 	cephClientHealthChecker *rookCephv1.CephClient
-	cephResourcesByName     map[string]*ocsv1alpha1.CephResourcesSpec
 	namespace               string
 }
 
@@ -119,7 +118,6 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.ctx = context.Background()
 	r.namespace = request.Namespace
-	r.cephResourcesByName = map[string]*ocsv1alpha1.CephResourcesSpec{}
 
 	r.storageConsumer = &ocsv1alpha1.StorageConsumer{}
 	r.storageConsumer.Name = request.Name
@@ -138,10 +136,7 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	}
 
 	r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
-
-	for _, cephResourceSpec := range r.storageConsumer.Status.CephResources {
-		r.cephResourcesByName[cephResourceSpec.Name] = cephResourceSpec
-	}
+	r.storageConsumer.Status.CephResources = []*ocsv1alpha1.CephResourcesSpec{}
 
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
 
@@ -220,20 +215,16 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 }
 
 func (r *StorageConsumerReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
-
-	cephResourceSpec := r.cephResourcesByName[name]
-
-	if cephResourceSpec == nil {
-		cephResourceSpec = &ocsv1alpha1.CephResourcesSpec{
-			Name:        name,
-			Kind:        kind,
-			CephClients: cephClients,
-		}
-		r.storageConsumer.Status.CephResources = append(r.storageConsumer.Status.CephResources, cephResourceSpec)
-		r.cephResourcesByName[name] = cephResourceSpec
+	cephResourceSpec := ocsv1alpha1.CephResourcesSpec{
+		Name:        name,
+		Kind:        kind,
+		Phase:       phase,
+		CephClients: cephClients,
 	}
-
-	cephResourceSpec.Phase = phase
+	r.storageConsumer.Status.CephResources = append(
+		r.storageConsumer.Status.CephResources,
+		&cephResourceSpec,
+	)
 }
 
 func (r *StorageConsumerReconciler) get(obj client.Object) error {
