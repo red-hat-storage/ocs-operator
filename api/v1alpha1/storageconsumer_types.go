@@ -58,6 +58,13 @@ type CephResourcesSpec struct {
 	CephClients map[string]string `json:"cephClients,omitempty"`
 }
 
+type ConsumerClusterStatus struct {
+	// Timestamp of last heartbeat received from consumer
+	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
+	// Phase of corresponding consumer storageCluseter
+	ExternalStorageClusterPhase string `json:"externalStorageClusterPhase,omitempty"`
+}
+
 // StorageConsumerStatus defines the observed state of StorageConsumer
 type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
@@ -66,8 +73,8 @@ type StorageConsumerStatus struct {
 	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
-	// Timestamp of last heartbeat received from consumer
-	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
+	// ConsumerStatus shows the status of the corresponding consumer cluster
+	ConsumerStatus ConsumerClusterStatus `json:"consumerStatus,omitempty"`
 }
 
 //+kubebuilder:object:root=true

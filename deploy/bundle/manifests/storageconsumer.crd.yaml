@@ -74,6 +74,18 @@ spec:
                       type: string
                   type: object
                 type: array
+              consumerStatus:
+                description: ConsumerStatus shows the status of the corresponding
+                  consumer cluster
+                properties:
+                  externalStorageClusterPhase:
+                    description: Phase of corresponding consumer storageCluseter
+                    type: string
+                  lastHeartbeat:
+                    description: Timestamp of last heartbeat received from consumer
+                    format: date-time
+                    type: string
+                type: object
               grantedCapacity:
                 anyOf:
                 - type: integer
@@ -82,10 +94,6 @@ spec:
                   consumer
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
-              lastHeartbeat:
-                description: Timestamp of last heartbeat received from consumer
-                format: date-time
-                type: string
               state:
                 description: State describes the state of StorageConsumer
                 type: string

@@ -177,6 +177,7 @@ message StorageClassClaimConfigResponse{
 
 message ReportStatusRequest{
     string storageConsumerUUID = 1;
+    string storageClusterStatus = 2;
 }
 
 message ReportStatusResponse{}

@@ -61,8 +61,8 @@ func main() {
 	}
 	defer providerClient.Close()
 
-	if _, err = providerClient.ReportStatus(ctx, storageCluster.Status.ExternalStorage.ConsumerID); err != nil {
-		klog.Exitf("Failed to update lastHeartbeat of storageConsumer %v: %v", storageCluster.Status.ExternalStorage.ConsumerID, err)
+	if _, err = providerClient.ReportStatus(ctx, storageCluster.Status.ExternalStorage.ConsumerID, storageCluster.Status.Phase); err != nil {
+		klog.Exitf("Failed to update ConsumerStatus of storageConsumer %v: %v", storageCluster.Status.ExternalStorage.ConsumerID, err)
 	}
 
 }

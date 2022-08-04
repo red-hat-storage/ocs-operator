@@ -226,7 +226,7 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	return consumerObj, nil
 }
 
-func (c *ocsConsumerManager) UpdateStatusLastHeatbeat(ctx context.Context, id string) error {
+func (c *ocsConsumerManager) UpdateConsumerClusterStatus(ctx context.Context, id string, storageClusterStatus string) error {
 	uid := types.UID(id)
 
 	c.mutex.RLock()
@@ -238,24 +238,31 @@ func (c *ocsConsumerManager) UpdateStatusLastHeatbeat(ctx context.Context, id st
 	}
 	c.mutex.RUnlock()
 
-	patchInfo := struct {
+	patchInfo := []struct {
 		Op    string      `json:"op"`
 		Path  string      `json:"path"`
 		Value interface{} `json:"value"`
 	}{
-		Op:    "replace",
-		Path:  "/status/lastHeartbeat",
-		Value: metav1.Now(),
+		{
+			Op:    "replace",
+			Path:  "/status/consumerStatus/lastHeartbeat",
+			Value: metav1.Now(),
+		},
+		{
+			Op:    "replace",
+			Path:  "/status/consumerStatus/externalStorageClusterPhase",
+			Value: storageClusterStatus,
+		},
 	}
-	jsonPatchInfo, _ := json.Marshal([]interface{}{patchInfo})
+	jsonPatchInfo, _ := json.Marshal(patchInfo)
 	patch := client.RawPatch(types.JSONPatchType, jsonPatchInfo)
 
 	consumerObj := &ocsv1alpha1.StorageConsumer{}
 	consumerObj.Name = consumerName
 	consumerObj.Namespace = c.namespace
 	if err := c.client.Status().Patch(ctx, consumerObj, patch); err != nil {
-		return fmt.Errorf("Failed to patch Status.LastHeartbeat for StorageConsumer %v: %v", consumerName, err)
+		return fmt.Errorf("Failed to patch Status.ConsumerStatus for StorageConsumer %v: %v", consumerName, err)
 	}
-	klog.Infof("successfully updated Status.LastHeartbeat for StorageConsumer %v", consumerName)
+	klog.Infof("successfully updated ConsumerStatus in the StorageConsumer resource")
 	return nil
 }
