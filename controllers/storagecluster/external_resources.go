@@ -59,6 +59,9 @@ func (r *StorageClusterReconciler) setRookCSICephFS(
 	if rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] == enableDisableFlagStr {
 		return nil
 	}
+	if rookCephOperatorConfig.Data == nil {
+		rookCephOperatorConfig.Data = map[string]string{}
+	}
 	rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] = enableDisableFlagStr
 	return r.Client.Update(context.TODO(), rookCephOperatorConfig)
 }
