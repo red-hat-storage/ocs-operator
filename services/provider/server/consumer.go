@@ -250,7 +250,7 @@ func (c *ocsConsumerManager) UpdateConsumerClusterStatus(ctx context.Context, id
 		},
 		{
 			Op:    "replace",
-			Path:  "/status/consumerStatus/externalStorageClusterPhase",
+			Path:  "/status/consumerStatus/storageClusterStatus",
 			Value: storageClusterStatus,
 		},
 	}

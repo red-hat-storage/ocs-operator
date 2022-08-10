@@ -79,12 +79,12 @@ spec:
                 description: ConsumerStatus shows the status of the corresponding
                   consumer cluster
                 properties:
-                  externalStorageClusterPhase:
-                    description: Phase of corresponding consumer storageCluseter
-                    type: string
                   lastHeartbeat:
                     description: Timestamp of last heartbeat received from consumer
                     format: date-time
+                    type: string
+                  storageClusterStatus:
+                    description: Phase of corresponding consumer storageCluster
                     type: string
                 type: object
               grantedCapacity:

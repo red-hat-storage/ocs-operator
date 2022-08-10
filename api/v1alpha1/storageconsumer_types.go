@@ -61,8 +61,8 @@ type CephResourcesSpec struct {
 type ConsumerClusterStatus struct {
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
-	// Phase of corresponding consumer storageCluseter
-	ExternalStorageClusterPhase string `json:"externalStorageClusterPhase,omitempty"`
+	// Phase of corresponding consumer storageCluster
+	StorageClusterStatus string `json:"storageClusterStatus,omitempty"`
 }
 
 // StorageConsumerStatus defines the observed state of StorageConsumer
