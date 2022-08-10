@@ -58,12 +58,12 @@ func (r *StorageClusterReconciler) setRookCSICephFS(
 		return err
 	}
 	enableDisableFlagStr := fmt.Sprintf("%v", enableDisableFlag)
+	if rookCephOperatorConfig.Data == nil {
+		rookCephOperatorConfig.Data = map[string]string{}
+	}
 	// if the current state of 'ROOK_CSI_ENABLE_CEPHFS' flag is same, just return
 	if rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] == enableDisableFlagStr {
 		return nil
-	}
-	if rookCephOperatorConfig.Data == nil {
-		rookCephOperatorConfig.Data = map[string]string{}
 	}
 	rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] = enableDisableFlagStr
 	return r.Client.Update(context.TODO(), rookCephOperatorConfig)
