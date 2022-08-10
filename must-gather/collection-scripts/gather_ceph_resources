@@ -259,6 +259,7 @@ for ns in $namespaces; do
                     timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd info $image --pool $bp" 2>> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-image-"${image}"-debug.log;
                     printf "Collecting snap info for: %s/%s\n" "${bp}" "${image}";
                     timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all $image --pool $bp" 2>> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-snap-"${image}"-debug.log; 
+                    timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "rbd snap ls --all --format=json --pretty-format $image --pool $bp" 2>> "${COMMAND_ERR_OUTPUT_DIR}"/gather-rbd-snap-json-"${image}"-debug.log;
                 } >> "${COMMAND_OUTPUT_DIR}"/rbd_vol_and_snap_info_"${image}".part &
                 pids_rbd+=($!)
             done
