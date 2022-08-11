@@ -2991,8 +2991,6 @@ spec:
                   value: "true"
                 - name: ROOK_CSI_ALLOW_UNSUPPORTED_VERSION
                   value: "true"
-                - name: CSI_VOLUME_REPLICATION_IMAGE
-                  value: quay.io/csiaddons/volumereplication-operator:v0.1.0
                 - name: ROOK_CSIADDONS_IMAGE
                   value: quay.io/csiaddons/k8s-sidecar:v0.2.1
                 - name: CSI_ENABLE_METADATA
@@ -3391,8 +3389,6 @@ spec:
     name: rook-container
   - image: quay.io/ceph/ceph:v16
     name: ceph-container
-  - image: quay.io/csiaddons/volumereplication-operator:v0.1.0
-    name: volume-replication-operator
   - image: quay.io/csiaddons/k8s-sidecar:v0.2.1
     name: csiaddons-sidecar
   - image: quay.io/ocs-dev/ocs-must-gather:latest
