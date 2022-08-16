@@ -265,6 +265,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Value: "5",
 			},
 			{
+				Name:  "CSI_SIDECAR_LOG_LEVEL",
+				Value: "1",
+			},
+			{
 				Name:  "CSI_ENABLE_CSIADDONS",
 				Value: "true",
 			},
