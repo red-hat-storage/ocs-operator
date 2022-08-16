@@ -182,6 +182,8 @@ func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
 			Namespace: namespace,
 		},
 	}
+	data := make(map[string]string)
+	config.Data = data
 
 	return config
 }
