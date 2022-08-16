@@ -12,7 +12,6 @@ import (
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v1"
-	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -88,11 +87,6 @@ func TestEnsureExternalStorageClusterResources(t *testing.T) {
 }
 
 func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
-	var defaultCSIToleration = `
-- key: ` + defaults.NodeTolerationKey + `
-  operator: Equal
-  value: "true"
-  effect: NoSchedule`
 	config := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rookCephOperatorConfigName,
@@ -100,9 +94,6 @@ func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
 		},
 	}
 	data := make(map[string]string)
-	data["CSI_PROVISIONER_TOLERATIONS"] = defaultCSIToleration
-	data["CSI_PLUGIN_TOLERATIONS"] = defaultCSIToleration
-	data["CSI_LOG_LEVEL"] = "5"
 	config.Data = data
 	return config
 }
