@@ -18,5 +18,5 @@ linters:
     - structcheck
     - unused
     - varcheck
-    - golint
     - gofmt
+    - revive

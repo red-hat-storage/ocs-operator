@@ -208,7 +208,7 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 		r.Log.Info("Empty RGW Endpoint specified, external CephObjectStore won't be created.")
 		return nil, nil
 	}
-	var tlsEnabled bool = false
+	var tlsEnabled = false
 	_, err := r.retrieveSecret(cephRgwTLSSecretKey, initData)
 	// if we could retrieve a TLS secret, then enable TLS
 	if err == nil {
