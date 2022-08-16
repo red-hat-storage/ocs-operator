@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/blang/semver"
-	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -33,6 +32,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
@@ -862,7 +862,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 		Name:      "noobaa",
 		Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
 	}
-	noobaaMock := &v1alpha1.NooBaa{
+	noobaaMock := &nbv1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespacedName.Name,
 			Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
@@ -881,7 +881,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 1)
 
-	noobaa := &v1alpha1.NooBaa{}
+	noobaa := &nbv1.NooBaa{}
 	err = reconciler.Client.Get(context.TODO(), namespacedName, noobaa)
 	assert.NoError(t, err)
 	assert.Equal(t, noobaa.Name, noobaaMock.Name)
@@ -916,7 +916,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 		assert.Len(t, sc.ObjectMeta.GetFinalizers(), 0)
 	}
 
-	noobaa = &v1alpha1.NooBaa{}
+	noobaa = &nbv1.NooBaa{}
 	err = reconciler.Client.Get(context.TODO(), namespacedName, noobaa)
 	assert.True(t, errors.IsNotFound(err))
 }
@@ -1023,9 +1023,9 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 		assert.Fail(t, "failed to add routev1 scheme")
 	}
 
-	err = v1alpha1.SchemeBuilder.AddToScheme(scheme)
+	err = nbv1.SchemeBuilder.AddToScheme(scheme)
 	if err != nil {
-		assert.Fail(t, "failed to add v1alpha1 scheme")
+		assert.Fail(t, "failed to add nbv1 scheme")
 	}
 
 	err = appsv1.AddToScheme(scheme)
