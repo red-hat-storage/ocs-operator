@@ -480,6 +480,8 @@ github.com/spf13/pflag
 # github.com/stretchr/testify v1.7.0
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
+# github.com/tidwall/pretty v1.0.1
+## explicit
 # go.mongodb.org/mongo-driver v1.7.3
 ## explicit; go 1.10
 go.mongodb.org/mongo-driver/bson
@@ -913,6 +915,7 @@ k8s.io/client-go/kubernetes/typed/storage/v1beta1
 k8s.io/client-go/listers/apps/v1
 k8s.io/client-go/listers/core/v1
 k8s.io/client-go/listers/rbac/v1
+k8s.io/client-go/listers/storage/v1
 k8s.io/client-go/metadata
 k8s.io/client-go/pkg/apis/clientauthentication
 k8s.io/client-go/pkg/apis/clientauthentication/install

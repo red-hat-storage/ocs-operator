@@ -10,7 +10,6 @@ require (
 	github.com/ceph/go-ceph v0.15.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v1.2.3
-	github.com/hashicorp/vault v1.10.0 // indirect
 	github.com/imdario/mergo v0.3.12
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220420154035-5eb5ff03d30a
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
@@ -32,9 +31,7 @@ require (
 	github.com/rook/rook v1.9.9
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	go.mongodb.org/mongo-driver v1.7.3 // indirect
 	go.uber.org/multierr v1.6.0
-	golang.org/x/crypto v0.0.0-20220208050332-20e1d8d225ab // indirect
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/ini.v1 v1.62.0
@@ -103,6 +100,7 @@ require (
 	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-3 // indirect
+	github.com/hashicorp/vault v1.10.0 // indirect
 	github.com/hashicorp/vault/api v1.4.1 // indirect
 	github.com/hashicorp/vault/sdk v0.4.2-0.20220321211954-d7083ad326db // indirect
 	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87 // indirect
@@ -129,8 +127,11 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/tidwall/pretty v1.0.1 // indirect
+	go.mongodb.org/mongo-driver v1.7.3 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
+	golang.org/x/crypto v0.0.0-20220208050332-20e1d8d225ab // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.0.0-20220207234003-57398862261d // indirect
