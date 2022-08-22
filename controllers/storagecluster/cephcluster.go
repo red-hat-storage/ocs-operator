@@ -1015,6 +1015,11 @@ func createOrUpdatePrometheusRule(r *StorageClusterReconciler, sc *ocsv1.Storage
 	_, err = client.MonitoringV1().PrometheusRules(namespace).Create(context.TODO(), prometheusRule, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
+			// Ceph rules will not be reconciled if the rule file contains a "app: managed-ocs" label.
+			if v, ok := prometheusRule.GetLabels()["app"]; ok && v == "managed-ocs" {
+				r.Log.Info("Prometheus rules are being managed by the deployer, skipping reconciliation.", "rule", prometheusRule.GetName())
+				return nil
+			}
 			return fmt.Errorf("failed to create prometheusRules. %v", err)
 		}
 		// Get current PrometheusRule so the ResourceVersion can be set as needed
