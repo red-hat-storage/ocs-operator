@@ -1066,8 +1066,8 @@ github.com/rogpeppe/go-internal v1.1.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rogpeppe/go-internal v1.2.2/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.2 h1:aIihoIOHCiLZHxyoNQ+ABL4NKhFTgKLBdMLyEAh98m0=
-github.com/rook/rook v1.9.3 h1:7nyTsVDZfllJqQr6b695XIARFmtGbORHQvWejh/apVU=
-github.com/rook/rook v1.9.3/go.mod h1:4t1U+RJ4rbmv0IdCRsxXPY3UM49dEf4DZLwfVsxWjaw=
+github.com/rook/rook v1.9.9 h1:2NUOkzcOe28TtDbjncC9b5tSCLW+1nCouDSvEppJyZE=
+github.com/rook/rook v1.9.9/go.mod h1:4t1U+RJ4rbmv0IdCRsxXPY3UM49dEf4DZLwfVsxWjaw=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
 github.com/ryanuber/columnize v2.1.0+incompatible/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
