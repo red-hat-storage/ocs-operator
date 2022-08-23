@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	configv1 "github.com/openshift/api/config/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -17,7 +18,9 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // watchNamespace is the namespace the operator is watching.
@@ -150,6 +153,12 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		instance.Status.RookCephOperatorConfigCreated = true
 	}
 
+	err = r.ensureOCSOperatorConfig(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to process ConfigMap.", "ConfigMap", klog.KRef(instance.Namespace, "ocs-operator-config"))
+		return reconcile.Result{}, err
+	}
+
 	reason := ocsv1.ReconcileCompleted
 	message := ocsv1.ReconcileCompletedMessage
 	util.SetCompleteCondition(&instance.Status.Conditions, reason, message)
@@ -171,6 +180,23 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}).
 		Owns(&appsv1.Deployment{}).
+		Watches(&source.Kind{Type: &configv1.ClusterVersion{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+			return []reconcile.Request{
+				{NamespacedName: types.NamespacedName{
+					Name:      InitNamespacedName().Name,
+					Namespace: InitNamespacedName().Namespace,
+				}},
+			}
+		})).
+		Watches(&source.Kind{Type: &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ocsOperatorConfigName,
+				Namespace: watchNamespace,
+			},
+		}}, &handler.EnqueueRequestForOwner{
+			OwnerType:    &ocsv1.OCSInitialization{},
+			IsController: true,
+		}).
 		Complete(r)
 }
 
