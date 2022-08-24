@@ -405,13 +405,6 @@ spec:
                         type: string
                     type: object
                 type: object
-              metricsExporter:
-                description: MetricsExporter controls the configuration of resources
-                  for exposing StorageCluster metrics
-                properties:
-                  reconcileStrategy:
-                    type: string
-                type: object
               monDataDirHostPath:
                 type: string
               monPVCTemplate:
@@ -619,6 +612,13 @@ spec:
                         description: Phase represents the current phase of PersistentVolumeClaim.
                         type: string
                     type: object
+                type: object
+              monitoring:
+                description: Monitoring controls the configuration of resources for
+                  exposing OCS metrics
+                properties:
+                  reconcileStrategy:
+                    type: string
                 type: object
               multiCloudGateway:
                 description: MultiCloudGatewaySpec defines specific multi-cloud gateway
