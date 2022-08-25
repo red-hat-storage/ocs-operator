@@ -3001,8 +3001,6 @@ spec:
                   value: quay.io/csiaddons/volumereplication-operator:v0.1.0
                 - name: ROOK_CSIADDONS_IMAGE
                   value: quay.io/csiaddons/k8s-sidecar:v0.2.1
-                - name: ROOK_CSI_NFS_IMAGE
-                  value: k8s.gcr.io/sig-storage/nfsplugin:v3.1.0
                 - name: CSI_ENABLE_METADATA
                   value: "false"
                 - name: CSI_CLUSTER_NAME
@@ -3403,8 +3401,6 @@ spec:
     name: volume-replication-operator
   - image: quay.io/csiaddons/k8s-sidecar:v0.2.1
     name: csiaddons-sidecar
-  - image: k8s.gcr.io/sig-storage/nfsplugin:v3.1.0
-    name: rook-csi-nfs
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
   - image: quay.io/ocs-dev/ocs-metrics-exporter:latest
