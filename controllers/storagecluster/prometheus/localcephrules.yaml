@@ -22,8 +22,8 @@ spec:
         count(ceph_osd_metadata{job="rook-ceph-mgr"})
       record: job:ceph_osd_metadata:count
     - expr: |
-        count(kube_persistentvolume_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})
-      record: job:kube_pv:count
+        count(kube_persistentvolume_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)|(.*topolvm.cybozu.com)"})
+      record: job:odf_system_pvs:count
     - expr: |
         sum(ceph_pool_rd{job="rook-ceph-mgr"}+ ceph_pool_wr{job="rook-ceph-mgr"})
       record: job:ceph_pools_iops:total
