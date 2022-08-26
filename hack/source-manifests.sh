@@ -42,10 +42,10 @@ function dump_noobaa_csv() {
 
 	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
 	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
+	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) >$NOOBAA_CSV
 	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
 	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $noobaa_crds_outdir/noobaa-crd.yaml
+	($IMAGE_RUN_CMD "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) >$noobaa_crds_outdir/noobaa-crd.yaml
 }
 
 # ==== DUMP ROOK YAMLS ====
@@ -60,16 +60,16 @@ function dump_rook_csv() {
 
 	crd_list=$(mktemp)
 	echo "Dumping rook csv using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
-	$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template > $ROOK_CSV
+	$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template >$ROOK_CSV
 	echo "Listing rook crds using command: $IMAGE_RUN_CMD --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/"
-	$IMAGE_RUN_CMD --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ > "$crd_list"
+	$IMAGE_RUN_CMD --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ >"$crd_list"
 	# shellcheck disable=SC2013
 	for i in $(cat "$crd_list"); do
-	        # shellcheck disable=SC2059
+		# shellcheck disable=SC2059
 		crd_file=$(printf ${rook_crds_dir}/"$i" | tr -d '[:space:]')
 		echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $crd_file"
-		($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $rook_crds_outdir/"$(basename "$crd_file")"
-	done;
+		($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") >$rook_crds_outdir/"$(basename "$crd_file")"
+	done
 	rm -f "$crd_list"
 }
 
@@ -90,7 +90,7 @@ function gen_ocs_csv() {
 	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
 	popd
 	$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --version "$CSV_VERSION"
-	mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
+	mv bundle/manifests/*clusterserviceversion.yaml $OCS_CSV
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
@@ -103,8 +103,7 @@ gen_ocs_csv
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
-
-mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/manifests $OCS_FINAL_DIR
-mv "$GOPATH"/src/github.com/openshift/ocs-operator/bundle/metadata "$(dirname $OCS_FINAL_DIR)"/metadata
-rm -rf "$GOPATH"/src/github.com/openshift/ocs-operator/bundle
-rm "$GOPATH"/src/github.com/openshift/ocs-operator/bundle.Dockerfile
+mv bundle/manifests $OCS_FINAL_DIR
+mv bundle/metadata "$(dirname $OCS_FINAL_DIR)"/metadata
+rm -rf bundle
+rm bundle.Dockerfile

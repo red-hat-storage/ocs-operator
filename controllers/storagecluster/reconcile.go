@@ -635,11 +635,22 @@ func (r *StorageClusterReconciler) ensureJobTemplates(sc *ocsv1.StorageCluster, 
 				DisplayName: "OSD IDs",
 				Required:    true,
 				Description: `
-The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs 
-when a single job removes multiple OSDs. 
-If the expected comma-separated format is not used, 
-or an ID cannot be converted to an int, 
+The parameter OSD IDs needs a comma-separated list of numerical FAILED_OSD_IDs
+when a single job removes multiple OSDs.
+If the expected comma-separated format is not used,
+or an ID cannot be converted to an int,
 or if an OSD ID is not found, errors will be generated in the log and no OSDs would be removed.`,
+			},
+			{
+				Name:        "FORCE_OSD_REMOVAL",
+				DisplayName: "Force OSD Removal",
+				Required:    false,
+				Value:       "false",
+				Description: `
+A flag indicating whether the OSD should be forcefully removed. Valid values are true or false.
+The default value is false. If an OSD is being removed that could lead to data loss, the OSD
+will not be removed by default. If you see the osd removal fails and you are sure the OSD
+should be removed, set this flag to true and run the job again.`,
 			},
 		}
 		return controllerutil.SetControllerReference(sc, osdCleanUpTemplate, r.Scheme)
@@ -696,6 +707,8 @@ func newCleanupJob(sc *ocsv1.StorageCluster) *batchv1.Job {
 								"osd",
 								"remove",
 								"--osd-ids=${FAILED_OSD_IDS}",
+								"--force-osd-removal",
+								"${FORCE_OSD_REMOVAL}",
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
