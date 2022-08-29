@@ -1,0 +1,214 @@
+package storagecluster
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/go-logr/logr"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	corev1 "k8s.io/api/core/v1"
+	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	RookCephMonSecretName = "rook-ceph-mon"
+	FsidKey               = "fsid"
+	OdfOperatorNamePrefix = "odf-operator"
+	ClusterClaimCRDName   = "clusterclaims.cluster.open-cluster-management.io"
+)
+
+var (
+	ClusterClaimGroup  = "odf"
+	OdfVersion         = fmt.Sprintf("version.%s.openshift.io", ClusterClaimGroup)
+	StorageSystemName  = fmt.Sprintf("storagesystemname.%s.openshift.io", ClusterClaimGroup)
+	StorageClusterName = fmt.Sprintf("storageclustername.%s.openshift.io", ClusterClaimGroup)
+	CephFsid           = fmt.Sprintf("cephfsid.%s.openshift.io", ClusterClaimGroup)
+)
+
+type ocsClusterClaim struct{}
+
+type ClusterClaimCreator struct {
+	Context        context.Context
+	Logger         logr.Logger
+	Client         client.Client
+	Values         map[string]string
+	StorageCluster *ocsv1.StorageCluster
+}
+
+func doesClusterClaimCrdExist(ctx context.Context, client client.Client) (bool, error) {
+	crd := extensionsv1.CustomResourceDefinition{}
+	err := client.Get(ctx, types.NamespacedName{Name: ClusterClaimCRDName}, &crd)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	ctx := context.TODO()
+	if crdExists, err := doesClusterClaimCrdExist(ctx, r.Client); !crdExists {
+		if err != nil {
+			r.Log.Error(err, "An error has occurred while fetching customresourcedefinition", "CustomResourceDefinition", ClusterClaimCRDName)
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	}
+
+	creator := ClusterClaimCreator{
+		Logger:         r.Log,
+		Context:        ctx,
+		Client:         r.Client,
+		Values:         make(map[string]string),
+		StorageCluster: instance,
+	}
+
+	odfVersion, err := creator.getOdfVersion()
+	if err != nil {
+		r.Log.Error(err, "failed to get odf version for operator. retrying again")
+		return reconcile.Result{}, err
+	}
+
+	cephFsid, err := creator.getCephFsid()
+	if err != nil {
+		r.Log.Error(err, "failed to get ceph fsid from secret. retrying again")
+		return reconcile.Result{}, err
+	}
+
+	storageSystemName, err := creator.getStorageSystemName()
+	if err != nil {
+		r.Log.Error(err, "failed to get storagesystem name. retrying again")
+		return reconcile.Result{}, err
+	}
+
+	err = creator.setStorageSystemName(storageSystemName).
+		setStorageClusterName(instance.Name).
+		setOdfVersion(odfVersion).
+		setCephFsid(cephFsid).
+		create()
+
+	return reconcile.Result{}, err
+}
+
+func (c *ClusterClaimCreator) create() error {
+	for name, value := range c.Values {
+		cc := clusterv1alpha1.ClusterClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: clusterv1alpha1.ClusterClaimSpec{
+				Value: value,
+			},
+		}
+
+		_, err := controllerutil.CreateOrUpdate(c.Context, c.Client, &cc, func() error {
+			return nil
+		})
+
+		if err != nil {
+			c.Logger.Info("failed to create/update clusterclaim", "ClusterClaim", name)
+			return err
+		}
+
+		c.Logger.Info("created clusterclaim", "ClusterClaim", cc.Name)
+	}
+	return nil
+}
+func (c *ClusterClaimCreator) getOdfVersion() (string, error) {
+	var csvs operatorsv1alpha1.ClusterServiceVersionList
+	err := c.Client.List(c.Context, &csvs, &client.ListOptions{Namespace: c.StorageCluster.Namespace})
+	if err != nil {
+		return "", err
+	}
+
+	for _, csv := range csvs.Items {
+		if strings.HasPrefix(csv.Name, OdfOperatorNamePrefix) {
+			return csv.Name, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find csv with prefix %q", OdfOperatorNamePrefix)
+}
+
+func (c *ClusterClaimCreator) getCephFsid() (string, error) {
+	var rookCephMonSecret corev1.Secret
+	err := c.Client.Get(c.Context, types.NamespacedName{Name: RookCephMonSecretName, Namespace: c.StorageCluster.Namespace}, &rookCephMonSecret)
+	if err != nil {
+		return "", err
+	}
+	if val, ok := rookCephMonSecret.Data[FsidKey]; ok {
+		return string(val), nil
+	}
+
+	return "", fmt.Errorf("failed to fetch ceph fsid from %q secret", RookCephMonSecretName)
+}
+
+func (c *ClusterClaimCreator) setStorageSystemName(name string) *ClusterClaimCreator {
+	c.Values[StorageSystemName] = name
+	return c
+}
+
+func (c *ClusterClaimCreator) setOdfVersion(version string) *ClusterClaimCreator {
+	c.Values[OdfVersion] = version
+	return c
+}
+
+func (c *ClusterClaimCreator) setStorageClusterName(name string) *ClusterClaimCreator {
+	c.Values[StorageClusterName] = name
+	return c
+}
+
+func (c *ClusterClaimCreator) setCephFsid(fsid string) *ClusterClaimCreator {
+	c.Values[CephFsid] = fsid
+	return c
+}
+
+func (c *ClusterClaimCreator) getStorageSystemName() (string, error) {
+	for _, ref := range c.StorageCluster.OwnerReferences {
+		if ref.Kind == "StorageSystem" {
+			return ref.Name, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find parent StorageSystem's name in StorageCluster %q ownerreferences", c.StorageCluster.Name)
+}
+
+func (obj *ocsClusterClaim) ensureDeleted(r *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
+	r.Log.Info("deleting ClusterClaim resources")
+	ctx := context.TODO()
+	if crdExists, err := doesClusterClaimCrdExist(ctx, r.Client); !crdExists {
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	}
+	names := []string{OdfVersion, StorageSystemName, StorageClusterName, CephFsid}
+	for _, name := range names {
+		cc := clusterv1alpha1.ClusterClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+		}
+		err := r.Client.Delete(context.TODO(), &cc)
+		if errors.IsNotFound(err) {
+			continue
+		} else if err != nil {
+			r.Log.Error(err, "failed to delete ClusterClaim", "ClusterClaim", cc.Name)
+			return reconcile.Result{}, fmt.Errorf("failed to delete %v: %v", cc.Name, err)
+		}
+	}
+
+	return reconcile.Result{}, nil
+}
