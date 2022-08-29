@@ -53,6 +53,7 @@ replace (
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3 // required by rook v1.7
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20201203102015-275406142edb // required for Quickstart CRD
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook v1.7
+	github.com/rook/rook => github.com/red-hat-storage/rook v1.1.0-beta.0.0.20220823164057-e89284d08921
 	k8s.io/api => k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.3
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.3

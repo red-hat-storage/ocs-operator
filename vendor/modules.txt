@@ -69,24 +69,24 @@ github.com/ghodss/yaml
 github.com/go-logr/logr
 # github.com/go-logr/zapr v0.4.0
 github.com/go-logr/zapr
-# github.com/go-openapi/analysis v0.19.10
+# github.com/go-openapi/analysis v0.19.5
 github.com/go-openapi/analysis
 github.com/go-openapi/analysis/internal
-# github.com/go-openapi/errors v0.19.4
+# github.com/go-openapi/errors v0.19.2
 github.com/go-openapi/errors
 # github.com/go-openapi/jsonpointer v0.19.3
 github.com/go-openapi/jsonpointer
 # github.com/go-openapi/jsonreference v0.19.3
 github.com/go-openapi/jsonreference
-# github.com/go-openapi/loads v0.19.5
+# github.com/go-openapi/loads v0.19.4
 github.com/go-openapi/loads
-# github.com/go-openapi/runtime v0.19.15
+# github.com/go-openapi/runtime v0.19.4
 github.com/go-openapi/runtime
 # github.com/go-openapi/spec v0.19.8
 github.com/go-openapi/spec
 # github.com/go-openapi/strfmt v0.19.5
 github.com/go-openapi/strfmt
-# github.com/go-openapi/swag v0.19.10
+# github.com/go-openapi/swag v0.19.5
 github.com/go-openapi/swag
 # github.com/go-openapi/validate v0.19.8
 github.com/go-openapi/validate
@@ -185,7 +185,7 @@ github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1
 github.com/libopenstorage/secrets
 github.com/libopenstorage/secrets/vault
 github.com/libopenstorage/secrets/vault/utils
-# github.com/mailru/easyjson v0.7.1
+# github.com/mailru/easyjson v0.7.0
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
@@ -337,7 +337,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rook/rook v1.8.3
+# github.com/rook/rook v1.8.3 => github.com/red-hat-storage/rook v1.1.0-beta.0.0.20220823164057-e89284d08921
 ## explicit
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -873,6 +873,7 @@ sigs.k8s.io/yaml
 # github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
 # github.com/openshift/api => github.com/openshift/api v0.0.0-20201203102015-275406142edb
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
+# github.com/rook/rook => github.com/red-hat-storage/rook v1.1.0-beta.0.0.20220823164057-e89284d08921
 # k8s.io/api => k8s.io/api v0.21.3
 # k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.3
 # k8s.io/apimachinery => k8s.io/apimachinery v0.21.3
