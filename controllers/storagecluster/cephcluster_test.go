@@ -525,6 +525,8 @@ func TestKMSConfigChanges(t *testing.T) {
 		// backward compatible test
 		{testLabel: "case 7", kmsProvider: VaultKMSProvider,
 			enabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
+		{testLabel: "case 8", kmsProvider: ThalesKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:5671"},
 	}
 	for _, kmsArgs := range validKMSArgs {
 		t.Run(kmsArgs.testLabel, func(t *testing.T) {
@@ -595,6 +597,8 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 		}
 		if kmsArgs.authMethod == VaultTokenAuthMethod {
 			assert.Equal(t, KMSTokenSecretName, cephCluster.Spec.Security.KeyManagementService.TokenSecretName, "Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel)
+		} else if kmsArgs.kmsProvider == IbmKeyProtectKMSProvider || kmsArgs.kmsProvider == ThalesKMSProvider {
+			assert.Equal(t, kmsCM.Data[kmsProviderSecretKeyMap[kmsArgs.kmsProvider]], cephCluster.Spec.Security.KeyManagementService.TokenSecretName, "Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel)
 		}
 	}
 }

@@ -447,6 +447,8 @@ func TestNoobaaKMSConfiguration(t *testing.T) {
 		// enabling only  cluster wide encryption and not kms
 		{testLabel: "case 10", kmsProvider: VaultKMSProvider, kmsDisabled: true,
 			clusterWideEncryption: true, kmsAddress: "http://localhost:5043", authMethod: VaultTokenAuthMethod},
+		{testLabel: "case 11", kmsProvider: ThalesKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:5673"},
 	}
 	for _, kmsArgs := range allKMSArgs {
 		assertNoobaaKMSConfiguration(t, kmsArgs)
@@ -538,6 +540,8 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 			}
 			if kmsArgs.authMethod == VaultTokenAuthMethod {
 				assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
+			} else if kmsArgs.kmsProvider == IbmKeyProtectKMSProvider || kmsArgs.kmsProvider == ThalesKMSProvider {
+				assert.Equal(t, kmsCM.Data[kmsProviderSecretKeyMap[kmsArgs.kmsProvider]], cephCluster.Spec.Security.KeyManagementService.TokenSecretName, "Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel)
 			}
 		}
 	} else {

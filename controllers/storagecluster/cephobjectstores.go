@@ -204,8 +204,9 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 
 			// skip if KMS_PROVIDER is ibmkeyprotect or VAULT_AUTH_METHOD is kubernetes, not supported for RGW
 			if kmsConfigMap.Data["KMS_PROVIDER"] == IbmKeyProtectKMSProvider ||
+				kmsConfigMap.Data["KMS_PROVIDER"] == ThalesKMSProvider ||
 				kmsConfigMap.Data["VAULT_AUTH_METHOD"] == VaultSAAuthMethod {
-				r.Log.Info("IBMKeyProtect as KMS provider or Vault authentication via Service Account is unsupported configuration for RGW KMS, hence skipping")
+				r.Log.Info("IBMKeyProtect/Thales as KMS provider or Vault authentication via Service Account is unsupported configuration for RGW KMS, hence skipping")
 				continue
 			}
 			// Set default KMS_PROVIDER and VAULT_SECRET_ENGINE values, refer https://issues.redhat.com/browse/RHSTOR-1963

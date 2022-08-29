@@ -438,12 +438,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 
 	// if kmsConfig is not 'nil', add the KMS details to CephCluster spec
 	if kmsConfigMap != nil {
-		// Set default KMS_PROVIDER. Possible values are: vault, ibmkeyprotect.
+		// Set default KMS_PROVIDER. Possible values are: vault, ibmkeyprotect, kmip.
 		if _, ok := kmsConfigMap.Data["KMS_PROVIDER"]; !ok {
 			kmsConfigMap.Data["KMS_PROVIDER"] = VaultKMSProvider
 		}
+		var kmsProviderName = kmsConfigMap.Data["KMS_PROVIDER"]
 		// vault as a KMS service provider
-		if kmsConfigMap.Data["KMS_PROVIDER"] == VaultKMSProvider {
+		if kmsProviderName == VaultKMSProvider {
 			// Set default VAULT_SECRET_ENGINE values
 			if _, ok := kmsConfigMap.Data["VAULT_SECRET_ENGINE"]; !ok {
 				kmsConfigMap.Data["VAULT_SECRET_ENGINE"] = "kv"
@@ -457,9 +458,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				// Secret is created by UI in "openshift-storage" namespace
 				cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 			}
-		} else if kmsConfigMap.Data["KMS_PROVIDER"] == IbmKeyProtectKMSProvider {
+		} else if kmsProviderName == IbmKeyProtectKMSProvider || kmsProviderName == ThalesKMSProvider {
 			// Secret is created by UI in "openshift-storage" namespace
-			cephCluster.Spec.Security.KeyManagementService.TokenSecretName = kmsConfigMap.Data["IBM_KP_SECRET_NAME"]
+			cephCluster.Spec.Security.KeyManagementService.TokenSecretName = kmsConfigMap.Data[kmsProviderSecretKeyMap[kmsProviderName]]
 		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 	}
