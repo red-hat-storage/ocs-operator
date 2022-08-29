@@ -126,6 +126,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	}
 
 	var cephCluster *rookCephv1.CephCluster
+	var err error
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
 		extRArr, ok := externalOCSResources[sc.UID]
@@ -172,9 +173,15 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 					return reconcile.Result{}, err
 				}
 			}
-			cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, r.Log)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		} else {
-			cephCluster = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, nil, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, nil, r.Log)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -351,9 +358,20 @@ func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) *rookCephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
 	labels := map[string]string{
 		"app": sc.Name,
+	}
+
+	maxLogSize, err := resource.ParseQuantity("500Mi")
+	if err != nil {
+		return &rookCephv1.CephCluster{}, fmt.Errorf("Failed to parse maxLogSize for log rotate. %v", err)
+	}
+
+	logCollector := rookCephv1.LogCollectorSpec{
+		Enabled:     true,
+		Periodicity: "daily",
+		MaxLogSize:  &maxLogSize,
 	}
 
 	cephCluster := &rookCephv1.CephCluster{
@@ -398,14 +416,20 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			},
 			Resources: newCephDaemonResources(sc),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
-			LogCollector: rookCephv1.LogCollectorSpec{
-				Enabled:     true,
-				Periodicity: "24h",
-			},
+			LogCollector: logCollector,
 			Labels: rookCephv1.LabelsSpec{
 				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
 			},
 		},
+	}
+
+	if sc.Spec.LogCollector != nil {
+		if sc.Spec.LogCollector.Periodicity != "" {
+			cephCluster.Spec.LogCollector.Periodicity = sc.Spec.LogCollector.Periodicity
+		}
+		if sc.Spec.LogCollector.MaxLogSize != nil {
+			cephCluster.Spec.LogCollector.MaxLogSize = sc.Spec.LogCollector.MaxLogSize
+		}
 	}
 
 	monPVCTemplate := sc.Spec.MonPVCTemplate
@@ -463,7 +487,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 	}
-	return cephCluster
+	return cephCluster, nil
 }
 
 func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {

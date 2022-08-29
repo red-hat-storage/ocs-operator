@@ -926,6 +926,10 @@ spec:
                         type: object
                     type: object
                 type: object
+              hostNetwork:
+                nullable: true
+                type: boolean
+                x-kubernetes-preserve-unknown-fields: true
               metadataPool:
                 nullable: true
                 properties:
