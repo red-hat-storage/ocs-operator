@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
@@ -33,6 +36,10 @@ const (
 	UpdateCapacity        = "UpdateCapacity"
 	GetStorageConfig      = "GetStorageConfig"
 	AcknowledgeOnboarding = "AcknowledgeOnboarding"
+)
+
+const (
+	NamespaceEnvVar = "NAMESPACE"
 )
 
 // IsOCSConsumerMode returns true if it is ocs to ocs ExternalStorage consumer cluster
@@ -110,6 +117,56 @@ func (r *StorageClusterReconciler) acknowledgeOnboarding(instance *ocsv1.Storage
 
 	r.Log.Info("External-OCS:Onboarding is acknowledged successfully.")
 	return reconcile.Result{Requeue: true}, nil
+}
+
+func (r *StorageClusterReconciler) reconcileConsumerStatusReporterJob(instance *ocsv1.StorageCluster, externalClusterClient *externalClient.OCSProviderClient) (reconcile.Result, error) {
+	// start the cronJob to ping the provider api server
+	cronJob := &batchv1.CronJob{}
+	cronJob.Name = "report-status-to-provider"
+	cronJob.Namespace = instance.Namespace
+
+	_, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, cronJob, func() error {
+		if err := controllerutil.SetOwnerReference(instance, cronJob, r.Client.Scheme()); err != nil {
+			return fmt.Errorf("Failed to set owner reference: %v", err)
+		}
+		cronJob.Spec = batchv1.CronJobSpec{
+			Schedule: "* * * * *",
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "heartbeat",
+									Image: os.Getenv(providerAPIServerImage),
+									Command: []string{
+										"/usr/local/bin/status-reporter",
+									},
+									Env: []corev1.EnvVar{
+										{
+											Name: NamespaceEnvVar,
+											ValueFrom: &corev1.EnvVarSource{
+												FieldRef: &corev1.ObjectFieldSelector{
+													FieldPath: "metadata.namespace",
+												},
+											},
+										},
+									},
+								},
+							},
+							RestartPolicy:      corev1.RestartPolicyOnFailure,
+							ServiceAccountName: "ocs-status-reporter",
+						},
+					},
+				},
+			},
+		}
+		return nil
+	})
+	if err != nil {
+		return reconcile.Result{Requeue: true}, fmt.Errorf("Failed to update cronJob: %v", err)
+	}
+	return reconcile.Result{}, nil
 }
 
 // offboardConsumer makes an API call to the external storage provider cluster for offboarding

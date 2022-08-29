@@ -66,6 +66,8 @@ type StorageConsumerStatus struct {
 	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
+	// Timestamp of last heartbeat received from consumer
+	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
 }
 
 //+kubebuilder:object:root=true

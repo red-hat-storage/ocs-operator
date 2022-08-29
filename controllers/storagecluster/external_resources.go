@@ -262,6 +262,10 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 			}
 		}
 
+		if res, err := r.reconcileConsumerStatusReporterJob(instance, externalClusterClient); err != nil {
+			return res, err
+		}
+
 		if externalOCSResources[instance.UID] == nil {
 			externalConfig, res, err := r.getExternalConfigFromProvider(instance, externalClusterClient)
 			if err != nil || !res.IsZero() {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -195,4 +196,17 @@ func (cc *OCSProviderClient) GetStorageClassClaimConfig(ctx context.Context, con
 	defer cancel()
 
 	return cc.Client.GetStorageClassClaimConfig(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID string) (*pb.ReportStatusResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("Provider client is closed")
+	}
+	req := &pb.ReportStatusRequest{
+		StorageConsumerUUID: consumerUUID,
+	}
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.ReportStatus(apiCtx, req)
 }

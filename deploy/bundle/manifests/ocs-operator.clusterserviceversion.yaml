@@ -1618,6 +1618,16 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          verbs:
+          - create
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - ceph.rook.io
           resources:
           - cephblockpools
