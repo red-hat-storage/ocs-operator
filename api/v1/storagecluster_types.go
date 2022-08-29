@@ -88,6 +88,11 @@ type StorageClusterSpec struct {
 	// Defaults to false
 	// +optional
 	EnableCephTools bool `json:"enableCephTools,omitempty"`
+
+	// Logging represents loggings settings
+	// +optional
+	// +nullable
+	LogCollector *rookCephv1.LogCollectorSpec `json:"logCollector,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS

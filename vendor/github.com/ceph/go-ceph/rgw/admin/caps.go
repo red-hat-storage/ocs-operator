@@ -1,6 +1,3 @@
-//go:build ceph_preview
-// +build ceph_preview
-
 package admin
 
 import (
@@ -11,7 +8,6 @@ import (
 )
 
 // AddUserCap adds the capabilities for a user.
-//  PREVIEW
 //
 // On Success, it returns the updated list of UserCaps for the user.
 func (api *API) AddUserCap(ctx context.Context, uid, userCap string) ([]UserCapSpec, error) {
@@ -23,7 +19,7 @@ func (api *API) AddUserCap(ctx context.Context, uid, userCap string) ([]UserCapS
 	}
 
 	user := User{ID: uid, UserCaps: userCap}
-	body, err := api.call(ctx, http.MethodPut, "/user?caps", valueToURLParams(user))
+	body, err := api.call(ctx, http.MethodPut, "/user?caps", valueToURLParams(user, []string{"uid", "user-caps"}))
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +34,6 @@ func (api *API) AddUserCap(ctx context.Context, uid, userCap string) ([]UserCapS
 }
 
 // RemoveUserCap removes the capabilities from a user.
-//  PREVIEW
 //
 // On Success, it returns the updated list of UserCaps for the user.
 func (api *API) RemoveUserCap(ctx context.Context, uid, userCap string) ([]UserCapSpec, error) {
@@ -50,7 +45,7 @@ func (api *API) RemoveUserCap(ctx context.Context, uid, userCap string) ([]UserC
 	}
 
 	user := User{ID: uid, UserCaps: userCap}
-	body, err := api.call(ctx, http.MethodDelete, "/user?caps", valueToURLParams(user))
+	body, err := api.call(ctx, http.MethodDelete, "/user?caps", valueToURLParams(user, []string{"uid", "user-caps"}))
 	if err != nil {
 		return nil, err
 	}

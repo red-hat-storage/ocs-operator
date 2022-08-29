@@ -75,7 +75,8 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		reconciler := createFakeStorageClusterReconciler(t)
 
-		expected := newCephCluster(mockStorageCluster.DeepCopy(), "", 3, reconciler.serverVersion, nil, log)
+		expected, err := newCephCluster(mockStorageCluster.DeepCopy(), "", 3, reconciler.serverVersion, nil, log)
+		assert.NilError(t, err)
 		expected.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 		expected.Status.State = c.cephClusterState
 
@@ -108,7 +109,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		}
 
 		var obj ocsCephCluster
-		_, err := obj.ensureCreated(&reconciler, sc)
+		_, err = obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
 		actual := &cephv1.CephCluster{}
@@ -196,7 +197,8 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
-		cc := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+		cc, err := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+		assert.NilError(t, err)
 		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
 		assert.NilError(t, err)
 		if c.platform == v1.IBMCloudPlatformType || c.platform == IBMCloudCosPlatformType {
@@ -261,7 +263,8 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 		c.sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		actual := newCephCluster(c.sc, "", 3, serverVersion, nil, log)
+		actual, err := newCephCluster(c.sc, "", 3, serverVersion, nil, log)
+		assert.NilError(t, err)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
@@ -963,4 +966,38 @@ func TestGetCephClusterMonitoringLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLogCollector(t *testing.T) {
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	maxLogSize, err := resource.ParseQuantity("500Mi")
+	assert.NilError(t, err)
+
+	defaultLogCollector := cephv1.LogCollectorSpec{
+		Enabled:     true,
+		Periodicity: "daily",
+		MaxLogSize:  &maxLogSize,
+	}
+
+	sc.Spec.LogCollector = &defaultLogCollector
+
+	r := createFakeStorageClusterReconciler(t)
+	actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
+
+	// when disabled in storageCluster
+	sc.Spec.LogCollector = &cephv1.LogCollectorSpec{}
+	actual, err = newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
+
+	maxLogSize, err = resource.ParseQuantity("6Gi")
+	assert.NilError(t, err)
+	sc.Spec.LogCollector.MaxLogSize = &maxLogSize
+
+	actual, err = newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, actual.Spec.LogCollector.MaxLogSize, &maxLogSize)
 }

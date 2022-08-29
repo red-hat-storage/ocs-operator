@@ -227,9 +227,13 @@ type LogCollectorSpec struct {
 	// Enabled represents whether the log collector is enabled
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
-	// Periodicity is the periodicity of the log rotation
+	// Periodicity is the periodicity of the log rotation.
+	// +kubebuilder:validation:Pattern=`^$|^(hourly|daily|weekly|monthly|1h|24h|1d)$`
 	// +optional
 	Periodicity string `json:"periodicity,omitempty"`
+	// MaxLogSize is the maximum size of the log per ceph daemons. Must be at least 1M.
+	// +optional
+	MaxLogSize *resource.Quantity `json:"maxLogSize,omitempty"`
 }
 
 // SecuritySpec is security spec to include various security items such as kms
@@ -1321,6 +1325,12 @@ type ObjectStoreSpec struct {
 	// +optional
 	// +nullable
 	Security *SecuritySpec `json:"security,omitempty"`
+
+	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // BucketHealthCheckSpec represents the health check of an object store
@@ -1568,13 +1578,13 @@ type CephObjectRealmList struct {
 
 // ObjectRealmSpec represent the spec of an ObjectRealm
 type ObjectRealmSpec struct {
-	Pull PullSpec `json:"pull"`
+	Pull PullSpec `json:"pull,omitempty"`
 }
 
 // PullSpec represents the pulling specification of a Ceph Object Storage Gateway Realm
 type PullSpec struct {
 	// +kubebuilder:validation:Pattern=`^https*://`
-	Endpoint string `json:"endpoint"`
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
