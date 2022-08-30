@@ -18,6 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	storageClassSkippedError = "some StorageClasses were skipped while waiting for pre-requisites to be met"
+)
+
 // StorageClassConfiguration provides configuration options for a StorageClass.
 type StorageClassConfiguration struct {
 	storageClass      *storagev1.StorageClass
@@ -169,7 +173,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		}
 	}
 	if len(skippedSC) > 0 {
-		return fmt.Errorf("some StorageClasses [%s] were skipped while waiting for pre-requisites to be met", strings.Join(skippedSC, ","))
+		return fmt.Errorf("%s: [%s]", storageClassSkippedError, strings.Join(skippedSC, ","))
 	}
 	return nil
 }
