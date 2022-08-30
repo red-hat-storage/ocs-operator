@@ -2986,7 +2986,7 @@ spec:
                 - name: ROOK_CSI_NFS_IMAGE
                   value: k8s.gcr.io/sig-storage/nfsplugin:v3.1.0
                 - name: CSI_ENABLE_METADATA
-                  value: "true"
+                  value: "false"
                 - name: CSI_CLUSTER_NAME
                   valueFrom:
                     configMapKeyRef:

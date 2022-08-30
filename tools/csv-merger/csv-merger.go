@@ -246,7 +246,7 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			},
 			{
 				Name:  "CSI_ENABLE_METADATA",
-				Value: "true",
+				Value: "false",
 			},
 			{
 				Name: "CSI_CLUSTER_NAME",
