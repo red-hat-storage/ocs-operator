@@ -75,6 +75,8 @@ ceph_commands+=("ceph service dump")
 ceph_commands+=("ceph status")
 ceph_commands+=("ceph time-sync-status")
 ceph_commands+=("ceph versions")
+ceph_commands+=("ceph log last 10000 debug cluster")
+ceph_commands+=("ceph log last 10000 debug audit")
 
 # Ceph volume commands
 ceph_volume_commands+=()
