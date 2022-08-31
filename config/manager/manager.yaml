@@ -41,4 +41,11 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+              drop:
+                - all
       terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
