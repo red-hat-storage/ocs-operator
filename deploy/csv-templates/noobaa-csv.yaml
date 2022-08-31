@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{},"security":{"kms":{}}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"NamespaceStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{},"status":{}},{"kind":"NooBaaAccount","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"allow_bucket_creation":false,"allowed_buckets":{"full_permission":false,"permission_list":null}},"status":{}}]'
+    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{},"security":{"kms":{}},"loadBalancerSourceSubnets":{}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"NamespaceStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{},"status":{}},{"kind":"NooBaaAccount","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"allow_bucket_creation":false,"allowed_buckets":{"full_permission":false,"permission_list":null}},"status":{}}]'
     capabilities: Basic Install
     categories: Storage,Big Data
     certified: "false"
@@ -594,6 +594,12 @@ spec:
           - get
           - update
           - list
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - '*'
         serviceAccountName: noobaa
       deployments:
       - name: noobaa-operator
@@ -646,12 +652,6 @@ spec:
           - noobaa.io
           resources:
           - '*'
-          - noobaas
-          - backingstores
-          - bucketclasses
-          - noobaas/finalizers
-          - backingstores/finalizers
-          - bucketclasses/finalizers
           verbs:
           - '*'
         - apiGroups:
@@ -771,58 +771,12 @@ spec:
           - watch
           - delete
         - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - noobaa
+          - rbac.authorization.k8s.io
           resources:
-          - securitycontextconstraints
+          - '*'
           verbs:
-          - use
+          - '*'
         serviceAccountName: noobaa
-      - rules:
-        - apiGroups:
-          - noobaa.io
-          resources:
-          - '*'
-          - noobaas
-          - backingstores
-          - bucketclasses
-          - noobaas/finalizers
-          - backingstores/finalizers
-          - bucketclasses/finalizers
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          - services
-          - endpoints
-          - persistentvolumeclaims
-          - events
-          - configmaps
-          - secrets
-          - serviceaccounts
-          verbs:
-          - '*'
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          - daemonsets
-          - replicasets
-          - statefulsets
-          verbs:
-          - '*'
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - noobaa-endpoint
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - use
-        serviceAccountName: noobaa-endpoint
       - rules:
         - apiGroups:
           - noobaa.io
@@ -924,6 +878,8 @@ spec:
       - v1alpha1
       operations:
       - DELETE
+      - CREATE
+      - UPDATE
       resources:
       - noobaas
       scope: Namespaced
