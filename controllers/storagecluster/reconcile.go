@@ -434,6 +434,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
 
 			if instance.Status.Phase != statusutil.PhaseOnboarding {
+				// if the error was due to skipped storage classes
+				// instead of error phase we will set it to progressing
+				if strings.Contains(returnErr.Error(), storageClassSkippedError) {
+					instance.Status.Phase = statusutil.PhaseProgressing
+					return reconcile.Result{Requeue: true}, nil
+				}
 				instance.Status.Phase = statusutil.PhaseError
 			}
 
