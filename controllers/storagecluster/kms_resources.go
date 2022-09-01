@@ -33,12 +33,20 @@ const (
 	VaultSAAuthMethod = "kubernetes"
 	// IbmKeyProtectKMSProvider a constant to represent IBM hpcs KMS provider
 	IbmKeyProtectKMSProvider = "ibmkeyprotect"
+	// ThalesKMSProvider a constant to represent Thales (using KMIP) KMS provider
+	ThalesKMSProvider = "kmip"
 )
 
 var (
 	// currently supported KMS providers mapped to their address key
 	kmsProviderAddressKeyMap = map[string]string{
-		VaultKMSProvider: "VAULT_ADDR",
+		VaultKMSProvider:  "VAULT_ADDR",
+		ThalesKMSProvider: "KMIP_ENDPOINT",
+	}
+	// Mapping of KMS providers and key where corresponding Secret name is stored
+	kmsProviderSecretKeyMap = map[string]string{
+		IbmKeyProtectKMSProvider: "IBM_KP_SECRET_NAME",
+		ThalesKMSProvider:        "KMIP_SECRET_NAME",
 	}
 )
 

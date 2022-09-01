@@ -191,12 +191,13 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		if kmsConfig, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client); err != nil {
 			return err
 		} else if kmsConfig != nil {
-			// Set default KMS_PROVIDER, if it is empty. Possible values are: vault, ibmkeyprotect.
+			// Set default KMS_PROVIDER, if it is empty. Possible values are: vault, ibmkeyprotect, kmip.
 			if kmsConfig.Data["KMS_PROVIDER"] == "" {
 				kmsConfig.Data["KMS_PROVIDER"] = VaultKMSProvider
 			}
+			var kmsProviderName = kmsConfig.Data["KMS_PROVIDER"]
 			// vault as a KMS service provider
-			if kmsConfig.Data["KMS_PROVIDER"] == VaultKMSProvider {
+			if kmsProviderName == VaultKMSProvider {
 				// Set default VAULT_AUTH_METHOD. Possible values are: token, kubernetes.
 				if kmsConfig.Data["VAULT_AUTH_METHOD"] == "" {
 					kmsConfig.Data["VAULT_AUTH_METHOD"] = VaultTokenAuthMethod
@@ -206,9 +207,9 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 					// Secret is created by UI in "openshift-storage" namespace
 					nb.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 				}
-			} else if kmsConfig.Data["KMS_PROVIDER"] == IbmKeyProtectKMSProvider {
+			} else if kmsProviderName == IbmKeyProtectKMSProvider || kmsProviderName == ThalesKMSProvider {
 				// Secret is created by UI in "openshift-storage" namespace
-				nb.Spec.Security.KeyManagementService.TokenSecretName = kmsConfig.Data["IBM_KP_SECRET_NAME"]
+				nb.Spec.Security.KeyManagementService.TokenSecretName = kmsConfig.Data[kmsProviderSecretKeyMap[kmsProviderName]]
 			}
 			nb.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfig.Data
 		}
