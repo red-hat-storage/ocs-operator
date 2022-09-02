@@ -18,29 +18,31 @@ const (
 	namespace = "ocs"
 )
 
+// RunCollector is a prometheus Collector object which additionally has a Run method
+type RunCollector interface {
+	prometheus.Collector
+	Run(stopCh <-chan struct{})
+}
+
 // RegisterCustomResourceCollectors registers the custom resource collectors
 // in the given prometheus.Registry
 // This is used to expose metrics about the Custom Resources
 func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *options.Options) {
-	cephObjectStoreCollector := NewCephObjectStoreCollector(opts)
-	cephBlockPoolCollector := NewCephBlockPoolCollector(opts)
-	cephClusterCollector := NewCephClusterCollector(opts)
-	OBMetricsCollector := NewObjectBucketCollector(opts)
-	clusterAdvanceFeatureCollector := NewClusterAdvancedFeatureCollector(opts)
-	cephObjectStoreCollector.Run(opts.StopCh)
-	cephBlockPoolCollector.Run(opts.StopCh)
-	cephClusterCollector.Run(opts.StopCh)
-	OBMetricsCollector.Run(opts.StopCh)
-	registry.MustRegister(
-		cephObjectStoreCollector,
-		cephBlockPoolCollector,
-		cephClusterCollector,
-		OBMetricsCollector,
-	)
-	if clusterAdvanceFeatureCollector != nil {
-		clusterAdvanceFeatureCollector.Run(opts.StopCh)
-		registry.MustRegister(clusterAdvanceFeatureCollector)
+	var allCollectors = []RunCollector{
+		NewCephObjectStoreCollector(opts),
+		NewCephBlockPoolCollector(opts),
+		NewCephClusterCollector(opts),
+		NewObjectBucketCollector(opts),
+		NewClusterAdvancedFeatureCollector(opts),
 	}
+	var nonNilCollectors []prometheus.Collector
+	for _, runCollector := range allCollectors {
+		if runCollector != nil {
+			runCollector.Run(opts.StopCh)
+			nonNilCollectors = append(nonNilCollectors, runCollector)
+		}
+	}
+	registry.MustRegister(nonNilCollectors...)
 }
 
 var pvStoreEnabled bool
