@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ -n "$(git status --porcelain api config/crd/bases)" ]]; then
  	git diff -u api config/crd/bases 
