@@ -46,6 +46,7 @@ spec:
       for: 5m
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.1_rhodf"
     - alert: CephMgrIsMissingReplicas
       annotations:
         description: Ceph Manager is missing replicas.
@@ -57,6 +58,7 @@ spec:
       for: 5m
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.2_rhodf"
   - name: ceph-mds-status
     rules:
     - alert: CephMdsMissingReplicas
@@ -70,6 +72,7 @@ spec:
       for: 5m
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.3_rhodf"
   - name: quorum-alert.rules
     rules:
     - alert: CephMonQuorumAtRisk
@@ -83,6 +86,7 @@ spec:
       for: 15m
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.4_rhodf"
     - alert: CephMonQuorumLost
       annotations:
         description: Storage cluster quorum is lost. Contact Support.
@@ -94,6 +98,7 @@ spec:
       for: 5m
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.5_rhodf"
     - alert: CephMonHighNumberOfLeaderChanges
       annotations:
         description: Ceph Monitor {{ $labels.ceph_daemon }} on host {{ $labels.hostname }} has seen {{ $value | printf "%.2f" }} leader changes per minute recently.
@@ -105,6 +110,7 @@ spec:
       for: 5m
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.6_rhodf"
   - name: ceph-node-alert.rules
     rules:
     - alert: CephNodeDown
@@ -118,6 +124,7 @@ spec:
       for: 30s
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.7_rhodf"
   - name: osd-alert.rules
     rules:
     - alert: CephOSDCriticallyFull
@@ -131,6 +138,7 @@ spec:
       for: 40s
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.8_rhodf"
     - alert: CephOSDFlapping
       annotations:
         description: Storage daemon {{ $labels.ceph_daemon }} has restarted 5 times in last 5 minutes. Please check the pod events or ceph status to find out the cause.
@@ -142,6 +150,7 @@ spec:
       for: 0s
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.9_rhodf"
     - alert: CephOSDNearFull
       annotations:
         description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{$labels.device_class}} has crossed 75% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{$labels.device_class}}.
@@ -153,6 +162,7 @@ spec:
       for: 40s
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.10_rhodf"
     - alert: CephOSDDiskNotResponding
       annotations:
         description: Disk device {{ $labels.device }} not responding, on host {{ $labels.host }}.
@@ -164,6 +174,7 @@ spec:
       for: 15m
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.11_rhodf"
     - alert: CephOSDDiskUnavailable
       annotations:
         description: Disk device {{ $labels.device }} not accessible on host {{ $labels.host }}.
@@ -175,6 +186,7 @@ spec:
       for: 1m
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.12_rhodf"
     - alert: CephOSDSlowOps
       annotations:
         description: '{{ $value }} Ceph OSD requests are taking too long to process. Please check ceph status to find out the cause.'
@@ -186,6 +198,7 @@ spec:
       for: 30s
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.13_rhodf"
     - alert: CephDataRecoveryTakingTooLong
       annotations:
         description: Data recovery has been active for too long. Contact Support.
@@ -197,6 +210,7 @@ spec:
       for: 2h
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.14_rhodf"
     - alert: CephPGRepairTakingTooLong
       annotations:
         description: Self heal operations taking too long. Contact Support.
@@ -208,6 +222,7 @@ spec:
       for: 1h
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.15_rhodf"
   - name: persistent-volume-alert.rules
     rules:
     - alert: PersistentVolumeUsageNearFull
@@ -221,6 +236,7 @@ spec:
       for: 5s
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.16_rhodf"
     - alert: PersistentVolumeUsageCritical
       annotations:
         description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed 85%. Free up some space or expand the PVC immediately.
@@ -232,6 +248,7 @@ spec:
       for: 5s
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.17_rhodf"
   - name: cluster-state-alert.rules
     rules:
     - alert: CephClusterErrorState
@@ -245,6 +262,7 @@ spec:
       for: 10m
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.18_rhodf"
     - alert: CephClusterWarningState
       annotations:
         description: Storage cluster is in warning state for more than 15m.
@@ -256,6 +274,7 @@ spec:
       for: 15m
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.19_rhodf"
     - alert: CephOSDVersionMismatch
       annotations:
         description: There are {{ $value }} different versions of Ceph OSD components running.
@@ -267,6 +286,7 @@ spec:
       for: 10m
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.20_rhodf"
     - alert: CephMonVersionMismatch
       annotations:
         description: There are {{ $value }} different versions of Ceph Mon components running.
@@ -278,6 +298,7 @@ spec:
       for: 10m
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.21_rhodf"
   - name: cluster-utilization-alert.rules
     rules:
     - alert: CephClusterNearFull
@@ -291,6 +312,7 @@ spec:
       for: 5s
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.22_rhodf"
     - alert: CephClusterCriticallyFull
       annotations:
         description: Storage cluster utilization has crossed 80% and will become read-only at 85%. Free up some space or expand the storage cluster immediately.
@@ -302,6 +324,7 @@ spec:
       for: 5s
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.23_rhodf"
     - alert: CephClusterReadOnly
       annotations:
         description: Storage cluster utilization has crossed 85% and will become read-only now. Free up some space or expand the storage cluster immediately.
@@ -313,6 +336,7 @@ spec:
       for: 0s
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.24_rhodf"
   - name: pool-quota.rules
     rules:
     - alert: CephPoolQuotaBytesNearExhaustion
@@ -326,6 +350,7 @@ spec:
       for: 1m
       labels:
         severity: warning
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.25_rhodf"
     - alert: CephPoolQuotaBytesCriticallyExhausted
       annotations:
         description: Storage pool {{ $labels.name }} quota usage has crossed 90%.
@@ -337,3 +362,4 @@ spec:
       for: 1m
       labels:
         severity: critical
+        documentation: "https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.12/html-single/troubleshooting_openshift_data_foundation/index#resolving-alerts-and-errors-6.1.26_rhodf"
