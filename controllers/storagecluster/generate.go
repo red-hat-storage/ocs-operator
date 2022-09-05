@@ -70,6 +70,10 @@ func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
 }
 
+func generateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
+}
+
 func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-ceph-rbd-encrypted", initData.Name)
 }

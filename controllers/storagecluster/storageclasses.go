@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -104,6 +106,35 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 					"CephBlockPool", klog.KRef(key.Name, key.Namespace),
 					"StorageClass", klog.KRef("", sc.Name),
 				)
+				skippedSC = append(skippedSC, sc.Name)
+				continue
+			}
+		case strings.Contains(sc.Name, "-ceph-non-resilient-rbd") && !scc.isClusterExternal:
+			// wait for CephBlockPools to be ready
+			cephBlockPools := cephv1.CephBlockPoolList{}
+			err := r.Client.List(context.TODO(), &cephBlockPools, client.InNamespace(sc.Parameters["clusterID"]))
+			if err != nil {
+				skippedSC = append(skippedSC, sc.Name)
+				continue
+			}
+			num := strings.Count(sc.Parameters["topologyConstrainedPools"], "poolName")
+			var counter = 0
+			// Waiting for all the non-resilient cephblockpools to be ready
+			for _, cephBlockPool := range cephBlockPools.Items {
+				// Do not count the default cephblockpools
+				if cephBlockPool.Spec.DeviceClass == "" || cephBlockPool.Spec.DeviceClass == "replicated" {
+					continue
+				}
+				if cephBlockPool.Status != nil && cephBlockPool.Status.Phase == cephv1.ConditionType(util.PhaseReady) {
+					counter++
+				} else {
+					r.Log.Info("Waiting for Non-resilient CephBlockPools to be Ready. Skip reconciling StorageClass",
+						"CephBlockPool", klog.KRef(cephBlockPool.Name, cephBlockPool.Namespace),
+						"StorageClass", klog.KRef("", sc.Name),
+					)
+				}
+			}
+			if counter < num {
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
@@ -249,6 +280,40 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	}
 }
 
+// newNonResilientCephBlockPoolStorageClassConfiguration generates configuration options for a Non-Resilient Ceph Block Pool StorageClass.
+func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
+	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
+	allowVolumeExpansion := true
+	return StorageClassConfiguration{
+		storageClass: &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: generateNameForNonResilientCephBlockPoolSC(initData),
+				Annotations: map[string]string{
+					"description": "Ceph Non Resilient Pools : Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+				},
+			},
+			Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
+			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
+			AllowVolumeExpansion: &allowVolumeExpansion,
+			Parameters: map[string]string{
+				"clusterID":                 initData.Namespace,
+				"topologyConstrainedPools":  getTopologyConstrainedPools(initData),
+				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+				"csi.storage.k8s.io/fstype": "ext4",
+				"imageFormat":               "2",
+				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
+				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
+				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
+				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
+			},
+		},
+		isClusterExternal: initData.Spec.ExternalStorage.Enable,
+	}
+}
+
 // newCephNFSStorageClassConfiguration generates configuration options for a Ceph Filesystem StorageClass.
 func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
@@ -328,6 +393,9 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 		newCephFilesystemStorageClassConfiguration(initData),
 		newCephBlockPoolStorageClassConfiguration(initData),
 	}
+	if initData.Spec.ManagedResources.CephNonResilientPools.Enable {
+		ret = append(ret, newNonResilientCephBlockPoolStorageClassConfiguration(initData))
+	}
 	if initData.Spec.NFS != nil && initData.Spec.NFS.Enable {
 		ret = append(ret, newCephNFSStorageClassConfiguration(initData))
 	}
@@ -358,4 +426,35 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	}
 
 	return ret, nil
+}
+
+func getTopologyConstrainedPools(initData *ocsv1.StorageCluster) string {
+	type topologySegment struct {
+		DomainLabel string `json:"domainLabel"`
+		DomainValue string `json:"value"`
+	}
+	// TopologyConstrainedPool stores the pool name and a list of its associated topology domain values.
+	type topologyConstrainedPool struct {
+		PoolName       string            `json:"poolName"`
+		DomainSegments []topologySegment `json:"domainSegments"`
+	}
+
+	var topologyConstrainedPools []topologyConstrainedPool
+	for _, failureDomainValue := range initData.Status.FailureDomainValues {
+		topologyConstrainedPools = append(topologyConstrainedPools, topologyConstrainedPool{
+			PoolName: generateNameForNonResilientCephBlockPool(initData, initData.Status.FailureDomain),
+			DomainSegments: []topologySegment{
+				{
+					DomainLabel: initData.Status.FailureDomain,
+					DomainValue: failureDomainValue,
+				},
+			},
+		})
+	}
+	// returning as string as parameters are of type map[string]string
+	topologyConstrainedPoolsStr, err := json.Marshal(topologyConstrainedPools)
+	if err != nil {
+		return ""
+	}
+	return string(topologyConstrainedPoolsStr)
 }
