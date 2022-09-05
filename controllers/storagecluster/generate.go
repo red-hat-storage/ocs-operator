@@ -42,6 +42,10 @@ func generateNameForCephBlockPool(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephblockpool", initData.Name)
 }
 
+func generateNameForNonResilientCephBlockPool(initData *ocsv1.StorageCluster, failureDomainValue string) string {
+	return fmt.Sprintf("%s-cephblockpool-%s", initData.Name, failureDomainValue)
+}
+
 func generateNameForCephObjectStore(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-%s", initData.Name, "cephobjectstore")
 }

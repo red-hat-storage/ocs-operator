@@ -70,6 +70,32 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 		},
 	}
 
+	// Create Non-Resilient CephBlockPools if enabled
+	if initData.Spec.ManagedResources.CephNonResilientPools.Enable {
+		for _, failureDomainValue := range initData.Status.FailureDomainValues {
+			ret = append(ret,
+				&cephv1.CephBlockPool{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      generateNameForNonResilientCephBlockPool(initData, failureDomainValue),
+						Namespace: initData.Namespace,
+					},
+					Spec: cephv1.NamedBlockPoolSpec{
+						PoolSpec: cephv1.PoolSpec{
+							DeviceClass: failureDomainValue,
+							Replicated: cephv1.ReplicatedSpec{
+								Size:                   1,
+								RequireSafeReplicaSize: false,
+							},
+							EnableRBDStats: true,
+							Mirroring:      mirroringSpec,
+						},
+					},
+				},
+			)
+		}
+
+	}
+
 	// create `.nfs` cephblockpool if NFS is enabled.
 	if initData.Spec.NFS != nil && initData.Spec.NFS.Enable {
 		ret = append(ret,
