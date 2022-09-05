@@ -61,6 +61,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 			},
 			Spec: cephv1.NamedBlockPoolSpec{
 				PoolSpec: cephv1.PoolSpec{
+					DeviceClass:    generateDeviceClass(initData),
 					FailureDomain:  getFailureDomain(initData),
 					Replicated:     generateCephReplicatedSpec(initData, "data"),
 					EnableRBDStats: true,
@@ -107,6 +108,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 				Spec: cephv1.NamedBlockPoolSpec{
 					Name: ".nfs",
 					PoolSpec: cephv1.PoolSpec{
+						DeviceClass:    generateDeviceClass(initData),
 						FailureDomain:  getFailureDomain(initData),
 						Replicated:     generateCephReplicatedSpec(initData, "data"),
 						EnableRBDStats: true,

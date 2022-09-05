@@ -42,6 +42,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 				DataPools: []cephv1.NamedPoolSpec{
 					{
 						PoolSpec: cephv1.PoolSpec{
+							DeviceClass:   generateDeviceClass(initData),
 							Replicated:    generateCephReplicatedSpec(initData, "data"),
 							FailureDomain: initData.Status.FailureDomain,
 							Parameters:    parameters,
