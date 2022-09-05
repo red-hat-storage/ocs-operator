@@ -529,6 +529,13 @@ spec:
                       reconcileStrategy:
                         type: string
                     type: object
+                  cephNonResilientPools:
+                    description: ManageCephNonResilientPools defines how to reconcile
+                      ceph non-resilient pools
+                    properties:
+                      enable:
+                        type: boolean
+                    type: object
                   cephObjectStoreUsers:
                     description: ManageCephObjectStoreUsers defines how to reconcile
                       CephObjectStoreUsers
