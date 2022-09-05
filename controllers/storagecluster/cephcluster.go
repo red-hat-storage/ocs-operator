@@ -759,6 +759,10 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			annotations := map[string]string{
 				"crushDeviceClass": crushDeviceClass,
 			}
+			// if Non-Resilient Pools are enabled then change the existing osd crushDeviceClass to "replicated"
+			if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+				annotations["crushDeviceClass"] = "replicated"
+			}
 			// Annotation crushInitialWeight is an optinal, explicit weight to set upon OSD's init (as float, in TiB units).
 			// ROOK & Ceph do not want any (optional) Ti[B] suffix, so trim it here.
 			// If not set, Ceph will define OSD's weight based on its capacity.
