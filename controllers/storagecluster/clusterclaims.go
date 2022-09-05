@@ -135,7 +135,7 @@ func (c *ClusterClaimCreator) getOdfVersion() (string, error) {
 
 	for _, csv := range csvs.Items {
 		if strings.HasPrefix(csv.Name, OdfOperatorNamePrefix) {
-			return csv.Name, nil
+			return csv.Spec.Version.String(), nil
 		}
 	}
 
