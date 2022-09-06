@@ -20,9 +20,10 @@ import (
 type ocsCephConfig struct{}
 
 const (
-	rookConfigMapName = "rook-config-override"
-	globalSectionKey  = "global"
-	publicNetworkKey  = "public_network"
+	rookConfigMapName          = "rook-config-override"
+	globalSectionKey           = "global"
+	publicNetworkKey           = "public_network"
+	warningOnPoolRedundancyKey = "mon_warn_on_pool_no_redundancy"
 )
 
 var (
@@ -130,6 +131,15 @@ func updateRookConfig(defaultRookConfigData string, section string, key string, 
 
 func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (string, error) {
 	rookConfigData := defaultRookConfigData
+	// if Non-Resilient pools are there then suppress the warning for pool no redundancy
+	if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+		var err error
+		rookConfigData, err = updateRookConfig(rookConfigData, globalSectionKey, warningOnPoolRedundancyKey, "false")
+		if err != nil {
+			return "", fmt.Errorf("failed to set no warning on no redundancy pool for rook config: %v", err)
+		}
+		log.Info("Health warning on pool no redundancy is suppressed now as CephNonResilientPools are enabled")
+	}
 	// configure public network if the cluster is dualstack, but not multus
 	if sc.Spec.Network != nil && sc.Spec.Network.Provider == "" && sc.Spec.Network.DualStack {
 		log.Info("DualStack is enabled, and no alternate network provider is detected")

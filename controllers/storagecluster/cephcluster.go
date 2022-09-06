@@ -759,6 +759,10 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			annotations := map[string]string{
 				"crushDeviceClass": crushDeviceClass,
 			}
+			// if Non-Resilient Pools are enabled then change the existing osd crushDeviceClass to "replicated"
+			if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+				annotations["crushDeviceClass"] = "replicated"
+			}
 			// Annotation crushInitialWeight is an optinal, explicit weight to set upon OSD's init (as float, in TiB units).
 			// ROOK & Ceph do not want any (optional) Ti[B] suffix, so trim it here.
 			// If not set, Ceph will define OSD's weight based on its capacity.
@@ -800,6 +804,62 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 		}
 	}
 
+	if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+		// Creating osds for non-resilient pools
+		for _, failureDomainValue := range sc.Status.FailureDomainValues {
+			ds := rookCephv1.StorageClassDeviceSet{}
+			ds.Name = failureDomainValue
+			ds.Count = 1
+			ds.Resources = defaults.DaemonResources["osd"]
+			// passing on existing defaults from existing devcicesets
+			ds.TuneSlowDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneSlowDeviceClass
+			ds.TuneFastDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneFastDeviceClass
+			annotations := map[string]string{
+				"crushDeviceClass": failureDomainValue,
+			}
+			// using the spec for volumeclaimtemplate from existing devicesets including the storageclass
+			volumeClaimTemplateSpec := storageClassDeviceSets[0].VolumeClaimTemplates[0].Spec
+			ds.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: annotations,
+					},
+					Spec: volumeClaimTemplateSpec,
+				},
+			}
+			ds.Portable = sc.Status.FailureDomain != "host"
+			placement := rookCephv1.Placement{}
+			// Portable OSDs must have an node affinity to their zone
+			// Non-portable OSDs must have an affinity to the node
+			placement.NodeAffinity = &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      sc.Status.FailureDomainKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{failureDomainValue},
+								},
+							},
+						},
+					},
+				},
+			}
+			// default tolerations for any ocs operator pods
+			placement.Tolerations = []corev1.Toleration{
+				{
+					Key:      defaults.NodeTolerationKey,
+					Operator: corev1.TolerationOpEqual,
+					Value:    "true",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			}
+			ds.Placement = placement
+			ds.PreparePlacement = &placement
+			storageClassDeviceSets = append(storageClassDeviceSets, ds)
+		}
+	}
 	return storageClassDeviceSets
 }
 

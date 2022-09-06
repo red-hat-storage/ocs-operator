@@ -42,6 +42,18 @@ func generateNameForCephBlockPool(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephblockpool", initData.Name)
 }
 
+func generateDeviceClass(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.ManagedResources.CephNonResilientPools.Enable {
+		return "replicated"
+	}
+	// if Non-Resilient pools are not enabled then keep the device class blank
+	return ""
+}
+
+func generateNameForNonResilientCephBlockPool(initData *ocsv1.StorageCluster, failureDomainValue string) string {
+	return fmt.Sprintf("%s-cephblockpool-%s", initData.Name, failureDomainValue)
+}
+
 func generateNameForCephObjectStore(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-%s", initData.Name, "cephobjectstore")
 }
@@ -56,6 +68,10 @@ func generateNameForCephFilesystemSC(initData *ocsv1.StorageCluster) string {
 
 func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
+}
+
+func generateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
 }
 
 func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {

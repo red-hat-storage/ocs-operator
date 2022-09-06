@@ -104,14 +104,15 @@ type KeyManagementServiceSpec struct {
 
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
 type ManagedResourcesSpec struct {
-	CephCluster          ManageCephCluster          `json:"cephCluster,omitempty"`
-	CephConfig           ManageCephConfig           `json:"cephConfig,omitempty"`
-	CephDashboard        ManageCephDashboard        `json:"cephDashboard,omitempty"`
-	CephBlockPools       ManageCephBlockPools       `json:"cephBlockPools,omitempty"`
-	CephFilesystems      ManageCephFilesystems      `json:"cephFilesystems,omitempty"`
-	CephObjectStores     ManageCephObjectStores     `json:"cephObjectStores,omitempty"`
-	CephObjectStoreUsers ManageCephObjectStoreUsers `json:"cephObjectStoreUsers,omitempty"`
-	CephToolbox          ManageCephToolbox          `json:"cephToolbox,omitempty"`
+	CephCluster           ManageCephCluster           `json:"cephCluster,omitempty"`
+	CephConfig            ManageCephConfig            `json:"cephConfig,omitempty"`
+	CephDashboard         ManageCephDashboard         `json:"cephDashboard,omitempty"`
+	CephBlockPools        ManageCephBlockPools        `json:"cephBlockPools,omitempty"`
+	CephNonResilientPools ManageCephNonResilientPools `json:"cephNonResilientPools,omitempty"`
+	CephFilesystems       ManageCephFilesystems       `json:"cephFilesystems,omitempty"`
+	CephObjectStores      ManageCephObjectStores      `json:"cephObjectStores,omitempty"`
+	CephObjectStoreUsers  ManageCephObjectStoreUsers  `json:"cephObjectStoreUsers,omitempty"`
+	CephToolbox           ManageCephToolbox           `json:"cephToolbox,omitempty"`
 }
 
 // ManageCephCluster defines how to reconcile the Ceph cluster definition
@@ -136,6 +137,13 @@ type ManageCephBlockPools struct {
 	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
 	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
 	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
+}
+
+// ManageCephNonResilientPools defines how to reconcile ceph non-resilient pools
+type ManageCephNonResilientPools struct {
+	Enable bool `json:"enable,omitempty"`
+	// ReconcileStrategy and other related fields are not used for now
+	// They can be added once the feature goes to GA
 }
 
 // ManageCephFilesystems defines how to reconcile CephFilesystems
