@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # https://github.com/red-hat-storage/ocs-ci/blob/master/docs/getting_started.md
 set -e
 

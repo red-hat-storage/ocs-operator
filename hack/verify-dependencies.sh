@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 paths=('go.mod' 'go.sum' 'vendor/')
 
