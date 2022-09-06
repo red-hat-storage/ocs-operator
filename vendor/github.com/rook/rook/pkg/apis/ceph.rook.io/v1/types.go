@@ -244,6 +244,18 @@ type SecuritySpec struct {
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
 }
 
+// ObjectStoreSecuritySpec is spec to define security features like encryption
+type ObjectStoreSecuritySpec struct {
+	// +optional
+	// +nullable
+	SecuritySpec `json:""`
+
+	// The settings for supporting AWS-SSE:S3 with RGW
+	// +optional
+	// +nullable
+	ServerSideEncryptionS3 KeyManagementServiceSpec `json:"s3,omitempty"`
+}
+
 // KeyManagementServiceSpec represent various details of the KMS server
 type KeyManagementServiceSpec struct {
 	// ConnectionDetails contains the KMS connection details (address, port etc)
@@ -1324,13 +1336,7 @@ type ObjectStoreSpec struct {
 	// Security represents security settings
 	// +optional
 	// +nullable
-	Security *SecuritySpec `json:"security,omitempty"`
-
-	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +nullable
-	// +optional
-	HostNetwork *bool `json:"hostNetwork,omitempty"`
+	Security *ObjectStoreSecuritySpec `json:"security,omitempty"`
 }
 
 // BucketHealthCheckSpec represents the health check of an object store
@@ -1421,6 +1427,12 @@ type GatewaySpec struct {
 	// +optional
 	// +nullable
 	Service *RGWServiceSpec `json:"service,omitempty"`
+
+	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // ZoneSpec represents a Ceph Object Store Gateway Zone specification
@@ -1651,6 +1663,16 @@ type ObjectZoneSpec struct {
 	// The data pool settings
 	// +nullable
 	DataPool PoolSpec `json:"dataPool"`
+
+	// If this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service
+	// endpoint created by Rook, you must set this to the externally reachable endpoint(s). You may
+	// include the port in the definition. For example: "https://my-object-store.my-domain.net:443".
+	// In many cases, you should set this to the endpoint of the ingress resource that makes the
+	// CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters.
+	// The list can have one or more endpoints pointing to different RGW servers in the zone.
+	// +nullable
+	// +optional
+	CustomEndpoints []string `json:"customEndpoints,omitempty"`
 }
 
 // CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
@@ -1880,6 +1902,11 @@ type NFSGaneshaSpec struct {
 
 	// Server is the Ganesha Server specification
 	Server GaneshaServerSpec `json:"server"`
+
+	// Security allows specifying security configurations for the NFS cluster
+	// +nullable
+	// +optional
+	Security *NFSSecuritySpec `json:"security"`
 }
 
 // GaneshaRADOSSpec represents the specification of a Ganesha RADOS object
@@ -1933,6 +1960,75 @@ type GaneshaServerSpec struct {
 	// LogLevel set logging level
 	// +optional
 	LogLevel string `json:"logLevel,omitempty"`
+}
+
+// NFSSecuritySpec represents security configurations for an NFS server pod
+type NFSSecuritySpec struct {
+	// SSSD enables integration with System Security Services Daemon (SSSD). SSSD can be used to
+	// provide user ID mapping from a number of sources. See https://sssd.io for more information
+	// about the SSSD project.
+	// +optional
+	// +nullable
+	SSSD *SSSDSpec `json:"sssd,omitempty"`
+}
+
+// SSSDSpec represents configuration for System Security Services Daemon (SSSD).
+type SSSDSpec struct {
+	// Sidecar tells Rook to run SSSD in a sidecar alongside the NFS-Ganesha server in each NFS pod.
+	// +optional
+	Sidecar *SSSDSidecar `json:"sidecar,omitempty"`
+}
+
+// SSSDSidecar represents configuration when SSSD is run in a sidecar.
+type SSSDSidecar struct {
+	// Image defines the container image that should be used for the SSSD sidecar.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Image string `json:"image"`
+
+	// Config defines where the SSSD configuration should be sourced from. The config file will be
+	// placed into `/etc/sssd/sssd.conf`. If this is left empty, Rook will not add the file. This
+	// allows you to manage the `sssd.conf` file yourself however you wish. For example, you may
+	// build it into your custom Ceph container image or use the Vault agent injector to securely
+	// add the file via annotations on the CephNFS spec (passed to the NFS server pods).
+	// +optional
+	SSSDConfigFile SSSDSidecarConfigFile `json:"sssdConfigFile"`
+
+	// Resources allow specifying resource requests/limits on the SSSD sidecar container.
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// DebugLevel sets the debug level for SSSD. If unset or set to 0, Rook does nothing. Otherwise,
+	// this may be a value between 1 and 10. See SSSD docs for more info:
+	// https://sssd.io/troubleshooting/basics.html#sssd-debug-logs
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=10
+	DebugLevel int `json:"debugLevel,omitempty"`
+}
+
+// SSSDSidecarConfigFile represents the source(s) from which the SSSD configuration should come.
+type SSSDSidecarConfigFile struct {
+	// VolumeSource accepts a standard Kubernetes VolumeSource for the SSSD configuration file like
+	// what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
+	// HostPath. There are two requirements for the source's content:
+	//   1. The config file must be mountable via `subPath: sssd.conf`. For example, in a ConfigMap,
+	//      the data item must be named `sssd.conf`, or `items` must be defined to select the key
+	//      and give it path `sssd.conf`. A HostPath directory must have the `sssd.conf` file.
+	//   2. The volume or config file must have mode 0600.
+	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+}
+
+// SSSDSidecarConfigFileConfigMap represents the option to use a ConfigMap as the source for SSSD configuration.
+type SSSDSidecarConfigFileConfigMap struct {
+	// Name accepts the name of a ConfigMap which should contain the SSSD configuration. The
+	// ConfigMap must contain the SSSD configuration in a data entry named 'sssd.conf'. The
+	// ConfigMap must be created in the same namespace as the CephNFS (and CephCluster).
+	// The user-supplied configuration follows the sssd.conf format documented here:
+	// https://linux.die.net/man/5/sssd.conf
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code

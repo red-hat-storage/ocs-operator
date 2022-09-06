@@ -224,10 +224,12 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			}
 			// overwrite SecretEngine value to transit
 			rgwConnDetails["VAULT_SECRET_ENGINE"] = "transit"
-			obj.Spec.Security = &cephv1.SecuritySpec{
-				KeyManagementService: cephv1.KeyManagementServiceSpec{
-					ConnectionDetails: rgwConnDetails,
-					TokenSecretName:   KMSTokenSecretName,
+			obj.Spec.Security = &cephv1.ObjectStoreSecuritySpec{
+				SecuritySpec: cephv1.SecuritySpec{
+					KeyManagementService: cephv1.KeyManagementServiceSpec{
+						ConnectionDetails: rgwConnDetails,
+						TokenSecretName:   KMSTokenSecretName,
+					},
 				},
 			}
 		}

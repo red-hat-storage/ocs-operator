@@ -12,15 +12,18 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/api/auth/approle"
 	"github.com/hashicorp/vault/command/agent/auth"
 	"github.com/hashicorp/vault/command/agent/auth/kubernetes"
 )
 
 const (
-	vaultAddressPrefix  = "http"
+	vaultAddressPrefix = "http"
 
 	// AuthMethodKubernetes is a named auth method.
 	AuthMethodKubernetes = "kubernetes"
+	// AuthMethodApprole
+	AuthMethodAppRole = "approle"
 	// AuthMethod is a vault authentication method used.
 	// https://www.vaultproject.io/docs/auth#auth-methods
 	AuthMethod = "VAULT_AUTH_METHOD"
@@ -33,6 +36,10 @@ const (
 	AuthKubernetesTokenPath = "VAULT_AUTH_KUBERNETES_TOKEN_PATH"
 	// AuthKubernetesMountPath
 	AuthKubernetesMountPath = "kubernetes"
+	// AuthAppRoleRoleID
+	AuthAppRoleRoleID = "VAULT_APPROLE_ROLE_ID"
+	// AuthAppRoleSecretID
+	AuthAppRoleSecretID = "VAULT_APPROLE_SECRET_ID"
 )
 
 var (
@@ -40,6 +47,7 @@ var (
 	ErrVaultAddressNotSet    = errors.New("VAULT_ADDR not set")
 	ErrInvalidVaultToken     = errors.New("VAULT_TOKEN is invalid")
 	ErrInvalidSkipVerify     = errors.New("VAULT_SKIP_VERIFY is invalid")
+	ErrAppRoleIDNotSet       = errors.New("VAULT_APPROLE_ROLE_ID or VAULT_APPROLE_SECRET_ID not set")
 	ErrInvalidVaultAddress   = errors.New("VAULT_ADDRESS is invalid. " +
 		"Should be of the form http(s)://<ip>:<port>")
 
@@ -124,16 +132,27 @@ func Authenticate(client *api.Client, config map[string]interface{}) (token stri
 	}
 
 	return "", false, ErrVaultAuthParamsNotSet
-} 
+}
 
 // GetAuthToken tries to get the vault token for the provided authentication method.
 func GetAuthToken(client *api.Client, config map[string]interface{}) (string, error) {
-	path, _, data, err := authenticate(client, config)
-	if err != nil {
-		return "", err
+	method := GetVaultParam(config, AuthMethod)
+	var secret *api.Secret
+	var err error
+	switch method {
+	case AuthMethodKubernetes:
+		path, _, data, err := authenticate(client, config)
+		if err != nil {
+			return "", err
+		}
+		secret, err = client.Logical().Write(path, data)
+
+	case AuthMethodAppRole:
+		secret, err = authAppRole(client, config)
+	default:
+		return "", ErrAuthMethodUnknown
 	}
 
-	secret, err := client.Logical().Write(path, data)
 	if err != nil {
 		return "", err
 	}
@@ -144,7 +163,7 @@ func GetAuthToken(client *api.Client, config map[string]interface{}) (string, er
 		return "", errors.New("authentication returned empty client token")
 	}
 
-	return secret.Auth.ClientToken, err
+	return secret.Auth.ClientToken, nil
 }
 
 func authenticate(client *api.Client, config map[string]interface{}) (string, http.Header, map[string]interface{}, error) {
@@ -167,6 +186,26 @@ func authKubernetes(client *api.Client, config map[string]interface{}) (string, 
 	}
 
 	return method.Authenticate(context.TODO(), client)
+}
+
+func authAppRole(client *api.Client, config map[string]interface{}) (*api.Secret, error) {
+	roleID := GetVaultParam(config, AuthAppRoleRoleID)
+	secretIDRaw := GetVaultParam(config, AuthAppRoleSecretID)
+
+	if roleID == "" || secretIDRaw == "" {
+		return nil, ErrAppRoleIDNotSet
+	}
+	secretID := &approle.SecretID{FromString: secretIDRaw}
+
+	appRoleAuth, err := approle.NewAppRoleAuth(
+		roleID,
+		secretID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Auth().Login(context.TODO(), appRoleAuth)
 }
 
 func buildAuthConfig(config map[string]interface{}) (*auth.AuthConfig, error) {
