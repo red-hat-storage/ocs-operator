@@ -2935,6 +2935,13 @@ spec:
                   initialDelaySeconds: 5
                   periodSeconds: 10
                 resources: {}
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - all
+              securityContext:
+                runAsNonRoot: true
               serviceAccountName: ocs-operator
               terminationGracePeriodSeconds: 10
               tolerations:
