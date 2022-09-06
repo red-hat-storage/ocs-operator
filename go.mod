@@ -16,14 +16,14 @@ require (
 	github.com/noobaa/noobaa-operator/v5 v5.11.0-12052022.0.20220601080237-28e143e0b16b
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.17.0
+	github.com/onsi/gomega v1.18.1
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/openshift/build-machinery-go v0.0.0-20211213093930-7e33a7eb4ce3
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
 	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
-	github.com/operator-framework/api v0.14.0
-	github.com/operator-framework/operator-lib v0.10.0
-	github.com/operator-framework/operator-lifecycle-manager v0.20.0
+	github.com/operator-framework/api v0.16.0
+	github.com/operator-framework/operator-lib v0.11.0
+	github.com/operator-framework/operator-lifecycle-manager v0.22.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.58.0
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.58.0
 	github.com/prometheus/client_golang v1.13.0
@@ -49,7 +49,9 @@ require (
 require k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
 
 require (
-	cloud.google.com/go v0.90.0 // indirect
+	cloud.google.com/go/compute v1.7.0 // indirect
+	cloud.google.com/go/kms v1.4.0 // indirect
+	cloud.google.com/go/monitoring v1.6.0 // indirect
 	github.com/armon/go-metrics v0.4.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
@@ -139,6 +141,7 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
+	google.golang.org/api v0.91.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220808145710-bf34ca4dd83a // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -146,9 +149,9 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiserver v0.23.4 // indirect
+	k8s.io/apiserver v0.24.0 // indirect
 	k8s.io/component-base v0.24.3 // indirect
-	k8s.io/kube-aggregator v0.22.0 // indirect
+	k8s.io/kube-aggregator v0.24.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect

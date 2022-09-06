@@ -1,6 +1,10 @@
-# cloud.google.com/go v0.90.0
-## explicit; go 1.11
+# cloud.google.com/go/compute v1.7.0
+## explicit; go 1.15
 cloud.google.com/go/compute/metadata
+# cloud.google.com/go/kms v1.4.0
+## explicit; go 1.16
+# cloud.google.com/go/monitoring v1.6.0
+## explicit; go 1.17
 # github.com/RHsyseng/operator-utils v1.4.2
 ## explicit
 github.com/RHsyseng/operator-utils/pkg/validation
@@ -346,11 +350,12 @@ github.com/onsi/ginkgo/reporters/stenographer
 github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable
 github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
 github.com/onsi/ginkgo/types
-# github.com/onsi/gomega v1.17.0
+# github.com/onsi/gomega v1.18.1
 ## explicit; go 1.16
 github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/internal
+github.com/onsi/gomega/internal/gutil
 github.com/onsi/gomega/matchers
 github.com/onsi/gomega/matchers/support/goraph/bipartitegraph
 github.com/onsi/gomega/matchers/support/goraph/edge
@@ -384,20 +389,20 @@ github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fa
 ## explicit; go 1.12
 github.com/openshift/custom-resource-status/conditions/v1
 github.com/openshift/custom-resource-status/objectreferences/v1
-# github.com/operator-framework/api v0.14.0
-## explicit; go 1.17
+# github.com/operator-framework/api v0.16.0
+## explicit; go 1.18
 github.com/operator-framework/api/pkg/lib/version
 github.com/operator-framework/api/pkg/operators
 github.com/operator-framework/api/pkg/operators/v1
 github.com/operator-framework/api/pkg/operators/v1alpha1
 github.com/operator-framework/api/pkg/operators/v1alpha2
 github.com/operator-framework/api/pkg/operators/v2
-# github.com/operator-framework/operator-lib v0.10.0
+# github.com/operator-framework/operator-lib v0.11.0
 ## explicit; go 1.17
 github.com/operator-framework/operator-lib/conditions
 github.com/operator-framework/operator-lib/internal/utils
-# github.com/operator-framework/operator-lifecycle-manager v0.20.0
-## explicit; go 1.17
+# github.com/operator-framework/operator-lifecycle-manager v0.22.0
+## explicit; go 1.18
 github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned
 github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned/scheme
 github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned/typed/operators/v1
@@ -573,6 +578,8 @@ golang.org/x/time/rate
 # gomodules.xyz/jsonpatch/v2 v2.2.0
 ## explicit; go 1.12
 gomodules.xyz/jsonpatch/v2
+# google.golang.org/api v0.91.0
+## explicit; go 1.15
 # google.golang.org/appengine v1.6.7
 ## explicit; go 1.11
 google.golang.org/appengine
@@ -816,7 +823,7 @@ k8s.io/apimachinery/pkg/version
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/apiserver v0.23.4 => k8s.io/apiserver v0.23.4
+# k8s.io/apiserver v0.24.0 => k8s.io/apiserver v0.23.4
 ## explicit; go 1.16
 k8s.io/apiserver/pkg/authentication/serviceaccount
 k8s.io/apiserver/pkg/authentication/user
@@ -972,7 +979,7 @@ k8s.io/klog/v2/internal/clock
 k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
-# k8s.io/kube-aggregator v0.22.0 => k8s.io/kube-aggregator v0.23.4
+# k8s.io/kube-aggregator v0.24.0 => k8s.io/kube-aggregator v0.23.4
 ## explicit; go 1.16
 k8s.io/kube-aggregator/pkg/apis/apiregistration
 k8s.io/kube-aggregator/pkg/apis/apiregistration/v1
