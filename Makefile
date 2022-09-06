@@ -12,7 +12,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 KUSTOMIZE_VERSION=v4.5.2
-CONTROLLER_GEN_VERSION=v0.8.0
+CONTROLLER_GEN_VERSION=v0.9.2
 
 all: ocs-operator ocs-registry ocs-must-gather
 
