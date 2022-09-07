@@ -87,7 +87,7 @@ func generateNameForNFSCSIProvisioner(initData *ocsv1.StorageCluster) string {
 }
 
 // generateNameForSnapshotClass function generates 'SnapshotClass' name.
-// 'snapshotType' can be: 'rbdSnapshotter' or 'cephfsSnapshotter'
+// 'snapshotType' can be: 'rbdSnapshotter' or 'cephfsSnapshotter' or 'nfsSnapshotter'
 func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
 	return fmt.Sprintf("%s-%splugin-snapclass", initData.Name, snapshotType)
 }
@@ -97,6 +97,10 @@ func generateNameForSnapshotClassDriver(initData *ocsv1.StorageCluster, snapshot
 }
 
 func generateNameForSnapshotClassSecret(instance *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
+	// nfs uses the same cephfs secrets
+	if snapshotType == "nfs" {
+		snapshotType = "cephfs"
+	}
 	if instance.Spec.ExternalStorage.Enable {
 		data, ok := externalOCSResources[instance.UID]
 		if !ok {
