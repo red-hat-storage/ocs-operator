@@ -112,6 +112,26 @@
               system_type: 'OCS',
             },
           },
+          {
+            record: 'odf_system_objects_total',
+            expr: |||
+              sum by (namespace, managedBy, job, service) (ocs_objectbucket_objects_total)
+            ||| % $._config,
+            labels: {
+              system_vendor: 'Red Hat',
+              system_type: 'OCS',
+            },
+          },
+          {
+            record: 'odf_system_bucket_count',
+            expr: |||
+              ocs_objectbucket_count_total
+            ||| % $._config,
+            labels: {
+              system_vendor: 'Red Hat',
+              system_type: 'OCS',
+            },
+          },
         ],
       },
     ],

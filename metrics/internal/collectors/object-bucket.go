@@ -37,6 +37,7 @@ type ObjectBucketCollector struct {
 	OBObjectCountTotal    *prometheus.Desc
 	OBObjectCountMax      *prometheus.Desc
 	ObjectBucketClaimInfo *prometheus.Desc
+	ObjectBucketCount     *prometheus.Desc
 	Informer              cache.SharedIndexInformer
 	AllowedNamespaces     []string
 	bktclient             bktclient.Interface
@@ -80,6 +81,13 @@ func NewObjectBucketCollector(opts *options.Options) *ObjectBucketCollector {
 			nil,
 		),
 
+		ObjectBucketCount: prometheus.NewDesc(
+			"ocs_objectbucket_count_total",
+			"The total number of objectbuckets",
+			[]string{"object_store"},
+			nil,
+		),
+
 		Informer:          sharedIndexInformer,
 		AllowedNamespaces: opts.AllowedNamespaces,
 		bktclient:         bktclient.NewForConfigOrDie(opts.Kubeconfig),
@@ -101,6 +109,7 @@ func (c *ObjectBucketCollector) Describe(ch chan<- *prometheus.Desc) {
 		c.OBObjectCountTotal,
 		c.OBObjectCountMax,
 		c.ObjectBucketClaimInfo,
+		c.ObjectBucketCount,
 	}
 
 	for _, d := range ds {
@@ -217,6 +226,11 @@ func (c *ObjectBucketCollector) collectObjectBucketMetrics(cephObjectStore cephv
 				ob.Name,
 				ob.Spec.StorageClassName)
 		}
+		ch <- prometheus.MustNewConstMetric(c.ObjectBucketCount,
+			prometheus.GaugeValue,
+			float64(len(objectBucketList)),
+			cephObjectStore.Name)
+
 	} else {
 		klog.Infof("No ObjectBuckets present in the object store %s", cephObjectStore.Name)
 	}

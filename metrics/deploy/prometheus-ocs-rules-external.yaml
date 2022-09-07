@@ -67,6 +67,18 @@ spec:
         system_type: OCS
         system_vendor: Red Hat
       record: odf_system_latency_seconds
+    - expr: |
+        sum by (namespace, managedBy, job, service) (ocs_objectbucket_objects_total)
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_objects_total
+    - expr: |
+        ocs_objectbucket_count_total
+      labels:
+        system_type: OCS
+        system_vendor: Red Hat
+      record: odf_system_bucket_count
   - name: odf-obc-quota-alert.rules
     rules:
     - alert: ObcQuotaBytesAlert
