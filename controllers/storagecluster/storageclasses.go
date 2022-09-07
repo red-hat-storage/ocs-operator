@@ -314,11 +314,10 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 	}
 }
 
-// newCephNFSStorageClassConfiguration generates configuration options for a Ceph Filesystem StorageClass.
+// newCephNFSStorageClassConfiguration generates configuration options for a Ceph NFS StorageClass.
 func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
-	// VolumeExpansion is not yet supported for nfs.
-	allowVolumeExpansion := false
+	allowVolumeExpansion := true
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
