@@ -442,7 +442,7 @@ func getTopologyConstrainedPools(initData *ocsv1.StorageCluster) string {
 	var topologyConstrainedPools []topologyConstrainedPool
 	for _, failureDomainValue := range initData.Status.FailureDomainValues {
 		topologyConstrainedPools = append(topologyConstrainedPools, topologyConstrainedPool{
-			PoolName: generateNameForNonResilientCephBlockPool(initData, initData.Status.FailureDomain),
+			PoolName: generateNameForNonResilientCephBlockPool(initData, failureDomainValue),
 			DomainSegments: []topologySegment{
 				{
 					DomainLabel: initData.Status.FailureDomain,
