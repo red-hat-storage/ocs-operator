@@ -28,6 +28,8 @@ const (
 	AuthKubernetesRole      = utils.AuthKubernetesRole
 	AuthKubernetesTokenPath = utils.AuthKubernetesTokenPath
 	AuthKubernetesMountPath = utils.AuthKubernetesMountPath
+	AuthAppRoleRoleID       = utils.AuthAppRoleRoleID
+	AuthAppRoleSecretID     = utils.AuthAppRoleSecretID
 )
 
 func init() {

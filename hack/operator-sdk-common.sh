@@ -10,6 +10,6 @@ OPERATOR_SDK_ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -
 OPERATOR_SDK_OS=$(uname | awk '{print tolower($0)}')
 
 OPERATOR_SDK_URL="${OPERATOR_SDK_URL:-https://github.com/operator-framework/operator-sdk/releases/download}"
-OPERATOR_SDK_VERSION="${OPERATOR_SDK_VERSION:-v1.17.0}"
+OPERATOR_SDK_VERSION="${OPERATOR_SDK_VERSION:-v1.20.0}"
 OPERATOR_SDK_DL_URL_FULL="${OPERATOR_SDK_URL}/${OPERATOR_SDK_VERSION}/operator-sdk_${OPERATOR_SDK_OS}_${OPERATOR_SDK_ARCH}"
 OPERATOR_SDK="${OUTDIR_TOOLS}/operator-sdk-${OPERATOR_SDK_VERSION}"

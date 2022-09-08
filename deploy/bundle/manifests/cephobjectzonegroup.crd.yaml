@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
+    controller-gen.kubebuilder.io/version: v0.6.2
   name: cephobjectzonegroups.ceph.rook.io
 spec:
   group: ceph.rook.io

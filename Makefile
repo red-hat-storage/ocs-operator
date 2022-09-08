@@ -12,7 +12,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 KUSTOMIZE_VERSION=v4.5.2
-CONTROLLER_GEN_VERSION=v0.8.0
+CONTROLLER_GEN_VERSION=v0.9.2
 
 all: ocs-operator ocs-registry ocs-must-gather
 
@@ -50,7 +50,7 @@ all: ocs-operator ocs-registry ocs-must-gather
 
 deps-update:
 	@echo "Running deps-update"
-	go mod tidy -compat=1.17 && go mod vendor
+	go mod tidy && go mod vendor
 
 operator-sdk:
 	@echo "Ensuring operator-sdk"
