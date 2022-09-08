@@ -36,21 +36,20 @@ var (
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
 	timestamp          = flag.String("timestamp", "false", "bool value to enable/disable timestamp changes in CSV")
 
-	rookContainerImage               = flag.String("rook-image", "", "rook operator container image")
-	cephContainerImage               = flag.String("ceph-image", "", "ceph daemon container image")
-	rookCsiCephImage                 = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiRegistrarImage            = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiResizerImage              = flag.String("rook-csi-resizer-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiProvisionerImage          = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiSnapshotterImage          = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiAttacherImage             = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	noobaaCoreContainerImage         = flag.String("noobaa-core-image", "", "noobaa core container image")
-	noobaaDBContainerImage           = flag.String("noobaa-db-image", "", "db container image for noobaa")
-	ocsContainerImage                = flag.String("ocs-image", "", "ocs operator container image")
-	ocsMetricsExporterImage          = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
-	ocsMustGatherImage               = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
-	volumeReplicationControllerImage = flag.String("vol-repl-image", "", "volume replication operator container image")
-	rookCsiAddonsImage               = flag.String("rook-csiaddons-image", "", "csi-addons container image")
+	rookContainerImage       = flag.String("rook-image", "", "rook operator container image")
+	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
+	rookCsiCephImage         = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiRegistrarImage    = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiResizerImage      = flag.String("rook-csi-resizer-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiProvisionerImage  = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiSnapshotterImage  = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	rookCsiAttacherImage     = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
+	noobaaCoreContainerImage = flag.String("noobaa-core-image", "", "noobaa core container image")
+	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
+	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
+	ocsMetricsExporterImage  = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
+	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
+	rookCsiAddonsImage       = flag.String("rook-csiaddons-image", "", "csi-addons container image")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -230,10 +229,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION",
 				Value: "true",
-			},
-			{
-				Name:  "CSI_VOLUME_REPLICATION_IMAGE",
-				Value: *volumeReplicationControllerImage,
 			},
 			{
 				Name:  "ROOK_CSIADDONS_IMAGE",
@@ -873,12 +868,6 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "ceph-container",
 			"image": *cephContainerImage,
-		})
-	}
-	if *volumeReplicationControllerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "volume-replication-operator",
-			"image": *volumeReplicationControllerImage,
 		})
 	}
 	if *rookCsiAddonsImage != "" {
