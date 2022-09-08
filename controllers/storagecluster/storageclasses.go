@@ -284,6 +284,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
+	volumeBindingWaitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
@@ -292,12 +293,14 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 					"description": "Ceph Non Resilient Pools : Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 				},
 			},
-			Provisioner:   fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
-			ReclaimPolicy: &persistentVolumeReclaimDelete,
+			Provisioner:       fmt.Sprintf("%s.rbd.csi.ceph.com", initData.Namespace),
+			ReclaimPolicy:     &persistentVolumeReclaimDelete,
+			VolumeBindingMode: &volumeBindingWaitForFirstConsumer,
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID":                 initData.Namespace,
+				"pool":                      generateNameForCephBlockPool(initData),
 				"topologyConstrainedPools":  getTopologyConstrainedPools(initData),
 				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 				"csi.storage.k8s.io/fstype": "ext4",
@@ -452,7 +455,7 @@ func getTopologyConstrainedPools(initData *ocsv1.StorageCluster) string {
 		})
 	}
 	// returning as string as parameters are of type map[string]string
-	topologyConstrainedPoolsStr, err := json.Marshal(topologyConstrainedPools)
+	topologyConstrainedPoolsStr, err := json.MarshalIndent(topologyConstrainedPools, "", "  ")
 	if err != nil {
 		return ""
 	}
