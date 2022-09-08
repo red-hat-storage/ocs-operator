@@ -198,12 +198,13 @@ func (cc *OCSProviderClient) GetStorageClassClaimConfig(ctx context.Context, con
 	return cc.Client.GetStorageClassClaimConfig(apiCtx, req)
 }
 
-func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID string) (*pb.ReportStatusResponse, error) {
+func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID string, storageClusterStatus string) (*pb.ReportStatusResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("Provider client is closed")
 	}
 	req := &pb.ReportStatusRequest{
-		StorageConsumerUUID: consumerUUID,
+		StorageConsumerUUID:  consumerUUID,
+		StorageClusterStatus: storageClusterStatus,
 	}
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
 	defer cancel()
