@@ -51,7 +51,6 @@ LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v16"
 LATEST_VOLUME_REPLICATION_OPERATOR_IMAGE="csiaddons/volumereplication-operator:v0.1.0"
 LATEST_ROOK_CSIADDONS_IMAGE="csiaddons/k8s-sidecar:v0.2.1"
-LATEST_ROOK_CSI_NFS_IMAGE="k8s.gcr.io/sig-storage/nfsplugin:v3.1.0"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
 DEFAULT_REGISTRY_NAMESPACE="ocs-dev"

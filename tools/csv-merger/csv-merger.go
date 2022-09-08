@@ -51,7 +51,6 @@ var (
 	ocsMustGatherImage               = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	volumeReplicationControllerImage = flag.String("vol-repl-image", "", "volume replication operator container image")
 	rookCsiAddonsImage               = flag.String("rook-csiaddons-image", "", "csi-addons container image")
-	rookCsiNFSImage                  = flag.String("rook-csi-nfs-image", "", "csi-nfs container image")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -239,10 +238,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "ROOK_CSIADDONS_IMAGE",
 				Value: *rookCsiAddonsImage,
-			},
-			{
-				Name:  "ROOK_CSI_NFS_IMAGE",
-				Value: *rookCsiNFSImage,
 			},
 			{
 				Name:  "CSI_ENABLE_METADATA",
@@ -890,12 +885,6 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "csiaddons-sidecar",
 			"image": *rookCsiAddonsImage,
-		})
-	}
-	if *rookCsiNFSImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-csi-nfs",
-			"image": *rookCsiNFSImage,
 		})
 	}
 	if *ocsMustGatherImage != "" {
