@@ -82,7 +82,8 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 					},
 					Spec: cephv1.NamedBlockPoolSpec{
 						PoolSpec: cephv1.PoolSpec{
-							DeviceClass: failureDomainValue,
+							DeviceClass:   failureDomainValue,
+							FailureDomain: getFailureDomain(initData),
 							Replicated: cephv1.ReplicatedSpec{
 								Size:                   1,
 								RequireSafeReplicaSize: false,
