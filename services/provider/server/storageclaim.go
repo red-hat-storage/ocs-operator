@@ -53,7 +53,14 @@ func getStorageClassClaimName(consumerUUID, storageClassClaimName string) string
 }
 
 // Create creates a new storageClassClaim resource and returns the storageClassClaim ID.
-func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer, storageClassClaimName, claimType, encryptionMethod string) error {
+func (s *storageClassClaimManager) Create(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+	storageClassClaimName,
+	claimType,
+	encryptionMethod,
+	storageProfile string,
+) error {
 	consumerUUID := string(consumer.GetUID())
 	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
 
@@ -69,6 +76,7 @@ func (s *storageClassClaimManager) Create(ctx context.Context, consumer *ocsv1al
 		Spec: ocsv1alpha1.StorageClassClaimSpec{
 			Type:             claimType,
 			EncryptionMethod: encryptionMethod,
+			StorageProfile:   storageProfile,
 		},
 	}
 	if consumer.GetUID() == "" {

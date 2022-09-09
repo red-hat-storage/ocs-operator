@@ -10,6 +10,7 @@ require (
 	github.com/ceph/go-ceph v0.16.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/logr v1.2.3
+	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220811192603-abc54caa34ac
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
@@ -42,11 +43,10 @@ require (
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.70.1
+	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
 	open-cluster-management.io/api v0.8.0
 	sigs.k8s.io/controller-runtime v0.12.3
 )
-
-require k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
 
 require (
 	cloud.google.com/go/compute v1.7.0 // indirect
@@ -83,7 +83,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect

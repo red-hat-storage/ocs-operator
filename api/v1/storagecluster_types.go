@@ -94,6 +94,51 @@ type StorageClusterSpec struct {
 	// +optional
 	// +nullable
 	LogCollector *rookCephv1.LogCollectorSpec `json:"logCollector,omitempty"`
+
+	// BackingStorageClasses is a list of storage classes that will be
+	// provisioned by the storagecluster controller to be used in
+	// storageDeviceSets section of the CR.
+	BackingStorageClasses []BackingStorageClass `json:"backingStorageClasses,omitempty"`
+	// DefaultStorageProfile is the default storage profile to use for
+	// the storageclassclaims as StorageProfile is optional.
+	DefaultStorageProfile string `json:"defaultStorageProfile,omitempty"`
+
+	StorageProfiles []StorageProfile `json:"storageProfiles,omitempty"`
+}
+
+// StorageProfile is the storage profile to use for the storageclassclaims.
+type StorageProfile struct {
+	// +kubebuilder:validation:Required
+	// Name of the storage profile.
+	Name string `json:"name"`
+	// +kubebuilder:validation:Required
+	// DeviceClass is the deviceclass name.
+	DeviceClass string `json:"deviceClass"`
+	// configurations to use for cephfilesystem.
+	SharedFilesystemConfiguration SharedFilesystemConfigurationSpec `json:"sharedFilesystemConfiguration,omitempty"`
+	// configurations to use for  profile specific blockpool.
+	BlockPoolConfiguration BlockPoolConfigurationSpec `json:"blockPoolConfiguration,omitempty"`
+}
+
+type SharedFilesystemConfigurationSpec struct {
+	Parameters map[string]string `json:"parameters,omitempty"`
+}
+
+type BlockPoolConfigurationSpec struct {
+	Parameters map[string]string `json:"parameters,omitempty"`
+}
+
+// BackingStorageClass defines the backing storageclass for StorageDeviceSet
+type BackingStorageClass struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	// Provisioner indicates the type of the provisioner.
+	// +optional
+	Provisioner string `json:"provisioner,omitempty"`
+
+	// Parameters holds the parameters for the provisioner that should
+	// create volumes of this storage class.
+	// +optional
+	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS

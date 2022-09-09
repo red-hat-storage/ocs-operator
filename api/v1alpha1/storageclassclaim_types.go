@@ -27,6 +27,7 @@ type StorageClassClaimSpec struct {
 	//+kubebuilder:validation:Enum=blockpool;sharedfilesystem
 	Type             string `json:"type"`
 	EncryptionMethod string `json:"encryptionMethod,omitempty"`
+	StorageProfile   string `json:"storageProfile,omitempty"`
 }
 
 type storageClassClaimState string
@@ -51,6 +52,7 @@ const (
 const (
 	StorageClassClaimFinalizer  = "storageclassclaim.ocs.openshift.io"
 	StorageClassClaimAnnotation = "ocs.openshift.io.storagesclassclaim"
+	CephFileSystemDataPoolLabel = "cephfilesystem.datapool.name"
 )
 
 // StorageClassClaimStatus defines the observed state of StorageClassClaim

@@ -43,6 +43,8 @@ spec:
             properties:
               encryptionMethod:
                 type: string
+              storageProfile:
+                type: string
               type:
                 enum:
                 - blockpool

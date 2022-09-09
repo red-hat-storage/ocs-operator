@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
@@ -505,7 +506,7 @@ func (s *OCSProviderServer) FulfillStorageClassClaim(ctx context.Context, req *p
 		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown stroage type, %s", storageType)
 	}
 
-	err = s.storageClassClaimManager.Create(ctx, consumerObj, req.StorageClassClaimName, storageType, req.EncryptionMethod)
+	err = s.storageClassClaimManager.Create(ctx, consumerObj, req.StorageClassClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to fulfill storage class claim for %q. %v", req.StorageConsumerUUID, err)
 		klog.Error(errMsg)
@@ -652,6 +653,7 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
 					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
 					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
+					"pool": subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel],
 				})})
 
 			extR = append(extR, &pb.ExternalResource{

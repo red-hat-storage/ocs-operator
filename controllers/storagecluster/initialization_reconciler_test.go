@@ -200,6 +200,10 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
+	infrastructure := &configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+	}
+
 	cnfs := &cephv1.CephNFS{
 		ObjectMeta: metav1.ObjectMeta{Name: "ocsinit-cephnfs"},
 		Status: &cephv1.Status{
@@ -229,7 +233,7 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		},
 	}
 
-	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc)
+	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}

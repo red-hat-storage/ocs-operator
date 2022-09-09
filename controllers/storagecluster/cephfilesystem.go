@@ -20,54 +20,64 @@ type ocsCephFilesystems struct{}
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
-	var parameters map[string]string
-	var err error
-	if initData.Spec.AllowRemoteStorageConsumers {
-		parameters, err = GenerateCephFSProviderParameters(initData)
-		if err != nil {
-			return nil, err
-		}
-	}
-	ret := []*cephv1.CephFilesystem{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephFilesystem(initData),
-				Namespace: initData.Namespace,
+	ret := &cephv1.CephFilesystem{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephFilesystem(initData),
+			Namespace: initData.Namespace,
+		},
+		Spec: cephv1.FilesystemSpec{
+			MetadataPool: cephv1.PoolSpec{
+				Replicated:    generateCephReplicatedSpec(initData, "metadata"),
+				FailureDomain: initData.Status.FailureDomain,
 			},
-			Spec: cephv1.FilesystemSpec{
-				MetadataPool: cephv1.PoolSpec{
-					Replicated:    generateCephReplicatedSpec(initData, "metadata"),
-					FailureDomain: initData.Status.FailureDomain,
-				},
-				DataPools: []cephv1.NamedPoolSpec{
-					{
-						PoolSpec: cephv1.PoolSpec{
-							DeviceClass:   generateDeviceClass(initData),
-							Replicated:    generateCephReplicatedSpec(initData, "data"),
-							FailureDomain: initData.Status.FailureDomain,
-							Parameters:    parameters,
-						},
-					},
-				},
-				MetadataServer: cephv1.MetadataServerSpec{
-					ActiveCount:   1,
-					ActiveStandby: true,
-					Placement:     getPlacement(initData, "mds"),
-					Resources:     defaults.GetDaemonResources("mds", initData.Spec.Resources),
-					// set PriorityClassName for the MDS pods
-					PriorityClassName: openshiftUserCritical,
-				},
+			MetadataServer: cephv1.MetadataServerSpec{
+				ActiveCount:   1,
+				ActiveStandby: true,
+				Placement:     getPlacement(initData, "mds"),
+				Resources:     defaults.GetDaemonResources("mds", initData.Spec.Resources),
+				// set PriorityClassName for the MDS pods
+				PriorityClassName: openshiftUserCritical,
 			},
 		},
 	}
-	for _, obj := range ret {
-		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
-		if err != nil {
-			r.Log.Error(err, "Unable to set Controller Reference for CephFileSystem.", "CephFileSystem", klog.KRef(obj.Namespace, obj.Name))
-			return nil, err
+
+	if initData.Spec.StorageProfiles == nil {
+		// standalone deployment will not have storageProfile, we need to
+		// define default dataPool, if storageProfile is set this will be
+		// overridden.
+		ret.Spec.DataPools = []cephv1.NamedPoolSpec{
+			{
+				PoolSpec: cephv1.PoolSpec{
+					DeviceClass:   generateDeviceClass(initData),
+					Replicated:    generateCephReplicatedSpec(initData, "data"),
+					FailureDomain: initData.Status.FailureDomain,
+				},
+			},
+		}
+	} else {
+		// set deviceClass and parameters from storageProfile
+		for i := range initData.Spec.StorageProfiles {
+			deviceClass := initData.Spec.StorageProfiles[i].DeviceClass
+			parameters := initData.Spec.StorageProfiles[i].SharedFilesystemConfiguration.Parameters
+			ret.Spec.DataPools = append(ret.Spec.DataPools, cephv1.NamedPoolSpec{
+				Name: deviceClass,
+				PoolSpec: cephv1.PoolSpec{
+					Replicated:    generateCephReplicatedSpec(initData, "data"),
+					DeviceClass:   deviceClass,
+					Parameters:    parameters,
+					FailureDomain: initData.Status.FailureDomain,
+				},
+			})
 		}
 	}
-	return ret, nil
+
+	err := controllerutil.SetControllerReference(initData, ret, r.Scheme)
+	if err != nil {
+		r.Log.Error(err, "Unable to set Controller Reference for CephFileSystem.", "CephFileSystem", klog.KRef(ret.Namespace, ret.Name))
+		return nil, err
+	}
+
+	return []*cephv1.CephFilesystem{ret}, nil
 }
 
 // ensureCreated ensures that cephFilesystem resources exist in the desired

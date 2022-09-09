@@ -2,11 +2,9 @@ package storagecluster
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
@@ -137,30 +135,4 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 // generateStorageQuotaName function generates a name for ClusterResourceQuota
 func generateStorageQuotaName(storageClassName, quotaName string) string {
 	return fmt.Sprintf("%s-%s", storageClassName, quotaName)
-}
-
-// GenerateCephFSProviderParameters function generates extra parameters required for provider storage clusters
-func GenerateCephFSProviderParameters(initData *ocsv1.StorageCluster) (map[string]string, error) {
-	deviceSetList := initData.Spec.StorageDeviceSets
-	var deviceSet *ocsv1.StorageDeviceSet
-	for i := range deviceSetList {
-		ds := &deviceSetList[i]
-		if ds.Name == "default" {
-			deviceSet = ds
-			break
-		}
-	}
-	if deviceSet != nil {
-		deviceCount := deviceSet.Count
-		pgUnitSize := util.GetPGBaseUnitSize(deviceCount)
-		pgNumValue := pgUnitSize * 4
-		providerParameters := map[string]string{
-			"pg_autoscale_mode": "off",
-			"pg_num":            strconv.Itoa(pgNumValue),
-			"pgp_num":           strconv.Itoa(pgNumValue),
-		}
-		return providerParameters, nil
-	}
-	return nil, fmt.Errorf("Could not find  device set named default in Storage cluster")
-
 }
