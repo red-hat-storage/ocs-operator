@@ -24,7 +24,8 @@ func assertVolumeSnapshotterClasses(t *testing.T, reconciler StorageClusterRecon
 	cr *api.StorageCluster, request reconcile.Request) {
 	rbdVSCName := "ocsinit-rbdplugin-snapclass"
 	cephfsVSCName := "ocsinit-cephfsplugin-snapclass"
-	vscNames := []string{cephfsVSCName, rbdVSCName}
+	cephnfsVSCName := "ocsinit-nfsplugin-snapclass"
+	vscNames := []string{cephfsVSCName, rbdVSCName, cephnfsVSCName}
 	for _, eachVSCName := range vscNames {
 		actualVSC := &snapapi.VolumeSnapshotClass{
 			ObjectMeta: metav1.ObjectMeta{

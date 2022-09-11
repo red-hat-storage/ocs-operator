@@ -23,6 +23,7 @@ type ocsSnapshotClass struct{}
 const (
 	rbdSnapshotter    SnapshotterType = "rbd"
 	cephfsSnapshotter SnapshotterType = "cephfs"
+	nfsSnapshotter    SnapshotterType = "nfs"
 )
 
 // secret name and namespace for snapshotter class
@@ -39,7 +40,7 @@ type SnapshotClassConfiguration struct {
 }
 
 // newVolumeSnapshotClass returns a new VolumeSnapshotter class backed by provided snapshotter type
-// available 'snapShotterType' values are 'rbd' and 'cephfs'
+// available 'snapShotterType' values are 'rbd','cephfs' and 'cephnfs'
 func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType SnapshotterType) *snapapi.VolumeSnapshotClass {
 	retSC := &snapapi.VolumeSnapshotClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -72,11 +73,20 @@ func newCephBlockPoolSnapshotClassConfiguration(instance *ocsv1.StorageCluster) 
 	}
 }
 
+func newCephNetworkFilesystemSnapshotClassConfiguration(instance *ocsv1.StorageCluster) SnapshotClassConfiguration {
+	return SnapshotClassConfiguration{
+		snapshotClass: newVolumeSnapshotClass(instance, nfsSnapshotter),
+	}
+}
+
 // newSnapshotClassConfigurations generates configuration options for Ceph SnapshotClasses.
 func newSnapshotClassConfigurations(instance *ocsv1.StorageCluster) []SnapshotClassConfiguration {
 	vsccs := []SnapshotClassConfiguration{
 		newCephFilesystemSnapshotClassConfiguration(instance),
 		newCephBlockPoolSnapshotClassConfiguration(instance),
+	}
+	if instance.Spec.NFS != nil && instance.Spec.NFS.Enable {
+		vsccs = append(vsccs, newCephNetworkFilesystemSnapshotClassConfiguration(instance))
 	}
 	return vsccs
 }
