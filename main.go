@@ -30,6 +30,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	apiv2 "github.com/operator-framework/api/pkg/operators/v2"
 	"github.com/operator-framework/operator-lib/conditions"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -42,6 +43,7 @@ import (
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -82,6 +84,8 @@ func init() {
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(quotav1.AddToScheme(scheme))
 	utilruntime.Must(ocsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(clusterv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(operatorsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

@@ -333,6 +333,14 @@ spec:
         - apiGroups:
           - operators.coreos.com
           resources:
+          - clusterserviceversions
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - operators.coreos.com
+          resources:
           - operatorconditions
           verbs:
           - create
