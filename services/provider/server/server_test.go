@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -383,11 +385,23 @@ func TestOCSProviderServerFulfillStorageClassClaim(t *testing.T) {
 			EncryptionMethod: "vault",
 		},
 	}
+	claimBytes, err := yaml.Marshal(claimResourceUnderDeletion)
+	assert.NoError(t, err)
+	deletedConfigMapObj := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              claimResourceUnderDeletion.Name,
+			Namespace:         serverNamespace,
+			DeletionTimestamp: &metav1.Time{},
+		},
+		Data: map[string]string{
+			"StorageClassClaim": string(claimBytes),
+		},
+	}
 
 	ctx := context.TODO()
 	objects := []runtime.Object{
 		consumerResource,
-		claimResourceUnderDeletion,
+		deletedConfigMapObj,
 	}
 
 	// Create a fake client to mock API calls.
@@ -670,11 +684,29 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	ctx := context.TODO()
 	objects := []runtime.Object{
 		consumerResource,
+	}
+	claimObjects := []*ocsv1alpha1.StorageClassClaim{
 		blockPoolClaimResource,
 		sharedFilesystemClaimResource,
 		claimResourceInitializing,
 		claimResourceCreating,
 		claimResourceFailed,
+	}
+
+	for i := range claimObjects {
+		claimObj := claimObjects[i]
+		claimBytes, err := yaml.Marshal(claimObj)
+		assert.NoError(t, err)
+		cmObj := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      claimObj.Name,
+				Namespace: serverNamespace,
+			},
+			Data: map[string]string{
+				"StorageClassClaim": string(claimBytes),
+			},
+		}
+		objects = append(objects, cmObj)
 	}
 
 	// Create a fake client to mock API calls.

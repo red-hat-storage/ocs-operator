@@ -10,10 +10,11 @@ import (
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
+	"gopkg.in/yaml.v2"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,13 +66,13 @@ func (s *storageClassClaimManager) Create(
 	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
 
 	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "StorageClassClaim",
+			APIVersion: "ocs.openshift.io/v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generatedClaimName,
 			Namespace: s.namespace,
-			Labels: map[string]string{
-				controllers.ConsumerUUIDLabel: consumerUUID,
-				storageClassClaimNameLabel:    storageClassClaimName,
-			},
 		},
 		Spec: ocsv1alpha1.StorageClassClaimSpec{
 			Type:             claimType,
@@ -88,7 +89,24 @@ func (s *storageClassClaimManager) Create(
 		return fmt.Errorf("failed to get gvk for consumer %q. %w", consumerUUID, err)
 	}
 
-	storageClassClaimObj.SetOwnerReferences([]metav1.OwnerReference{
+	claimBytes, err := yaml.Marshal(storageClassClaimObj)
+	if err != nil {
+		return fmt.Errorf("failed to marshal StorageClassClaim for consumer %q. %w", consumerUUID, err)
+	}
+	cmObj := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      storageClassClaimObj.Name,
+			Namespace: s.namespace,
+			Labels: map[string]string{
+				controllers.ConsumerUUIDLabel:      consumerUUID,
+				ocsv1alpha1.StorageClassClaimLabel: storageClassClaimName,
+			},
+		},
+		Data: map[string]string{
+			"StorageClassClaim": string(claimBytes),
+		},
+	}
+	cmObj.SetOwnerReferences([]metav1.OwnerReference{
 		{
 			APIVersion:         gvk.GroupVersion().String(),
 			Kind:               gvk.Kind,
@@ -98,20 +116,27 @@ func (s *storageClassClaimManager) Create(
 		},
 	})
 
-	err = s.client.Create(ctx, storageClassClaimObj)
+	err = s.client.Create(ctx, cmObj)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create a StorageClassClaim named %q for consumer %q and claim %q. %w", generatedClaimName, consumerUUID, storageClassClaimName, err)
+			return fmt.Errorf("failed to create a ConfigMap named %q for consumer %q and claim %q. %w", generatedClaimName, consumerUUID, storageClassClaimName, err)
 		}
-		newStorageClassClaimObj := &ocsv1alpha1.StorageClassClaim{}
-		getErr := s.client.Get(ctx, client.ObjectKey{Name: generatedClaimName, Namespace: s.namespace}, newStorageClassClaimObj)
+		existingCM := &corev1.ConfigMap{}
+		getErr := s.client.Get(ctx, client.ObjectKey{Name: cmObj.Name, Namespace: s.namespace}, existingCM)
 		if getErr != nil {
-			klog.Errorf("failed to get a StorageClassClaim named %q for consumer %q and claim %q. %v", generatedClaimName, consumerUUID, storageClassClaimName, getErr)
+			klog.Errorf("failed to get a ConfigMap named %q for consumer %q and claim %q. %v", generatedClaimName, consumerUUID, storageClassClaimName, getErr)
 			return err
 		}
-		// check if the storageClassClaim is getting deleted.
-		if newStorageClassClaimObj.DeletionTimestamp != nil {
+		// check if the StorageClassClaim ConfigMap is getting deleted.
+		if existingCM.DeletionTimestamp != nil {
 			klog.Warningf("StorageClassClaim named %q for consumer %q and claim %q is already created but is getting deleted", generatedClaimName, consumerUUID, storageClassClaimName)
+			return err
+		}
+		newStorageClassClaimObj := &ocsv1alpha1.StorageClassClaim{}
+		claimString := existingCM.Data["StorageClassClaim"]
+		unmarshallErr := yaml.Unmarshal([]byte(claimString), newStorageClassClaimObj)
+		if unmarshallErr != nil {
+			klog.Errorf("failed to unmarshall the StorageClassClaim named %q for consumer %q and claim %q. %v", generatedClaimName, consumerUUID, storageClassClaimName, unmarshallErr)
 			return err
 		}
 		// check if the input is different
@@ -121,7 +146,7 @@ func (s *storageClassClaimManager) Create(
 		}
 	}
 
-	klog.Infof("successfully created a StorageClassClaim resource %q for consumer %q and claim %q", generatedClaimName, consumerUUID, storageClassClaimName)
+	klog.Infof("successfully created a StorageClassClaim ConfigMap %q for consumer %q and claim %q", cmObj.Name, consumerUUID, storageClassClaimName)
 
 	return nil
 }
@@ -130,7 +155,7 @@ func (s *storageClassClaimManager) Create(
 // and consumerUUID.
 func (s *storageClassClaimManager) Delete(ctx context.Context, consumerUUID, storageClassClaimName string) error {
 	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
-	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{
+	storageClassClaimObj := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generatedClaimName,
 			Namespace: s.namespace,
@@ -159,10 +184,22 @@ func (s *storageClassClaimManager) Delete(ctx context.Context, consumerUUID, sto
 func (s *storageClassClaimManager) Get(ctx context.Context, consumerUUID, storageClassClaimName string) (*ocsv1alpha1.StorageClassClaim, error) {
 	generatedClaimName := getStorageClassClaimName(consumerUUID, storageClassClaimName)
 	storageClassClaimObj := &ocsv1alpha1.StorageClassClaim{}
-	err := s.client.Get(ctx, types.NamespacedName{Name: generatedClaimName, Namespace: s.namespace}, storageClassClaimObj)
-	if err != nil {
-		klog.Errorf("failed to get a StorageClassClaim named %q for consumer %q and claim %q. %v", generatedClaimName, consumerUUID, storageClassClaimName, err)
-		return nil, err
+	existingCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generatedClaimName,
+			Namespace: s.namespace,
+		},
+	}
+	getErr := s.client.Get(ctx, client.ObjectKey{Name: existingCM.Name, Namespace: existingCM.Namespace}, existingCM)
+	if getErr != nil {
+		klog.Errorf("failed to get a ConfigMap named %q for consumer %q and claim %q. %v", existingCM.Name, consumerUUID, storageClassClaimName, getErr)
+		return nil, getErr
+	}
+	claimString := existingCM.Data["StorageClassClaim"]
+	unmarshallErr := yaml.Unmarshal([]byte(claimString), storageClassClaimObj)
+	if unmarshallErr != nil {
+		klog.Errorf("failed to unmarshall the StorageClassClaim named %q for consumer %q and claim %q. %v", generatedClaimName, consumerUUID, storageClassClaimName, unmarshallErr)
+		return nil, unmarshallErr
 	}
 
 	return storageClassClaimObj, nil
