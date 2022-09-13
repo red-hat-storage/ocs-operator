@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 
@@ -16,10 +17,105 @@ import (
 	storagev1listers "k8s.io/client-go/listers/storage/v1"
 )
 
+type AdvancedFeatureProvider interface {
+	cache.SharedIndexInformer
+	AdvancedFeature(namespaces ...string) int
+}
+
+type CephClusterAdvancedFeatureProvider struct {
+	cache.SharedIndexInformer
+}
+
+func (c *CephClusterAdvancedFeatureProvider) AdvancedFeature(namespaces ...string) int {
+	allCephClusters := getAllCephClusters(
+		cephv1listers.NewCephClusterLister(c.GetIndexer()), namespaces)
+	for _, cephCluster := range allCephClusters {
+		if cephCluster.Spec.External.Enable {
+			return 1
+		} else if cephCluster.Spec.Security.KeyManagementService.IsEnabled() {
+			return 1
+		}
+	}
+	return 0
+}
+
+func NewCephClusterAdvancedFeatureProvider(client *rookclient.Clientset) AdvancedFeatureProvider {
+	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", metav1.NamespaceAll, fields.Everything())
+	return &CephClusterAdvancedFeatureProvider{
+		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+	}
+}
+
+type CephObjectStoreAdvancedFeatureProvider struct {
+	cache.SharedIndexInformer
+}
+
+func (c *CephObjectStoreAdvancedFeatureProvider) AdvancedFeature(namespaces ...string) int {
+	cephObjectStoreLister := cephv1listers.NewCephObjectStoreLister(c.GetIndexer())
+	cephObjectStores := getAllObjectStores(cephObjectStoreLister, namespaces)
+	for _, cephObjectStore := range cephObjectStores {
+		if cephObjectStore.Spec.Security.KeyManagementService.IsEnabled() {
+			return 1
+		}
+	}
+	return 0
+}
+
+func NewCephObjectStoreAdvancedFeatureProvider(client *rookclient.Clientset) AdvancedFeatureProvider {
+	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephobjectstores", metav1.NamespaceAll, fields.Everything())
+	return &CephObjectStoreAdvancedFeatureProvider{
+		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &cephv1.CephObjectStore{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+	}
+}
+
+type StorageClassAdvancedFeatureProvider struct {
+	cache.SharedIndexInformer
+}
+
+func (s *StorageClassAdvancedFeatureProvider) AdvancedFeature(namespaces ...string) int {
+	storageClassLister := storagev1listers.NewStorageClassLister(s.GetIndexer())
+	storageClasses := getAllStorageClasses(storageClassLister, namespaces)
+	for _, storageClass := range storageClasses {
+		if storageClass.Parameters["encrypted"] == "true" {
+			return 1
+		}
+	}
+	return 0
+}
+
+func NewStorageClassAdvancedFeatureProvider(client *k8s.Clientset) AdvancedFeatureProvider {
+	lw := cache.NewListWatchFromClient(client.RESTClient(), "storageclasses", metav1.NamespaceAll, fields.Everything())
+	return &StorageClassAdvancedFeatureProvider{
+		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &storagev1.StorageClass{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+	}
+}
+
+type CephRBDMirrorAdvancedFeatureProvider struct {
+	cache.SharedIndexInformer
+}
+
+func (c *CephRBDMirrorAdvancedFeatureProvider) AdvancedFeature(namespaces ...string) int {
+	cephRBDMirrorLister := cephv1listers.NewCephRBDMirrorLister(c.GetIndexer())
+	cephRBDMirrors := getAllRBDMirrors(cephRBDMirrorLister, namespaces)
+	for _, rbdM := range cephRBDMirrors {
+		if rbdM.Spec.Count > 0 {
+			return 1
+		}
+	}
+	return 0
+}
+
+func NewCephRBDMirrorAdvancedFeatureProvider(client *rookclient.Clientset) AdvancedFeatureProvider {
+	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephrbdmirrors", metav1.NamespaceAll, fields.Everything())
+	return &CephRBDMirrorAdvancedFeatureProvider{
+		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &cephv1.CephRBDMirror{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+	}
+}
+
 type ClusterAdvanceFeatureCollector struct {
-	AdvancedFeature   *prometheus.Desc
-	Informer          cache.SharedIndexInformer
-	AllowedNamespaces []string
+	AdvancedFeature     *prometheus.Desc
+	AllowedNamespaces   []string
+	advFeatureProviders []AdvancedFeatureProvider
 }
 
 const (
@@ -33,12 +129,22 @@ var _ prometheus.Collector = &ClusterAdvanceFeatureCollector{}
 func NewClusterAdvancedFeatureCollector(opts *options.Options) *ClusterAdvanceFeatureCollector {
 	client, err := rookclient.NewForConfig(opts.Kubeconfig)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("cluster advanced feature collector failed to create client: %v", err)
 		return nil
 	}
 
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", metav1.NamespaceAll, fields.Everything())
-	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	advFeatureProviders := []AdvancedFeatureProvider{
+		NewCephClusterAdvancedFeatureProvider(client),
+		NewCephObjectStoreAdvancedFeatureProvider(client),
+		NewCephRBDMirrorAdvancedFeatureProvider(client),
+	}
+
+	if k8Client, err := k8s.NewForConfig(opts.Kubeconfig); err == nil {
+		advFeatureProviders = append(
+			advFeatureProviders, NewStorageClassAdvancedFeatureProvider(k8Client))
+	} else { // logging any error occurred
+		klog.Errorf("unable to get K8 Client, no StorageClass information available: %v", err)
+	}
 
 	return &ClusterAdvanceFeatureCollector{
 		AdvancedFeature: prometheus.NewDesc(
@@ -46,14 +152,16 @@ func NewClusterAdvancedFeatureCollector(opts *options.Options) *ClusterAdvanceFe
 			`Indicates whether the cluster is using any advanced features, like PV/KMS encryption or external cluster mode`,
 			nil, nil,
 		),
-		Informer:          sharedIndexInformer,
-		AllowedNamespaces: opts.AllowedNamespaces,
+		AllowedNamespaces:   opts.AllowedNamespaces,
+		advFeatureProviders: advFeatureProviders,
 	}
 }
 
-// Run starts CephObjectStore informer
+// Run starts all the SharedIndex informers
 func (c *ClusterAdvanceFeatureCollector) Run(stopCh <-chan struct{}) {
-	go c.Informer.Run(stopCh)
+	for _, informer := range c.advFeatureProviders {
+		go informer.Run(stopCh)
+	}
 }
 
 // Describe implements prometheus.Collector interface
@@ -69,86 +177,15 @@ func (c *ClusterAdvanceFeatureCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements prometheus.Collector interface
 func (c *ClusterAdvanceFeatureCollector) Collect(ch chan<- prometheus.Metric) {
-	// advancedFeature will be set to
-	// '1' if any of the cluster is using an advanced feature
-	// or else it will be set to '0'.
-	advancedFeature := 0
-
-	cephClusterLister := cephv1listers.NewCephClusterLister(c.Informer.GetIndexer())
-	cephClusters := getAllCephClusters(cephClusterLister, c.AllowedNamespaces)
-	if len(cephClusters) > 0 {
-		advancedFeature = c.advancedFeatureFromCephClusters(cephClusters)
-	}
-	if advancedFeature > 0 {
-		c.collectAdvancedFeatureUse(ch, advancedFeature)
-		return
-	}
-
-	cephObjectStoreLister := cephv1listers.NewCephObjectStoreLister(c.Informer.GetIndexer())
-	cephObjectStores := getAllObjectStores(cephObjectStoreLister, c.AllowedNamespaces)
-	if len(cephObjectStores) > 0 {
-		advancedFeature = c.advancedFeatureFromCephObjectStores(cephObjectStores)
-	}
-	if advancedFeature > 0 {
-		c.collectAdvancedFeatureUse(ch, advancedFeature)
-		return
-	}
-
-	storageClassLister := storagev1listers.NewStorageClassLister(c.Informer.GetIndexer())
-	storageClasses := getAllStorageClasses(storageClassLister, c.AllowedNamespaces)
-	if len(storageClasses) > 0 {
-		advancedFeature = c.advancedFeatureFromStorageClasses(storageClasses)
-	}
-	if advancedFeature > 0 {
-		c.collectAdvancedFeatureUse(ch, advancedFeature)
-		return
-	}
-
-	cephRBDMirrorLister := cephv1listers.NewCephRBDMirrorLister(c.Informer.GetIndexer())
-	cephRBDMirrors := getAllRBDMirrors(cephRBDMirrorLister, c.AllowedNamespaces)
-	if len(cephRBDMirrors) > 0 {
-		advancedFeature = c.advancedFeatureFromCephRBDMirrors(cephRBDMirrors)
-	}
-
-	c.collectAdvancedFeatureUse(ch, advancedFeature)
-}
-
-func (c *ClusterAdvanceFeatureCollector) advancedFeatureFromCephClusters(cephClusters []*cephv1.CephCluster) int {
-	for _, cephCluster := range cephClusters {
-		if cephCluster.Spec.External.Enable {
-			return 1
-		} else if cephCluster.Spec.Security.KeyManagementService.IsEnabled() {
-			return 1
+	for _, advProvider := range c.advFeatureProviders {
+		// if any of the provider gives an advanced feature,
+		// collect it and return immediately
+		if advFeature := advProvider.AdvancedFeature(c.AllowedNamespaces...); advFeature > 0 {
+			c.collectAdvancedFeatureUse(ch, advFeature)
+			return
 		}
 	}
-	return 0
-}
-
-func (c *ClusterAdvanceFeatureCollector) advancedFeatureFromCephObjectStores(cephObjectStores []*cephv1.CephObjectStore) int {
-	for _, cephObjectStore := range cephObjectStores {
-		if cephObjectStore.Spec.Security.KeyManagementService.IsEnabled() {
-			return 1
-		}
-	}
-	return 0
-}
-
-func (c *ClusterAdvanceFeatureCollector) advancedFeatureFromStorageClasses(storageClasses []*storagev1.StorageClass) int {
-	for _, storageClass := range storageClasses {
-		if storageClass.Parameters["encrypted"] == "true" {
-			return 1
-		}
-	}
-	return 0
-}
-
-func (c *ClusterAdvanceFeatureCollector) advancedFeatureFromCephRBDMirrors(cephRBDMirrors []*cephv1.CephRBDMirror) int {
-	for _, rbdM := range cephRBDMirrors {
-		if rbdM.Spec.Count > 0 {
-			return 1
-		}
-	}
-	return 0
+	c.collectAdvancedFeatureUse(ch, 0)
 }
 
 func (c *ClusterAdvanceFeatureCollector) collectAdvancedFeatureUse(ch chan<- prometheus.Metric, advancedFeature int) {
