@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"sync"
 	"time"
@@ -95,18 +94,6 @@ type RBDMirrorPeerSiteDescription struct {
 	ReplayState             string  `json:"replay_state"`
 }
 
-const (
-	cephConfigRoot = "/etc/ceph"
-	cephConfigPath = "/etc/ceph/ceph.conf"
-	keyRing        = "/etc/ceph/keyring"
-)
-
-var cephConfig = []byte(`[global]
-auth_cluster_required = cephx
-auth_service_required = cephx
-auth_client_required = cephx
-`)
-
 type csiClusterConfig struct {
 	ClusterID string   `json:"clusterID"`
 	Monitors  []string `json:"monitors"`
@@ -130,12 +117,6 @@ type RBDMirrorStore struct {
 }
 
 func NewRBDMirrorStore(opts *options.Options) *RBDMirrorStore {
-	// write Ceph config file before issuing RBD mirror commands
-	err := writeCephConfig()
-	if err != nil {
-		// With the current implementation, this is not possible.
-		panic(err)
-	}
 	return &RBDMirrorStore{
 		Store:             map[types.UID]RBDMirrorPoolStatusVerbose{},
 		rbdCommandInput:   map[string]*rbdCommandInput{},
@@ -359,42 +340,4 @@ func (in *rbdCommandInput) rbdImageStatus(poolName string) (RBDMirrorStatusVerbo
 func execCommand(command string, args []string) ([]byte, error) {
 	cmd := exec.Command(command, args...)
 	return cmd.CombinedOutput()
-}
-
-/*
-	Copied from https://github.com/ceph/ceph-csi/blob/70fc6db2cfe3f00945c030f0d7f83ea1e2d21a00/internal/util/cephconf.go
-	Functions to create ceph.conf and keyring files internally.
-*/
-
-func createCephConfigRoot() error {
-	return os.MkdirAll(cephConfigRoot, 0o755)
-}
-
-// createKeyRingFile creates the keyring files to fix above error message logging.
-func createKeyRingFile() error {
-	var err error
-	if _, err = os.Stat(keyRing); os.IsNotExist(err) {
-		_, err = os.Create(keyRing)
-	}
-
-	return err
-}
-
-// writeCephConfig writes out a basic ceph.conf file, making it easy to use
-// ceph related CLIs.
-func writeCephConfig() error {
-	var err error
-	if err = createCephConfigRoot(); err != nil {
-		return err
-	}
-
-	if _, err = os.Stat(cephConfigPath); os.IsNotExist(err) {
-		err = os.WriteFile(cephConfigPath, cephConfig, 0o600)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return createKeyRingFile()
 }
