@@ -40,8 +40,7 @@ const (
 var (
 	// currently supported KMS providers mapped to their address key
 	kmsProviderAddressKeyMap = map[string]string{
-		VaultKMSProvider:  "VAULT_ADDR",
-		ThalesKMSProvider: "KMIP_ENDPOINT",
+		VaultKMSProvider: "VAULT_ADDR",
 	}
 	// Mapping of KMS providers and key where corresponding Secret name is stored
 	kmsProviderSecretKeyMap = map[string]string{
