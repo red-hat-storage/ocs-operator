@@ -42,6 +42,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -60,6 +61,7 @@ const (
 // nolint
 type StorageClassClaimReconciler struct {
 	client.Client
+	cache.Cache
 	Scheme            *runtime.Scheme
 	OperatorNamespace string
 
@@ -87,6 +89,10 @@ type StorageClassClaimReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch
 
 func (r *StorageClassClaimReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	if ok := r.Cache.WaitForCacheSync(ctx); !ok {
+		return reconcile.Result{}, fmt.Errorf("cache sync failed")
+	}
+
 	r.log = ctrllog.FromContext(ctx, "StorageClassClaim", request)
 	r.ctx = ctrllog.IntoContext(ctx, r.log)
 	r.log.Info("Reconciling StorageClassClaim.")
