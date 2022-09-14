@@ -180,6 +180,7 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&storageclassclaim.StorageClassClaimReconciler{
+		Cache:             mgr.GetCache(),
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
