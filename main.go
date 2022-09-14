@@ -38,6 +38,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/ocsinitialization"
 	"github.com/red-hat-storage/ocs-operator/controllers/storageclassclaim"
+	"github.com/red-hat-storage/ocs-operator/controllers/storageclassconfig"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -184,6 +185,15 @@ func main() {
 		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageClassClaim")
+		os.Exit(1)
+	}
+	if err = (&storageclassconfig.StorageClassConfigReconciler{
+		Cache:             mgr.GetCache(),
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		OperatorNamespace: operatorNamespace,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageClassConfig")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

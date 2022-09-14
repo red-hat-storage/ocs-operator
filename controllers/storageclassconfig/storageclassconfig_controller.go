@@ -29,7 +29,10 @@ import (
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +41,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -53,6 +57,7 @@ import (
 // nolint:revive
 type StorageClassConfigReconciler struct {
 	client.Client
+	cache.Cache
 	Scheme            *runtime.Scheme
 	OperatorNamespace string
 
@@ -61,6 +66,7 @@ type StorageClassConfigReconciler struct {
 	storageConsumer              *v1alpha1.StorageConsumer
 	storageCluster               *v1.StorageCluster
 	storageClassClaim            *v1alpha1.StorageClassClaim
+	storageClassConfig           *corev1.ConfigMap
 	cephBlockPool                *rookCephv1.CephBlockPool
 	cephFilesystemSubVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup
 	cephClientProvisioner        *rookCephv1.CephClient
@@ -78,24 +84,36 @@ type StorageClassConfigReconciler struct {
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 func (r *StorageClassConfigReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	r.log = ctrllog.FromContext(ctx, "StorageClassClaim", request)
+	if ok := r.Cache.WaitForCacheSync(ctx); !ok {
+		return reconcile.Result{}, fmt.Errorf("cache sync failed")
+	}
+
+	r.log = ctrllog.FromContext(ctx, "StorageClassClaim ConfigMap", request)
 	r.ctx = ctrllog.IntoContext(ctx, r.log)
-	r.log.Info("Reconciling StorageClassClaim.")
+	r.log.Info("Reconciling StorageClassClaim ConfigMap.")
 
 	// Fetch the StorageClassClaim instance
-	r.storageClassClaim = &v1alpha1.StorageClassClaim{}
-	r.storageClassClaim.Name = request.Name
-	r.storageClassClaim.Namespace = request.Namespace
+	r.storageClassConfig = &corev1.ConfigMap{}
+	r.storageClassConfig.Name = request.Name
+	r.storageClassConfig.Namespace = request.Namespace
 
-	if err := r.get(r.storageClassClaim); err != nil {
+	if err := r.get(r.storageClassConfig); err != nil {
 		if errors.IsNotFound(err) {
-			r.log.Info("StorageClassClaim resource not found. Ignoring since object must be deleted.")
+			r.log.Info("StorageClassClaim ConfigMap not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, nil
 		}
-		r.log.Error(err, "Failed to get StorageClassClaim.")
+		r.log.Error(err, "Failed to get StorageClassClaim ConfigMap.")
 		return reconcile.Result{}, err
+	}
+
+	r.storageClassClaim = &v1alpha1.StorageClassClaim{}
+	claimString := r.storageClassConfig.Data["StorageClassClaim"]
+	if unmarshalErr := yaml.Unmarshal([]byte(claimString), r.storageClassClaim); unmarshalErr != nil {
+		r.log.Error(unmarshalErr, "Failed to unmarshal StorageClassClaim ConfigMap.")
+		return reconcile.Result{}, unmarshalErr
 	}
 
 	if r.storageClassClaim.Status.Phase == "" {
@@ -119,14 +137,22 @@ func (r *StorageClassConfigReconciler) Reconcile(ctx context.Context, request re
 	var reconcileError error
 	if storagecluster.IsOCSConsumerMode(r.storageCluster) {
 		return reconcile.Result{}, fmt.Errorf("StorageClassClaim ConfigMap is not supported in OCSConsumer mode")
+	}
+
+	result, reconcileError = r.reconcilePhases()
+
+	if claimBytes, marshalErr := yaml.Marshal(r.storageClassClaim); marshalErr == nil {
+		r.storageClassConfig.Data["StorageClassClaim"] = string(claimBytes)
 	} else {
-		result, reconcileError = r.reconcilePhases()
+		msg := "Failed to marshal StorageClassClaim, something is very wrong!"
+		r.log.Error(marshalErr, msg)
+		panic(msg)
 	}
 
 	// Apply status changes to the StorageClassClaim
-	statusError := r.Client.Status().Update(r.ctx, r.storageClassClaim)
+	statusError := r.update(r.storageClassConfig)
 	if statusError != nil {
-		r.log.Info("Failed to update StorageClassClaim status.")
+		r.log.Info("Failed to update StorageClassClaim ConfigMap status.")
 	}
 
 	// Reconcile errors have higher priority than status update errors
@@ -156,15 +182,27 @@ func (r *StorageClassConfigReconciler) SetupWithManager(mgr ctrl.Manager) error 
 			}
 			return []reconcile.Request{}
 		})
+
+	claimLabelPredicate := predicate.NewPredicateFuncs(
+		func(obj client.Object) bool {
+			labels := obj.GetLabels()
+			_, found := labels[v1alpha1.StorageClassClaimLabel]
+			return found
+		},
+	)
+	metaPredicate := predicate.Or(
+		predicate.GenerationChangedPredicate{},
+		util.MetadataChangedPredicate{},
+	)
+	configMapsPredicate := predicate.And(metaPredicate, claimLabelPredicate)
+
 	// As we are not setting the Controller OwnerReference on the ceph
 	// resources we are creating as part of the StorageClassClaim, we need to
 	// set IsController to false to get Reconcile Request of StorageClassClaim
 	// for the owned ceph resources updates.
 	enqueueForNonControllerOwner := &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.StorageClassClaim{}, IsController: false}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.StorageClassClaim{}, builder.WithPredicates(
-			predicate.GenerationChangedPredicate{},
-		)).
+		For(&corev1.ConfigMap{}, builder.WithPredicates(configMapsPredicate)).
 		Watches(&source.Kind{Type: &rookCephv1.CephBlockPool{}}, enqueueForNonControllerOwner).
 		Watches(&source.Kind{Type: &rookCephv1.CephFilesystemSubVolumeGroup{}}, enqueueForNonControllerOwner).
 		Watches(&source.Kind{Type: &rookCephv1.CephClient{}}, enqueueForNonControllerOwner).
@@ -178,8 +216,8 @@ func (r *StorageClassConfigReconciler) reconcilePhases() (reconcile.Result, erro
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get gvk for consumer  %w", err)
 	}
-	// reading storageConsumer Name from storageClassClaim ownerReferences
-	ownerRefs := r.storageClassClaim.GetOwnerReferences()
+	// reading storageConsumer Name from storageClassConfig ownerReferences
+	ownerRefs := r.storageClassConfig.GetOwnerReferences()
 	for i := range ownerRefs {
 		if ownerRefs[i].Kind == gvk.Kind {
 			r.storageConsumer = &v1alpha1.StorageConsumer{}
@@ -261,7 +299,7 @@ func (r *StorageClassConfigReconciler) reconcilePhases() (reconcile.Result, erro
 		r.storageClassClaim.Status.Phase = v1alpha1.StorageClassClaimConfiguring
 	}
 
-	if r.storageClassClaim.GetDeletionTimestamp().IsZero() {
+	if r.storageClassConfig.GetDeletionTimestamp().IsZero() {
 		if r.storageClassClaim.Spec.Type == "blockpool" {
 
 			if err := r.reconcileCephClientRBDProvisioner(); err != nil {
@@ -636,8 +674,8 @@ func (r *StorageClassConfigReconciler) list(obj client.ObjectList, listOptions .
 }
 
 func (r *StorageClassConfigReconciler) own(resource metav1.Object) error {
-	// Ensure StorageClassClaim ownership on a resource
-	return controllerutil.SetOwnerReference(r.storageClassClaim, resource, r.Scheme)
+	// Ensure StorageClassClaim ConfigMap ownership on a resource
+	return controllerutil.SetOwnerReference(r.storageClassConfig, resource, r.Scheme)
 }
 
 func (r *StorageClassConfigReconciler) getNamespacedName() string {
