@@ -836,7 +836,7 @@ func (r *StorageClassClaimReconciler) reconcileCephFilesystemSubVolumeGroup() er
 		// This label is required to set the dataPool on the CephFS
 		// storageclass so that each PVC created from CephFS storageclass can
 		// use correct dataPool backed by deviceclass.
-		addLabel(r.cephFilesystemSubVolumeGroup, v1alpha1.CephFileSystemDataPoolLabel, dataPool.Name)
+		addLabel(r.cephFilesystemSubVolumeGroup, v1alpha1.CephFileSystemDataPoolLabel, fmt.Sprintf("%s-%s", cephFilesystem.Name, dataPool.Name))
 
 		r.cephFilesystemSubVolumeGroup.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
 			FilesystemName: cephFilesystem.Name,
@@ -1120,6 +1120,6 @@ func addAnnotation(obj metav1.Object, key string, value string) {
 
 // generateUUID generates a random UUID string and return first 8 characters.
 func generateUUID() string {
-	newUUID := uuid.New()
-	return string(newUUID[:8])
+	newUUID := uuid.New().String()
+	return newUUID[:8]
 }
