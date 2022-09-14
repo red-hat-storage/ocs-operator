@@ -37,7 +37,6 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/ocsinitialization"
-	"github.com/red-hat-storage/ocs-operator/controllers/persistentvolume"
 	"github.com/red-hat-storage/ocs-operator/controllers/storageclassclaim"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
@@ -153,15 +152,6 @@ func main() {
 		OperatorCondition: condition,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageCluster")
-		os.Exit(1)
-	}
-
-	if err = (&persistentvolume.PersistentVolumeReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("PersistentVolume"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolume")
 		os.Exit(1)
 	}
 
