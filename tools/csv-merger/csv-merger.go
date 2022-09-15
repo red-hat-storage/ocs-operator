@@ -974,7 +974,8 @@ func copyManifests() {
 
 func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 	replica := int32(1)
-	privileged := true
+	privileged := false
+	noRoot := true
 	deployment := appsv1.DeploymentSpec{
 		Replicas: &replica,
 		Selector: &metav1.LabelSelector{
@@ -996,7 +997,14 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 					{
 						Name: "ocs-metrics-exporter",
 						SecurityContext: &corev1.SecurityContext{
-							Privileged: &privileged,
+							Privileged:   &privileged,
+							RunAsNonRoot: &noRoot,
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "ceph-config",
+								MountPath: "/etc/ceph",
+							},
 						},
 						Image:   *ocsMetricsExporterImage,
 						Command: []string{"/usr/local/bin/metrics-exporter"},
@@ -1007,6 +1015,18 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 							},
 							{
 								ContainerPort: 8081,
+							},
+						},
+					},
+				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "ceph-config",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "ocs-metrics-exporter-ceph-conf",
+								},
 							},
 						},
 					},
