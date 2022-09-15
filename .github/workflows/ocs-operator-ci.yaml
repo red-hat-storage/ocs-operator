@@ -1,0 +1,84 @@
+---
+name: ocs-operator sanity checks
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['*']
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run shellcheck
+        run: make shellcheck
+
+  golangci-lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.17", "1.18"]
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go }}
+          go-version-file: go.mod
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.49.0
+          args: -E gosec --timeout=6m
+
+  go-test:
+    name: go-test unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.17", "1.18"]
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go }}
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run go test
+        run: make unit-test
+
+  verify-changes:
+    name: verify generated changes
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.17", "1.18"]
+        make-target: ["verify-deps", "verify-generated", "verify-latest-csv", "verify-operator-bundle", "verify-latest-deploy-yaml"]
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go }}
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run ${{ matrix.make-target }} make target
+        run: make ${{ matrix.make-target }}

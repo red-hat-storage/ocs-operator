@@ -94,7 +94,7 @@ function gen_ocs_csv() {
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
-if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ]; then
+if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ] && [ -z "$SKIP_CSV_DUMP" ]; then
 	source hack/docker-common.sh
 	dump_noobaa_csv
 	dump_rook_csv
