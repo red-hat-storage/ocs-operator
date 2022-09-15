@@ -46,12 +46,15 @@ type ObjectBucketCollector struct {
 }
 
 // NewObjectBucketCollector constructs a collector
-func NewObjectBucketCollector(opts *options.Options) *ObjectBucketCollector {
-	sharedIndexInformer := CephObjectStoreInformer(opts)
-	if sharedIndexInformer == nil {
-		return nil
+func NewObjectBucketCollector(opts *options.Options, sharedIndexInformers ...cache.SharedIndexInformer) *ObjectBucketCollector {
+	var rookclient = rookclient.NewForConfigOrDie(opts.Kubeconfig)
+	var k8sclient = kubernetes.NewForConfigOrDie(opts.Kubeconfig)
+	var sharedIndexInformer cache.SharedIndexInformer
+	if len(sharedIndexInformers) > 0 {
+		sharedIndexInformer = sharedIndexInformers[0]
+	} else {
+		sharedIndexInformer = CephObjectStoreSIIAI.SharedIndexInformer(rookclient.CephV1())
 	}
-
 	return &ObjectBucketCollector{
 		OBSizeTotal: prometheus.NewDesc(
 			"ocs_objectbucket_used_bytes",
@@ -94,14 +97,9 @@ func NewObjectBucketCollector(opts *options.Options) *ObjectBucketCollector {
 		Informer:          sharedIndexInformer,
 		AllowedNamespaces: opts.AllowedNamespaces,
 		bktclient:         bktclient.NewForConfigOrDie(opts.Kubeconfig),
-		rookclient:        rookclient.NewForConfigOrDie(opts.Kubeconfig),
-		k8sclient:         kubernetes.NewForConfigOrDie(opts.Kubeconfig),
+		rookclient:        rookclient,
+		k8sclient:         k8sclient,
 	}
-}
-
-// Run starts CephObjectStore informer
-func (c *ObjectBucketCollector) Run(stopCh <-chan struct{}) {
-	go c.Informer.Run(stopCh)
 }
 
 // Describe implements prometheus.Collector interface

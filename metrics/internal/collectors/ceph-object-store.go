@@ -28,13 +28,14 @@ type CephObjectStoreCollector struct {
 }
 
 // NewCephObjectStoreCollector constructs a collector
-func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollector {
-
-	sharedIndexInformer := CephObjectStoreInformer(opts)
-	if sharedIndexInformer == nil {
-		return nil
+func NewCephObjectStoreCollector(opts *options.Options, sharedIndexInformers ...cache.SharedIndexInformer) *CephObjectStoreCollector {
+	var sharedIndexInformer cache.SharedIndexInformer
+	if len(sharedIndexInformers) > 0 {
+		sharedIndexInformer = sharedIndexInformers[0]
+	} else {
+		rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
+		sharedIndexInformer = CephObjectStoreSIIAI.SharedIndexInformer(rookClient.CephV1())
 	}
-
 	return &CephObjectStoreCollector{
 		RGWHealthStatus: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, rgwSubsystem, "health_status"),
@@ -45,11 +46,6 @@ func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollecto
 		Informer:          sharedIndexInformer,
 		AllowedNamespaces: opts.AllowedNamespaces,
 	}
-}
-
-// Run starts CephObjectStore informer
-func (c *CephObjectStoreCollector) Run(stopCh <-chan struct{}) {
-	go c.Informer.Run(stopCh)
 }
 
 // Describe implements prometheus.Collector interface

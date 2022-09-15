@@ -6,8 +6,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
@@ -28,16 +26,14 @@ type CephClusterCollector struct {
 }
 
 // NewCephClusterCollector constructs a collector
-func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
-	client, err := rookclient.NewForConfig(opts.Kubeconfig)
-	if err != nil {
-		klog.Error(err)
-		return nil
+func NewCephClusterCollector(opts *options.Options, sharedIndexInformers ...cache.SharedIndexInformer) *CephClusterCollector {
+	var sharedIndexInformer cache.SharedIndexInformer
+	if len(sharedIndexInformers) > 0 {
+		sharedIndexInformer = sharedIndexInformers[0]
+	} else {
+		rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
+		sharedIndexInformer = CephClusterSIIAI.SharedIndexInformer(rookClient.CephV1())
 	}
-
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", metav1.NamespaceAll, fields.Everything())
-	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
-
 	return &CephClusterCollector{
 		MirrorDaemonCount: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, mirrorDaemonSubsystem, "count"),
@@ -48,11 +44,6 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 		Informer:          sharedIndexInformer,
 		AllowedNamespaces: opts.AllowedNamespaces,
 	}
-}
-
-// Run starts CephClusters informer
-func (c *CephClusterCollector) Run(stopCh <-chan struct{}) {
-	go c.Informer.Run(stopCh)
 }
 
 // Describe implements prometheus.Collector interface

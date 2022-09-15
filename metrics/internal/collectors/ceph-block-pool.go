@@ -6,8 +6,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
@@ -29,16 +27,14 @@ type CephBlockPoolCollector struct {
 }
 
 // NewCephBlockPoolCollector constructs a collector
-func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
-	client, err := rookclient.NewForConfig(opts.Kubeconfig)
-	if err != nil {
-		klog.Error(err)
-		return nil
+func NewCephBlockPoolCollector(opts *options.Options, sharedIndexInformers ...cache.SharedIndexInformer) *CephBlockPoolCollector {
+	var sharedIndexInformer cache.SharedIndexInformer
+	if len(sharedIndexInformers) > 0 {
+		sharedIndexInformer = sharedIndexInformers[0]
+	} else {
+		rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
+		sharedIndexInformer = CephBlockPoolSIIAI.SharedIndexInformer(rookClient.CephV1())
 	}
-
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephblockpools", metav1.NamespaceAll, fields.Everything())
-	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephBlockPool{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
-
 	return &CephBlockPoolCollector{
 		MirroringImageHealth: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, poolMirroringSubsystem, "image_health"),
@@ -55,11 +51,6 @@ func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
 		Informer:          sharedIndexInformer,
 		AllowedNamespaces: opts.AllowedNamespaces,
 	}
-}
-
-// Run starts CephBlockPool informer
-func (c *CephBlockPoolCollector) Run(stopCh <-chan struct{}) {
-	go c.Informer.Run(stopCh)
 }
 
 // Describe implements prometheus.Collector interface

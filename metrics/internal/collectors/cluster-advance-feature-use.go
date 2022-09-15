@@ -4,12 +4,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 
@@ -39,13 +35,6 @@ func (c *CephClusterAdvancedFeatureProvider) AdvancedFeature(namespaces ...strin
 	return 0
 }
 
-func NewCephClusterAdvancedFeatureProvider(client *rookclient.Clientset) AdvancedFeatureProvider {
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", metav1.NamespaceAll, fields.Everything())
-	return &CephClusterAdvancedFeatureProvider{
-		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
-	}
-}
-
 type CephObjectStoreAdvancedFeatureProvider struct {
 	cache.SharedIndexInformer
 }
@@ -59,13 +48,6 @@ func (c *CephObjectStoreAdvancedFeatureProvider) AdvancedFeature(namespaces ...s
 		}
 	}
 	return 0
-}
-
-func NewCephObjectStoreAdvancedFeatureProvider(client *rookclient.Clientset) AdvancedFeatureProvider {
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephobjectstores", metav1.NamespaceAll, fields.Everything())
-	return &CephObjectStoreAdvancedFeatureProvider{
-		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &cephv1.CephObjectStore{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
-	}
 }
 
 type StorageClassAdvancedFeatureProvider struct {
@@ -83,13 +65,6 @@ func (s *StorageClassAdvancedFeatureProvider) AdvancedFeature(namespaces ...stri
 	return 0
 }
 
-func NewStorageClassAdvancedFeatureProvider(client *k8s.Clientset) AdvancedFeatureProvider {
-	lw := cache.NewListWatchFromClient(client.RESTClient(), "storageclasses", metav1.NamespaceAll, fields.Everything())
-	return &StorageClassAdvancedFeatureProvider{
-		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &storagev1.StorageClass{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
-	}
-}
-
 type CephRBDMirrorAdvancedFeatureProvider struct {
 	cache.SharedIndexInformer
 }
@@ -103,13 +78,6 @@ func (c *CephRBDMirrorAdvancedFeatureProvider) AdvancedFeature(namespaces ...str
 		}
 	}
 	return 0
-}
-
-func NewCephRBDMirrorAdvancedFeatureProvider(client *rookclient.Clientset) AdvancedFeatureProvider {
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephrbdmirrors", metav1.NamespaceAll, fields.Everything())
-	return &CephRBDMirrorAdvancedFeatureProvider{
-		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &cephv1.CephRBDMirror{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
-	}
 }
 
 type ClusterAdvanceFeatureCollector struct {
@@ -126,24 +94,15 @@ const (
 var _ prometheus.Collector = &ClusterAdvanceFeatureCollector{}
 
 // NewClusterAdvancedFeatureCollector constructs the StorageCluster's advanced-feature collector
-func NewClusterAdvancedFeatureCollector(opts *options.Options) *ClusterAdvanceFeatureCollector {
-	client, err := rookclient.NewForConfig(opts.Kubeconfig)
-	if err != nil {
-		klog.Errorf("cluster advanced feature collector failed to create client: %v", err)
-		return nil
+func NewClusterAdvancedFeatureCollector(opts *options.Options, sharedIndexInformerList ...cache.SharedIndexInformer) *ClusterAdvanceFeatureCollector {
+	if sharedIndexInformerList == nil {
+		sharedIndexInformerList = listAllSharedIndexInformers(opts)
 	}
-
 	advFeatureProviders := []AdvancedFeatureProvider{
-		NewCephClusterAdvancedFeatureProvider(client),
-		NewCephObjectStoreAdvancedFeatureProvider(client),
-		NewCephRBDMirrorAdvancedFeatureProvider(client),
-	}
-
-	if k8Client, err := k8s.NewForConfig(opts.Kubeconfig); err == nil {
-		advFeatureProviders = append(
-			advFeatureProviders, NewStorageClassAdvancedFeatureProvider(k8Client))
-	} else { // logging any error occurred
-		klog.Errorf("unable to get K8 Client, no StorageClass information available: %v", err)
+		&CephClusterAdvancedFeatureProvider{SharedIndexInformer: sharedIndexInformerList[CephClusterSIIAI]},
+		&CephObjectStoreAdvancedFeatureProvider{SharedIndexInformer: sharedIndexInformerList[CephObjectStoreSIIAI]},
+		&StorageClassAdvancedFeatureProvider{SharedIndexInformer: sharedIndexInformerList[StorageClassSIIAI]},
+		&CephRBDMirrorAdvancedFeatureProvider{SharedIndexInformer: sharedIndexInformerList[CephRBDMirrorSIIAI]},
 	}
 
 	return &ClusterAdvanceFeatureCollector{
@@ -154,13 +113,6 @@ func NewClusterAdvancedFeatureCollector(opts *options.Options) *ClusterAdvanceFe
 		),
 		AllowedNamespaces:   opts.AllowedNamespaces,
 		advFeatureProviders: advFeatureProviders,
-	}
-}
-
-// Run starts all the SharedIndex informers
-func (c *ClusterAdvanceFeatureCollector) Run(stopCh <-chan struct{}) {
-	for _, informer := range c.advFeatureProviders {
-		go informer.Run(stopCh)
 	}
 }
 
