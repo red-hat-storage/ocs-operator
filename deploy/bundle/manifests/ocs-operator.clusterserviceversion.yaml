@@ -3040,13 +3040,21 @@ spec:
                 - containerPort: 8081
                 resources: {}
                 securityContext:
-                  privileged: true
+                  privileged: false
+                  runAsNonRoot: true
+                volumeMounts:
+                - mountPath: /etc/ceph
+                  name: ceph-config
               serviceAccountName: ocs-metrics-exporter
               tolerations:
               - effect: NoSchedule
                 key: node.ocs.openshift.io/storage
                 operator: Equal
                 value: "true"
+              volumes:
+              - configMap:
+                  name: ocs-metrics-exporter-ceph-conf
+                name: ceph-config
       permissions:
       - rules:
         - apiGroups:
