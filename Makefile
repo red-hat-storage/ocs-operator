@@ -113,7 +113,7 @@ verify-latest-csv: gen-latest-csv
 	@echo "Verifying latest CSV"
 	hack/verify-latest-csv.sh
 
-verify-operator-bundle:
+verify-operator-bundle: operator-sdk
 	@echo "Verifying operator bundle"
 	hack/verify-operator-bundle.sh
 
