@@ -3,16 +3,24 @@ name: ocs-operator sanity checks
 
 on:
   push:
-    branches: ['*']
+    branches: ["*"]
   pull_request:
-    branches: ['*']
+    branches: ["*"]
+  workflow_dispatch:
+    inputs:
+      REGISTRY_NAMESPACE:
+        description: "Registry namespace to push the image to"
+        required: true
+        default: ocs-dev
+      IMAGE_TAG:
+        description: "Image tag to use"
+        required: true
+        default: latest
 
 jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
       - uses: actions/checkout@v3
         with:
