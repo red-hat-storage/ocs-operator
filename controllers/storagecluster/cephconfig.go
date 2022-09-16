@@ -29,7 +29,6 @@ const (
 var (
 	defaultRookConfigData = `
 [global]
-rbd_mirror_die_after_seconds = 3600
 bdev_flock_retry = 20
 mon_osd_full_ratio = .85
 mon_osd_backfillfull_ratio = .8
@@ -160,6 +159,14 @@ func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (s
 		rookConfigData, err = updateRookConfig(rookConfigData, globalSectionKey, publicNetworkKey, cidrName)
 		if err != nil {
 			return "", fmt.Errorf("failed to set network configuration for rook: %v", err)
+		}
+	}
+	if sc.Spec.Mirroring.Enabled {
+		var err error
+		// [global] section
+		rookConfigData, err = updateRookConfig(rookConfigData, globalSectionKey, "rbd_mirror_die_after_seconds", "3600")
+		if err != nil {
+			return "", fmt.Errorf("failed to set rbd mirroring debug features for rook config: %v", err)
 		}
 	}
 	return rookConfigData, nil
