@@ -161,6 +161,7 @@ func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (s
 			return "", fmt.Errorf("failed to set network configuration for rook: %v", err)
 		}
 	}
+	// configure rbd mirroring debug features by default if mirroring is enabled
 	if sc.Spec.Mirroring.Enabled {
 		var err error
 		// [global] section
@@ -168,6 +169,20 @@ func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (s
 		if err != nil {
 			return "", fmt.Errorf("failed to set rbd mirroring debug features for rook config: %v", err)
 		}
+
+		rbdMirrorDebug :=
+			`[client.rbd-mirror.a]
+debug_ms = 1
+debug_rbd = 20
+debug_rbd_mirror = 30
+log_file = /var/log/ceph/$cluster-$name.log
+[client.rbd-mirror-peer]
+debug_ms = 1
+debug_rbd = 20
+debug_rbd_mirror = 30
+log_file = /var/log/ceph/$cluster-$name.log
+`
+		rookConfigData = rookConfigData + rbdMirrorDebug
 	}
 	return rookConfigData, nil
 }
