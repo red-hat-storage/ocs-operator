@@ -93,10 +93,23 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 			ownerRefFound = true
 		}
 	}
-	val, ok := found.Data["config"]
-	if !ok || val != defaultRookConfigData || !ownerRefFound {
+	if !ownerRefFound {
+		found.OwnerReferences = append(found.OwnerReferences, ownerRef)
+		err = r.Client.Update(context.TODO(), found)
+		if err != nil {
+			r.Log.Error(err, "Failed to update Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
+			return reconcile.Result{}, err
+		}
+	}
+	val := found.Data["config"]
+	if val != rookConfigData {
 		r.Log.Info("Updating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, cm.Name))
-		return reconcile.Result{}, r.Client.Update(context.TODO(), cm)
+		found.Data["config"] = rookConfigData
+		err = r.Client.Update(context.TODO(), found)
+		if err != nil {
+			r.Log.Error(err, "Failed to update ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
+			return reconcile.Result{}, err
+		}
 	}
 	return reconcile.Result{}, nil
 }
