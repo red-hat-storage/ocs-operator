@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -809,7 +808,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 	if err != nil {
 		panic(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(*outputDir, finalizedCsvFilename()), []byte(writer.String()), 0644)
+	err = os.WriteFile(filepath.Join(*outputDir, finalizedCsvFilename()), []byte(writer.String()), 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -897,7 +896,7 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 
 	for _, dir := range crdDirs {
 		crdDir := filepath.Join(*inputCrdsDir, dir)
-		files, err := ioutil.ReadDir(crdDir)
+		files, err := os.ReadDir(crdDir)
 		if err != nil {
 			panic(err)
 		}
@@ -912,7 +911,7 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 	}
 
 	for _, crdFile := range crdFiles {
-		crdBytes, err := ioutil.ReadFile(crdFile)
+		crdBytes, err := os.ReadFile(crdFile)
 		if err != nil {
 			panic(err)
 		}
@@ -946,7 +945,7 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 			if err != nil {
 				panic(err)
 			}
-			err = ioutil.WriteFile(outputFile, []byte(writer.String()), 0644)
+			err = os.WriteFile(outputFile, []byte(writer.String()), 0644)
 			if err != nil {
 				panic(err)
 			}
@@ -956,7 +955,7 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 }
 
 func copyManifests() {
-	manifests, err := ioutil.ReadDir(*inputManifestsDir)
+	manifests, err := os.ReadDir(*inputManifestsDir)
 	if err != nil {
 		panic(err)
 	}

@@ -415,7 +415,6 @@ func TestExternalResourceReconcile(t *testing.T) {
 	assertReconciliationOfExternalResource(t, reconciler)
 }
 
-// nolint
 func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClusterReconciler) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -424,14 +423,16 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 		},
 	}
 
+	ctx := context.TODO()
+
 	// first reconcile, which sets everything in place
-	result, err := reconciler.Reconcile(context.TODO(), request)
+	result, err := reconciler.Reconcile(ctx, request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertExpectedExternalResources(t, reconciler)
 
 	sc := &api.StorageCluster{}
-	err = reconciler.Client.Get(nil, request.NamespacedName, sc)
+	err = reconciler.Client.Get(ctx, request.NamespacedName, sc)
 	assert.NoError(t, err)
 	firstExtSecretChecksum := sc.Status.ExternalSecretHash
 
@@ -448,35 +449,35 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClus
 	extSecret, err := createExternalCephClusterSecret(extRsrcs)
 	assert.NoError(t, err)
 	secret := corev1.Secret{}
-	reconciler.Client.Get(nil, types.NamespacedName{Name: externalClusterDetailsSecret, Namespace: ""}, &secret)
+	err = reconciler.Client.Get(ctx, types.NamespacedName{Name: externalClusterDetailsSecret, Namespace: ""}, &secret)
 	assert.NoError(t, err)
 	extSecret.ObjectMeta = secret.ObjectMeta
-	err = reconciler.Client.Update(nil, extSecret)
+	err = reconciler.Client.Update(ctx, extSecret)
 	assert.NoError(t, err)
 
 	// second reconcile on same 'reconciler', we should have expected/changed resources
-	result, err = reconciler.Reconcile(context.TODO(), request)
+	result, err = reconciler.Reconcile(ctx, request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertExpectedExternalResources(t, reconciler)
 
 	// get the updated storagecluster object after second reconciliation
 	sc = &api.StorageCluster{}
-	err = reconciler.Client.Get(nil, request.NamespacedName, sc)
+	err = reconciler.Client.Get(ctx, request.NamespacedName, sc)
 	assert.NoError(t, err)
 	secondExtSecretChecksum := sc.Status.ExternalSecretHash
 	// as there are changes, first and second checksums should not match
 	assert.NotEqual(t, firstExtSecretChecksum, secondExtSecretChecksum)
 
 	// third reconcile on same 'reconciler', without any change in the resources
-	result, err = reconciler.Reconcile(context.TODO(), request)
+	result, err = reconciler.Reconcile(ctx, request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	assertExpectedExternalResources(t, reconciler)
 
 	// get the updated storagecluster object after third reconciliation
 	sc = &api.StorageCluster{}
-	err = reconciler.Client.Get(nil, request.NamespacedName, sc)
+	err = reconciler.Client.Get(ctx, request.NamespacedName, sc)
 	assert.NoError(t, err)
 	thirdExtSecretChecksum := sc.Status.ExternalSecretHash
 	// as there are no changes, second and third checksums should match

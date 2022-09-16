@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -50,7 +49,7 @@ func (t *DeployManager) RemoveAllFinalizers(namespace string) error {
 	}
 
 	for _, gv := range gvs {
-		kinds := scheme.Scheme.KnownTypes(gv)
+		kinds := scheme.KnownTypes(gv)
 		for kind := range kinds {
 			// For some reason, meta Kinds get added to each project's scheme. Skip
 			// those and Lists Kinds.

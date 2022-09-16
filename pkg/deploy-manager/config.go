@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"os"
 
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	olmclient "github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,11 +38,14 @@ func (t *DeployManager) getMinOSDsCount() int {
 	return minOSDsCount
 }
 
-//nolint:errcheck // ignoring err check as causing failures
+var scheme = runtime.NewScheme()
+
 func init() {
-	ocsv1.SchemeBuilder.AddToScheme(scheme.Scheme)
-	rookcephv1.SchemeBuilder.AddToScheme(scheme.Scheme)
-	nbv1.SchemeBuilder.AddToScheme(scheme.Scheme)
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+
+	utilruntime.Must(ocsv1.AddToScheme(scheme))
+	utilruntime.Must(rookcephv1.AddToScheme(scheme))
+	utilruntime.Must(nbv1.AddToScheme(scheme))
 }
 
 type arbiterConfig struct {
@@ -112,8 +116,8 @@ func (t *DeployManager) GetNamespace() string {
 
 // NewDeployManager creates a DeployManager struct with default configuration
 func NewDeployManager() (*DeployManager, error) {
-	codecs := serializer.NewCodecFactory(scheme.Scheme)
-	parameterCodec := runtime.NewParameterCodec(scheme.Scheme)
+	codecs := serializer.NewCodecFactory(scheme)
+	parameterCodec := runtime.NewParameterCodec(scheme)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
@@ -161,7 +165,7 @@ func NewDeployManager() (*DeployManager, error) {
 	}
 
 	// controller-runtime client
-	crClient, err := crclient.New(config, crclient.Options{Scheme: scheme.Scheme})
+	crClient, err := crclient.New(config, crclient.Options{Scheme: scheme})
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +175,7 @@ func NewDeployManager() (*DeployManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	olmConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
+	olmConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: clientgoscheme.Codecs}
 	olmConfig.APIPath = "/apis"
 	olmConfig.ContentType = runtime.ContentTypeJSON
 	olmClient, err := olmclient.NewForConfig(olmConfig)

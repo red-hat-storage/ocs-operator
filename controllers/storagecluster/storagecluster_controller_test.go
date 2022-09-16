@@ -1046,7 +1046,6 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
-//nolint //ignoring err checks as causing failures
 func TestMonCountChange(t *testing.T) {
 	for nodeCount := 0; nodeCount <= 10; nodeCount++ {
 		monCountExpected := defaults.DefaultMonCount
