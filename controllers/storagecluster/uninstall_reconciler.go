@@ -41,8 +41,10 @@ const (
 	UninstallModeGraceful UninstallModeType = "graceful"
 )
 
-//nolint:unused // func deleteNodeAffinityKeyFromNodes is not used. For Future usuage func is created.
 // deleteNodeAffinityKeyFromNodes deletes the default NodeAffinityKey from the OCS nodes
+// This is not used, yet.
+//
+// nolint:unused
 func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster) (err error) {
 
 	// We should delete the label only when the StorageCluster is using the default NodeAffinityKey

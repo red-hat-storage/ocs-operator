@@ -45,7 +45,7 @@ func TestSampleCustomResources(t *testing.T) {
 	}
 }
 
-//nolint
+// nolint
 func validateCustomResources(t *testing.T, root string, crd string, prefix string) {
 	schema := getSchema(t, fmt.Sprintf("%s/%s", root, crd))
 	assert.NotNil(t, schema)
@@ -110,7 +110,7 @@ func TestCompleteCRD(t *testing.T) {
 	}
 }
 
-//nolint
+// nolint
 func getSchema(t *testing.T, crd string) validation.Schema {
 	bytes, err := ioutil.ReadFile(crd)
 	assert.NoError(t, err, "Error reading CRD yaml from %v", crd)

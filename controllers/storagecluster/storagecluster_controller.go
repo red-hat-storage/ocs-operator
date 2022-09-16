@@ -74,7 +74,7 @@ type ImageMap struct {
 }
 
 // StorageClusterReconciler reconciles a StorageCluster object
-//nolint
+// nolint:revive
 type StorageClusterReconciler struct {
 	client.Client
 	ctx                context.Context

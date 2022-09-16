@@ -79,7 +79,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	return placement
 }
 
-//convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
+// convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
 func convertLabelToNodeSelectorRequirements(labelSelector metav1.LabelSelector) []corev1.NodeSelectorRequirement {
 	reqs := []corev1.NodeSelectorRequirement{}
 	for key, value := range labelSelector.MatchLabels {
@@ -122,7 +122,7 @@ type MatchingLabelsSelector struct {
 }
 
 // ApplyToList applies this configuration to the given list options.
-//This is implemented by MatchingLabelsSelector which implements ListOption interface.
+// This is implemented by MatchingLabelsSelector which implements ListOption interface.
 func (m MatchingLabelsSelector) ApplyToList(opts *client.ListOptions) {
 	opts.LabelSelector = m
 }

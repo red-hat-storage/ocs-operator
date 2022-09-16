@@ -205,7 +205,8 @@ func TestDeleteSnapshotClasses(t *testing.T) {
 	}
 }
 
-//nolint // func assertTestDeleteSnapshotClasses is not used. For Future usuage func is created.
+// This function is not used, yet. It will be used in the future.
+// nolint:unused
 func assertTestDeleteSnapshotClasses(
 	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, SnapshotClassExists bool) {
 
@@ -545,7 +546,8 @@ func TestDeleteCephBlockPools(t *testing.T) {
 	}
 }
 
-//nolint // func assertTestDeleteCephBlockPools is not used. For Future usuage func is created.
+// This function is not used, yet. It will be used in the future.
+// nolint:unused
 func assertTestDeleteCephBlockPools(
 	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, cephBlockPoolsExist bool) {
 

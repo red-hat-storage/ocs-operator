@@ -22,7 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-/*const (
+/*
+const (
 getUserJSON = )
 */
 var (

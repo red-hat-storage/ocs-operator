@@ -43,7 +43,7 @@ func InitNamespacedName() types.NamespacedName {
 }
 
 // OCSInitializationReconciler reconciles a OCSInitialization object
-//nolint
+// nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
 	Log            logr.Logger
