@@ -56,6 +56,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
@@ -115,14 +116,25 @@ func main() {
 		setupLog.Info("running in development mode")
 	}
 
+	operatorNamespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		setupLog.Error(err, "unable to get operator namespace")
+		os.Exit(1)
+	}
+
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		HealthProbeBindAddress: probeAddr,
-		Port:                   9443,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "ab76f4c9.openshift.io",
+		Scheme:                  scheme,
+		MetricsBindAddress:      metricsAddr,
+		HealthProbeBindAddress:  probeAddr,
+		Port:                    9443,
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        "ab76f4c9.openshift.io",
+		LeaderElectionNamespace: operatorNamespace,
+		Namespace:               operatorNamespace,
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			Namespace: operatorNamespace,
+		}),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -164,11 +176,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	operatorNamespace, err := util.GetOperatorNamespace()
-	if err != nil {
-		setupLog.Error(err, "unable to get operator namespace")
-		os.Exit(1)
-	}
 	if err = (&storageclassclaim.StorageClassClaimReconciler{
 		Cache:             mgr.GetCache(),
 		Client:            mgr.GetClient(),
