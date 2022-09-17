@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run shellcheck
-        run: make shellcheck
+        run: make shellcheck-test
 
   golangci-lint:
     name: golangci-lint
@@ -27,29 +27,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.17", "1.18"]
+        go: ["1.18","1.19"]
     steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go }}
-          go-version-file: go.mod
-
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
+      # TODO: Our code currently does not pass linting using Go 1.19, so
+      # avoiding it until we bump go.mod to 1.19 as well.
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
       - uses: golangci/golangci-lint-action@v3
         with:
           version: v1.49.0
-          args: -E gosec --timeout=6m
+
+          # The weird NO_FUTURE thing is a workaround suggested here:
+          # # https://github.com/golangci/golangci-lint-action/issues/119#issuecomment-981090648
+          args: "--out-${NO_FUTURE}format=colored-line-number --timeout=6m ./..."
 
   go-test:
-    name: go-test unit tests
+    name: go test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.17", "1.18"]
+        go: ["1.18", "1.19"]
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -69,8 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.17", "1.18"]
-        make-target: ["verify-deps", "verify-generated", "verify-latest-csv", "verify-operator-bundle", "verify-latest-deploy-yaml"]
+        go: ["1.18", "1.19"]
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -80,5 +83,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run ${{ matrix.make-target }} make target
-        run: make ${{ matrix.make-target }}
+      - name: Verify go dependencies
+        run: make verify-deps
+
+      - name: Verify generated code and configd
+        run: make verify-generated
+
+      - name: Verify CSV changes
+        run: make verify-latest-csv
+
+      - name: Verify bundle changes
+        run: make verify-operator-bundle
+
+      - name: Verify deployment YAML
+        run: make verify-latest-deploy-yaml

@@ -10,6 +10,7 @@ import (
 //   - prometheus.NewProcessCollector
 //   - prometheus.NewGoCollector
 //   - collectors.NewExporterVersionCollector
+//
 // This is intended to be used to expose metrics about the exporter.
 func RegisterExporterCollectors(registry *prometheus.Registry) {
 	registry.MustRegister(

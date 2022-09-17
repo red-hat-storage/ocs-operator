@@ -58,7 +58,7 @@ const (
 )
 
 // StorageClassClaimReconciler reconciles a StorageClassClaim object
-// nolint
+// nolint:revive
 type StorageClassClaimReconciler struct {
 	client.Client
 	cache.Cache

@@ -2,8 +2,7 @@
 
 set -e
 
-source hack/common.sh
+source hack/ensure-operator-sdk.sh
 source hack/docker-common.sh
-source hack/operator-sdk-common.sh
 
-./"${OPERATOR_SDK}" bundle validate "$(dirname $OCS_FINAL_DIR)" -b "$IMAGE_BUILD_CMD" --verbose
+./"${OPERATOR_SDK}" bundle validate "$(dirname $OCS_FINAL_DIR)" --verbose

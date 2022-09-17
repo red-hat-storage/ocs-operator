@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -33,7 +32,7 @@ func main() {
 
 	if *yamlOutputPath != "" {
 		yaml := t.DumpYAML(*ocsCatalogSourceImage, *ocsSubscriptionChannel)
-		err := ioutil.WriteFile(*yamlOutputPath, []byte(yaml), 0644)
+		err := os.WriteFile(*yamlOutputPath, []byte(yaml), 0644)
 		if err != nil {
 			panic(err)
 		}

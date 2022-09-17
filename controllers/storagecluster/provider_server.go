@@ -344,7 +344,7 @@ func GetProviderAPIServerSecret(instance *ocsv1.StorageCluster) *corev1.Secret {
 	}
 }
 
-//RandomString - Generate a random string of A-Z chars with len = l
+// RandomString - Generate a random string of A-Z chars with len = l
 func RandomString(l int) string {
 
 	bytes := make([]byte, l)

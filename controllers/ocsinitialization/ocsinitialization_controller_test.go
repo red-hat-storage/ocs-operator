@@ -140,7 +140,6 @@ func TestNonWatchedResourceNotFound(t *testing.T) {
 	}
 }
 
-//nolint //ignoring errcheck causing the failures
 func TestNonWatchedResourceFound(t *testing.T) {
 	testcases := []struct {
 		label     string
@@ -160,6 +159,7 @@ func TestNonWatchedResourceFound(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
+		ctx := context.TODO()
 		_, _, reconciler := getTestParams(true, t)
 		request := reconcile.Request{
 			NamespacedName: types.NamespacedName{
@@ -173,18 +173,17 @@ func TestNonWatchedResourceFound(t *testing.T) {
 				Namespace: tc.namespace,
 			},
 		}
-		err := reconciler.Client.Create(nil, &ocs)
+		err := reconciler.Client.Create(ctx, &ocs)
 		assert.NoErrorf(t, err, "[%s]: failed CREATE of non watched resource", tc.label)
 		_, err = reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile with non watched resource", tc.label)
 		actual := &v1.OCSInitialization{}
-		err = reconciler.Client.Get(nil, request.NamespacedName, actual)
+		err = reconciler.Client.Get(ctx, request.NamespacedName, actual)
 		assert.NoErrorf(t, err, "[%s]: failed GET of actual resource", tc.label)
 		assert.Equalf(t, statusutil.PhaseIgnored, actual.Status.Phase, "[%s]: failed to update phase of non watched resource that already exists OCS:\n%v", tc.label, actual)
 	}
 }
 
-//nolint //ignoring errcheck as causing failures
 func TestCreateWatchedResource(t *testing.T) {
 	testcases := []struct {
 		label          string
@@ -201,20 +200,19 @@ func TestCreateWatchedResource(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
+		ctx := context.TODO()
 		ocs, request, reconciler := getTestParams(false, t)
-		if tc.alreadyCreated {
-			reconciler.Client.Create(nil, &ocs)
-		} else {
-			err := reconciler.Client.Delete(nil, &ocs)
+		if !tc.alreadyCreated {
+			err := reconciler.Client.Delete(ctx, &ocs)
 			assert.NoError(t, err)
 
-			err = reconciler.Client.Get(nil, request.NamespacedName, &ocs)
+			err = reconciler.Client.Get(ctx, request.NamespacedName, &ocs)
 			assert.Error(t, err)
 		}
-		_, err := reconciler.Reconcile(context.TODO(), request)
+		_, err := reconciler.Reconcile(ctx, request)
 		assert.NoError(t, err)
 		obj := v1.OCSInitialization{}
-		_ = reconciler.Client.Get(nil, request.NamespacedName, &obj)
+		_ = reconciler.Client.Get(ctx, request.NamespacedName, &obj)
 		assert.Equalf(t, obj.Name, request.Name, "[%s]: failed to create ocsInit resource with correct name", tc.label)
 		assert.Equalf(t, obj.Namespace, request.Namespace, "[%s]: failed to create ocsInit resource with correct namespace", tc.label)
 	}
