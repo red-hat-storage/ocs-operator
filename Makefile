@@ -35,6 +35,7 @@ all: ocs-operator ocs-registry ocs-must-gather
 	gen-latest-prometheus-rules-yamls \
 	verify-latest-deploy-yaml \
 	verify-latest-csv \
+	verify-latest-ci-index-db \
 	source-manifests \
 	cluster-deploy \
 	cluster-clean \
@@ -112,6 +113,10 @@ gen-release-csv: operator-sdk manifests kustomize
 verify-latest-csv: gen-latest-csv
 	@echo "Verifying latest CSV"
 	hack/verify-latest-csv.sh
+
+verify-latest-ci-index-db:
+	@echo "Verifying latest CI index db"
+	hack/verify-latest-ci-index-db.sh
 
 verify-operator-bundle: operator-sdk
 	@echo "Verifying operator bundle"
