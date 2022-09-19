@@ -86,7 +86,7 @@ jobs:
       - name: Verify go dependencies
         run: make verify-deps
 
-      - name: Verify generated code and configd
+      - name: Verify generated code and configs
         run: make verify-generated
 
       - name: Verify CSV changes
