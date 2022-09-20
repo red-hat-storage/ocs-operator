@@ -316,7 +316,7 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 		}
 		resources := response.ExternalResource
 		if resources == nil {
-			return reconcile.Result{}, fmt.Errorf("no configuration data recieved")
+			return reconcile.Result{}, fmt.Errorf("no configuration data received")
 		}
 
 		// Go over the received objects and operate on them accordingly.

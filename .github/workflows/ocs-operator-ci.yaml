@@ -3,16 +3,14 @@ name: ocs-operator sanity checks
 
 on:
   push:
-    branches: ['*']
+    branches: ["*"]
   pull_request:
-    branches: ['*']
+    branches: ["*"]
 
 jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
       - uses: actions/checkout@v3
         with:
@@ -27,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.18","1.19"]
+        go: ["1.18", "1.19"]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -86,7 +84,7 @@ jobs:
       - name: Verify go dependencies
         run: make verify-deps
 
-      - name: Verify generated code and configd
+      - name: Verify generated code and configs
         run: make verify-generated
 
       - name: Verify CSV changes
@@ -97,3 +95,19 @@ jobs:
 
       - name: Verify deployment YAML
         run: make verify-latest-deploy-yaml
+
+  code-spell:
+    name: verify code spellings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: codespell-project/actions-codespell@master
+        with:
+          exclude_file: go.sum
+          check_filenames: true
+          check_hidden: true
+          skip: vendor
+          ignore_words_list: xdescribe,contails

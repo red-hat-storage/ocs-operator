@@ -71,7 +71,7 @@ for pod in $(oc -n "${ns}" get pods -l "${NOOBAA_POSTGRES_LABEL}" | grep -v NAME
     { timeout 120 oc -n "${ns}" logs --all-containers "${pod}" &> "${LOG_DIR}"/"${pod}".log; } >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
 done
 
-# Add important notfications to a notifications.txt file at the root of the noobaa collection path
+# Add important notifications to a notifications.txt file at the root of the noobaa collection path
 UNMANAGED_NOOBAA_NOTIF="The noobaa deployed on this cluster is not managed by the storagecluster CR and will not react to configuration changes made to storagecluster CR"
 
 NOOBAA_RECONCILE_STRATEGY=$( oc -n "${ns}" get storagecluster -o jsonpath='{.items[0].spec.multiCloudGateway.reconcileStrategy}' 2> /dev/null)

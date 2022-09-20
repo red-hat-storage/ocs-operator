@@ -417,7 +417,7 @@ func (t *DeployManager) labelWorkerNodes() error {
 		return fmt.Errorf("Only %d worker nodes found when we need %d to deploy", labeledCount, t.getMinOSDsCount())
 	}
 	if t.ArbiterEnabled() && arbiterNodeCount < 1 {
-		return fmt.Errorf("No arbiter nodes found, we need atleast 1")
+		return fmt.Errorf("No arbiter nodes found, we need at least 1")
 	}
 
 	return nil

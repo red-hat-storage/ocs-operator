@@ -123,7 +123,7 @@ func extendClusterTemplate(sc *ocsv1.StorageCluster) *openshiftv1.Template {
 				Required:    false,
 				Description: `
 				 Currently this design does not require any parameter yet,
-				 included for an additional possiblity to implement something like
+				 included for an additional possibility to implement something like
 				 --increase-limit and --reset-limit`,
 			},
 		},

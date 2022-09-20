@@ -85,7 +85,7 @@ ENV_DATA:
   skip_ocs_deployment: true
 EOF
 
-# we want to handle errors explicilty at this point in order to dump debug info
+# we want to handle errors explicitly at this point in order to dump debug info
 set +e
 
 echo "Running ocs-ci testsuite using -k $REDHAT_OCS_CI_TEST_EXPRESSION"

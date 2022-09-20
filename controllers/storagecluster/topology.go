@@ -57,12 +57,12 @@ func (r *StorageClusterReconciler) getStorageClusterEligibleNodes(sc *ocsv1.Stor
 	return nodes, err
 }
 
-// getFailureDomain returns the failure domain that was determined at the time of node topology reconcilation
+// getFailureDomain returns the failure domain that was determined at the time of node topology reconciliation
 func getFailureDomain(sc *ocsv1.StorageCluster) string {
 	return sc.Status.FailureDomain
 }
 
-// getFailureDomainKey returns the failure domain key that was determined at the time of node topology reconcilation
+// getFailureDomainKey returns the failure domain key that was determined at the time of node topology reconciliation
 func getFailureDomainKey(sc *ocsv1.StorageCluster) string {
 	return sc.Status.FailureDomainKey
 }
@@ -350,7 +350,7 @@ func nodesHaveIdenticalValuesForKeys(nodes *corev1.NodeList, keys []string) bool
 }
 
 // filterDuplicateLabels modifies the topologyMap such that valid but redundant
-// labels are removed from it. The logic of determing which labels are redundant
+// labels are removed from it. The logic of determining which labels are redundant
 // should be all within this function.
 func filterDuplicateLabels(sc *ocsv1.StorageCluster, nodes *corev1.NodeList, topologyMap *ocsv1.NodeTopologyMap) {
 

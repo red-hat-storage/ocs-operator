@@ -678,7 +678,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 	// To be used to disable UI components. This is used to track migration of features.
 	// Example: "features.ocs.openshift.io/disabled": `["external", "foo1", "foo2", ...]`
 	ocsCSV.Annotations["features.ocs.openshift.io/disabled"] = `["ss-list", "install-wizard", "block-pool", "mcg-resource", "odf-dashboard", "common", "storage-provider", "storage-provisioner", "dashboard-resources", "csv-actions", "inventory-item", "alert-actions"]`
-	// Used by UI to validate user uploaded metdata
+	// Used by UI to validate user uploaded metadata
 	// Metadata is used to connect to an external cluster
 	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}`
 	// Injecting the RHCS exporter script present in Rook CSV
