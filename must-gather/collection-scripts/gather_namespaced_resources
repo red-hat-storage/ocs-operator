@@ -7,7 +7,7 @@ if [ "${BASE_COLLECTION_PATH}" = "" ]; then
     BASE_COLLECTION_PATH=$(pwd)
 fi
 
-# Expect time option as an arguement
+# Expect time option as an argument
 SINCE_TIME=$2
 
 # Make a globle variable for namespace

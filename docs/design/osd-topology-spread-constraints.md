@@ -36,7 +36,7 @@ failure domain.
 
 Implement the use of Topology Spread Constraints for Ceph OSD Pods. Include the
 ability to specify them in the `StorageCluster.StorageDeviceSet` spec so they
-can be propogated to the resulting `CephCluster`'s SCDSes, providing sane
+can be propagated to the resulting `CephCluster`'s SCDSes, providing sane
 defaults if they are not specified.
 
 ### Risks and Mitigations

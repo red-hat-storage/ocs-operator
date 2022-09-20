@@ -54,7 +54,7 @@ func TestEnsureCephCluster(t *testing.T) {
 			cephClusterState: cephv1.ClusterStateError,
 		},
 		{
-			label:            "CephCluster reconciled succesfully",
+			label:            "CephCluster reconciled successfully",
 			cephClusterState: cephv1.ClusterStateCreated,
 		},
 		{

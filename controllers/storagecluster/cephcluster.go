@@ -711,7 +711,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 						if portable && !strings.Contains(topologyKey, "zone") {
 							addStrictFailureDomainTSC(&placement, topologyKey)
 						}
-						// If topologyKey is not host, append additional topology spread constarint to the
+						// If topologyKey is not host, append additional topology spread constraint to the
 						// default preparePlacement. This serves even distribution at the host level
 						// within a failure domain (zone/rack).
 						if noPreparePlacement {
@@ -763,14 +763,14 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
 				annotations["crushDeviceClass"] = "replicated"
 			}
-			// Annotation crushInitialWeight is an optinal, explicit weight to set upon OSD's init (as float, in TiB units).
+			// Annotation crushInitialWeight is an optional, explicit weight to set upon OSD's init (as float, in TiB units).
 			// ROOK & Ceph do not want any (optional) Ti[B] suffix, so trim it here.
 			// If not set, Ceph will define OSD's weight based on its capacity.
 			crushInitialWeight := strings.TrimSuffix(strings.TrimSuffix(ds.InitialWeight, "Ti"), "TiB")
 			if crushInitialWeight != "" {
 				annotations["crushInitialWeight"] = crushInitialWeight
 			}
-			// Annotation crushPrimaryAffinity is an optinal, explicit primary-affinity value within the range [0,1) to
+			// Annotation crushPrimaryAffinity is an optional, explicit primary-affinity value within the range [0,1) to
 			// set upon OSD's deployment. If not set, Ceph sets default value to 1
 			if ds.PrimaryAffinity != "" {
 				annotations["crushPrimaryAffinity"] = ds.PrimaryAffinity
@@ -1019,7 +1019,7 @@ func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int32 {
 }
 
 // addStrictFailureDomainTSC adds hard topology constraints at failure domain level
-// and uses soft topology constraints within falure domain (across host).
+// and uses soft topology constraints within failure domain (across host).
 func addStrictFailureDomainTSC(placement *rookCephv1.Placement, topologyKey string) {
 	newTSC := placement.TopologySpreadConstraints[0]
 	newTSC.TopologyKey = topologyKey

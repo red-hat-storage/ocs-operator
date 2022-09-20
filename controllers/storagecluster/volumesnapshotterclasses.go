@@ -123,7 +123,7 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 		if existing.DeletionTimestamp != nil {
 			return fmt.Errorf("failed to restore SnapshotClass %q because it is marked for deletion", existing.Name)
 		}
-		// if there is a mis-match in the parameters of existing vs created resources,
+		// if there is a mismatch in the parameters of existing vs created resources,
 		if !reflect.DeepEqual(vsc.Parameters, existing.Parameters) {
 			// we have to update the existing SnapshotClass
 			r.Log.Info("SnapshotClass needs to be updated", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))

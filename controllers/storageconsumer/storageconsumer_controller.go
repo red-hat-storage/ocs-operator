@@ -79,7 +79,7 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 
 	r.Log.Info("Reconciling StorageConsumer.", "StorageConsumer", klog.KRef(request.Namespace, request.Name))
 
-	// Initalize the reconciler properties from the request
+	// Initialize the reconciler properties from the request
 	r.initReconciler(request)
 
 	if err := r.get(r.storageConsumer); err != nil {
@@ -261,7 +261,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rookCephv1.CephClient{}).
 		// Watch non-owned resources cephBlockPool
 		// We are required to update the storageConsumers `GrantedCapacity`.
-		// Whenever their is new cephBockPool created to keep storageConsumer upto date.
+		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
 		Watches(
 			&source.Kind{Type: &rookCephv1.CephBlockPool{}},
 			enqueueStorageConsumerRequest,

@@ -57,7 +57,7 @@ The test images are used during the e2e tests. Test images are built for ocs-ope
 
 #### Mirrored images
 
-Seperate images are built to be mirrored to the [quay.io/ocs-dev][6] public repositories. These images are suffixed with `-quay`. These images are built from the normal dockerfiles. The mirroring of these images is described later in the document.
+Separate images are built to be mirrored to the [quay.io/ocs-dev][6] public repositories. These images are suffixed with `-quay`. These images are built from the normal dockerfiles. The mirroring of these images is described later in the document.
 
 ### Manual execution
 
@@ -79,7 +79,7 @@ $ ci-operator --config ci-operator/config/red-hat-storage/ocs-operator/openshift
 
 #### E2E tests
 
-End-to-end tests require additional setup in the OCP cluster being targetted, to allow creation of new OCP cluster. Since this is not easy, [api.ci.openshift.org][1] the openshift-ci cluster can be used instead.
+End-to-end tests require additional setup in the OCP cluster being targeted, to allow creation of new OCP cluster. Since this is not easy, [api.ci.openshift.org][1] the openshift-ci cluster can be used instead.
 
 Login to [api.ci.openshift.org][1] web-console using the Github login option and obtain the CLI login command. Only members of the Github [OpenShift][9] can login to the cluster, so ensure you are a member.
 

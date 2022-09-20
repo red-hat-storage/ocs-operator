@@ -166,7 +166,7 @@ func main() {
 
 	operatorNamespace, err := util.GetOperatorNamespace()
 	if err != nil {
-		setupLog.Error(err, "unable to get opeartor namespace")
+		setupLog.Error(err, "unable to get operator namespace")
 		os.Exit(1)
 	}
 	if err = (&storageclassclaim.StorageClassClaimReconciler{

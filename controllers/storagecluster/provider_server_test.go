@@ -34,7 +34,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 
 		// storagecluster controller waits for svc status to fetch the IP and it requeue
 		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status feild of the svc to overcome the failure and requeue.
+		// update the required status field of the svc to overcome the failure and requeue.
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
@@ -53,7 +53,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 
 		// storagecluster controller waits for deployment status to fetch the replica count and it requeue
 		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status feild of the deployment to overcome the failure and requeue.
+		// update the required status field of the deployment to overcome the failure and requeue.
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}

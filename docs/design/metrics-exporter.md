@@ -44,7 +44,7 @@ status:
   phase: Ready
 ```
 
-Name field will be added to label so that the users can uniquely identify the metrics and corelate to historical data. Being an ID, it is unbounded and can have high cardinality.
+Name field will be added to label so that the users can uniquely identify the metrics and correlate to historical data. Being an ID, it is unbounded and can have high cardinality.
 
 Namespace field can have many values depending on the number of namespaces in the cluster. To limit this value, only `openshift-storage` will be used by default and users can enable watching more namespaces using flags.
 
@@ -70,7 +70,7 @@ ocs_rgw_health_status {name="default", namespace="openshift-storage",  rgw_endpo
   + outside the cluster, exporter can run standalone and can monitor the cluster based on provided cluster config.
     Prometheus can be configured to scrape from this exporter.
 + Add unit and E2E tests.
-+ Provide deployment manifests for ease fo use.
++ Provide deployment manifests for ease of use.
 
 # Implementation Details
 

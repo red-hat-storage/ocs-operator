@@ -206,7 +206,7 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 	images.NooBaaDB.DesiredImage = r.images.NooBaaDB
 }
 
-// validateStorageClusterSpec must be called before reconciling. Any syntactic and sematic errors in the CR must be caught here.
+// validateStorageClusterSpec must be called before reconciling. Any syntactic and semantic errors in the CR must be caught here.
 func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.StorageCluster, request reconcile.Request) error {
 	if err := versionCheck(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate StorageCluster version.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
@@ -360,7 +360,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 		r.Log.Info("StorageCluster is terminated, skipping reconciliation.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-		returnErr := r.SetOperatorConditions("Skipping StorageCluster reconcilation", "Terminated", metav1.ConditionTrue, nil)
+		returnErr := r.SetOperatorConditions("Skipping StorageCluster reconciliation", "Terminated", metav1.ConditionTrue, nil)
 		return reconcile.Result{}, returnErr
 	}
 
@@ -539,7 +539,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	if sc.Status.Version == "" {
 		sc.Status.Version = version.Version
-	} else if sc.Status.Version != version.Version { // check anything else only if the versions mis-match
+	} else if sc.Status.Version != version.Version { // check anything else only if the versions mismatch
 		storClustSemV1, err := semver.Make(sc.Status.Version)
 		if err != nil {
 			reqLogger.Error(err, "Error while parsing Storage Cluster version")

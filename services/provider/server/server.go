@@ -503,7 +503,7 @@ func (s *OCSProviderServer) FulfillStorageClassClaim(ctx context.Context, req *p
 	case pb.FulfillStorageClassClaimRequest_SHAREDFILESYSTEM:
 		storageType = "sharedfilesystem"
 	default:
-		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown stroage type, %s", storageType)
+		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown storage type, %s", storageType)
 	}
 
 	err = s.storageClassClaimManager.Create(ctx, consumerObj, req.StorageClassClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
