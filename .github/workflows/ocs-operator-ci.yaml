@@ -95,3 +95,19 @@ jobs:
 
       - name: Verify deployment YAML
         run: make verify-latest-deploy-yaml
+
+  code-spell:
+    name: verify code spellings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: codespell-project/actions-codespell@master
+        with:
+          exclude_file: go.sum
+          check_filenames: true
+          check_hidden: true
+          skip: vendor
+          ignore_words_list: xdescribe,contails
