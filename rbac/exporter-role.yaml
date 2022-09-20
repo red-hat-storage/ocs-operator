@@ -9,6 +9,7 @@ rules:
   - cephobjectstores
   - cephblockpools
   - cephclusters
+  - cephrbdmirrors
   verbs:
     - get
     - list
@@ -40,6 +41,14 @@ rules:
   - ""
   resources:
   - persistentvolumes
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
   verbs:
     - get
     - list
