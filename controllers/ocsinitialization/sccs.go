@@ -48,7 +48,6 @@ func getAllSCCs(namespace string) []*secv1.SecurityContextConstraints {
 		newRookCephCSISCC(namespace),
 		newNooBaaSCC(namespace),
 		newNooBaaEndpointSCC(namespace),
-		newMetricsExporterSCC(namespace),
 	}
 }
 
@@ -174,40 +173,5 @@ func newNooBaaEndpointSCC(namespace string) *secv1.SecurityContextConstraints {
 		fmt.Sprintf("system:serviceaccount:%s:noobaa-endpoint", namespace),
 	}
 
-	return scc
-}
-
-func newMetricsExporterSCC(namespace string) *secv1.SecurityContextConstraints {
-	scc := blankSCC()
-	scc.Name = "ocs-metrics-exporter"
-	scc.AllowHostDirVolumePlugin = false
-	scc.AllowHostIPC = false
-	scc.AllowHostNetwork = false
-	scc.AllowHostPID = false
-	scc.AllowHostPorts = false
-	scc.AllowPrivilegedContainer = true
-	scc.ReadOnlyRootFilesystem = false
-	scc.RunAsUser = secv1.RunAsUserStrategyOptions{
-		Type: secv1.RunAsUserStrategyRunAsAny,
-	}
-	scc.SELinuxContext = secv1.SELinuxContextStrategyOptions{
-		Type: secv1.SELinuxStrategyRunAsAny,
-	}
-	scc.FSGroup = secv1.FSGroupStrategyOptions{
-		Type: secv1.FSGroupStrategyRunAsAny,
-	}
-	scc.SupplementalGroups = secv1.SupplementalGroupsStrategyOptions{
-		Type: secv1.SupplementalGroupsStrategyRunAsAny,
-	}
-	scc.Volumes = []secv1.FSType{
-		secv1.FSTypeConfigMap,
-		secv1.FSTypeDownwardAPI,
-		secv1.FSTypeEmptyDir,
-		secv1.FSTypeHostPath,
-		secv1.FSProjected,
-	}
-	scc.Users = []string{
-		fmt.Sprintf("system:serviceaccount:%s:ocs-metrics-exporter", namespace),
-	}
 	return scc
 }

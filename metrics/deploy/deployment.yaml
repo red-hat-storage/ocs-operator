@@ -30,4 +30,14 @@ spec:
         - /usr/local/bin/metrics-exporter
         args:
           - --namespaces=openshift-storage
+        securityContext:
+          runAsNonRoot: true
+        volumeMounts:
+        - name: ceph-config
+          mountPath: /etc/ceph
       serviceAccountName: ocs-metrics-exporter
+      volumes:
+      - name: ceph-config
+        configMap:
+          name: ocs-metrics-exporter-ceph-conf
+
