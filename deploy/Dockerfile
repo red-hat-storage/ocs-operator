@@ -16,7 +16,7 @@ COPY bundle/metadata/annotations.yaml /metadata/annotations.yaml
 LABEL com.redhat.delivery.operator.bundle=true
 # This second label tells the pipeline which versions of OpenShift the operator supports.
 # This is used to control which index images should include this operator.
-LABEL com.redhat.openshift.versions="v4.6"
+LABEL com.redhat.openshift.versions="v4.12"
 # This third label tells the pipeline that this operator should *also* be supported on OCP 4.4 and
 # earlier.  It is used to control whether or not the pipeline should attempt to automatically
 # backport this content into the old appregistry format and upload it to the quay.io application
