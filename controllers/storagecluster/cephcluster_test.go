@@ -77,7 +77,6 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		expected, err := newCephCluster(mockStorageCluster.DeepCopy(), "", 3, reconciler.serverVersion, nil, log)
 		assert.NilError(t, err)
-		expected.ObjectMeta.SelfLink = "/api/v1/namespaces/ceph/secrets/pvc-ceph-client-key"
 		expected.Status.State = c.cephClusterState
 
 		if !c.shouldCreate {
