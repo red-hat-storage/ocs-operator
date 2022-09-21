@@ -101,18 +101,18 @@ spec:
                             type: string
                         type: object
                       spec:
-                        description: 'Spec defines the desired characteristics of
+                        description: 'spec defines the desired characteristics of
                           a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                         properties:
                           accessModes:
-                            description: 'AccessModes contains the desired access
+                            description: 'accessModes contains the desired access
                               modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                             items:
                               type: string
                             type: array
                           dataSource:
-                            description: 'This field can be used to specify either:
-                              * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
+                            description: 'dataSource field can be used to specify
+                              either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
                               * An existing PVC (PersistentVolumeClaim) If the provisioner
                               or an external controller can support the specified
                               data source, it will create a new volume based on the
@@ -138,13 +138,13 @@ spec:
                             type: object
                             x-kubernetes-map-type: atomic
                           dataSourceRef:
-                            description: 'Specifies the object from which to populate
-                              the volume with data, if a non-empty volume is desired.
-                              This may be any local object from a non-empty API group
-                              (non core object) or a PersistentVolumeClaim object.
-                              When this field is specified, volume binding will only
-                              succeed if the type of the specified object matches
-                              some installed volume populator or dynamic provisioner.
+                            description: 'dataSourceRef specifies the object from
+                              which to populate the volume with data, if a non-empty
+                              volume is desired. This may be any local object from
+                              a non-empty API group (non core object) or a PersistentVolumeClaim
+                              object. When this field is specified, volume binding
+                              will only succeed if the type of the specified object
+                              matches some installed volume populator or dynamic provisioner.
                               This field will replace the functionality of the DataSource
                               field and as such if both fields are non-empty, they
                               must have the same value. For backwards compatibility,
@@ -157,8 +157,8 @@ spec:
                               PersistentVolumeClaim objects. * While DataSource ignores
                               disallowed values (dropping them), DataSourceRef preserves
                               all values, and generates an error if a disallowed value
-                              is specified. (Alpha) Using this field requires the
-                              AnyVolumeDataSource feature gate to be enabled.'
+                              is specified. (Beta) Using this field requires the AnyVolumeDataSource
+                              feature gate to be enabled.'
                             properties:
                               apiGroup:
                                 description: APIGroup is the group for the resource
@@ -178,7 +178,7 @@ spec:
                             type: object
                             x-kubernetes-map-type: atomic
                           resources:
-                            description: 'Resources represents the minimum resources
+                            description: 'resources represents the minimum resources
                               the volume should have. If RecoverVolumeExpansionFailure
                               feature is enabled users are allowed to specify resource
                               requirements that are lower than previous value but
@@ -210,8 +210,8 @@ spec:
                                 type: object
                             type: object
                           selector:
-                            description: A label query over volumes to consider for
-                              binding.
+                            description: selector is a label query over volumes to
+                              consider for binding.
                             properties:
                               matchExpressions:
                                 description: matchExpressions is a list of label selector
@@ -257,8 +257,8 @@ spec:
                             type: object
                             x-kubernetes-map-type: atomic
                           storageClassName:
-                            description: 'Name of the StorageClass required by the
-                              claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                            description: 'storageClassName is the name of the StorageClass
+                              required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                             type: string
                           volumeMode:
                             description: volumeMode defines what type of volume is
@@ -266,16 +266,16 @@ spec:
                               when not included in claim spec.
                             type: string
                           volumeName:
-                            description: VolumeName is the binding reference to the
+                            description: volumeName is the binding reference to the
                               PersistentVolume backing this claim.
                             type: string
                         type: object
                       status:
-                        description: 'Status represents the current information/status
+                        description: 'status represents the current information/status
                           of a persistent volume claim. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                         properties:
                           accessModes:
-                            description: 'AccessModes contains the actual access modes
+                            description: 'accessModes contains the actual access modes
                               the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                             items:
                               type: string
@@ -287,19 +287,19 @@ spec:
                               - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
-                            description: The storage resource within AllocatedResources
-                              tracks the capacity allocated to a PVC. It may be larger
-                              than the actual capacity when a volume expansion operation
-                              is requested. For storage quota, the larger value from
-                              allocatedResources and PVC.spec.resources is used. If
-                              allocatedResources is not set, PVC.spec.resources alone
-                              is used for quota calculation. If a volume expansion
-                              capacity request is lowered, allocatedResources is only
-                              lowered if there are no expansion operations in progress
-                              and if the actual volume capacity is equal or lower
-                              than the requested capacity. This is an alpha field
-                              and requires enabling RecoverVolumeExpansionFailure
-                              feature.
+                            description: allocatedResources is the storage resource
+                              within AllocatedResources tracks the capacity allocated
+                              to a PVC. It may be larger than the actual capacity
+                              when a volume expansion operation is requested. For
+                              storage quota, the larger value from allocatedResources
+                              and PVC.spec.resources is used. If allocatedResources
+                              is not set, PVC.spec.resources alone is used for quota
+                              calculation. If a volume expansion capacity request
+                              is lowered, allocatedResources is only lowered if there
+                              are no expansion operations in progress and if the actual
+                              volume capacity is equal or lower than the requested
+                              capacity. This is an alpha field and requires enabling
+                              RecoverVolumeExpansionFailure feature.
                             type: object
                           capacity:
                             additionalProperties:
@@ -308,36 +308,37 @@ spec:
                               - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
-                            description: Represents the actual resources of the underlying
-                              volume.
+                            description: capacity represents the actual resources
+                              of the underlying volume.
                             type: object
                           conditions:
-                            description: Current Condition of persistent volume claim.
-                              If underlying persistent volume is being resized then
-                              the Condition will be set to 'ResizeStarted'.
+                            description: conditions is the current Condition of persistent
+                              volume claim. If underlying persistent volume is being
+                              resized then the Condition will be set to 'ResizeStarted'.
                             items:
                               description: PersistentVolumeClaimCondition contails
                                 details about state of pvc
                               properties:
                                 lastProbeTime:
-                                  description: Last time we probed the condition.
+                                  description: lastProbeTime is the time we probed
+                                    the condition.
                                   format: date-time
                                   type: string
                                 lastTransitionTime:
-                                  description: Last time the condition transitioned
-                                    from one status to another.
+                                  description: lastTransitionTime is the time the
+                                    condition transitioned from one status to another.
                                   format: date-time
                                   type: string
                                 message:
-                                  description: Human-readable message indicating details
-                                    about last transition.
+                                  description: message is the human-readable message
+                                    indicating details about last transition.
                                   type: string
                                 reason:
-                                  description: Unique, this should be a short, machine
-                                    understandable string that gives the reason for
-                                    condition's last transition. If it reports "ResizeStarted"
-                                    that means the underlying persistent volume is
-                                    being resized.
+                                  description: reason is a unique, this should be
+                                    a short, machine understandable string that gives
+                                    the reason for condition's last transition. If
+                                    it reports "ResizeStarted" that means the underlying
+                                    persistent volume is being resized.
                                   type: string
                                 status:
                                   type: string
@@ -351,10 +352,10 @@ spec:
                               type: object
                             type: array
                           phase:
-                            description: Phase represents the current phase of PersistentVolumeClaim.
+                            description: phase represents the current phase of PersistentVolumeClaim.
                             type: string
                           resizeStatus:
-                            description: ResizeStatus stores status of resize operation.
+                            description: resizeStatus stores status of resize operation.
                               ResizeStatus is not set by default but when expansion
                               is complete resizeStatus is set to empty string by resize
                               controller or kubelet. This is an alpha field and requires
@@ -726,18 +727,18 @@ spec:
                         type: string
                     type: object
                   spec:
-                    description: 'Spec defines the desired characteristics of a volume
+                    description: 'spec defines the desired characteristics of a volume
                       requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                     properties:
                       accessModes:
-                        description: 'AccessModes contains the desired access modes
+                        description: 'accessModes contains the desired access modes
                           the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                         items:
                           type: string
                         type: array
                       dataSource:
-                        description: 'This field can be used to specify either: *
-                          An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
+                        description: 'dataSource field can be used to specify either:
+                          * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
                           * An existing PVC (PersistentVolumeClaim) If the provisioner
                           or an external controller can support the specified data
                           source, it will create a new volume based on the contents
@@ -763,11 +764,11 @@ spec:
                         type: object
                         x-kubernetes-map-type: atomic
                       dataSourceRef:
-                        description: 'Specifies the object from which to populate
-                          the volume with data, if a non-empty volume is desired.
-                          This may be any local object from a non-empty API group
-                          (non core object) or a PersistentVolumeClaim object. When
-                          this field is specified, volume binding will only succeed
+                        description: 'dataSourceRef specifies the object from which
+                          to populate the volume with data, if a non-empty volume
+                          is desired. This may be any local object from a non-empty
+                          API group (non core object) or a PersistentVolumeClaim object.
+                          When this field is specified, volume binding will only succeed
                           if the type of the specified object matches some installed
                           volume populator or dynamic provisioner. This field will
                           replace the functionality of the DataSource field and as
@@ -780,7 +781,7 @@ spec:
                           DataSourceRef allows any non-core object, as well as PersistentVolumeClaim
                           objects. * While DataSource ignores disallowed values (dropping
                           them), DataSourceRef preserves all values, and generates
-                          an error if a disallowed value is specified. (Alpha) Using
+                          an error if a disallowed value is specified. (Beta) Using
                           this field requires the AnyVolumeDataSource feature gate
                           to be enabled.'
                         properties:
@@ -802,7 +803,7 @@ spec:
                         type: object
                         x-kubernetes-map-type: atomic
                       resources:
-                        description: 'Resources represents the minimum resources the
+                        description: 'resources represents the minimum resources the
                           volume should have. If RecoverVolumeExpansionFailure feature
                           is enabled users are allowed to specify resource requirements
                           that are lower than previous value but must still be higher
@@ -834,7 +835,8 @@ spec:
                             type: object
                         type: object
                       selector:
-                        description: A label query over volumes to consider for binding.
+                        description: selector is a label query over volumes to consider
+                          for binding.
                         properties:
                           matchExpressions:
                             description: matchExpressions is a list of label selector
@@ -880,8 +882,8 @@ spec:
                         type: object
                         x-kubernetes-map-type: atomic
                       storageClassName:
-                        description: 'Name of the StorageClass required by the claim.
-                          More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                        description: 'storageClassName is the name of the StorageClass
+                          required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                         type: string
                       volumeMode:
                         description: volumeMode defines what type of volume is required
@@ -889,16 +891,16 @@ spec:
                           in claim spec.
                         type: string
                       volumeName:
-                        description: VolumeName is the binding reference to the PersistentVolume
+                        description: volumeName is the binding reference to the PersistentVolume
                           backing this claim.
                         type: string
                     type: object
                   status:
-                    description: 'Status represents the current information/status
+                    description: 'status represents the current information/status
                       of a persistent volume claim. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                     properties:
                       accessModes:
-                        description: 'AccessModes contains the actual access modes
+                        description: 'accessModes contains the actual access modes
                           the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                         items:
                           type: string
@@ -910,17 +912,18 @@ spec:
                           - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
-                        description: The storage resource within AllocatedResources
-                          tracks the capacity allocated to a PVC. It may be larger
-                          than the actual capacity when a volume expansion operation
-                          is requested. For storage quota, the larger value from allocatedResources
-                          and PVC.spec.resources is used. If allocatedResources is
-                          not set, PVC.spec.resources alone is used for quota calculation.
-                          If a volume expansion capacity request is lowered, allocatedResources
-                          is only lowered if there are no expansion operations in
-                          progress and if the actual volume capacity is equal or lower
-                          than the requested capacity. This is an alpha field and
-                          requires enabling RecoverVolumeExpansionFailure feature.
+                        description: allocatedResources is the storage resource within
+                          AllocatedResources tracks the capacity allocated to a PVC.
+                          It may be larger than the actual capacity when a volume
+                          expansion operation is requested. For storage quota, the
+                          larger value from allocatedResources and PVC.spec.resources
+                          is used. If allocatedResources is not set, PVC.spec.resources
+                          alone is used for quota calculation. If a volume expansion
+                          capacity request is lowered, allocatedResources is only
+                          lowered if there are no expansion operations in progress
+                          and if the actual volume capacity is equal or lower than
+                          the requested capacity. This is an alpha field and requires
+                          enabling RecoverVolumeExpansionFailure feature.
                         type: object
                       capacity:
                         additionalProperties:
@@ -929,35 +932,37 @@ spec:
                           - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
-                        description: Represents the actual resources of the underlying
-                          volume.
+                        description: capacity represents the actual resources of the
+                          underlying volume.
                         type: object
                       conditions:
-                        description: Current Condition of persistent volume claim.
-                          If underlying persistent volume is being resized then the
-                          Condition will be set to 'ResizeStarted'.
+                        description: conditions is the current Condition of persistent
+                          volume claim. If underlying persistent volume is being resized
+                          then the Condition will be set to 'ResizeStarted'.
                         items:
                           description: PersistentVolumeClaimCondition contails details
                             about state of pvc
                           properties:
                             lastProbeTime:
-                              description: Last time we probed the condition.
+                              description: lastProbeTime is the time we probed the
+                                condition.
                               format: date-time
                               type: string
                             lastTransitionTime:
-                              description: Last time the condition transitioned from
-                                one status to another.
+                              description: lastTransitionTime is the time the condition
+                                transitioned from one status to another.
                               format: date-time
                               type: string
                             message:
-                              description: Human-readable message indicating details
-                                about last transition.
+                              description: message is the human-readable message indicating
+                                details about last transition.
                               type: string
                             reason:
-                              description: Unique, this should be a short, machine
-                                understandable string that gives the reason for condition's
-                                last transition. If it reports "ResizeStarted" that
-                                means the underlying persistent volume is being resized.
+                              description: reason is a unique, this should be a short,
+                                machine understandable string that gives the reason
+                                for condition's last transition. If it reports "ResizeStarted"
+                                that means the underlying persistent volume is being
+                                resized.
                               type: string
                             status:
                               type: string
@@ -971,10 +976,10 @@ spec:
                           type: object
                         type: array
                       phase:
-                        description: Phase represents the current phase of PersistentVolumeClaim.
+                        description: phase represents the current phase of PersistentVolumeClaim.
                         type: string
                       resizeStatus:
-                        description: ResizeStatus stores status of resize operation.
+                        description: resizeStatus stores status of resize operation.
                           ResizeStatus is not set by default but when expansion is
                           complete resizeStatus is set to empty string by resize controller
                           or kubelet. This is an alpha field and requires enabling
@@ -1538,9 +1543,7 @@ spec:
                                       field and the ones listed in the namespaces
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
-                                      selector ({}) matches all namespaces. This field
-                                      is beta-level and is only honored when PodAffinityNamespaceSelector
-                                      feature is enabled.
+                                      selector ({}) matches all namespaces.
                                     properties:
                                       matchExpressions:
                                         description: matchExpressions is a list of
@@ -1597,7 +1600,7 @@ spec:
                                       listed in this field and the ones selected by
                                       namespaceSelector. null or empty namespaces
                                       list and null namespaceSelector means "this
-                                      pod's namespace"
+                                      pod's namespace".
                                     items:
                                       type: string
                                     type: array
@@ -1699,9 +1702,7 @@ spec:
                                   and the ones listed in the namespaces field. null
                                   selector and null or empty namespaces list means
                                   "this pod's namespace". An empty selector ({}) matches
-                                  all namespaces. This field is beta-level and is
-                                  only honored when PodAffinityNamespaceSelector feature
-                                  is enabled.
+                                  all namespaces.
                                 properties:
                                   matchExpressions:
                                     description: matchExpressions is a list of label
@@ -1754,7 +1755,7 @@ spec:
                                   is applied to the union of the namespaces listed
                                   in this field and the ones selected by namespaceSelector.
                                   null or empty namespaces list and null namespaceSelector
-                                  means "this pod's namespace"
+                                  means "this pod's namespace".
                                 items:
                                   type: string
                                 type: array
@@ -1857,9 +1858,7 @@ spec:
                                       field and the ones listed in the namespaces
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
-                                      selector ({}) matches all namespaces. This field
-                                      is beta-level and is only honored when PodAffinityNamespaceSelector
-                                      feature is enabled.
+                                      selector ({}) matches all namespaces.
                                     properties:
                                       matchExpressions:
                                         description: matchExpressions is a list of
@@ -1916,7 +1915,7 @@ spec:
                                       listed in this field and the ones selected by
                                       namespaceSelector. null or empty namespaces
                                       list and null namespaceSelector means "this
-                                      pod's namespace"
+                                      pod's namespace".
                                     items:
                                       type: string
                                     type: array
@@ -2018,9 +2017,7 @@ spec:
                                   and the ones listed in the namespaces field. null
                                   selector and null or empty namespaces list means
                                   "this pod's namespace". An empty selector ({}) matches
-                                  all namespaces. This field is beta-level and is
-                                  only honored when PodAffinityNamespaceSelector feature
-                                  is enabled.
+                                  all namespaces.
                                 properties:
                                   matchExpressions:
                                     description: matchExpressions is a list of label
@@ -2073,7 +2070,7 @@ spec:
                                   is applied to the union of the namespaces listed
                                   in this field and the ones selected by namespaceSelector.
                                   null or empty namespaces list and null namespaceSelector
-                                  means "this pod's namespace"
+                                  means "this pod's namespace".
                                 items:
                                   type: string
                                 type: array
@@ -2195,17 +2192,47 @@ spec:
                               may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`,
                               it is the maximum permitted difference between the number
                               of matching pods in the target topology and the global
-                              minimum. For example, in a 3-zone cluster, MaxSkew is
-                              set to 1, and pods with the same labelSelector spread
-                              as 1/1/0: | zone1 | zone2 | zone3 | |   P   |   P   |       |
-                              - if MaxSkew is 1, incoming pod can only be scheduled
-                              to zone3 to become 1/1/1; scheduling it onto zone1(zone2)
-                              would make the ActualSkew(2-0) on zone1(zone2) violate
-                              MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled
-                              onto any zone. When `whenUnsatisfiable=ScheduleAnyway`,
-                              it is used to give higher precedence to topologies that
-                              satisfy it. It''s a required field. Default value is
-                              1 and 0 is not allowed.'
+                              minimum. The global minimum is the minimum number of
+                              matching pods in an eligible domain or zero if the number
+                              of eligible domains is less than MinDomains. For example,
+                              in a 3-zone cluster, MaxSkew is set to 1, and pods with
+                              the same labelSelector spread as 2/2/1: In this case,
+                              the global minimum is 1. | zone1 | zone2 | zone3 | |  P
+                              P  |  P P  |   P   | - if MaxSkew is 1, incoming pod
+                              can only be scheduled to zone3 to become 2/2/2; scheduling
+                              it onto zone1(zone2) would make the ActualSkew(3-1)
+                              on zone1(zone2) violate MaxSkew(1). - if MaxSkew is
+                              2, incoming pod can be scheduled onto any zone. When
+                              `whenUnsatisfiable=ScheduleAnyway`, it is used to give
+                              higher precedence to topologies that satisfy it. It''s
+                              a required field. Default value is 1 and 0 is not allowed.'
+                            format: int32
+                            type: integer
+                          minDomains:
+                            description: "MinDomains indicates a minimum number of
+                              eligible domains. When the number of eligible domains
+                              with matching topology keys is less than minDomains,
+                              Pod Topology Spread treats \"global minimum\" as 0,
+                              and then the calculation of Skew is performed. And when
+                              the number of eligible domains with matching topology
+                              keys equals or greater than minDomains, this value has
+                              no effect on scheduling. As a result, when the number
+                              of eligible domains is less than minDomains, scheduler
+                              won't schedule more than maxSkew Pods to those domains.
+                              If value is nil, the constraint behaves as if MinDomains
+                              is equal to 1. Valid values are integers greater than
+                              0. When value is not nil, WhenUnsatisfiable must be
+                              DoNotSchedule. \n For example, in a 3-zone cluster,
+                              MaxSkew is set to 2, MinDomains is set to 5 and pods
+                              with the same labelSelector spread as 2/2/2: | zone1
+                              | zone2 | zone3 | |  P P  |  P P  |  P P  | The number
+                              of domains is less than 5(MinDomains), so \"global minimum\"
+                              is treated as 0. In this situation, new pod with the
+                              same labelSelector cannot be scheduled, because computed
+                              skew will be 3(3 - 0) if new Pod is scheduled to any
+                              of the three zones, it will violate MaxSkew. \n This
+                              is an alpha field and requires enabling MinDomainsInPodTopologySpread
+                              feature gate."
                             format: int32
                             type: integer
                           topologyKey:
@@ -2213,7 +2240,13 @@ spec:
                               that have a label with this key and identical values
                               are considered to be in the same topology. We consider
                               each <key, value> as a "bucket", and try to put balanced
-                              number of pods into each bucket. It's a required field.
+                              number of pods into each bucket. We define a domain
+                              as a particular instance of a topology. Also, we define
+                              an eligible domain as a domain whose nodes match the
+                              node selector. e.g. If TopologyKey is "kubernetes.io/hostname",
+                              each Node is a domain of that topology. And, if TopologyKey
+                              is "topology.kubernetes.io/zone", each zone is a domain
+                              of that topology. It's a required field.
                             type: string
                           whenUnsatisfiable:
                             description: 'WhenUnsatisfiable indicates how to deal
@@ -2335,18 +2368,18 @@ spec:
                               type: string
                           type: object
                         spec:
-                          description: 'Spec defines the desired characteristics of
+                          description: 'spec defines the desired characteristics of
                             a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                           properties:
                             accessModes:
-                              description: 'AccessModes contains the desired access
+                              description: 'accessModes contains the desired access
                                 modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                               items:
                                 type: string
                               type: array
                             dataSource:
-                              description: 'This field can be used to specify either:
-                                * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
+                              description: 'dataSource field can be used to specify
+                                either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
                                 * An existing PVC (PersistentVolumeClaim) If the provisioner
                                 or an external controller can support the specified
                                 data source, it will create a new volume based on
@@ -2375,10 +2408,10 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             dataSourceRef:
-                              description: 'Specifies the object from which to populate
-                                the volume with data, if a non-empty volume is desired.
-                                This may be any local object from a non-empty API
-                                group (non core object) or a PersistentVolumeClaim
+                              description: 'dataSourceRef specifies the object from
+                                which to populate the volume with data, if a non-empty
+                                volume is desired. This may be any local object from
+                                a non-empty API group (non core object) or a PersistentVolumeClaim
                                 object. When this field is specified, volume binding
                                 will only succeed if the type of the specified object
                                 matches some installed volume populator or dynamic
@@ -2395,7 +2428,7 @@ spec:
                                 objects. * While DataSource ignores disallowed values
                                 (dropping them), DataSourceRef preserves all values,
                                 and generates an error if a disallowed value is specified.
-                                (Alpha) Using this field requires the AnyVolumeDataSource
+                                (Beta) Using this field requires the AnyVolumeDataSource
                                 feature gate to be enabled.'
                               properties:
                                 apiGroup:
@@ -2418,7 +2451,7 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             resources:
-                              description: 'Resources represents the minimum resources
+                              description: 'resources represents the minimum resources
                                 the volume should have. If RecoverVolumeExpansionFailure
                                 feature is enabled users are allowed to specify resource
                                 requirements that are lower than previous value but
@@ -2450,8 +2483,8 @@ spec:
                                   type: object
                               type: object
                             selector:
-                              description: A label query over volumes to consider
-                                for binding.
+                              description: selector is a label query over volumes
+                                to consider for binding.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -2498,8 +2531,8 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             storageClassName:
-                              description: 'Name of the StorageClass required by the
-                                claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                              description: 'storageClassName is the name of the StorageClass
+                                required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                               type: string
                             volumeMode:
                               description: volumeMode defines what type of volume
@@ -2507,16 +2540,16 @@ spec:
                                 when not included in claim spec.
                               type: string
                             volumeName:
-                              description: VolumeName is the binding reference to
+                              description: volumeName is the binding reference to
                                 the PersistentVolume backing this claim.
                               type: string
                           type: object
                         status:
-                          description: 'Status represents the current information/status
+                          description: 'status represents the current information/status
                             of a persistent volume claim. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                           properties:
                             accessModes:
-                              description: 'AccessModes contains the actual access
+                              description: 'accessModes contains the actual access
                                 modes the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                               items:
                                 type: string
@@ -2528,19 +2561,19 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
-                              description: The storage resource within AllocatedResources
-                                tracks the capacity allocated to a PVC. It may be
-                                larger than the actual capacity when a volume expansion
-                                operation is requested. For storage quota, the larger
-                                value from allocatedResources and PVC.spec.resources
-                                is used. If allocatedResources is not set, PVC.spec.resources
-                                alone is used for quota calculation. If a volume expansion
-                                capacity request is lowered, allocatedResources is
-                                only lowered if there are no expansion operations
-                                in progress and if the actual volume capacity is equal
-                                or lower than the requested capacity. This is an alpha
-                                field and requires enabling RecoverVolumeExpansionFailure
-                                feature.
+                              description: allocatedResources is the storage resource
+                                within AllocatedResources tracks the capacity allocated
+                                to a PVC. It may be larger than the actual capacity
+                                when a volume expansion operation is requested. For
+                                storage quota, the larger value from allocatedResources
+                                and PVC.spec.resources is used. If allocatedResources
+                                is not set, PVC.spec.resources alone is used for quota
+                                calculation. If a volume expansion capacity request
+                                is lowered, allocatedResources is only lowered if
+                                there are no expansion operations in progress and
+                                if the actual volume capacity is equal or lower than
+                                the requested capacity. This is an alpha field and
+                                requires enabling RecoverVolumeExpansionFailure feature.
                               type: object
                             capacity:
                               additionalProperties:
@@ -2549,36 +2582,38 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
-                              description: Represents the actual resources of the
-                                underlying volume.
+                              description: capacity represents the actual resources
+                                of the underlying volume.
                               type: object
                             conditions:
-                              description: Current Condition of persistent volume
-                                claim. If underlying persistent volume is being resized
-                                then the Condition will be set to 'ResizeStarted'.
+                              description: conditions is the current Condition of
+                                persistent volume claim. If underlying persistent
+                                volume is being resized then the Condition will be
+                                set to 'ResizeStarted'.
                               items:
                                 description: PersistentVolumeClaimCondition contails
                                   details about state of pvc
                                 properties:
                                   lastProbeTime:
-                                    description: Last time we probed the condition.
+                                    description: lastProbeTime is the time we probed
+                                      the condition.
                                     format: date-time
                                     type: string
                                   lastTransitionTime:
-                                    description: Last time the condition transitioned
-                                      from one status to another.
+                                    description: lastTransitionTime is the time the
+                                      condition transitioned from one status to another.
                                     format: date-time
                                     type: string
                                   message:
-                                    description: Human-readable message indicating
-                                      details about last transition.
+                                    description: message is the human-readable message
+                                      indicating details about last transition.
                                     type: string
                                   reason:
-                                    description: Unique, this should be a short, machine
-                                      understandable string that gives the reason
-                                      for condition's last transition. If it reports
-                                      "ResizeStarted" that means the underlying persistent
-                                      volume is being resized.
+                                    description: reason is a unique, this should be
+                                      a short, machine understandable string that
+                                      gives the reason for condition's last transition.
+                                      If it reports "ResizeStarted" that means the
+                                      underlying persistent volume is being resized.
                                     type: string
                                   status:
                                     type: string
@@ -2592,10 +2627,10 @@ spec:
                                 type: object
                               type: array
                             phase:
-                              description: Phase represents the current phase of PersistentVolumeClaim.
+                              description: phase represents the current phase of PersistentVolumeClaim.
                               type: string
                             resizeStatus:
-                              description: ResizeStatus stores status of resize operation.
+                              description: resizeStatus stores status of resize operation.
                                 ResizeStatus is not set by default but when expansion
                                 is complete resizeStatus is set to empty string by
                                 resize controller or kubelet. This is an alpha field
@@ -2665,18 +2700,18 @@ spec:
                               type: string
                           type: object
                         spec:
-                          description: 'Spec defines the desired characteristics of
+                          description: 'spec defines the desired characteristics of
                             a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                           properties:
                             accessModes:
-                              description: 'AccessModes contains the desired access
+                              description: 'accessModes contains the desired access
                                 modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                               items:
                                 type: string
                               type: array
                             dataSource:
-                              description: 'This field can be used to specify either:
-                                * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
+                              description: 'dataSource field can be used to specify
+                                either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
                                 * An existing PVC (PersistentVolumeClaim) If the provisioner
                                 or an external controller can support the specified
                                 data source, it will create a new volume based on
@@ -2705,10 +2740,10 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             dataSourceRef:
-                              description: 'Specifies the object from which to populate
-                                the volume with data, if a non-empty volume is desired.
-                                This may be any local object from a non-empty API
-                                group (non core object) or a PersistentVolumeClaim
+                              description: 'dataSourceRef specifies the object from
+                                which to populate the volume with data, if a non-empty
+                                volume is desired. This may be any local object from
+                                a non-empty API group (non core object) or a PersistentVolumeClaim
                                 object. When this field is specified, volume binding
                                 will only succeed if the type of the specified object
                                 matches some installed volume populator or dynamic
@@ -2725,7 +2760,7 @@ spec:
                                 objects. * While DataSource ignores disallowed values
                                 (dropping them), DataSourceRef preserves all values,
                                 and generates an error if a disallowed value is specified.
-                                (Alpha) Using this field requires the AnyVolumeDataSource
+                                (Beta) Using this field requires the AnyVolumeDataSource
                                 feature gate to be enabled.'
                               properties:
                                 apiGroup:
@@ -2748,7 +2783,7 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             resources:
-                              description: 'Resources represents the minimum resources
+                              description: 'resources represents the minimum resources
                                 the volume should have. If RecoverVolumeExpansionFailure
                                 feature is enabled users are allowed to specify resource
                                 requirements that are lower than previous value but
@@ -2780,8 +2815,8 @@ spec:
                                   type: object
                               type: object
                             selector:
-                              description: A label query over volumes to consider
-                                for binding.
+                              description: selector is a label query over volumes
+                                to consider for binding.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -2828,8 +2863,8 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             storageClassName:
-                              description: 'Name of the StorageClass required by the
-                                claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                              description: 'storageClassName is the name of the StorageClass
+                                required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                               type: string
                             volumeMode:
                               description: volumeMode defines what type of volume
@@ -2837,16 +2872,16 @@ spec:
                                 when not included in claim spec.
                               type: string
                             volumeName:
-                              description: VolumeName is the binding reference to
+                              description: volumeName is the binding reference to
                                 the PersistentVolume backing this claim.
                               type: string
                           type: object
                         status:
-                          description: 'Status represents the current information/status
+                          description: 'status represents the current information/status
                             of a persistent volume claim. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                           properties:
                             accessModes:
-                              description: 'AccessModes contains the actual access
+                              description: 'accessModes contains the actual access
                                 modes the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                               items:
                                 type: string
@@ -2858,19 +2893,19 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
-                              description: The storage resource within AllocatedResources
-                                tracks the capacity allocated to a PVC. It may be
-                                larger than the actual capacity when a volume expansion
-                                operation is requested. For storage quota, the larger
-                                value from allocatedResources and PVC.spec.resources
-                                is used. If allocatedResources is not set, PVC.spec.resources
-                                alone is used for quota calculation. If a volume expansion
-                                capacity request is lowered, allocatedResources is
-                                only lowered if there are no expansion operations
-                                in progress and if the actual volume capacity is equal
-                                or lower than the requested capacity. This is an alpha
-                                field and requires enabling RecoverVolumeExpansionFailure
-                                feature.
+                              description: allocatedResources is the storage resource
+                                within AllocatedResources tracks the capacity allocated
+                                to a PVC. It may be larger than the actual capacity
+                                when a volume expansion operation is requested. For
+                                storage quota, the larger value from allocatedResources
+                                and PVC.spec.resources is used. If allocatedResources
+                                is not set, PVC.spec.resources alone is used for quota
+                                calculation. If a volume expansion capacity request
+                                is lowered, allocatedResources is only lowered if
+                                there are no expansion operations in progress and
+                                if the actual volume capacity is equal or lower than
+                                the requested capacity. This is an alpha field and
+                                requires enabling RecoverVolumeExpansionFailure feature.
                               type: object
                             capacity:
                               additionalProperties:
@@ -2879,36 +2914,38 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
-                              description: Represents the actual resources of the
-                                underlying volume.
+                              description: capacity represents the actual resources
+                                of the underlying volume.
                               type: object
                             conditions:
-                              description: Current Condition of persistent volume
-                                claim. If underlying persistent volume is being resized
-                                then the Condition will be set to 'ResizeStarted'.
+                              description: conditions is the current Condition of
+                                persistent volume claim. If underlying persistent
+                                volume is being resized then the Condition will be
+                                set to 'ResizeStarted'.
                               items:
                                 description: PersistentVolumeClaimCondition contails
                                   details about state of pvc
                                 properties:
                                   lastProbeTime:
-                                    description: Last time we probed the condition.
+                                    description: lastProbeTime is the time we probed
+                                      the condition.
                                     format: date-time
                                     type: string
                                   lastTransitionTime:
-                                    description: Last time the condition transitioned
-                                      from one status to another.
+                                    description: lastTransitionTime is the time the
+                                      condition transitioned from one status to another.
                                     format: date-time
                                     type: string
                                   message:
-                                    description: Human-readable message indicating
-                                      details about last transition.
+                                    description: message is the human-readable message
+                                      indicating details about last transition.
                                     type: string
                                   reason:
-                                    description: Unique, this should be a short, machine
-                                      understandable string that gives the reason
-                                      for condition's last transition. If it reports
-                                      "ResizeStarted" that means the underlying persistent
-                                      volume is being resized.
+                                    description: reason is a unique, this should be
+                                      a short, machine understandable string that
+                                      gives the reason for condition's last transition.
+                                      If it reports "ResizeStarted" that means the
+                                      underlying persistent volume is being resized.
                                     type: string
                                   status:
                                     type: string
@@ -2922,10 +2959,10 @@ spec:
                                 type: object
                               type: array
                             phase:
-                              description: Phase represents the current phase of PersistentVolumeClaim.
+                              description: phase represents the current phase of PersistentVolumeClaim.
                               type: string
                             resizeStatus:
-                              description: ResizeStatus stores status of resize operation.
+                              description: resizeStatus stores status of resize operation.
                                 ResizeStatus is not set by default but when expansion
                                 is complete resizeStatus is set to empty string by
                                 resize controller or kubelet. This is an alpha field
@@ -3243,9 +3280,7 @@ spec:
                                           in the namespaces field. null selector and
                                           null or empty namespaces list means "this
                                           pod's namespace". An empty selector ({})
-                                          matches all namespaces. This field is beta-level
-                                          and is only honored when PodAffinityNamespaceSelector
-                                          feature is enabled.
+                                          matches all namespaces.
                                         properties:
                                           matchExpressions:
                                             description: matchExpressions is a list
@@ -3303,7 +3338,7 @@ spec:
                                           the namespaces listed in this field and
                                           the ones selected by namespaceSelector.
                                           null or empty namespaces list and null namespaceSelector
-                                          means "this pod's namespace"
+                                          means "this pod's namespace".
                                         items:
                                           type: string
                                         type: array
@@ -3411,9 +3446,7 @@ spec:
                                       field and the ones listed in the namespaces
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
-                                      selector ({}) matches all namespaces. This field
-                                      is beta-level and is only honored when PodAffinityNamespaceSelector
-                                      feature is enabled.
+                                      selector ({}) matches all namespaces.
                                     properties:
                                       matchExpressions:
                                         description: matchExpressions is a list of
@@ -3470,7 +3503,7 @@ spec:
                                       listed in this field and the ones selected by
                                       namespaceSelector. null or empty namespaces
                                       list and null namespaceSelector means "this
-                                      pod's namespace"
+                                      pod's namespace".
                                     items:
                                       type: string
                                     type: array
@@ -3576,9 +3609,7 @@ spec:
                                           in the namespaces field. null selector and
                                           null or empty namespaces list means "this
                                           pod's namespace". An empty selector ({})
-                                          matches all namespaces. This field is beta-level
-                                          and is only honored when PodAffinityNamespaceSelector
-                                          feature is enabled.
+                                          matches all namespaces.
                                         properties:
                                           matchExpressions:
                                             description: matchExpressions is a list
@@ -3636,7 +3667,7 @@ spec:
                                           the namespaces listed in this field and
                                           the ones selected by namespaceSelector.
                                           null or empty namespaces list and null namespaceSelector
-                                          means "this pod's namespace"
+                                          means "this pod's namespace".
                                         items:
                                           type: string
                                         type: array
@@ -3744,9 +3775,7 @@ spec:
                                       field and the ones listed in the namespaces
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
-                                      selector ({}) matches all namespaces. This field
-                                      is beta-level and is only honored when PodAffinityNamespaceSelector
-                                      feature is enabled.
+                                      selector ({}) matches all namespaces.
                                     properties:
                                       matchExpressions:
                                         description: matchExpressions is a list of
@@ -3803,7 +3832,7 @@ spec:
                                       listed in this field and the ones selected by
                                       namespaceSelector. null or empty namespaces
                                       list and null namespaceSelector means "this
-                                      pod's namespace"
+                                      pod's namespace".
                                     items:
                                       type: string
                                     type: array
@@ -3930,17 +3959,50 @@ spec:
                                   pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`,
                                   it is the maximum permitted difference between the
                                   number of matching pods in the target topology and
-                                  the global minimum. For example, in a 3-zone cluster,
-                                  MaxSkew is set to 1, and pods with the same labelSelector
-                                  spread as 1/1/0: | zone1 | zone2 | zone3 | |   P   |   P   |       |
+                                  the global minimum. The global minimum is the minimum
+                                  number of matching pods in an eligible domain or
+                                  zero if the number of eligible domains is less than
+                                  MinDomains. For example, in a 3-zone cluster, MaxSkew
+                                  is set to 1, and pods with the same labelSelector
+                                  spread as 2/2/1: In this case, the global minimum
+                                  is 1. | zone1 | zone2 | zone3 | |  P P  |  P P  |   P   |
                                   - if MaxSkew is 1, incoming pod can only be scheduled
-                                  to zone3 to become 1/1/1; scheduling it onto zone1(zone2)
-                                  would make the ActualSkew(2-0) on zone1(zone2) violate
+                                  to zone3 to become 2/2/2; scheduling it onto zone1(zone2)
+                                  would make the ActualSkew(3-1) on zone1(zone2) violate
                                   MaxSkew(1). - if MaxSkew is 2, incoming pod can
                                   be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`,
                                   it is used to give higher precedence to topologies
                                   that satisfy it. It''s a required field. Default
                                   value is 1 and 0 is not allowed.'
+                                format: int32
+                                type: integer
+                              minDomains:
+                                description: "MinDomains indicates a minimum number
+                                  of eligible domains. When the number of eligible
+                                  domains with matching topology keys is less than
+                                  minDomains, Pod Topology Spread treats \"global
+                                  minimum\" as 0, and then the calculation of Skew
+                                  is performed. And when the number of eligible domains
+                                  with matching topology keys equals or greater than
+                                  minDomains, this value has no effect on scheduling.
+                                  As a result, when the number of eligible domains
+                                  is less than minDomains, scheduler won't schedule
+                                  more than maxSkew Pods to those domains. If value
+                                  is nil, the constraint behaves as if MinDomains
+                                  is equal to 1. Valid values are integers greater
+                                  than 0. When value is not nil, WhenUnsatisfiable
+                                  must be DoNotSchedule. \n For example, in a 3-zone
+                                  cluster, MaxSkew is set to 2, MinDomains is set
+                                  to 5 and pods with the same labelSelector spread
+                                  as 2/2/2: | zone1 | zone2 | zone3 | |  P P  |  P
+                                  P  |  P P  | The number of domains is less than
+                                  5(MinDomains), so \"global minimum\" is treated
+                                  as 0. In this situation, new pod with the same labelSelector
+                                  cannot be scheduled, because computed skew will
+                                  be 3(3 - 0) if new Pod is scheduled to any of the
+                                  three zones, it will violate MaxSkew. \n This is
+                                  an alpha field and requires enabling MinDomainsInPodTopologySpread
+                                  feature gate."
                                 format: int32
                                 type: integer
                               topologyKey:
@@ -3949,7 +4011,13 @@ spec:
                                   values are considered to be in the same topology.
                                   We consider each <key, value> as a "bucket", and
                                   try to put balanced number of pods into each bucket.
-                                  It's a required field.
+                                  We define a domain as a particular instance of a
+                                  topology. Also, we define an eligible domain as
+                                  a domain whose nodes match the node selector. e.g.
+                                  If TopologyKey is "kubernetes.io/hostname", each
+                                  Node is a domain of that topology. And, if TopologyKey
+                                  is "topology.kubernetes.io/zone", each zone is a
+                                  domain of that topology. It's a required field.
                                 type: string
                               whenUnsatisfiable:
                                 description: 'WhenUnsatisfiable indicates how to deal
@@ -4291,9 +4359,7 @@ spec:
                                           in the namespaces field. null selector and
                                           null or empty namespaces list means "this
                                           pod's namespace". An empty selector ({})
-                                          matches all namespaces. This field is beta-level
-                                          and is only honored when PodAffinityNamespaceSelector
-                                          feature is enabled.
+                                          matches all namespaces.
                                         properties:
                                           matchExpressions:
                                             description: matchExpressions is a list
@@ -4351,7 +4417,7 @@ spec:
                                           the namespaces listed in this field and
                                           the ones selected by namespaceSelector.
                                           null or empty namespaces list and null namespaceSelector
-                                          means "this pod's namespace"
+                                          means "this pod's namespace".
                                         items:
                                           type: string
                                         type: array
@@ -4459,9 +4525,7 @@ spec:
                                       field and the ones listed in the namespaces
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
-                                      selector ({}) matches all namespaces. This field
-                                      is beta-level and is only honored when PodAffinityNamespaceSelector
-                                      feature is enabled.
+                                      selector ({}) matches all namespaces.
                                     properties:
                                       matchExpressions:
                                         description: matchExpressions is a list of
@@ -4518,7 +4582,7 @@ spec:
                                       listed in this field and the ones selected by
                                       namespaceSelector. null or empty namespaces
                                       list and null namespaceSelector means "this
-                                      pod's namespace"
+                                      pod's namespace".
                                     items:
                                       type: string
                                     type: array
@@ -4624,9 +4688,7 @@ spec:
                                           in the namespaces field. null selector and
                                           null or empty namespaces list means "this
                                           pod's namespace". An empty selector ({})
-                                          matches all namespaces. This field is beta-level
-                                          and is only honored when PodAffinityNamespaceSelector
-                                          feature is enabled.
+                                          matches all namespaces.
                                         properties:
                                           matchExpressions:
                                             description: matchExpressions is a list
@@ -4684,7 +4746,7 @@ spec:
                                           the namespaces listed in this field and
                                           the ones selected by namespaceSelector.
                                           null or empty namespaces list and null namespaceSelector
-                                          means "this pod's namespace"
+                                          means "this pod's namespace".
                                         items:
                                           type: string
                                         type: array
@@ -4792,9 +4854,7 @@ spec:
                                       field and the ones listed in the namespaces
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
-                                      selector ({}) matches all namespaces. This field
-                                      is beta-level and is only honored when PodAffinityNamespaceSelector
-                                      feature is enabled.
+                                      selector ({}) matches all namespaces.
                                     properties:
                                       matchExpressions:
                                         description: matchExpressions is a list of
@@ -4851,7 +4911,7 @@ spec:
                                       listed in this field and the ones selected by
                                       namespaceSelector. null or empty namespaces
                                       list and null namespaceSelector means "this
-                                      pod's namespace"
+                                      pod's namespace".
                                     items:
                                       type: string
                                     type: array
@@ -4978,17 +5038,50 @@ spec:
                                   pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`,
                                   it is the maximum permitted difference between the
                                   number of matching pods in the target topology and
-                                  the global minimum. For example, in a 3-zone cluster,
-                                  MaxSkew is set to 1, and pods with the same labelSelector
-                                  spread as 1/1/0: | zone1 | zone2 | zone3 | |   P   |   P   |       |
+                                  the global minimum. The global minimum is the minimum
+                                  number of matching pods in an eligible domain or
+                                  zero if the number of eligible domains is less than
+                                  MinDomains. For example, in a 3-zone cluster, MaxSkew
+                                  is set to 1, and pods with the same labelSelector
+                                  spread as 2/2/1: In this case, the global minimum
+                                  is 1. | zone1 | zone2 | zone3 | |  P P  |  P P  |   P   |
                                   - if MaxSkew is 1, incoming pod can only be scheduled
-                                  to zone3 to become 1/1/1; scheduling it onto zone1(zone2)
-                                  would make the ActualSkew(2-0) on zone1(zone2) violate
+                                  to zone3 to become 2/2/2; scheduling it onto zone1(zone2)
+                                  would make the ActualSkew(3-1) on zone1(zone2) violate
                                   MaxSkew(1). - if MaxSkew is 2, incoming pod can
                                   be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`,
                                   it is used to give higher precedence to topologies
                                   that satisfy it. It''s a required field. Default
                                   value is 1 and 0 is not allowed.'
+                                format: int32
+                                type: integer
+                              minDomains:
+                                description: "MinDomains indicates a minimum number
+                                  of eligible domains. When the number of eligible
+                                  domains with matching topology keys is less than
+                                  minDomains, Pod Topology Spread treats \"global
+                                  minimum\" as 0, and then the calculation of Skew
+                                  is performed. And when the number of eligible domains
+                                  with matching topology keys equals or greater than
+                                  minDomains, this value has no effect on scheduling.
+                                  As a result, when the number of eligible domains
+                                  is less than minDomains, scheduler won't schedule
+                                  more than maxSkew Pods to those domains. If value
+                                  is nil, the constraint behaves as if MinDomains
+                                  is equal to 1. Valid values are integers greater
+                                  than 0. When value is not nil, WhenUnsatisfiable
+                                  must be DoNotSchedule. \n For example, in a 3-zone
+                                  cluster, MaxSkew is set to 2, MinDomains is set
+                                  to 5 and pods with the same labelSelector spread
+                                  as 2/2/2: | zone1 | zone2 | zone3 | |  P P  |  P
+                                  P  |  P P  | The number of domains is less than
+                                  5(MinDomains), so \"global minimum\" is treated
+                                  as 0. In this situation, new pod with the same labelSelector
+                                  cannot be scheduled, because computed skew will
+                                  be 3(3 - 0) if new Pod is scheduled to any of the
+                                  three zones, it will violate MaxSkew. \n This is
+                                  an alpha field and requires enabling MinDomainsInPodTopologySpread
+                                  feature gate."
                                 format: int32
                                 type: integer
                               topologyKey:
@@ -4997,7 +5090,13 @@ spec:
                                   values are considered to be in the same topology.
                                   We consider each <key, value> as a "bucket", and
                                   try to put balanced number of pods into each bucket.
-                                  It's a required field.
+                                  We define a domain as a particular instance of a
+                                  topology. Also, we define an eligible domain as
+                                  a domain whose nodes match the node selector. e.g.
+                                  If TopologyKey is "kubernetes.io/hostname", each
+                                  Node is a domain of that topology. And, if TopologyKey
+                                  is "topology.kubernetes.io/zone", each zone is a
+                                  domain of that topology. It's a required field.
                                 type: string
                               whenUnsatisfiable:
                                 description: 'WhenUnsatisfiable indicates how to deal
@@ -5110,18 +5209,18 @@ spec:
                               type: string
                           type: object
                         spec:
-                          description: 'Spec defines the desired characteristics of
+                          description: 'spec defines the desired characteristics of
                             a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                           properties:
                             accessModes:
-                              description: 'AccessModes contains the desired access
+                              description: 'accessModes contains the desired access
                                 modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                               items:
                                 type: string
                               type: array
                             dataSource:
-                              description: 'This field can be used to specify either:
-                                * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
+                              description: 'dataSource field can be used to specify
+                                either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
                                 * An existing PVC (PersistentVolumeClaim) If the provisioner
                                 or an external controller can support the specified
                                 data source, it will create a new volume based on
@@ -5150,10 +5249,10 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             dataSourceRef:
-                              description: 'Specifies the object from which to populate
-                                the volume with data, if a non-empty volume is desired.
-                                This may be any local object from a non-empty API
-                                group (non core object) or a PersistentVolumeClaim
+                              description: 'dataSourceRef specifies the object from
+                                which to populate the volume with data, if a non-empty
+                                volume is desired. This may be any local object from
+                                a non-empty API group (non core object) or a PersistentVolumeClaim
                                 object. When this field is specified, volume binding
                                 will only succeed if the type of the specified object
                                 matches some installed volume populator or dynamic
@@ -5170,7 +5269,7 @@ spec:
                                 objects. * While DataSource ignores disallowed values
                                 (dropping them), DataSourceRef preserves all values,
                                 and generates an error if a disallowed value is specified.
-                                (Alpha) Using this field requires the AnyVolumeDataSource
+                                (Beta) Using this field requires the AnyVolumeDataSource
                                 feature gate to be enabled.'
                               properties:
                                 apiGroup:
@@ -5193,7 +5292,7 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             resources:
-                              description: 'Resources represents the minimum resources
+                              description: 'resources represents the minimum resources
                                 the volume should have. If RecoverVolumeExpansionFailure
                                 feature is enabled users are allowed to specify resource
                                 requirements that are lower than previous value but
@@ -5225,8 +5324,8 @@ spec:
                                   type: object
                               type: object
                             selector:
-                              description: A label query over volumes to consider
-                                for binding.
+                              description: selector is a label query over volumes
+                                to consider for binding.
                               properties:
                                 matchExpressions:
                                   description: matchExpressions is a list of label
@@ -5273,8 +5372,8 @@ spec:
                               type: object
                               x-kubernetes-map-type: atomic
                             storageClassName:
-                              description: 'Name of the StorageClass required by the
-                                claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
+                              description: 'storageClassName is the name of the StorageClass
+                                required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                               type: string
                             volumeMode:
                               description: volumeMode defines what type of volume
@@ -5282,16 +5381,16 @@ spec:
                                 when not included in claim spec.
                               type: string
                             volumeName:
-                              description: VolumeName is the binding reference to
+                              description: volumeName is the binding reference to
                                 the PersistentVolume backing this claim.
                               type: string
                           type: object
                         status:
-                          description: 'Status represents the current information/status
+                          description: 'status represents the current information/status
                             of a persistent volume claim. Read-only. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                           properties:
                             accessModes:
-                              description: 'AccessModes contains the actual access
+                              description: 'accessModes contains the actual access
                                 modes the volume backing the PVC has. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1'
                               items:
                                 type: string
@@ -5303,19 +5402,19 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
-                              description: The storage resource within AllocatedResources
-                                tracks the capacity allocated to a PVC. It may be
-                                larger than the actual capacity when a volume expansion
-                                operation is requested. For storage quota, the larger
-                                value from allocatedResources and PVC.spec.resources
-                                is used. If allocatedResources is not set, PVC.spec.resources
-                                alone is used for quota calculation. If a volume expansion
-                                capacity request is lowered, allocatedResources is
-                                only lowered if there are no expansion operations
-                                in progress and if the actual volume capacity is equal
-                                or lower than the requested capacity. This is an alpha
-                                field and requires enabling RecoverVolumeExpansionFailure
-                                feature.
+                              description: allocatedResources is the storage resource
+                                within AllocatedResources tracks the capacity allocated
+                                to a PVC. It may be larger than the actual capacity
+                                when a volume expansion operation is requested. For
+                                storage quota, the larger value from allocatedResources
+                                and PVC.spec.resources is used. If allocatedResources
+                                is not set, PVC.spec.resources alone is used for quota
+                                calculation. If a volume expansion capacity request
+                                is lowered, allocatedResources is only lowered if
+                                there are no expansion operations in progress and
+                                if the actual volume capacity is equal or lower than
+                                the requested capacity. This is an alpha field and
+                                requires enabling RecoverVolumeExpansionFailure feature.
                               type: object
                             capacity:
                               additionalProperties:
@@ -5324,36 +5423,38 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
-                              description: Represents the actual resources of the
-                                underlying volume.
+                              description: capacity represents the actual resources
+                                of the underlying volume.
                               type: object
                             conditions:
-                              description: Current Condition of persistent volume
-                                claim. If underlying persistent volume is being resized
-                                then the Condition will be set to 'ResizeStarted'.
+                              description: conditions is the current Condition of
+                                persistent volume claim. If underlying persistent
+                                volume is being resized then the Condition will be
+                                set to 'ResizeStarted'.
                               items:
                                 description: PersistentVolumeClaimCondition contails
                                   details about state of pvc
                                 properties:
                                   lastProbeTime:
-                                    description: Last time we probed the condition.
+                                    description: lastProbeTime is the time we probed
+                                      the condition.
                                     format: date-time
                                     type: string
                                   lastTransitionTime:
-                                    description: Last time the condition transitioned
-                                      from one status to another.
+                                    description: lastTransitionTime is the time the
+                                      condition transitioned from one status to another.
                                     format: date-time
                                     type: string
                                   message:
-                                    description: Human-readable message indicating
-                                      details about last transition.
+                                    description: message is the human-readable message
+                                      indicating details about last transition.
                                     type: string
                                   reason:
-                                    description: Unique, this should be a short, machine
-                                      understandable string that gives the reason
-                                      for condition's last transition. If it reports
-                                      "ResizeStarted" that means the underlying persistent
-                                      volume is being resized.
+                                    description: reason is a unique, this should be
+                                      a short, machine understandable string that
+                                      gives the reason for condition's last transition.
+                                      If it reports "ResizeStarted" that means the
+                                      underlying persistent volume is being resized.
                                     type: string
                                   status:
                                     type: string
@@ -5367,10 +5468,10 @@ spec:
                                 type: object
                               type: array
                             phase:
-                              description: Phase represents the current phase of PersistentVolumeClaim.
+                              description: phase represents the current phase of PersistentVolumeClaim.
                               type: string
                             resizeStatus:
-                              description: ResizeStatus stores status of resize operation.
+                              description: resizeStatus stores status of resize operation.
                                 ResizeStatus is not set by default but when expansion
                                 is complete resizeStatus is set to empty string by
                                 resize controller or kubelet. This is an alpha field
