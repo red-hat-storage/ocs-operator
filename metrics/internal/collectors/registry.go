@@ -4,13 +4,14 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	internalcache "github.com/red-hat-storage/ocs-operator/metrics/internal/cache"
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	internalcache "github.com/red-hat-storage/ocs-operator/metrics/internal/cache"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 )
 
 const (
@@ -25,6 +26,7 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 	cephObjectStoreCollector := NewCephObjectStoreCollector(opts)
 	cephBlockPoolCollector := NewCephBlockPoolCollector(opts)
 	cephClusterCollector := NewCephClusterCollector(opts)
+	storageClusterCollector := NewStorageClusterCollector(opts)
 	OBMetricsCollector := NewObjectBucketCollector(opts)
 	clusterAdvanceFeatureCollector := NewClusterAdvancedFeatureCollector(opts)
 	storageConsumerCollector := NewStorageConsumerCollector(opts)
@@ -45,6 +47,10 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 	if storageConsumerCollector != nil {
 		storageConsumerCollector.Run(opts.StopCh)
 		registry.MustRegister(storageConsumerCollector)
+	}
+	if storageClusterCollector != nil {
+		storageClusterCollector.Run(opts.StopCh)
+		registry.MustRegister(storageClusterCollector)
 	}
 }
 

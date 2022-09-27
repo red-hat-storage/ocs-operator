@@ -57,6 +57,7 @@ rules:
   - ocs.openshift.io
   resources:
   - storageconsumers
+  - storageclusters
   verbs:
     - get
     - list
