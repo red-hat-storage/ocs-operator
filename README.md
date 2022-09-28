@@ -1,31 +1,32 @@
 # Table of Contents
 
-- [OpenShift Container Storage Operator](#openshift-container-storage-operator)
-- [Deploying pre-built images](#deploying-pre-built-images)
-  - [Prerequisites](#prerequisites)
-  - [Dedicated nodes](#dedicated-nodes)
-  - [Installation](#installation)
-- [Development](#development)
-  - [Tools](#tools)
-  - [Build](#build)
-    1. [OCS Operator](#ocs-operator)
-    2. [Unified CSV](#unified-csv)
-    3. [OCS Operator Bundle](#ocs-operator-bundle)
-    4. [OCS Operator Index](#ocs-operator-index)
-  - [Deploying development builds](#deploying-development-builds)
-- [Initial Configuration](#initial-configuration)
-  - [Modifying Initial Configuration](#modifying-initial-configuration)
-- [Functional Tests](#functional-tests)
-  - [Prerequisites for running Functional Tests](#prerequisites-for-running-functional-tests)
-  - [Running functional test](#running-functional-test)
-  - [Functional test phases](#functional-test-phases)
-  - [Developing Functional Tests](#developing-functional-tests)
-  - [Running a single test](#running-a-single-test)
-  - [Debugging Functional Test Failures](#debugging-functional-test-failures)
-    - [Functional test stdout log](#functional-test-stdout-log)
-    - [PROW artifacts](#prow-artifacts)
-- [ocs-ci tests](#ocs-ci-tests)
-- [Ginkgo tests vs ocs-ci tests](#ginkgo-tests-vs-ocs-ci-tests)
+- [Table of Contents](#table-of-contents)
+  - [OpenShift Container Storage Operator](#openshift-container-storage-operator)
+  - [Deploying pre-built images](#deploying-pre-built-images)
+    - [Prerequisites](#prerequisites)
+    - [Dedicated nodes](#dedicated-nodes)
+    - [Installation](#installation)
+  - [Development](#development)
+    - [Tools](#tools)
+    - [Build](#build)
+      - [OCS Operator](#ocs-operator)
+      - [Unified CSV](#unified-csv)
+      - [OCS Operator Bundle](#ocs-operator-bundle)
+      - [OCS Operator Catalog](#ocs-operator-catalog)
+    - [Deploying development builds](#deploying-development-builds)
+  - [Initial Configuration](#initial-configuration)
+    - [Modifying Initial Configuration](#modifying-initial-configuration)
+  - [Functional Tests](#functional-tests)
+    - [Prerequisites for running Functional Tests](#prerequisites-for-running-functional-tests)
+    - [Running functional test](#running-functional-test)
+    - [Functional test phases](#functional-test-phases)
+    - [Developing Functional Tests](#developing-functional-tests)
+    - [Running a single test](#running-a-single-test)
+    - [Debugging Functional Test Failures](#debugging-functional-test-failures)
+      - [Functional test stdout log](#functional-test-stdout-log)
+      - [PROW artifacts](#prow-artifacts)
+  - [ocs-ci tests](#ocs-ci-tests)
+  - [Ginkgo tests vs ocs-ci tests](#ginkgo-tests-vs-ocs-ci-tests)
 
 ## OpenShift Container Storage Operator
 
@@ -135,12 +136,12 @@ $ make operator-bundle
 
 > Note: Push the OCS Bundle image to image registry before moving to next step.
 
-#### OCS Operator Index
+#### OCS Operator Catalog
 
-An operator index image can then be built using,
+An operator catalog image can then be built using,
 
 ```console
-$ make operator-index
+$ make operator-catalog
 ```
 
 More details on the catalog generation are available in [docs/catalog-generation.md](docs/catalog-generation.md).
@@ -173,13 +174,13 @@ $ make operator-bundle
 $ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-bundle:$IMAGE_TAG
 ```
 
-Next build and push the operator index image.
+Next build and push the operator catalog image.
 
 ```console
 $ export REGISTRY_NAMESPACE=<quay-username>
 $ export IMAGE_TAG=<some-tag>
-$ make operator-index
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-index:$IMAGE_TAG
+$ make operator-catalog
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG
 ```
 
 Now create a namespace and an OperatorGroup for OCS
@@ -199,7 +200,7 @@ spec:
 EOF
 ```
 
-Then add a new CatalogSource using the newly built and pushed index image.
+Then add a new CatalogSource using the newly built and pushed catalog image.
 
 ```console
 $ cat <<EOF | oc create -f -
@@ -210,7 +211,7 @@ metadata:
   namespace: openshift-marketplace
 spec:
   sourceType: grpc
-  image: quay.io/$REGISTRY_NAMESPACE/ocs-operator-index:$IMAGE_TAG
+  image: quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG
   displayName: OpenShift Container Storage
   publisher: Red Hat
 EOF

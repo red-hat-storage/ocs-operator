@@ -24,9 +24,7 @@ all: ocs-operator ocs-registry ocs-must-gather
 	ocs-must-gather \
 	operator-bundle \
 	verify-operator-bundle \
-	operator-index \
-	ocs-registry \
-	ocs-registry-master \
+	operator-catalog \
 	gen-release-csv \
 	gen-latest-csv \
 	gen-latest-deploy-yaml \
@@ -53,6 +51,10 @@ deps-update:
 operator-sdk:
 	@echo "Ensuring operator-sdk"
 	hack/ensure-operator-sdk.sh
+
+opm:
+	@echo "Ensuring opm"
+	hack/ensure-opm.sh
 
 ocs-operator-openshift-ci-build: build
 
@@ -110,17 +112,9 @@ operator-bundle:
 	@echo "Building ocs-operator-bundle image"
 	hack/build-operator-bundle.sh
 
-operator-index:
-	@echo "Building ocs-operator-index image"
-	hack/build-operator-index.sh
-
-ocs-registry:
-	@echo "Building ocs-registry image in appregistry format"
-	hack/build-appregistry.sh
-
-ocs-registry-master:
-	@echo "Building ocs-registry image in appregistry format using master images for all OCS components"
-	hack/build-master-appregistry.sh
+operator-catalog:
+	@echo "Building ocs-operator-catalog image"
+	hack/build-operator-catalog.sh
 
 clean:
 	@echo "cleaning previous outputs"
