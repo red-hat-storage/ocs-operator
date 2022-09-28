@@ -1,14 +1,19 @@
 FROM golang:1.18 as builder
 
-WORKDIR /go/src/github.com/red-hat-storage/ocs-operator
+WORKDIR /workspace
+
 COPY . .
-USER root
-RUN make build-go
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags '-extldflags "-static"' -o metrics-exporter metrics/main.go
+RUN go version | tee /go.version
 
 FROM quay.io/ceph/ceph:v17
 
-COPY --from=builder /go/src/github.com/red-hat-storage/ocs-operator/build/_output/bin/metrics-exporter /usr/local/bin/metrics-exporter
+ENV MEBIN=/usr/local/bin/metrics-exporter
 
-ENTRYPOINT ["/metrics-exporter"]
+COPY --from=builder workspace/metrics-exporter "$MEBIN"
+COPY --from=builder /go.version /go.version
 
-EXPOSE 8080 8081
+RUN chmod +x "$MEBIN"
+
+ENTRYPOINT ["/usr/local/bin/metrics-exporter"]
