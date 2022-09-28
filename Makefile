@@ -19,8 +19,6 @@ all: ocs-operator ocs-registry ocs-must-gather
 .PHONY: \
 	build \
 	gen-protobuf \
-	build-go \
-	build-container \
 	clean \
 	ocs-operator \
 	ocs-must-gather \
@@ -58,20 +56,11 @@ operator-sdk:
 
 ocs-operator-openshift-ci-build: build
 
-build: deps-update generate gen-protobuf build-go
-
-# Do not update/generate deps to ensure a consistent build with the current vendored deps.
-build-go:
-	@echo "Building the ocs-operator binary"
-	hack/go-build.sh
-
-build-container: deps-update generate
-	@echo "Building the ocs-operator binary (containerized)"
-	hack/build-container.sh
+build: deps-update generate gen-protobuf
 
 ocs-operator: build
 	@echo "Building the ocs-operator image"
-	hack/build-operator.sh
+	hack/build-container.sh
 
 ocs-metrics-exporter: build
 	@echo "Building the ocs-metrics-exporter image"
