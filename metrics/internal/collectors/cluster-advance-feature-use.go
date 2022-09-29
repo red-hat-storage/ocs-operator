@@ -54,6 +54,9 @@ func (c *CephObjectStoreAdvancedFeatureProvider) AdvancedFeature(namespaces ...s
 	cephObjectStoreLister := cephv1listers.NewCephObjectStoreLister(c.GetIndexer())
 	cephObjectStores := getAllObjectStores(cephObjectStoreLister, namespaces)
 	for _, cephObjectStore := range cephObjectStores {
+		if cephObjectStore.Spec.Security == nil {
+			return 0
+		}
 		if cephObjectStore.Spec.Security.KeyManagementService.IsEnabled() {
 			return 1
 		}
