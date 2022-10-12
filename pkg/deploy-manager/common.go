@@ -26,6 +26,11 @@ func (t *DeployManager) CreateNamespace(namespace string) error {
 	label := make(map[string]string)
 	// Label required for monitoring this namespace
 	label["openshift.io/cluster-monitoring"] = "true"
+	// These labels are added to bypass the security context requirements
+	label["security.openshift.io/scc.podSecurityLabelSync"] = "false"
+	label["pod-security.kubernetes.io/enforce"] = "privileged"
+	label["pod-security.kubernetes.io/warn"] = "baseline"
+	label["pod-security.kubernetes.io/audit"] = "baseline"
 	ns := &k8sv1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   namespace,
