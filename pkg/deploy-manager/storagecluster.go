@@ -70,7 +70,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	storageClassName := "gp2"
+	storageClassName := "gp2-csi"
 	blockVolumeMode := k8sv1.PersistentVolumeBlock
 	storageCluster := &ocsv1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
