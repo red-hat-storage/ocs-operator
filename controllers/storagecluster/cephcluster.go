@@ -56,7 +56,7 @@ type knownDiskType struct {
 // This list allows to specify disks from which storage classes to tune for fast
 // or slow disk optimization.
 var knownDiskTypes = []knownDiskType{
-	{diskSpeedSlow, EBS, "gp2"},
+	{diskSpeedSlow, EBS, "gp2-csi"},
 	{diskSpeedSlow, EBS, "io1"},
 	{diskSpeedFast, AzureDisk, "managed-premium"},
 }

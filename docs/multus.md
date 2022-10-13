@@ -16,7 +16,7 @@ spec:
   manageNodes: false
   monPVCTemplate:
     spec:
-      storageClassName: gp2
+      storageClassName: gp2-csi
       accessModes:
       - ReadWriteOnce
       resources:
@@ -29,7 +29,7 @@ spec:
     placement: {}
     dataPVCTemplate:
       spec:
-        storageClassName: gp2
+        storageClassName: gp2-csi
         accessModes:
         - ReadWriteOnce
         volumeMode: Block
