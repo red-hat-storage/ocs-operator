@@ -211,13 +211,9 @@ type ManageCephObjectStoreUsers struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
+// ManageCephToolbox defines how to reconcile Ceph toolbox
 type ManageCephToolbox struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"` // default behavior here is effectively `ignore`
-
-	// Tolerations if specified set toolbox ceph tools pod tolerations
-	// Defaults to empty
-	// +optional
-	Tolerations []corev1.Toleration `json:"cephTolerations,omitempty"`
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
 // ExternalStorageKind specifies a kind of the external storage
