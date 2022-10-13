@@ -56,6 +56,9 @@ type knownDiskType struct {
 // This list allows to specify disks from which storage classes to tune for fast
 // or slow disk optimization.
 var knownDiskTypes = []knownDiskType{
+	// only gp2-csi SC is present in the installations starting with OCP 4.12
+	// gp2 is still required to support upgrades from 4.11 to 4.12.
+	{diskSpeedSlow, EBS, "gp2"},
 	{diskSpeedSlow, EBS, "gp2-csi"},
 	{diskSpeedSlow, EBS, "io1"},
 	{diskSpeedFast, AzureDisk, "managed-premium"},
