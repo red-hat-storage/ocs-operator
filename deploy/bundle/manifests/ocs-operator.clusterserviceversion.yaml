@@ -25,7 +25,7 @@ metadata:
                                   "storage": "10Gi"
                               }
                           },
-                          "storageClassName": "gp2"
+                          "storageClassName": "gp2-csi"
                       }
                   },
                   "storageDeviceSets": [
@@ -41,7 +41,7 @@ metadata:
                                           "storage": "1Ti"
                                       }
                                   },
-                                  "storageClassName": "gp2",
+                                  "storageClassName": "gp2-csi",
                                   "volumeMode": "Block"
                               }
                           },
@@ -1405,14 +1405,14 @@ metadata:
       [\n                        \"ReadWriteOnce\"\n                    ],\n                    \"resources\":
       {\n                        \"requests\": {\n                            \"storage\":
       \"10Gi\"\n                        }\n                    },\n                    \"storageClassName\":
-      \"gp2\"\n                }\n            },\n            \"storageDeviceSets\":
+      \"gp2-csi\"\n                }\n            },\n            \"storageDeviceSets\":
       [\n                {\n                    \"count\": 3,\n                    \"dataPVCTemplate\":
       {\n                        \"spec\": {\n                            \"accessModes\":
       [\n                                \"ReadWriteOnce\"\n                            ],\n
       \                           \"resources\": {\n                                \"requests\":
       {\n                                    \"storage\": \"1Ti\"\n                                }\n
       \                           },\n                            \"storageClassName\":
-      \"gp2\",\n                            \"volumeMode\": \"Block\"\n                        }\n
+      \"gp2-csi\",\n                            \"volumeMode\": \"Block\"\n                        }\n
       \                   },\n                    \"name\": \"example-deviceset\",\n
       \                   \"placement\": {},\n                    \"portable\": true,\n
       \                   \"resources\": {}\n                }\n            ]\n        }\n

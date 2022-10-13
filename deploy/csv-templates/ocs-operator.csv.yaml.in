@@ -31,7 +31,7 @@ metadata:
                     "storage": "10Gi"
                   }
                 },
-                "storageClassName": "gp2"
+                "storageClassName": "gp2-csi"
               }
             },
             "storageDeviceSets": [
@@ -47,7 +47,7 @@ metadata:
                         "storage": "1Ti"
                       }
                     },
-                    "storageClassName": "gp2",
+                    "storageClassName": "gp2-csi",
                     "volumeMode": "Block"
                   }
                 },

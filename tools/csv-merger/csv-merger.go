@@ -719,7 +719,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
                             "storage": "10Gi"
                         }
                     },
-                    "storageClassName": "gp2"
+                    "storageClassName": "gp2-csi"
                 }
             },
             "storageDeviceSets": [
@@ -735,7 +735,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
                                     "storage": "1Ti"
                                 }
                             },
-                            "storageClassName": "gp2",
+                            "storageClassName": "gp2-csi",
                             "volumeMode": "Block"
                         }
                     },
@@ -772,7 +772,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
                             "storage": "10Gi"
                         }
                     },
-                    "storageClassName": "gp2"
+                    "storageClassName": "gp2-csi"
                 }
             },
             "storageDeviceSets": [
@@ -788,7 +788,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
                                     "storage": "1Ti"
                                 }
                             },
-                            "storageClassName": "gp2",
+                            "storageClassName": "gp2-csi",
                             "volumeMode": "Block"
                         }
                     },
