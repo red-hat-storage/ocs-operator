@@ -104,7 +104,7 @@ var mockCephClusterNamespacedName = types.NamespacedName{
 	Namespace: mockStorageCluster.Namespace,
 }
 
-var storageClassName = "gp2"
+var storageClassName = "gp2-csi"
 var storageClassName2 = "managed-premium"
 var fakeStorageClassName = "st1"
 var volMode = corev1.PersistentVolumeBlock
@@ -328,14 +328,14 @@ func TestThrottleStorageDevices(t *testing.T) {
 		platform       *Platform
 	}{
 		{
-			label: "Case 1", // storageclass is gp2 or io1
+			label: "Case 1", // storageclass is gp2-csi or io1
 			storageClass: &storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "gp2",
+					Name: "gp2-csi",
 				},
 				Provisioner: string(EBS),
 				Parameters: map[string]string{
-					"type": "gp2",
+					"type": "gp2-csi",
 				},
 			},
 			deviceSets: []api.StorageDeviceSet{
@@ -354,7 +354,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 			expectedSpeed:  diskSpeedSlow,
 		},
 		{
-			label: "Case 2", // storageclass is neither gp2 nor io1
+			label: "Case 2", // storageclass is neither gp2-csi nor io1
 			storageClass: &storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "st1",
@@ -433,14 +433,14 @@ func TestThrottleStorageDevices(t *testing.T) {
 			expectedSpeed:  diskSpeedSlow,
 		},
 		{
-			label: "Case 5", // storageclass is gp2 but deviceType ssd
+			label: "Case 5", // storageclass is gp2-csi but deviceType ssd
 			storageClass: &storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "gp2",
+					Name: "gp2-csi",
 				},
 				Provisioner: string(EBS),
 				Parameters: map[string]string{
-					"type": "gp2",
+					"type": "gp2-csi",
 				},
 			},
 			deviceSets: []api.StorageDeviceSet{
@@ -460,7 +460,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 			expectedSpeed:  diskSpeedFast,
 		},
 		{
-			label: "Case 6", // storageclass is neither gp2 nor io1 but deviceType nvme
+			label: "Case 6", // storageclass is neither gp2-csi nor io1 but deviceType nvme
 			storageClass: &storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "st1",
@@ -487,7 +487,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 			expectedSpeed:  diskSpeedFast,
 		},
 		{
-			label: "Case 7", // storageclass is neither gp2 nor io1 but platform is Azure
+			label: "Case 7", // storageclass is neither gp2-csi nor io1 but platform is Azure
 			storageClass: &storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "st1",
@@ -697,11 +697,11 @@ func TestStorageDeviceSets(t *testing.T) {
 	walScName := ""
 	storageClassEBS := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "gp2",
+			Name: "gp2-csi",
 		},
 		Provisioner: string(EBS),
 		Parameters: map[string]string{
-			"type": "gp2",
+			"type": "gp2-csi",
 		},
 	}
 
