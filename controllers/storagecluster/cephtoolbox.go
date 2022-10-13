@@ -21,6 +21,10 @@ const (
 
 func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluster) error {
 
+	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephToolbox.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return nil
+	}
 	var isFound bool
 	namespace := sc.Namespace
 
@@ -31,11 +35,24 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 		Effect:   corev1.TaintEffectNoSchedule,
 	}}
 
-	tolerations = append(tolerations, sc.Spec.ManagedResources.CephToolbox.Tolerations...)
+	// Get the ocsinitialization CR
+	ocsinit := &ocsv1.OCSInitialization{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "ocsinit", Namespace: namespace}, ocsinit)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	// Get tolerations from both the storagecluster CR & ocsinitialization CR
+	// Keeping this for ability to add tolerations from ocsinitialization CR
+	tolerations = append(tolerations, getPlacement(sc, "toolbox").Tolerations...)
+	tolerations = append(tolerations, ocsinit.Spec.Tolerations...)
+
+	//Remove duplicate tolerations
+	tolerations = removeDuplicateTolerations(tolerations)
 
 	toolsDeployment := sc.NewToolsDeployment(tolerations)
 	foundToolsDeployment := &appsv1.Deployment{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
 
 	if err == nil {
 		isFound = true
@@ -45,13 +62,7 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 		return err
 	}
 
-	// Checking spec of ocsinitialization for its Enablecephtools field
-	ocsinit := &ocsv1.OCSInitialization{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: "ocsinit", Namespace: namespace}, ocsinit)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-
+	// Checking both ocsinitialization & storagecluster CR for their Enablecephtools field
 	if sc.Spec.EnableCephTools || ocsinit.Spec.EnableCephTools {
 		// Create or Update if ceph tools is enabled.
 
@@ -75,4 +86,16 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 		return r.Client.Delete(context.TODO(), foundToolsDeployment)
 	}
 	return nil
+}
+
+func removeDuplicateTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
+	keys := make(map[corev1.Toleration]bool)
+	list := []corev1.Toleration{}
+	for _, entry := range tolerations {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
