@@ -6,6 +6,7 @@ import (
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -54,8 +55,12 @@ func TestEnsureToolsDeployment(t *testing.T) {
 	for _, tc := range testcases {
 		ocs, request, reconciler := getTestParams(false, t)
 		ocs.Spec.EnableCephTools = tc.enableCephTools
-		ocs.Spec.ManagedResources.CephToolbox.Tolerations = tc.tolerations
-
+		if ocs.Spec.Placement == nil {
+			ocs.Spec.Placement = rookCephv1.PlacementSpec{}
+		}
+		ocs.Spec.Placement[rookCephv1.KeyType("toolbox")] = rookCephv1.Placement{
+			Tolerations: tc.tolerations,
+		}
 		err := reconciler.ensureToolsDeployment(&ocs)
 		assert.NoErrorf(t, err, "[%s] failed to create ceph tools", tc.label)
 		if tc.enableCephTools {
@@ -110,8 +115,12 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 	for _, tc := range testcases {
 		ocs, request, reconciler := getTestParams(false, t)
 		ocs.Spec.EnableCephTools = tc.enableCephTools
-		ocs.Spec.ManagedResources.CephToolbox.Tolerations = tc.tolerations
-
+		if ocs.Spec.Placement == nil {
+			ocs.Spec.Placement = rookCephv1.PlacementSpec{}
+		}
+		ocs.Spec.Placement[rookCephv1.KeyType("toolbox")] = rookCephv1.Placement{
+			Tolerations: tc.tolerations,
+		}
 		cephTools := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      rookCephToolDeploymentName,
@@ -140,6 +149,85 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 		} else {
 			assert.Errorf(t, err, "[%s] failed to delete ceph tools deployment when it was disabled in the spec", tc.label)
 		}
+	}
+}
+
+func TestRemoveDuplicateTolerations(t *testing.T) {
+	testcases := []struct {
+		label       string
+		tolerations []corev1.Toleration
+		expected    []corev1.Toleration
+	}{
+		{
+			label: "Case 1",
+			tolerations: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+			expected: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+		},
+		{
+			label: "Case 2",
+			tolerations: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}, {
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+			expected: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+		},
+		{
+			label: "Case 3",
+			tolerations: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}, {
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}, {
+				Key:      "test-toleration-2",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+			expected: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}, {
+				Key:      "test-toleration-2",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+		},
+	}
+
+	for _, tc := range testcases {
+		actual := removeDuplicateTolerations(tc.tolerations)
+		assert.Equalf(t, tc.expected, actual, "[%s] failed to remove duplicate tolerations", tc.label)
 	}
 }
 
