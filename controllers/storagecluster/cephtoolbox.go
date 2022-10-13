@@ -21,6 +21,10 @@ const (
 
 func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluster) error {
 
+	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephToolbox.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return nil
+	}
 	var isFound bool
 	namespace := sc.Namespace
 
