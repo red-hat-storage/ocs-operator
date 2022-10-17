@@ -163,3 +163,32 @@ if [ "$(oc get storageclassclaim --no-headers -A | awk '{print $2}')" != "" ] ; 
      { oc describe storageclassclaim --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_storageclassclaim_all_ns"
      { oc get storageclassclaim -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_storageclassclaim_all_ns"
 fi
+
+# Collect csi-addons object details of all namespaces
+echo "collecting dump of oc get csiaddonsnode all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+if [ "$(oc get csiaddonsnode --no-headers -A | awk '{print $2}')" != "" ] ; then
+     { oc get csiaddonsnode --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_csiaddonsnode_all_ns"
+     { oc describe csiaddonsnode --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_csiaddonsnode_all_ns"
+     { oc get csiaddonsnode -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_csiaddonsnode_all_ns"
+fi
+
+echo "collecting dump of oc get reclaimspacejob all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+if [ "$(oc get reclaimspacejob --no-headers -A | awk '{print $1}')" != "" ] ; then
+     { oc get reclaimspacejob --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_reclaimspacejob_all_ns"
+     { oc describe reclaimspacejob --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_reclaimspacejob_all_ns"
+     { oc get reclaimspacejob -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_reclaimspacejob_all_ns"
+fi
+
+echo "collecting dump of oc get reclaimspacecronjobs all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+if [ "$(oc get reclaimspacejob --no-headers -A | awk '{print $1}')" != "" ] ; then
+     { oc get reclaimspacecronjobs --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_reclaimspacecronjobs_all_ns"
+     { oc describe reclaimspacecronjobs --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_reclaimspacecronjobs_all_ns"
+     { oc get reclaimspacecronjobs -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_reclaimspacecronjobs_all_ns"
+fi
+
+echo "collecting dump of oc get networkfence all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+if [ "$(oc get networkfence --no-headers -A | awk '{print $1}')" != "" ] ; then
+     { oc get networkfence --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_networkfence_all_ns"
+     { oc describe networkfence --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_networkfence_all_ns"
+     { oc get networkfence -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_networkfence_all_ns"
+fi
