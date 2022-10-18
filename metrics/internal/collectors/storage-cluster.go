@@ -21,7 +21,6 @@ import (
 type StorageClusterCollector struct {
 	KMSServerConnectionStatus *prometheus.Desc
 	Informer                  cache.SharedIndexInformer
-	AllowedNamespace          string
 }
 
 var _ prometheus.Collector = &StorageClusterCollector{}
@@ -79,7 +78,7 @@ func NewStorageClusterCollector(opts *options.Options) *StorageClusterCollector 
 		KMSServerConnectionStatus: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "storagecluster", "kms_connection_status"),
 			`KMS Connection Status; 0: Connected, 1: Failure.`,
-			[]string{"name", "namespace", "kms_connection_error", "kms_server_address"},
+			[]string{"name", "namespace"},
 			nil,
 		),
 		Informer: sharedIndexInformer,
@@ -100,20 +99,20 @@ func (c *StorageClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *StorageClusterCollector) Collect(ch chan<- prometheus.Metric) {
-	storageClusterrLister := NewStorageClusterLister(c.Informer.GetIndexer())
-	storageClusters := getAllStorageClusters(storageClusterrLister, c.AllowedNamespace)
+	storageClusterLister := NewStorageClusterLister(c.Informer.GetIndexer())
+	storageClusters := getAllStorageClusters(storageClusterLister)
 	if len(storageClusters) > 0 {
 		c.collectKMSConnectionStatuses(ch, storageClusters)
 	}
 }
 
-func getAllStorageClusters(lister StorageClusterLister, namespace string) (storageClusters []*v1.StorageCluster) {
+func getAllStorageClusters(lister StorageClusterLister) []*v1.StorageCluster {
 	storageClusters, err := lister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("couldn't list StorageCluster: %v", err)
 		return nil
 	}
-	return
+	return storageClusters
 }
 
 func (c *StorageClusterCollector) collectKMSConnectionStatuses(ch chan<- prometheus.Metric, storageClusters []*v1.StorageCluster) {
@@ -128,8 +127,6 @@ func (c *StorageClusterCollector) collectKMSConnectionStatuses(ch chan<- prometh
 			float64(v),
 			storageCluster.Name,
 			storageCluster.Namespace,
-			storageCluster.Status.KMSServerConnection.KMSServerConnectionError,
-			storageCluster.Status.KMSServerConnection.KMSServerAddress,
 		)
 	}
 }
