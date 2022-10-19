@@ -104,6 +104,12 @@ var (
 			},
 		},
 
+		"noobaa-standalone": {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+		},
+
 		"rbd-mirror": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
