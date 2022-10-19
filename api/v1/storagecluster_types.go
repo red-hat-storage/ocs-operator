@@ -79,6 +79,11 @@ type StorageClusterSpec struct {
 	// AllowRemoteStorageConsumers Indicates that the OCS cluster should deploy the needed
 	// components to enable connections from remote consumers.
 	AllowRemoteStorageConsumers bool `json:"allowRemoteStorageConsumers,omitempty"`
+
+	// LogCollector represents log collector settings
+	// +optional
+	// +nullable
+	LogCollector *rookCephv1.LogCollectorSpec `json:"logCollector,omitempty"`
 }
 
 // KeyManagementServiceSpec provides a way to enable KMS
