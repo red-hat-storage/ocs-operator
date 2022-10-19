@@ -25,5 +25,5 @@ lint: prometheus_alert_rules.yaml
 	promtool check rules prometheus_alert_rules.yaml
 
 clean:
-	rm -rf prometheus_alert_rules.yaml
+	rm -rf prometheus_alert_rules.yaml prometheus_alert_rules_external.yaml
 
