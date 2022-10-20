@@ -22,25 +22,18 @@ const (
 // in the given prometheus.Registry
 // This is used to expose metrics about the Custom Resources
 func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *options.Options) {
-	cephObjectStoreCollector := NewCephObjectStoreCollector(opts)
-	cephBlockPoolCollector := NewCephBlockPoolCollector(opts)
-	cephClusterCollector := NewCephClusterCollector(opts)
-	OBMetricsCollector := NewObjectBucketCollector(opts)
-	clusterAdvanceFeatureCollector := NewClusterAdvancedFeatureCollector(opts)
-	cephObjectStoreCollector.Run(opts.StopCh)
-	cephBlockPoolCollector.Run(opts.StopCh)
-	cephClusterCollector.Run(opts.StopCh)
-	OBMetricsCollector.Run(opts.StopCh)
-	registry.MustRegister(
-		cephObjectStoreCollector,
-		cephBlockPoolCollector,
-		cephClusterCollector,
-		OBMetricsCollector,
-	)
-	if clusterAdvanceFeatureCollector != nil {
-		clusterAdvanceFeatureCollector.Run(opts.StopCh)
-		registry.MustRegister(clusterAdvanceFeatureCollector)
+	sharedIndexInformerList := listAllSharedIndexInformers(opts)
+	for _, sii := range sharedIndexInformerList {
+		go sii.Run(opts.StopCh)
 	}
+	var allCollectors = []prometheus.Collector{
+		NewCephObjectStoreCollector(opts, sharedIndexInformerList[CephObjectStoreSIIAI]),
+		NewCephBlockPoolCollector(opts, sharedIndexInformerList[CephBlockPoolSIIAI]),
+		NewCephClusterCollector(opts, sharedIndexInformerList[CephClusterSIIAI]),
+		NewObjectBucketCollector(opts, sharedIndexInformerList[CephObjectStoreSIIAI]),
+		NewClusterAdvancedFeatureCollector(opts, sharedIndexInformerList...),
+	}
+	registry.MustRegister(allCollectors...)
 }
 
 var pvStoreEnabled bool

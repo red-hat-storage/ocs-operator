@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/cache"
 	internalcache "github.com/red-hat-storage/ocs-operator/metrics/internal/cache"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"k8s.io/klog"
@@ -173,7 +172,7 @@ func (c *RBDMirrorCollector) Collect(ch chan<- prometheus.Metric) {
 						continue
 					}
 					description := siteDescription[1]
-					desc := cache.RBDMirrorPeerSiteDescription{}
+					desc := internalcache.RBDMirrorPeerSiteDescription{}
 					err := json.Unmarshal([]byte(description), &desc)
 					if err != nil {
 						klog.Errorf("Failed to unmarshal description of image %q from site %q: %v", image.Name, site.SiteName, err)
