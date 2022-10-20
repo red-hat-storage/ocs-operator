@@ -33,6 +33,7 @@ func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
 	client, err := rookclient.NewForConfig(opts.Kubeconfig)
 	if err != nil {
 		klog.Error(err)
+		return nil
 	}
 
 	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephblockpools", metav1.NamespaceAll, fields.Everything())

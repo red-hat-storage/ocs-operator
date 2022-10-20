@@ -48,6 +48,9 @@ type ObjectBucketCollector struct {
 // NewObjectBucketCollector constructs a collector
 func NewObjectBucketCollector(opts *options.Options) *ObjectBucketCollector {
 	sharedIndexInformer := CephObjectStoreInformer(opts)
+	if sharedIndexInformer == nil {
+		return nil
+	}
 
 	return &ObjectBucketCollector{
 		OBSizeTotal: prometheus.NewDesc(
