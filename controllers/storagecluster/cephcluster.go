@@ -630,6 +630,10 @@ func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 	return maxReplica
 }
 
+func getMgrCount() int {
+	return defaults.DefaultMgrCount
+}
+
 func getMonCount(nodeCount int, arbiter bool) int {
 	// return static value if overridden
 	override := os.Getenv(monCountOverrideEnvVar)
@@ -1001,14 +1005,11 @@ func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) rookCephv1.MonSpec
 
 func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 	spec := rookCephv1.MgrSpec{
+		Count: getMgrCount(),
 		Modules: []rookCephv1.Module{
 			{Name: "pg_autoscaler", Enabled: true},
 			{Name: "balancer", Enabled: true},
 		},
-	}
-
-	if arbiterEnabled(sc) {
-		spec.Count = 2
 	}
 
 	return spec
