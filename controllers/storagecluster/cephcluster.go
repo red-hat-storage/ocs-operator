@@ -698,7 +698,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			preparePlacement := rookCephv1.Placement{}
 
 			if noPlacement {
-				if supportTSC {
+				if supportTSC && !sc.Spec.Arbiter.Enable {
 					in := getPlacement(sc, "osd-tsc")
 					(&in).DeepCopyInto(&placement)
 
