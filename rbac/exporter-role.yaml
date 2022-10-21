@@ -53,3 +53,11 @@ rules:
     - get
     - list
     - watch
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageconsumers
+  verbs:
+    - get
+    - list
+    - watch
