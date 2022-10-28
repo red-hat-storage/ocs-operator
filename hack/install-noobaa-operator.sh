@@ -76,6 +76,16 @@ EOF
 fi
 
 for _ in {1..60}; do
+    IP=$(oc -n $INSTALL_NAMESPACE get sub $SUB -o jsonpath="{.status.installplan.name}" || true)
+    if [[ -n "$IP" ]]; then
+        echo "Approving installplan \"$IP\""
+        oc -n $INSTALL_NAMESPACE patch installplan "$IP" --type merge --patch '{"spec":{"approved":true}}'
+        break
+    fi
+    sleep 10
+done
+
+for _ in {1..60}; do
     CSV=$(oc -n $INSTALL_NAMESPACE get sub $SUB -o jsonpath="{.status.installedCSV}" || true)
     if [[ -n "$CSV" ]]; then
         if [[ "$(oc -n $INSTALL_NAMESPACE get csv "$CSV" -o jsonpath='{.status.phase}')" == "Succeeded" ]]; then
@@ -87,4 +97,5 @@ for _ in {1..60}; do
 done
 
 echo "Timed out waiting for noobaa CSV to become ready"
+oc -n $INSTALL_NAMESPACE get sub $SUB -o yaml
 exit 1
