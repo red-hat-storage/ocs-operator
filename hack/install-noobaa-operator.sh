@@ -87,4 +87,5 @@ for _ in {1..60}; do
 done
 
 echo "Timed out waiting for noobaa CSV to become ready"
+oc -n $INSTALL_NAMESPACE get sub $SUB -o yaml
 exit 1
