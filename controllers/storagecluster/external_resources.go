@@ -149,6 +149,20 @@ func (r *StorageClusterReconciler) retrieveSecret(secretName string, instance *o
 	return found, err
 }
 
+// deleteSecret function delete the secret object with the specified name
+func (r *StorageClusterReconciler) deleteSecret(secretName string, instance *ocsv1.StorageCluster) error {
+	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
+	if errors.IsNotFound(err) {
+		r.Log.Info("External rhcs mode secret already deleted.")
+		return nil
+	}
+	if err != nil {
+		r.Log.Error(err, "Error while retrieving external rhcs mode secret.")
+		return err
+	}
+	return r.Client.Delete(context.TODO(), found)
+}
+
 // retrieveExternalSecretData function retrieves the external secret and returns the data it contains
 func (r *StorageClusterReconciler) retrieveExternalSecretData(
 	instance *ocsv1.StorageCluster) ([]ExternalResource, error) {
@@ -711,4 +725,16 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 		}
 	}
 	return nil
+}
+
+func (r *StorageClusterReconciler) deleteExternalSecret(sc *ocsv1.StorageCluster) (err error) {
+	// if 'externalStorage' is not enabled or a consumer mode cluster, nothing to delete
+	if !sc.Spec.ExternalStorage.Enable || IsOCSConsumerMode(sc) {
+		return nil
+	}
+	err = r.deleteSecret(externalClusterDetailsSecret, sc)
+	if err != nil {
+		r.Log.Error(err, "Error while deleting external rhcs mode secret.")
+	}
+	return err
 }

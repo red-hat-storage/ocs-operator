@@ -371,6 +371,11 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 		return reconcile.Result{}, err
 	}
 
+	err = r.deleteExternalSecret(sc)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// TODO: skip the deletion of these labels till we figure out a way to wait
 	// for the cleanup jobs
 	//err = r.deleteNodeAffinityKeyFromNodes(sc)
