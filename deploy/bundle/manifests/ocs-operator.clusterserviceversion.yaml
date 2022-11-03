@@ -1807,8 +1807,10 @@ spec:
           - batch
           resources:
           - cronjobs
+          - jobs
           verbs:
           - create
+          - delete
           - get
           - list
           - update
