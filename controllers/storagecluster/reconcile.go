@@ -125,7 +125,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=operatorconditions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=*
-// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;create;update;watch
+// +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=cluster.open-cluster-management.io,resources=clusterclaims,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch
 
@@ -530,6 +530,14 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			r.Log.Error(err, "Failed to reconcile prometheus rules.")
 			return reconcile.Result{}, err
 		}
+	}
+
+	// Ensure that verbose logging is enabled when RBD mirroring is enabled
+	// TODO: This is a temporary arrangement, this is to be removed when RDR goes to GA
+	result, err := r.ensureRbdMirrorDebugLogging(instance)
+	if !result.IsZero() || err != nil {
+		r.Log.Error(err, "Failed to ensure RBD mirror debug logging.")
+		return result, err
 	}
 
 	return reconcile.Result{}, nil
