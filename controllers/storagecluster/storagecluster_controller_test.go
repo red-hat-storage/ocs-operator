@@ -20,6 +20,7 @@ import (
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -985,6 +986,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	scheme, err := api.SchemeBuilder.Build()
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
+	}
+	err = batchv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "unable to add batchv1 to scheme")
 	}
 	err = corev1.AddToScheme(scheme)
 	if err != nil {
