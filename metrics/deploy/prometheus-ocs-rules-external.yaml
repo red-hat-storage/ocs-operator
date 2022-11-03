@@ -10,20 +10,11 @@ spec:
   groups:
   - name: ocs_performance.rules
     rules:
-    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
-        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
-        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by
-        (instance,device) \n    (1,\n      (\n        rate(node_disk_read_time_seconds_total[1m])
-        / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      )\n    )\n)\n"
+    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"}, \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\", \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by (instance,device) \n    (1,\n      (\n        rate(node_disk_read_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      )\n    )\n)\n"
       record: cluster:ceph_disk_latency_read:join_ceph_node_disk_rate1m
-    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
-        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
-        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by
-        (instance,device) \n    (1,\n      (\n        rate(node_disk_write_time_seconds_total[1m])
-        / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n)\n"
+    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"}, \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\", \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by (instance,device) \n    (1,\n      (\n        rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n)\n"
       record: cluster:ceph_disk_latency_write:join_ceph_node_disk_rate1m
-  - interval: 30s
-    name: ODF_standardized_metrics.rules
+  - name: ODF_standardized_metrics.rules
     rules:
     - expr: |
         ceph_health_status
@@ -55,14 +46,7 @@ spec:
         system_type: OCS
         system_vendor: Red Hat
       record: odf_system_throughput_total_bytes
-    - expr: "avg by (namespace, managedBy, job, service)\n(\n  topk by (ceph_daemon)
-        (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
-        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
-        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left() topk by
-        (instance,device) \n  (1,\n    (\n      (  \n          rate(node_disk_read_time_seconds_total[1m])
-        / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      ) +\n      (\n
-        \         rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]),
-        1))\n      )\n    )/2\n  )\n)\n"
+    - expr: "sum by (namespace, managedBy, job, service)\n(\n  topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"}, \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\", \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left() topk by (instance,device) \n  (1,\n    (\n      (  \n          rate(node_disk_read_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      ) +\n      (\n          rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n  )\n)\n"
       labels:
         system_type: OCS
         system_vendor: Red Hat
@@ -71,10 +55,7 @@ spec:
     rules:
     - alert: ObcQuotaBytesAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80%
-          of the size limit set by the quota(bytes) and will become read-only on reaching
-          the quota limit. Increase the quota in the {{$labels.objectbucketclaim}}
-          OBC custom resource.
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource.
         message: OBC has crossed 80% of the quota(bytes).
         severity_level: warning
         storage_type: RGW
@@ -85,10 +66,7 @@ spec:
         severity: warning
     - alert: ObcQuotaObjectsAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80%
-          of the size limit set by the quota(objects) and will become read-only on
-          reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}}
-          OBC custom resource.
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource.
         message: OBC has crossed 80% of the quota(object).
         severity_level: warning
         storage_type: RGW
@@ -99,9 +77,7 @@ spec:
         severity: warning
     - alert: ObcQuotaBytesExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the
-          limit set by the quota(bytes) and will be read-only now. Increase the quota
-          in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the limit set by the quota(bytes) and will be read-only now. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
         message: OBC reached quota(bytes) limit.
         severity_level: error
         storage_type: RGW
@@ -112,9 +88,7 @@ spec:
         severity: critical
     - alert: ObcQuotaObjectsExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the
-          limit set by the quota(objects) and will be read-only now. Increase the
-          quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
+        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the limit set by the quota(objects) and will be read-only now. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
         message: OBC reached quota(object) limit.
         severity_level: error
         storage_type: RGW
@@ -127,10 +101,8 @@ spec:
     rules:
     - alert: ClusterObjectStoreState
       annotations:
-        description: Cluster Object Store is in unhealthy state for more than 15s.
-          Please check Ceph cluster health or RGW connection.
-        message: Cluster Object Store is in unhealthy state. Please check Ceph cluster
-          health or RGW connection.
+        description: Cluster Object Store is in unhealthy state for more than 15s. Please check Ceph cluster health or RGW connection.
+        message: Cluster Object Store is in unhealthy state. Please check Ceph cluster health or RGW connection.
         severity_level: error
         storage_type: RGW
       expr: |
