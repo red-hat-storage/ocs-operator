@@ -42,8 +42,7 @@ import (
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
-
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -55,6 +54,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/util/retry"
+	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,6 +76,7 @@ func init() {
 	utilruntime.Must(storagev1.AddToScheme(scheme))
 	utilruntime.Must(nbapis.AddToScheme(scheme))
 	utilruntime.Must(monitoringv1.AddToScheme(scheme))
+	utilruntime.Must(batchv1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(openshiftv1.AddToScheme(scheme))
 	utilruntime.Must(snapapi.AddToScheme(scheme))
