@@ -8,12 +8,13 @@ import (
 
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
+
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/collectors"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/handler"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
 )
 
 func main() {

@@ -2,13 +2,14 @@ package collectors
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 )
 
 var _ prometheus.Collector = &StorageConsumerCollector{}
