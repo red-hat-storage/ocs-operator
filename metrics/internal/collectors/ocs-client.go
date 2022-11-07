@@ -1,8 +1,6 @@
 package collectors
 
 import (
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -10,6 +8,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+
+	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 )
 
 func GetOcsClient(opts *options.Options) (*rest.RESTClient, error) {
@@ -51,4 +53,23 @@ func (s *storageConsumerLister) List(selector labels.Selector) (ret []*ocsv1alph
 		ret = append(ret, m.(*ocsv1alpha1.StorageConsumer))
 	})
 	return ret, err
+}
+
+type StorageClusterLister interface {
+	List(selector labels.Selector) (storageclusters []*v1.StorageCluster, err error)
+}
+
+type storageClusterLister struct {
+	indexer cache.Indexer
+}
+
+func NewStorageClusterLister(indexer cache.Indexer) StorageClusterLister {
+	return &storageClusterLister{indexer: indexer}
+}
+
+func (s *storageClusterLister) List(selector labels.Selector) (storageclusters []*v1.StorageCluster, err error) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+		storageclusters = append(storageclusters, m.(*v1.StorageCluster))
+	})
+	return storageclusters, err
 }

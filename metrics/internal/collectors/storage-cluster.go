@@ -5,16 +5,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 )
 
@@ -25,49 +19,8 @@ type StorageClusterCollector struct {
 
 var _ prometheus.Collector = &StorageClusterCollector{}
 
-func initClient(opts *options.Options) (*rest.RESTClient, error) {
-	ocsConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeconfigPath)
-	if err != nil {
-		return nil, err
-	}
-	scheme := runtime.NewScheme()
-	utilruntime.Must(ocsv1alpha1.AddToScheme(scheme))
-	codecs := serializer.NewCodecFactory(scheme)
-	ocsConfig.GroupVersion = &ocsv1alpha1.GroupVersion
-	ocsConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
-	ocsConfig.APIPath = "/apis"
-	ocsConfig.ContentType = runtime.ContentTypeJSON
-	if ocsConfig.UserAgent == "" {
-		ocsConfig.UserAgent = rest.DefaultKubernetesUserAgent()
-	}
-	ocsClient, err := rest.RESTClientFor(ocsConfig)
-	if err != nil {
-		return nil, err
-	}
-	return ocsClient, nil
-}
-
-type StorageClusterLister interface {
-	List(selector labels.Selector) (storageclusters []*v1.StorageCluster, err error)
-}
-
-type storageClusterLister struct {
-	indexer cache.Indexer
-}
-
-func NewStorageClusterLister(indexer cache.Indexer) StorageClusterLister {
-	return &storageClusterLister{indexer: indexer}
-}
-
-func (s *storageClusterLister) List(selector labels.Selector) (storageclusters []*v1.StorageCluster, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		storageclusters = append(storageclusters, m.(*v1.StorageCluster))
-	})
-	return storageclusters, err
-}
-
 func NewStorageClusterCollector(opts *options.Options) *StorageClusterCollector {
-	cl, err := initClient(opts)
+	cl, err := GetOcsClient(opts)
 	if err != nil {
 		klog.Errorf("Unable to get initialize client: %v", err)
 		return nil
@@ -99,8 +52,8 @@ func (c *StorageClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *StorageClusterCollector) Collect(ch chan<- prometheus.Metric) {
-	storageClusterLister := NewStorageClusterLister(c.Informer.GetIndexer())
-	storageClusters := getAllStorageClusters(storageClusterLister)
+	scLister := NewStorageClusterLister(c.Informer.GetIndexer())
+	storageClusters := getAllStorageClusters(scLister)
 	if len(storageClusters) > 0 {
 		c.collectKMSConnectionStatuses(ch, storageClusters)
 	}
