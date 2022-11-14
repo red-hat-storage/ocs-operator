@@ -532,6 +532,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		}
 	}
 
+	r.Log.Info("Malay log1")
 	// Ensure that verbose logging is enabled when RBD mirroring is enabled
 	// TODO: This is a temporary arrangement, this is to be removed when RDR goes to GA
 	result, err := r.ensureRbdMirrorDebugLogging(instance)
@@ -539,7 +540,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		r.Log.Error(err, "Failed to ensure RBD mirror debug logging.")
 		return result, err
 	}
-
+	r.Log.Info("Malay log2")
 	return reconcile.Result{}, nil
 }
 

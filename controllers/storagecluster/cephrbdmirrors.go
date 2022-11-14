@@ -162,46 +162,58 @@ ceph config rm client.rbd-mirror-peer log_file
 ceph config rm mgr mgr/rbd_support/log_level
 		echo "completed"`
 
+	r.Log.Info("Malay log3")
 	// Mirroring is enabled but the debug logging is disabled
 	if sc.Spec.Mirroring.Enabled && !rbdMirrorDebugLoggingEnabled {
-
+		r.Log.Info("Malay condition 1")
 		err := r.Client.Create(r.ctx, getRbdMirrorDebugLoggingJob(sc, enableRbdMirrorDebugLoggingJobName, enableRbdMirrorDebugLoggingCommands))
 		if err != nil && !errors.IsAlreadyExists(err) {
+			r.Log.Info("Malay log4")
 			return reconcile.Result{}, err
 		}
+		r.Log.Info("Malay log5")
 		// Check if the job has succeeded
 		job := &batchv1.Job{}
 		err = r.Client.Get(r.ctx, types.NamespacedName{Name: enableRbdMirrorDebugLoggingJobName, Namespace: sc.Namespace}, job)
 		if err != nil {
+			r.Log.Info("Malay log6")
 			return reconcile.Result{}, err
 		}
+		r.Log.Info("Malay log7")
 		if job.Status.Succeeded == 0 {
 			// Job has not succeeded yet, so requeue a reconcile request after 10 sec to check again
+			r.Log.Info("Malay log8")
 			r.Log.Info("Waiting for enable-rbd-mirror-debug-logging job to complete")
 			return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 		}
-
+		r.Log.Info("Malay log9")
 		r.Log.Info("Successfully enabled rbd mirror debug logging")
 		rbdMirrorDebugLoggingEnabled = true
 	}
 	// Mirroring is disabled but the debug logging is enabled
 	if !sc.Spec.Mirroring.Enabled && rbdMirrorDebugLoggingEnabled {
+		r.Log.Info("Malay condition 2")
 		err := r.Client.Create(r.ctx, getRbdMirrorDebugLoggingJob(sc, disableRbdMirrorDebugLoggingJobName, disableRbdMirrorDebugLoggingCommands))
 		if err != nil && !errors.IsAlreadyExists(err) {
+			r.Log.Info("Malay log10")
 			return reconcile.Result{}, err
 		}
+		r.Log.Info("Malay log11")
 		// Check if the job has succeeded
 		job := &batchv1.Job{}
 		err = r.Client.Get(r.ctx, types.NamespacedName{Name: disableRbdMirrorDebugLoggingJobName, Namespace: sc.Namespace}, job)
 		if err != nil {
+			r.Log.Info("Malay log12")
 			return reconcile.Result{}, err
 		}
+		r.Log.Info("Malay log13")
 		if job.Status.Succeeded == 0 {
 			// Job has not succeeded yet, so requeue a reconcile request after 10 sec to check again
+			r.Log.Info("Malay log14")
 			r.Log.Info("Waiting for disable-rbd-mirror-debug-logging job to complete")
 			return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, nil
 		}
-
+		r.Log.Info("Malay log15")
 		// Delete both the enable & disable jobs
 		err = r.Client.Delete(r.ctx, &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
@@ -209,20 +221,26 @@ ceph config rm mgr mgr/rbd_support/log_level
 				Namespace: sc.Namespace,
 			}})
 		if err != nil && !errors.IsNotFound(err) {
+			r.Log.Info("Malay log16")
 			return reconcile.Result{}, err
 		}
+		r.Log.Info("Malay log17")
 		err = r.Client.Delete(r.ctx, &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      disableRbdMirrorDebugLoggingJobName,
 				Namespace: sc.Namespace,
 			}})
 		if err != nil && !errors.IsNotFound(err) {
+			r.Log.Info("Malay log18")
 			return reconcile.Result{}, err
 		}
-
+		r.Log.Info("Malay log19")
 		r.Log.Info("Successfully disabled rbd mirror debug logging")
 		rbdMirrorDebugLoggingEnabled = false
 	}
+	r.Log.Info(fmt.Sprintf("Malay rbdMirrorDebugLoggingEnabled: %v", rbdMirrorDebugLoggingEnabled))
+	r.Log.Info(fmt.Sprintf("Malay sc.Spec.Mirroring.Enabled: %v", sc.Spec.Mirroring.Enabled))
+	r.Log.Info("Malay condition 3&4")
 	return reconcile.Result{}, nil
 }
 
