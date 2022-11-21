@@ -398,37 +398,22 @@ for ns in $namespaces; do
 
     journal_collection(){
         printf "collecting journal logs from node %s \n" "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' --no-headers | awk '{print $1}')":/host/var/log/journal.gz "${JOURNAL_OUTPUT_DIR}"
-        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' --no-headers | awk '{print $1}')":/host/var/log/kernel.gz "${KERNEL_OUTPUT_DIR}"
-    }
-
-    delete_journal_log(){
-        for node in ${nodes}; do
-        printf "Deleting journal logs from node %s \n"  "${node}"
-        oc debug nodes/"${node}" << CMDS
-            chroot /host
-            cd var/log
-            rm -rf journal.gz
-            rm -rf kernel.gz
-            exit
-CMDS
-    done
-    }
-    # creating a counter variable for collecting PID in array
-    pids_log=()
+        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' --no-headers | awk '{print $1}')":/host/var/log/journal_"${node}".gz "${JOURNAL_OUTPUT_DIR}"
+        oc rsync -n "${ns}" "$(oc get pods -n "${ns}" -l "${node//./}"-debug='ready' --no-headers | awk '{print $1}')":/host/var/log/kernel_"${node}".gz "${KERNEL_OUTPUT_DIR}"
+    }  
     
     for node in ${nodes}; do
-        printf "Generating journal logs from node %s \n"  "${node}"
+        printf "Generating journal logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         oc debug nodes/"${node}" << CMDS
             chroot /host
             cd var/log
-            journalctl --since "2 days ago" | gzip > journal.gz
-            journalctl -k -o short-iso-precise --utc --no-hostname | gzip > kernel.gz
+            journalctl --since "2 days ago" | gzip > journal_"${node}".gz
+            journalctl -k -o short-iso-precise --utc --no-hostname | gzip > kernel_"${node}".gz
             exit
 CMDS
     done
-
-    # Collecting ceph crash dump
+    # creating a counter variable for collecting PID in array
+    pids_log=()
     for node in ${nodes}; do
         printf "collecting crash, journal and volume logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
         CRASH_OUTPUT_DIR=${CEPH_COLLECTION_PATH}/crash_${node}
@@ -450,7 +435,14 @@ CMDS
             echo "waiting for ${pids_log[*]} to terminate" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
             wait "${pids_log[@]}"
         fi
-        delete_journal_log
+        printf "Deleting journal logs from node %s \n"  "${node}" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+        oc debug nodes/"${node}" << CMDS
+            chroot /host
+            cd var/log
+            rm -rf journal_"${node}".gz
+            rm -rf kernel_"${node}".gz
+            exit
+CMDS
     done
 
     echo "ceph core dump collection completed" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
