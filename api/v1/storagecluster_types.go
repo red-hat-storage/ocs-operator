@@ -349,6 +349,11 @@ type MultiCloudGatewaySpec struct {
 	// deployment.
 	// +optional
 	Endpoints *nbv1.EndpointsSpec `json:"endpoints,omitempty"`
+
+	// DisableLoadBalancerService (optional) sets the service type to ClusterIP instead of LoadBalancer
+	// +nullable
+	// +optional
+	DisableLoadBalancerService bool `json:"disableLoadBalancerService,omitempty"`
 }
 
 // NFSSpec defines specific nfs configuration options
