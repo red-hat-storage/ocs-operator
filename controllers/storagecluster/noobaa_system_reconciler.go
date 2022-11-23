@@ -181,6 +181,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 				nb.Spec.Endpoints.Resources = epSpec.Resources
 			}
 		}
+		nb.Spec.DisableLoadBalancerService = sc.Spec.MultiCloudGateway.DisableLoadBalancerService
 	}
 
 	// Add KMS details to Noobaa spec, only if
