@@ -2897,6 +2897,8 @@ spec:
                   value: "true"
                 - name: ROOK_CSI_ALLOW_UNSUPPORTED_VERSION
                   value: "true"
+                - name: ROOK_DISABLE_ADMISSION_CONTROLLER
+                  value: "true"
                 - name: CSI_VOLUME_REPLICATION_IMAGE
                   value: quay.io/csiaddons/volumereplication-operator:v0.1.0
                 - name: ROOK_CSIADDONS_IMAGE
