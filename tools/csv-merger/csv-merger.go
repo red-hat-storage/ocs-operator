@@ -230,6 +230,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Value: "true",
 			},
 			{
+				Name:  "ROOK_DISABLE_ADMISSION_CONTROLLER",
+				Value: "true",
+			},
+			{
 				Name:  "ROOK_CSIADDONS_IMAGE",
 				Value: *rookCsiAddonsImage,
 			},
