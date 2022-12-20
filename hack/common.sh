@@ -5,9 +5,9 @@
 
 GO111MODULE="on"
 GOPROXY="https://proxy.golang.org"
-GOROOT="${GOROOT:-go env GOROOT}"
+GOROOT="${GOROOT:-$(go env GOROOT)}"
 GOOS="${GOOS:-linux}"
-GOARCH="${GOARCH:-amd64}"
+GOARCH="${GOARCH:-$(go env GOARCH)}"
 
 GO_LINT_IMG_LOCATION="${GO_LINT_IMG_LOCATION:-golangci/golangci-lint}"
 GO_LINT_IMG_TAG="${GO_LINT_IMG_TAG:-v1.49.0}"
