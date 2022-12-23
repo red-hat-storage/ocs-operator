@@ -443,11 +443,18 @@ func getTopologyConstrainedPools(initData *ocsv1.StorageCluster) string {
 
 	var topologyConstrainedPools []topologyConstrainedPool
 	for _, failureDomainValue := range initData.Status.FailureDomainValues {
+		failureDomain := initData.Status.FailureDomain
+		// Normally the label on the nodes is of the form kubernetes.io/hostname=<hostname>
+		// and the same is passed to ceph-csi through rook-ceph-opeartor-config cm.
+		// Hence, the ceph-non-resilient-rbd storageclass needs to have domainLabel set as hostname for topology constrained pools.
+		if failureDomain == "host" {
+			failureDomain = "hostname"
+		}
 		topologyConstrainedPools = append(topologyConstrainedPools, topologyConstrainedPool{
 			PoolName: generateNameForNonResilientCephBlockPool(initData, failureDomainValue),
 			DomainSegments: []topologySegment{
 				{
-					DomainLabel: initData.Status.FailureDomain,
+					DomainLabel: failureDomain,
 					DomainValue: failureDomainValue,
 				},
 			},
