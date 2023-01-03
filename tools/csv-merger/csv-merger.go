@@ -570,11 +570,11 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	ocsCSV.Spec.InstallModes = []csvv1.InstallMode{
 		{
 			Type:      csvv1.InstallModeTypeOwnNamespace,
-			Supported: true,
+			Supported: false,
 		},
 		{
 			Type:      csvv1.InstallModeTypeSingleNamespace,
-			Supported: true,
+			Supported: false,
 		},
 		{
 			Type:      csvv1.InstallModeTypeMultiNamespace,
@@ -582,7 +582,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		},
 		{
 			Type:      csvv1.InstallModeTypeAllNamespaces,
-			Supported: false,
+			Supported: true,
 		},
 	}
 
