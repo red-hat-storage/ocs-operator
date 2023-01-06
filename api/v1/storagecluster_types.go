@@ -48,6 +48,7 @@ type StorageClusterSpec struct {
 	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
+	Mgr                *MgrSpec                               `json:"mgr,omitempty"`
 	MultiCloudGateway  *MultiCloudGatewaySpec                 `json:"multiCloudGateway,omitempty"`
 	NFS                *NFSSpec                               `json:"nfs,omitempty"`
 	// Monitoring controls the configuration of resources for exposing OCS metrics
@@ -214,6 +215,13 @@ type ManageCephObjectStoreUsers struct {
 // ManageCephToolbox defines how to reconcile Ceph toolbox
 type ManageCephToolbox struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// MgrSpec defines the settings for the Ceph Manager
+type MgrSpec struct {
+	// EnableActivePassive can be set as true to deploy 2 ceph manager pods, one active and one standby
+	// Ceph will promote the standby mgr when the active mgr goes down due to any reason
+	EnableActivePassive bool `json:"enableActivePassive,omitempty"`
 }
 
 // ExternalStorageKind specifies a kind of the external storage
