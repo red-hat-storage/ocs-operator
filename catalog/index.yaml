@@ -1,0 +1,21 @@
+---
+defaultChannel: alpha
+name: ocs-operator
+schema: olm.package
+---
+schema: olm.channel
+package: ocs-operator
+name: alpha
+entries:
+  - name: ocs-operator.v4.12.0
+
+---
+defaultChannel: alpha
+name: noobaa-operator
+schema: olm.package
+---
+schema: olm.channel
+package: noobaa-operator
+name: alpha
+entries:
+  - name: noobaa-operator.v5.12.0

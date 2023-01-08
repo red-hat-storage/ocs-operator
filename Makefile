@@ -268,6 +268,17 @@ bundle-push:
 	@echo "Pushing ocs-operator-bundle image"
 	${IMG_BUILD_CMD} push ${OCS_BUNDLE_IMG}
 
+catalog-build: opm
+	@echo "Building ocs-operator-catalog"
+	${OPM} render --output=yaml ${OCS_BUNDLE_IMG} > catalog/ocs-bundle.yaml
+	${OPM} render --output=yaml ${NOOBAA_BUNDLE_IMG} > catalog/noobaa-bundle.yaml
+	${OPM} validate catalog
+	${IMG_BUILD_CMD} build --platform ${TARGET_OS}/${TARGET_ARCH} -f build/new/Dockerfile.catalog -t ${OCS_CATALOG_IMG} .
+
+catalog-push:
+	@echo "Pushing ocs-operator-catalog image"
+	${IMG_BUILD_CMD} push ${OCS_CATALOG_IMG}
+
 fmt:
 	@echo "Running go fmt"
 	go fmt ./...
@@ -275,3 +286,7 @@ fmt:
 vet:
 	@echo "Running go vet"
 	go vet ./...
+
+opm: 
+	@echo "Ensureing opm tool"
+	hack/ensure-opm.sh
