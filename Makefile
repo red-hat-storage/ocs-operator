@@ -235,3 +235,35 @@ endif
 # TODO: The section below is under development & part of an ongoing refactor of the Makefile
 
 include hack/makefile-vars.mk
+
+operator-build: fmt vet deps-update generate gen-protobuf
+	@echo "Building ocs-operator image"
+	${IMG_BUILD_CMD} build --platform ${TARGET_OS}/${TARGET_ARCH} -f build/new/Dockerfile -t "${OCS_OPERATOR_IMG}" .
+
+operator-push:
+	@echo "Pushing ocs-operator image"
+	${IMG_BUILD_CMD} push "${OCS_OPERATOR_IMG}"
+
+metrics-exporter-build: fmt vet deps-update generate
+	@echo "Building ocs-metrics-exporter image"
+	${IMG_BUILD_CMD} build --platform ${TARGET_OS}/${TARGET_ARCH} -f build/new/Dockerfile.metrics -t "${OCS_METRICS_EXPORTER_IMG}" .
+
+metrics-exporter-push:
+	@echo "Pushing ocs-metrics-exporter image"
+	${IMG_BUILD_CMD} push "${OCS_METRICS_EXPORTER_IMG}"
+
+must-gather-build: fmt vet deps-update
+	@echo "Building ocs-must-gather"
+	${IMG_BUILD_CMD} build --platform ${TARGET_OS}/${TARGET_ARCH} -f must-gather/Dockerfile -t "${OCS_MUST_GATHER_IMG}" must-gather/
+
+must-gather-push:
+	@echo "Pushing ocs-must-gather image"
+	${IMG_BUILD_CMD} push "${OCS_MUST_GATHER_IMG}"
+
+fmt:
+	@echo "Running go fmt"
+	go fmt ./...
+
+vet:
+	@echo "Running go vet"
+	go vet ./...
