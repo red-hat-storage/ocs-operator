@@ -260,6 +260,14 @@ must-gather-push:
 	@echo "Pushing ocs-must-gather image"
 	${IMG_BUILD_CMD} push "${OCS_MUST_GATHER_IMG}"
 
+bundle-build: gen-latest-csv
+	@echo "Building ocs-operator-bundle"
+	${IMG_BUILD_CMD} build --platform ${TARGET_OS}/${TARGET_ARCH} -f build/new/Dockerfile.bundle -t ${OCS_BUNDLE_IMG} .
+
+bundle-push:
+	@echo "Pushing ocs-operator-bundle image"
+	${IMG_BUILD_CMD} push ${OCS_BUNDLE_IMG}
+
 fmt:
 	@echo "Running go fmt"
 	go fmt ./...
