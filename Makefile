@@ -231,3 +231,7 @@ export KUSTOMIZE=$(GOBIN)/kustomize
 else
 export KUSTOMIZE=$(shell which kustomize)
 endif
+
+# TODO: The section below is under development & part of an ongoing refactor of the Makefile
+
+include hack/makefile-vars.mk
