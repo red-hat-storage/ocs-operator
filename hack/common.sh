@@ -41,7 +41,7 @@ GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
 # This env var allows developers to point to a custom oc tool that isn't in $PATH
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"
-OCS_FINAL_DIR="deploy/bundle/manifests"
+OCS_FINAL_DIR="deploy/ocs-operator/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
 NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
