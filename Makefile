@@ -11,6 +11,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+FUSION?=false
 KUSTOMIZE_VERSION=v4.5.2
 CONTROLLER_GEN_VERSION=v0.9.2
 
@@ -118,11 +119,11 @@ verify-operator-bundle: operator-sdk
 	hack/verify-operator-bundle.sh
 
 operator-bundle:
-	@echo "Building ocs-operator-bundle image"
+	@echo "FUSION=$(FUSION)"
 	hack/build-operator-bundle.sh
 
 operator-index:
-	@echo "Building ocs-operator-index image"
+	@echo "FUSION=$(FUSION)"
 	hack/build-operator-index.sh
 
 ocs-registry:
