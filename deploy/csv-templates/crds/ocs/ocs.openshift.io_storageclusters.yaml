@@ -628,6 +628,15 @@ spec:
                         type: string
                     type: object
                 type: object
+              mgr:
+                description: MgrSpec defines the settings for the Ceph Manager
+                properties:
+                  enableActivePassive:
+                    description: EnableActivePassive can be set as true to deploy
+                      2 ceph manager pods, one active and one standby Ceph will promote
+                      the standby mgr when the active mgr goes down due to any reason
+                    type: boolean
+                type: object
               mirroring:
                 description: Mirroring specifies data mirroring configuration for
                   the storage cluster. This configuration will only be applied to
