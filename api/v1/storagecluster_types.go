@@ -522,8 +522,9 @@ const (
 // +kubebuilder:printcolumn:name="External",type=boolean,JSONPath=.spec.externalStorage.enable,description="External Storage Cluster"
 // +kubebuilder:printcolumn:name="Created At",type=string,JSONPath=.metadata.creationTimestamp
 // +kubebuilder:printcolumn:name="Version",type=string,JSONPath=.status.version,description="Storage Cluster Version"
+// +operator-sdk:csv:customresourcedefinitions:displayName="Storage Cluster",resources={{CephCluster,v1,cephclusters.ceph.rook.io},{NooBaa,v1alpha1,noobaas.noobaa.io}}
 
-// StorageCluster is the Schema for the storageclusters API
+// StorageCluster represents a cluster including Ceph Cluster, NooBaa and all the storage and compute resources required.
 type StorageCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
