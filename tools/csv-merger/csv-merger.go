@@ -81,10 +81,6 @@ type templateData struct {
 	OcsOperatorImage       string
 }
 
-func finalizedCsvFilename() string {
-	return "ocs-operator.clusterserviceversion.yaml"
-}
-
 func copyFile(src string, dst string) {
 	srcFile, err := os.Open(src)
 	if err != nil {
@@ -132,7 +128,7 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	templateStrategySpec := &csv.Spec.InstallStrategy.StrategySpec
 
 	// inject custom ENV VARS.
-	if strings.Contains(csv.Name, "ocs") {
+	if strings.Contains(csv.Name, "ocs") || strings.Contains(csv.Name, "fcs") {
 		vars := []corev1.EnvVar{
 			{
 				Name:  "ROOK_CEPH_IMAGE",
@@ -447,13 +443,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
 
-	ocsCSV.Spec.Icon = []csvv1.Icon{
-		{
-			Data:      "PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTQ1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2UwMDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPlJlZEhhdC1Mb2dvLUhhdC1Db2xvcjwvdGl0bGU+PHBhdGggZD0iTTE1Ny43Nyw2Mi42MWExNCwxNCwwLDAsMSwuMzEsMy40MmMwLDE0Ljg4LTE4LjEsMTcuNDYtMzAuNjEsMTcuNDZDNzguODMsODMuNDksNDIuNTMsNTMuMjYsNDIuNTMsNDRhNi40Myw2LjQzLDAsMCwxLC4yMi0xLjk0bC0zLjY2LDkuMDZhMTguNDUsMTguNDUsMCwwLDAtMS41MSw3LjMzYzAsMTguMTEsNDEsNDUuNDgsODcuNzQsNDUuNDgsMjAuNjksMCwzNi40My03Ljc2LDM2LjQzLTIxLjc3LDAtMS4wOCwwLTEuOTQtMS43My0xMC4xM1oiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMjcuNDcsODMuNDljMTIuNTEsMCwzMC42MS0yLjU4LDMwLjYxLTE3LjQ2YTE0LDE0LDAsMCwwLS4zMS0zLjQybC03LjQ1LTMyLjM2Yy0xLjcyLTcuMTItMy4yMy0xMC4zNS0xNS43My0xNi42QzEyNC44OSw4LjY5LDEwMy43Ni41LDk3LjUxLjUsOTEuNjkuNSw5MCw4LDgzLjA2LDhjLTYuNjgsMC0xMS42NC01LjYtMTcuODktNS42LTYsMC05LjkxLDQuMDktMTIuOTMsMTIuNSwwLDAtOC40MSwyMy43Mi05LjQ5LDI3LjE2QTYuNDMsNi40MywwLDAsMCw0Mi41Myw0NGMwLDkuMjIsMzYuMywzOS40NSw4NC45NCwzOS40NU0xNjAsNzIuMDdjMS43Myw4LjE5LDEuNzMsOS4wNSwxLjczLDEwLjEzLDAsMTQtMTUuNzQsMjEuNzctMzYuNDMsMjEuNzdDNzguNTQsMTA0LDM3LjU4LDc2LjYsMzcuNTgsNTguNDlhMTguNDUsMTguNDUsMCwwLDEsMS41MS03LjMzQzIyLjI3LDUyLC41LDU1LC41LDc0LjIyYzAsMzEuNDgsNzQuNTksNzAuMjgsMTMzLjY1LDcwLjI4LDQ1LjI4LDAsNTYuNy0yMC40OCw1Ni43LTM2LjY1LDAtMTIuNzItMTEtMjcuMTYtMzAuODMtMzUuNzgiLz48L3N2Zz4=",
-			MediaType: "image/svg+xml",
-		},
-	}
-
 	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = ""
 
 	templateStrategySpec := &ocsCSV.Spec.InstallStrategy.StrategySpec
@@ -496,30 +485,9 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		}
 	}
 
-	// Inject display name and description for our OCS crds
+	// Inject display name
 	for i, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		switch definition.Name {
-		case "storageclusters.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Storage Cluster"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "Storage Cluster represents a OpenShift Container Storage Cluster including Ceph Cluster, NooBaa and all the storage and compute resources required."
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Resources = []csvv1.APIResourceReference{
-				{
-					Name:    "cephclusters.ceph.rook.io",
-					Kind:    "CephCluster",
-					Version: "v1",
-				},
-				{
-					Name:    "noobaas.noobaa.io",
-					Kind:    "NooBaa",
-					Version: "v1alpha1",
-				},
-			}
-		case "ocsinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "OCS Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "OCS Initialization represents the initial data to be created when the OCS operator is installed."
-		case "storageclusterinitializations.ocs.openshift.io":
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "StorageCluster Initialization"
-			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].Description = "StorageCluster Initialization represents a set of tasks the OCS operator wants to implement for every StorageCluster it encounters."
 		case "cephblockpools.ceph.rook.io":
 			ocsCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Block Pools"
 		}
@@ -558,95 +526,12 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	}
 	v := version.OperatorVersion{Version: *semverVersion}
 	ocsCSV.Spec.Version = v
-	ocsCSV.Name = "ocs-operator.v" + *csvVersion
+	// base csv name is of the form ocs-operator.v0.0.0
+	tempCSVName := strings.Split(ocsCSV.Name, ".v")[0] + ".v"
+	ocsCSV.Name = tempCSVName + *csvVersion
 	if *replacesCsvVersion != "" {
-		ocsCSV.Spec.Replaces = "ocs-operator.v" + *replacesCsvVersion
+		ocsCSV.Spec.Replaces = tempCSVName + *replacesCsvVersion
 	}
-
-	// Set api maturity
-	ocsCSV.Spec.Maturity = "alpha"
-
-	// set Install Modes
-	ocsCSV.Spec.InstallModes = []csvv1.InstallMode{
-		{
-			Type:      csvv1.InstallModeTypeOwnNamespace,
-			Supported: true,
-		},
-		{
-			Type:      csvv1.InstallModeTypeSingleNamespace,
-			Supported: true,
-		},
-		{
-			Type:      csvv1.InstallModeTypeMultiNamespace,
-			Supported: false,
-		},
-		{
-			Type:      csvv1.InstallModeTypeAllNamespaces,
-			Supported: false,
-		},
-	}
-
-	// Set maintainers
-	ocsCSV.Spec.Maintainers = []csvv1.Maintainer{
-		{
-			Name:  "Red Hat Support",
-			Email: "ocs-support@redhat.com",
-		},
-	}
-
-	// Set links
-	ocsCSV.Spec.Links = []csvv1.AppLink{
-		{
-			Name: "Source Code",
-			URL:  "https://github.com/red-hat-storage/ocs-operator",
-		},
-	}
-
-	// Set Keywords
-	ocsCSV.Spec.Keywords = []string{
-		"storage",
-		"rook",
-		"ceph",
-		"block storage",
-		"shared filesystem",
-		"object storage",
-	}
-
-	// Set Provider
-	ocsCSV.Spec.Provider = csvv1.AppLink{
-		Name: "Red Hat",
-	}
-
-	// Set Description
-	ocsCSV.Spec.Description = `
-**Red Hat OpenShift Container Storage** deploys three operators.
-
-### OpenShift Container Storage operator
-
-The OpenShift Container Storage operator is the primary operator for OpenShift Container Storage. It serves to facilitate the other operators in OpenShift Container Storage by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
-
-### Rook
-
-[Rook][1] deploys and manages Ceph on OpenShift, which provides block and file storage.
-
-# Core Capabilities
-
-* **Self-managing service:** No matter which supported storage technologies you choose, OpenShift Container Storage ensures that resources can be deployed and managed automatically.
-
-* **Hyper-scale or hyper-converged:** With OpenShift Container Storage you can either build dedicated storage clusters or hyper-converged clusters where your apps run alongside storage.
-
-* **File, Block, and Object provided by OpenShift Container Storage:** OpenShift Container Storage integrates Ceph with multiple storage presentations including object storage (compatible with S3), block storage, and POSIX-compliant shared file system.
-
-* **Your data, protected:** OpenShift Container Storage efficiently distributes and replicates your data across your cluster to minimize the risk of data loss. With snapshots, cloning, and versioning, no more losing sleep over your data.
-
-* **Elastic storage in your datacenter:** Scale is now possible in your datacenter. Get started with a few terabytes, and easily scale up.
-
-* **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
-
-[1]: https://rook.io
-`
-
-	ocsCSV.Spec.DisplayName = "OpenShift Container Storage"
 
 	ocsCSV.Labels = make(map[string]string)
 
@@ -658,10 +543,6 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 	if *skipRange != "" {
 		ocsCSV.Annotations["olm.skipRange"] = *skipRange
 	}
-
-	// apiextensions/v1 is available only on Kubernetes 1.16+
-	// This ensures that we don't try to install on lower versions ok K8s
-	ocsCSV.Spec.MinKubeVersion = "1.16.0"
 
 	// Feature gating for Console. The array values are unique identifiers provided by the console.
 	// This can be used to enable/disable console support for any supported feature
@@ -683,10 +564,7 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 		}
 		ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
 	}
-	ocsCSV.Annotations["repository"] = "https://github.com/red-hat-storage/ocs-operator"
 	ocsCSV.Annotations["containerImage"] = "quay.io/ocs-dev/ocs-operator:" + ocsversion.Version
-	ocsCSV.Annotations["description"] = "Red Hat OpenShift Container Storage provides hyperconverged storage for applications within an OpenShift cluster."
-	ocsCSV.Annotations["support"] = "Red Hat"
 	ocsCSV.Annotations["capabilities"] = "Deep Insights"
 	ocsCSV.Annotations["categories"] = "Storage"
 	ocsCSV.Annotations["operators.operatorframework.io/operator-type"] = "non-standalone"
@@ -801,12 +679,14 @@ The OpenShift Container Storage operator is the primary operator for OpenShift C
 	if err != nil {
 		panic(err)
 	}
-	err = os.WriteFile(filepath.Join(*outputDir, finalizedCsvFilename()), []byte(writer.String()), 0644)
+
+	finalizedCsvFilename := strings.Split(tempCSVName, ".")[0] + ".clusterserviceversion.yaml"
+	err = os.WriteFile(filepath.Join(*outputDir, finalizedCsvFilename), []byte(writer.String()), 0644)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("CSV written to %s\n", filepath.Join(*outputDir, finalizedCsvFilename()))
+	fmt.Printf("CSV written to %s\n", filepath.Join(*outputDir, finalizedCsvFilename))
 	return ocsCSV
 }
 
