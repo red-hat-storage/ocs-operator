@@ -4,8 +4,8 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
-INSTALL_NAMESPACE=openshift-storage
-CATALOG_IMAGE=${CATALOG_IMAGE:-'quay.io/nigoyal/odf-operator-catalog:latest'}
+INSTALL_NAMESPACE=${OO_INSTALL_NAMESPACE:-'openshift-storage'}
+CATALOG_IMAGE=${CATALOG_IMAGE:-'quay.io/nigoyal/odf-operator-catalog:noobaa-v5.12.0'}
 
 CATALOG=$(oc -n openshift-marketplace get catsrc ocs-catalog -o jsonpath="{.metadata.name}" 2>/dev/null || true)
 if [[ -n "$CATALOG" ]]; then
