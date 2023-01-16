@@ -26,7 +26,7 @@ spec:
 EOF
 fi
 
-NAMESPACE=$(oc get ns $INSTALL_NAMESPACE -o jsonpath="{.metadata.name}" 2>/dev/null || true)
+NAMESPACE=$(oc get ns "$INSTALL_NAMESPACE" -o jsonpath="{.metadata.name}" 2>/dev/null || true)
 if [[ -n "$NAMESPACE" ]]; then
     echo "Namespace \"$NAMESPACE\" exists"
 else
@@ -39,7 +39,7 @@ metadata:
 EOF
 fi
 
-OPERATORGROUP=$(oc -n $INSTALL_NAMESPACE get operatorgroup -o jsonpath="{.items[*].metadata.name}" || true)
+OPERATORGROUP=$(oc -n "$INSTALL_NAMESPACE" get operatorgroup -o jsonpath="{.items[*].metadata.name}" || true)
 if [[ -n "$OPERATORGROUP" ]]; then
     echo "OperatorGroup \"$OPERATORGROUP\" exists"
 else
@@ -55,7 +55,7 @@ spec:
 EOF
 fi
 
-SUB=$(oc -n $INSTALL_NAMESPACE get sub -o jsonpath="{.items[?(@.spec.name=='noobaa-operator')].metadata.name}" || true)
+SUB=$(oc -n "$INSTALL_NAMESPACE" get sub -o jsonpath="{.items[?(@.spec.name=='noobaa-operator')].metadata.name}" || true)
 if [[ -n "$SUB" ]]; then
     echo "Subscription \"$SUB\" exists"
 else
@@ -76,19 +76,19 @@ EOF
 fi
 
 for _ in {1..60}; do
-    IP=$(oc -n $INSTALL_NAMESPACE get sub "$SUB" -o jsonpath="{.status.installplan.name}" || true)
+    IP=$(oc -n "$INSTALL_NAMESPACE" get sub "$SUB" -o jsonpath="{.status.installplan.name}" || true)
     if [[ -n "$IP" ]]; then
         echo "Approving installplan \"$IP\""
-        oc -n $INSTALL_NAMESPACE patch installplan "$IP" --type merge --patch '{"spec":{"approved":true}}'
+        oc -n "$INSTALL_NAMESPACE" patch installplan "$IP" --type merge --patch '{"spec":{"approved":true}}'
         break
     fi
     sleep 10
 done
 
 for _ in {1..60}; do
-    CSV=$(oc -n $INSTALL_NAMESPACE get sub "$SUB" -o jsonpath="{.status.installedCSV}" || true)
+    CSV=$(oc -n "$INSTALL_NAMESPACE" get sub "$SUB" -o jsonpath="{.status.installedCSV}" || true)
     if [[ -n "$CSV" ]]; then
-        if [[ "$(oc -n $INSTALL_NAMESPACE get csv "$CSV" -o jsonpath='{.status.phase}')" == "Succeeded" ]]; then
+        if [[ "$(oc -n "$INSTALL_NAMESPACE" get csv "$CSV" -o jsonpath='{.status.phase}')" == "Succeeded" ]]; then
             echo "ClusterServiceVersion \"$CSV\" is ready"
             exit 0
         fi
@@ -97,5 +97,5 @@ for _ in {1..60}; do
 done
 
 echo "Timed out waiting for noobaa CSV to become ready"
-oc -n $INSTALL_NAMESPACE get sub "$SUB" -o yaml
+oc -n "$INSTALL_NAMESPACE" get sub "$SUB" -o yaml
 exit 1
