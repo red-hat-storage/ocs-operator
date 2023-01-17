@@ -532,6 +532,21 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		}
 	}
 
+	// For security of encrypted messagges, When both encryption and compression are enabled,
+	// compression setting will be ignored and message will not be compressed.
+	// Refer https://docs.ceph.com/en/quincy/rados/configuration/msgr2/#confval-ms_compress_secure
+	networkSpec := instance.Spec.Network
+	if networkSpec != nil && networkSpec.Connections != nil &&
+		networkSpec.Connections.Encryption != nil && networkSpec.Connections.Encryption.Enabled &&
+		networkSpec.Connections.Compression != nil && networkSpec.Connections.Compression.Enabled {
+		r.Log.Info("Both in-transit encryption & compression are enabled. " +
+			"To protect security of encrypted messages ceph will ignore compression")
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "EncryptionAndCompressionEnabled",
+			"Both in-transit encryption & compression are enabled. "+
+				"To protect security of encrypted messages ceph will ignore compression")
+
+	}
+
 	// Ensure that verbose logging is enabled when RBD mirroring is enabled
 	// TODO: This is a temporary arrangement, this is to be removed when RDR goes to GA
 	result, err := r.ensureRbdMirrorDebugLogging(instance)
