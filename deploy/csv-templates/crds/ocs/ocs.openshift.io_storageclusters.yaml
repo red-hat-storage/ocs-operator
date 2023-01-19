@@ -37,7 +37,8 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: StorageCluster is the Schema for the storageclusters API
+        description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
+          and all the storage and compute resources required.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
