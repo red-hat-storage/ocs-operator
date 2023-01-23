@@ -26,5 +26,5 @@ if [ "$FUSION" == true ]; then
     build_operator_bundle ics.Dockerfile
 else
     echo "Building Red Hat OpenShift Container Storage Operator Bundle"
-    build_operator_bundle ocs.Dockerfile
+    build_operator_bundle Dockerfile
 fi
