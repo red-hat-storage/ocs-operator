@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -135,7 +136,7 @@ func (r *StorageClusterReconciler) createCephRGWRoutes(routes []*routev1.Route, 
 // newCephRGWRoutes returns the RGW route instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageCluster) ([]*routev1.Route, error) {
-	// Use the same name as for the Ceph Object Store
+	// Use the same name as for the Ceph Object Store, two routes are exposed one with secure port, other with insecure port
 	ret := []*routev1.Route{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -146,6 +147,40 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 				To: routev1.RouteTargetReference{
 					Kind: "Service",
 					Name: generateNameForCephObjectStoreService(initData),
+				},
+				Port: &routev1.RoutePort{
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(80),
+						StrVal: "80",
+					},
+				},
+				TLS: &routev1.TLSConfig{
+					Termination:                   routev1.TLSTerminationReencrypt,
+					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      generateNameForCephObjectStore(initData) + "-secure",
+				Namespace: initData.Namespace,
+			},
+			Spec: routev1.RouteSpec{
+				To: routev1.RouteTargetReference{
+					Kind: "Service",
+					Name: generateNameForCephObjectStoreService(initData),
+				},
+				Port: &routev1.RoutePort{
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(443),
+						StrVal: "443",
+					},
+				},
+				TLS: &routev1.TLSConfig{
+					Termination:                   routev1.TLSTerminationReencrypt,
+					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
 				},
 			},
 		},
