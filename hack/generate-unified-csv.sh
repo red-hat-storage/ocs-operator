@@ -5,7 +5,9 @@ set -e
 source hack/common.sh
 
 CSV_MERGER="tools/csv-merger/csv-merger"
-(cd tools/csv-merger/ && go build)
+LDFLAGS="-X github.com/red-hat-storage/ocs-operator/version.Version=${CSV_VERSION}"
+
+(cd tools/csv-merger/ && go build -ldflags="${LDFLAGS}")
 
 function help_txt() {
 	echo "Environment Variables"

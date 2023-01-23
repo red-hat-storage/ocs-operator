@@ -40,6 +40,8 @@ const (
 	ExternalClusterUnknownReason = "ExternalClusterStateUnknownCondition"
 	// ExternalClusterErrorReason indicates an error state
 	ExternalClusterErrorReason = "ExternalClusterStateError"
+	// VersionValidReason indicates version in SC CR and operator is equal
+	VersionValidReason = "VersionMatched"
 )
 
 // SetProgressingCondition sets the ProgressingCondition to True and other conditions to
@@ -279,4 +281,15 @@ func MapNoobaaNegativeConditions(conditions *[]conditionsv1.Condition, found *nb
 		})
 	}
 
+}
+
+// SetVersionMismatchCondition sets the ConditionVersionMismatch to the status passed as argument,
+// if the same status is not already present
+func SetVersionMismatchCondition(conditions *[]conditionsv1.Condition, status corev1.ConditionStatus, reason string, message string) {
+	setStatusConditionIfNotPresent(conditions, conditionsv1.Condition{
+		Type:    ocsv1.ConditionVersionMismatch,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	})
 }
