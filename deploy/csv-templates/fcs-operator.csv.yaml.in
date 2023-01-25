@@ -74,7 +74,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/IBM
     support: IBM
-  name: fcs-operator.v4.12.0
+  name: ocs-operator.v4.12.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}

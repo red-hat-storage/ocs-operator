@@ -128,7 +128,7 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	templateStrategySpec := &csv.Spec.InstallStrategy.StrategySpec
 
 	// inject custom ENV VARS.
-	if strings.Contains(csv.Name, "ocs") || strings.Contains(csv.Name, "fcs") {
+	if strings.Contains(csv.Name, "ocs") || strings.Contains(csv.Name, "ics") {
 		vars := []corev1.EnvVar{
 			{
 				Name:  "ROOK_CEPH_IMAGE",
