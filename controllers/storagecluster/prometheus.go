@@ -110,6 +110,12 @@ func (r *StorageClusterReconciler) CreateOrUpdatePrometheusRules(rule *monitorin
 				return fmt.Errorf("failed while fetching PrometheusRule: %v", err)
 			}
 			oldRule.Spec = rule.Spec
+
+			err = mergo.Merge(&oldRule.Labels, rule.Labels, mergo.WithOverride)
+			if err != nil {
+				return err
+			}
+
 			err := r.Client.Update(context.TODO(), oldRule)
 			if err != nil {
 				return fmt.Errorf("failed while updating PrometheusRule: %v", err)
