@@ -124,7 +124,13 @@ operator-bundle:
 
 operator-index:
 	@echo "FUSION=$(FUSION)"
+	@echo "Building ocs index image in sqlite db based format"
 	hack/build-operator-index.sh
+
+operator-catalog:
+	@echo "FUSION=$(FUSION)"
+	@echo "Building ocs catalog image in file based catalog format"
+	hack/build-operator-catalog.sh
 
 ocs-registry:
 	@echo "Building ocs-registry image in appregistry format"
