@@ -4,7 +4,7 @@ set -e
 
 source hack/common.sh
 
-OPM_VERSION="v1.12.3"
+OPM_VERSION="v1.26.0"
 case "$(uname -m)" in
 	x86_64)
 		OPM_ARCH="amd64"
