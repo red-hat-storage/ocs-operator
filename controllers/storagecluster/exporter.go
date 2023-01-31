@@ -31,11 +31,7 @@ var exporterLabels = map[string]string{
 // enableMetricsExporter is a wrapper around CreateOrUpdateService()
 // and CreateOrUpdateServiceMonitor()
 func (r *StorageClusterReconciler) enableMetricsExporter(instance *ocsv1.StorageCluster) error {
-	err := mergo.Merge(&exporterLabels, instance.Spec.Monitoring.Labels, mergo.WithOverride)
-	if err != nil {
-		return err
-	}
-	_, err = CreateOrUpdateService(r, instance)
+	_, err := CreateOrUpdateService(r, instance)
 	if err != nil {
 		return err
 	}
@@ -121,6 +117,16 @@ func CreateOrUpdateService(r *StorageClusterReconciler, instance *ocsv1.StorageC
 }
 
 func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitoringv1.ServiceMonitor {
+
+	// Make a copy of the exporterLabels. Because we use exporterLabels in multiple places
+	// (labels and selector for the ocs-metrics-exporter service, as well as service monitor),
+	// changing the value of labels of a service monitor affects all of them.
+	// Because this is the only place where we need to make a change, create a new copy here.
+	serviceMonitorLabels := map[string]string{}
+	for key, val := range exporterLabels {
+		serviceMonitorLabels[key] = val
+	}
+
 	// To add storagecluster CR name to the metrics as label: managedBy
 	relabelConfig := monitoringv1.RelabelConfig{
 		TargetLabel: "managedBy",
@@ -131,7 +137,7 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      exporterName,
 			Namespace: instance.Namespace,
-			Labels:    exporterLabels,
+			Labels:    serviceMonitorLabels,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: instance.APIVersion,
@@ -177,10 +183,15 @@ func CreateOrUpdateServiceMonitor(r *StorageClusterReconciler, instance *ocsv1.S
 	serviceMonitor := getMetricsExporterServiceMonitor(instance)
 	namespacedName := types.NamespacedName{Name: serviceMonitor.Name, Namespace: serviceMonitor.Namespace}
 
+	err := mergo.Merge(&serviceMonitor.Labels, instance.Spec.Monitoring.Labels, mergo.WithOverride)
+	if err != nil {
+		return nil, err
+	}
+
 	r.Log.Info("Reconciling metrics exporter service monitor", "NamespacedName", namespacedName)
 
 	oldSm := &monitoringv1.ServiceMonitor{}
-	err := r.Client.Get(context.TODO(), namespacedName, oldSm)
+	err = r.Client.Get(context.TODO(), namespacedName, oldSm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			err = r.Client.Create(context.TODO(), serviceMonitor)
