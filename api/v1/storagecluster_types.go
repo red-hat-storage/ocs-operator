@@ -45,6 +45,7 @@ type StorageClusterSpec struct {
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
 	Resources          map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
 	Encryption         EncryptionSpec                         `json:"encryption,omitempty"`
+	Security         	 SecuritySpec                         	`json:"security,omitempty"`
 	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
@@ -391,6 +392,18 @@ type EncryptionSpec struct {
 	// +optional
 	StorageClass         bool                     `json:"storageClass,omitempty"`
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+}
+
+type SecuritySpec struct {
+	// +optional
+	KMS KMSSecuritySpec `json:"kms,omitempty"`
+}
+
+type KMSSecuritySpec struct {
+	// +optional
+	EnableKeyRotation bool `json:"enableKeyRotation,omitempty"`
+	// +optional
+	Schedule string `json:"schedule,omitempty"`
 }
 
 type MirroringSpec struct {

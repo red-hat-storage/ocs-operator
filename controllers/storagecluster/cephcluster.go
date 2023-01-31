@@ -384,6 +384,12 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			Labels:    labels,
 		},
 		Spec: rookCephv1.ClusterSpec{
+			Security: rookCephv1.SecuritySpec{
+				KeyManagementService: rookCephv1.KeyManagementServiceSpec{
+					EnableKeyRotation: sc.Spec.Security.KMS.EnableKeyRotation,
+					Schedule:          sc.Spec.Security.KMS.Schedule,
+				},
+			},
 			CephVersion: rookCephv1.CephVersionSpec{
 				Image:            cephImage,
 				AllowUnsupported: allowUnsupportedCephVersion(),

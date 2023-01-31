@@ -218,6 +218,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 			nb.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfig.Data
 		}
 	}
+	if sc.Spec.Encryption.Enable && sc.Spec.Encryption.ClusterWide && !sc.Spec.Encryption.KeyManagementService.Enable {
+		nb.Spec.Security.KeyManagementService.EnableKeyRotation = sc.Spec.Security.KMS.EnableKeyRotation
+		nb.Spec.Security.KeyManagementService.Schedule = sc.Spec.Security.KMS.Schedule
+	}
 
 	return nil
 }
