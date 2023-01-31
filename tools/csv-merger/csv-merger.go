@@ -569,6 +569,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	ocsCSV.Annotations["categories"] = "Storage"
 	ocsCSV.Annotations["operators.operatorframework.io/operator-type"] = "non-standalone"
 	ocsCSV.Annotations["operatorframework.io/suggested-namespace"] = "openshift-storage"
+	ocsCSV.Annotations["operators.openshift.io/infrastructure-features"] = "[\"disconnected\"]"
 	// Make Storage cluster the initialization resource
 	ocsCSV.Annotations["operatorframework.io/initialization-resource"] = `
     {
