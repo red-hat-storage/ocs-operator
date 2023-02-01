@@ -147,6 +147,10 @@ type BackingStorageClass struct {
 type KeyManagementServiceSpec struct {
 	// +optional
 	Enable bool `json:"enable,omitempty"`
+	// +optional
+	EnableKeyRotation bool `json:"enableKeyRotation,omitempty"`
+	// +optional
+	Schedule string `json:"schedule,omitempty"`
 }
 
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
@@ -396,14 +400,7 @@ type EncryptionSpec struct {
 
 type SecuritySpec struct {
 	// +optional
-	KMS KMSSecuritySpec `json:"kms,omitempty"`
-}
-
-type KMSSecuritySpec struct {
-	// +optional
-	EnableKeyRotation bool `json:"enableKeyRotation,omitempty"`
-	// +optional
-	Schedule string `json:"schedule,omitempty"`
+	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
 }
 
 type MirroringSpec struct {

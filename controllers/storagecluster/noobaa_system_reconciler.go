@@ -219,8 +219,8 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		}
 	}
 	if sc.Spec.Encryption.Enable && sc.Spec.Encryption.ClusterWide && !sc.Spec.Encryption.KeyManagementService.Enable {
-		nb.Spec.Security.KeyManagementService.EnableKeyRotation = sc.Spec.Security.KMS.EnableKeyRotation
-		nb.Spec.Security.KeyManagementService.Schedule = sc.Spec.Security.KMS.Schedule
+		nb.Spec.Security.KeyManagementService.EnableKeyRotation = sc.Spec.Security.KeyManagementService.EnableKeyRotation
+		nb.Spec.Security.KeyManagementService.Schedule = sc.Spec.Security.KeyManagementService.Schedule
 	}
 
 	return nil
