@@ -19,8 +19,8 @@ if [[ -n "${NOT_FOUND}" ]];then
 fi
 
 if [ "$FUSION" == "true" ]; then
-	if [[ -n "$(git status --porcelain deploy/csv-templates deploy/fcs-operator config/crd/bases )" ]]; then
-		git diff -u deploy/csv-templates deploy/fcs-operator config/crd/bases
+	if [[ -n "$(git status --porcelain deploy/csv-templates deploy/ics-operator config/crd/bases )" ]]; then
+		git diff -u deploy/csv-templates deploy/ics-operator config/crd/bases
 		echo "uncommitted CSV changes. run 'make gen-latest-csv' and commit results."
 		exit 1
 	fi

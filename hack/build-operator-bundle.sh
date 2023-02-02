@@ -23,7 +23,7 @@ function build_operator_bundle() {
 
 if [ "$FUSION" == true ]; then
     echo "Building IBM Fusion Container Storage Operator Bundle"
-    build_operator_bundle fcs.Dockerfile
+    build_operator_bundle ics.Dockerfile
 else
     echo "Building Red Hat OpenShift Container Storage Operator Bundle"
     build_operator_bundle Dockerfile

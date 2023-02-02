@@ -43,7 +43,7 @@ fi
 hack/source-manifests.sh
 
 if [ "$FUSION" == "true" ]; then
-	# Merge component-level operators into fcs CSV
+	# Merge component-level operators into ics CSV
 	$CSV_MERGER \
 		--csv-version="$CSV_VERSION" \
 		--replaces-csv-version="$REPLACES_CSV_VERSION" \
@@ -66,7 +66,7 @@ if [ "$FUSION" == "true" ]; then
 		--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
 		--crds-directory="$OUTDIR_CRDS" \
 		--manifests-directory=$BUNDLEMANIFESTS_DIR \
-		--olm-bundle-directory="$FCS_FINAL_DIR" \
+		--olm-bundle-directory="$ICS_FINAL_DIR" \
 		--timestamp="$TIMESTAMP" \
 		--rook-csiaddons-image="$ROOK_CSIADDONS_IMAGE"
 else

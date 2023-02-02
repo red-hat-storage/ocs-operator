@@ -94,25 +94,25 @@ function gen_ocs_csv() {
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
-# ==== DUMP FCS YAMLS ====
-# Generate an FCS CSV using the operator-sdk.
+# ==== DUMP ICS YAMLS ====
+# Generate an ICS CSV using the operator-sdk.
 # This is the base CSV everything else gets merged into later on.
 function gen_fcs_csv() {
-	echo "Generating IBM Spectrum Fusion Container Storage CSV"
-	rm -rf "$(dirname $FCS_FINAL_DIR)"
-	fcs_crds_outdir="$OUTDIR_CRDS/fcs"
+	echo "Generating IBM Container Storage CSV"
+	rm -rf "$(dirname $ICS_FINAL_DIR)"
+	fcs_crds_outdir="$OUTDIR_CRDS/ics"
 	rm -rf $FCS_CSV
 	rm -rf $fcs_crds_outdir
 	mkdir -p $fcs_crds_outdir
 
-	gen_args="generate kustomize manifests --input-dir config/manifests/fcs-operator --output-dir config/manifests/fcs-operator --package fcs-operator -q"
+	gen_args="generate kustomize manifests --input-dir config/manifests/ics-operator --output-dir config/manifests/ics-operator --package ocs-operator -q"
 	# shellcheck disable=SC2086
 	$OPERATOR_SDK $gen_args
 	pushd config/manager
 	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
 	popd
-	$KUSTOMIZE build config/manifests/fcs-operator | $OPERATOR_SDK generate bundle -q --output-dir deploy/fcs-operator --kustomize-dir config/manifests/fcs-operator --package fcs-operator --version "$CSV_VERSION" --extra-service-accounts=ocs-metrics-exporter
-	mv deploy/fcs-operator/manifests/*clusterserviceversion.yaml $FCS_CSV
+	$KUSTOMIZE build config/manifests/ics-operator | $OPERATOR_SDK generate bundle -q --output-dir deploy/ics-operator --kustomize-dir config/manifests/ics-operator --package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ocs-metrics-exporter
+	mv deploy/ics-operator/manifests/*clusterserviceversion.yaml $FCS_CSV
 	cp config/crd/bases/* $fcs_crds_outdir
 }
 
