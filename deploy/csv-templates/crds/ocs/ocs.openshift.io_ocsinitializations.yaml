@@ -29,7 +29,8 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: OCSInitialization is the Schema for the ocsinitialization API
+        description: OCSInitialization represents the initial data to be created when
+          the operator is installed.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
