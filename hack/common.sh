@@ -41,12 +41,14 @@ GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
 # This env var allows developers to point to a custom oc tool that isn't in $PATH
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"
-OCS_FINAL_DIR="deploy/bundle/manifests"
+OCS_FINAL_DIR="deploy/ocs-operator/manifests"
+ICS_FINAL_DIR="deploy/ics-operator/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
 NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
+FCS_CSV="$OUTDIR_TEMPLATES/ics-operator.csv.yaml.in"
 
 LATEST_ROOK_IMAGE="rook/ceph:v1.10.0"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:master-20220916"

@@ -57,8 +57,8 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:4.12.0
-    description: Red Hat OpenShift Container Storage provides hyperconverged storage
-      for applications within an OpenShift cluster.
+    description: The Container Storage provides hyperconverged storage for applications
+      within an OpenShift cluster.
     external.features.ocs.openshift.io/export-script: |-
       IiIiCkNvcHlyaWdodCAyMDIwIFRoZSBSb29rIEF1dGhvcnMuIEFsbCByaWdodHMgcmVzZXJ2ZWQu
       CgpMaWNlbnNlZCB1bmRlciB0aGUgQXBhY2hlIExpY2Vuc2UsIFZlcnNpb24gMi4wICh0aGUgIkxp
@@ -1423,7 +1423,7 @@ metadata:
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
-    support: Red Hat
+    support: IBM
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.ppc64le: supported
@@ -1436,8 +1436,8 @@ spec:
     enabled: false
   customresourcedefinitions:
     owned:
-    - description: OCS Initialization represents the initial data to be created when
-        the OCS operator is installed.
+    - description: OCSInitialization represents the initial data to be created when
+        the operator is installed.
       displayName: OCS Initialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
@@ -1447,8 +1447,8 @@ spec:
       kind: StorageClassClaim
       name: storageclassclaims.ocs.openshift.io
       version: v1alpha1
-    - description: Storage Cluster represents a OpenShift Container Storage Cluster
-        including Ceph Cluster, NooBaa and all the storage and compute resources required.
+    - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
+        and all the storage and compute resources required.
       displayName: Storage Cluster
       kind: StorageCluster
       name: storageclusters.ocs.openshift.io
@@ -1636,13 +1636,12 @@ spec:
       kind: CephBlockPoolRadosNamespace
       name: cephblockpoolradosnamespaces.ceph.rook.io
       version: v1
-  description: |2
+  description: |
+    **The Container Storage** deploys three operators.
 
-    **Red Hat OpenShift Container Storage** deploys three operators.
+    ###  Container Storage operator
 
-    ### OpenShift Container Storage operator
-
-    The OpenShift Container Storage operator is the primary operator for OpenShift Container Storage. It serves to facilitate the other operators in OpenShift Container Storage by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
+    The Container Storage operator is the primary operator for the Container Storage. It serves to facilitate the other operators in the Container Storage by performing administrative tasks outside their scope as well as watching and configuring their CustomResources.
 
     ### Rook
 
@@ -1650,22 +1649,22 @@ spec:
 
     # Core Capabilities
 
-    * **Self-managing service:** No matter which supported storage technologies you choose, OpenShift Container Storage ensures that resources can be deployed and managed automatically.
+    * **Self-managing service:** No matter which supported storage technologies you choose, the Container Storage ensures that resources can be deployed and managed automatically.
 
-    * **Hyper-scale or hyper-converged:** With OpenShift Container Storage you can either build dedicated storage clusters or hyper-converged clusters where your apps run alongside storage.
+    * **Hyper-scale or hyper-converged:** With the Container Storage you can either build dedicated storage clusters or hyper-converged clusters where your apps run alongside storage.
 
-    * **File, Block, and Object provided by OpenShift Container Storage:** OpenShift Container Storage integrates Ceph with multiple storage presentations including object storage (compatible with S3), block storage, and POSIX-compliant shared file system.
+    * **File, Block, and Object provided by the Container Storage:** the Container Storage integrates Ceph with multiple storage presentations including object storage (compatible with S3), block storage, and POSIX-compliant shared file system.
 
-    * **Your data, protected:** OpenShift Container Storage efficiently distributes and replicates your data across your cluster to minimize the risk of data loss. With snapshots, cloning, and versioning, no more losing sleep over your data.
+    * **Your data, protected:** the Container Storage efficiently distributes and replicates your data across your cluster to minimize the risk of data loss. With snapshots, cloning, and versioning, no more losing sleep over your data.
 
     * **Elastic storage in your datacenter:** Scale is now possible in your datacenter. Get started with a few terabytes, and easily scale up.
 
     * **Simplified data management:** Easily create hybrid and multi-cloud data storage for your workloads, using a single namespace.
 
     [1]: https://rook.io
-  displayName: OpenShift Container Storage
+  displayName: Container Storage
   icon:
-  - base64data: PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTQ1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2UwMDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPlJlZEhhdC1Mb2dvLUhhdC1Db2xvcjwvdGl0bGU+PHBhdGggZD0iTTE1Ny43Nyw2Mi42MWExNCwxNCwwLDAsMSwuMzEsMy40MmMwLDE0Ljg4LTE4LjEsMTcuNDYtMzAuNjEsMTcuNDZDNzguODMsODMuNDksNDIuNTMsNTMuMjYsNDIuNTMsNDRhNi40Myw2LjQzLDAsMCwxLC4yMi0xLjk0bC0zLjY2LDkuMDZhMTguNDUsMTguNDUsMCwwLDAtMS41MSw3LjMzYzAsMTguMTEsNDEsNDUuNDgsODcuNzQsNDUuNDgsMjAuNjksMCwzNi40My03Ljc2LDM2LjQzLTIxLjc3LDAtMS4wOCwwLTEuOTQtMS43My0xMC4xM1oiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMjcuNDcsODMuNDljMTIuNTEsMCwzMC42MS0yLjU4LDMwLjYxLTE3LjQ2YTE0LDE0LDAsMCwwLS4zMS0zLjQybC03LjQ1LTMyLjM2Yy0xLjcyLTcuMTItMy4yMy0xMC4zNS0xNS43My0xNi42QzEyNC44OSw4LjY5LDEwMy43Ni41LDk3LjUxLjUsOTEuNjkuNSw5MCw4LDgzLjA2LDhjLTYuNjgsMC0xMS42NC01LjYtMTcuODktNS42LTYsMC05LjkxLDQuMDktMTIuOTMsMTIuNSwwLDAtOC40MSwyMy43Mi05LjQ5LDI3LjE2QTYuNDMsNi40MywwLDAsMCw0Mi41Myw0NGMwLDkuMjIsMzYuMywzOS40NSw4NC45NCwzOS40NU0xNjAsNzIuMDdjMS43Myw4LjE5LDEuNzMsOS4wNSwxLjczLDEwLjEzLDAsMTQtMTUuNzQsMjEuNzctMzYuNDMsMjEuNzdDNzguNTQsMTA0LDM3LjU4LDc2LjYsMzcuNTgsNTguNDlhMTguNDUsMTguNDUsMCwwLDEsMS41MS03LjMzQzIyLjI3LDUyLC41LDU1LC41LDc0LjIyYzAsMzEuNDgsNzQuNTksNzAuMjgsMTMzLjY1LDcwLjI4LDQ1LjI4LDAsNTYuNy0yMC40OCw1Ni43LTM2LjY1LDAtMTIuNzItMTEtMjcuMTYtMzAuODMtMzUuNzgiLz48L3N2Zz4=
+  - base64data: PHN2ZyBpZD0iU3BlY3RydW1GdXNpb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSI5ZjVmbzEweDdiIiB4MT0iNS45MjUiIHkxPSIxNi41NDkiIHgyPSIyNC4xNjUiIHkyPSI2LjAxOCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZiIgc3RvcC1vcGFjaXR5PSIwIi8+PHN0b3Agb2Zmc2V0PSIuNDUiIHN0b3AtY29sb3I9IiNmZmYiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0ic2F1bmxlajA2YSIgeDE9IjIwLjQ5MyIgeTE9IjI4IiB4Mj0iMjAuNDkzIiB5Mj0iNyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iLjU1IiBzdG9wLWNvbG9yPSIjZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9IjAiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZ284Mms5Mm4zYyIgeDE9IjMuNDE5IiB5MT0iMTQuMDA3IiB4Mj0iMjEuNjA1IiB5Mj0iMjQuNTA3IiB4bGluazpocmVmPSIjc2F1bmxlajA2YSIvPjxsaW5lYXJHcmFkaWVudCBpZD0iam01MDRta2c0ZSIgeDE9Ii0yOTQ2IiB5MT0iLTQ5ODYiIHgyPSItMjkxNCIgeTI9Ii01MDE4IiBncmFkaWVudFRyYW5zZm9ybT0ibWF0cml4KDEgMCAwIC0xIDI5NDYgLTQ5ODYpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMSIgc3RvcC1jb2xvcj0iIzhhM2ZmYyIvPjxzdG9wIG9mZnNldD0iLjkiIHN0b3AtY29sb3I9IiNlZTUzOTYiLz48L2xpbmVhckdyYWRpZW50PjxtYXNrIGlkPSI5bHhiamJ0dTZkIiB4PSIwIiB5PSIwIiB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiPjxwYXRoIGQ9Ik0yNCAxNmgtMlY2LjU4bC02LTMuNDI3LTEzLjM1NiA3LjcxMy0xLTEuNzMyIDEzLjg1Ni04YTEgMSAwIDAgMSAxIDBsNyA0QTEgMSAwIDAgMSAyNCA2eiIgc3R5bGU9ImZpbGw6dXJsKCM5ZjVmbzEweDdiKSIvPjxwYXRoIGQ9Ik0yMSAyOGEuOTkyLjk5MiAwIDAgMS0uNS0uMTM0bC04LjUxMy00LjkxNSAxLTEuNzMyTDIxIDI1Ljg0N2w2LTMuNDI3VjdoMnYxNmExIDEgMCAwIDEtLjUuODY4bC03IDRBMSAxIDAgMCAxIDIxIDI4eiIgc3R5bGU9ImZpbGw6dXJsKCNzYXVubGVqMDZhKSIvPjxwYXRoIGQ9Im0xNy4zNTYgMzEuODY2LTEzLjg1Ni04QTEgMSAwIDAgMSAzIDIzdi04YTEgMSAwIDAgMSAuNS0uODY2bDguNTY3LTQuOTQ2IDEgMS43MzJMNSAxNS41Nzd2Ni44NDZsMTMuMzU2IDcuNzExeiIgc3R5bGU9ImZpbGw6dXJsKCNnbzgyazkybjNjKSIvPjwvbWFzaz48L2RlZnM+PGcgc3R5bGU9Im1hc2s6dXJsKCM5bHhiamJ0dTZkKSI+PHBhdGggdHJhbnNmb3JtPSJyb3RhdGUoLTkwIDE2IDE2KSIgc3R5bGU9ImZpbGw6dXJsKCNqbTUwNG1rZzRlKSIgZD0iTTAgMGgzMnYzMkgweiIvPjwvZz48cGF0aCBkPSJNMTYgMjAuNDY0YTEgMSAwIDAgMS0uNS0uMTM0bC0zLTEuNzMyYTEgMSAwIDAgMS0uNS0uODY2di0zLjQ2NGExIDEgMCAwIDEgLjUtLjg2NmwzLTEuNzMyYTEgMSAwIDAgMSAxIDBsMyAxLjczMmExIDEgMCAwIDEgLjUuODY2djMuNDY0YTEgMSAwIDAgMS0uNS44NjZsLTMgMS43MzJhMSAxIDAgMCAxLS41LjEzNHptLTItMy4zMDkgMiAxLjE1NCAyLTEuMTU0di0yLjMxbC0yLTEuMTU0LTIgMS4xNTR6IiBzdHlsZT0iZmlsbDojMDAxZDZjIi8+PC9zdmc+
     mediatype: image/svg+xml
   install:
     spec:
@@ -3193,6 +3192,7 @@ spec:
   - supported: false
     type: AllNamespaces
   keywords:
+  - IBM
   - storage
   - rook
   - ceph
@@ -3203,12 +3203,12 @@ spec:
   - name: Source Code
     url: https://github.com/red-hat-storage/ocs-operator
   maintainers:
-  - email: ocs-support@redhat.com
-    name: Red Hat Support
+  - email: mysphelp@us.ibm.com
+    name: IBM Support
   maturity: alpha
   minKubeVersion: 1.16.0
   provider:
-    name: Red Hat
+    name: IBM
   relatedImages:
   - image: rook/ceph:v1.10.0
     name: rook-container
