@@ -9,8 +9,9 @@ import (
 	"time"
 
 	yaml "github.com/ghodss/yaml"
-	v1 "github.com/operator-framework/api/pkg/operators/v1"
-	v1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	operatorv1 "github.com/operator-framework/api/pkg/operators/v1"
+	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	operatorv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install"
 	appsv1 "k8s.io/api/apps/v1"
 	k8sv1 "k8s.io/api/core/v1"
@@ -19,16 +20,18 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const marketplaceNamespace = "openshift-marketplace"
 
 type clusterObjects struct {
 	namespaces     []k8sv1.Namespace
-	operatorGroups []v1.OperatorGroup
-	catalogSources []v1alpha1.CatalogSource
-	subscriptions  []v1alpha1.Subscription
+	operatorGroups []operatorv1.OperatorGroup
+	catalogSources []operatorv1alpha1.CatalogSource
+	subscriptions  []operatorv1alpha1.Subscription
 }
 
 func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
@@ -41,7 +44,8 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, operatorGroup := range co.operatorGroups {
-		operatorGroups, err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).List(context.TODO(), metav1.ListOptions{})
+		operatorGroups := &operatorv1.OperatorGroupList{}
+		err := t.Client.List(context.TODO(), operatorGroups, &client.ListOptions{Namespace: operatorGroup.Namespace})
 		if err != nil {
 			return err
 		}
@@ -55,14 +59,14 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 			// Skip this one, so we don't make the system bad.
 			continue
 		}
-		_, err = t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Create(context.TODO(), &operatorGroup, metav1.CreateOptions{})
+		err = t.Client.Create(context.TODO(), &operatorGroup)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 
 	for _, catalogSource := range co.catalogSources {
-		_, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Create(context.TODO(), &catalogSource, metav1.CreateOptions{})
+		err := t.Client.Create(context.TODO(), &catalogSource)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -75,7 +79,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, subscription := range co.subscriptions {
-		_, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Create(context.TODO(), &subscription, metav1.CreateOptions{})
+		err = t.Client.Create(context.TODO(), &subscription)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -110,34 +114,34 @@ func (t *DeployManager) generateClusterObjects(ocsCatalogImage string, subscript
 	})
 
 	// Operator Groups
-	ocsOG := v1.OperatorGroup{
+	ocsOG := operatorv1.OperatorGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "openshift-storage-operatorgroup",
 			Namespace: InstallNamespace,
 		},
-		Spec: v1.OperatorGroupSpec{
+		Spec: operatorv1.OperatorGroupSpec{
 			TargetNamespaces: []string{InstallNamespace},
 		},
 	}
-	ocsOG.SetGroupVersionKind(schema.GroupVersionKind{Group: v1.SchemeGroupVersion.Group, Kind: "OperatorGroup", Version: v1.SchemeGroupVersion.Version})
+	ocsOG.SetGroupVersionKind(schema.GroupVersionKind{Group: operatorv1.SchemeGroupVersion.Group, Kind: "OperatorGroup", Version: operatorv1.SchemeGroupVersion.Version})
 
 	co.operatorGroups = append(co.operatorGroups, ocsOG)
-	ocsCatalog := v1alpha1.CatalogSource{
+	ocsCatalog := operatorv1alpha1.CatalogSource{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ocs-catalogsource",
 			Namespace: marketplaceNamespace,
 		},
-		Spec: v1alpha1.CatalogSourceSpec{
-			SourceType:  v1alpha1.SourceTypeGrpc,
+		Spec: operatorv1alpha1.CatalogSourceSpec{
+			SourceType:  operatorv1alpha1.SourceTypeGrpc,
 			Image:       ocsCatalogImage,
 			DisplayName: "OpenShift Container Storage",
 			Publisher:   "Red Hat",
-			Icon: v1alpha1.Icon{
+			Icon: operatorv1alpha1.Icon{
 				Data:      "PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTQ1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2UwMDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPlJlZEhhdC1Mb2dvLUhhdC1Db2xvcjwvdGl0bGU+PHBhdGggZD0iTTE1Ny43Nyw2Mi42MWExNCwxNCwwLDAsMSwuMzEsMy40MmMwLDE0Ljg4LTE4LjEsMTcuNDYtMzAuNjEsMTcuNDZDNzguODMsODMuNDksNDIuNTMsNTMuMjYsNDIuNTMsNDRhNi40Myw2LjQzLDAsMCwxLC4yMi0xLjk0bC0zLjY2LDkuMDZhMTguNDUsMTguNDUsMCwwLDAtMS41MSw3LjMzYzAsMTguMTEsNDEsNDUuNDgsODcuNzQsNDUuNDgsMjAuNjksMCwzNi40My03Ljc2LDM2LjQzLTIxLjc3LDAtMS4wOCwwLTEuOTQtMS43My0xMC4xM1oiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMjcuNDcsODMuNDljMTIuNTEsMCwzMC42MS0yLjU4LDMwLjYxLTE3LjQ2YTE0LDE0LDAsMCwwLS4zMS0zLjQybC03LjQ1LTMyLjM2Yy0xLjcyLTcuMTItMy4yMy0xMC4zNS0xNS43My0xNi42QzEyNC44OSw4LjY5LDEwMy43Ni41LDk3LjUxLjUsOTEuNjkuNSw5MCw4LDgzLjA2LDhjLTYuNjgsMC0xMS42NC01LjYtMTcuODktNS42LTYsMC05LjkxLDQuMDktMTIuOTMsMTIuNSwwLDAtOC40MSwyMy43Mi05LjQ5LDI3LjE2QTYuNDMsNi40MywwLDAsMCw0Mi41Myw0NGMwLDkuMjIsMzYuMywzOS40NSw4NC45NCwzOS40NU0xNjAsNzIuMDdjMS43Myw4LjE5LDEuNzMsOS4wNSwxLjczLDEwLjEzLDAsMTQtMTUuNzQsMjEuNzctMzYuNDMsMjEuNzdDNzguNTQsMTA0LDM3LjU4LDc2LjYsMzcuNTgsNTguNDlhMTguNDUsMTguNDUsMCwwLDEsMS41MS03LjMzQzIyLjI3LDUyLC41LDU1LC41LDc0LjIyYzAsMzEuNDgsNzQuNTksNzAuMjgsMTMzLjY1LDcwLjI4LDQ1LjI4LDAsNTYuNy0yMC40OCw1Ni43LTM2LjY1LDAtMTIuNzItMTEtMjcuMTYtMzAuODMtMzUuNzgiLz48L3N2Zz4=",
 				MediaType: "image/svg+xml",
 			},
-			GrpcPodConfig: &v1alpha1.GrpcPodConfig{
-				SecurityContextConfig: v1alpha1.Legacy,
+			GrpcPodConfig: &operatorv1alpha1.GrpcPodConfig{
+				SecurityContextConfig: operatorv1alpha1.Legacy,
 			},
 		},
 	}
@@ -258,9 +262,8 @@ func (t *DeployManager) waitForOCSCatalogSource() error {
 	}
 
 	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		pods, err := t.k8sClient.CoreV1().Pods(marketplaceNamespace).List(context.TODO(), metav1.ListOptions{
-			LabelSelector: labelSelector.String(),
-		})
+		pods := &k8sv1.PodList{}
+		err = t.Client.List(context.TODO(), pods, &client.ListOptions{LabelSelector: labelSelector})
 		if err != nil {
 			lastReason = fmt.Sprintf("error talking to k8s apiserver: %v", err)
 			return false, nil
@@ -339,7 +342,8 @@ func (t *DeployManager) WaitForOCSOperator() error {
 
 	err := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
 		for _, name := range deployments {
-			deployment, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).Get(context.TODO(), name, metav1.GetOptions{})
+			deployment := &appsv1.Deployment{}
+			err = t.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: InstallNamespace}, deployment)
 			if err != nil {
 				lastReason = fmt.Sprintf("waiting on deployment %s to be created", name)
 				return false, nil
@@ -392,7 +396,7 @@ func (t *DeployManager) UninstallOCS(ocsCatalogImage string, subscriptionChannel
 func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 
 	for _, operatorGroup := range co.operatorGroups {
-		err := t.olmClient.OperatorsV1().OperatorGroups(operatorGroup.Namespace).Delete(context.TODO(), operatorGroup.Name, metav1.DeleteOptions{})
+		err := t.Client.Delete(context.TODO(), &operatorGroup)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -400,14 +404,14 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, catalogSource := range co.catalogSources {
-		err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Delete(context.TODO(), catalogSource.Name, metav1.DeleteOptions{})
+		err := t.Client.Delete(context.TODO(), &catalogSource)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}
 
 	for _, subscription := range co.subscriptions {
-		err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Delete(context.TODO(), subscription.Name, metav1.DeleteOptions{})
+		err := t.Client.Delete(context.TODO(), &subscription)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -418,12 +422,13 @@ func (t *DeployManager) deleteClusterObjects(co *clusterObjects) error {
 
 func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
 	for _, catalogSource := range co.catalogSources {
-		cs, err := t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Get(context.TODO(), catalogSource.Name, metav1.GetOptions{})
+		cs := &operatorv1alpha1.CatalogSource{}
+		err := t.Client.Get(context.TODO(), types.NamespacedName{Name: catalogSource.Name, Namespace: catalogSource.Namespace}, cs)
 		if err != nil {
 			return err
 		}
 		cs.Spec.Image = catalogSource.Spec.Image
-		_, err = t.olmClient.OperatorsV1alpha1().CatalogSources(catalogSource.Namespace).Update(context.TODO(), cs, metav1.UpdateOptions{})
+		err = t.Client.Update(context.TODO(), cs)
 		if err != nil {
 			return err
 		}
@@ -439,12 +444,13 @@ func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
 	}
 
 	for _, subscription := range co.subscriptions {
-		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Get(context.TODO(), subscription.Name, metav1.GetOptions{})
+		sub := &operatorv1alpha1.Subscription{}
+		err := t.Client.Get(context.TODO(), types.NamespacedName{Name: subscription.Name, Namespace: subscription.Namespace}, sub)
 		if err != nil {
 			return err
 		}
 		sub.Spec.Channel = subscription.Spec.Channel
-		_, err = t.olmClient.OperatorsV1alpha1().Subscriptions(subscription.Namespace).Update(context.TODO(), sub, metav1.UpdateOptions{})
+		err = t.Client.Update(context.TODO(), sub)
 		if err != nil {
 			return err
 		}
@@ -465,7 +471,8 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 
 	lastReason := ""
 	waitErr := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		sub, err := t.olmClient.OperatorsV1alpha1().Subscriptions(InstallNamespace).Get(context.TODO(), subscription, metav1.GetOptions{})
+		sub := &operatorv1alpha1.Subscription{}
+		err = t.Client.Get(context.TODO(), types.NamespacedName{Name: subscription, Namespace: InstallNamespace}, sub)
 		if err != nil {
 			return false, err
 		}
@@ -473,7 +480,8 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 			lastReason = fmt.Sprintf("waiting on subscription channel to be updated to %s ", subscriptionChannel)
 			return false, nil
 		}
-		csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(context.TODO(), metav1.ListOptions{})
+		csvs := &operatorv1alpha1.ClusterServiceVersionList{}
+		err = t.Client.List(context.TODO(), csvs, &client.ListOptions{Namespace: InstallNamespace})
 		if err != nil {
 			return false, err
 		}
@@ -500,8 +508,9 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 // GetCsv retrieves the csv named ocs-operator
 func (t *DeployManager) GetCsv() (v1alpha1.ClusterServiceVersion, error) {
 	csvName := "ocs-operator"
-	csv := v1alpha1.ClusterServiceVersion{}
-	csvs, err := t.olmClient.OperatorsV1alpha1().ClusterServiceVersions(InstallNamespace).List(context.TODO(), metav1.ListOptions{})
+	csv := operatorv1alpha1.ClusterServiceVersion{}
+	csvs := &operatorv1alpha1.ClusterServiceVersionList{}
+	err := t.Client.List(context.TODO(), csvs, &client.ListOptions{Namespace: InstallNamespace})
 	for _, csv := range csvs.Items {
 		if strings.Contains(csv.Name, csvName) {
 			return csv, err

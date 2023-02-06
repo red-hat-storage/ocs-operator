@@ -5,18 +5,17 @@ import (
 	"os"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis"
-	olmclient "github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned"
+	operatorv1 "github.com/operator-framework/api/pkg/operators/v1"
+	operatorv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
+	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
-	crclient "sigs.k8s.io/controller-runtime/pkg/client"
+	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // InstallNamespace is the namespace ocs is installed into
@@ -41,8 +40,11 @@ func (t *DeployManager) getMinOSDsCount() int {
 var scheme = runtime.NewScheme()
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	utilruntime.Must(k8sscheme.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(batchv1.AddToScheme(scheme))
+	utilruntime.Must(operatorv1.AddToScheme(scheme))
+	utilruntime.Must(operatorv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(ocsv1.AddToScheme(scheme))
 	utilruntime.Must(rookcephv1.AddToScheme(scheme))
 	utilruntime.Must(nbv1.AddToScheme(scheme))
@@ -75,38 +77,8 @@ type storageClusterConfig struct {
 
 // DeployManager is a util tool used by the functional tests
 type DeployManager struct {
-	olmClient          *olmclient.Clientset
-	k8sClient          *kubernetes.Clientset
-	rookClient         *rookclient.Clientset
-	ocsClient          *rest.RESTClient
-	crClient           crclient.Client
-	parameterCodec     runtime.ParameterCodec
+	Client             client.Client
 	storageClusterConf *storageClusterConfig
-}
-
-// GetCrClient is the function used to retrieve the controller-runtime client
-func (t *DeployManager) GetCrClient() crclient.Client {
-	return t.crClient
-}
-
-// GetK8sClient is the function used to retrieve the kubernetes client
-func (t *DeployManager) GetK8sClient() *kubernetes.Clientset {
-	return t.k8sClient
-}
-
-// GetOcsClient is the function used to retrieve the ocs client
-func (t *DeployManager) GetOcsClient() *rest.RESTClient {
-	return t.ocsClient
-}
-
-// GetRookClient is the function used to retrieve the rook client
-func (t *DeployManager) GetRookClient() *rookclient.Clientset {
-	return t.rookClient
-}
-
-// GetParameterCodec is the function used to retrieve the parameterCodec
-func (t *DeployManager) GetParameterCodec() runtime.ParameterCodec {
-	return t.parameterCodec
 }
 
 // GetNamespace is the function used to retrieve the installation namespace
@@ -116,69 +88,17 @@ func (t *DeployManager) GetNamespace() string {
 
 // NewDeployManager creates a DeployManager struct with default configuration
 func NewDeployManager() (*DeployManager, error) {
-	codecs := serializer.NewCodecFactory(scheme)
-	parameterCodec := runtime.NewParameterCodec(scheme)
-
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		return nil, fmt.Errorf("No KUBECONFIG environment variable set")
 	}
 
-	// K8s Core api client
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, err
 	}
-	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
-	config.APIPath = "/apis"
-	config.ContentType = runtime.ContentTypeJSON
-	k8sClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
 
-	// ocs Operator rest client
-	ocsConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	ocsConfig.GroupVersion = &ocsv1.GroupVersion
-	ocsConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
-	ocsConfig.APIPath = "/apis"
-	ocsConfig.ContentType = runtime.ContentTypeJSON
-	if ocsConfig.UserAgent == "" {
-		ocsConfig.UserAgent = rest.DefaultKubernetesUserAgent()
-	}
-	ocsClient, err := rest.RESTClientFor(ocsConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// rook ceph rest client
-	rookConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	rookClient, err := rookclient.NewForConfig(rookConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// controller-runtime client
-	crClient, err := crclient.New(config, crclient.Options{Scheme: scheme})
-	if err != nil {
-		return nil, err
-	}
-
-	// olm client
-	olmConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	olmConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: clientgoscheme.Codecs}
-	olmConfig.APIPath = "/apis"
-	olmConfig.ContentType = runtime.ContentTypeJSON
-	olmClient, err := olmclient.NewForConfig(olmConfig)
+	client, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, err
 	}
@@ -186,12 +106,7 @@ func NewDeployManager() (*DeployManager, error) {
 	storageClusterConf := getDefaultStorageClusterConfig()
 
 	return &DeployManager{
-		olmClient:          olmClient,
-		k8sClient:          k8sClient,
-		rookClient:         rookClient,
-		ocsClient:          ocsClient,
-		crClient:           crClient,
-		parameterCodec:     parameterCodec,
+		Client:             client,
 		storageClusterConf: storageClusterConf,
 	}, nil
 }

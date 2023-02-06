@@ -9,14 +9,14 @@ import (
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = ginkgo.Describe("job creation", DataValidationTest)
 
 func DataValidationTest() {
 	dm := tests.DeployManager
-	k8sClient := dm.GetK8sClient()
+	client := dm.Client
 
 	ginkgo.AfterEach(func() {
 		if ginkgo.CurrentGinkgoTestDescription().Failed {
@@ -32,15 +32,17 @@ func DataValidationTest() {
 		ginkgo.BeforeEach(func() {
 			namespace = tests.TestNamespace
 			pvc = tests.GetRandomPVC(tests.StorageClassRBD, "1Gi")
+			pvc.Namespace = namespace
 			job = tests.GetDataValidatorJob(pvc.GetName())
+			job.Namespace = namespace
 		})
 
 		ginkgo.AfterEach(func() {
-			err := k8sClient.BatchV1().Jobs(namespace).Delete(context.TODO(), job.GetName(), metav1.DeleteOptions{})
+			err := client.Delete(context.TODO(), job)
 			if err != nil && !errors.IsNotFound(err) {
 				gomega.Expect(err).To(gomega.BeNil())
 			}
-			err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvc.Name, metav1.DeleteOptions{})
+			err = client.Delete(context.TODO(), pvc)
 			if err != nil && !errors.IsNotFound(err) {
 				gomega.Expect(err).To(gomega.BeNil())
 			}
@@ -54,8 +56,11 @@ func DataValidationTest() {
 				ginkgo.By("Running Job")
 				err = dm.WaitForJobSucceeded(job, namespace)
 				gomega.Expect(err).To(gomega.BeNil())
-
-				finalJob, err := k8sClient.BatchV1().Jobs(namespace).Get(context.TODO(), job.GetName(), metav1.GetOptions{})
+				finalJob := &k8sbatchv1.Job{}
+				err = client.Get(context.TODO(), types.NamespacedName{
+					Name:      job.GetName(),
+					Namespace: namespace,
+				}, finalJob)
 				gomega.Expect(err).To(gomega.BeNil())
 				gomega.Expect(finalJob.Status.Succeeded).NotTo(gomega.BeZero())
 			})

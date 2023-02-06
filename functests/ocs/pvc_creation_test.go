@@ -8,14 +8,13 @@ import (
 	tests "github.com/red-hat-storage/ocs-operator/functests"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = ginkgo.Describe("PVC Creation", PVCCreationTest)
 
 func PVCCreationTest() {
 	dm := tests.DeployManager
-	k8sClient := dm.GetK8sClient()
+	client := dm.Client
 
 	ginkgo.AfterEach(func() {
 		if ginkgo.CurrentGinkgoTestDescription().Failed {
@@ -30,10 +29,11 @@ func PVCCreationTest() {
 		ginkgo.BeforeEach(func() {
 			namespace = tests.TestNamespace
 			pvc = tests.GetRandomPVC(tests.StorageClassRBD, "1Gi")
+			pvc.Namespace = namespace
 		})
 
 		ginkgo.AfterEach(func() {
-			err := k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvc.Name, metav1.DeleteOptions{})
+			err := client.Delete(context.TODO(), pvc)
 			if err != nil && !errors.IsNotFound(err) {
 				gomega.Expect(err).To(gomega.BeNil())
 			}
@@ -46,7 +46,7 @@ func PVCCreationTest() {
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Deleting PVC")
-				err = k8sClient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvc.Name, metav1.DeleteOptions{})
+				err = client.Delete(context.TODO(), pvc)
 				gomega.Expect(err).To(gomega.BeNil())
 			})
 		})

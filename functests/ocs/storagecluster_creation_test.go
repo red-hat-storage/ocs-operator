@@ -10,21 +10,17 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	tests "github.com/red-hat-storage/ocs-operator/functests"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type SCCreation struct {
-	ocsClient               *rest.RESTClient
-	parameterCodec          runtime.ParameterCodec
+	client                  client.Client
 	duplicateStorageCluster *ocsv1.StorageCluster
 }
 
 func initSCCreation() (*SCCreation, error) {
 	retSCCObj := &SCCreation{}
-	retSCCObj.ocsClient = tests.DeployManager.GetOcsClient()
-	retSCCObj.parameterCodec = tests.DeployManager.GetParameterCodec()
+	retSCCObj.client = tests.DeployManager.Client
 	return retSCCObj, nil
 }
 
@@ -62,41 +58,24 @@ func StorageClusterCreationTest() {
 		})
 
 		ginkgo.AfterEach(func() {
-			err := sccObj.ocsClient.Delete().
-				Resource("storageclusters").
-				Namespace(sccObj.duplicateStorageCluster.Namespace).
-				Name(sccObj.duplicateStorageCluster.Name).
-				VersionedParams(&metav1.GetOptions{}, sccObj.parameterCodec).
-				Do(context.TODO()).
-				Error()
+			err := sccObj.client.Delete(context.TODO(), sccObj.duplicateStorageCluster)
 			gomega.Expect(err).To(gomega.BeNil())
 		})
 
 		ginkgo.Context("create storagecluster", func() {
 			ginkgo.It("and verify PhaseIgnored status", func() {
 				ginkgo.By("Creating StorageCluster")
-				newSc := &ocsv1.StorageCluster{}
-
-				err := sccObj.ocsClient.Post().
-					Resource("storageclusters").
-					Namespace(sccObj.duplicateStorageCluster.Namespace).
-					Name(sccObj.duplicateStorageCluster.Name).
-					Body(sccObj.duplicateStorageCluster).
-					Do(context.TODO()).
-					Into(newSc)
+				err := sccObj.client.Create(context.TODO(), sccObj.duplicateStorageCluster)
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Verifying StorageCluster is PhaseIgnored")
 				sc := &ocsv1.StorageCluster{}
 
 				gomega.Eventually(func() error {
-					err = sccObj.ocsClient.Get().
-						Resource("storageclusters").
-						Namespace(sccObj.duplicateStorageCluster.Namespace).
-						Name(sccObj.duplicateStorageCluster.Name).
-						VersionedParams(&metav1.GetOptions{}, sccObj.parameterCodec).
-						Do(context.TODO()).
-						Into(sc)
+					err = sccObj.client.Get(context.TODO(), client.ObjectKey{
+						Name:      sccObj.duplicateStorageCluster.Name,
+						Namespace: sccObj.duplicateStorageCluster.Namespace,
+					}, sc)
 					if err != nil {
 						return err
 					}

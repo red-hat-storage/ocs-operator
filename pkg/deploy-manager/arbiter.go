@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetArbiterZone returns the elected arbiter zone.
@@ -17,8 +18,10 @@ func (t *DeployManager) GetArbiterZone() string {
 // In our tests, we will just pick the zone with the least number of nodes as the arbiter zone.
 func (t *DeployManager) electArbiterZone() error {
 	var arbiterZoneElect string
-
-	nodes, err := t.k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
+	nodes := &corev1.NodeList{}
+	err := t.Client.List(context.TODO(), nodes, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{"node-role.kubernetes.io/worker": ""}),
+	})
 	if err != nil {
 		return err
 	}
