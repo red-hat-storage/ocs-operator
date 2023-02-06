@@ -15,7 +15,7 @@ FUSION?=false
 KUSTOMIZE_VERSION=v4.5.2
 CONTROLLER_GEN_VERSION=v0.9.2
 
-all: ocs-operator ocs-registry ocs-must-gather
+all: ocs-operator ocs-registry
 
 .PHONY: \
 	build \
@@ -24,7 +24,6 @@ all: ocs-operator ocs-registry ocs-must-gather
 	build-container \
 	clean \
 	ocs-operator \
-	ocs-must-gather \
 	operator-bundle \
 	verify-operator-bundle \
 	operator-index \
@@ -77,10 +76,6 @@ ocs-operator: build
 ocs-metrics-exporter: build
 	@echo "Building the ocs-metrics-exporter image"
 	hack/build-metrics-exporter.sh
-
-ocs-must-gather:
-	@echo "Building the ocs-must-gather image"
-	hack/build-must-gather.sh
 
 source-manifests: operator-sdk manifests kustomize
 	@echo "Sourcing CSV and CRD manifests from component-level operators"
