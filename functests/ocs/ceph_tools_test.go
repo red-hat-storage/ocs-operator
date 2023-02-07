@@ -12,10 +12,9 @@ import (
 	deploymanager "github.com/red-hat-storage/ocs-operator/pkg/deploy-manager"
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -24,36 +23,34 @@ const (
 )
 
 type RookCephTools struct {
-	k8sClient      *kubernetes.Clientset
-	ocsClient      *rest.RESTClient
-	parameterCodec runtime.ParameterCodec
-	namespace      string
+	client    client.Client
+	namespace string
 }
 
 func newRookCephTools() (*RookCephTools, error) {
 	retOCSObj := &RookCephTools{
-		k8sClient:      tests.DeployManager.GetK8sClient(),
-		ocsClient:      tests.DeployManager.GetOcsClient(),
-		parameterCodec: tests.DeployManager.GetParameterCodec(),
-		namespace:      tests.DeployManager.GetNamespace(),
+		client:    tests.DeployManager.Client,
+		namespace: tests.DeployManager.GetNamespace(),
 	}
 	return retOCSObj, nil
 }
 
 func (rctObj *RookCephTools) patchOCSInit(patch string) error {
-	init := &ocsv1.OCSInitialization{}
-	return rctObj.ocsClient.Patch(types.JSONPatchType).
-		Resource("ocsinitializations").
-		Namespace(rctObj.namespace).
-		Name("ocsinit").
-		Body([]byte(patch)).
-		VersionedParams(&metav1.GetOptions{}, rctObj.parameterCodec).
-		Do(context.TODO()).
-		Into(init)
+	init := &ocsv1.OCSInitialization{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocsinit",
+			Namespace: rctObj.namespace,
+		},
+	}
+	return rctObj.client.Patch(context.TODO(), init, client.RawPatch(types.JSONPatchType, []byte(patch)))
 }
 
 func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
-	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	pods := &k8sv1.PodList{}
+	err := rctObj.client.List(context.TODO(), pods, client.InNamespace(deploymanager.InstallNamespace), &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{"app": "rook-ceph-tools"}),
+	})
+
 	if err != nil {
 		return err
 	}
@@ -69,7 +66,10 @@ func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
 }
 
 func (rctObj *RookCephTools) toolsRemove() error {
-	pods, err := rctObj.k8sClient.CoreV1().Pods(deploymanager.InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-tools"})
+	pods := &k8sv1.PodList{}
+	err := rctObj.client.List(context.TODO(), pods, client.InNamespace(deploymanager.InstallNamespace), &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{"app": "rook-ceph-tools"}),
+	})
 	if err != nil {
 		return err
 	}

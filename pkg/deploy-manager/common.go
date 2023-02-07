@@ -10,6 +10,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -37,7 +38,7 @@ func (t *DeployManager) CreateNamespace(namespace string) error {
 			Labels: label,
 		},
 	}
-	_, err := t.k8sClient.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+	err := t.Client.Create(context.TODO(), ns)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
@@ -63,14 +64,14 @@ func (t *DeployManager) RemoveAllFinalizers(namespace string) error {
 			}
 			objs := &unstructured.UnstructuredList{}
 			objs.SetGroupVersionKind(gv.WithKind(kind))
-			err := t.GetCrClient().List(context.TODO(), objs, &client.ListOptions{Namespace: namespace})
+			err := t.Client.List(context.TODO(), objs, client.InNamespace(namespace))
 			if err != nil {
 				return err
 			}
 			for _, obj := range objs.Items {
 				finalizers := obj.GetFinalizers()
 				if len(finalizers) > 0 {
-					_ = t.GetCrClient().Patch(context.TODO(), &obj, finalPatch)
+					_ = t.Client.Patch(context.TODO(), &obj, finalPatch)
 				}
 			}
 		}
@@ -92,7 +93,8 @@ func (t *DeployManager) DeleteStorageClusterAndWait(namespace string) error {
 
 	// Wait for storagecluster and cephCluster to terminate
 	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		cephClusters, err := t.rookClient.CephV1().CephClusters(namespace).List(context.TODO(), metav1.ListOptions{})
+		cephClusters := &rookcephv1.CephClusterList{}
+		err = t.Client.List(context.TODO(), cephClusters, client.InNamespace(namespace))
 		if err != nil {
 			lastReason = fmt.Sprintf("Error talking to k8s apiserver: %v", err)
 			return false, err
@@ -113,9 +115,17 @@ func (t *DeployManager) DeleteStorageClusterAndWait(namespace string) error {
 		return err
 	}
 
-	err = t.GetCrClient().DeleteAllOf(context.TODO(), &k8sv1.PersistentVolumeClaim{}, client.InNamespace(InstallNamespace))
-	if err != nil && !errors.IsNotFound(err) {
+	// Delete All pvcs
+	pvcs := &k8sv1.PersistentVolumeClaimList{}
+	err = t.Client.List(context.TODO(), pvcs, client.InNamespace(namespace))
+	if err != nil {
 		return err
+	}
+	for _, pvc := range pvcs.Items {
+		err = t.Client.Delete(context.TODO(), &pvc)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil
@@ -123,7 +133,11 @@ func (t *DeployManager) DeleteStorageClusterAndWait(namespace string) error {
 
 // DeleteNamespaceAndWait deletes a namespace and waits on it to terminate
 func (t *DeployManager) DeleteNamespaceAndWait(namespace string) error {
-	err := t.k8sClient.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+	err := t.Client.Delete(context.TODO(), &k8sv1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -134,7 +148,9 @@ func (t *DeployManager) DeleteNamespaceAndWait(namespace string) error {
 
 	// Wait for namespace to terminate
 	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		_, err = t.k8sClient.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		err = t.Client.Get(context.TODO(), types.NamespacedName{
+			Name: namespace,
+		}, &k8sv1.Namespace{})
 		if err != nil && !errors.IsNotFound(err) {
 			lastReason = fmt.Sprintf("Error talking to k8s apiserver: %v", err)
 			return false, nil
@@ -156,7 +172,11 @@ func (t *DeployManager) DeleteNamespaceAndWait(namespace string) error {
 
 // GetDeploymentImage returns the deployment image name for the deployment
 func (t *DeployManager) GetDeploymentImage(name string) (string, error) {
-	deployment, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).Get(context.TODO(), name, metav1.GetOptions{})
+	deployment := &appsv1.Deployment{}
+	err := t.Client.Get(context.TODO(), types.NamespacedName{
+		Name:      name,
+		Namespace: InstallNamespace,
+	}, deployment)
 	if err != nil {
 		return "", err
 	}
@@ -165,7 +185,8 @@ func (t *DeployManager) GetDeploymentImage(name string) (string, error) {
 
 // WaitForPVCBound waits for a pvc with a given name and namespace to reach BOUND phase
 func (t *DeployManager) WaitForPVCBound(pvc *k8sv1.PersistentVolumeClaim, namespace string) error {
-	pvc, err := t.k8sClient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), pvc, metav1.CreateOptions{})
+	pvc.Namespace = namespace
+	err := t.Client.Create(context.TODO(), pvc)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
@@ -174,16 +195,19 @@ func (t *DeployManager) WaitForPVCBound(pvc *k8sv1.PersistentVolumeClaim, namesp
 	timeout := 100 * time.Second
 	interval := 1 * time.Second
 
-	// Wait for namespace to terminate
 	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		pvc, err := t.k8sClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(context.TODO(), pvc.Name, metav1.GetOptions{})
+		currentPvc := &k8sv1.PersistentVolumeClaim{}
+		err = t.Client.Get(context.TODO(), types.NamespacedName{
+			Name:      pvc.Name,
+			Namespace: pvc.Namespace,
+		}, currentPvc)
 		if err != nil && !errors.IsNotFound(err) {
 			lastReason = fmt.Sprintf("error talking to k8s apiserver: %v", err)
 			return false, nil
 		}
 
-		if pvc.Status.Phase != k8sv1.ClaimBound {
-			lastReason = fmt.Sprintf("waiting on pvc %s/%s to reach bound state, currently %s", pvc.Namespace, pvc.Name, pvc.Status.Phase)
+		if currentPvc.Status.Phase != k8sv1.ClaimBound {
+			lastReason = fmt.Sprintf("waiting on pvc %s/%s to reach bound state, currently %s", pvc.Namespace, pvc.Name, currentPvc.Status.Phase)
 			return false, nil
 		}
 
@@ -199,7 +223,8 @@ func (t *DeployManager) WaitForPVCBound(pvc *k8sv1.PersistentVolumeClaim, namesp
 
 // WaitForJobSucceeded waits for a Job with a given name and namespace to succeed until 200 seconds
 func (t *DeployManager) WaitForJobSucceeded(job *batchv1.Job, namespace string) error {
-	job, err := t.k8sClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	job.Namespace = namespace
+	err := t.Client.Create(context.TODO(), job)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
@@ -208,25 +233,28 @@ func (t *DeployManager) WaitForJobSucceeded(job *batchv1.Job, namespace string) 
 	timeout := 200 * time.Second
 	interval := 1 * time.Second
 
-	// Wait for namespace to terminate
 	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
-		job, err := t.k8sClient.BatchV1().Jobs(job.Namespace).Get(context.TODO(), job.Name, metav1.GetOptions{})
+		currentJob := &batchv1.Job{}
+		err = t.Client.Get(context.TODO(), types.NamespacedName{
+			Name:      job.Name,
+			Namespace: job.Namespace,
+		}, currentJob)
 		if err != nil && !errors.IsNotFound(err) {
 			lastReason = fmt.Sprintf("error talking to k8s apiserver: %v", err)
 			return false, nil
 		}
 
-		if job.Status.Active != 0 {
+		if currentJob.Status.Active != 0 {
 			lastReason = fmt.Sprintf("waiting on job %s/%s to succeed, currently Active", job.Namespace, job.Name)
 			return false, nil
 		}
 
-		if job.Status.Failed != 0 {
+		if currentJob.Status.Failed != 0 {
 			lastReason = fmt.Sprintf("waiting on job %s/%s to succeed, currently Failed", job.Namespace, job.Name)
 			return false, nil
 		}
 
-		if job.Status.Succeeded == 0 {
+		if currentJob.Status.Succeeded == 0 {
 			lastReason = fmt.Sprintf("waiting on job %s/%s to succeed", job.Namespace, job.Name)
 			return false, nil
 		}

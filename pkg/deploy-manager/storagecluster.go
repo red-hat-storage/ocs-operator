@@ -8,15 +8,18 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -172,13 +175,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 // getStorageCluster retrieves the test suite storage cluster
 func (t *DeployManager) getStorageCluster() (*ocsv1.StorageCluster, error) {
 	sc := &ocsv1.StorageCluster{}
-	err := t.ocsClient.Get().
-		Resource("storageclusters").
-		Namespace(InstallNamespace).
-		Name(DefaultStorageClusterName).
-		VersionedParams(&metav1.GetOptions{}, t.parameterCodec).
-		Do(context.TODO()).
-		Into(sc)
+	err := t.Client.Get(context.TODO(), types.NamespacedName{Name: DefaultStorageClusterName, Namespace: InstallNamespace}, sc)
 
 	if err != nil {
 		return nil, err
@@ -188,27 +185,19 @@ func (t *DeployManager) getStorageCluster() (*ocsv1.StorageCluster, error) {
 }
 
 // createStorageCluster is used to install the test suite storage cluster
-func (t *DeployManager) createStorageCluster() (*ocsv1.StorageCluster, error) {
-	newSc := &ocsv1.StorageCluster{}
-
+func (t *DeployManager) createStorageCluster() error {
 	sc, err := t.DefaultStorageCluster()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = t.ocsClient.Post().
-		Resource("storageclusters").
-		Namespace(InstallNamespace).
-		Name(sc.Name).
-		Body(sc).
-		Do(context.TODO()).
-		Into(newSc)
+	err = t.Client.Create(context.TODO(), sc)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return newSc, nil
+	return nil
 }
 
 // deleteStorageCluster is used to delete the test suite storage cluster
@@ -218,23 +207,7 @@ func (t *DeployManager) deleteStorageCluster() error {
 		return err
 	}
 
-	_, err = t.ocsClient.
-		Patch(types.JSONPatchType).
-		Resource("storageclusters").
-		Body([]byte(finalizerRemovalPatch)).
-		Name(sc.GetName()).
-		Namespace(sc.GetNamespace()).
-		VersionedParams(&metav1.GetOptions{}, t.GetParameterCodec()).
-		DoRaw(context.TODO())
-	if err != nil {
-		return err
-	}
-
-	_, err = t.ocsClient.Delete().
-		Resource("storageclusters").
-		Name(sc.GetName()).
-		Namespace(sc.GetNamespace()).
-		DoRaw(context.TODO())
+	err = t.Client.Delete(context.TODO(), sc)
 	return err
 }
 
@@ -310,7 +283,11 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 		}
 
 		// We expect at least 3 osd deployments to be online and available
-		deployments, err := t.k8sClient.AppsV1().Deployments(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=rook-ceph-osd"})
+		deployments := &appsv1.DeploymentList{}
+		err = t.Client.List(context.TODO(), deployments, &client.ListOptions{
+			Namespace:     InstallNamespace,
+			LabelSelector: labels.SelectorFromSet(map[string]string{"app": "rook-ceph-osd"}),
+		})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
@@ -332,7 +309,11 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 		}
 
 		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running
-		pods, err := t.k8sClient.CoreV1().Pods(InstallNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "noobaa-core=noobaa"})
+		pods := &k8sv1.PodList{}
+		err = t.Client.List(context.TODO(), pods, &client.ListOptions{
+			Namespace:     InstallNamespace,
+			LabelSelector: labels.SelectorFromSet(map[string]string{"noobaa-core": "noobaa"}),
+		})
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)
 			return false, nil
@@ -376,7 +357,10 @@ func (t *DeployManager) labelWorkerNodes() error {
 		}
 	}
 
-	nodes, err := t.k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
+	nodes := &k8sv1.NodeList{}
+	err := t.Client.List(context.TODO(), nodes, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{"node-role.kubernetes.io/worker": ""}),
+	})
 	if err != nil {
 		return err
 	}
@@ -405,7 +389,7 @@ func (t *DeployManager) labelWorkerNodes() error {
 			return err
 		}
 
-		_, err = t.k8sClient.CoreV1().Nodes().Patch(context.TODO(), node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+		err = t.Client.Patch(context.TODO(), new, client.RawPatch(types.StrategicMergePatchType, patch))
 		if err != nil {
 			return err
 		}
@@ -425,7 +409,7 @@ func (t *DeployManager) labelWorkerNodes() error {
 
 func (t *DeployManager) startStorageCluster() error {
 	// Ensure storage cluster is created
-	_, err := t.createStorageCluster()
+	err := t.createStorageCluster()
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
