@@ -15,8 +15,6 @@ CEPH_COLLECTION_PATH="${BASE_COLLECTION_PATH}/ceph"
 
 # common Ceph resources
 common_ceph_resources=()
-common_ceph_resources+=(cephobjectstores)
-common_ceph_resources+=(cephobjectstoreusers)
 common_ceph_resources+=(cephclusters)
 
 for resource in "${common_ceph_resources[@]}"; do

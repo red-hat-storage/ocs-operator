@@ -8,7 +8,7 @@ SINCE_TIME=$1
 # timestamp for starting of the script
 START_TIME=$(date +%r)
 start=$(date +%s)
-printf "collection started at: %s \n" "${START_TIME}" >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
+printf "collection for ocs-ci started at: %s \n" "${START_TIME}" >> ${BASE_COLLECTION_PATH}/gather-debug.log 2>&1
 
 # Call pre-install.sh
 pre-install.sh
@@ -16,7 +16,6 @@ pre-install.sh
 # Call other gather scripts
 gather_namespaced_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 gather_clusterscoped_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
-gather_noobaa_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 
 storageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
 externalStorageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.externalStorage.enable}}{{"\n"}}{{end}}')
