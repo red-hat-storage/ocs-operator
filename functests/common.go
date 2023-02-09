@@ -22,8 +22,7 @@ func debug(msg string, args ...interface{}) {
 
 // RunMustGather runs the OCS must-gather container image
 func RunMustGather() error {
-	gopath := os.Getenv("GOPATH")
-	cmd := exec.Command("/bin/bash", gopath+"/src/github.com/red-hat-storage/ocs-operator/hack/dump-debug-info.sh")
+	cmd := exec.Command("/bin/bash", "hack/dump-debug-info.sh")
 	cmd.Env = os.Environ()
 	output, err := cmd.CombinedOutput()
 	if err != nil {

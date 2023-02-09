@@ -9,9 +9,8 @@ GOBIN="${GOBIN:-$GOPATH/bin}"
 GINKGO=$GOBIN/ginkgo
 
 if ! [ -x "$GINKGO" ]; then
-	echo "Retrieving ginkgo and gomega build dependencies"
+	echo "Installing GINKGO"
 	go install -v github.com/onsi/ginkgo/v2/ginkgo@latest
-	go install -v github.com/onsi/gomega/...
 else
 	echo "GINKO binary found at $GINKGO"
 fi
