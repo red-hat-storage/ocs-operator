@@ -10,6 +10,7 @@ import (
 	"github.com/imdario/mergo"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,7 +21,6 @@ const (
 	internalPrometheusRuleFilepath = "/ocs-prometheus-rules/prometheus-ocs-rules.yaml"
 	externalPrometheusRuleFilepath = "/ocs-prometheus-rules/prometheus-ocs-rules-external.yaml"
 	ruleName                       = "ocs-prometheus-rules"
-	ruleNamespace                  = "openshift-storage"
 )
 
 // enablePrometheusRules is a wrapper around CreateOrUpdatePrometheusRule()
@@ -50,7 +50,7 @@ func getPrometheusRules(isExternal bool) (*monitoringv1.PrometheusRule, error) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ruleName,
-			Namespace: ruleNamespace,
+			Namespace: os.Getenv(util.OperatorNamespaceEnvVar),
 		},
 	}
 	var err error
