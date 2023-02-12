@@ -78,7 +78,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 	storageCluster := &ocsv1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DefaultStorageClusterName,
-			Namespace: "openshift-storage",
+			Namespace: InstallNamespace,
 		},
 		Spec: ocsv1.StorageClusterSpec{
 			ManageNodes: false,

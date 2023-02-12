@@ -19,7 +19,7 @@ import (
 )
 
 // InstallNamespace is the namespace ocs is installed into
-const InstallNamespace = "openshift-storage"
+var InstallNamespace string
 
 // DefaultStorageClusterName is the name of the storage cluster the test suite installs
 const DefaultStorageClusterName = "test-storagecluster"
@@ -84,6 +84,11 @@ type DeployManager struct {
 // GetNamespace is the function used to retrieve the installation namespace
 func (t *DeployManager) GetNamespace() string {
 	return InstallNamespace
+}
+
+// SetNamespace is the function used to set the installation namespace
+func (t *DeployManager) SetNamespace(namespace string) {
+	InstallNamespace = namespace
 }
 
 // NewDeployManager creates a DeployManager struct with default configuration
