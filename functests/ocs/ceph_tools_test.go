@@ -9,7 +9,6 @@ import (
 	"github.com/onsi/gomega"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	tests "github.com/red-hat-storage/ocs-operator/functests"
-	deploymanager "github.com/red-hat-storage/ocs-operator/pkg/deploy-manager"
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -30,7 +29,7 @@ type RookCephTools struct {
 func newRookCephTools() (*RookCephTools, error) {
 	retOCSObj := &RookCephTools{
 		client:    tests.DeployManager.Client,
-		namespace: tests.DeployManager.GetNamespace(),
+		namespace: tests.InstallNamespace,
 	}
 	return retOCSObj, nil
 }
@@ -47,7 +46,7 @@ func (rctObj *RookCephTools) patchOCSInit(patch string) error {
 
 func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
 	pods := &k8sv1.PodList{}
-	err := rctObj.client.List(context.TODO(), pods, client.InNamespace(deploymanager.InstallNamespace), &client.ListOptions{
+	err := rctObj.client.List(context.TODO(), pods, client.InNamespace(tests.InstallNamespace), &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{"app": "rook-ceph-tools"}),
 	})
 
@@ -67,7 +66,7 @@ func (rctObj *RookCephTools) toolsPodOnlineCheck() error {
 
 func (rctObj *RookCephTools) toolsRemove() error {
 	pods := &k8sv1.PodList{}
-	err := rctObj.client.List(context.TODO(), pods, client.InNamespace(deploymanager.InstallNamespace), &client.ListOptions{
+	err := rctObj.client.List(context.TODO(), pods, client.InNamespace(tests.InstallNamespace), &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{"app": "rook-ceph-tools"}),
 	})
 	if err != nil {

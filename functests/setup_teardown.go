@@ -8,6 +8,9 @@ import (
 func BeforeTestSuiteSetup() {
 
 	SuiteFailed = true
+	debug("BeforeTestSuite: setting the InstallNamespace\n")
+	DeployManager.SetNamespace(InstallNamespace)
+
 	if ocsOperatorInstall {
 		debug("BeforeTestSuite: deploying OCS Operator\n")
 		err := DeployManager.DeployOCSWithOLM(OcsCatalogSourceImage, OcsSubscriptionChannel)
