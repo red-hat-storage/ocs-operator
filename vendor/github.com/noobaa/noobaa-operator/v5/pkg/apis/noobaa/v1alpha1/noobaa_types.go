@@ -191,10 +191,6 @@ type SecuritySpec struct {
 
 // KeyManagementServiceSpec represent various details of the KMS server
 type KeyManagementServiceSpec struct {
-	// +optional
-	EnableKeyRotation bool 							`json:"enableKeyRotation,omitempty"`
-	// +optional
-	Schedule 					string 						`json:"schedule,omitempty"`
 	ConnectionDetails map[string]string `json:"connectionDetails,omitempty"`
 	TokenSecretName   string            `json:"tokenSecretName,omitempty"`
 }
