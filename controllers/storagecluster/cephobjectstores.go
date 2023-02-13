@@ -228,7 +228,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 				SecuritySpec: cephv1.SecuritySpec{
 					KeyManagementService: cephv1.KeyManagementServiceSpec{
 						EnableKeyRotation: initData.Spec.Security.KeyManagementService.EnableKeyRotation,
-						Schedule: initData.Spec.Security.KeyManagementService.Schedule,
+						Schedule:          initData.Spec.Security.KeyManagementService.Schedule,
 						ConnectionDetails: rgwConnDetails,
 						TokenSecretName:   KMSTokenSecretName,
 					},
