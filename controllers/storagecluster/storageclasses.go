@@ -414,14 +414,8 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	if initData.Spec.Encryption.StorageClass && initData.Spec.Encryption.KeyManagementService.Enable {
 		kmsConfig, err := getKMSConfigMap(KMSConfigMapName, initData, r.Client)
 		if err == nil && kmsConfig != nil {
-			authMethod, found := kmsConfig.Data["VAULT_AUTH_METHOD"]
-			if found && authMethod != VaultTokenAuthMethod {
-				// for 4.10, skipping SC creation for vault SA based kms encryption
-				r.Log.Info("Only vault token based auth method is supported for PV encryption", "VaultAuthMethod", authMethod)
-			} else {
-				serviceName := kmsConfig.Data["KMS_SERVICE_NAME"]
-				ret = append(ret, newEncryptedCephBlockPoolStorageClassConfiguration(initData, serviceName))
-			}
+			serviceName := kmsConfig.Data["KMS_SERVICE_NAME"]
+			ret = append(ret, newEncryptedCephBlockPoolStorageClassConfiguration(initData, serviceName))
 		} else {
 			r.Log.Error(err, "Error while getting ConfigMap.", "ConfigMap", klog.KRef(initData.Namespace, KMSConfigMapName))
 		}
