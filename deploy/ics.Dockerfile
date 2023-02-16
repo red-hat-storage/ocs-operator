@@ -16,4 +16,4 @@ COPY ics-operator/metadata/annotations.yaml /metadata/annotations.yaml
 LABEL com.redhat.delivery.operator.bundle=true
 # This second label tells the pipeline which versions of OpenShift the operator supports.
 # This is used to control which index images should include this operator.
-LABEL com.redhat.openshift.versions="v4.12"
+LABEL com.redhat.openshift.versions="v4.13"
