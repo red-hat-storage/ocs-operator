@@ -116,7 +116,7 @@ func (t *DeployManager) generateClusterObjects(ocsCatalogImage string, subscript
 	// Operator Groups
 	ocsOG := operatorv1.OperatorGroup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "openshift-storage-operatorgroup",
+			Name:      "ocs-operatorgroup",
 			Namespace: InstallNamespace,
 		},
 		Spec: operatorv1.OperatorGroupSpec{

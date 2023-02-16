@@ -16,6 +16,9 @@ const TestStorageCluster = deploymanager.DefaultStorageClusterName
 // StorageClassRBD is the name of the ceph rbd storage class the test suite installs
 const StorageClassRBD = deploymanager.DefaultStorageClassRBD
 
+// InstallNamespace is the namespace ocs is installed into
+var InstallNamespace string
+
 // OcsSubscriptionChannel is the name of the ocs subscription channel
 var OcsSubscriptionChannel string
 
@@ -41,6 +44,7 @@ var arbiterEnabled bool
 func init() {
 	flag.StringVar(&OcsCatalogSourceImage, "ocs-catalog-image", "", "The OCS CatalogSource container image to use in the deployment")
 	flag.StringVar(&OcsSubscriptionChannel, "ocs-subscription-channel", "", "The subscription channel to reveice updates from")
+	flag.StringVar(&InstallNamespace, "install-namespace", "openshift-storage", "The namespace ocs is installed into")
 	flag.StringVar(&UpgradeFromOcsCatalogSourceImage, "upgrade-from-ocs-catalog-image", "", "The OCS CatalogSource container image to upgrade from in the deployment")
 	flag.StringVar(&UpgradeFromOcsSubscriptionChannel, "upgrade-from-ocs-subscription-channel", "", "The subscription channel to upgrade from")
 	flag.BoolVar(&ocsOperatorInstall, "ocs-operator-install", false, "Install the OCS operator before starting tests")
