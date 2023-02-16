@@ -2,7 +2,7 @@
 
 set -e
 
-CSV_VERSION=4.12.0
+CSV_VERSION=4.13.0
 source hack/common.sh
 
 CSV_FILE=/manifests/ocs-operator.clusterserviceversion.yaml
