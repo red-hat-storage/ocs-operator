@@ -46,6 +46,7 @@ func InitNamespacedName() types.NamespacedName {
 // nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
+	ctx            context.Context
 	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	SecurityClient secv1client.SecurityV1Interface
@@ -64,6 +65,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	prevLogger := r.Log
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.ctx = ctx
 
 	r.Log.Info("Reconciling OCSInitialization.", "OCSInitialization", klog.KRef(request.Namespace, request.Name))
 
@@ -190,7 +192,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		})).
 		Watches(&source.Kind{Type: &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      ocsOperatorConfigName,
+				Name:      util.OcsOperatorConfigName,
 				Namespace: watchNamespace,
 			},
 		}}, &handler.EnqueueRequestForOwner{
