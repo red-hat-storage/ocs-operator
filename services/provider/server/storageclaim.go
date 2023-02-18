@@ -94,7 +94,7 @@ func (s *storageClassClaimManager) Create(
 			Kind:               gvk.Kind,
 			UID:                consumer.GetUID(),
 			Name:               consumer.GetName(),
-			BlockOwnerDeletion: pointer.BoolPtr(true),
+			BlockOwnerDeletion: pointer.Bool(true),
 		},
 	})
 
