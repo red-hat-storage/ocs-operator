@@ -49,8 +49,8 @@ function dump_noobaa_csv() {
 # ==== DUMP ROOK YAMLS ====
 function dump_rook_csv() {
 	rook_template_dir="/etc/ceph-csv-templates"
-	rook_csv_template="rook-ceph-ocp.vVERSION.clusterserviceversion.yaml.in"
-	rook_crds_dir=$rook_template_dir/crds
+	rook_csv_template="rook-ceph.clusterserviceversion.yaml"
+	rook_crds_dir=$rook_template_dir/ceph
 	rook_crds_outdir="$OUTDIR_CRDS/rook"
 	rm -rf $ROOK_CSV
 	rm -rf $rook_crds_outdir
