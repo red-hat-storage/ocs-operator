@@ -219,8 +219,13 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		}
 	}
 	if sc.Spec.Encryption.Enable && sc.Spec.Encryption.ClusterWide && !sc.Spec.Encryption.KeyManagementService.Enable {
-		nb.Spec.Security.KeyManagementService.EnableKeyRotation = sc.Spec.Security.KeyManagementService.EnableKeyRotation
-		nb.Spec.Security.KeyManagementService.Schedule = sc.Spec.Security.KeyManagementService.Schedule
+		nb.Spec.Security.KeyManagementService.EnableKeyRotation = sc.Spec.Security.KeyManagementService.EnableKeyRotation || true
+		nb.Spec.Security.KeyManagementService.Schedule = func() string {
+			if len(sc.Spec.Security.KeyManagementService.Schedule) > 0 {
+				return sc.Spec.Security.KeyManagementService.Schedule
+			}
+			return "@Weekly"
+		}()
 	}
 
 	return nil

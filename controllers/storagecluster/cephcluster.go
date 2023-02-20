@@ -384,12 +384,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			Labels:    labels,
 		},
 		Spec: rookCephv1.ClusterSpec{
-			Security: rookCephv1.SecuritySpec{
-				KeyManagementService: rookCephv1.KeyManagementServiceSpec{
-					EnableKeyRotation: sc.Spec.Security.KeyManagementService.EnableKeyRotation,
-					Schedule:          sc.Spec.Security.KeyManagementService.Schedule,
-				},
-			},
 			CephVersion: rookCephv1.CephVersionSpec{
 				Image:            cephImage,
 				AllowUnsupported: allowUnsupportedCephVersion(),
@@ -430,6 +424,16 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
 			},
 		},
+	}
+
+	if sc.Spec.Encryption.Enable && sc.Spec.Encryption.ClusterWide && !sc.Spec.Encryption.KeyManagementService.Enable {
+		cephCluster.Spec.Security.KeyManagementService.EnableKeyRotation = sc.Spec.Security.KeyManagementService.EnableKeyRotation || true
+		cephCluster.Spec.Security.KeyManagementService.Schedule = func() string {
+			if len(sc.Spec.Security.KeyManagementService.Schedule) > 0 {
+				return sc.Spec.Security.KeyManagementService.Schedule
+			}
+			return "@Weekly"
+		}()
 	}
 
 	if sc.Spec.LogCollector != nil {
