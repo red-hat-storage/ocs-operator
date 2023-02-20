@@ -6,7 +6,7 @@ source hack/common.sh
 
 mkdir -p ${OUTDIR_TOOLS}
 LINT_BIN="${OUTDIR_TOOLS}/golangci-lint"
-LINT_VER="1.49.0"
+LINT_VER="1.51.1"
 
 check_bin_exists() {
   which "${LINT_BIN}" >/dev/null 2>&1 && [[ "$(${LINT_BIN} --version)" == *"${LINT_VER}"* ]]
