@@ -6,17 +6,13 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	"github.com/red-hat-storage/ocs-operator/controllers/util"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-const (
-	// This configmap is purely for the OCS operator to use
-	ocsOperatorConfigName = "ocs-operator-config"
 )
 
 // ensureOCSOperatorConfig ensures that the OCS operator config is present in the
@@ -24,11 +20,12 @@ const (
 func (r *OCSInitializationReconciler) ensureOCSOperatorConfig(initialData *ocsv1.OCSInitialization) error {
 	ocsOperatorConfig := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsOperatorConfigName,
+			Name:      util.OcsOperatorConfigName,
 			Namespace: initialData.Namespace,
 		},
 		Data: map[string]string{
-			"CSI_CLUSTER_NAME": r.getClusterID(),
+			"CSI_CLUSTER_NAME":         r.getClusterID(),
+			"CSI_ENABLE_READ_AFFINITY": "true",
 		},
 	}
 	_, err := ctrl.CreateOrUpdate(context.TODO(), r.Client, ocsOperatorConfig, func() error {
@@ -39,7 +36,7 @@ func (r *OCSInitializationReconciler) ensureOCSOperatorConfig(initialData *ocsv1
 		if ocsOperatorConfig.Data["CSI_CLUSTER_NAME"] != r.getClusterID() {
 			ocsOperatorConfig.Data["CSI_CLUSTER_NAME"] = r.getClusterID()
 			// restart the rook-ceph-operator pod to pick up the new change
-			r.restartRookOperatorPod(initialData.Namespace)
+			util.RestartRookOperatorPod(r.ctx, r.Client, &r.Log, initialData.Namespace)
 		}
 		return nil
 	})
@@ -58,21 +55,4 @@ func (r *OCSInitializationReconciler) getClusterID() string {
 		return ""
 	}
 	return fmt.Sprint(clusterVersion.Spec.ClusterID)
-}
-
-// restartRookOperatorPod restarts the rook-operator pod in the OCP cluster
-func (r *OCSInitializationReconciler) restartRookOperatorPod(namespace string) {
-	podList := &corev1.PodList{}
-	err := r.Client.List(context.TODO(), podList, client.InNamespace(namespace), client.MatchingLabels{"app": "rook-ceph-operator"})
-	if err != nil {
-		r.Log.Error(err, "Failed to list rook-ceph-operator pod")
-		return
-	}
-	for _, pod := range podList.Items {
-		err := r.Client.Delete(context.TODO(), &pod)
-		if err != nil {
-			r.Log.Error(err, "Failed to delete rook-ceph-operator pod")
-			return
-		}
-	}
 }
