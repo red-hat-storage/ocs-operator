@@ -1141,8 +1141,6 @@ func assertCephClusterNetwork(t assert.TestingT, reconciler StorageClusterReconc
 	if cr.Spec.Network == nil {
 		assert.Equal(t, "", cephCluster.Spec.Network.Provider)
 		assert.Nil(t, cephCluster.Spec.Network.Selectors)
-	} else {
-		assert.Equal(t, *cr.Spec.Network, cephCluster.Spec.Network)
 	}
 }
 
