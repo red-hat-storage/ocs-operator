@@ -158,37 +158,33 @@ func TestCollectObjectStoreHealth(t *testing.T) {
 	objConnected := mockCephObjectStore1.DeepCopy()
 	objConnected.Name = objConnected.Name + string(cephv1.ConditionConnected)
 	objConnected.Status = &cephv1.ObjectStoreStatus{
-		Phase:        cephv1.ConditionConnected,
-		BucketStatus: &cephv1.BucketStatus{},
-		Info:         mockInfo,
-		Message:      "",
+		Phase:   cephv1.ConditionConnected,
+		Info:    mockInfo,
+		Message: "",
 	}
 
 	objProgressing := mockCephObjectStore1.DeepCopy()
 	objProgressing.Name = objProgressing.Name + string(cephv1.ConditionProgressing)
 	objProgressing.Status = &cephv1.ObjectStoreStatus{
-		Phase:        cephv1.ConditionProgressing,
-		BucketStatus: &cephv1.BucketStatus{},
-		Info:         mockInfo,
-		Message:      "",
+		Phase:   cephv1.ConditionProgressing,
+		Info:    mockInfo,
+		Message: "",
 	}
 
 	objFailure := mockCephObjectStore1.DeepCopy()
 	objFailure.Name = objFailure.Name + string(cephv1.ConditionFailure)
 	objFailure.Status = &cephv1.ObjectStoreStatus{
-		Phase:        cephv1.ConditionFailure,
-		BucketStatus: &cephv1.BucketStatus{},
-		Info:         mockInfo,
-		Message:      "",
+		Phase:   cephv1.ConditionFailure,
+		Info:    mockInfo,
+		Message: "",
 	}
 
 	objUnknown := mockCephObjectStore1.DeepCopy()
 	objUnknown.Name = objUnknown.Name + string(cephv1.ConditionType("unknown"))
 	objUnknown.Status = &cephv1.ObjectStoreStatus{
-		Phase:        cephv1.ConditionType("unknown"),
-		BucketStatus: &cephv1.BucketStatus{},
-		Info:         mockInfo,
-		Message:      "",
+		Phase:   cephv1.ConditionType("unknown"),
+		Info:    mockInfo,
+		Message: "",
 	}
 
 	tests := Tests{
