@@ -3,49 +3,47 @@ module github.com/red-hat-storage/ocs-operator
 go 1.19
 
 require (
-	github.com/RHsyseng/operator-utils v1.4.2
-	github.com/blang/semver v3.5.1+incompatible
+	github.com/RHsyseng/operator-utils v1.4.12
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi/api v0.0.0-20220413173542-2205145654cd
-	github.com/ceph/go-ceph v0.16.0
-	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
+	github.com/ceph/ceph-csi/api v0.0.0-20230215190110-f654066bfe45
+	github.com/ceph/go-ceph v0.20.0
+	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
 	github.com/go-logr/logr v1.2.3
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220811192603-abc54caa34ac
-	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
-	github.com/noobaa/noobaa-operator/v5 v5.11.0-12052022.0.20220601080237-28e143e0b16b
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
+	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.2.0
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230216002928-5ae687e91328
 	github.com/oklog/run v1.1.0
-	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.19.0
-	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
-	github.com/openshift/build-machinery-go v0.0.0-20211213093930-7e33a7eb4ce3
-	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
-	github.com/openshift/custom-resource-status v0.0.0-20190812200727-7961da9a2eb7
+	github.com/onsi/ginkgo/v2 v2.8.3
+	github.com/onsi/gomega v1.27.1
+	github.com/openshift/api v0.0.0-20230217170555-ab002e9c06da
+	github.com/openshift/build-machinery-go v0.0.0-20220913142420-e25cf57ea46d
+	github.com/openshift/client-go v0.0.0-20230120202327-72f107311084
+	github.com/openshift/custom-resource-status v1.1.2
 	github.com/operator-framework/api v0.17.3
-	github.com/operator-framework/operator-lib v0.11.0
+	github.com/operator-framework/operator-lib v0.11.1-0.20230126194151-7fc7204a9445
 	github.com/operator-framework/operator-lifecycle-manager v0.22.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.58.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.58.0
-	github.com/prometheus/client_golang v1.13.0
-	github.com/prometheus/client_model v0.2.0
-	github.com/rook/rook v1.10.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.63.0
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.63.0
+	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_model v0.3.0
+	github.com/rook/rook v1.11.0-beta.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.0
-	go.uber.org/multierr v1.8.0
-	google.golang.org/grpc v1.48.0
+	github.com/stretchr/testify v1.8.1
+	go.uber.org/multierr v1.9.0
+	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/ini.v1 v1.67.0
-	gotest.tools/v3 v3.0.3
-	k8s.io/api v0.25.0
-	k8s.io/apiextensions-apiserver v0.25.0
-	k8s.io/apimachinery v0.25.0
-	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/klog v1.0.0
-	k8s.io/klog/v2 v2.70.1
-	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
-	open-cluster-management.io/api v0.8.0
-	sigs.k8s.io/controller-runtime v0.13.0
+	gotest.tools/v3 v3.4.0
+	k8s.io/api v0.26.1
+	k8s.io/apiextensions-apiserver v0.26.1
+	k8s.io/apimachinery v0.26.1
+	k8s.io/client-go v0.26.1
+	k8s.io/klog/v2 v2.90.0
+	k8s.io/utils v0.0.0-20230209194617-a36077c30491
+	open-cluster-management.io/api v0.10.0
+	sigs.k8s.io/controller-runtime v0.14.4
 )
 
 require (
@@ -161,34 +159,36 @@ require (
 
 replace (
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3 // required by rook v1.7
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20201203102015-275406142edb // required for Quickstart CRD
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook v1.7
-	k8s.io/api => k8s.io/api v0.24.3
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.24.3
-	k8s.io/apimachinery => k8s.io/apimachinery v0.24.3
-	k8s.io/apiserver => k8s.io/apiserver v0.24.3
-	k8s.io/cli-runtime => k8s.io/cli-runtime v0.24.3
-	k8s.io/client-go => k8s.io/client-go v0.24.3
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.24.3
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.24.3
-	k8s.io/code-generator => k8s.io/code-generator v0.24.3
-	k8s.io/component-base => k8s.io/component-base v0.24.3
-	k8s.io/component-helpers => k8s.io/component-helpers v0.24.3
-	k8s.io/controller-manager => k8s.io/controller-manager v0.24.3
-	k8s.io/cri-api => k8s.io/cri-api v0.24.3
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.24.3
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.24.3
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.24.3
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.24.3
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.24.3
-	k8s.io/kubectl => k8s.io/kubectl v0.24.3
-	k8s.io/kubelet => k8s.io/kubelet v0.24.3
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.24.3
-	k8s.io/metrics => k8s.io/metrics v0.24.3
-	k8s.io/mount-utils => k8s.io/mount-utils v0.24.3
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.3
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.12.3
 )
 
-// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
-exclude github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
+exclude (
+	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
+	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
+	// Exclude the v3.9.1 tag, because it's very old but is picked
+	// when updating dependencies.
+	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
+	// Exclude pre-go-mod kubernetes tags, because they are older
+	// than v0.x releases but are picked when updating dependencies.
+	k8s.io/client-go v1.4.0
+	k8s.io/client-go v1.5.0
+	k8s.io/client-go v1.5.1
+	k8s.io/client-go v1.5.2
+	k8s.io/client-go v10.0.0+incompatible
+	k8s.io/client-go v11.0.0+incompatible
+	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
+	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/client-go v2.0.0+incompatible
+	k8s.io/client-go v2.0.0-alpha.1+incompatible
+	k8s.io/client-go v3.0.0+incompatible
+	k8s.io/client-go v3.0.0-beta.0+incompatible
+	k8s.io/client-go v4.0.0+incompatible
+	k8s.io/client-go v4.0.0-beta.0+incompatible
+	k8s.io/client-go v5.0.0+incompatible
+	k8s.io/client-go v5.0.1+incompatible
+	k8s.io/client-go v6.0.0+incompatible
+	k8s.io/client-go v7.0.0+incompatible
+	k8s.io/client-go v8.0.0+incompatible
+	k8s.io/client-go v9.0.0+incompatible
+	k8s.io/client-go v9.0.0-invalid+incompatible
+)
