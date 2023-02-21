@@ -13,7 +13,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/handler"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func main() {

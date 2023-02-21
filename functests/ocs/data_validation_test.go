@@ -3,7 +3,7 @@ package ocs_test
 import (
 	"context"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	tests "github.com/red-hat-storage/ocs-operator/functests"
 	k8sbatchv1 "k8s.io/api/batch/v1"
