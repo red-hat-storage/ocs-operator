@@ -116,9 +116,12 @@ spec:
                               * An existing PVC (PersistentVolumeClaim) If the provisioner
                               or an external controller can support the specified
                               data source, it will create a new volume based on the
-                              contents of the specified data source. If the AnyVolumeDataSource
-                              feature gate is enabled, this field will always have
-                              the same contents as the DataSourceRef field.'
+                              contents of the specified data source. When the AnyVolumeDataSource
+                              feature gate is enabled, dataSource contents will be
+                              copied to dataSourceRef, and dataSourceRef contents
+                              will be copied to dataSource when dataSourceRef.namespace
+                              is not specified. If the namespace is specified, then
+                              dataSourceRef will not be copied to dataSource.'
                             properties:
                               apiGroup:
                                 description: APIGroup is the group for the resource
@@ -140,24 +143,31 @@ spec:
                           dataSourceRef:
                             description: 'dataSourceRef specifies the object from
                               which to populate the volume with data, if a non-empty
-                              volume is desired. This may be any local object from
-                              a non-empty API group (non core object) or a PersistentVolumeClaim
+                              volume is desired. This may be any object from a non-empty
+                              API group (non core object) or a PersistentVolumeClaim
                               object. When this field is specified, volume binding
                               will only succeed if the type of the specified object
                               matches some installed volume populator or dynamic provisioner.
-                              This field will replace the functionality of the DataSource
+                              This field will replace the functionality of the dataSource
                               field and as such if both fields are non-empty, they
                               must have the same value. For backwards compatibility,
-                              both fields (DataSource and DataSourceRef) will be set
-                              to the same value automatically if one of them is empty
-                              and the other is non-empty. There are two important
-                              differences between DataSource and DataSourceRef: *
-                              While DataSource only allows two specific types of objects,
-                              DataSourceRef allows any non-core object, as well as
-                              PersistentVolumeClaim objects. * While DataSource ignores
-                              disallowed values (dropping them), DataSourceRef preserves
-                              all values, and generates an error if a disallowed value
-                              is specified. (Beta) Using this field requires the AnyVolumeDataSource
+                              when namespace isn''t specified in dataSourceRef, both
+                              fields (dataSource and dataSourceRef) will be set to
+                              the same value automatically if one of them is empty
+                              and the other is non-empty. When namespace is specified
+                              in dataSourceRef, dataSource isn''t set to the same
+                              value and must be empty. There are three important differences
+                              between dataSource and dataSourceRef: * While dataSource
+                              only allows two specific types of objects, dataSourceRef
+                              allows any non-core object, as well as PersistentVolumeClaim
+                              objects. * While dataSource ignores disallowed values
+                              (dropping them), dataSourceRef preserves all values,
+                              and generates an error if a disallowed value is specified.
+                              * While dataSource only allows local objects, dataSourceRef
+                              allows objects in any namespaces. (Beta) Using this
+                              field requires the AnyVolumeDataSource feature gate
+                              to be enabled. (Alpha) Using the namespace field of
+                              dataSourceRef requires the CrossNamespaceVolumeDataSource
                               feature gate to be enabled.'
                             properties:
                               apiGroup:
@@ -172,11 +182,20 @@ spec:
                               name:
                                 description: Name is the name of resource being referenced
                                 type: string
+                              namespace:
+                                description: Namespace is the namespace of resource
+                                  being referenced Note that when a namespace is specified,
+                                  a gateway.networking.k8s.io/ReferenceGrant object
+                                  is required in the referent namespace to allow that
+                                  namespace's owner to accept the reference. See the
+                                  ReferenceGrant documentation for details. (Alpha)
+                                  This field requires the CrossNamespaceVolumeDataSource
+                                  feature gate to be enabled.
+                                type: string
                             required:
                             - kind
                             - name
                             type: object
-                            x-kubernetes-map-type: atomic
                           resources:
                             description: 'resources represents the minimum resources
                               the volume should have. If RecoverVolumeExpansionFailure
@@ -185,6 +204,29 @@ spec:
                               must still be higher than capacity recorded in the status
                               field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                             properties:
+                              claims:
+                                description: "Claims lists the names of resources,
+                                  defined in spec.resourceClaims, that are used by
+                                  this container. \n This is an alpha field and requires
+                                  enabling the DynamicResourceAllocation feature gate.
+                                  \n This field is immutable."
+                                items:
+                                  description: ResourceClaim references one entry
+                                    in PodSpec.ResourceClaims.
+                                  properties:
+                                    name:
+                                      description: Name must match the name of one
+                                        entry in pod.spec.resourceClaims of the Pod
+                                        where this field is used. It makes that resource
+                                        available inside a container.
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -709,9 +751,12 @@ spec:
                           * An existing PVC (PersistentVolumeClaim) If the provisioner
                           or an external controller can support the specified data
                           source, it will create a new volume based on the contents
-                          of the specified data source. If the AnyVolumeDataSource
-                          feature gate is enabled, this field will always have the
-                          same contents as the DataSourceRef field.'
+                          of the specified data source. When the AnyVolumeDataSource
+                          feature gate is enabled, dataSource contents will be copied
+                          to dataSourceRef, and dataSourceRef contents will be copied
+                          to dataSource when dataSourceRef.namespace is not specified.
+                          If the namespace is specified, then dataSourceRef will not
+                          be copied to dataSource.'
                         properties:
                           apiGroup:
                             description: APIGroup is the group for the resource being
@@ -733,24 +778,30 @@ spec:
                       dataSourceRef:
                         description: 'dataSourceRef specifies the object from which
                           to populate the volume with data, if a non-empty volume
-                          is desired. This may be any local object from a non-empty
-                          API group (non core object) or a PersistentVolumeClaim object.
+                          is desired. This may be any object from a non-empty API
+                          group (non core object) or a PersistentVolumeClaim object.
                           When this field is specified, volume binding will only succeed
                           if the type of the specified object matches some installed
                           volume populator or dynamic provisioner. This field will
-                          replace the functionality of the DataSource field and as
+                          replace the functionality of the dataSource field and as
                           such if both fields are non-empty, they must have the same
-                          value. For backwards compatibility, both fields (DataSource
-                          and DataSourceRef) will be set to the same value automatically
-                          if one of them is empty and the other is non-empty. There
-                          are two important differences between DataSource and DataSourceRef:
-                          * While DataSource only allows two specific types of objects,
-                          DataSourceRef allows any non-core object, as well as PersistentVolumeClaim
-                          objects. * While DataSource ignores disallowed values (dropping
-                          them), DataSourceRef preserves all values, and generates
-                          an error if a disallowed value is specified. (Beta) Using
-                          this field requires the AnyVolumeDataSource feature gate
-                          to be enabled.'
+                          value. For backwards compatibility, when namespace isn''t
+                          specified in dataSourceRef, both fields (dataSource and
+                          dataSourceRef) will be set to the same value automatically
+                          if one of them is empty and the other is non-empty. When
+                          namespace is specified in dataSourceRef, dataSource isn''t
+                          set to the same value and must be empty. There are three
+                          important differences between dataSource and dataSourceRef:
+                          * While dataSource only allows two specific types of objects,
+                          dataSourceRef allows any non-core object, as well as PersistentVolumeClaim
+                          objects. * While dataSource ignores disallowed values (dropping
+                          them), dataSourceRef preserves all values, and generates
+                          an error if a disallowed value is specified. * While dataSource
+                          only allows local objects, dataSourceRef allows objects
+                          in any namespaces. (Beta) Using this field requires the
+                          AnyVolumeDataSource feature gate to be enabled. (Alpha)
+                          Using the namespace field of dataSourceRef requires the
+                          CrossNamespaceVolumeDataSource feature gate to be enabled.'
                         properties:
                           apiGroup:
                             description: APIGroup is the group for the resource being
@@ -764,11 +815,20 @@ spec:
                           name:
                             description: Name is the name of resource being referenced
                             type: string
+                          namespace:
+                            description: Namespace is the namespace of resource being
+                              referenced Note that when a namespace is specified,
+                              a gateway.networking.k8s.io/ReferenceGrant object is
+                              required in the referent namespace to allow that namespace's
+                              owner to accept the reference. See the ReferenceGrant
+                              documentation for details. (Alpha) This field requires
+                              the CrossNamespaceVolumeDataSource feature gate to be
+                              enabled.
+                            type: string
                         required:
                         - kind
                         - name
                         type: object
-                        x-kubernetes-map-type: atomic
                       resources:
                         description: 'resources represents the minimum resources the
                           volume should have. If RecoverVolumeExpansionFailure feature
@@ -777,6 +837,28 @@ spec:
                           than capacity recorded in the status field of the claim.
                           More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                         properties:
+                          claims:
+                            description: "Claims lists the names of resources, defined
+                              in spec.resourceClaims, that are used by this container.
+                              \n This is an alpha field and requires enabling the
+                              DynamicResourceAllocation feature gate. \n This field
+                              is immutable."
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: Name must match the name of one entry
+                                    in pod.spec.resourceClaims of the Pod where this
+                                    field is used. It makes that resource available
+                                    inside a container.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
                           limits:
                             additionalProperties:
                               anyOf:
@@ -1007,6 +1089,28 @@ spec:
                         description: Resources (optional) overrides the default resource
                           requirements for every endpoint pod
                         properties:
+                          claims:
+                            description: "Claims lists the names of resources, defined
+                              in spec.resourceClaims, that are used by this container.
+                              \n This is an alpha field and requires enabling the
+                              DynamicResourceAllocation feature gate. \n This field
+                              is immutable."
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: Name must match the name of one entry
+                                    in pod.spec.resourceClaims of the Pod where this
+                                    field is used. It makes that resource available
+                                    inside a container.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
                           limits:
                             additionalProperties:
                               anyOf:
@@ -1071,6 +1175,12 @@ spec:
                               will be encrypted.
                             type: boolean
                         type: object
+                      requireMsgr2:
+                        description: Whether to require msgr2 (port 3300) even if
+                          compression or encryption are not enabled. If true, the
+                          msgr1 port (6789) will be disabled. Requires a kernel that
+                          supports msgr2 (kernel 5.11 or CentOS 8.4 or newer).
+                        type: boolean
                     type: object
                   dualStack:
                     description: DualStack determines whether Ceph daemons should
@@ -2159,6 +2269,19 @@ spec:
                                 type: object
                             type: object
                             x-kubernetes-map-type: atomic
+                          matchLabelKeys:
+                            description: MatchLabelKeys is a set of pod label keys
+                              to select the pods over which spreading will be calculated.
+                              The keys are used to lookup values from the incoming
+                              pod labels, those key-value labels are ANDed with labelSelector
+                              to select the group of existing pods over which spreading
+                              will be calculated for the incoming pod. Keys that don't
+                              exist in the incoming pod labels will be ignored. A
+                              null or empty list means only match against labelSelector.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
                           maxSkew:
                             description: 'MaxSkew describes the degree to which pods
                               may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`,
@@ -2203,10 +2326,33 @@ spec:
                               same labelSelector cannot be scheduled, because computed
                               skew will be 3(3 - 0) if new Pod is scheduled to any
                               of the three zones, it will violate MaxSkew. \n This
-                              is an alpha field and requires enabling MinDomainsInPodTopologySpread
-                              feature gate."
+                              is a beta field and requires the MinDomainsInPodTopologySpread
+                              feature gate to be enabled (enabled by default)."
                             format: int32
                             type: integer
+                          nodeAffinityPolicy:
+                            description: "NodeAffinityPolicy indicates how we will
+                              treat Pod's nodeAffinity/nodeSelector when calculating
+                              pod topology spread skew. Options are: - Honor: only
+                              nodes matching nodeAffinity/nodeSelector are included
+                              in the calculations. - Ignore: nodeAffinity/nodeSelector
+                              are ignored. All nodes are included in the calculations.
+                              \n If this value is nil, the behavior is equivalent
+                              to the Honor policy. This is a beta-level feature default
+                              enabled by the NodeInclusionPolicyInPodTopologySpread
+                              feature flag."
+                            type: string
+                          nodeTaintsPolicy:
+                            description: "NodeTaintsPolicy indicates how we will treat
+                              node taints when calculating pod topology spread skew.
+                              Options are: - Honor: nodes without taints, along with
+                              tainted nodes for which the incoming pod has a toleration,
+                              are included. - Ignore: node taints are ignored. All
+                              nodes are included. \n If this value is nil, the behavior
+                              is equivalent to the Ignore policy. This is a beta-level
+                              feature default enabled by the NodeInclusionPolicyInPodTopologySpread
+                              feature flag."
+                            type: string
                           topologyKey:
                             description: TopologyKey is the key of node labels. Nodes
                               that have a label with this key and identical values
@@ -2214,9 +2360,10 @@ spec:
                               each <key, value> as a "bucket", and try to put balanced
                               number of pods into each bucket. We define a domain
                               as a particular instance of a topology. Also, we define
-                              an eligible domain as a domain whose nodes match the
-                              node selector. e.g. If TopologyKey is "kubernetes.io/hostname",
-                              each Node is a domain of that topology. And, if TopologyKey
+                              an eligible domain as a domain whose nodes meet the
+                              requirements of nodeAffinityPolicy and nodeTaintsPolicy.
+                              e.g. If TopologyKey is "kubernetes.io/hostname", each
+                              Node is a domain of that topology. And, if TopologyKey
                               is "topology.kubernetes.io/zone", each zone is a domain
                               of that topology. It's a required field.
                             type: string
@@ -2255,6 +2402,26 @@ spec:
                   description: ResourceRequirements describes the compute resource
                     requirements.
                   properties:
+                    claims:
+                      description: "Claims lists the names of resources, defined in
+                        spec.resourceClaims, that are used by this container. \n This
+                        is an alpha field and requires enabling the DynamicResourceAllocation
+                        feature gate. \n This field is immutable."
+                      items:
+                        description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                        properties:
+                          name:
+                            description: Name must match the name of one entry in
+                              pod.spec.resourceClaims of the Pod where this field
+                              is used. It makes that resource available inside a container.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     limits:
                       additionalProperties:
                         anyOf:
@@ -2355,10 +2522,12 @@ spec:
                                 * An existing PVC (PersistentVolumeClaim) If the provisioner
                                 or an external controller can support the specified
                                 data source, it will create a new volume based on
-                                the contents of the specified data source. If the
-                                AnyVolumeDataSource feature gate is enabled, this
-                                field will always have the same contents as the DataSourceRef
-                                field.'
+                                the contents of the specified data source. When the
+                                AnyVolumeDataSource feature gate is enabled, dataSource
+                                contents will be copied to dataSourceRef, and dataSourceRef
+                                contents will be copied to dataSource when dataSourceRef.namespace
+                                is not specified. If the namespace is specified, then
+                                dataSourceRef will not be copied to dataSource.'
                               properties:
                                 apiGroup:
                                   description: APIGroup is the group for the resource
@@ -2382,25 +2551,32 @@ spec:
                             dataSourceRef:
                               description: 'dataSourceRef specifies the object from
                                 which to populate the volume with data, if a non-empty
-                                volume is desired. This may be any local object from
-                                a non-empty API group (non core object) or a PersistentVolumeClaim
+                                volume is desired. This may be any object from a non-empty
+                                API group (non core object) or a PersistentVolumeClaim
                                 object. When this field is specified, volume binding
                                 will only succeed if the type of the specified object
                                 matches some installed volume populator or dynamic
                                 provisioner. This field will replace the functionality
-                                of the DataSource field and as such if both fields
+                                of the dataSource field and as such if both fields
                                 are non-empty, they must have the same value. For
-                                backwards compatibility, both fields (DataSource and
-                                DataSourceRef) will be set to the same value automatically
-                                if one of them is empty and the other is non-empty.
-                                There are two important differences between DataSource
-                                and DataSourceRef: * While DataSource only allows
-                                two specific types of objects, DataSourceRef allows
+                                backwards compatibility, when namespace isn''t specified
+                                in dataSourceRef, both fields (dataSource and dataSourceRef)
+                                will be set to the same value automatically if one
+                                of them is empty and the other is non-empty. When
+                                namespace is specified in dataSourceRef, dataSource
+                                isn''t set to the same value and must be empty. There
+                                are three important differences between dataSource
+                                and dataSourceRef: * While dataSource only allows
+                                two specific types of objects, dataSourceRef allows
                                 any non-core object, as well as PersistentVolumeClaim
-                                objects. * While DataSource ignores disallowed values
-                                (dropping them), DataSourceRef preserves all values,
+                                objects. * While dataSource ignores disallowed values
+                                (dropping them), dataSourceRef preserves all values,
                                 and generates an error if a disallowed value is specified.
-                                (Beta) Using this field requires the AnyVolumeDataSource
+                                * While dataSource only allows local objects, dataSourceRef
+                                allows objects in any namespaces. (Beta) Using this
+                                field requires the AnyVolumeDataSource feature gate
+                                to be enabled. (Alpha) Using the namespace field of
+                                dataSourceRef requires the CrossNamespaceVolumeDataSource
                                 feature gate to be enabled.'
                               properties:
                                 apiGroup:
@@ -2417,11 +2593,20 @@ spec:
                                   description: Name is the name of resource being
                                     referenced
                                   type: string
+                                namespace:
+                                  description: Namespace is the namespace of resource
+                                    being referenced Note that when a namespace is
+                                    specified, a gateway.networking.k8s.io/ReferenceGrant
+                                    object is required in the referent namespace to
+                                    allow that namespace's owner to accept the reference.
+                                    See the ReferenceGrant documentation for details.
+                                    (Alpha) This field requires the CrossNamespaceVolumeDataSource
+                                    feature gate to be enabled.
+                                  type: string
                               required:
                               - kind
                               - name
                               type: object
-                              x-kubernetes-map-type: atomic
                             resources:
                               description: 'resources represents the minimum resources
                                 the volume should have. If RecoverVolumeExpansionFailure
@@ -2430,6 +2615,29 @@ spec:
                                 must still be higher than capacity recorded in the
                                 status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                               properties:
+                                claims:
+                                  description: "Claims lists the names of resources,
+                                    defined in spec.resourceClaims, that are used
+                                    by this container. \n This is an alpha field and
+                                    requires enabling the DynamicResourceAllocation
+                                    feature gate. \n This field is immutable."
+                                  items:
+                                    description: ResourceClaim references one entry
+                                      in PodSpec.ResourceClaims.
+                                    properties:
+                                      name:
+                                        description: Name must match the name of one
+                                          entry in pod.spec.resourceClaims of the
+                                          Pod where this field is used. It makes that
+                                          resource available inside a container.
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                  - name
+                                  x-kubernetes-list-type: map
                                 limits:
                                   additionalProperties:
                                     anyOf:
@@ -2687,10 +2895,12 @@ spec:
                                 * An existing PVC (PersistentVolumeClaim) If the provisioner
                                 or an external controller can support the specified
                                 data source, it will create a new volume based on
-                                the contents of the specified data source. If the
-                                AnyVolumeDataSource feature gate is enabled, this
-                                field will always have the same contents as the DataSourceRef
-                                field.'
+                                the contents of the specified data source. When the
+                                AnyVolumeDataSource feature gate is enabled, dataSource
+                                contents will be copied to dataSourceRef, and dataSourceRef
+                                contents will be copied to dataSource when dataSourceRef.namespace
+                                is not specified. If the namespace is specified, then
+                                dataSourceRef will not be copied to dataSource.'
                               properties:
                                 apiGroup:
                                   description: APIGroup is the group for the resource
@@ -2714,25 +2924,32 @@ spec:
                             dataSourceRef:
                               description: 'dataSourceRef specifies the object from
                                 which to populate the volume with data, if a non-empty
-                                volume is desired. This may be any local object from
-                                a non-empty API group (non core object) or a PersistentVolumeClaim
+                                volume is desired. This may be any object from a non-empty
+                                API group (non core object) or a PersistentVolumeClaim
                                 object. When this field is specified, volume binding
                                 will only succeed if the type of the specified object
                                 matches some installed volume populator or dynamic
                                 provisioner. This field will replace the functionality
-                                of the DataSource field and as such if both fields
+                                of the dataSource field and as such if both fields
                                 are non-empty, they must have the same value. For
-                                backwards compatibility, both fields (DataSource and
-                                DataSourceRef) will be set to the same value automatically
-                                if one of them is empty and the other is non-empty.
-                                There are two important differences between DataSource
-                                and DataSourceRef: * While DataSource only allows
-                                two specific types of objects, DataSourceRef allows
+                                backwards compatibility, when namespace isn''t specified
+                                in dataSourceRef, both fields (dataSource and dataSourceRef)
+                                will be set to the same value automatically if one
+                                of them is empty and the other is non-empty. When
+                                namespace is specified in dataSourceRef, dataSource
+                                isn''t set to the same value and must be empty. There
+                                are three important differences between dataSource
+                                and dataSourceRef: * While dataSource only allows
+                                two specific types of objects, dataSourceRef allows
                                 any non-core object, as well as PersistentVolumeClaim
-                                objects. * While DataSource ignores disallowed values
-                                (dropping them), DataSourceRef preserves all values,
+                                objects. * While dataSource ignores disallowed values
+                                (dropping them), dataSourceRef preserves all values,
                                 and generates an error if a disallowed value is specified.
-                                (Beta) Using this field requires the AnyVolumeDataSource
+                                * While dataSource only allows local objects, dataSourceRef
+                                allows objects in any namespaces. (Beta) Using this
+                                field requires the AnyVolumeDataSource feature gate
+                                to be enabled. (Alpha) Using the namespace field of
+                                dataSourceRef requires the CrossNamespaceVolumeDataSource
                                 feature gate to be enabled.'
                               properties:
                                 apiGroup:
@@ -2749,11 +2966,20 @@ spec:
                                   description: Name is the name of resource being
                                     referenced
                                   type: string
+                                namespace:
+                                  description: Namespace is the namespace of resource
+                                    being referenced Note that when a namespace is
+                                    specified, a gateway.networking.k8s.io/ReferenceGrant
+                                    object is required in the referent namespace to
+                                    allow that namespace's owner to accept the reference.
+                                    See the ReferenceGrant documentation for details.
+                                    (Alpha) This field requires the CrossNamespaceVolumeDataSource
+                                    feature gate to be enabled.
+                                  type: string
                               required:
                               - kind
                               - name
                               type: object
-                              x-kubernetes-map-type: atomic
                             resources:
                               description: 'resources represents the minimum resources
                                 the volume should have. If RecoverVolumeExpansionFailure
@@ -2762,6 +2988,29 @@ spec:
                                 must still be higher than capacity recorded in the
                                 status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                               properties:
+                                claims:
+                                  description: "Claims lists the names of resources,
+                                    defined in spec.resourceClaims, that are used
+                                    by this container. \n This is an alpha field and
+                                    requires enabling the DynamicResourceAllocation
+                                    feature gate. \n This field is immutable."
+                                  items:
+                                    description: ResourceClaim references one entry
+                                      in PodSpec.ResourceClaims.
+                                    properties:
+                                      name:
+                                        description: Name must match the name of one
+                                          entry in pod.spec.resourceClaims of the
+                                          Pod where this field is used. It makes that
+                                          resource available inside a container.
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                  - name
+                                  x-kubernetes-list-type: map
                                 limits:
                                   additionalProperties:
                                     anyOf:
@@ -3926,6 +4175,20 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
+                              matchLabelKeys:
+                                description: MatchLabelKeys is a set of pod label
+                                  keys to select the pods over which spreading will
+                                  be calculated. The keys are used to lookup values
+                                  from the incoming pod labels, those key-value labels
+                                  are ANDed with labelSelector to select the group
+                                  of existing pods over which spreading will be calculated
+                                  for the incoming pod. Keys that don't exist in the
+                                  incoming pod labels will be ignored. A null or empty
+                                  list means only match against labelSelector.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
                               maxSkew:
                                 description: 'MaxSkew describes the degree to which
                                   pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`,
@@ -3973,10 +4236,34 @@ spec:
                                   cannot be scheduled, because computed skew will
                                   be 3(3 - 0) if new Pod is scheduled to any of the
                                   three zones, it will violate MaxSkew. \n This is
-                                  an alpha field and requires enabling MinDomainsInPodTopologySpread
-                                  feature gate."
+                                  a beta field and requires the MinDomainsInPodTopologySpread
+                                  feature gate to be enabled (enabled by default)."
                                 format: int32
                                 type: integer
+                              nodeAffinityPolicy:
+                                description: "NodeAffinityPolicy indicates how we
+                                  will treat Pod's nodeAffinity/nodeSelector when
+                                  calculating pod topology spread skew. Options are:
+                                  - Honor: only nodes matching nodeAffinity/nodeSelector
+                                  are included in the calculations. - Ignore: nodeAffinity/nodeSelector
+                                  are ignored. All nodes are included in the calculations.
+                                  \n If this value is nil, the behavior is equivalent
+                                  to the Honor policy. This is a beta-level feature
+                                  default enabled by the NodeInclusionPolicyInPodTopologySpread
+                                  feature flag."
+                                type: string
+                              nodeTaintsPolicy:
+                                description: "NodeTaintsPolicy indicates how we will
+                                  treat node taints when calculating pod topology
+                                  spread skew. Options are: - Honor: nodes without
+                                  taints, along with tainted nodes for which the incoming
+                                  pod has a toleration, are included. - Ignore: node
+                                  taints are ignored. All nodes are included. \n If
+                                  this value is nil, the behavior is equivalent to
+                                  the Ignore policy. This is a beta-level feature
+                                  default enabled by the NodeInclusionPolicyInPodTopologySpread
+                                  feature flag."
+                                type: string
                               topologyKey:
                                 description: TopologyKey is the key of node labels.
                                   Nodes that have a label with this key and identical
@@ -3985,11 +4272,12 @@ spec:
                                   try to put balanced number of pods into each bucket.
                                   We define a domain as a particular instance of a
                                   topology. Also, we define an eligible domain as
-                                  a domain whose nodes match the node selector. e.g.
-                                  If TopologyKey is "kubernetes.io/hostname", each
-                                  Node is a domain of that topology. And, if TopologyKey
-                                  is "topology.kubernetes.io/zone", each zone is a
-                                  domain of that topology. It's a required field.
+                                  a domain whose nodes meet the requirements of nodeAffinityPolicy
+                                  and nodeTaintsPolicy. e.g. If TopologyKey is "kubernetes.io/hostname",
+                                  each Node is a domain of that topology. And, if
+                                  TopologyKey is "topology.kubernetes.io/zone", each
+                                  zone is a domain of that topology. It's a required
+                                  field.
                                 type: string
                               whenUnsatisfiable:
                                 description: 'WhenUnsatisfiable indicates how to deal
@@ -5005,6 +5293,20 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
+                              matchLabelKeys:
+                                description: MatchLabelKeys is a set of pod label
+                                  keys to select the pods over which spreading will
+                                  be calculated. The keys are used to lookup values
+                                  from the incoming pod labels, those key-value labels
+                                  are ANDed with labelSelector to select the group
+                                  of existing pods over which spreading will be calculated
+                                  for the incoming pod. Keys that don't exist in the
+                                  incoming pod labels will be ignored. A null or empty
+                                  list means only match against labelSelector.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
                               maxSkew:
                                 description: 'MaxSkew describes the degree to which
                                   pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`,
@@ -5052,10 +5354,34 @@ spec:
                                   cannot be scheduled, because computed skew will
                                   be 3(3 - 0) if new Pod is scheduled to any of the
                                   three zones, it will violate MaxSkew. \n This is
-                                  an alpha field and requires enabling MinDomainsInPodTopologySpread
-                                  feature gate."
+                                  a beta field and requires the MinDomainsInPodTopologySpread
+                                  feature gate to be enabled (enabled by default)."
                                 format: int32
                                 type: integer
+                              nodeAffinityPolicy:
+                                description: "NodeAffinityPolicy indicates how we
+                                  will treat Pod's nodeAffinity/nodeSelector when
+                                  calculating pod topology spread skew. Options are:
+                                  - Honor: only nodes matching nodeAffinity/nodeSelector
+                                  are included in the calculations. - Ignore: nodeAffinity/nodeSelector
+                                  are ignored. All nodes are included in the calculations.
+                                  \n If this value is nil, the behavior is equivalent
+                                  to the Honor policy. This is a beta-level feature
+                                  default enabled by the NodeInclusionPolicyInPodTopologySpread
+                                  feature flag."
+                                type: string
+                              nodeTaintsPolicy:
+                                description: "NodeTaintsPolicy indicates how we will
+                                  treat node taints when calculating pod topology
+                                  spread skew. Options are: - Honor: nodes without
+                                  taints, along with tainted nodes for which the incoming
+                                  pod has a toleration, are included. - Ignore: node
+                                  taints are ignored. All nodes are included. \n If
+                                  this value is nil, the behavior is equivalent to
+                                  the Ignore policy. This is a beta-level feature
+                                  default enabled by the NodeInclusionPolicyInPodTopologySpread
+                                  feature flag."
+                                type: string
                               topologyKey:
                                 description: TopologyKey is the key of node labels.
                                   Nodes that have a label with this key and identical
@@ -5064,11 +5390,12 @@ spec:
                                   try to put balanced number of pods into each bucket.
                                   We define a domain as a particular instance of a
                                   topology. Also, we define an eligible domain as
-                                  a domain whose nodes match the node selector. e.g.
-                                  If TopologyKey is "kubernetes.io/hostname", each
-                                  Node is a domain of that topology. And, if TopologyKey
-                                  is "topology.kubernetes.io/zone", each zone is a
-                                  domain of that topology. It's a required field.
+                                  a domain whose nodes meet the requirements of nodeAffinityPolicy
+                                  and nodeTaintsPolicy. e.g. If TopologyKey is "kubernetes.io/hostname",
+                                  each Node is a domain of that topology. And, if
+                                  TopologyKey is "topology.kubernetes.io/zone", each
+                                  zone is a domain of that topology. It's a required
+                                  field.
                                 type: string
                               whenUnsatisfiable:
                                 description: 'WhenUnsatisfiable indicates how to deal
@@ -5115,6 +5442,27 @@ spec:
                       description: ResourceRequirements describes the compute resource
                         requirements.
                       properties:
+                        claims:
+                          description: "Claims lists the names of resources, defined
+                            in spec.resourceClaims, that are used by this container.
+                            \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                            feature gate. \n This field is immutable."
+                          items:
+                            description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                            properties:
+                              name:
+                                description: Name must match the name of one entry
+                                  in pod.spec.resourceClaims of the Pod where this
+                                  field is used. It makes that resource available
+                                  inside a container.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                         limits:
                           additionalProperties:
                             anyOf:
@@ -5196,10 +5544,12 @@ spec:
                                 * An existing PVC (PersistentVolumeClaim) If the provisioner
                                 or an external controller can support the specified
                                 data source, it will create a new volume based on
-                                the contents of the specified data source. If the
-                                AnyVolumeDataSource feature gate is enabled, this
-                                field will always have the same contents as the DataSourceRef
-                                field.'
+                                the contents of the specified data source. When the
+                                AnyVolumeDataSource feature gate is enabled, dataSource
+                                contents will be copied to dataSourceRef, and dataSourceRef
+                                contents will be copied to dataSource when dataSourceRef.namespace
+                                is not specified. If the namespace is specified, then
+                                dataSourceRef will not be copied to dataSource.'
                               properties:
                                 apiGroup:
                                   description: APIGroup is the group for the resource
@@ -5223,25 +5573,32 @@ spec:
                             dataSourceRef:
                               description: 'dataSourceRef specifies the object from
                                 which to populate the volume with data, if a non-empty
-                                volume is desired. This may be any local object from
-                                a non-empty API group (non core object) or a PersistentVolumeClaim
+                                volume is desired. This may be any object from a non-empty
+                                API group (non core object) or a PersistentVolumeClaim
                                 object. When this field is specified, volume binding
                                 will only succeed if the type of the specified object
                                 matches some installed volume populator or dynamic
                                 provisioner. This field will replace the functionality
-                                of the DataSource field and as such if both fields
+                                of the dataSource field and as such if both fields
                                 are non-empty, they must have the same value. For
-                                backwards compatibility, both fields (DataSource and
-                                DataSourceRef) will be set to the same value automatically
-                                if one of them is empty and the other is non-empty.
-                                There are two important differences between DataSource
-                                and DataSourceRef: * While DataSource only allows
-                                two specific types of objects, DataSourceRef allows
+                                backwards compatibility, when namespace isn''t specified
+                                in dataSourceRef, both fields (dataSource and dataSourceRef)
+                                will be set to the same value automatically if one
+                                of them is empty and the other is non-empty. When
+                                namespace is specified in dataSourceRef, dataSource
+                                isn''t set to the same value and must be empty. There
+                                are three important differences between dataSource
+                                and dataSourceRef: * While dataSource only allows
+                                two specific types of objects, dataSourceRef allows
                                 any non-core object, as well as PersistentVolumeClaim
-                                objects. * While DataSource ignores disallowed values
-                                (dropping them), DataSourceRef preserves all values,
+                                objects. * While dataSource ignores disallowed values
+                                (dropping them), dataSourceRef preserves all values,
                                 and generates an error if a disallowed value is specified.
-                                (Beta) Using this field requires the AnyVolumeDataSource
+                                * While dataSource only allows local objects, dataSourceRef
+                                allows objects in any namespaces. (Beta) Using this
+                                field requires the AnyVolumeDataSource feature gate
+                                to be enabled. (Alpha) Using the namespace field of
+                                dataSourceRef requires the CrossNamespaceVolumeDataSource
                                 feature gate to be enabled.'
                               properties:
                                 apiGroup:
@@ -5258,11 +5615,20 @@ spec:
                                   description: Name is the name of resource being
                                     referenced
                                   type: string
+                                namespace:
+                                  description: Namespace is the namespace of resource
+                                    being referenced Note that when a namespace is
+                                    specified, a gateway.networking.k8s.io/ReferenceGrant
+                                    object is required in the referent namespace to
+                                    allow that namespace's owner to accept the reference.
+                                    See the ReferenceGrant documentation for details.
+                                    (Alpha) This field requires the CrossNamespaceVolumeDataSource
+                                    feature gate to be enabled.
+                                  type: string
                               required:
                               - kind
                               - name
                               type: object
-                              x-kubernetes-map-type: atomic
                             resources:
                               description: 'resources represents the minimum resources
                                 the volume should have. If RecoverVolumeExpansionFailure
@@ -5271,6 +5637,29 @@ spec:
                                 must still be higher than capacity recorded in the
                                 status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                               properties:
+                                claims:
+                                  description: "Claims lists the names of resources,
+                                    defined in spec.resourceClaims, that are used
+                                    by this container. \n This is an alpha field and
+                                    requires enabling the DynamicResourceAllocation
+                                    feature gate. \n This field is immutable."
+                                  items:
+                                    description: ResourceClaim references one entry
+                                      in PodSpec.ResourceClaims.
+                                    properties:
+                                      name:
+                                        description: Name must match the name of one
+                                          entry in pod.spec.resourceClaims of the
+                                          Pod where this field is used. It makes that
+                                          resource available inside a container.
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                  - name
+                                  x-kubernetes-list-type: map
                                 limits:
                                   additionalProperties:
                                     anyOf:
@@ -5631,7 +6020,7 @@ spec:
                   by this operator. Object references will be added to this list after
                   they have been created AND found in the cluster.
                 items:
-                  description: 'ObjectReference contains enough information to let
+                  description: "ObjectReference contains enough information to let
                     you inspect or modify the referred object. New uses of this type
                     are discouraged because of difficulty describing its usage when
                     embedded in APIs. 1. Ignored fields.  It includes many fields
@@ -5639,10 +6028,10 @@ spec:
                     and FieldPath are both very rarely valid in actual usage. 2. Invalid
                     usage help.  It is impossible to add specific help for individual
                     usage.  In most embedded usages, there are particular restrictions
-                    like, "must refer only to types A and B" or "UID not honored"
-                    or "name must be restricted". Those cannot be well described when
-                    embedded. 3. Inconsistent validation.  Because the usages are
-                    different, the validation rules are different by usage, which
+                    like, \"must refer only to types A and B\" or \"UID not honored\"
+                    or \"name must be restricted\". Those cannot be well described
+                    when embedded. 3. Inconsistent validation.  Because the usages
+                    are different, the validation rules are different by usage, which
                     makes it hard for users to predict what will happen. 4. The fields
                     are both imprecise and overly precise.  Kind is not a precise
                     mapping to a URL. This can produce ambiguity during interpretation
@@ -5650,12 +6039,12 @@ spec:
                     on the group,resource tuple and the version of the actual struct
                     is irrelevant. 5. We cannot easily change it.  Because this type
                     is embedded in many locations, updates to this type will affect
-                    numerous schemas.  Don''t make new APIs embed an underspecified
-                    API type they do not control. Instead of using this type, create
+                    numerous schemas.  Don't make new APIs embed an underspecified
+                    API type they do not control. \n Instead of using this type, create
                     a locally provided and used type that is well-focused on your
                     reference. For example, ServiceReferences for admission registration:
                     https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533
-                    .'
+                    ."
                   properties:
                     apiVersion:
                       description: API version of the referent.
