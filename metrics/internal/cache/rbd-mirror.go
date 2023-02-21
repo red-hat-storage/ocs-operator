@@ -107,6 +107,9 @@ type RBDMirrorStore struct {
 	rbdCommandInput   map[string]*cephMonitorConfig
 	kubeclient        clientset.Interface
 	allowedNamespaces []string
+	// Functions to make testing easier
+	initCephFn       func(kubeclient clientset.Interface, allowedNamespaces []string) (cephMonitorConfig, error)
+	rbdImageStatusFn func(config *cephMonitorConfig, poolName string) (RBDMirrorStatusVerbose, error)
 }
 
 func NewRBDMirrorStore(opts *options.Options) *RBDMirrorStore {
@@ -115,6 +118,8 @@ func NewRBDMirrorStore(opts *options.Options) *RBDMirrorStore {
 		rbdCommandInput:   map[string]*cephMonitorConfig{},
 		kubeclient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
 		allowedNamespaces: opts.AllowedNamespaces,
+		initCephFn:        initCeph,
+		rbdImageStatusFn:  rbdImageStatus,
 	}
 }
 
@@ -130,7 +135,7 @@ func (s *RBDMirrorStore) WithRBDCommandInput(namespace string) error {
 		return fmt.Errorf("rbd-mirror metrics collection from namespace %q is not allowed", namespace)
 	}
 
-	input, err := initCeph(s.kubeclient, []string{namespace})
+	input, err := s.initCephFn(s.kubeclient, []string{namespace})
 	if err != nil {
 		return err
 	}
@@ -218,7 +223,7 @@ func (s *RBDMirrorStore) Add(obj interface{}) error {
 		}
 	}
 
-	mirrorStatus, err := rbdImageStatus(s.rbdCommandInput[pool.Namespace], pool.Name)
+	mirrorStatus, err := s.rbdImageStatusFn(s.rbdCommandInput[pool.Namespace], pool.Name)
 	if err != nil {
 		return fmt.Errorf("rbd command error: %v", err)
 	}
@@ -298,7 +303,7 @@ func (s *RBDMirrorStore) Resync() error {
 			}
 		}
 
-		mirrorStatus, err := rbdImageStatus(s.rbdCommandInput[poolStatusVerbose.PoolNamespace], poolStatusVerbose.PoolName)
+		mirrorStatus, err := s.rbdImageStatusFn(s.rbdCommandInput[poolStatusVerbose.PoolNamespace], poolStatusVerbose.PoolName)
 		if err != nil {
 			klog.Errorf("rbd command error: %v", err)
 			continue
