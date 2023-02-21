@@ -17,7 +17,7 @@ func PVCCreationTest() {
 	client := dm.Client
 
 	ginkgo.AfterEach(func() {
-		if ginkgo.CurrentGinkgoTestDescription().Failed {
+		if ginkgo.CurrentSpecReport().Failed() {
 			tests.SuiteFailed = tests.SuiteFailed || true
 		}
 	})

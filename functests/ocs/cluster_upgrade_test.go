@@ -27,7 +27,7 @@ func ClusterUpgradeTest() {
 		})
 
 		ginkgo.AfterEach(func() {
-			if ginkgo.CurrentGinkgoTestDescription().Failed {
+			if ginkgo.CurrentSpecReport().Failed() {
 				ginkgo.By("Detected upgrade failure. Cleanup the cluster")
 				tests.AfterUpgradeTestSuiteCleanup()
 				ginkgo.By("Reinstall a fresh cluster")
