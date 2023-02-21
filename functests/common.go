@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 
 	k8sbatchv1 "k8s.io/api/batch/v1"

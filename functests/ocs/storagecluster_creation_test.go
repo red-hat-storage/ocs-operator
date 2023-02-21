@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -46,7 +46,7 @@ func StorageClusterCreationTest() {
 	})
 
 	ginkgo.AfterEach(func() {
-		if ginkgo.CurrentGinkgoTestDescription().Failed {
+		if ginkgo.CurrentSpecReport().Failed() {
 			tests.SuiteFailed = tests.SuiteFailed || true
 		}
 	})

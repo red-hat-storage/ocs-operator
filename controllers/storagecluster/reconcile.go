@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"

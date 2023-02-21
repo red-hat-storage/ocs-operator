@@ -1,7 +1,7 @@
 package ocs_test
 
 import (
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	tests "github.com/red-hat-storage/ocs-operator/functests"
 )
@@ -27,7 +27,7 @@ func ClusterUpgradeTest() {
 		})
 
 		ginkgo.AfterEach(func() {
-			if ginkgo.CurrentGinkgoTestDescription().Failed {
+			if ginkgo.CurrentSpecReport().Failed() {
 				ginkgo.By("Detected upgrade failure. Cleanup the cluster")
 				tests.AfterUpgradeTestSuiteCleanup()
 				ginkgo.By("Reinstall a fresh cluster")

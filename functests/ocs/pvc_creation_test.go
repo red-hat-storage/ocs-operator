@@ -3,7 +3,7 @@ package ocs_test
 import (
 	"context"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	tests "github.com/red-hat-storage/ocs-operator/functests"
 	k8sv1 "k8s.io/api/core/v1"
@@ -17,7 +17,7 @@ func PVCCreationTest() {
 	client := dm.Client
 
 	ginkgo.AfterEach(func() {
-		if ginkgo.CurrentGinkgoTestDescription().Failed {
+		if ginkgo.CurrentSpecReport().Failed() {
 			tests.SuiteFailed = tests.SuiteFailed || true
 		}
 	})

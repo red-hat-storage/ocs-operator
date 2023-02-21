@@ -28,6 +28,11 @@ var _ webhook.Validator = &CephObjectStore{}
 
 const ServiceServingCertKey = "service.beta.openshift.io/serving-cert-secret-name"
 
+// 38 is the max length of a ceph store name as total length of the resource name cannot be more than 63 characters limit
+// and there is a configmap which is formed by appending `rook-ceph-rgw-<STORE-NAME>-mime-types`
+// so over all it brings up to (63-14-11 = 38) characters for the store name
+const objectStoreNameMaxLen = 38
+
 func (s *ObjectStoreSpec) IsMultisite() bool {
 	return s.Zone.Name != ""
 }
@@ -76,6 +81,9 @@ func ValidateObjectSpec(gs *CephObjectStore) error {
 	if gs.Namespace == "" {
 		return errors.New("missing namespace")
 	}
+	if len(gs.Name) > objectStoreNameMaxLen {
+		return errors.New("object store name cannot be longer than 38 characters")
+	}
 	securePort := gs.Spec.Gateway.SecurePort
 	if securePort < 0 || securePort > 65535 {
 		return errors.Errorf("securePort value of %d must be between 0 and 65535", securePort)
@@ -108,4 +116,17 @@ func (s *ObjectStoreSpec) GetServiceServingCert() string {
 
 func (c *CephObjectStore) GetStatusConditions() *[]Condition {
 	return &c.Status.Conditions
+}
+
+func (z *CephObjectZone) GetStatusConditions() *[]Condition {
+	return &z.Status.Conditions
+}
+
+// String returns an addressable string representation of the EndpointAddress.
+func (e *EndpointAddress) String() string {
+	// hostname is easier to read, and it is probably less likely to change, so prefer it over IP
+	if e.Hostname != "" {
+		return e.Hostname
+	}
+	return e.IP
 }

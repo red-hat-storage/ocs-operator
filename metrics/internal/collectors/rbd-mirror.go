@@ -8,7 +8,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/cache"
 	internalcache "github.com/red-hat-storage/ocs-operator/metrics/internal/cache"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (

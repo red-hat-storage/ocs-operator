@@ -276,7 +276,7 @@ func getRbdMirrorDebugLoggingJob(sc *ocsv1.StorageCluster, jobName string, confi
 								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
 							},
 							SecurityContext: &corev1.SecurityContext{
-								AllowPrivilegeEscalation: pointer.BoolPtr(false),
+								AllowPrivilegeEscalation: pointer.Bool(false),
 								Capabilities: &corev1.Capabilities{
 									Drop: []corev1.Capability{
 										"ALL",
@@ -298,7 +298,7 @@ func getRbdMirrorDebugLoggingJob(sc *ocsv1.StorageCluster, jobName string, confi
 								configCommands,
 							},
 							SecurityContext: &corev1.SecurityContext{
-								AllowPrivilegeEscalation: pointer.BoolPtr(false),
+								AllowPrivilegeEscalation: pointer.Bool(false),
 								Capabilities: &corev1.Capabilities{
 									Drop: []corev1.Capability{
 										"ALL",
@@ -319,7 +319,7 @@ func getRbdMirrorDebugLoggingJob(sc *ocsv1.StorageCluster, jobName string, confi
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: pointer.BoolPtr(true),
+						RunAsNonRoot: pointer.Bool(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type: corev1.SeccompProfileTypeRuntimeDefault,
 						},
