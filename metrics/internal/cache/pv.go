@@ -36,6 +36,12 @@ type PersistentVolumeStore struct {
 	monitorConfig     cephMonitorConfig
 	kubeClient        clientset.Interface
 	allowedNamespaces []string
+
+	// Functions to make testing easier
+	initCephFn         func(kubeclient clientset.Interface, allowedNamespaces []string) (cephMonitorConfig, error)
+	runCephRBDStatusFn func(config *cephMonitorConfig, pool, image string) (Clients, error)
+	// TODO: Use fake k8s client instead
+	getNodeNameForPVFn func(pv *corev1.PersistentVolume, kubeClient clientset.Interface) (string, error)
 }
 
 type Watcher struct {
@@ -58,11 +64,14 @@ type PersistentVolumeAttributes struct {
 
 func NewPersistentVolumeStore(opts *options.Options) *PersistentVolumeStore {
 	return &PersistentVolumeStore{
-		Store:             map[types.UID]PersistentVolumeAttributes{},
-		RBDClientMap:      map[string][]string{},
-		kubeClient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
-		monitorConfig:     cephMonitorConfig{},
-		allowedNamespaces: opts.AllowedNamespaces,
+		Store:              map[types.UID]PersistentVolumeAttributes{},
+		RBDClientMap:       map[string][]string{},
+		kubeClient:         clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig:      cephMonitorConfig{},
+		allowedNamespaces:  opts.AllowedNamespaces,
+		initCephFn:         initCeph,
+		runCephRBDStatusFn: runCephRBDStatus,
+		getNodeNameForPVFn: getNodeNameForPV,
 	}
 }
 
@@ -120,7 +129,7 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 
 	if (p.monitorConfig == cephMonitorConfig{}) {
 		var err error
-		p.monitorConfig, err = initCeph(p.kubeClient, p.allowedNamespaces)
+		p.monitorConfig, err = p.initCephFn(p.kubeClient, p.allowedNamespaces)
 		if err != nil {
 			return fmt.Errorf("failed to initialize ceph: %v", err)
 		}
@@ -137,12 +146,12 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 		Pool:                           pv.Spec.CSI.VolumeAttributes["pool"],
 	}
 
-	clients, err := runCephRBDStatus(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["imageName"])
+	clients, err := p.runCephRBDStatusFn(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["imageName"])
 	if err != nil {
 		return fmt.Errorf("failed to get image status %v", err)
 	}
 
-	nodeName, err := getNodeNameForPV(pv, p.kubeClient)
+	nodeName, err := p.getNodeNameForPVFn(pv, p.kubeClient)
 	if err != nil {
 		return fmt.Errorf("failed to get node name for pod: %v", err)
 	}
