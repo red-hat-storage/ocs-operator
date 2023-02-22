@@ -124,6 +124,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.PersistentVolumeClaim{}, builder.WithPredicates(pvcPredicate)).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&source.Kind{Type: &ocsv1.OCSInitialization{}},
 			&handler.EnqueueRequestForObject{},

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	configv1 "github.com/openshift/api/config/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -27,11 +26,6 @@ import (
 var watchNamespace string
 
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
-
-const (
-	// This name is predefined by Rook
-	rookCephOperatorConfigName = "rook-ceph-operator-config"
-)
 
 // InitNamespacedName returns a NamespacedName for the singleton instance that
 // should exist.
@@ -144,20 +138,15 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	if !instance.Status.RookCephOperatorConfigCreated {
-		// if true, no need to ensure presence of ConfigMap
-		// if false, ensure ConfigMap and update the status
-		err = r.ensureRookCephOperatorConfig(instance)
-		if err != nil {
-			r.Log.Error(err, "Failed to process ConfigMap.", "ConfigMap", klog.KRef(instance.Namespace, rookCephOperatorConfigName))
-			return reconcile.Result{}, err
-		}
-		instance.Status.RookCephOperatorConfigCreated = true
+	err = r.ensureRookCephOperatorConfigExists(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure rook-ceph-operator-config ConfigMap")
+		return reconcile.Result{}, err
 	}
 
-	err = r.ensureOCSOperatorConfig(instance)
+	err = r.ensureOcsOperatorConfigExists(instance)
 	if err != nil {
-		r.Log.Error(err, "Failed to process ConfigMap.", "ConfigMap", klog.KRef(instance.Namespace, "ocs-operator-config"))
+		r.Log.Error(err, "Failed to ensure ocs-operator-config ConfigMap")
 		return reconcile.Result{}, err
 	}
 
@@ -182,53 +171,87 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}).
 		Owns(&appsv1.Deployment{}).
-		Watches(&source.Kind{Type: &configv1.ClusterVersion{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-			return []reconcile.Request{
-				{NamespacedName: types.NamespacedName{
-					Name:      InitNamespacedName().Name,
-					Namespace: InitNamespacedName().Namespace,
-				}},
-			}
-		})).
-		Watches(&source.Kind{Type: &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      util.OcsOperatorConfigName,
-				Namespace: watchNamespace,
+		// Watcher for rook-ceph-operator-config cm
+		Watches(
+			&source.Kind{
+				Type: &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      util.RookCephOperatorConfigName,
+						Namespace: watchNamespace,
+					},
+				},
 			},
-		}}, &handler.EnqueueRequestForOwner{
-			OwnerType:    &ocsv1.OCSInitialization{},
-			IsController: true,
-		}).
+			handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+				return []reconcile.Request{{
+					NamespacedName: InitNamespacedName(),
+				}}
+			}),
+		).
+		// Watcher for ocs-operator-config cm
+		Watches(
+			&source.Kind{
+				Type: &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      util.OcsOperatorConfigName,
+						Namespace: watchNamespace,
+					},
+				},
+			},
+			handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+				return []reconcile.Request{{
+					NamespacedName: InitNamespacedName(),
+				}}
+			}),
+		).
 		Complete(r)
 }
 
-// returns a ConfigMap with default settings for rook-ceph operator
-func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
-	config := &corev1.ConfigMap{
+// ensureRookCephOperatorConfigExists ensures that the rook-ceph-operator-config cm exists
+// This configmap is purely reserved for any user overrides to be applied.
+// We don't reconcile it if it exists as it can reset any values the user has set
+// The configmap is watched by the rook operator and values set here have higher precedence
+// than the default values set in the rook operator pod env vars.
+func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
+	rookCephOperatorConfig := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      rookCephOperatorConfigName,
-			Namespace: namespace,
+			Name:      util.RookCephOperatorConfigName,
+			Namespace: initialData.Namespace,
 		},
 	}
-	data := make(map[string]string)
-	config.Data = data
-
-	return config
-}
-
-func (r *OCSInitializationReconciler) ensureRookCephOperatorConfig(initialData *ocsv1.OCSInitialization) error {
-	rookCephOperatorConfig := &corev1.ConfigMap{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: initialData.Namespace}, rookCephOperatorConfig)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// If it does not exist, create a ConfigMap with default settings
-			return r.Client.Create(context.TODO(), newRookCephOperatorConfig(initialData.Namespace))
-		}
+	err := r.Client.Create(r.ctx, rookCephOperatorConfig)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		r.Log.Error(err, fmt.Sprintf("Failed to create %s configmap", util.RookCephOperatorConfigName))
 		return err
 	}
-	// If it already exists, do not update. It is up to the user to
-	// update the ConfigMap as they see fit. Changes will be picked
-	// up by rook operator and reconciled. We do not want to reconcile
-	// this ConfigMap. If we do, user changes will be reset to defaults.
+	return nil
+}
+
+// ensureOcsOperatorConfigExists ensures that the ocs-operator-config exists & if not create it with default values
+// This configmap is reserved just for ocs operator use, primarily meant for passing values to rook-ceph-operator
+// It is not meant to be modified by the user
+// The values are set by the storagecluster controller at the start of the Reconcile
+// The needed keys from the configmap are passed to rook-ceph operator pod as env variables.
+// When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
+func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
+	const (
+		clusterNameKey        = "CSI_CLUSTER_NAME"
+		enableReadAffinityKey = "CSI_ENABLE_READ_AFFINITY"
+	)
+	ocsOperatorConfig := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.OcsOperatorConfigName,
+			Namespace: initialData.Namespace,
+		},
+		// Default or placeholder values for the configmap
+		Data: map[string]string{
+			clusterNameKey:        "",
+			enableReadAffinityKey: "true",
+		},
+	}
+	err := r.Client.Create(r.ctx, ocsOperatorConfig)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		r.Log.Error(err, fmt.Sprintf("Failed to create %v configmap", util.OcsOperatorConfigName))
+		return err
+	}
 	return nil
 }

@@ -19,7 +19,6 @@ import (
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,7 +32,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -105,15 +103,15 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, nil
 	}
 
-	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
-		return reconcile.Result{}, fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
+	// ensure the ocs-operator-config cm exists & has the correct values
+	err = r.ensureOCSOperatorConfig(sc)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure ocs-operator-config ConfigMap")
+		return reconcile.Result{}, err
 	}
 
-	err = r.setReadAffinity(sc)
-	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("Failed to set Read Affinity to %t", !sc.Spec.ExternalStorage.Enable),
-			"StorageCluster", klog.KRef(sc.Namespace, sc.Name))
-		return reconcile.Result{}, err
+	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
+		return reconcile.Result{}, fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
 
 	for i, ds := range sc.Spec.StorageDeviceSets {
@@ -1138,49 +1136,6 @@ func createOrUpdatePrometheusRule(r *StorageClusterReconciler, sc *ocsv1.Storage
 			return err
 		}
 	}
-	return nil
-}
-
-// setReadAffinity sets read affinity by setting "CSI_ENABLE_READ_AFFINITY"
-// in ocs-operator-config configmap.
-func (r *StorageClusterReconciler) setReadAffinity(sc *ocsv1.StorageCluster) error {
-	var (
-		readAffinityVarKey = "CSI_ENABLE_READ_AFFINITY"
-		readAffinityVarVal = strconv.FormatBool(!sc.Spec.ExternalStorage.Enable)
-		cm                 = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      util.OcsOperatorConfigName,
-				Namespace: sc.Namespace,
-			},
-			Data: map[string]string{
-				readAffinityVarKey: readAffinityVarVal,
-			},
-		}
-		needsRestart = false
-	)
-
-	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
-		if cm.Data[readAffinityVarKey] != readAffinityVarVal {
-			cm.Data[readAffinityVarKey] = readAffinityVarVal
-			needsRestart = true
-		}
-		return nil
-	})
-	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("failed to update %q configmap", util.OcsOperatorConfigName),
-			"storageCluster", klog.KRef(sc.Namespace, sc.Name))
-		return err
-	}
-	if needsRestart {
-		// restart the rook-ceph-operator pod to pick up the new change
-		util.RestartRookOperatorPod(r.ctx, r.Client, &r.Log, sc.Namespace)
-		r.Log.Info(fmt.Sprintf("successfully set %q to %q", readAffinityVarKey, readAffinityVarVal),
-			"storageCluster", klog.KRef(sc.Namespace, sc.Name))
-	} else {
-		r.Log.Info(fmt.Sprintf("%q is already set to %q", readAffinityVarKey, readAffinityVarVal),
-			"storageCluster", klog.KRef(sc.Namespace, sc.Name))
-	}
-
 	return nil
 }
 
