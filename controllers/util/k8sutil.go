@@ -1,13 +1,8 @@
 package util
 
 import (
-	"context"
 	"fmt"
 	"os"
-
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -43,21 +38,4 @@ func GetOperatorNamespace() (string, error) {
 		return "", fmt.Errorf("%s must be set", OperatorNamespaceEnvVar)
 	}
 	return ns, nil
-}
-
-// RestartRookOperatorPod restarts the rook-operator pod in the OCP cluster
-func RestartRookOperatorPod(ctx context.Context, kubeClient client.Client, logger *logr.Logger, namespace string) {
-	podList := &corev1.PodList{}
-	err := kubeClient.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels{"app": "rook-ceph-operator"})
-	if err != nil {
-		logger.Error(err, "Failed to list rook-ceph-operator pod")
-		return
-	}
-	for _, pod := range podList.Items {
-		err := kubeClient.Delete(ctx, &pod)
-		if err != nil {
-			logger.Error(err, "Failed to delete rook-ceph-operator pod")
-			return
-		}
-	}
 }
