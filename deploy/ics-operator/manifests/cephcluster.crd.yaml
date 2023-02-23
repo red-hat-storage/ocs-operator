@@ -67,6 +67,13 @@ spec:
                     type: boolean
                   image:
                     type: string
+                  imagePullPolicy:
+                    enum:
+                    - IfNotPresent
+                    - Always
+                    - Never
+                    - ""
+                    type: string
                 type: object
               cleanupPolicy:
                 nullable: true
@@ -792,6 +799,8 @@ spec:
                           enabled:
                             type: boolean
                         type: object
+                      requireMsgr2:
+                        type: boolean
                     type: object
                   dualStack:
                     type: boolean
@@ -1209,12 +1218,21 @@ spec:
                                   type: string
                                 type: object
                             type: object
+                          matchLabelKeys:
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
                           maxSkew:
                             format: int32
                             type: integer
                           minDomains:
                             format: int32
                             type: integer
+                          nodeAffinityPolicy:
+                            type: string
+                          nodeTaintsPolicy:
+                            type: string
                           topologyKey:
                             type: string
                           whenUnsatisfiable:
@@ -1936,12 +1954,21 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                  matchLabelKeys:
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
                                   maxSkew:
                                     format: int32
                                     type: integer
                                   minDomains:
                                     format: int32
                                     type: integer
+                                  nodeAffinityPolicy:
+                                    type: string
+                                  nodeTaintsPolicy:
+                                    type: string
                                   topologyKey:
                                     type: string
                                   whenUnsatisfiable:
@@ -2352,12 +2379,21 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                  matchLabelKeys:
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
                                   maxSkew:
                                     format: int32
                                     type: integer
                                   minDomains:
                                     format: int32
                                     type: integer
+                                  nodeAffinityPolicy:
+                                    type: string
+                                  nodeTaintsPolicy:
+                                    type: string
                                   topologyKey:
                                     type: string
                                   whenUnsatisfiable:
