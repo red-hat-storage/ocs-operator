@@ -260,6 +260,17 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				},
 			},
 			{
+				Name: "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS",
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "ocs-operator-config",
+						},
+						Key: "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS",
+					},
+				},
+			},
+			{
 				Name: "CSI_PROVISIONER_TOLERATIONS",
 				Value: `
 - key: node.ocs.openshift.io/storage

@@ -234,8 +234,9 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 // When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
 func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
 	const (
-		clusterNameKey        = "CSI_CLUSTER_NAME"
-		enableReadAffinityKey = "CSI_ENABLE_READ_AFFINITY"
+		clusterNameKey              = "CSI_CLUSTER_NAME"
+		enableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
+		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
 	)
 	ocsOperatorConfig := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -244,8 +245,9 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		},
 		// Default or placeholder values for the configmap
 		Data: map[string]string{
-			clusterNameKey:        "",
-			enableReadAffinityKey: "true",
+			clusterNameKey:              "",
+			enableReadAffinityKey:       "true",
+			cephFSKernelMountOptionsKey: "ms_mode=prefer-crc",
 		},
 	}
 	err := r.Client.Create(r.ctx, ocsOperatorConfig)

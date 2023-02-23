@@ -19,12 +19,14 @@ import (
 
 func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageCluster) error {
 	const (
-		clusterNameKey        = "CSI_CLUSTER_NAME"
-		enableReadAffinityKey = "CSI_ENABLE_READ_AFFINITY"
+		clusterNameKey              = "CSI_CLUSTER_NAME"
+		enableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
+		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
 	)
 	var (
-		clusterNameVal        = r.getClusterID()
-		enableReadAffinityVal = strconv.FormatBool(!sc.Spec.ExternalStorage.Enable)
+		clusterNameVal             = r.getClusterID()
+		enableReadAffinityVal      = strconv.FormatBool(!sc.Spec.ExternalStorage.Enable)
+		cephFSKernelMountOptionVal = getCephFSKernelMountOptions(sc)
 	)
 
 	cm := &corev1.ConfigMap{
@@ -44,6 +46,9 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 		}
 		if cm.Data[enableReadAffinityKey] != enableReadAffinityVal {
 			cm.Data[enableReadAffinityKey] = enableReadAffinityVal
+		}
+		if cm.Data[cephFSKernelMountOptionsKey] != cephFSKernelMountOptionVal {
+			cm.Data[cephFSKernelMountOptionsKey] = cephFSKernelMountOptionVal
 		}
 		return ctrl.SetControllerReference(sc, cm, r.Scheme)
 	})
@@ -87,4 +92,12 @@ func (r *StorageClusterReconciler) getClusterID() string {
 		return ""
 	}
 	return fmt.Sprint(clusterVersion.Spec.ClusterID)
+}
+
+// getCephFSKernelMountOptions returns the kernel mount options for cephfs
+func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
+	if sc.Spec.Network != nil && sc.Spec.Network.Connections != nil && sc.Spec.Network.Connections.Encryption != nil && sc.Spec.Network.Connections.Encryption.Enabled {
+		return "ms_mode=secure"
+	}
+	return "ms_mode=prefer-crc"
 }

@@ -531,6 +531,16 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	}
 	// respect both the old way and the new way for enabling HostNetwork
 	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
+
+	// Enable the msgr2 port always
+	if networkSpec.Connections == nil {
+		networkSpec.Connections = &rookCephv1.ConnectionsSpec{
+			RequireMsgr2: true,
+		}
+	} else {
+		networkSpec.Connections.RequireMsgr2 = true
+	}
+
 	return networkSpec
 }
 
