@@ -182,6 +182,8 @@ spec:
           - ""
           resources:
           - persistentvolumes
+          - persistentvolumeclaims
+          - pods
           verbs:
           - get
           - list

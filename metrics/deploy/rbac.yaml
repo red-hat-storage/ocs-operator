@@ -14,6 +14,8 @@ rules:
   - ""
   resources:
   - persistentvolumes
+  - persistentvolumeclaims
+  - pods
   - configmaps
   - secrets
   verbs:

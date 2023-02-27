@@ -2,10 +2,14 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +30,18 @@ var _ cache.Store = &PersistentVolumeStore{}
 type PersistentVolumeStore struct {
 	Mutex sync.RWMutex
 	// Store is a map of PV UID to PersistentVolumeAttributes
-	Store map[types.UID]PersistentVolumeAttributes
+	Store         map[types.UID]PersistentVolumeAttributes
+	RBDClientMap  map[string]Clients
+	monitorConfig cephMonitorConfig
+	kubeClient    clientset.Interface
+}
+
+type Clients struct {
+	Watchers []struct {
+		Address string      `json:"address,omitempty"`
+		Client  int         `json:"client,omitempty"`
+		Cookie  json.Number `json:"cookie,omitempty"`
+	} `json:"watchers,omitempty"`
 }
 
 type PersistentVolumeAttributes struct {
@@ -37,10 +52,30 @@ type PersistentVolumeAttributes struct {
 	Pool                           string
 }
 
-func NewPersistentVolumeStore() *PersistentVolumeStore {
+func NewPersistentVolumeStore(opts *options.Options) *PersistentVolumeStore {
 	return &PersistentVolumeStore{
-		Store: map[types.UID]PersistentVolumeAttributes{},
+		Store:         map[types.UID]PersistentVolumeAttributes{},
+		RBDClientMap:  map[string]Clients{},
+		kubeClient:    clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig: cephMonitorConfig{},
 	}
+}
+
+func runCephRBDStatus(config *cephMonitorConfig, pool, image string) (Clients, error) {
+	var clients Clients
+
+	if config.monitor == "" && config.id == "" && config.key == "" {
+		return clients, errors.New("unable to get status data. monitor config missing")
+	}
+	imageSpec := fmt.Sprintf("%s/%s", pool, image)
+	args := []string{"status", imageSpec, "--format", "json", "-m", config.monitor, "--id", config.id, "--key", config.key}
+	cmd, err := execCommand("rbd", args)
+	if err != nil {
+		return clients, fmt.Errorf("failed with output : %v, err: %v", string(cmd), err)
+	}
+
+	err = json.Unmarshal(cmd, &clients)
+	return clients, err
 }
 
 // Add inserts to the PersistentVolumeStore.
@@ -49,6 +84,8 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 	if !ok {
 		return fmt.Errorf("unexpected object of type %T", obj)
 	}
+
+	klog.Infof("PV store addition started at %v for PV %v", time.Now(), pv.Name)
 
 	provisioner := pv.Annotations["pv.kubernetes.io/provisioned-by"]
 	if !strings.Contains(provisioner, ".rbd.csi.ceph.com") {
@@ -59,6 +96,14 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 	if pv.Spec.ClaimRef == nil {
 		klog.Infof("Skipping unbound volume %s", pv.Name)
 		return nil
+	}
+
+	if (p.monitorConfig == cephMonitorConfig{}) {
+		var err error
+		p.monitorConfig, err = initCeph(p.kubeClient, "openshift-storage")
+		if err != nil {
+			return fmt.Errorf("failed to initialize ceph: %v", err)
+		}
 	}
 
 	p.Mutex.Lock()
@@ -72,7 +117,57 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 		Pool:                           pv.Spec.CSI.VolumeAttributes["pool"],
 	}
 
+	clients, err := runCephRBDStatus(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["imageName"])
+	if err != nil {
+		return fmt.Errorf("failed to get image status %v", err)
+	}
+
+	nodeName, err := getNodeNameForPV(pv, p.kubeClient)
+	if err != nil {
+		return fmt.Errorf("failed to get node name for pod: %v", err)
+	}
+
+	if len(clients.Watchers) != 0 {
+		p.RBDClientMap[nodeName] = clients
+	}
+
+	klog.Infof("PV store addition completed at %v", time.Now())
+
 	return nil
+}
+
+func getNodeNameForPV(pv *corev1.PersistentVolume, kubeClient clientset.Interface) (string, error) {
+	if pv.Spec.ClaimRef == nil {
+		return "", fmt.Errorf("persistent volume %s is not bound to any claim", pv.Name)
+	}
+
+	klog.Info(pv.Name, pv.Spec.ClaimRef.Namespace)
+
+	pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(pv.Spec.ClaimRef.Namespace).Get(context.Background(), pv.Spec.ClaimRef.Name, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get PVC %s/%s: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
+	}
+
+	if pvc.Spec.VolumeName != pv.Name {
+		return "", fmt.Errorf("persistent volume %s is not bound to claim %s/%s", pv.Name, pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name)
+	}
+
+	podList, err := kubeClient.CoreV1().Pods(pvc.Namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to list pods in namespace %s: %v", pvc.Namespace, err)
+	}
+
+	for _, pod := range podList.Items {
+		if pod.Spec.Volumes != nil {
+			for _, volume := range pod.Spec.Volumes {
+				if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
+					return pod.Spec.NodeName, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no pod is using PVC %s/%s", pvc.Namespace, pvc.Name)
 }
 
 // Update updates the existing entry in the PersistentVolumeStore.
@@ -134,6 +229,25 @@ func (p *PersistentVolumeStore) Replace(list []interface{}, _ string) error {
 
 // Resync implements the Resync method of the store interface.
 func (p *PersistentVolumeStore) Resync() error {
+	klog.Infof("PV store Resync started at %v", time.Now())
+
+	p.Mutex.Lock()
+	defer p.Mutex.Unlock()
+
+	pvList, err := p.kubeClient.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list persistent volumes: %v", err)
+	}
+
+	for _, pv := range pvList.Items {
+		klog.Info("now processing: ", pv.Name)
+		err := p.Add(pv)
+		if err != nil {
+			return fmt.Errorf("failed to process PV: %s err: %v", pv.Name, err)
+		}
+	}
+
+	klog.Infof("PV store Resync ended at %v", time.Now())
 	return nil
 }
 
