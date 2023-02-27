@@ -17,17 +17,28 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
+        description: CephBucketNotification represents a Bucket Notifications
         properties:
           apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
           spec:
+            description: BucketNotificationSpec represent the spec of a Bucket Notification
             properties:
               events:
+                description: List of events that should trigger the notification
                 items:
+                  description: BucketNotificationSpec represent the event type of
+                    the bucket notification
                   enum:
                   - s3:ObjectCreated:*
                   - s3:ObjectCreated:Put
@@ -40,17 +51,23 @@ spec:
                   type: string
                 type: array
               filter:
+                description: Spec of notification filter
                 properties:
                   keyFilters:
+                    description: Filters based on the object's key
                     items:
+                      description: NotificationKeyFilterRule represent a single key
+                        rule in the Notification Filter spec
                       properties:
                         name:
+                          description: Name of the filter - prefix/suffix/regex
                           enum:
                           - prefix
                           - suffix
                           - regex
                           type: string
                         value:
+                          description: Value to filter on
                           type: string
                       required:
                       - name
@@ -58,12 +75,17 @@ spec:
                       type: object
                     type: array
                   metadataFilters:
+                    description: Filters based on the object's metadata
                     items:
+                      description: NotificationFilterRule represent a single rule
+                        in the Notification Filter spec
                       properties:
                         name:
+                          description: Name of the metadata or tag
                           minLength: 1
                           type: string
                         value:
+                          description: Value to filter on
                           type: string
                       required:
                       - name
@@ -71,12 +93,17 @@ spec:
                       type: object
                     type: array
                   tagFilters:
+                    description: Filters based on the object's tags
                     items:
+                      description: NotificationFilterRule represent a single rule
+                        in the Notification Filter spec
                       properties:
                         name:
+                          description: Name of the metadata or tag
                           minLength: 1
                           type: string
                         value:
+                          description: Value to filter on
                           type: string
                       required:
                       - name
@@ -85,15 +112,19 @@ spec:
                     type: array
                 type: object
               topic:
+                description: The name of the topic associated with this notification
                 minLength: 1
                 type: string
             required:
             - topic
             type: object
           status:
+            description: Status represents the status of an object
             properties:
               conditions:
                 items:
+                  description: Condition represents a status condition on any Rook-Ceph
+                    Custom Resource.
                   properties:
                     lastHeartbeatTime:
                       format: date-time
@@ -104,14 +135,18 @@ spec:
                     message:
                       type: string
                     reason:
+                      description: ConditionReason is a reason for a condition
                       type: string
                     status:
                       type: string
                     type:
+                      description: ConditionType represent a resource's status
                       type: string
                   type: object
                 type: array
               observedGeneration:
+                description: ObservedGeneration is the latest generation observed
+                  by the controller.
                 format: int64
                 type: integer
               phase:
