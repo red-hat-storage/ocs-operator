@@ -52,6 +52,9 @@ func main() {
 	// Add persistent volume attributes collector to the registry.
 	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
 
+	// Add blocklist collector to the registry
+	collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
+
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry)
