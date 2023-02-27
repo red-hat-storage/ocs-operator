@@ -11,6 +11,7 @@
     odfObcQuotaCriticalAlertTime: '0s',
     odfPoolMirroringImageHealthWarningAlertTime: '1m',
     odfPoolMirroringImageHealthCriticalAlertTime: '10s',
+    blockedRBDClientAlertTime: '10s',
 
     // Constants
     objectStorageType: 'RGW',

@@ -124,7 +124,7 @@
           {
             record: 'odf_system_bucket_count',
             expr: |||
-               sum (ocs_objectbucket_count_total)
+              sum (ocs_objectbucket_count_total)
             ||| % $._config,
             labels: {
               system_vendor: 'Red Hat',
