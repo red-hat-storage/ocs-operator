@@ -462,6 +462,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		message := ocsv1.ReconcileCompletedMessage
 		statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 
+		if instance.Spec.ExternalStorage.Enable {
+			statusutil.RemoveExternalCephClusterNegativeConditions(&instance.Status.Conditions)
+		}
+
 		// If no operator whose conditions we are watching reports an error, then it is safe
 		// to set upgradeable to true.
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding {

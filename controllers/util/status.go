@@ -204,6 +204,16 @@ func MapExternalCephClusterNegativeConditions(conditions *[]conditionsv1.Conditi
 	}
 }
 
+// RemoveExternalCephClusterNegativeConditions removes the External cluster negative conditions
+func RemoveExternalCephClusterNegativeConditions(conditions *[]conditionsv1.Condition) {
+	if conditionsv1.FindStatusCondition(*conditions, ocsv1.ConditionExternalClusterConnecting) != nil {
+		conditionsv1.RemoveStatusCondition(conditions, ocsv1.ConditionExternalClusterConnecting)
+	}
+	if conditionsv1.FindStatusCondition(*conditions, ocsv1.ConditionExternalClusterConnected) != nil {
+		conditionsv1.RemoveStatusCondition(conditions, ocsv1.ConditionExternalClusterConnected)
+	}
+}
+
 // MapCephClusterNoConditions sets status conditions to progressing. Used when component operator isn't
 // reporting any status, and we have to assume progress.
 func MapCephClusterNoConditions(conditions *[]conditionsv1.Condition, reason string, message string) {
