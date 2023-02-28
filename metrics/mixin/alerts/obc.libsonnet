@@ -1,4 +1,3 @@
-
 {
   prometheusAlerts+:: {
     groups+: [
