@@ -174,13 +174,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				return reconcile.Result{}, err
 			}
 			if kmsConfigMap != nil {
+				if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
+					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["VAULT_ADDR"]
+				}
 				if err = reachKMSProvider(kmsConfigMap); err != nil {
-					if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
-						sc.Status.KMSServerConnection = ocsv1.KMSServerConnectionStatus{
-							KMSServerAddress:         kmsConfigMap.Data["VAULT_ADDR"],
-							KMSServerConnectionError: err.Error(),
-						}
-					}
+					sc.Status.KMSServerConnection.KMSServerConnectionError = err.Error()
 					r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
 					return reconcile.Result{}, err
 				}

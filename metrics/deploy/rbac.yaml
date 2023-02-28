@@ -63,10 +63,11 @@ rules:
     - get
     - list
     - watch
-  - apiGroups:
+- apiGroups:
   - ocs.openshift.io
   resources:
   - storageconsumers
+  - storageclusters
   verbs:
     - get
     - list
