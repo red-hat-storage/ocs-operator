@@ -516,6 +516,10 @@ const (
 	// ConditionExternalClusterConnecting type indicates that rook is still trying for
 	// an external connection
 	ConditionExternalClusterConnecting conditionsv1.ConditionType = "ExternalClusterConnecting"
+
+	// ConditionVersionMismatch type indicates that there is a mismatch in the storagecluster
+	// and the operator version
+	ConditionVersionMismatch conditionsv1.ConditionType = "VersionMismatch"
 )
 
 // List of constants to show different different reconciliation messages and statuses.

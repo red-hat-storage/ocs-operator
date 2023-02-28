@@ -687,7 +687,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
-	assert.Len(t, actual.Status.Conditions, 5)
+	assert.Len(t, actual.Status.Conditions, 6)
 
 	assertExpectedCondition(t, actual.Status.Conditions)
 }
@@ -849,7 +849,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
-	assert.Len(t, actual.Status.Conditions, 5)
+	assert.Len(t, actual.Status.Conditions, 6)
 
 	assertExpectedCondition(t, actual.Status.Conditions)
 }
@@ -929,6 +929,7 @@ func assertExpectedCondition(t *testing.T, conditions []conditionsv1.Condition) 
 		conditionsv1.ConditionProgressing: corev1.ConditionTrue,
 		conditionsv1.ConditionDegraded:    corev1.ConditionFalse,
 		conditionsv1.ConditionUpgradeable: corev1.ConditionUnknown,
+		api.ConditionVersionMismatch:      corev1.ConditionFalse,
 	}
 	for cType, status := range expectedConditions {
 		found := assertCondition(conditions, cType, status)
