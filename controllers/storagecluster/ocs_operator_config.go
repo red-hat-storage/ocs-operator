@@ -41,6 +41,14 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 	}
 
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
+
+		// This configmap was created and controlled by the OCSInitialization earlier.
+		// We are required to remove OCSInitialization as a controller before adding storageCluster as controller.
+		if existing := metav1.GetControllerOfNoCopy(cm); existing != nil && existing.Kind == "OCSInitialization" {
+			existing.BlockOwnerDeletion = nil
+			existing.Controller = nil
+		}
+
 		if cm.Data[clusterNameKey] != clusterNameVal {
 			cm.Data[clusterNameKey] = clusterNameVal
 		}
