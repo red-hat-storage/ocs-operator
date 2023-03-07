@@ -50,12 +50,12 @@ ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 FCS_CSV="$OUTDIR_TEMPLATES/ics-operator.csv.yaml.in"
 
-LATEST_ROOK_IMAGE="rook/ceph:v1.11.0-beta.0.38.gfa4d97ea6"
-LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:master-20220916"
-LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:master-20220916"
+LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.11.0"
+LATEST_NOOBAA_IMAGE="quay.io/noobaa/noobaa-operator:master-20230306"
+LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230306"
 LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17"
-LATEST_ROOK_CSIADDONS_IMAGE="csiaddons/k8s-sidecar:v0.5.0"
+LATEST_ROOK_CSIADDONS_IMAGE="quay.io/csiaddons/k8s-sidecar:v0.5.0"
 # TODO: change image once the quay repo is changed
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
 
