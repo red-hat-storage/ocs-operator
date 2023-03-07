@@ -2818,11 +2818,11 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ROOK_CEPH_IMAGE
-                  value: rook/ceph:v1.11.0-beta.0.38.gfa4d97ea6
+                  value: docker.io/rook/ceph:v1.11.0
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v17
                 - name: NOOBAA_CORE_IMAGE
-                  value: noobaa/noobaa-core:master-20220916
+                  value: quay.io/noobaa/noobaa-core:master-20230306
                 - name: NOOBAA_DB_IMAGE
                   value: centos/postgresql-12-centos7
                 - name: PROVIDER_API_SERVER_IMAGE
@@ -2965,7 +2965,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: rook/ceph:v1.11.0-beta.0.38.gfa4d97ea6
+                image: docker.io/rook/ceph:v1.11.0
                 name: rook-ceph-operator
                 ports:
                 - containerPort: 9443
@@ -3267,6 +3267,13 @@ spec:
           - get
           - create
           - delete
+        - apiGroups:
+          - multicluster.x-k8s.io
+          resources:
+          - serviceexports
+          verbs:
+          - get
+          - create
         serviceAccountName: rook-ceph-system
       - rules:
         - apiGroups:
@@ -3337,7 +3344,7 @@ spec:
   provider:
     name: IBM
   relatedImages:
-  - image: rook/ceph:v1.11.0-beta.0.38.gfa4d97ea6
+  - image: docker.io/rook/ceph:v1.11.0
     name: rook-container
   - image: quay.io/ceph/ceph:v17
     name: ceph-container

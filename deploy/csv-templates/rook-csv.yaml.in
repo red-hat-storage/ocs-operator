@@ -2776,6 +2776,13 @@ spec:
                 - get
                 - create
                 - delete
+            - apiGroups:
+                - multicluster.x-k8s.io
+              resources:
+                - serviceexports
+              verbs:
+                - get
+                - create
           serviceAccountName: rook-ceph-system
         - rules:
             - apiGroups:
