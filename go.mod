@@ -13,7 +13,7 @@ require (
 	github.com/imdario/mergo v0.3.13
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.2.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230216002928-5ae687e91328
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230306134341-1874f52f83dd
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo/v2 v2.8.3
 	github.com/onsi/gomega v1.27.1
@@ -28,7 +28,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.63.0
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
-	github.com/rook/rook v1.11.0-beta.0
+	github.com/rook/rook v1.11.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/multierr v1.9.0
