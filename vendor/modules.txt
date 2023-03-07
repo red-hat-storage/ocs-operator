@@ -278,7 +278,7 @@ github.com/modern-go/reflect2
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/noobaa/noobaa-operator/v5 v5.0.0-20230216002928-5ae687e91328
+# github.com/noobaa/noobaa-operator/v5 v5.0.0-20230306134341-1874f52f83dd
 ## explicit; go 1.18
 github.com/noobaa/noobaa-operator/v5/pkg/apis
 github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1
@@ -421,8 +421,8 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rook/rook v1.11.0-beta.0
-## explicit; go 1.18
+# github.com/rook/rook v1.11.0
+## explicit; go 1.19
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/clientset/versioned
