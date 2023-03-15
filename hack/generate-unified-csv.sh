@@ -52,7 +52,7 @@ if [ "$FUSION" == "true" ]; then
 		--skip-range="$SKIP_RANGE" \
 		--rook-csv-filepath=$ROOK_CSV \
 		--noobaa-csv-filepath=$NOOBAA_CSV \
-		--ocs-csv-filepath=$FCS_CSV \
+		--ocs-csv-filepath=$ICS_CSV \
 		--rook-image="$ROOK_IMAGE" \
 		--ceph-image="$CEPH_IMAGE" \
 		--rook-csi-ceph-image="$ROOK_CSI_CEPH_IMAGE" \
