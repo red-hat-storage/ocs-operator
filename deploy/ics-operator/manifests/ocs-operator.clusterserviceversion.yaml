@@ -2913,7 +2913,7 @@ spec:
                 - name: ROOK_DISABLE_ADMISSION_CONTROLLER
                   value: "true"
                 - name: ROOK_CSIADDONS_IMAGE
-                  value: quay.io/csiaddons/k8s-sidecar:v0.5.0
+                  value: quay.io/csiaddons/k8s-sidecar:v0.6.0
                 - name: CSI_ENABLE_METADATA
                   value: "false"
                 - name: CSI_CLUSTER_NAME
@@ -3348,7 +3348,7 @@ spec:
     name: rook-container
   - image: quay.io/ceph/ceph:v17
     name: ceph-container
-  - image: quay.io/csiaddons/k8s-sidecar:v0.5.0
+  - image: quay.io/csiaddons/k8s-sidecar:v0.6.0
     name: csiaddons-sidecar
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
