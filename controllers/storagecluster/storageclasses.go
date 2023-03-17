@@ -103,7 +103,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 			err := r.Client.Get(context.TODO(), key, &cephBlockPool)
 			if err != nil || cephBlockPool.Status == nil || cephBlockPool.Status.Phase != cephv1.ConditionType(util.PhaseReady) {
 				r.Log.Info("Waiting for CephBlockPool to be Ready. Skip reconciling StorageClass",
-					"CephBlockPool", klog.KRef(key.Name, key.Namespace),
+					"CephBlockPool", klog.KRef(key.Namespace, key.Name),
 					"StorageClass", klog.KRef("", sc.Name),
 				)
 				skippedSC = append(skippedSC, sc.Name)
@@ -129,7 +129,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 					counter++
 				} else {
 					r.Log.Info("Waiting for Non-resilient CephBlockPools to be Ready. Skip reconciling StorageClass",
-						"CephBlockPool", klog.KRef(cephBlockPool.Name, cephBlockPool.Namespace),
+						"CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name),
 						"StorageClass", klog.KRef("", sc.Name),
 					)
 				}
@@ -145,7 +145,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 			err := r.Client.Get(context.TODO(), key, &cephFilesystem)
 			if err != nil || cephFilesystem.Status == nil || cephFilesystem.Status.Phase != cephv1.ConditionType(util.PhaseReady) {
 				r.Log.Info("Waiting for CephFilesystem to be Ready. Skip reconciling StorageClass",
-					"CephFilesystem", klog.KRef(key.Name, key.Namespace),
+					"CephFilesystem", klog.KRef(key.Namespace, key.Name),
 					"StorageClass", klog.KRef("", sc.Name),
 				)
 				skippedSC = append(skippedSC, sc.Name)
@@ -158,7 +158,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 			err := r.Client.Get(context.TODO(), key, &cephNFS)
 			if err != nil || cephNFS.Status == nil || cephNFS.Status.Phase != util.PhaseReady {
 				r.Log.Info("Waiting for CephNFS to be Ready. Skip reconciling StorageClass",
-					"CephNFS", klog.KRef(key.Name, key.Namespace),
+					"CephNFS", klog.KRef(key.Namespace, key.Name),
 					"StorageClass", klog.KRef("", sc.Name),
 				)
 				skippedSC = append(skippedSC, sc.Name)
