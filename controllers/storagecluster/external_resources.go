@@ -698,13 +698,13 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 	err := r.Client.Get(context.TODO(), objectKey, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("Creating External StorageCluster Secret.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+			r.Log.Info("Creating External StorageCluster Secret.", "Secret", klog.KRef(objectKey.Namespace, sec.Name))
 			err = r.Client.Create(context.TODO(), sec)
 			if err != nil {
-				r.Log.Error(err, "Creation of External StorageCluster Secret failed.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+				r.Log.Error(err, "Creation of External StorageCluster Secret failed.", "Secret", klog.KRef(objectKey.Namespace, sec.Name))
 			}
 		} else {
-			r.Log.Error(err, "Unable the get External StorageCluster Secret", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+			r.Log.Error(err, "Unable the get External StorageCluster Secret", "Secret", klog.KRef(objectKey.Namespace, sec.Name))
 		}
 		return err
 	}

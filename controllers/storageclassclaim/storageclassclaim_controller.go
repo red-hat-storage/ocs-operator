@@ -273,7 +273,7 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 
 		// Check if finalizers are present, if not, add them.
 		if !contains(r.storageClassClaim.GetFinalizers(), v1alpha1.StorageClassClaimFinalizer) {
-			storageClassClaimRef := klog.KRef(r.storageClassClaim.Name, r.storageClassClaim.Namespace)
+			storageClassClaimRef := klog.KRef(r.storageClassClaim.Namespace, r.storageClassClaim.Name)
 			r.log.Info("Finalizer not found for StorageClassClaim. Adding finalizer.", "StorageClassClaim", storageClassClaimRef)
 			r.storageClassClaim.SetFinalizers(append(r.storageClassClaim.GetFinalizers(), v1alpha1.StorageClassClaimFinalizer))
 			if err := r.update(r.storageClassClaim); err != nil {
