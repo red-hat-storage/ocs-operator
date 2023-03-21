@@ -882,7 +882,17 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 						},
 						Image:   *ocsMetricsExporterImage,
 						Command: []string{"/usr/local/bin/metrics-exporter"},
-						Args:    []string{"--namespaces=openshift-storage"},
+						Args:    []string{"--namespaces=$(WATCH_NAMESPACE)"},
+						Env: []corev1.EnvVar{
+							{
+								Name: "WATCH_NAMESPACE",
+								ValueFrom: &corev1.EnvVarSource{
+									FieldRef: &corev1.ObjectFieldSelector{
+										FieldPath: "metadata.namespace",
+									},
+								},
+							},
+						},
 						Ports: []corev1.ContainerPort{
 							{
 								ContainerPort: 8080,

@@ -144,6 +144,58 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephobjectstores
+          - cephblockpools
+          - cephclusters
+          - cephrbdmirrors
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - quota.openshift.io
+          resources:
+          - clusterresourcequotas
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - objectbucket.io
+          resources:
+          - objectbuckets
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - secrets
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumes
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+        serviceAccountName: ocs-metrics-exporter
+      - rules:
+        - apiGroups:
           - apiextensions.k8s.io
           resources:
           - customresourcedefinitions

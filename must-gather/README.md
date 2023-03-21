@@ -16,7 +16,7 @@ You will get a dump of:
 - The OCS Operator namespaces (and its children objects)
 - All namespaces (and their children objects) that belong to any OCS resources
 - All OCS CRD's definitions
-- All namspaces that contains ceph and noobaa
+- All namespaces that contains ceph and noobaa
 - Output of the following ceph commands
     ```
     ceph status
