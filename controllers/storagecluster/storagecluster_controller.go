@@ -154,14 +154,18 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}).
-		Owns(&nbv1.NooBaa{}).
 		Owns(&corev1.PersistentVolumeClaim{}, builder.WithPredicates(pvcPredicate)).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&source.Kind{Type: &ocsv1.OCSInitialization{}}, enqueueStorageClusterRequest).
-		Complete(r)
+		Watches(&source.Kind{Type: &ocsv1.OCSInitialization{}}, enqueueStorageClusterRequest)
+
+	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
+		builder.Owns(&nbv1.NooBaa{})
+	}
+
+	return builder.Complete(r)
 }
