@@ -7,7 +7,6 @@ import (
 	"github.com/go-logr/logr"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -177,24 +176,12 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // returns a ConfigMap with default settings for rook-ceph operator
 func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
-	var defaultCSIToleration = `
-- key: ` + defaults.NodeTolerationKey + `
-  operator: Equal
-  value: "true"
-  effect: NoSchedule`
-
 	config := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rookCephOperatorConfigName,
 			Namespace: namespace,
 		},
 	}
-	data := make(map[string]string)
-	data["CSI_PROVISIONER_TOLERATIONS"] = defaultCSIToleration
-	data["CSI_PLUGIN_TOLERATIONS"] = defaultCSIToleration
-	data["CSI_LOG_LEVEL"] = "5"
-	data["CSI_ENABLE_CSIADDONS"] = "true"
-	config.Data = data
 
 	return config
 }
