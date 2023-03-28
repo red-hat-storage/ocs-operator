@@ -237,6 +237,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
   effect: NoSchedule`,
 			},
 			{
+				Name:  "CSI_LOG_LEVEL",
+				Value: "5",
+			},
+			{
 				Name: "NODE_NAME",
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{
