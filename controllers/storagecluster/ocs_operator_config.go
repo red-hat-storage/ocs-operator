@@ -104,6 +104,9 @@ func (r *StorageClusterReconciler) getClusterID() string {
 
 // getCephFSKernelMountOptions returns the kernel mount options for cephfs
 func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
+	if sc.Spec.ExternalStorage.Enable {
+		return ""
+	}
 	if sc.Spec.Network != nil && sc.Spec.Network.Connections != nil && sc.Spec.Network.Connections.Encryption != nil && sc.Spec.Network.Connections.Encryption.Enabled {
 		return "ms_mode=secure"
 	}

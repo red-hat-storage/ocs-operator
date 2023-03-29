@@ -520,8 +520,6 @@ func validateMultusSelectors(selectors map[string]string) error {
 	return nil
 }
 
-// getNetworkSpec returns cephv1.NetworkSpec after reconciling the
-// storageCluster.Spec.HostNetwork and storageCluster.Spec.Network fields
 func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	networkSpec := rookCephv1.NetworkSpec{}
 	if sc.Spec.Network != nil {
@@ -530,12 +528,11 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	// respect both the old way and the new way for enabling HostNetwork
 	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
 
-	// Enable the msgr2 port always
-	if networkSpec.Connections == nil {
-		networkSpec.Connections = &rookCephv1.ConnectionsSpec{
-			RequireMsgr2: true,
+	// Enable the msgr2 port always if it's not an external cluster
+	if !sc.Spec.ExternalStorage.Enable {
+		if networkSpec.Connections == nil {
+			networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
 		}
-	} else {
 		networkSpec.Connections.RequireMsgr2 = true
 	}
 
