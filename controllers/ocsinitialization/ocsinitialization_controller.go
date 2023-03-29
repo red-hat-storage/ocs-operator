@@ -43,7 +43,7 @@ func InitNamespacedName() types.NamespacedName {
 }
 
 // OCSInitializationReconciler reconciles a OCSInitialization object
-//nolint
+// nolint
 type OCSInitializationReconciler struct {
 	client.Client
 	Log            logr.Logger
@@ -321,23 +321,12 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // returns a ConfigMap with default settings for rook-ceph operator
 func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
-	var defaultCSIToleration = `
-- key: ` + defaults.NodeTolerationKey + `
-  operator: Equal
-  value: "true"
-  effect: NoSchedule`
-
 	config := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rookCephOperatorConfigName,
 			Namespace: namespace,
 		},
 	}
-	data := make(map[string]string)
-	data["CSI_PROVISIONER_TOLERATIONS"] = defaultCSIToleration
-	data["CSI_PLUGIN_TOLERATIONS"] = defaultCSIToleration
-	data["CSI_LOG_LEVEL"] = "5"
-	config.Data = data
 
 	return config
 }

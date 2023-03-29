@@ -2565,6 +2565,8 @@ spec:
                       operator: Equal
                       value: "true"
                       effect: NoSchedule
+                - name: CSI_LOG_LEVEL
+                  value: "5"
                 - name: NODE_NAME
                   valueFrom:
                     fieldRef:
