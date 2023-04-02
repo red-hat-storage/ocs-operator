@@ -19,7 +19,7 @@ require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20210912161037-7eb9969404e4
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.15.0
+	github.com/onsi/gomega v1.19.0
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/openshift/build-machinery-go v0.0.0-20210702090207-9c7b89e8633a
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
