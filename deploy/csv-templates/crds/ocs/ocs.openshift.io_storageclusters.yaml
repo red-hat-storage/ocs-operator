@@ -453,7 +453,7 @@ spec:
                 type: array
               defaultStorageProfile:
                 description: DefaultStorageProfile is the default storage profile
-                  to use for the storageclassclaims as StorageProfile is optional.
+                  to use for the storageclassrequest as StorageProfile is optional.
                 type: string
               enableCephTools:
                 description: EnableCephTools toggles on whether or not the ceph tools
@@ -487,29 +487,6 @@ spec:
                 properties:
                   enable:
                     type: boolean
-                  onboardingTicket:
-                    description: OnboardingTicket holds an identity information required
-                      for consumer to onboard.
-                    type: string
-                  requestedCapacity:
-                    anyOf:
-                    - type: integer
-                    - type: string
-                    description: RequestedCapacity Will define the desired capacity
-                      requested by a consumer cluster.
-                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                    x-kubernetes-int-or-string: true
-                  storageProviderEndpoint:
-                    description: StorageProviderEndpoint holds info to establish connection
-                      with the storage providing cluster.
-                    type: string
-                  storageProviderKind:
-                    description: StorageProviderKind Identify the type of storage
-                      provider cluster this consumer cluster is going to connect to.
-                    enum:
-                    - ocs
-                    - rhcs
-                    type: string
                 type: object
               flexibleScaling:
                 description: If enabled, sets the failureDomain to host, allowing
@@ -5869,7 +5846,7 @@ spec:
               storageProfiles:
                 items:
                   description: StorageProfile is the storage profile to use for the
-                    storageclassclaims.
+                    storageclassrequest.
                   properties:
                     blockPoolConfiguration:
                       description: configurations to use for  profile specific blockpool.
@@ -5937,22 +5914,6 @@ spec:
                 description: ExternalSecretHash holds the checksum value of external
                   secret data.
                 type: string
-              externalStorage:
-                description: ExternalStorage shows the status of the external cluster
-                properties:
-                  grantedCapacity:
-                    anyOf:
-                    - type: integer
-                    - type: string
-                    description: GrantedCapacity Will report the actual capacity granted
-                      to the consumer cluster by the provider cluster.
-                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                    x-kubernetes-int-or-string: true
-                  id:
-                    description: ConsumerID will hold the identity of this cluster
-                      inside the attached provider cluster
-                    type: string
-                type: object
               failureDomain:
                 description: FailureDomain is the base CRUSH element Ceph will use
                   to distribute its data replicas for the default CephBlockPool

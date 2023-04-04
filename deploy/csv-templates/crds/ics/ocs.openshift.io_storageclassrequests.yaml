@@ -1,0 +1,94 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: storageclassrequests.ocs.openshift.io
+spec:
+  group: ocs.openshift.io
+  names:
+    kind: StorageClassRequest
+    listKind: StorageClassRequestList
+    plural: storageclassrequests
+    singular: storageclassrequest
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: StorageType
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: StorageClassRequest is the Schema for the StorageClassRequests
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: StorageClassRequestSpec defines the desired state of StorageClassRequest
+            properties:
+              encryptionMethod:
+                type: string
+              storageProfile:
+                type: string
+              type:
+                enum:
+                - blockpool
+                - sharedfilesystem
+                type: string
+            required:
+            - type
+            type: object
+          status:
+            description: StorageClassRequestStatus defines the observed state of StorageClassRequest
+            properties:
+              cephResources:
+                description: CephResources provide details of created ceph resources
+                  required for external storage
+                items:
+                  description: CephResourcesSpec hold details of created ceph resources
+                    required for external storage
+                  properties:
+                    cephClients:
+                      additionalProperties:
+                        type: string
+                      description: CephClients holds the name of CephClients mapped
+                        to the created ceph resource
+                      type: object
+                    kind:
+                      description: Kind describes the kind of created ceph resource
+                      type: string
+                    name:
+                      description: Name describes the name of created ceph resource
+                      type: string
+                    status:
+                      description: Phase describes the phase of created ceph resource
+                      type: string
+                  type: object
+                type: array
+              phase:
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
