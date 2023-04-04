@@ -261,23 +261,6 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		return err
 	}
 
-	if IsOCSConsumerMode(instance) &&
-		(instance.Spec.ExternalStorage.StorageProviderEndpoint == "" ||
-			instance.Spec.ExternalStorage.OnboardingTicket == "" ||
-			instance.Spec.ExternalStorage.RequestedCapacity == nil) {
-
-		err := fmt.Errorf("spec.externalStorage.storageProviderEndpoint or spec.externalStorage.onboardingTicket or spec.externalStorage.requestedCapacity" +
-			" can not be empty when spec.externalStorage.storageProviderKind is set to ocs")
-		r.Log.Error(err, "Failed to validate Spec for ExternalStorage", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
-		instance.Status.Phase = statusutil.PhaseError
-		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
-			r.Log.Error(updateErr, "Could not update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-			return updateErr
-		}
-		return err
-	}
-
 	return nil
 }
 

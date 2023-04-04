@@ -1,0 +1,20 @@
+# permissions for end users to view storageclassrequestss.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: storageclassrequest-viewer-role
+rules:
+  - apiGroups:
+      - ocs.openshift.io
+    resources:
+      - storageclassrequests
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ocs.openshift.io
+    resources:
+      - storageclassrequests/status
+    verbs:
+      - get

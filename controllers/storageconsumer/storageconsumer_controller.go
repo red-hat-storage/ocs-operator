@@ -43,7 +43,7 @@ import (
 
 const (
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
-	StorageClaimAnnotation        = "ocs.openshift.io.storageclaim"
+	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
@@ -64,7 +64,7 @@ type StorageConsumerReconciler struct {
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassclaims,verbs=get;list;
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassrequests,verbs=get;list;
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
@@ -287,7 +287,7 @@ func GenerateHashForCephClient(storageConsumerName, cephUserType string) string 
 	return hex.EncodeToString(name[:16])
 }
 
-func addStorageRelatedAnnotations(obj client.Object, storageConsumerName, storageClaim, cephUserType string) {
+func addStorageRelatedAnnotations(obj client.Object, storageConsumerName, storageRequest, cephUserType string) {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
@@ -295,7 +295,7 @@ func addStorageRelatedAnnotations(obj client.Object, storageConsumerName, storag
 	}
 
 	annotations[StorageConsumerAnnotation] = storageConsumerName
-	annotations[StorageClaimAnnotation] = storageClaim
+	annotations[StorageRequestAnnotation] = storageRequest
 	annotations[StorageCephUserTypeAnnotation] = cephUserType
 }
 
