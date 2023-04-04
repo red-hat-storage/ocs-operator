@@ -12,4 +12,3 @@ LDFLAGS="-s -w -X github.com/red-hat-storage/ocs-operator/controllers/defaults.I
 go build -tags 'netgo osusergo' -ldflags="${LDFLAGS}" -o ${OUTDIR_BIN}/ocs-operator ./main.go
 go build -tags 'netgo osusergo' -ldflags="${LDFLAGS}" -o ${OUTDIR_BIN}/metrics-exporter ./metrics/main.go
 go build -tags 'netgo osusergo' -ldflags="${LDFLAGS}" -o ${OUTDIR_BIN}/provider-api ./services/provider/main.go
-go build -tags 'netgo osusergo' -ldflags="${LDFLAGS}" -o ${OUTDIR_BIN}/status-reporter ./services/consumer/main.go
