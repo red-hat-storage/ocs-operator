@@ -141,10 +141,6 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 // ensureCreated functions ensures that snpashotter classes are created
 func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if IsOCSConsumerMode(instance) {
-		return reconcile.Result{}, nil
-	}
-
 	vsccs := newSnapshotClassConfigurations(instance)
 
 	err := r.createSnapshotClasses(vsccs)
@@ -157,10 +153,6 @@ func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance
 
 // ensureDeleted deletes the SnapshotClasses that the ocs-operator created
 func (obj *ocsSnapshotClass) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-
-	if IsOCSConsumerMode(instance) {
-		return reconcile.Result{}, nil
-	}
 
 	vsccs := newSnapshotClassConfigurations(instance)
 	for _, vscc := range vsccs {

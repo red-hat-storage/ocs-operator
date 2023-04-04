@@ -28,7 +28,7 @@ resources:
   controller: true
   domain: openshift.io
   group: ocs
-  kind: StorageClassClaim
+  kind: StorageClassRequest
   path: github.com/red-hat-storage/ocs-operator/api/v1alpha1
   version: v1alpha1
 version: "3"
