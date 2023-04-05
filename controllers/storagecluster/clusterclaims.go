@@ -114,6 +114,7 @@ func (c *ClusterClaimCreator) create() error {
 		}
 
 		_, err := controllerutil.CreateOrUpdate(c.Context, c.Client, &cc, func() error {
+			cc.Spec.Value = value
 			return nil
 		})
 
