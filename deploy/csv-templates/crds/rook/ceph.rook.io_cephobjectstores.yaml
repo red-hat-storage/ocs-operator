@@ -168,6 +168,10 @@ spec:
                   caBundleRef:
                     nullable: true
                     type: string
+                  dashboardEnabled:
+                    nullable: true
+                    type: boolean
+                    x-kubernetes-preserve-unknown-fields: true
                   externalRgwEndpoints:
                     items:
                       properties:
@@ -986,6 +990,15 @@ spec:
               security:
                 nullable: true
                 properties:
+                  keyRotation:
+                    nullable: true
+                    properties:
+                      enabled:
+                        default: false
+                        type: boolean
+                      schedule:
+                        type: string
+                    type: object
                   kms:
                     nullable: true
                     properties:
