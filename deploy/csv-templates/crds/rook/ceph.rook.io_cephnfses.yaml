@@ -3013,6 +3013,9 @@ spec:
                     nullable: true
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
+                  hostNetwork:
+                    nullable: true
+                    type: boolean
                   labels:
                     additionalProperties:
                       type: string

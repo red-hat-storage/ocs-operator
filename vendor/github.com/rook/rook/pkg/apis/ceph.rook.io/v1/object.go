@@ -41,6 +41,10 @@ func (s *ObjectStoreSpec) IsTLSEnabled() bool {
 	return s.Gateway.SecurePort != 0 && (s.Gateway.SSLCertificateRef != "" || s.GetServiceServingCert() != "")
 }
 
+func (s *ObjectStoreSpec) IsRGWDashboardEnabled() bool {
+	return s.Gateway.DashboardEnabled == nil || *s.Gateway.DashboardEnabled
+}
+
 func (s *ObjectStoreSpec) GetPort() (int32, error) {
 	if s.IsTLSEnabled() {
 		return s.Gateway.SecurePort, nil
@@ -81,8 +85,15 @@ func ValidateObjectSpec(gs *CephObjectStore) error {
 	if gs.Namespace == "" {
 		return errors.New("missing namespace")
 	}
-	if len(gs.Name) > objectStoreNameMaxLen {
-		return errors.New("object store name cannot be longer than 38 characters")
+
+	// validate the object store name only if it is not an external cluster
+	// as external cluster won't create the rgw daemon and it's other resources
+	// and there is some legacy external cluster which has more length of objectstore
+	// so to run them successfully we are not validating the objectstore name
+	if !gs.Spec.IsExternal() {
+		if len(gs.Name) > objectStoreNameMaxLen {
+			return errors.New("object store name cannot be longer than 38 characters")
+		}
 	}
 	securePort := gs.Spec.Gateway.SecurePort
 	if securePort < 0 || securePort > 65535 {

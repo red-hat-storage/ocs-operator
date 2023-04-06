@@ -40,6 +40,10 @@ spec:
     - jsonPath: .spec.external.enable
       name: External
       type: boolean
+    - description: Ceph FSID
+      jsonPath: .status.ceph.fsid
+      name: FSID
+      type: string
     name: v1
     schema:
       openAPIV3Schema:
@@ -814,6 +818,12 @@ spec:
                     maximum: 65535
                     minimum: 0
                     type: integer
+                  interval:
+                    type: string
+                  port:
+                    maximum: 65535
+                    minimum: 0
+                    type: integer
                 type: object
               network:
                 nullable: true
@@ -1344,6 +1354,15 @@ spec:
               security:
                 nullable: true
                 properties:
+                  keyRotation:
+                    nullable: true
+                    properties:
+                      enabled:
+                        default: false
+                        type: boolean
+                      schedule:
+                        type: string
+                    type: object
                   kms:
                     nullable: true
                     properties:
