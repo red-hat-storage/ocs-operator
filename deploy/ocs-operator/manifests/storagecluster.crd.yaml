@@ -663,6 +663,13 @@ spec:
                       reconcileStrategy:
                         type: string
                     type: object
+                  cephRBDMirror:
+                    description: ManageCephRBDMirror defines how to reconcile Ceph
+                      RBDMirror
+                    properties:
+                      reconcileStrategy:
+                        type: string
+                    type: object
                   cephToolbox:
                     description: ManageCephToolbox defines how to reconcile Ceph toolbox
                     properties:

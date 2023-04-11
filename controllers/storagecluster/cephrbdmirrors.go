@@ -82,6 +82,11 @@ func (r *StorageClusterReconciler) newCephRbdMirrorInstances(initData *ocsv1.Sto
 
 // ensureCreated ensures that cephRbdMirror resources exist in the desired state.
 func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephRBDMirror.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return reconcile.Result{}, nil
+	}
+
 	cephRbdMirrors, err := r.newCephRbdMirrorInstances(instance)
 	if err != nil {
 		return reconcile.Result{}, err
