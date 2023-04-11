@@ -824,9 +824,6 @@ func TestGetNetworkSpec(t *testing.T) {
 			},
 			expected: cephv1.NetworkSpec{
 				HostNetwork: true,
-				Connections: &cephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
 			},
 		},
 		{
@@ -836,9 +833,6 @@ func TestGetNetworkSpec(t *testing.T) {
 			},
 			expected: cephv1.NetworkSpec{
 				HostNetwork: false,
-				Connections: &cephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
 			},
 		},
 		{
@@ -853,9 +847,6 @@ func TestGetNetworkSpec(t *testing.T) {
 			expected: cephv1.NetworkSpec{
 				HostNetwork: true,
 				IPFamily:    cephv1.IPv6,
-				Connections: &cephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
 			},
 		},
 		{
@@ -872,9 +863,6 @@ func TestGetNetworkSpec(t *testing.T) {
 				HostNetwork: true,
 				IPFamily:    cephv1.IPv6,
 				DualStack:   true,
-				Connections: &cephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
 			},
 		},
 		{
@@ -889,19 +877,12 @@ func TestGetNetworkSpec(t *testing.T) {
 			expected: cephv1.NetworkSpec{
 				HostNetwork: false,
 				IPFamily:    cephv1.IPv4,
-				Connections: &cephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
 			},
 		},
 		{
-			desc:   "hostNetwork unspecified, network unspecified",
-			scSpec: ocsv1.StorageClusterSpec{},
-			expected: cephv1.NetworkSpec{
-				Connections: &cephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
-			},
+			desc:     "hostNetwork unspecified, network unspecified",
+			scSpec:   ocsv1.StorageClusterSpec{},
+			expected: cephv1.NetworkSpec{},
 		},
 		{
 			desc: "hostNetwork unspecified, network specified",
@@ -914,9 +895,6 @@ func TestGetNetworkSpec(t *testing.T) {
 			expected: cephv1.NetworkSpec{
 				HostNetwork: true,
 				IPFamily:    cephv1.IPv4,
-				Connections: &cephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
 			},
 		},
 	}
