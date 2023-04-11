@@ -52,6 +52,7 @@ const (
 const (
 	StorageClassClaimFinalizer  = "storageclassclaim.ocs.openshift.io"
 	StorageClassClaimAnnotation = "ocs.openshift.io.storagesclassclaim"
+	StorageClassClaimLabel      = "ocs.openshift.io/storageclassclaim"
 	CephFileSystemDataPoolLabel = "cephfilesystem.datapool.name"
 )
 
