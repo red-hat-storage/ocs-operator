@@ -521,25 +521,13 @@ func validateMultusSelectors(selectors map[string]string) error {
 }
 
 func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
+	// Directly pass any network spec specified on storagecluster CR to cephcluster
 	networkSpec := rookCephv1.NetworkSpec{}
 	if sc.Spec.Network != nil {
 		networkSpec = *sc.Spec.Network
 	}
 	// respect both the old way and the new way for enabling HostNetwork
 	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
-
-	if networkSpec.Connections == nil {
-		networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
-	}
-	networkSpec.Connections.RequireMsgr2 = true
-
-	// If it's an provider or external/consumer cluster don't require msgr2
-	// And don't allow encryption or compression to be enabled
-	if sc.Spec.AllowRemoteStorageConsumers || sc.Spec.ExternalStorage.Enable {
-		networkSpec.Connections.RequireMsgr2 = false
-		networkSpec.Connections.Encryption = nil
-		networkSpec.Connections.Compression = nil
-	}
 
 	return networkSpec
 }

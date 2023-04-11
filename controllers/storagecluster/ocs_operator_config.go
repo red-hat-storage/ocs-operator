@@ -104,12 +104,15 @@ func (r *StorageClusterReconciler) getClusterID() string {
 
 // getCephFSKernelMountOptions returns the kernel mount options for cephfs
 func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
-	// If it is an provider or consumer/external cluster, we don't need to set any mount options
-	if sc.Spec.ExternalStorage.Enable || sc.Spec.AllowRemoteStorageConsumers {
-		return ""
-	}
-	if sc.Spec.Network != nil && sc.Spec.Network.Connections != nil && sc.Spec.Network.Connections.Encryption != nil && sc.Spec.Network.Connections.Encryption.Enabled {
+	networkSpec := sc.Spec.Network
+	// If encryption is enabled, we need to mount cephfs with secure option
+	if networkSpec != nil && networkSpec.Connections != nil && networkSpec.Connections.Encryption != nil && networkSpec.Connections.Encryption.Enabled {
 		return "ms_mode=secure"
 	}
-	return "ms_mode=prefer-crc"
+	// If Encryption is not enabled but compression is enabled or RequireMsgr2 is true, we need to mount cephfs with crc option
+	if networkSpec != nil && networkSpec.Connections != nil && ((networkSpec.Connections.Compression != nil && networkSpec.Connections.Compression.Enabled) || networkSpec.Connections.RequireMsgr2) {
+		return "ms_mode=prefer-crc"
+	}
+	// If neither Encryption nor Compression nor RequireMsgr2 are enabled, we need not pass any mount option
+	return ""
 }
