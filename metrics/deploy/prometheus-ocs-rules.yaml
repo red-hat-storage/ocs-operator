@@ -190,3 +190,26 @@ spec:
       for: 15s
       labels:
         severity: critical
+  - name: ceph-blocklist-alerts.rules
+    rules:
+    - alert: ODFRBDClientBlocked
+      annotations:
+        description: A kernel RBD client on node {{ $labels.node_name }} is blocklisted by Ceph for more than 10s. Please check Ceph logs.
+        message: A kernel RBD client on node {{ $labels.node_name }} is blocklisted by Ceph.
+        severity_level: error
+      expr: |
+        ocs_rbd_client_blocklisted{job="ocs-metrics-exporter"} > 0
+      for: 10s
+  - name: ocs-encryption-alert.rules
+    rules:
+    - alert: KMSServerConnectionAlert
+      annotations:
+        description: Storage Cluster KMS Server is in un-connected state for more than 5s. Please check KMS config.
+        message: Storage Cluster KMS Server is in un-connected state. Please check KMS config.
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        ocs_storagecluster_kms_connection_status{job="ocs-metrics-exporter"} == 1
+      for: 5s
+      labels:
+        severity: critical

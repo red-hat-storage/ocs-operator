@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
@@ -212,12 +212,19 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		r.Log.Error(err, "Failed to validate StorageCluster version.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
+		reason := statusutil.EventReasonValidationFailed
+		message := err.Error()
+		statusutil.SetVersionMismatchCondition(&instance.Status.Conditions, corev1.ConditionTrue, reason, message)
 		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
 			r.Log.Error(updateErr, "Failed to update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			return updateErr
 		}
 		return err
 	}
+
+	reason := statusutil.VersionValidReason
+	message := "Version check successful"
+	statusutil.SetVersionMismatchCondition(&instance.Status.Conditions, corev1.ConditionFalse, reason, message)
 
 	if !instance.Spec.ExternalStorage.Enable {
 		if err := r.validateStorageDeviceSets(instance); err != nil {
@@ -314,7 +321,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	}
 
 	// Add conditions if there are none
-	if instance.Status.Conditions == nil {
+	if len(instance.Status.Conditions) == 1 && instance.Status.Conditions[0].Type == ocsv1.ConditionVersionMismatch {
 		reason := ocsv1.ReconcileInit
 		message := "Initializing StorageCluster"
 		statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
@@ -462,6 +469,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		message := ocsv1.ReconcileCompletedMessage
 		statusutil.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 
+		if instance.Spec.ExternalStorage.Enable {
+			statusutil.RemoveExternalCephClusterNegativeConditions(&instance.Status.Conditions)
+		}
+
 		// If no operator whose conditions we are watching reports an error, then it is safe
 		// to set upgradeable to true.
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
@@ -558,7 +569,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	return reconcile.Result{}, nil
 }
 
-// versionCheck populates the `.Spec.Version` field
+// versionCheck populates the `.Status.Version` field
 func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	if sc.Status.Version == "" {
 		sc.Status.Version = version.Version

@@ -193,7 +193,7 @@ func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger, tlsEnable
 		reqLogger.Error(err, "Host IP should not be empty in rgw endpoint")
 		return nil, err
 	}
-	gateWay.ExternalRgwEndpoints = []corev1.EndpointAddress{{IP: hostIP}}
+	gateWay.ExternalRgwEndpoints = []cephv1.EndpointAddress{{IP: hostIP}}
 	var portInt64 int64
 	if portInt64, err = strconv.ParseInt(portStr, 10, 32); err != nil {
 		reqLogger.Error(err,
@@ -232,21 +232,13 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 	if err != nil {
 		return nil, err
 	}
-	// enable bucket healthcheck
-	healthCheck := cephv1.BucketHealthCheckSpec{
-		Bucket: cephv1.HealthCheckSpec{
-			Disabled: false,
-			Interval: &metav1.Duration{Duration: time.Minute},
-		},
-	}
 	retObj := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNameForCephObjectStore(initData),
 			Namespace: initData.Namespace,
 		},
 		Spec: cephv1.ObjectStoreSpec{
-			Gateway:     *gatewaySpec,
-			HealthCheck: healthCheck,
+			Gateway: *gatewaySpec,
 		},
 	}
 	retArrObj := []*cephv1.CephObjectStore{
@@ -706,13 +698,13 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 	err := r.Client.Get(context.TODO(), objectKey, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("Creating External StorageCluster Secret.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+			r.Log.Info("Creating External StorageCluster Secret.", "Secret", klog.KRef(objectKey.Namespace, sec.Name))
 			err = r.Client.Create(context.TODO(), sec)
 			if err != nil {
-				r.Log.Error(err, "Creation of External StorageCluster Secret failed.", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+				r.Log.Error(err, "Creation of External StorageCluster Secret failed.", "Secret", klog.KRef(objectKey.Namespace, sec.Name))
 			}
 		} else {
-			r.Log.Error(err, "Unable the get External StorageCluster Secret", "Secret", klog.KRef(sec.Name, objectKey.Namespace))
+			r.Log.Error(err, "Unable the get External StorageCluster Secret", "Secret", klog.KRef(objectKey.Namespace, sec.Name))
 		}
 		return err
 	}

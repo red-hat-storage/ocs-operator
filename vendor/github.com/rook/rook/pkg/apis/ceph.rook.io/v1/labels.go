@@ -48,6 +48,11 @@ func GetMonLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMon)
 }
 
+// GetKeyRotationLabels returns labels for the key Rotation job
+func GetKeyRotationLabels(a LabelsSpec) Labels {
+	return mergeAllLabelsWithKey(a, KeyRotation)
+}
+
 // GetOSDPrepareLabels returns the Labels for the OSD prepare job
 func GetOSDPrepareLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyOSDPrepare)
@@ -71,6 +76,10 @@ func GetMonitoringLabels(a LabelsSpec) Labels {
 // GetCrashCollectorLabels returns the Labels for the crash collector resources
 func GetCrashCollectorLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyCrashCollector)
+}
+
+func GetCephExporterLabels(a LabelsSpec) Labels {
+	return mergeAllLabelsWithKey(a, KeyCephExporter)
 }
 
 func mergeAllLabelsWithKey(a LabelsSpec, name KeyType) Labels {

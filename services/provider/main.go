@@ -9,7 +9,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/services/provider/server"
 	"google.golang.org/grpc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 var (

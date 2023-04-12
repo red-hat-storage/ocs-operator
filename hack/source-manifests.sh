@@ -49,8 +49,8 @@ function dump_noobaa_csv() {
 # ==== DUMP ROOK YAMLS ====
 function dump_rook_csv() {
 	rook_template_dir="/etc/ceph-csv-templates"
-	rook_csv_template="rook-ceph-ocp.vVERSION.clusterserviceversion.yaml.in"
-	rook_crds_dir=$rook_template_dir/crds
+	rook_csv_template="rook-ceph.clusterserviceversion.yaml"
+	rook_crds_dir=$rook_template_dir/ceph
 	rook_crds_outdir="$OUTDIR_CRDS/rook"
 	rm -rf $ROOK_CSV
 	rm -rf $rook_crds_outdir
@@ -97,13 +97,13 @@ function gen_ocs_csv() {
 # ==== DUMP ICS YAMLS ====
 # Generate an ICS CSV using the operator-sdk.
 # This is the base CSV everything else gets merged into later on.
-function gen_fcs_csv() {
+function gen_ics_csv() {
 	echo "Generating IBM Container Storage CSV"
 	rm -rf "$(dirname $ICS_FINAL_DIR)"
-	fcs_crds_outdir="$OUTDIR_CRDS/ics"
-	rm -rf $FCS_CSV
-	rm -rf $fcs_crds_outdir
-	mkdir -p $fcs_crds_outdir
+	ics_crds_outdir="$OUTDIR_CRDS/ics"
+	rm -rf $ICS_CSV
+	rm -rf $ics_crds_outdir
+	mkdir -p $ics_crds_outdir
 
 	gen_args="generate kustomize manifests --input-dir config/manifests/ics-operator --output-dir config/manifests/ics-operator --package ocs-operator -q"
 	# shellcheck disable=SC2086
@@ -112,8 +112,8 @@ function gen_fcs_csv() {
 	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
 	popd
 	$KUSTOMIZE build config/manifests/ics-operator | $OPERATOR_SDK generate bundle -q --output-dir deploy/ics-operator --kustomize-dir config/manifests/ics-operator --package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ocs-metrics-exporter
-	mv deploy/ics-operator/manifests/*clusterserviceversion.yaml $FCS_CSV
-	cp config/crd/bases/* $fcs_crds_outdir
+	mv deploy/ics-operator/manifests/*clusterserviceversion.yaml $ICS_CSV
+	cp config/crd/bases/* $ics_crds_outdir
 }
 
 if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ] && [ -z "$SKIP_CSV_DUMP" ]; then
@@ -123,7 +123,7 @@ if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ] && [ -z "$SKIP_CSV_DUMP" ]; then
 fi
 
 if [ "$FUSION" == "true" ]; then
-	gen_fcs_csv
+	gen_ics_csv
 else
 	gen_ocs_csv
 fi

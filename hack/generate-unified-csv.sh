@@ -5,7 +5,9 @@ set -e
 source hack/common.sh
 
 CSV_MERGER="tools/csv-merger/csv-merger"
-(cd tools/csv-merger/ && go build)
+LDFLAGS="-X github.com/red-hat-storage/ocs-operator/version.Version=${CSV_VERSION}"
+
+(cd tools/csv-merger/ && go build -ldflags="${LDFLAGS}")
 
 function help_txt() {
 	echo "Environment Variables"
@@ -50,7 +52,7 @@ if [ "$FUSION" == "true" ]; then
 		--skip-range="$SKIP_RANGE" \
 		--rook-csv-filepath=$ROOK_CSV \
 		--noobaa-csv-filepath=$NOOBAA_CSV \
-		--ocs-csv-filepath=$FCS_CSV \
+		--ocs-csv-filepath=$ICS_CSV \
 		--rook-image="$ROOK_IMAGE" \
 		--ceph-image="$CEPH_IMAGE" \
 		--rook-csi-ceph-image="$ROOK_CSI_CEPH_IMAGE" \

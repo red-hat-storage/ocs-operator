@@ -82,6 +82,11 @@ func (r *StorageClusterReconciler) newCephRbdMirrorInstances(initData *ocsv1.Sto
 
 // ensureCreated ensures that cephRbdMirror resources exist in the desired state.
 func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephRBDMirror.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return reconcile.Result{}, nil
+	}
+
 	cephRbdMirrors, err := r.newCephRbdMirrorInstances(instance)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -276,7 +281,7 @@ func getRbdMirrorDebugLoggingJob(sc *ocsv1.StorageCluster, jobName string, confi
 								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
 							},
 							SecurityContext: &corev1.SecurityContext{
-								AllowPrivilegeEscalation: pointer.BoolPtr(false),
+								AllowPrivilegeEscalation: pointer.Bool(false),
 								Capabilities: &corev1.Capabilities{
 									Drop: []corev1.Capability{
 										"ALL",
@@ -298,7 +303,7 @@ func getRbdMirrorDebugLoggingJob(sc *ocsv1.StorageCluster, jobName string, confi
 								configCommands,
 							},
 							SecurityContext: &corev1.SecurityContext{
-								AllowPrivilegeEscalation: pointer.BoolPtr(false),
+								AllowPrivilegeEscalation: pointer.Bool(false),
 								Capabilities: &corev1.Capabilities{
 									Drop: []corev1.Capability{
 										"ALL",
@@ -319,7 +324,7 @@ func getRbdMirrorDebugLoggingJob(sc *ocsv1.StorageCluster, jobName string, confi
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: pointer.BoolPtr(true),
+						RunAsNonRoot: pointer.Bool(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type: corev1.SeccompProfileTypeRuntimeDefault,
 						},

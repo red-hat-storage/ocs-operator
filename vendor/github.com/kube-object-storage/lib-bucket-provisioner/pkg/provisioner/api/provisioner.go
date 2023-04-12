@@ -26,6 +26,12 @@ import (
 // methods used to create and delete new buckets, and to grant or revoke access
 // to buckets within the object store.
 type Provisioner interface {
+	// GenerateUserID should deterministically generate a user ID for an OBC. This ID is used as an
+	// idempotency key in order to ensure repeat calls to Provision or Grant are consistent.
+	// Lib-bucket-provisioner may pass a non-nil ObjectBucket with the function as well. This will
+	// be nil if the ObjectBucket does not yet exist, but it will be non-nil for existing buckets.
+	// This may help provisioners recover the idempotency key from a pre-existing bucket.
+	GenerateUserID(obc *v1alpha1.ObjectBucketClaim, ob *v1alpha1.ObjectBucket) (string, error)
 	// Provision should be implemented to handle creation of object storage buckets.
 	// Provision should NOT create the ObjectBucket resource. ObjectBucket resource creation is done
 	// by this library's controller.
@@ -35,16 +41,14 @@ type Provisioner interface {
 	// The Provision implementation may opt to specify the ObjectBucket spec's ReclaimPolicy in
 	// cases where the provisioner wishes to set a different value from the one specified in the
 	// ObjectBucketClaim's StorageClass.
-	// The Provision implementation should clean up its own resources and return a nil ObjectBucket
-	// struct when returning an error. However, if Provision returns an error, it may optionally
-	// return a non-nil, non-empty ObjectBucket struct. In this case, this library's controller will
-	// specify the ObjectBucket's Name, StorageClassName, ReclaimPolicy, and Labels and then call
-	// Delete() with the ObjectBucket to clean up resources.
+	// The Provision implementation must be idempotent.
+	// The Provision implementation does not need to clean up bucket or user resources when
+	// returning an error.
+	// The Provision implementation should return a nil ObjectBucket struct when returning an error.
 	Provision(options *BucketOptions) (*v1alpha1.ObjectBucket, error)
-	// Grant should be implemented to handle access to existing buckets
+	// Grant should be implemented to handle access to existing buckets.
+	// The Grant implementation must be idempotent.
 	Grant(options *BucketOptions) (*v1alpha1.ObjectBucket, error)
-	// Update should be implemented to handle cases when additional config are modified
-	Update(ob *v1alpha1.ObjectBucket) error
 	// Delete should be implemented to handle bucket deletion
 	Delete(ob *v1alpha1.ObjectBucket) error
 	// Revoke should be implemented to handle removing bucket access
@@ -58,6 +62,8 @@ type BucketOptions struct {
 	ReclaimPolicy *corev1.PersistentVolumeReclaimPolicy
 	// BucketName is the name of the bucket within the object store
 	BucketName string
+	// UserID is the id of the user associated with this OBC
+	UserID string
 	// ObjectBucketClaim is a copy of the reconciler's OBC
 	ObjectBucketClaim *v1alpha1.ObjectBucketClaim
 	// Parameters is a complete copy of the OBC's storage class Parameters field

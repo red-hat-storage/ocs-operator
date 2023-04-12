@@ -40,6 +40,8 @@ const (
 	ExternalClusterUnknownReason = "ExternalClusterStateUnknownCondition"
 	// ExternalClusterErrorReason indicates an error state
 	ExternalClusterErrorReason = "ExternalClusterStateError"
+	// VersionValidReason indicates version in SC CR and operator is equal
+	VersionValidReason = "VersionMatched"
 )
 
 // SetProgressingCondition sets the ProgressingCondition to True and other conditions to
@@ -204,6 +206,16 @@ func MapExternalCephClusterNegativeConditions(conditions *[]conditionsv1.Conditi
 	}
 }
 
+// RemoveExternalCephClusterNegativeConditions removes the External cluster negative conditions
+func RemoveExternalCephClusterNegativeConditions(conditions *[]conditionsv1.Condition) {
+	if conditionsv1.FindStatusCondition(*conditions, ocsv1.ConditionExternalClusterConnecting) != nil {
+		conditionsv1.RemoveStatusCondition(conditions, ocsv1.ConditionExternalClusterConnecting)
+	}
+	if conditionsv1.FindStatusCondition(*conditions, ocsv1.ConditionExternalClusterConnected) != nil {
+		conditionsv1.RemoveStatusCondition(conditions, ocsv1.ConditionExternalClusterConnected)
+	}
+}
+
 // MapCephClusterNoConditions sets status conditions to progressing. Used when component operator isn't
 // reporting any status, and we have to assume progress.
 func MapCephClusterNoConditions(conditions *[]conditionsv1.Condition, reason string, message string) {
@@ -279,4 +291,15 @@ func MapNoobaaNegativeConditions(conditions *[]conditionsv1.Condition, found *nb
 		})
 	}
 
+}
+
+// SetVersionMismatchCondition sets the ConditionVersionMismatch to the status passed as argument,
+// if the same status is not already present
+func SetVersionMismatchCondition(conditions *[]conditionsv1.Condition, status corev1.ConditionStatus, reason string, message string) {
+	setStatusConditionIfNotPresent(conditions, conditionsv1.Condition{
+		Type:    ocsv1.ConditionVersionMismatch,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	})
 }

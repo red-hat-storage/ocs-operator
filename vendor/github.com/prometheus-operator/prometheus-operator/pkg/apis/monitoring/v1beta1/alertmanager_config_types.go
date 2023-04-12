@@ -63,7 +63,7 @@ type AlertmanagerConfigList struct {
 // By definition, the Alertmanager configuration only applies to alerts for which
 // the `namespace` label is equal to the namespace of the AlertmanagerConfig resource.
 type AlertmanagerConfigSpec struct {
-	// The Alertmanager route definition for alerts matching the resource’s
+	// The Alertmanager route definition for alerts matching the resource's
 	// namespace. If present, it will be added to the generated Alertmanager
 	// configuration as a first-level route.
 	// +optional
@@ -72,7 +72,7 @@ type AlertmanagerConfigSpec struct {
 	// +optional
 	Receivers []Receiver `json:"receivers"`
 	// List of inhibition rules. The rules will only apply to alerts matching
-	// the resource’s namespace.
+	// the resource's namespace.
 	// +optional
 	InhibitRules []InhibitRule `json:"inhibitRules,omitempty"`
 	// List of TimeInterval specifying when the routes should be muted or active.
@@ -106,7 +106,7 @@ type Route struct {
 	// Example: "4h"
 	// +optional
 	RepeatInterval string `json:"repeatInterval,omitempty"`
-	// List of matchers that the alert’s labels should match. For the first
+	// List of matchers that the alert's labels should match. For the first
 	// level route, the operator removes any existing equality and regexp
 	// matcher on the `namespace` label and adds a `namespace: <object
 	// namespace>` matcher.
@@ -126,9 +126,12 @@ type Route struct {
 	// an alternative type to circumvent the limitation. The downside is that
 	// the Kube API can't validate the data beyond the fact that it is a valid
 	// JSON representation.
-	// MuteTimeIntervals is a list of MuteTimeInterval names that will mute this route when matched,
+	// MuteTimeIntervals is a list of TimeInterval names that will mute this route when matched.
 	// +optional
 	MuteTimeIntervals []string `json:"muteTimeIntervals,omitempty"`
+	// ActiveTimeIntervals is a list of TimeInterval names when this route should be active.
+	// +optional
+	ActiveTimeIntervals []string `json:"activeTimeIntervals,omitempty"`
 }
 
 // ChildRoutes extracts the child routes.
@@ -688,12 +691,12 @@ type PushoverConfig struct {
 	// Whether or not to notify about resolved alerts.
 	// +optional
 	SendResolved *bool `json:"sendResolved,omitempty"`
-	// The secret's key that contains the recipient user’s user key.
+	// The secret's key that contains the recipient user's user key.
 	// The secret needs to be in the same namespace as the AlertmanagerConfig
 	// object and accessible by the Prometheus Operator.
 	// +kubebuilder:validation:Required
 	UserKey *SecretKeySelector `json:"userKey,omitempty"`
-	// The secret's key that contains the registered application’s API token, see https://pushover.net/apps.
+	// The secret's key that contains the registered application's API token, see https://pushover.net/apps.
 	// The secret needs to be in the same namespace as the AlertmanagerConfig
 	// object and accessible by the Prometheus Operator.
 	// +kubebuilder:validation:Required
@@ -809,11 +812,11 @@ type TelegramConfig struct {
 // See https://prometheus.io/docs/alerting/latest/configuration/#inhibit_rule
 type InhibitRule struct {
 	// Matchers that have to be fulfilled in the alerts to be muted. The
-	// operator enforces that the alert matches the resource’s namespace.
+	// operator enforces that the alert matches the resource's namespace.
 	TargetMatch []Matcher `json:"targetMatch,omitempty"`
 	// Matchers for which one or more alerts have to exist for the inhibition
 	// to take effect. The operator enforces that the alert matches the
-	// resource’s namespace.
+	// resource's namespace.
 	SourceMatch []Matcher `json:"sourceMatch,omitempty"`
 	// Labels that must have an equal value in the source and target alert for
 	// the inhibition to take effect.

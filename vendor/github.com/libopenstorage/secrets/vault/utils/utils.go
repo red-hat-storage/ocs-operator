@@ -125,7 +125,7 @@ func Authenticate(client *api.Client, config map[string]interface{}) (token stri
 		return token, false, nil
 	}
 
-	// or try to use the kubernetes auth method
+	// or use other authentication method: kubernetes, approle
 	if GetVaultParam(config, AuthMethod) != "" {
 		token, err = GetAuthToken(client, config)
 		return token, true, err

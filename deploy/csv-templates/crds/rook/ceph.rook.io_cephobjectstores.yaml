@@ -1,10 +1,8 @@
-
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.2
+    controller-gen.kubebuilder.io/version: v0.11.3
   creationTimestamp: null
   name: cephobjectstores.ceph.rook.io
 spec:
@@ -170,6 +168,10 @@ spec:
                   caBundleRef:
                     nullable: true
                     type: string
+                  dashboardEnabled:
+                    nullable: true
+                    type: boolean
+                    x-kubernetes-preserve-unknown-fields: true
                   externalRgwEndpoints:
                     items:
                       properties:
@@ -177,28 +179,8 @@ spec:
                           type: string
                         ip:
                           type: string
-                        nodeName:
-                          type: string
-                        targetRef:
-                          properties:
-                            apiVersion:
-                              type: string
-                            fieldPath:
-                              type: string
-                            kind:
-                              type: string
-                            name:
-                              type: string
-                            namespace:
-                              type: string
-                            resourceVersion:
-                              type: string
-                            uid:
-                              type: string
-                          type: object
-                      required:
-                      - ip
                       type: object
+                      x-kubernetes-map-type: atomic
                     nullable: true
                     type: array
                   hostNetwork:
@@ -258,6 +240,7 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 weight:
                                   format: int32
                                   type: integer
@@ -304,10 +287,12 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 type: array
                             required:
                             - nodeSelectorTerms
                             type: object
+                            x-kubernetes-map-type: atomic
                         type: object
                       podAffinity:
                         properties:
@@ -339,6 +324,7 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -362,6 +348,7 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
                                       items:
                                         type: string
@@ -405,6 +392,7 @@ spec:
                                         type: string
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:
@@ -428,6 +416,7 @@ spec:
                                         type: string
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   items:
                                     type: string
@@ -469,6 +458,7 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -492,6 +482,7 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
                                       items:
                                         type: string
@@ -535,6 +526,7 @@ spec:
                                         type: string
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:
@@ -558,6 +550,7 @@ spec:
                                         type: string
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
                                   items:
                                     type: string
@@ -611,12 +604,22 @@ spec:
                                     type: string
                                   type: object
                               type: object
+                              x-kubernetes-map-type: atomic
+                            matchLabelKeys:
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
                             maxSkew:
                               format: int32
                               type: integer
                             minDomains:
                               format: int32
                               type: integer
+                            nodeAffinityPolicy:
+                              type: string
+                            nodeTaintsPolicy:
+                              type: string
                             topologyKey:
                               type: string
                             whenUnsatisfiable:
@@ -637,6 +640,18 @@ spec:
                   resources:
                     nullable: true
                     properties:
+                      claims:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -676,98 +691,6 @@ spec:
               healthCheck:
                 nullable: true
                 properties:
-                  bucket:
-                    properties:
-                      disabled:
-                        type: boolean
-                      interval:
-                        type: string
-                      timeout:
-                        type: string
-                    type: object
-                  livenessProbe:
-                    properties:
-                      disabled:
-                        type: boolean
-                      probe:
-                        properties:
-                          exec:
-                            properties:
-                              command:
-                                items:
-                                  type: string
-                                type: array
-                            type: object
-                          failureThreshold:
-                            format: int32
-                            type: integer
-                          grpc:
-                            properties:
-                              port:
-                                format: int32
-                                type: integer
-                              service:
-                                type: string
-                            required:
-                            - port
-                            type: object
-                          httpGet:
-                            properties:
-                              host:
-                                type: string
-                              httpHeaders:
-                                items:
-                                  properties:
-                                    name:
-                                      type: string
-                                    value:
-                                      type: string
-                                  required:
-                                  - name
-                                  - value
-                                  type: object
-                                type: array
-                              path:
-                                type: string
-                              port:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                x-kubernetes-int-or-string: true
-                              scheme:
-                                type: string
-                            required:
-                            - port
-                            type: object
-                          initialDelaySeconds:
-                            format: int32
-                            type: integer
-                          periodSeconds:
-                            format: int32
-                            type: integer
-                          successThreshold:
-                            format: int32
-                            type: integer
-                          tcpSocket:
-                            properties:
-                              host:
-                                type: string
-                              port:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                x-kubernetes-int-or-string: true
-                            required:
-                            - port
-                            type: object
-                          terminationGracePeriodSeconds:
-                            format: int64
-                            type: integer
-                          timeoutSeconds:
-                            format: int32
-                            type: integer
-                        type: object
-                    type: object
                   readinessProbe:
                     properties:
                       disabled:
@@ -851,6 +774,7 @@ spec:
                             type: integer
                         type: object
                     type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   startupProbe:
                     properties:
                       disabled:
@@ -1066,6 +990,15 @@ spec:
               security:
                 nullable: true
                 properties:
+                  keyRotation:
+                    nullable: true
+                    properties:
+                      enabled:
+                        default: false
+                        type: boolean
+                      schedule:
+                        type: string
+                    type: object
                   kms:
                     nullable: true
                     properties:
@@ -1102,17 +1035,6 @@ spec:
             type: object
           status:
             properties:
-              bucketStatus:
-                properties:
-                  details:
-                    type: string
-                  health:
-                    type: string
-                  lastChanged:
-                    type: string
-                  lastChecked:
-                    type: string
-                type: object
               conditions:
                 items:
                   properties:
@@ -1132,6 +1054,19 @@ spec:
                       type: string
                   type: object
                 type: array
+              endpoints:
+                properties:
+                  insecure:
+                    items:
+                      type: string
+                    nullable: true
+                    type: array
+                  secure:
+                    items:
+                      type: string
+                    nullable: true
+                    type: array
+                type: object
               info:
                 additionalProperties:
                   type: string
@@ -1158,5 +1093,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

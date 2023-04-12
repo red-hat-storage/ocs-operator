@@ -26,7 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
@@ -273,7 +273,7 @@ func (r *StorageClassClaimReconciler) reconcileConsumerPhases() (reconcile.Resul
 
 		// Check if finalizers are present, if not, add them.
 		if !contains(r.storageClassClaim.GetFinalizers(), v1alpha1.StorageClassClaimFinalizer) {
-			storageClassClaimRef := klog.KRef(r.storageClassClaim.Name, r.storageClassClaim.Namespace)
+			storageClassClaimRef := klog.KRef(r.storageClassClaim.Namespace, r.storageClassClaim.Name)
 			r.log.Info("Finalizer not found for StorageClassClaim. Adding finalizer.", "StorageClassClaim", storageClassClaimRef)
 			r.storageClassClaim.SetFinalizers(append(r.storageClassClaim.GetFinalizers(), v1alpha1.StorageClassClaimFinalizer))
 			if err := r.update(r.storageClassClaim); err != nil {

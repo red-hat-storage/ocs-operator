@@ -198,6 +198,9 @@ type Logger interface {
 	// implementation cannot update the level on the fly, it should no-op.
 	SetLevel(level Level)
 
+	// Returns the current level
+	GetLevel() Level
+
 	// Return a value that conforms to the stdlib log.Logger interface
 	StandardLogger(opts *StandardLoggerOptions) *log.Logger
 
@@ -273,6 +276,10 @@ type LoggerOptions struct {
 
 	// Only color the header, not the body. This can help with readability of long messages.
 	ColorHeaderOnly bool
+
+	// Color the header and message body fields. This can help with readability
+	// of long messages with multiple fields.
+	ColorHeaderAndFields bool
 
 	// A function which is called with the log information and if it returns true the value
 	// should not be logged.

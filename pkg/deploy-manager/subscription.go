@@ -501,7 +501,7 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 		for _, csv := range csvs.Items {
 			// If the csvName doesn't match, it means a new csv has appeared
 			if csv.Name != csvName && strings.Contains(csv.Name, operatorName) {
-				// New csv found and phase is succeeeded
+				// New csv found and phase is succeeded
 				if csv.Status.Phase == "Succeeded" {
 					return true, nil
 				}

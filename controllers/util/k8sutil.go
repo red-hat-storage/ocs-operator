@@ -5,10 +5,18 @@ import (
 	"os"
 )
 
-// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-// which is the namespace where the watch activity happens.
-// this value is empty if the operator is running with clusterScope.
-const WatchNamespaceEnvVar = "WATCH_NAMESPACE"
+const (
+	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
+	// which is the namespace where the watch activity happens.
+	// this value is empty if the operator is running with clusterScope.
+	WatchNamespaceEnvVar = "WATCH_NAMESPACE"
+
+	// This configmap is purely for the OCS operator to use.
+	OcsOperatorConfigName = "ocs-operator-config"
+
+	// This configmap is watched by rook-ceph-operator & is reserved only for manual overrides.
+	RookCephOperatorConfigName = "rook-ceph-operator-config"
+)
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
 func GetWatchNamespace() (string, error) {

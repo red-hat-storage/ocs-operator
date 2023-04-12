@@ -533,9 +533,10 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 				Name: "cephfs",
 				Kind: "StorageClass",
 				Data: map[string]string{
-					"clusterID": "8d26c7378c1b0ec9c2455d1c3601c4cd",
-					"fsName":    "myfs",
-					"pool":      "",
+					"clusterID":          "8d26c7378c1b0ec9c2455d1c3601c4cd",
+					"fsName":             "myfs",
+					"subvolumegroupname": "cephFilesystemSubVolumeGroup",
+					"pool":               "",
 					"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
 					"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
 					"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",

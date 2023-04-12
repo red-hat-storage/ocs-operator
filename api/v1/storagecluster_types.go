@@ -164,6 +164,7 @@ type ManagedResourcesSpec struct {
 	CephObjectStores      ManageCephObjectStores      `json:"cephObjectStores,omitempty"`
 	CephObjectStoreUsers  ManageCephObjectStoreUsers  `json:"cephObjectStoreUsers,omitempty"`
 	CephToolbox           ManageCephToolbox           `json:"cephToolbox,omitempty"`
+	CephRBDMirror         ManageCephRBDMirror         `json:"cephRBDMirror,omitempty"`
 }
 
 // ManageCephCluster defines how to reconcile the Ceph cluster definition
@@ -219,6 +220,11 @@ type ManageCephObjectStoreUsers struct {
 
 // ManageCephToolbox defines how to reconcile Ceph toolbox
 type ManageCephToolbox struct {
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// ManageCephRBDMirror defines how to reconcile Ceph RBDMirror
+type ManageCephRBDMirror struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 }
 
@@ -526,6 +532,10 @@ const (
 	// ConditionExternalClusterConnecting type indicates that rook is still trying for
 	// an external connection
 	ConditionExternalClusterConnecting conditionsv1.ConditionType = "ExternalClusterConnecting"
+
+	// ConditionVersionMismatch type indicates that there is a mismatch in the storagecluster
+	// and the operator version
+	ConditionVersionMismatch conditionsv1.ConditionType = "VersionMismatch"
 )
 
 // List of constants to show different different reconciliation messages and statuses.

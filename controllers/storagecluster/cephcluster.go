@@ -94,9 +94,20 @@ func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 // ensureCreated ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
-	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephCluster.ReconcileStrategy)
+	var (
+		cephCluster       *rookCephv1.CephCluster
+		err               error
+		reconcileStrategy = ReconcileStrategy(sc.Spec.ManagedResources.CephCluster.ReconcileStrategy)
+	)
 	if reconcileStrategy == ReconcileStrategyIgnore {
 		return reconcile.Result{}, nil
+	}
+
+	// ensure the ocs-operator-config cm exists & has the correct values
+	err = r.ensureOCSOperatorConfig(sc)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure ocs-operator-config ConfigMap")
+		return reconcile.Result{}, err
 	}
 
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
@@ -128,8 +139,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
-	var cephCluster *rookCephv1.CephCluster
-	var err error
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
 		extRArr, ok := externalOCSResources[sc.UID]
@@ -165,13 +174,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				return reconcile.Result{}, err
 			}
 			if kmsConfigMap != nil {
+				if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
+					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["VAULT_ADDR"]
+				}
 				if err = reachKMSProvider(kmsConfigMap); err != nil {
-					if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
-						sc.Status.KMSServerConnection = ocsv1.KMSServerConnectionStatus{
-							KMSServerAddress:         kmsConfigMap.Data["VAULT_ADDR"],
-							KMSServerConnectionError: err.Error(),
-						}
-					}
+					sc.Status.KMSServerConnection.KMSServerConnectionError = err.Error()
 					r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
 					return reconcile.Result{}, err
 				}
@@ -523,8 +530,6 @@ func validateMultusSelectors(selectors map[string]string) error {
 	return nil
 }
 
-// getNetworkSpec returns cephv1.NetworkSpec after reconciling the
-// storageCluster.Spec.HostNetwork and storageCluster.Spec.Network fields
 func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	networkSpec := rookCephv1.NetworkSpec{}
 	if sc.Spec.Network != nil {
@@ -532,6 +537,20 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	}
 	// respect both the old way and the new way for enabling HostNetwork
 	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
+
+	if networkSpec.Connections == nil {
+		networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
+	}
+	networkSpec.Connections.RequireMsgr2 = true
+
+	// If it's an provider or external/consumer cluster don't require msgr2
+	// And don't allow encryption or compression to be enabled
+	if sc.Spec.AllowRemoteStorageConsumers || sc.Spec.ExternalStorage.Enable {
+		networkSpec.Connections.RequireMsgr2 = false
+		networkSpec.Connections.Encryption = nil
+		networkSpec.Connections.Compression = nil
+	}
+
 	return networkSpec
 }
 
