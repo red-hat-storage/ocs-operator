@@ -293,14 +293,6 @@ func (r *StorageClusterReconciler) verifyNoStorageConsumerExist(instance *ocsv1.
 // deleteResources is the function where the storageClusterFinalizer is handled
 // Every function that is called within this function should be idempotent
 func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (reconcile.Result, error) {
-
-	if IsOCSConsumerMode(sc) {
-		err := r.verifyNoStorageClassClaimsExist(sc)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-
 	// we do not check if it is a provider before checking storageConsumers CR because of corner case
 	// where user can mark instance.Spec.AllowRemoteStorageConsumers as false and mark CR for deletion immediately.
 	// Which will trigger a deletion without having instance.Spec.AllowRemoteStorageConsumers as true.

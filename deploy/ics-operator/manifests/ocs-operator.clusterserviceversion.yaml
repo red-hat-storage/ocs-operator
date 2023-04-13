@@ -1418,7 +1418,7 @@ metadata:
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.19.0+git
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassclaims.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassrequests.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -1441,10 +1441,11 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
-    - description: StorageClassClaim is the Schema for the storageclassclaims API
-      displayName: Storage Class Claim
-      kind: StorageClassClaim
-      name: storageclassclaims.ocs.openshift.io
+    - description: StorageClassRequest is the Schema for the StorageClassRequests
+        API
+      displayName: Storage Class Request
+      kind: StorageClassRequest
+      name: storageclassrequests.ocs.openshift.io
       version: v1alpha1
     - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
         and all the storage and compute resources required.
@@ -1911,7 +1912,7 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - storageclassclaims
+          - storageclassrequests
           verbs:
           - create
           - delete
@@ -1923,7 +1924,7 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - storageclassclaims/status
+          - storageclassrequests/status
           verbs:
           - get
           - patch
