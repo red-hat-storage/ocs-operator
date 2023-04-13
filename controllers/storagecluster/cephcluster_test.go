@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -809,6 +810,35 @@ func TestParsePrometheusRules(t *testing.T) {
 	prometheusRules, err = parsePrometheusRule(externalPrometheusRules)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(prometheusRules.Spec.Groups))
+}
+
+func TestChangePrometheusExprFunc(t *testing.T) {
+	prometheusRules, err := parsePrometheusRule(localPrometheusRules)
+	assert.NilError(t, err)
+	var changeTokens = []exprReplaceToken{
+		{recordOrAlertName: "CephMgrIsAbsent", wordInExpr: "openshift-storage", replaceWith: "new-namespace"},
+		// when alert or record name is not specified,
+		// the change should affect all the expressions which has the 'wordInExpr'
+		{recordOrAlertName: "", wordInExpr: "ceph_pool_stored_raw", replaceWith: "new_ceph_pool_stored_raw"},
+	}
+	changePromRuleExpr(prometheusRules, changeTokens)
+	alertNameAndChangedExpr := [][2]string{
+		{"CephMgrIsAbsent", "new-namespace"},
+		{"CephPoolQuotaBytesNearExhaustion", "new_ceph_pool_stored_raw"},
+		{"CephPoolQuotaBytesCriticallyExhausted", "new_ceph_pool_stored_raw"},
+	}
+	for _, grp := range prometheusRules.Spec.Groups {
+		for _, rule := range grp.Rules {
+			for _, eachAlertChanged := range alertNameAndChangedExpr {
+				alertName := eachAlertChanged[0]
+				changeStr := eachAlertChanged[1]
+				if rule.Alert != alertName {
+					continue
+				}
+				assert.Assert(t, strings.Contains(rule.Expr.String(), changeStr))
+			}
+		}
+	}
 }
 
 func TestGetNetworkSpec(t *testing.T) {
