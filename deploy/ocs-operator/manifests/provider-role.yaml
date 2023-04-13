@@ -47,7 +47,7 @@ rules:
 - apiGroups:
   - ocs.openshift.io
   resources:
-  - storageclassclaims
+  - storageclassrequests
   verbs:
   - get
   - list

@@ -5,7 +5,7 @@ resources:
 - bases/ocs.openshift.io_ocsinitializations.yaml
 - bases/ocs.openshift.io_storageclusters.yaml
 - bases/ocs.openshift.io_storageconsumers.yaml
-- bases/ocs.openshift.io_storageclassclaims.yaml
+- bases/ocs.openshift.io_storageclassrequests.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 # patchesStrategicMerge:
@@ -14,7 +14,7 @@ resources:
 #- patches/webhook_in_ocsinitializations.yaml
 #- patches/webhook_in_storageclusters.yaml
 #- patches/webhook_in_storageconsumers.yaml
-#- patches/webhook_in_storageclassclaims.yaml
+#- patches/webhook_in_storageclassrequestss.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
@@ -22,7 +22,7 @@ resources:
 #- patches/cainjection_in_ocsinitializations.yaml
 #- patches/cainjection_in_storageclusters.yaml
 #- patches/cainjection_in_storageconsumers.yaml
-#- patches/cainjection_in_storageclassclaims.yaml
+#- patches/cainjection_in_storageclassrequests.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

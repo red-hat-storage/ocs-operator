@@ -86,10 +86,11 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
-    - description: StorageClassClaim is the Schema for the storageclassclaims API
-      displayName: Storage Class Claim
-      kind: StorageClassClaim
-      name: storageclassclaims.ocs.openshift.io
+    - description: StorageClassRequest is the Schema for the StorageClassRequests
+        API
+      displayName: Storage Class Request
+      kind: StorageClassRequest
+      name: storageclassrequests.ocs.openshift.io
       version: v1alpha1
     - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
         and all the storage and compute resources required.
@@ -385,7 +386,7 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - storageclassclaims
+          - storageclassrequests
           verbs:
           - create
           - delete
@@ -397,7 +398,7 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - storageclassclaims/status
+          - storageclassrequests/status
           verbs:
           - get
           - patch
