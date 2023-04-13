@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220811192603-abc54caa34ac
-	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
+	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.2.0
 	github.com/noobaa/noobaa-operator/v5 v5.11.0-12052022.0.20220601080237-28e143e0b16b
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.5
@@ -37,13 +37,13 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/ini.v1 v1.67.0
 	gotest.tools/v3 v3.0.3
-	k8s.io/api v0.24.3
+	k8s.io/api v0.26.0
 	k8s.io/apiextensions-apiserver v0.24.3
-	k8s.io/apimachinery v0.24.3
+	k8s.io/apimachinery v0.26.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
-	k8s.io/klog/v2 v2.70.1
-	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
+	k8s.io/klog/v2 v2.80.1
+	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
 	open-cluster-management.io/api v0.8.0
 	sigs.k8s.io/controller-runtime v0.12.3
 )
@@ -75,7 +75,7 @@ require (
 	github.com/go-openapi/runtime v0.19.15 // indirect
 	github.com/go-openapi/spec v0.19.8 // indirect
 	github.com/go-openapi/strfmt v0.19.5 // indirect
-	github.com/go-openapi/swag v0.22.0 // indirect
+	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-openapi/validate v0.19.8 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -83,7 +83,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -135,11 +135,11 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
-	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48 // indirect
+	golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10 // indirect
 	golang.org/x/oauth2 v0.0.0-20220808172628-8227340efae7 // indirect
-	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
-	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/api v0.91.0 // indirect
@@ -153,7 +153,7 @@ require (
 	k8s.io/apiserver v0.24.3 // indirect
 	k8s.io/component-base v0.24.3 // indirect
 	k8s.io/kube-aggregator v0.24.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea // indirect
+	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

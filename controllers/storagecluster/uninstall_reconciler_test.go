@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
