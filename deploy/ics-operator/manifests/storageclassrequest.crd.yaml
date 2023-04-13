@@ -4,15 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
-  creationTimestamp: null
-  name: storageclassclaims.ocs.openshift.io
+  name: storageclassrequests.ocs.openshift.io
 spec:
   group: ocs.openshift.io
   names:
-    kind: StorageClassClaim
-    listKind: StorageClassClaimList
-    plural: storageclassclaims
-    singular: storageclassclaim
+    kind: StorageClassRequest
+    listKind: StorageClassRequestList
+    plural: storageclassrequests
+    singular: storageclassrequest
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -25,7 +24,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StorageClassClaim is the Schema for the storageclassclaims API
+        description: StorageClassRequest is the Schema for the StorageClassRequests
+          API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -40,7 +40,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: StorageClassClaimSpec defines the desired state of StorageClassClaim
+            description: StorageClassRequestSpec defines the desired state of StorageClassRequest
             properties:
               encryptionMethod:
                 type: string
@@ -55,7 +55,7 @@ spec:
             - type
             type: object
           status:
-            description: StorageClassClaimStatus defines the observed state of StorageClassClaim
+            description: StorageClassRequestStatus defines the observed state of StorageClassRequest
             properties:
               cephResources:
                 description: CephResources provide details of created ceph resources
@@ -84,6 +84,8 @@ spec:
               phase:
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
