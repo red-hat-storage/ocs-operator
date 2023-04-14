@@ -858,6 +858,8 @@ spec:
                     type: string
                   multiClusterService:
                     properties:
+                      clusterID:
+                        type: string
                       enabled:
                         type: boolean
                     type: object
