@@ -1,0 +1,7 @@
+apiVersion: ocs.openshift.io/v1alpha1
+kind: StorageClassRequest
+metadata:
+  name: storageclassrequest-sample
+spec:
+  # Add fields here
+  foo: bar

@@ -86,10 +86,11 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
-    - description: StorageClassClaim is the Schema for the storageclassclaims API
-      displayName: Storage Class Claim
-      kind: StorageClassClaim
-      name: storageclassclaims.ocs.openshift.io
+    - description: StorageClassRequest is the Schema for the StorageClassRequests
+        API
+      displayName: Storage Class Request
+      kind: StorageClassRequest
+      name: storageclassrequests.ocs.openshift.io
       version: v1alpha1
     - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
         and all the storage and compute resources required.
@@ -142,6 +143,58 @@ spec:
   install:
     spec:
       clusterPermissions:
+      - rules:
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephobjectstores
+          - cephblockpools
+          - cephclusters
+          - cephrbdmirrors
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - quota.openshift.io
+          resources:
+          - clusterresourcequotas
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - objectbucket.io
+          resources:
+          - objectbuckets
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - secrets
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumes
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+        serviceAccountName: ocs-metrics-exporter
       - rules:
         - apiGroups:
           - apiextensions.k8s.io
@@ -322,7 +375,7 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - storageclassclaims
+          - storageclassrequests
           verbs:
           - create
           - delete
@@ -334,7 +387,7 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - storageclassclaims/status
+          - storageclassrequests/status
           verbs:
           - get
           - patch

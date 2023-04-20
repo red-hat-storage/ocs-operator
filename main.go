@@ -23,7 +23,7 @@ import (
 	"os"
 	"runtime"
 
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	openshiftConfigv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
@@ -37,7 +37,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/controllers/ocsinitialization"
-	"github.com/red-hat-storage/ocs-operator/controllers/storageclassclaim"
+	"github.com/red-hat-storage/ocs-operator/controllers/storageclassrequest"
 	"github.com/red-hat-storage/ocs-operator/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
@@ -177,13 +177,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&storageclassclaim.StorageClassClaimReconciler{
+	if err = (&storageclassrequest.StorageClassRequestReconciler{
 		Cache:             mgr.GetCache(),
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StorageClassClaim")
+		setupLog.Error(err, "unable to create controller", "controller", "StorageClassRequest")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

@@ -1,7 +1,0 @@
-apiVersion: ocs.openshift.io/v1alpha1
-kind: StorageClassClaim
-metadata:
-  name: storageclassclaim-sample
-spec:
-  # Add fields here
-  foo: bar

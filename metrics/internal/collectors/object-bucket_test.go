@@ -3,7 +3,7 @@ package collectors
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -164,14 +164,14 @@ func TestCollectObjectBucketMetrics(t *testing.T) {
 				return nil, err
 			}
 			defer userJSONFile.Close()
-			byteValue, err := ioutil.ReadAll(userJSONFile)
+			byteValue, err := io.ReadAll(userJSONFile)
 			if err != nil {
 				return nil, err
 			}
 			if req.URL.RawQuery == "format=json&stats=true&uid=mock-ceph-user" && req.Method == http.MethodGet && req.URL.Path == "/admin/user" {
 				return &http.Response{
 					StatusCode: 200,
-					Body:       ioutil.NopCloser(bytes.NewReader(byteValue)),
+					Body:       io.NopCloser(bytes.NewReader(byteValue)),
 				}, nil
 			}
 			return nil, fmt.Errorf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, req.URL.Path)

@@ -10,7 +10,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -141,10 +141,6 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 // ensureCreated functions ensures that snpashotter classes are created
 func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if IsOCSConsumerMode(instance) {
-		return reconcile.Result{}, nil
-	}
-
 	vsccs := newSnapshotClassConfigurations(instance)
 
 	err := r.createSnapshotClasses(vsccs)
@@ -157,10 +153,6 @@ func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance
 
 // ensureDeleted deletes the SnapshotClasses that the ocs-operator created
 func (obj *ocsSnapshotClass) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-
-	if IsOCSConsumerMode(instance) {
-		return reconcile.Result{}, nil
-	}
 
 	vsccs := newSnapshotClassConfigurations(instance)
 	for _, vscc := range vsccs {
