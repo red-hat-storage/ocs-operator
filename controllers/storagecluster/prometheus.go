@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -75,7 +74,7 @@ func getPrometheusRuleSpecFrom(filePath string) (*monitoringv1.PrometheusRuleSpe
 	if err := CheckFileExists(filePath); err != nil {
 		return nil, err
 	}
-	fileContent, err := ioutil.ReadFile(filepath.Clean(filePath))
+	fileContent, err := os.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		return nil, fmt.Errorf("'%s' not readable", filePath)
 	}
