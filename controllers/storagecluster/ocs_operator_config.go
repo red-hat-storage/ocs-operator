@@ -122,7 +122,7 @@ func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
 	// None of Encryption, Compression, RequireMsgr2 are enabled on the StorageCluster
 	// If it's an External or Provider cluster, We don't require msgr2 by default so no mount options are needed
 	if sc.Spec.ExternalStorage.Enable || sc.Spec.AllowRemoteStorageConsumers {
-		return ""
+		return "ms_mode=legacy"
 	}
 	// If none of the above cases apply, We set RequireMsgr2 true by default on the cephcluster
 	// so we need to set the mount options to prefer-crc
