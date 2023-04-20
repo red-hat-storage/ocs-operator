@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/clientcmd"
@@ -1061,6 +1062,17 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 		return err
 	}
 	applyLabels(getCephClusterMonitoringLabels(*sc), &prometheusRule.ObjectMeta)
+	replaceTokens := []exprReplaceToken{
+		{
+			recordOrAlertName: "CephMgrIsAbsent",
+			wordInExpr:        "openshift-storage",
+			replaceWith:       sc.Namespace,
+		},
+	}
+	// nothing to replace in external mode
+	if name != prometheusExternalRuleName {
+		changePromRuleExpr(prometheusRule, replaceTokens)
+	}
 
 	if err := createOrUpdatePrometheusRule(r, sc, prometheusRule); err != nil {
 		r.Log.Error(err, "Prometheus rules could not be created.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
@@ -1079,6 +1091,43 @@ func applyLabels(labels map[string]string, t *metav1.ObjectMeta) {
 	}
 	for k, v := range labels {
 		t.Labels[k] = v
+	}
+}
+
+type exprReplaceToken struct {
+	groupName         string
+	recordOrAlertName string
+	wordInExpr        string
+	replaceWith       string
+}
+
+func changePromRuleExpr(promRules *monitoringv1.PrometheusRule, replaceTokens []exprReplaceToken) {
+	if promRules == nil {
+		return
+	}
+	for _, eachToken := range replaceTokens {
+		// if both the words, one being replaced and the one replacing it, are same
+		// then we don't have to do anything
+		if eachToken.replaceWith == eachToken.wordInExpr {
+			continue
+		}
+		for gIndx, currGroup := range promRules.Spec.Groups {
+			if eachToken.groupName != "" && eachToken.groupName != currGroup.Name {
+				continue
+			}
+			for rIndx, currRule := range currGroup.Rules {
+				if eachToken.recordOrAlertName != "" {
+					if currRule.Record != "" && currRule.Record != eachToken.recordOrAlertName {
+						continue
+					} else if currRule.Alert != "" && currRule.Alert != eachToken.recordOrAlertName {
+						continue
+					}
+				}
+				exprStr := currRule.Expr.String()
+				newExpr := strings.Replace(exprStr, eachToken.wordInExpr, eachToken.replaceWith, -1)
+				promRules.Spec.Groups[gIndx].Rules[rIndx].Expr = intstr.Parse(newExpr)
+			}
+		}
 	}
 }
 
