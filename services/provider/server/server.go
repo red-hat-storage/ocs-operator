@@ -648,8 +648,9 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				Name: "cephfs",
 				Kind: "StorageClass",
 				Data: mustMarshal(map[string]string{
-					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
-					"fsName":    subVolumeGroup.Spec.FilesystemName,
+					"clusterID":          getSubVolumeGroupClusterID(subVolumeGroup),
+					"subvolumegroupname": subVolumeGroup.Name,
+					"fsName":             subVolumeGroup.Spec.FilesystemName,
 					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
 					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
 					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
