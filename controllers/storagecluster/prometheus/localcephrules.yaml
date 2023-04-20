@@ -122,7 +122,7 @@ spec:
     rules:
     - alert: CephOSDCriticallyFull
       annotations:
-        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{$labels.device_class}} has crossed 80% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{$labels.device_class}}.
+        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{ $labels.device_class }} has crossed 80% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{ $labels.device_class }}.
         message: Back-end storage device is critically full.
         severity_level: error
         storage_type: ceph
@@ -144,7 +144,7 @@ spec:
         severity: critical
     - alert: CephOSDNearFull
       annotations:
-        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{$labels.device_class}} has crossed 75% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{$labels.device_class}}.
+        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{ $labels.device_class }} has crossed 75% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{ $labels.device_class }}.
         message: Back-end storage device is nearing full.
         severity_level: warning
         storage_type: ceph
