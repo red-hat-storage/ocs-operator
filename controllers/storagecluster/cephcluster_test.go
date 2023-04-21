@@ -1052,3 +1052,144 @@ func TestLogCollector(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector.MaxLogSize, &maxLogSize)
 }
+
+func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
+	testTable := []struct {
+		desc   string
+		scSpec ocsv1.StorageClusterSpec
+		ccSpec cephv1.ClusterSpec
+	}{
+		{
+			desc: "No Network Connections Spec is defined in StorageCluster",
+			scSpec: ocsv1.StorageClusterSpec{
+				Network: &cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{},
+				},
+			},
+			ccSpec: cephv1.ClusterSpec{
+				Network: cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{},
+				},
+			},
+		},
+		{
+			desc: "Encryption Enabled is true",
+			scSpec: ocsv1.StorageClusterSpec{
+				Network: &cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Encryption: &cephv1.EncryptionSpec{
+							Enabled: true,
+						},
+					},
+				},
+			},
+			ccSpec: cephv1.ClusterSpec{
+				Network: cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Encryption: &cephv1.EncryptionSpec{
+							Enabled: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "Compression is enabled",
+			scSpec: ocsv1.StorageClusterSpec{
+				Network: &cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Compression: &cephv1.CompressionSpec{
+							Enabled: true,
+						},
+					},
+				},
+			},
+			ccSpec: cephv1.ClusterSpec{
+				Network: cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Compression: &cephv1.CompressionSpec{
+							Enabled: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "Encryption Enabled is true, Compression Enabled is true",
+			scSpec: ocsv1.StorageClusterSpec{
+				Network: &cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Encryption: &cephv1.EncryptionSpec{
+							Enabled: true,
+						},
+						Compression: &cephv1.CompressionSpec{
+							Enabled: true,
+						},
+					},
+				},
+			},
+			ccSpec: cephv1.ClusterSpec{
+				Network: cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Encryption: &cephv1.EncryptionSpec{
+							Enabled: true,
+						},
+						Compression: &cephv1.CompressionSpec{
+							Enabled: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "Encryption Enabled is false, Compression Enabled is false",
+			scSpec: ocsv1.StorageClusterSpec{
+				Network: &cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Encryption: &cephv1.EncryptionSpec{
+							Enabled: false,
+						},
+						Compression: &cephv1.CompressionSpec{
+							Enabled: false,
+						},
+					},
+				},
+			},
+			ccSpec: cephv1.ClusterSpec{
+				Network: cephv1.NetworkSpec{
+					Connections: &cephv1.ConnectionsSpec{
+						Encryption: &cephv1.EncryptionSpec{
+							Enabled: false,
+						},
+						Compression: &cephv1.CompressionSpec{
+							Enabled: false,
+						},
+					},
+				},
+			},
+		},
+	}
+	// Test for external mode
+	for _, testCase := range testTable {
+		t.Logf("Test for external mode")
+		t.Logf("Case: %q\n", testCase.desc)
+		sc := &ocsv1.StorageCluster{}
+		mockStorageCluster.DeepCopyInto(sc)
+		sc.Spec.Network = testCase.scSpec.Network
+		sc.Spec.ExternalStorage.Enable = true
+		cc := newExternalCephCluster(sc, "", "", "")
+		assert.DeepEqual(t, cc.Spec.Network.Connections, testCase.ccSpec.Network.Connections)
+	}
+	// Test for internal mode
+	for _, testCase := range testTable {
+		t.Logf("Test for internal mode")
+		t.Logf("Case: %q\n", testCase.desc)
+		sc := &ocsv1.StorageCluster{}
+		mockStorageCluster.DeepCopyInto(sc)
+		sc.Spec.Network = testCase.scSpec.Network
+		reconciler := createFakeStorageClusterReconciler(t)
+		testCase.ccSpec.Network.Connections.RequireMsgr2 = true
+		cc, _ := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+		assert.DeepEqual(t, cc.Spec.Network.Connections, testCase.ccSpec.Network.Connections)
+	}
+}
