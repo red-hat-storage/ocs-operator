@@ -580,6 +580,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, m
 				ManageMachineDisruptionBudgets: false,
 			},
 			Monitoring: monitoringSpec,
+			Network:    getNetworkSpec(*sc),
 			Labels: rookCephv1.LabelsSpec{
 				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
 			},
