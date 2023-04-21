@@ -70,7 +70,7 @@ func (s *storageClassRequestManager) Create(
 			Namespace: s.namespace,
 			Labels: map[string]string{
 				controllers.ConsumerUUIDLabel: consumerUUID,
-				storageClassRequestName:       storageClassRequestName,
+				storageClassRequestNameLabel:  storageClassRequestName,
 			},
 		},
 		Spec: ocsv1alpha1.StorageClassRequestSpec{
