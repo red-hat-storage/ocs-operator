@@ -51,19 +51,21 @@ func (c *CephBlocklistLs) UnmarshalJSON(data []byte) error {
 }
 
 type CephBlocklistStore struct {
-	Mutex         sync.RWMutex
-	Store         []CephBlocklistLs
-	monitorConfig cephMonitorConfig
-	kubeClient    clientset.Interface
+	Mutex             sync.RWMutex
+	Store             []CephBlocklistLs
+	monitorConfig     cephMonitorConfig
+	kubeClient        clientset.Interface
+	allowedNamespaces []string
 }
 
 var _ cache.Store = &CephBlocklistStore{}
 
 func NewCephBlocklistStore(opts *options.Options) *CephBlocklistStore {
 	return &CephBlocklistStore{
-		Store:         []CephBlocklistLs{},
-		kubeClient:    clientset.NewForConfigOrDie(opts.Kubeconfig),
-		monitorConfig: cephMonitorConfig{},
+		Store:             []CephBlocklistLs{},
+		kubeClient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig:     cephMonitorConfig{},
+		allowedNamespaces: opts.AllowedNamespaces,
 	}
 }
 
@@ -107,7 +109,7 @@ func (c *CephBlocklistStore) Resync() error {
 
 	if (c.monitorConfig == cephMonitorConfig{}) {
 		var err error
-		c.monitorConfig, err = initCeph(c.kubeClient, "openshift-storage")
+		c.monitorConfig, err = initCeph(c.kubeClient, c.allowedNamespaces)
 		if err != nil {
 			return fmt.Errorf("failed to initialize ceph: %v", err)
 		}

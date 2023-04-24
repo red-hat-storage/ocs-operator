@@ -30,10 +30,11 @@ var _ cache.Store = &PersistentVolumeStore{}
 type PersistentVolumeStore struct {
 	Mutex sync.RWMutex
 	// Store is a map of PV UID to PersistentVolumeAttributes
-	Store         map[types.UID]PersistentVolumeAttributes
-	RBDClientMap  map[string]Clients
-	monitorConfig cephMonitorConfig
-	kubeClient    clientset.Interface
+	Store             map[types.UID]PersistentVolumeAttributes
+	RBDClientMap      map[string]Clients
+	monitorConfig     cephMonitorConfig
+	kubeClient        clientset.Interface
+	allowedNamespaces []string
 }
 
 type Clients struct {
@@ -54,10 +55,11 @@ type PersistentVolumeAttributes struct {
 
 func NewPersistentVolumeStore(opts *options.Options) *PersistentVolumeStore {
 	return &PersistentVolumeStore{
-		Store:         map[types.UID]PersistentVolumeAttributes{},
-		RBDClientMap:  map[string]Clients{},
-		kubeClient:    clientset.NewForConfigOrDie(opts.Kubeconfig),
-		monitorConfig: cephMonitorConfig{},
+		Store:             map[types.UID]PersistentVolumeAttributes{},
+		RBDClientMap:      map[string]Clients{},
+		kubeClient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig:     cephMonitorConfig{},
+		allowedNamespaces: opts.AllowedNamespaces,
 	}
 }
 
@@ -100,7 +102,7 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 
 	if (p.monitorConfig == cephMonitorConfig{}) {
 		var err error
-		p.monitorConfig, err = initCeph(p.kubeClient, "openshift-storage")
+		p.monitorConfig, err = initCeph(p.kubeClient, p.allowedNamespaces)
 		if err != nil {
 			return fmt.Errorf("failed to initialize ceph: %v", err)
 		}
