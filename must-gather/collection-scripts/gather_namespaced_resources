@@ -11,7 +11,10 @@ fi
 SINCE_TIME=$2
 
 # Make a globle variable for namespace
-INSTALL_NAMESPACE=openshift-storage
+INSTALL_NAMESPACES=$(oc get storagecluster -A --no-headers | awk '{print $1}')
+PRODUCT_NAMESPACE=$(oc get managedFusionOffering -A --no-headers | awk '{print $1}')
+OPERATOR_NAMESPACE=$(oc get subscription -A --no-headers | awk '{print $1}' | grep odf-operator)
+MANAGED_FUSION_NAMESPACE=$(oc get secrets -A --no-headers | grep managed-fusion-agent-config | awk '{print $1}')
 RAMEN_NAMESPACE=openshift-dr-system
 
 # Add general resources to list if necessary
@@ -49,6 +52,13 @@ commands_get+=("role")
 commands_get+=("rolebinding")
 commands_get+=("storageconsumer")
 commands_get+=("cephfilesystemsubvolumegroups.ceph.rook.io")
+commands_get+=("storageclassrequest")
+commands_get+=("alertmanager")
+commands_get+=("alertmanagerconfig")
+commands_get+=("prometheus")
+commands_get+=("secrets")
+commands_get+=("configmap")
+commands_get+=("catalogsource")
 
 # collect oc output of OC desc commands
 commands_desc=()
@@ -56,6 +66,10 @@ commands_desc+=("pods")
 commands_desc+=("subscription")
 commands_desc+=("storagecluster")
 commands_desc+=("storageconsumer")
+commands_desc+=("storageclassrequest")
+commands_desc+=("alertmanager")
+commands_desc+=("prometheus")
+commands_desc+=("alertmanagerconfig")
 commands_desc+=("cephfilesystemsubvolumegroups.ceph.rook.io")
 
 # collect yaml output of OC commands
@@ -63,72 +77,78 @@ oc_yamls=()
 oc_yamls+=("csv")
 oc_yamls+=("subscription")
 oc_yamls+=("installplan")
+oc_yamls+=("storageclassrequest")
+oc_yamls+=("alertmanager")
+oc_yamls+=("prometheus")
+oc_yamls+=("alertmanagerconfig")
 
-echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-echo "collecting dump of clusterresourceversion" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-for oc_yaml in "${oc_yamls[@]}"; do
-   # shellcheck disable=SC2129
-   oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect "${oc_yaml}" -n "${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-done
+for INSTALL_NAMESPACE in $PRODUCT_NAMESPACE $INSTALL_NAMESPACES $MANAGED_FUSION_NAMESPACE $OPERATOR_NAMESPACE; do
+     echo "collecting dump of namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+     oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+     echo "collecting dump of clusterresourceversion" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+     for oc_yaml in "${oc_yamls[@]}"; do
+          # shellcheck disable=SC2129
+          oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect "${oc_yaml}" -n "${INSTALL_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+     done
 
-# Create the dir for oc_output
-mkdir -p "${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/"
-
-# Run the Collection of Resources to list
-for command_get in "${commands_get[@]}"; do
-     echo "collecting oc command ${command_get}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
-     COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/${command_get// /_}
-     # shellcheck disable=SC2086
-     { oc get ${command_get} -n ${INSTALL_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
-done
-
-# Run the Collection of OC desc commands
-for command_desc in "${commands_desc[@]}"; do
-     echo "collecting oc describe command ${command_desc}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
-     COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/${command_desc// /_}
-     # shellcheck disable=SC2086
-     { oc describe ${command_desc} -n ${INSTALL_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
-done
-
-# NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
-{ oc get storageclusters -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagecluster.yaml" 2>&1
-{ oc get storagesystem -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagesystem.yaml" 2>&1
-{ oc get storageconsumer -n ${INSTALL_NAMESPACE} -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storageconsumer.yaml" 2>&1
-
-# Create the dir for data from all namespaces
-mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
-
-# Run the Collection of Resources using must-gather
-for resource in "${resources[@]}"; do
-    echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
-    { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect "${resource}" --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
-done
-
-{ timeout 60 oc get ns openshift-dr-system; }
-# Verify if openshift-dr-system namespace exists
-if [ $? == 0 ]; then
-     echo "collecting dump of openshift-dr-system namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
-     oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${RAMEN_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
-
-     # Create the dir for oc_output for openshift-dr-system namespace
-     mkdir -p "${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/"
+          # Create the dir for oc_output
+     mkdir -p "${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/"
 
      # Run the Collection of Resources to list
-     for dr_resource in "${dr_resources[@]}"; do
-          echo "collecting oc command ${dr-resource}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
-          COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/${dr_resource// /_}
+     for command_get in "${commands_get[@]}"; do
+          echo "collecting oc command ${command_get}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+          COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/${command_get// /_}
           # shellcheck disable=SC2086
-          { oc get ${dr_resource} -n ${RAMEN_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
+          { oc get ${command_get} -n ${INSTALL_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
      done
-     # Run collection of oc describe command for config map
-     echo "collecting oc describe configmap -n ${RAMEN_NAMESPACE}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
-     COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/desc_configmap
-     # shellcheck disable=SC2086
-     { oc describe configmap -n ${RAMEN_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
-else
-     { printf "No openshift-dr-system namespace"; }
-fi    
+
+     # Run the Collection of OC desc commands
+     for command_desc in "${commands_desc[@]}"; do
+          echo "collecting oc describe command ${command_desc}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+          COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${INSTALL_NAMESPACE}/oc_output/${command_desc// /_}
+          # shellcheck disable=SC2086
+          { oc describe ${command_desc} -n ${INSTALL_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
+     done
+
+     # NOTE: This is a temporary fix for collecting the storagecluster as we are not able to collect the storagecluster using the inspect command
+     { oc get storageclusters -n "${INSTALL_NAMESPACE}" -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagecluster.yaml" 2>&1
+     { oc get storagesystem -n "${INSTALL_NAMESPACE}" -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagesystem.yaml" 2>&1
+     { oc get storageconsumer -n "${INSTALL_NAMESPACE}" -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storageconsumer.yaml" 2>&1
+
+     # Create the dir for data from all namespaces
+     mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
+
+     # Run the Collection of Resources using must-gather
+     for resource in "${resources[@]}"; do
+          echo "collecting dump of ${resource}" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+          { oc adm --dest-dir="${BASE_COLLECTION_PATH}/namespaces/all/" inspect "${resource}" --all-namespaces --"${SINCE_TIME}"; } >> "${BASE_COLLECTION_PATH}/gather-debug.log" 2>&1
+     done
+
+     { timeout 60 oc get ns openshift-dr-system; }
+     # Verify if openshift-dr-system namespace exists
+     if [ $? == 0 ]; then
+          echo "collecting dump of openshift-dr-system namespace" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
+          oc adm --dest-dir="${BASE_COLLECTION_PATH}" inspect ns/"${RAMEN_NAMESPACE}" --"${SINCE_TIME}" >> "${BASE_COLLECTION_PATH}"/gather-debug.log 2>&1
+
+          # Create the dir for oc_output for openshift-dr-system namespace
+          mkdir -p "${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/"
+
+          # Run the Collection of Resources to list
+          for dr_resource in "${dr_resources[@]}"; do
+               echo "collecting oc command ${dr-resource}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+               COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/${dr_resource// /_}
+               # shellcheck disable=SC2086
+               { oc get ${dr_resource} -n ${RAMEN_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
+          done
+          # Run collection of oc describe command for config map
+          echo "collecting oc describe configmap -n ${RAMEN_NAMESPACE}" | tee -a "${BASE_COLLECTION_PATH}/gather-debug.log"
+          COMMAND_OUTPUT_FILE=${BASE_COLLECTION_PATH}/namespaces/${RAMEN_NAMESPACE}/oc_output/desc_configmap
+          # shellcheck disable=SC2086
+          { oc describe configmap -n ${RAMEN_NAMESPACE}; } >> "${COMMAND_OUTPUT_FILE}"
+     else
+          { printf "No openshift-dr-system namespace"; }
+     fi
+done    
 
 # For pvc of all namespaces
 echo "collecting dump of oc get pvc all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"

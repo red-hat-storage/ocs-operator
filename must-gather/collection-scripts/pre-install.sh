@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ns="openshift-storage"
+ns=$(oc get deploy --all-namespaces -o go-template --template='{{range .items}}{{if .metadata.labels}}{{printf "%s %v" .metadata.namespace (index .metadata.labels "olm.owner")}} {{printf "\n"}}{{end}}{{end}}' | grep ocs-operator | awk '{print $1}' | uniq)
 
 POD_TEMPLATE="/templates/pod.template"
 
@@ -15,14 +15,14 @@ apply_helper_pod() {
 }
 
 # Add Ready nodes to the list
-nodes=$(oc get nodes -l cluster.ocs.openshift.io/openshift-storage='' --no-headers | awk '/\yReady\y/{print $1}')
+nodes=$(oc get nodes -l cluster.ocs.openshift.io/"${ns}"='' --no-headers | awk '/\yReady\y/{print $1}')
 
 # storing storagecluster name
-storageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
+storageClusterPresent=$(oc get storagecluster -n "${ns}" -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
 # checking for mcg standalone cluster
-reconcileStrategy=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.multiCloudGateway.reconcileStrategy}}{{"\n"}}{{end}}')
+reconcileStrategy=$(oc get storagecluster -n "${ns}" -o go-template='{{range .items}}{{.spec.multiCloudGateway.reconcileStrategy}}{{"\n"}}{{end}}')
 deploy(){
-     operatorImage=$(oc get pods -l app=rook-ceph-operator -n openshift-storage -o jsonpath="{range .items[*]}{@.spec.containers[0].image}+{end}" | tr "+" "\n" | head -n1)
+     operatorImage=$(oc get pods -l app=rook-ceph-operator -n "${ns}" -o jsonpath="{range .items[*]}{@.spec.containers[0].image}+{end}" | tr "+" "\n" | head -n1)
      if [ -z "${storageClusterPresent}" ]; then
         echo "not creating helper pod since storagecluster is not present" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
      elif [ "${operatorImage}" = "" ]; then
@@ -42,29 +42,29 @@ deploy(){
 
 labels(){
     if [ -n "${storageClusterPresent}" ] && [ "${reconcileStrategy}" != "standalone" ]; then
-     oc label pod -n openshift-storage "${HOSTNAME}"-helper must-gather-helper-pod=''
+     oc label pod -n "${ns}" "${HOSTNAME}"-helper must-gather-helper-pod=''
     fi
 }
 
 check_for_debug_pod(){
-    debug_pod_name=$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $1}')
+    debug_pod_name=$(oc get pods -n "${ns}" | grep "${node//./}-debug" | awk '{print $1}')
     # sleep for 60 seconds giving time for debug pod to get created
     sleep 60
-    oc wait -n openshift-storage --for=condition=Ready pod/"$debug_pod_name" --timeout=200s
-    if [ "$(oc get pods -n openshift-storage | grep "${node//./}-debug" | awk '{print $2}')" == "1/1" ] ; then
-        oc label -n openshift-storage pod "$debug_pod_name" "${node//./}"-debug='ready'
+    oc wait -n "${ns}" --for=condition=Ready pod/"$debug_pod_name" --timeout=200s
+    if [ "$(oc get pods -n "${ns}" | grep "${node//./}-debug" | awk '{print $2}')" == "1/1" ] ; then
+        oc label -n "${ns}" pod "$debug_pod_name" "${node//./}"-debug='ready'
     fi
 }
 
 check_for_helper_pod(){
     # sleep for 60 seconds giving time for helper pod to get created
     sleep 60
-    oc wait -n openshift-storage --for=condition=Ready pod/"${HOSTNAME}"-helper --timeout=200s
+    oc wait -n "${ns}" --for=condition=Ready pod/"${HOSTNAME}"-helper --timeout=200s
 }
 
 cleanup() {
   echo "checking for existing must-gather resource" | tee -a "${BASE_COLLECTION_PATH}"/gather-debug.log
-  pods=$(oc get pods --no-headers -n openshift-storage -l must-gather-helper-pod='' | awk '{print $1}')
+  pods=$(oc get pods --no-headers -n "${ns}" -l must-gather-helper-pod='' | awk '{print $1}')
   if [ -n "${storageClusterPresent}" ] && [ -n "${pods}" ]; then
     SAVEIFS=$IFS # Save current IFS
     IFS=$'\n'    # Change IFS to new line

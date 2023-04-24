@@ -18,9 +18,10 @@ gather_namespaced_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 gather_clusterscoped_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 gather_noobaa_resources ${BASE_COLLECTION_PATH} "${SINCE_TIME}"
 
-storageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
-externalStorageClusterPresent=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.externalStorage.enable}}{{"\n"}}{{end}}')
-reconcileStrategy=$(oc get storagecluster -n openshift-storage -o go-template='{{range .items}}{{.spec.multiCloudGateway.reconcileStrategy}}{{"\n"}}{{end}}')
+namespace=$(oc get deploy --all-namespaces -o go-template --template='{{range .items}}{{if .metadata.labels}}{{printf "%s %v" .metadata.namespace (index .metadata.labels "olm.owner")}} {{printf "\n"}}{{end}}{{end}}' | grep ocs-operator | awk '{print $1}' | uniq)
+storageClusterPresent=$(oc get storagecluster -n "${namespace}" -o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
+externalStorageClusterPresent=$(oc get storagecluster -n "${namespace}" -o go-template='{{range .items}}{{.spec.externalStorage.enable}}{{"\n"}}{{end}}')
+reconcileStrategy=$(oc get storagecluster -n "${namespace}" -o go-template='{{range .items}}{{.spec.multiCloudGateway.reconcileStrategy}}{{"\n"}}{{end}}')
 
 if [ "${externalStorageClusterPresent}" == true ]; then
     echo "Collecting limited ceph logs since external cluster is present" | tee -a  "${BASE_COLLECTION_PATH}"/gather-debug.log
