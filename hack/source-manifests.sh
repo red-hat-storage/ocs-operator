@@ -94,39 +94,13 @@ function gen_ocs_csv() {
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
-# ==== DUMP ICS YAMLS ====
-# Generate an ICS CSV using the operator-sdk.
-# This is the base CSV everything else gets merged into later on.
-function gen_ics_csv() {
-	echo "Generating IBM Container Storage CSV"
-	rm -rf "$(dirname $ICS_FINAL_DIR)"
-	ics_crds_outdir="$OUTDIR_CRDS/ics"
-	rm -rf $ICS_CSV
-	rm -rf $ics_crds_outdir
-	mkdir -p $ics_crds_outdir
-
-	gen_args="generate kustomize manifests --input-dir config/manifests/ics-operator --output-dir config/manifests/ics-operator --package ocs-operator -q"
-	# shellcheck disable=SC2086
-	$OPERATOR_SDK $gen_args
-	pushd config/manager
-	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
-	popd
-	$KUSTOMIZE build config/manifests/ics-operator | $OPERATOR_SDK generate bundle -q --output-dir deploy/ics-operator --kustomize-dir config/manifests/ics-operator --package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ocs-metrics-exporter
-	mv deploy/ics-operator/manifests/*clusterserviceversion.yaml $ICS_CSV
-	cp config/crd/bases/* $ics_crds_outdir
-}
-
 if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ] && [ -z "$SKIP_CSV_DUMP" ]; then
 	source hack/docker-common.sh
 	dump_noobaa_csv
 	dump_rook_csv
 fi
 
-if [ "$FUSION" == "true" ]; then
-	gen_ics_csv
-else
-	gen_ocs_csv
-fi
+gen_ocs_csv
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
