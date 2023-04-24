@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
+	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -79,6 +80,13 @@ func setFailureDomain(sc *ocsv1.StorageCluster) {
 
 	// default is rack
 	failureDomain := "rack"
+
+	if statusutil.IsSingleNodeDeployment() {
+		sc.Status.FailureDomain = "osd"
+		// Since nodes do not have a label for "osd" as a failure domain, setting it to "host".
+		sc.Status.FailureDomainKey, sc.Status.FailureDomainValues = sc.Status.NodeTopologies.GetKeyValues("host")
+		return
+	}
 
 	// But if FlexiableScaling is enabled then we select host as failure domain
 	// as we need +1 scaling

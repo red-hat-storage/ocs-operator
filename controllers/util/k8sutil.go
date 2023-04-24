@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 const (
@@ -10,6 +11,9 @@ const (
 	// which is the namespace where the watch activity happens.
 	// this value is empty if the operator is running with clusterScope.
 	WatchNamespaceEnvVar = "WATCH_NAMESPACE"
+
+	// SingleNodeEnvVar is set if StorageCluster needs to be deployed on a single node
+	SingleNodeEnvVar = "SINGLE_NODE"
 
 	// This configmap is purely for the OCS operator to use.
 	OcsOperatorConfigName = "ocs-operator-config"
@@ -38,4 +42,10 @@ func GetOperatorNamespace() (string, error) {
 		return "", fmt.Errorf("%s must be set", OperatorNamespaceEnvVar)
 	}
 	return ns, nil
+}
+
+// IsSingleNodeDeployment returns true if StorageCluster needs to be deployed on a single node.
+func IsSingleNodeDeployment() bool {
+	isSingleNode := os.Getenv(SingleNodeEnvVar)
+	return strings.ToLower(strings.TrimSpace(isSingleNode)) == "true"
 }
