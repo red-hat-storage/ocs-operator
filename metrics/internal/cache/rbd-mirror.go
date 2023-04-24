@@ -12,6 +12,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,7 +138,7 @@ func (s *RBDMirrorStore) WithRBDCommandInput(namespace string) error {
 		return fmt.Errorf("rbd-mirror metrics collection from namespace %q is not allowed", namespace)
 	}
 
-	input, err := initCeph(s.kubeclient, namespace)
+	input, err := initCeph(s.kubeclient, []string{namespace})
 	if err != nil {
 		return err
 	}
@@ -147,10 +148,23 @@ func (s *RBDMirrorStore) WithRBDCommandInput(namespace string) error {
 	return nil
 }
 
-func initCeph(kubeclient clientset.Interface, namespace string) (cephMonitorConfig, error) {
-	secret, err := kubeclient.CoreV1().Secrets(namespace).Get(context.TODO(), "rook-ceph-mon", v1.GetOptions{})
-	if err != nil {
-		return cephMonitorConfig{}, fmt.Errorf("failed to get secret in namespace %q: %v", namespace, err)
+func initCeph(kubeclient clientset.Interface, allowedNamespaces []string) (cephMonitorConfig, error) {
+	var err error
+	var namespace string
+	var secret *corev1.Secret
+	// find a namespace which has the expected secret
+	for _, currentNamespace := range allowedNamespaces {
+		secret, err = kubeclient.CoreV1().Secrets(currentNamespace).Get(context.TODO(), "rook-ceph-mon", v1.GetOptions{})
+		// if we are successful, collect the namespace and break
+		if err == nil {
+			namespace = currentNamespace
+			break
+		}
+	}
+	// under any of these circumstances we should not proceed
+	if err != nil || secret == nil || namespace == "" {
+		return cephMonitorConfig{}, fmt.Errorf("failed to get secret in any of these namespaces %+v: %v",
+			allowedNamespaces, err)
 	}
 	key, ok := secret.Data["ceph-secret"]
 	if !ok {
