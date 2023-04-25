@@ -1,7 +1,7 @@
 package collectors
 
 import (
-	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	"k8s.io/apimachinery/pkg/labels"
@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func GetOcsClient(opts *options.Options) (*rest.RESTClient, error) {
+func GetOcsV1alpha1Client(opts *options.Options) (*rest.RESTClient, error) {
 	ocsConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeconfigPath)
 	if err != nil {
 		return nil, err
@@ -22,6 +22,28 @@ func GetOcsClient(opts *options.Options) (*rest.RESTClient, error) {
 	utilruntime.Must(ocsv1alpha1.AddToScheme(scheme))
 	codecs := serializer.NewCodecFactory(scheme)
 	ocsConfig.GroupVersion = &ocsv1alpha1.GroupVersion
+	ocsConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
+	ocsConfig.APIPath = "/apis"
+	ocsConfig.ContentType = runtime.ContentTypeJSON
+	if ocsConfig.UserAgent == "" {
+		ocsConfig.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+	ocsClient, err := rest.RESTClientFor(ocsConfig)
+	if err != nil {
+		return nil, err
+	}
+	return ocsClient, nil
+}
+
+func GetOcsV1Client(opts *options.Options) (*rest.RESTClient, error) {
+	ocsConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeconfigPath)
+	if err != nil {
+		return nil, err
+	}
+	scheme := runtime.NewScheme()
+	utilruntime.Must(ocsv1.AddToScheme(scheme))
+	codecs := serializer.NewCodecFactory(scheme)
+	ocsConfig.GroupVersion = &ocsv1.GroupVersion
 	ocsConfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
 	ocsConfig.APIPath = "/apis"
 	ocsConfig.ContentType = runtime.ContentTypeJSON
@@ -55,7 +77,7 @@ func (s *storageConsumerLister) List(selector labels.Selector) (ret []*ocsv1alph
 }
 
 type StorageClusterLister interface {
-	List(selector labels.Selector) (storageclusters []*v1.StorageCluster, err error)
+	List(selector labels.Selector) (storageclusters []*ocsv1.StorageCluster, err error)
 }
 
 type storageClusterLister struct {
@@ -66,9 +88,9 @@ func NewStorageClusterLister(indexer cache.Indexer) StorageClusterLister {
 	return &storageClusterLister{indexer: indexer}
 }
 
-func (s *storageClusterLister) List(selector labels.Selector) (storageclusters []*v1.StorageCluster, err error) {
+func (s *storageClusterLister) List(selector labels.Selector) (storageclusters []*ocsv1.StorageCluster, err error) {
 	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		storageclusters = append(storageclusters, m.(*v1.StorageCluster))
+		storageclusters = append(storageclusters, m.(*ocsv1.StorageCluster))
 	})
 	return storageclusters, err
 }
