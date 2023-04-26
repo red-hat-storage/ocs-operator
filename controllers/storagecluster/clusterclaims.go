@@ -10,12 +10,14 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/clientcmd"
+	clusterclientv1alpha1 "open-cluster-management.io/api/client/cluster/clientset/versioned"
 	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -103,8 +105,20 @@ func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance 
 }
 
 func (c *ClusterClaimCreator) create() error {
+	kubeconfig, err := clientcmd.BuildConfigFromFlags("", "")
+	if err != nil {
+		c.Logger.Error(err, "Failed to get kubeconfig for ClusterClaim client.")
+		return err
+	}
+
+	client, err := clusterclientv1alpha1.NewForConfig(kubeconfig)
+	if err != nil {
+		c.Logger.Error(err, "Failed to create ClusterClaim client.")
+		return err
+	}
+
 	for name, value := range c.Values {
-		cc := clusterv1alpha1.ClusterClaim{
+		cc := &clusterv1alpha1.ClusterClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
@@ -113,18 +127,35 @@ func (c *ClusterClaimCreator) create() error {
 			},
 		}
 
-		_, err := controllerutil.CreateOrUpdate(c.Context, c.Client, &cc, func() error {
-			cc.Spec.Value = value
-			return nil
-		})
-
+		existingClaim, err := client.ClusterV1alpha1().ClusterClaims().Get(c.Context, name, metav1.GetOptions{})
 		if err != nil {
-			c.Logger.Info("failed to create/update clusterclaim", "ClusterClaim", name)
-			return err
+			if !errors.IsNotFound(err) {
+				c.Logger.Error(err, "failed to get clusterclaim", "ClusterClaim", name)
+				return err
+			}
+			_, err = client.ClusterV1alpha1().ClusterClaims().Create(c.Context, cc, metav1.CreateOptions{})
+			if err != nil {
+				c.Logger.Error(err, "failed to create clusterclaim", "ClusterClaim", name)
+				return err
+			}
+			c.Logger.Info("created clusterclaim", "ClusterClaim", cc.Name)
+			continue
 		}
 
-		c.Logger.Info("created clusterclaim", "ClusterClaim", cc.Name)
+		if equality.Semantic.DeepEqual(existingClaim.Spec, cc.Spec) {
+			c.Logger.Info("clusterclaim unchanged", "ClusterClaim", name)
+			continue
+		}
+
+		existingClaim.Spec = cc.Spec
+		_, err = client.ClusterV1alpha1().ClusterClaims().Update(c.Context, existingClaim, metav1.UpdateOptions{})
+		if err != nil {
+			c.Logger.Error(err, "failed to update clusterclaim", "ClusterClaim", name)
+			return err
+		}
+		c.Logger.Info("updated clusterclaim", "ClusterClaim", cc.Name)
 	}
+
 	return nil
 }
 func (c *ClusterClaimCreator) getOdfVersion() (string, error) {
