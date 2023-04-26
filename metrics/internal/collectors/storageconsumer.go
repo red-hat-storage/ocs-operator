@@ -20,7 +20,7 @@ type StorageConsumerCollector struct {
 }
 
 func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollector {
-	ocsClient, err := GetOcsClient(opts)
+	ocsClient, err := GetOcsV1alpha1Client(opts)
 	if err != nil {
 		klog.Error(err)
 		return nil

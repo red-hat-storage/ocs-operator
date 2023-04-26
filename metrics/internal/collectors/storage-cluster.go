@@ -20,7 +20,7 @@ type StorageClusterCollector struct {
 var _ prometheus.Collector = &StorageClusterCollector{}
 
 func NewStorageClusterCollector(opts *options.Options) *StorageClusterCollector {
-	cl, err := GetOcsClient(opts)
+	cl, err := GetOcsV1Client(opts)
 	if err != nil {
 		klog.Errorf("Unable to get client: %v", err)
 		return nil

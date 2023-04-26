@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	k8s "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -86,8 +86,9 @@ func (s *StorageClassAdvancedFeatureProvider) AdvancedFeature(namespaces ...stri
 	return 0
 }
 
-func NewStorageClassAdvancedFeatureProvider(client *k8s.Clientset) AdvancedFeatureProvider {
-	lw := cache.NewListWatchFromClient(client.RESTClient(), "storageclasses", metav1.NamespaceAll, fields.Everything())
+func NewStorageClassAdvancedFeatureProvider(client *kubernetes.Clientset) AdvancedFeatureProvider {
+	storageclassClient := client.StorageV1()
+	lw := cache.NewListWatchFromClient(storageclassClient.RESTClient(), "storageclasses", metav1.NamespaceAll, fields.Everything())
 	return &StorageClassAdvancedFeatureProvider{
 		SharedIndexInformer: cache.NewSharedIndexInformer(lw, &storagev1.StorageClass{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
 	}
@@ -142,7 +143,7 @@ func NewClusterAdvancedFeatureCollector(opts *options.Options) *ClusterAdvanceFe
 		NewCephRBDMirrorAdvancedFeatureProvider(client),
 	}
 
-	if k8Client, err := k8s.NewForConfig(opts.Kubeconfig); err == nil {
+	if k8Client, err := kubernetes.NewForConfig(opts.Kubeconfig); err == nil {
 		advFeatureProviders = append(
 			advFeatureProviders, NewStorageClassAdvancedFeatureProvider(k8Client))
 	} else { // logging any error occurred
