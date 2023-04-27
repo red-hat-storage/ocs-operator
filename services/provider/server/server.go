@@ -76,7 +76,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 
 	storageClassRequestManager, err := newStorageClassRequestManager(ctx, client, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new StorageClassClaim instance. %v", err)
+		return nil, fmt.Errorf("failed to create new StorageClassRequest instance. %v", err)
 	}
 
 	return &OCSProviderServer{
@@ -508,7 +508,7 @@ func (s *OCSProviderServer) FulfillStorageClassClaim(ctx context.Context, req *p
 
 	err = s.storageClassRequestManager.Create(ctx, consumerObj, req.StorageClassClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to fulfill storage class request for %q. %v", req.StorageConsumerUUID, err)
+		errMsg := fmt.Sprintf("failed to fulfill storage class claim for %q. %v", req.StorageConsumerUUID, err)
 		klog.Error(errMsg)
 		if kerrors.IsAlreadyExists(err) {
 			return nil, status.Error(codes.AlreadyExists, errMsg)
@@ -524,7 +524,7 @@ func (s *OCSProviderServer) FulfillStorageClassClaim(ctx context.Context, req *p
 func (s *OCSProviderServer) RevokeStorageClassClaim(ctx context.Context, req *pb.RevokeStorageClassClaimRequest) (*pb.RevokeStorageClassClaimResponse, error) {
 	err := s.storageClassRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClassClaimName)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to revoke storage class request %q for %q. %v", req.StorageClassClaimName, req.StorageConsumerUUID, err)
+		errMsg := fmt.Sprintf("failed to revoke storage class claim %q for %q. %v", req.StorageClassClaimName, req.StorageConsumerUUID, err)
 		klog.Error(errMsg)
 		return nil, status.Errorf(codes.Internal, errMsg)
 	}
@@ -534,9 +534,9 @@ func (s *OCSProviderServer) RevokeStorageClassClaim(ctx context.Context, req *pb
 
 // GetStorageClassClaim RPC call to get the ceph resources for the StorageclassClaim.
 func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req *pb.StorageClassClaimConfigRequest) (*pb.StorageClassClaimConfigResponse, error) {
-	storageClassClaim, err := s.storageClassRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClassClaimName)
+	storageClassRequest, err := s.storageClassRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClassClaimName)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to get storage class request config %q for %q. %v", req.StorageClassClaimName, req.StorageConsumerUUID, err)
+		errMsg := fmt.Sprintf("failed to get storage class claim config %q for %q. %v", req.StorageClassClaimName, req.StorageConsumerUUID, err)
 		if kerrors.IsNotFound(err) {
 			return nil, status.Error(codes.NotFound, errMsg)
 		}
@@ -544,10 +544,10 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 	}
 
 	// Verify Status.Phase
-	msg := fmt.Sprintf("storage class request %q for %q is in %q phase", req.StorageClassClaimName, req.StorageConsumerUUID, storageClassClaim.Status.Phase)
+	msg := fmt.Sprintf("storage class claim %q for %q is in %q phase", req.StorageClassClaimName, req.StorageConsumerUUID, storageClassRequest.Status.Phase)
 	klog.Info(msg)
-	if storageClassClaim.Status.Phase != ocsv1alpha1.StorageClassRequestReady {
-		switch storageClassClaim.Status.Phase {
+	if storageClassRequest.Status.Phase != ocsv1alpha1.StorageClassRequestReady {
+		switch storageClassRequest.Status.Phase {
 		case ocsv1alpha1.StorageClassRequestFailed:
 			return nil, status.Error(codes.Internal, msg)
 		case ocsv1alpha1.StorageClassRequestInitializing:
@@ -555,13 +555,13 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 		case ocsv1alpha1.StorageClassRequestCreating:
 			return nil, status.Error(codes.Unavailable, msg)
 		case "":
-			return nil, status.Errorf(codes.Unavailable, "status is not set for storage class request %q for %q", req.StorageClassClaimName, req.StorageConsumerUUID)
+			return nil, status.Errorf(codes.Unavailable, "status is not set for storage class claim %q for %q", req.StorageClassClaimName, req.StorageConsumerUUID)
 		default:
 			return nil, status.Error(codes.Internal, msg)
 		}
 	}
 	var extR []*pb.ExternalResource
-	for _, cephRes := range storageClassClaim.Status.CephResources {
+	for _, cephRes := range storageClassRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
 			clientSecretName, _, err := s.getCephClientInformation(ctx, cephRes.Name)
@@ -577,7 +577,7 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 
 			idProp := "userID"
 			keyProp := "userKey"
-			if storageClassClaim.Spec.Type == "sharedfilesystem" {
+			if storageClassRequest.Spec.Type == "sharedfilesystem" {
 				idProp = "adminID"
 				keyProp = "adminKey"
 			}
@@ -610,9 +610,9 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
 			}
-			if storageClassClaim.Spec.EncryptionMethod != "" {
+			if storageClassRequest.Spec.EncryptionMethod != "" {
 				rbdStorageClass["encrypted"] = "true"
-				rbdStorageClass["encryptionKMSID"] = storageClassClaim.Spec.EncryptionMethod
+				rbdStorageClass["encryptionKMSID"] = storageClassRequest.Spec.EncryptionMethod
 			}
 			extR = append(extR, &pb.ExternalResource{
 				Name: "ceph-rbd",
@@ -673,7 +673,7 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				})})
 		}
 	}
-	klog.Infof("successfully returned the storage class request %q for %q", req.StorageClassClaimName, req.StorageConsumerUUID)
+	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClassClaimName, req.StorageConsumerUUID)
 	return &pb.StorageClassClaimConfigResponse{ExternalResource: extR}, nil
 
 }
