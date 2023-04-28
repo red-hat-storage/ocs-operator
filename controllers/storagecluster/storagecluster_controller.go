@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -24,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -117,6 +119,41 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	enqueueStorageClusterRequest := handler.EnqueueRequestsFromMapFunc(
+		func(obj client.Object) []reconcile.Request {
+
+			ocinit, ok := obj.(*ocsv1.OCSInitialization)
+			if !ok {
+				return []reconcile.Request{}
+			}
+
+			if ocinit.Status.Phase != util.PhaseReady {
+				return []reconcile.Request{}
+			}
+
+			// Get the StorageCluster objects
+			scList := &ocsv1.StorageClusterList{}
+			err := r.List(r.ctx, scList, &client.ListOptions{Namespace: obj.GetNamespace()})
+			if err != nil {
+				r.Log.Error(err, "Unable to list StorageCluster objects")
+				return []reconcile.Request{}
+			}
+
+			// Return name and namespace of the StorageClusters object
+			request := []reconcile.Request{}
+			for _, sc := range scList.Items {
+				request = append(request, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: sc.Namespace,
+						Name:      sc.Name,
+					},
+				})
+			}
+
+			return request
+		},
+	)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}).
@@ -124,9 +161,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.PersistentVolumeClaim{}, builder.WithPredicates(pvcPredicate)).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(
-			&source.Kind{Type: &ocsv1.OCSInitialization{}},
-			&handler.EnqueueRequestForObject{},
-		).
+		Watches(&source.Kind{Type: &ocsv1.OCSInitialization{}}, enqueueStorageClusterRequest).
 		Complete(r)
 }
