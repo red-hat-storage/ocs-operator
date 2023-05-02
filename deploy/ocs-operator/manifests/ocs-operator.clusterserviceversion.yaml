@@ -1762,6 +1762,7 @@ spec:
           - persistentvolumes
           - persistentvolumeclaims
           - pods
+          - nodes
           verbs:
           - get
           - list
