@@ -110,6 +110,6 @@ func RegisterRBDMirrorCollector(registry *prometheus.Registry, opts *options.Opt
 
 func RegisterCephBlocklistCollector(registry *prometheus.Registry, opts *options.Options) {
 	enableCephBlocklistMirrorStore(opts)
-	blocklistCollector := NewCephBlocklistCollector(cephBlocklistStore, pvStore)
+	blocklistCollector := NewCephBlocklistCollector(cephBlocklistStore, pvStore, opts)
 	registry.MustRegister(blocklistCollector)
 }
