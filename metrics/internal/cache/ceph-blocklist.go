@@ -137,14 +137,12 @@ func (c *CephBlocklistStore) Update(obj interface{}) error {
 
 func (c *CephBlocklistStore) IsBlocked(ip string, port, nonce int) bool {
 	// Check if the RBD client for this node is blocklisted
-	blocklisted := false
 	for _, blocklist := range c.Store {
 		if blocklist.IP == ip && blocklist.Port == port && (blocklist.Nonce == 0 || blocklist.Nonce == nonce) {
-			blocklisted = true
-			break
+			return true
 		}
 	}
-	return blocklisted
+	return false
 }
 
 func runCephOSDBlocklist(config *cephMonitorConfig) ([]CephBlocklistLs, error) {
@@ -161,8 +159,12 @@ func runCephOSDBlocklist(config *cephMonitorConfig) ([]CephBlocklistLs, error) {
 
 	re := regexp.MustCompile(`\[[^\[\]]+\]`)
 	match := re.Find(cmd)
-	if len(match) == 0 && err != nil {
+	if err != nil {
 		return blocklistSlice, fmt.Errorf("failed to extract JSON from input: %v", err)
+	}
+
+	if len(match) == 0 {
+		return blocklistSlice, nil
 	}
 
 	err = json.Unmarshal(match, &blocklistSlice)

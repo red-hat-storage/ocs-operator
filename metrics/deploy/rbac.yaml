@@ -15,6 +15,7 @@ rules:
   resources:
   - persistentvolumes
   - persistentvolumeclaims
+  - nodes
   - pods
   - configmaps
   - secrets

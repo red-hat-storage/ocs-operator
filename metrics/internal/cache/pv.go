@@ -30,19 +30,22 @@ var _ cache.Store = &PersistentVolumeStore{}
 type PersistentVolumeStore struct {
 	Mutex sync.RWMutex
 	// Store is a map of PV UID to PersistentVolumeAttributes
-	Store             map[types.UID]PersistentVolumeAttributes
-	RBDClientMap      map[string]Clients
+	Store map[types.UID]PersistentVolumeAttributes
+	// RBDClientMap is a map of RBD client addresses to the names of the nodes whose images had this client as a watcher
+	RBDClientMap      map[string][]string
 	monitorConfig     cephMonitorConfig
 	kubeClient        clientset.Interface
 	allowedNamespaces []string
 }
 
+type Watcher struct {
+	Address string      `json:"address,omitempty"`
+	Client  int         `json:"client,omitempty"`
+	Cookie  json.Number `json:"cookie,omitempty"`
+}
+
 type Clients struct {
-	Watchers []struct {
-		Address string      `json:"address,omitempty"`
-		Client  int         `json:"client,omitempty"`
-		Cookie  json.Number `json:"cookie,omitempty"`
-	} `json:"watchers,omitempty"`
+	Watchers []Watcher `json:"watchers,omitempty"`
 }
 
 type PersistentVolumeAttributes struct {
@@ -56,7 +59,7 @@ type PersistentVolumeAttributes struct {
 func NewPersistentVolumeStore(opts *options.Options) *PersistentVolumeStore {
 	return &PersistentVolumeStore{
 		Store:             map[types.UID]PersistentVolumeAttributes{},
-		RBDClientMap:      map[string]Clients{},
+		RBDClientMap:      map[string][]string{},
 		kubeClient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
 		monitorConfig:     cephMonitorConfig{},
 		allowedNamespaces: opts.AllowedNamespaces,
@@ -78,6 +81,15 @@ func runCephRBDStatus(config *cephMonitorConfig, pool, image string) (Clients, e
 
 	err = json.Unmarshal(cmd, &clients)
 	return clients, err
+}
+
+func appendIfNotExists(slice []string, value string) []string {
+	for _, existingValue := range slice {
+		if existingValue == value {
+			return slice
+		}
+	}
+	return append(slice, value)
 }
 
 // Add inserts to the PersistentVolumeStore.
@@ -129,8 +141,8 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 		return fmt.Errorf("failed to get node name for pod: %v", err)
 	}
 
-	if len(clients.Watchers) != 0 {
-		p.RBDClientMap[nodeName] = clients
+	for _, client := range clients.Watchers {
+		p.RBDClientMap[client.Address] = appendIfNotExists(p.RBDClientMap[client.Address], nodeName)
 	}
 
 	klog.Infof("PV store addition completed at %v", time.Now())
@@ -142,8 +154,6 @@ func getNodeNameForPV(pv *corev1.PersistentVolume, kubeClient clientset.Interfac
 	if pv.Spec.ClaimRef == nil {
 		return "", fmt.Errorf("persistent volume %s is not bound to any claim", pv.Name)
 	}
-
-	klog.Info(pv.Name, pv.Spec.ClaimRef.Namespace)
 
 	pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(pv.Spec.ClaimRef.Namespace).Get(context.Background(), pv.Spec.ClaimRef.Name, metav1.GetOptions{})
 	if err != nil {
