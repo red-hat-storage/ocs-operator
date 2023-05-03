@@ -1940,6 +1940,7 @@ spec:
           - servicemonitors
           verbs:
           - create
+          - delete
           - get
           - list
           - update
