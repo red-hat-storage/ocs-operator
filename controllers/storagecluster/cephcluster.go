@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/api/config/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -201,6 +203,24 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	} else if platform == v1.IBMCloudPlatformType {
 		r.Log.Info("Increasing Mon failover timeout to 15m.", "Platform", platform)
 		cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
+	}
+
+	ipFamily, isDualStack, err := getIPFamilyConfig(r.Client)
+	if err != nil {
+		r.Log.Error(err, "failed to get IPFamily of the cluster")
+		return reconcile.Result{}, err
+	}
+
+	// Dual Stack is not supported in downstream ceph. BZ references:
+	// https://bugzilla.redhat.com/show_bug.cgi?id=1804290
+	// https://bugzilla.redhat.com/show_bug.cgi?id=2181350#c10
+	// So use IPv4 and DualStack:False in case of dual stack cluster
+	// No need to update the ipFamily config in the Network settings if the cluster is single Stack IPv4.
+	if isDualStack {
+		cephCluster.Spec.Network.IPFamily = rookCephv1.IPv4
+		cephCluster.Spec.Network.DualStack = false
+	} else if ipFamily == rookCephv1.IPv6 {
+		cephCluster.Spec.Network.IPFamily = ipFamily
 	}
 
 	// Check if this CephCluster already exists
@@ -1197,4 +1217,31 @@ func getMonitoringClient() (*monitoringclient.Clientset, error) {
 		return nil, fmt.Errorf("failed to get monitoring client bar. %v", err)
 	}
 	return client, nil
+}
+
+// getIPFamilyConfig checks for a Single Stack IPv6 or a Dual Stack cluster
+func getIPFamilyConfig(c client.Client) (rookCephv1.IPFamilyType, bool, error) {
+	isIPv6 := false
+	isIPv4 := false
+	networkConfig := &configv1.Network{}
+	err := c.Get(context.TODO(), types.NamespacedName{Name: "cluster", Namespace: ""}, networkConfig)
+	if err != nil {
+		return "", false, fmt.Errorf("could not get network config details. %v", err)
+	}
+
+	for _, cidr := range networkConfig.Status.ClusterNetwork {
+		if strings.Count(cidr.CIDR, ":") < 2 {
+			isIPv4 = true
+		} else if strings.Count(cidr.CIDR, ":") >= 2 {
+			isIPv6 = true
+		}
+	}
+
+	if isIPv4 && isIPv6 {
+		return "", true, nil
+	} else if isIPv6 { // IPv6 single stack cluster
+		return rookCephv1.IPv6, false, nil
+	}
+
+	return rookCephv1.IPv4, false, nil
 }

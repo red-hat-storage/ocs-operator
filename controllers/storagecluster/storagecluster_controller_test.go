@@ -678,7 +678,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 
-	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, infra)
+	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, infra, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -840,7 +840,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	infra := &configv1.Infrastructure{}
 	mockInfrastructure.DeepCopyInto(infra)
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), cc, nodeList, infra)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), cc, nodeList, infra, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -870,7 +870,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), noobaaMock.DeepCopy(), nodeList, infra)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), noobaaMock.DeepCopy(), nodeList, infra, networkConfig)
 
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
