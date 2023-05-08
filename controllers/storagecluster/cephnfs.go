@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -159,6 +160,10 @@ func (r *StorageClusterReconciler) newNFSServices(initData *ocsv1.StorageCluster
 						Name: "nfs",
 						Port: 2049,
 					},
+					{
+						Name: "nfs-metrics",
+						Port: 9587,
+					},
 				},
 				Selector: map[string]string{
 					"app":      "rook-ceph-nfs",
@@ -180,6 +185,47 @@ func (r *StorageClusterReconciler) newNFSServices(initData *ocsv1.StorageCluster
 	return ret, nil
 }
 
+// newNFSMetricsServiceMonitors returns the ServiceMonitor instances that should be created on first run.
+func (r *StorageClusterReconciler) newNFSMetricsServiceMonitors(initData *ocsv1.StorageCluster) (
+	[]*monitoringv1.ServiceMonitor, error) {
+	ret := []*monitoringv1.ServiceMonitor{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      generateNameForNFSServiceMonitor(initData),
+				Namespace: initData.Namespace,
+			},
+			Spec: monitoringv1.ServiceMonitorSpec{
+				NamespaceSelector: monitoringv1.NamespaceSelector{
+					MatchNames: []string{initData.Namespace},
+				},
+				Endpoints: []monitoringv1.Endpoint{
+					{
+						Port:     "nfs-metrics",
+						Path:     "/metrics",
+						Interval: "20s",
+					},
+				},
+				Selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "rook-ceph-nfs",
+					},
+				},
+			},
+		},
+	}
+
+	for _, obj := range ret {
+		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
+		if err != nil {
+			r.Log.Error(err, "Unable to set Controller Reference for NFS servicemonitor.", " NFSServiceMonitor ",
+				klog.KRef(obj.Namespace, obj.Name))
+			return nil, err
+		}
+	}
+
+	return ret, nil
+}
+
 // ensureCreated ensures that cephNFS related services exist in the desired state.
 func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	if instance.Spec.NFS == nil || !instance.Spec.NFS.Enable {
@@ -187,6 +233,11 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 	}
 
 	nfsServices, err := r.newNFSServices(instance)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	nfsMetricsServiceMonitors, err := r.newNFSMetricsServiceMonitors(instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -224,6 +275,45 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 		}
 	}
 
+	for _, nfsMetricsServiceMonitor := range nfsMetricsServiceMonitors {
+		existingNFSMetricsServiceMonitor := monitoringv1.ServiceMonitor{}
+		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name,
+			Namespace: nfsMetricsServiceMonitor.Namespace}, &existingNFSMetricsServiceMonitor)
+		switch {
+		case err == nil:
+			if existingNFSMetricsServiceMonitor.DeletionTimestamp != nil {
+				r.Log.Info("Unable to restore NFS-metrics ServiceMonitor because it is marked for deletion.", "NFSMetricsServiceMonitor",
+					klog.KRef(existingNFSMetricsServiceMonitor.Namespace, existingNFSMetricsServiceMonitor.Name))
+				return reconcile.Result{}, fmt.Errorf("failed to restore initialization object %q because it is marked for deletion",
+					existingNFSMetricsServiceMonitor.Name)
+			}
+
+			r.Log.Info("Restoring original NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
+				klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+			existingNFSMetricsServiceMonitor.ObjectMeta.OwnerReferences = nfsMetricsServiceMonitor.ObjectMeta.OwnerReferences
+			existingNFSMetricsServiceMonitor.Spec = nfsMetricsServiceMonitor.Spec
+			err = r.Client.Update(ctxTODO, &existingNFSMetricsServiceMonitor)
+			if err != nil {
+				r.Log.Error(err, "Unable to update NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
+					klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+				return reconcile.Result{}, err
+			}
+		case errors.IsNotFound(err):
+			r.Log.Info("Creating NFS servicemonitor.", "NFSMetricsServiceMonitor",
+				klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+			err = r.Client.Create(ctxTODO, nfsMetricsServiceMonitor)
+			if err != nil {
+				r.Log.Error(err, "Unable to create NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
+					klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Namespace))
+				return reconcile.Result{}, err
+			}
+		default:
+			r.Log.Error(err, fmt.Sprintf("Unable to retrieve NFS-metrics servicemonitor %q.", nfsMetricsServiceMonitor.Name),
+				"NFSServiceMonitor", klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+			return reconcile.Result{}, fmt.Errorf("Unable to retrieve NFS-metrics servicemonitor %q: %w", nfsMetricsServiceMonitor.Name, err)
+		}
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -232,6 +322,11 @@ func (obj *ocsCephNFSService) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 	ctxTODO := context.TODO()
 	foundNFSService := &v1.Service{}
 	nfsServices, err := r.newNFSServices(sc)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	nfsMetricsServiceMonitors, err := r.newNFSMetricsServiceMonitors(sc)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -269,6 +364,54 @@ func (obj *ocsCephNFSService) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 		err = fmt.Errorf("NFS Service %q still exists", nfsService.Name)
 		r.Log.Error(err, "Uninstall: Waiting for NFS Service to be deleted.", "NFSService", klog.KRef(nfsService.Namespace, nfsService.Name))
 		return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for NFS Service %q to be deleted", nfsService.Name)
+	}
+
+	for _, nfsMetricsServiceMonitor := range nfsMetricsServiceMonitors {
+		foundNFSMetricsServiceMonitor := &monitoringv1.ServiceMonitor{}
+		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name, Namespace: sc.Namespace},
+			foundNFSMetricsServiceMonitor)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Uninstall: NFS-metrics servicemonitor not found.", "NFSMetricsServiceMonitor",
+					klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+				continue
+			}
+			r.Log.Error(err, "Uninstall: Unable to retrieve NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
+				klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+			return reconcile.Result{}, fmt.Errorf("uninstall: Unable to retrieve NFS-metrics servicemonitor %q: %v",
+				nfsMetricsServiceMonitor.Name, err)
+		}
+
+		if nfsMetricsServiceMonitor.GetDeletionTimestamp().IsZero() {
+			r.Log.Info("Uninstall: Deleting NFS Service.", "NFSMetricsServiceMonitor",
+				klog.KRef(foundNFSMetricsServiceMonitor.Namespace, foundNFSMetricsServiceMonitor.Name))
+			err = r.Client.Delete(ctxTODO, foundNFSMetricsServiceMonitor)
+			if err != nil {
+				r.Log.Error(err, "Uninstall: Failed to delete NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
+					klog.KRef(foundNFSMetricsServiceMonitor.Namespace, foundNFSMetricsServiceMonitor.Name))
+				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete NFS-metrics servicemonitor %q: %v",
+					foundNFSMetricsServiceMonitor.Name, err)
+			}
+		}
+
+		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name, Namespace: sc.Namespace}, foundNFSMetricsServiceMonitor)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Uninstall: NFS-metrics servicemonitor is deleted.", "NFSMetricsServiceMonitor",
+					klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+				continue
+			}
+			r.Log.Error(err, "Uninstall: Unable to retrieve NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
+				klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+			return reconcile.Result{}, fmt.Errorf("uninstall: Unable to retrieve NFS-metrics ServiceMonitor %q: %v",
+				nfsMetricsServiceMonitor.Name, err)
+		}
+
+		err = fmt.Errorf("NFS-metrics ServiceMonitor %q still exists", nfsMetricsServiceMonitor.Name)
+		r.Log.Error(err, "Uninstall: Waiting for NFS-metrics servicemonitor to be deleted.", "NFSMetricsServiceMonitor",
+			klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
+		return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for NFS-metrics servicemonitor %q to be deleted",
+			nfsMetricsServiceMonitor.Name)
 	}
 
 	return reconcile.Result{}, nil
