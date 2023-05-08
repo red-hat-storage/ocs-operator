@@ -306,6 +306,7 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 	}
 
 	filterDuplicateLabels(sc, nodes, topologyMap)
+	sortTopologyMapLabelValues(topologyMap)
 	sc.Status.NodeTopologies = topologyMap
 	setFailureDomain(sc)
 
@@ -317,6 +318,14 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 	}
 
 	return nil
+}
+
+// A function to sort the values of a label in the topology map
+func sortTopologyMapLabelValues(topologyMap *ocsv1.NodeTopologyMap) {
+	for label, values := range topologyMap.Labels {
+		sort.Strings(values)
+		topologyMap.Labels[label] = values
+	}
 }
 
 // nodesHaveIdenticalValuesForKeys will return true only if
