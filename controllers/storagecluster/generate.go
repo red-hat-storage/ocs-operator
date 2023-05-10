@@ -28,6 +28,10 @@ func generateNameForNFSService(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-service", generateNameForCephNFS(initData))
 }
 
+func generateNameForNFSServiceMonitor(initData *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-servicemonitor", generateNameForCephNFS(initData))
+}
+
 func generateNameForCephNFSBlockPool(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-builtin-pool", generateNameForCephNFS(initData))
 }
