@@ -297,7 +297,8 @@ type StorageDeviceSet struct {
 
 	// DeviceClass is an optional, fine-grained property of DeviceType.
 	// If non empty, it defines the 'crushDeviceClass' value as used by ceph's
-	// CRUSH map.
+	// CRUSH map. If empty, then operator will set 'crushDeviceClass' to SSD and
+	// 'TuneFastDeviceClass' to true
 	// +optional
 	DeviceClass string `json:"deviceClass,omitempty"`
 

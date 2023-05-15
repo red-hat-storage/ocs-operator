@@ -2876,7 +2876,9 @@ spec:
                     deviceClass:
                       description: DeviceClass is an optional, fine-grained property
                         of DeviceType. If non empty, it defines the 'crushDeviceClass'
-                        value as used by ceph's CRUSH map.
+                        value as used by ceph's CRUSH map. If empty, then operator
+                        will set 'crushDeviceClass' to SSD and 'TuneFastDeviceClass'
+                        to true
                       type: string
                     deviceType:
                       description: DeviceType is the value of device type in this
