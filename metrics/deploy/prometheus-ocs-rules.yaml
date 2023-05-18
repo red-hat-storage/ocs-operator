@@ -181,7 +181,7 @@ spec:
     rules:
     - alert: ClusterObjectStoreState
       annotations:
-        description: Cluster Object Store is in unhealthy state for more than 15s. Please check Ceph cluster health.
+        description: RGW endpoint of the Ceph object store is in a failure state for more than 15s. Please check the health of the Ceph cluster.
         message: Cluster Object Store is in unhealthy state. Please check Ceph cluster health.
         severity_level: error
         storage_type: RGW
