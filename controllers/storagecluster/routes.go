@@ -150,13 +150,12 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 				},
 				Port: &routev1.RoutePort{
 					TargetPort: intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: int32(80),
-						StrVal: "80",
+						Type:   intstr.String,
+						StrVal: "http",
 					},
 				},
 				TLS: &routev1.TLSConfig{
-					Termination:                   routev1.TLSTerminationReencrypt,
+					Termination:                   routev1.TLSTerminationEdge,
 					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
 				},
 			},
@@ -173,9 +172,8 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 				},
 				Port: &routev1.RoutePort{
 					TargetPort: intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: int32(443),
-						StrVal: "443",
+						Type:   intstr.String,
+						StrVal: "https",
 					},
 				},
 				TLS: &routev1.TLSConfig{
