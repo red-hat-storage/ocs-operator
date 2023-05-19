@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -72,6 +73,10 @@ var (
 			Effect:   corev1.TaintEffectNoSchedule,
 		},
 	}
+
+	// Regular expression used to decide if an image reference is using a digest instead of a
+	// tag. For that kind of image references we want to use the `IfNotPresent` pull policy.
+	digestImageReferenceRE = regexp.MustCompile("^.+@.+:.+$")
 )
 
 type templateData struct {
@@ -718,6 +723,12 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
     }
 ]`
 
+	// Ensure that all deployments that pull images by digest use the `IfNotPresent` image pull
+	// policy. That is convenient because images that have already been pulled by digest can't
+	// change, and using the `Always` pull policy introduces an additional round trip to the
+	// registry server that isn't really necessary and can fail.
+	setDeploymentsImagePullPolicy(ocsCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs)
+
 	// write unified CSV to out dir
 	writer := strings.Builder{}
 	err = marshallObject(ocsCSV, &writer, injectCSVRelatedImages)
@@ -733,6 +744,29 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	fmt.Printf("CSV written to %s\n", filepath.Join(*outputDir, finalizedCsvFilename))
 	return ocsCSV
+}
+
+func setDeploymentsImagePullPolicy(deploymentSpecs []csvv1.StrategyDeploymentSpec) {
+	for i := range deploymentSpecs {
+		setDeploymentImagePullPolicy(&deploymentSpecs[i].Spec)
+	}
+}
+
+func setDeploymentImagePullPolicy(deploymentSpec *appsv1.DeploymentSpec) {
+	setContainersImagePullPolicy(deploymentSpec.Template.Spec.InitContainers)
+	setContainersImagePullPolicy(deploymentSpec.Template.Spec.Containers)
+}
+
+func setContainersImagePullPolicy(containers []corev1.Container) {
+	for i := range containers {
+		setContainerImagePullPolicy(&containers[i])
+	}
+}
+
+func setContainerImagePullPolicy(container *corev1.Container) {
+	if digestImageReferenceRE.MatchString(container.Image) {
+		container.ImagePullPolicy = corev1.PullIfNotPresent
+	}
 }
 
 func injectCSVRelatedImages(r *unstructured.Unstructured) error {
