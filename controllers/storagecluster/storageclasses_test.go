@@ -25,14 +25,50 @@ var (
 			},
 		},
 	}
+	customEncryptedSCNameSpec = &api.StorageClusterSpec{
+		Encryption: api.EncryptionSpec{
+			StorageClass:     true,
+			StorageClassName: "custom-ceph-rbd-encrypted",
+			KeyManagementService: api.KeyManagementServiceSpec{
+				Enable: true,
+			},
+		},
+	}
+	customSCNameSpec = &api.StorageClusterSpec{
+		NFS: &api.NFSSpec{
+			StorageClassName: "custom-ceph-nfs",
+		},
+		ManagedResources: api.ManagedResourcesSpec{
+			CephBlockPools: api.ManageCephBlockPools{
+				StorageClassName: "custom-ceph-rbd",
+			},
+			CephFilesystems: api.ManageCephFilesystems{
+				StorageClassName: "custom-cephfs",
+			},
+			CephNonResilientPools: api.ManageCephNonResilientPools{
+				StorageClassName: "custom-ceph-non-resilient-rbd",
+			},
+			CephObjectStores: api.ManageCephObjectStores{
+				StorageClassName: "custom-ceph-rgw",
+			},
+		},
+	}
 )
 
 func TestDefaultStorageClasses(t *testing.T) {
 	testStorageClasses(t, false, nil)
 }
 
+func TestCustomStorageClasses(t *testing.T) {
+	testStorageClasses(t, false, customSCNameSpec)
+}
+
 func TestEncryptedStorageClass(t *testing.T) {
 	testStorageClasses(t, true, customSpec)
+}
+
+func TestCustomEncryptedStorageClasses(t *testing.T) {
+	testStorageClasses(t, true, customEncryptedSCNameSpec)
 }
 
 func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.StorageClusterSpec) {

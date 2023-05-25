@@ -261,6 +261,17 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		return err
 	}
 
+	if err := validateCustomStorageClassNames(instance, r.Log); err != nil {
+		r.Log.Error(err, "Failed to validate custom StorageClassNames.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
+		instance.Status.Phase = statusutil.PhaseError
+		if updateErr := r.Client.Status().Update(context.TODO(), instance); updateErr != nil {
+			r.Log.Error(updateErr, "Could not update StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+			return updateErr
+		}
+		return err
+	}
+
 	return nil
 }
 
@@ -721,5 +732,53 @@ func validateOverprovisionControlSpec(sc *ocsv1.StorageCluster, reqLogger logr.L
 			return fmt.Errorf("missing quotaname")
 		}
 	}
+	return nil
+}
+
+func validateCustomStorageClassNames(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+	scMap := make(map[string]bool)
+	duplicateNames := []string{}
+	if sc.Spec.ManagedResources.CephBlockPools.StorageClassName != "" {
+		if _, ok := scMap[sc.Spec.ManagedResources.CephBlockPools.StorageClassName]; ok {
+			duplicateNames = append(duplicateNames, "CephBlockPools")
+		}
+		scMap[sc.Spec.ManagedResources.CephBlockPools.StorageClassName] = true
+	}
+	if sc.Spec.ManagedResources.CephFilesystems.StorageClassName != "" {
+		if _, ok := scMap[sc.Spec.ManagedResources.CephFilesystems.StorageClassName]; ok {
+			duplicateNames = append(duplicateNames, "CephFilesystems")
+		}
+		scMap[sc.Spec.ManagedResources.CephFilesystems.StorageClassName] = true
+	}
+	if sc.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
+		if _, ok := scMap[sc.Spec.ManagedResources.CephNonResilientPools.StorageClassName]; ok {
+			duplicateNames = append(duplicateNames, "CephNonResilientPools")
+		}
+		scMap[sc.Spec.ManagedResources.CephNonResilientPools.StorageClassName] = true
+	}
+	if sc.Spec.ManagedResources.CephObjectStores.StorageClassName != "" {
+		if _, ok := scMap[sc.Spec.ManagedResources.CephObjectStores.StorageClassName]; ok {
+			duplicateNames = append(duplicateNames, "CephObjectStores")
+		}
+		scMap[sc.Spec.ManagedResources.CephObjectStores.StorageClassName] = true
+	}
+
+	if sc.Spec.NFS != nil && sc.Spec.NFS.Enable && sc.Spec.NFS.StorageClassName != "" {
+		if _, ok := scMap[sc.Spec.NFS.StorageClassName]; ok {
+			duplicateNames = append(duplicateNames, "NFS")
+		}
+		scMap[sc.Spec.NFS.StorageClassName] = true
+	}
+	if sc.Spec.Encryption.StorageClass && sc.Spec.Encryption.KeyManagementService.Enable && sc.Spec.Encryption.StorageClassName != "" {
+		if _, ok := scMap[sc.Spec.Encryption.StorageClassName]; ok {
+			duplicateNames = append(duplicateNames, "Encryption")
+		}
+		scMap[sc.Spec.Encryption.StorageClassName] = true
+	}
+
+	if len(duplicateNames) > 0 {
+		return fmt.Errorf("Duplicate StorageClass name(s) provided: %v", duplicateNames)
+	}
+
 	return nil
 }

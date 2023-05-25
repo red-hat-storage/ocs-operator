@@ -43,6 +43,10 @@ func ClusterUpgradeTest() {
 				csv, err := deployManager.GetCsv()
 				gomega.Expect(err).To(gomega.BeNil())
 
+				ginkgo.By("Fetching existing storage classes")
+				oldSC, err := deployManager.GetStorageClasses()
+				gomega.Expect(err).To(gomega.BeNil())
+
 				ginkgo.By("Upgrading OCS with OLM to the current version from upgrade_from version")
 				err = deployManager.UpgradeOCSWithOLM(tests.OcsCatalogSourceImage, tests.OcsSubscriptionChannel)
 				gomega.Expect(err).To(gomega.BeNil())
@@ -67,6 +71,50 @@ func ClusterUpgradeTest() {
 				ginkgo.By("Verifying StorageCluster previously created in the environment is still healthy")
 				err = deployManager.WaitOnStorageCluster()
 				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Adding custom storageclass names")
+				customSCName := map[string]string{
+					"CephBlockPools":        "custom-ceph-rbd-sc",
+					"CephFilesystems":       "custom-cephfs-sc",
+					"CephNonResilientPools": "custom-ceph-non-resilient-rbd-sc",
+					"NFS":                   "custom-ceph-nfs-sc",
+					"Encryption":            "custom-ceph-rbd-encrypted-sc",
+				}
+				err = deployManager.AddCustomStorageClassName(customSCName)
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Verifying StorageCluster is still healthy")
+				err = deployManager.WaitOnStorageCluster()
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Verifying all the expected storage classes exist")
+				present, err := deployManager.VerifyStorageClassesExist(oldSC)
+				gomega.Expect(err).To(gomega.BeNil())
+				gomega.Expect(present).To(gomega.Equal(true))
+
+				ginkgo.By("Fetching existing storage classes")
+				oldSC, err = deployManager.GetStorageClasses()
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Update custom storageclass names")
+				customSCNameNew := map[string]string{
+					"CephBlockPools":        "custom-ceph-rbd-new-sc",
+					"CephFilesystems":       "custom-cephfs-new-sc",
+					"CephNonResilientPools": "custom-ceph-non-resilient-rbd-new-sc",
+					"NFS":                   "custom-ceph-nfs-new-sc",
+					"Encryption":            "custom-ceph-rbd-encrypted-new-sc",
+				}
+				err = deployManager.AddCustomStorageClassName(customSCNameNew)
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Verifying StorageCluster is still healthy")
+				err = deployManager.WaitOnStorageCluster()
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Verifying all the expected storage classes exist")
+				present, err = deployManager.VerifyStorageClassesExist(oldSC)
+				gomega.Expect(err).To(gomega.BeNil())
+				gomega.Expect(present).To(gomega.Equal(true))
 			})
 		})
 	})
