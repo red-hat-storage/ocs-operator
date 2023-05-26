@@ -4,18 +4,10 @@ name: ocs-operator prometheus rules
 on:
   push:
     paths:
-<<<<<<< Updated upstream
       - 'metrics/**'
   pull_request:
     paths:
       - 'metrics/**'
-=======
-     - 'metrics/**'
-  pull_request:
-    paths:
-     - 'metrics/**'
->>>>>>> Stashed changes
-
 jobs:
   verify-deployment-prom:
     name: verify deployment prometheus yaml
@@ -24,6 +16,8 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - id: setup-jsonnet
+        uses: zendesk/setup-jsonnet@v1
 
       - name: Verify deployment prometheus YAML
         run: make verify-latest-prometheus-rules-yamls
