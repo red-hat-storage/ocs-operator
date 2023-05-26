@@ -165,7 +165,7 @@ replace (
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook v1.7
 	k8s.io/api => k8s.io/api v0.24.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.24.3
-	k8s.io/apimachinery => k8s.io/apimachinery v0.24.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.24.13
 	k8s.io/apiserver => k8s.io/apiserver v0.24.3
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.24.3
 	k8s.io/client-go => k8s.io/client-go v0.24.3
