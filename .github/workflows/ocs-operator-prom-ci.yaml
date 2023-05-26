@@ -1,0 +1,29 @@
+---
+name: ocs-operator prometheus rules
+
+on:
+  push:
+    paths:
+<<<<<<< Updated upstream
+      - 'metrics/**'
+  pull_request:
+    paths:
+      - 'metrics/**'
+=======
+     - 'metrics/**'
+  pull_request:
+    paths:
+     - 'metrics/**'
+>>>>>>> Stashed changes
+
+jobs:
+  verify-deployment-prom:
+    name: verify deployment prometheus yaml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Verify deployment prometheus YAML
+        run: make verify-latest-prometheus-rules-yamls
