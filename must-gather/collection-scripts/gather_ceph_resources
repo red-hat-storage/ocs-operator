@@ -338,7 +338,7 @@ for ns in $namespaces; do
         for fs in $filesystems; do
             # Get the subvolumegroup names from the filesystem name
             ceph_command="ceph fs subvolumegroup ls ${fs}"
-            subvolgrp_names=$(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_command}"| jq --raw-output '.[].name')
+            subvolgrp_names=$(timeout 120 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "${ceph_command} | jq --raw-output '.[].name' ")
             for svg in $subvolgrp_names; do
                 # Get the subvolume names from the subvolumegroup name
                 subvols=$(timeout 60 oc -n "${ns}" exec "${HOSTNAME}"-helper -- bash -c "ceph fs subvolume ls $fs $svg | jq --raw-output '.[].name' ")
