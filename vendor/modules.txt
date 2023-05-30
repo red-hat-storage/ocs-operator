@@ -526,7 +526,7 @@ golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/pbkdf2
-# golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10
+# golang.org/x/net v0.7.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -548,17 +548,17 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.3.0
+# golang.org/x/sys v0.5.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.3.0
+# golang.org/x/term v0.5.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/text v0.5.0
+# golang.org/x/text v0.7.0
 ## explicit; go 1.17
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
@@ -780,8 +780,8 @@ k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1
-# k8s.io/apimachinery v0.26.0 => k8s.io/apimachinery v0.24.3
-## explicit; go 1.16
+# k8s.io/apimachinery v0.26.0 => k8s.io/apimachinery v0.24.13
+## explicit; go 1.19
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
@@ -1089,7 +1089,7 @@ sigs.k8s.io/yaml
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
 # k8s.io/api => k8s.io/api v0.24.3
 # k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.24.3
-# k8s.io/apimachinery => k8s.io/apimachinery v0.24.3
+# k8s.io/apimachinery => k8s.io/apimachinery v0.24.13
 # k8s.io/apiserver => k8s.io/apiserver v0.24.3
 # k8s.io/cli-runtime => k8s.io/cli-runtime v0.24.3
 # k8s.io/client-go => k8s.io/client-go v0.24.3
