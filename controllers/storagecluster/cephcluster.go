@@ -104,13 +104,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, nil
 	}
 
-	// ensure the ocs-operator-config cm exists & has the correct values
-	err = r.ensureOCSOperatorConfig(sc)
-	if err != nil {
-		r.Log.Error(err, "Failed to ensure ocs-operator-config ConfigMap")
-		return reconcile.Result{}, err
-	}
-
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return reconcile.Result{}, fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
