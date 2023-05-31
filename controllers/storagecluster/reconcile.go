@@ -295,6 +295,13 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		return reconcile.Result{}, nil
 	}
 
+	// ensure the ocs-operator-config cm exists & has the correct values
+	err := r.ensureOCSOperatorConfig(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure ocs-operator-config ConfigMap")
+		return reconcile.Result{}, err
+	}
+
 	if instance.Status.Phase != statusutil.PhaseReady &&
 		instance.Status.Phase != statusutil.PhaseClusterExpanding &&
 		instance.Status.Phase != statusutil.PhaseDeleting &&
