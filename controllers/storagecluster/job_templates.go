@@ -48,6 +48,8 @@ func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	for _, tempFunc := range tempFuncs {
 		template := tempFunc(sc)
 		_, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, template, func() error {
+			template.Parameters = tempFunc(sc).Parameters
+			template.Objects = tempFunc(sc).Objects
 			return controllerutil.SetControllerReference(sc, template, r.Scheme)
 		})
 
