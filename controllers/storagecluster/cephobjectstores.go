@@ -183,6 +183,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					Service: &cephv1.RGWServiceSpec{
 						Annotations: map[string]string{
 							"service.beta.openshift.io/serving-cert-secret-name": fmt.Sprintf("%s-%s-%s", initData.Name, "cos", cephRgwTLSSecretKey),
+							"service.kubernetes.io/topology-mode":                "Auto",
 						},
 					},
 					Instances: gatewayInstances,
