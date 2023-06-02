@@ -2996,6 +2996,16 @@ spec:
                     configMapKeyRef:
                       key: CSI_CEPHFS_KERNEL_MOUNT_OPTIONS
                       name: ocs-operator-config
+                - name: CSI_ENABLE_TOPOLOGY
+                  valueFrom:
+                    configMapKeyRef:
+                      key: CSI_ENABLE_TOPOLOGY
+                      name: ocs-operator-config
+                - name: CSI_TOPOLOGY_DOMAIN_LABELS
+                  valueFrom:
+                    configMapKeyRef:
+                      key: CSI_TOPOLOGY_DOMAIN_LABELS
+                      name: ocs-operator-config
                 - name: CSI_PROVISIONER_TOLERATIONS
                   value: |2-
 
