@@ -25,7 +25,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 
 	t.Run("Ensure that Deployment,Service,Secret is created when AllowRemoteStorageConsumers is enabled", func(t *testing.T) {
 
-		r, instance := createSetupForOcsProviderTest(t, true)
+		r, instance := createSetupForOcsProviderTest(t, true, "")
 
 		obj := &ocsProviderServer{}
 		res, err := obj.ensureCreated(r, instance)
@@ -86,9 +86,85 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(secret), secret))
 	})
 
+	t.Run("Ensure that Deployment,Service,Secret is created when AllowRemoteStorageConsumers and ProviderAPIServerServiceType set to loadBalancer", func(t *testing.T) {
+
+		r, instance := createSetupForOcsProviderTest(t, true, corev1.ServiceTypeLoadBalancer)
+
+		obj := &ocsProviderServer{}
+		res, err := obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.False(t, res.IsZero())
+
+		// storagecluster controller waits for svc status to fetch the IP and it requeue
+		// as we are using a fake client and it does not fill the status automatically.
+		// update the required status field of the svc to overcome the failure and requeue.
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+			{
+				Hostname: "fake",
+			},
+		}
+		err = r.Update(context.TODO(), service)
+		assert.NoError(t, err)
+
+		// call ensureCreated again after filling the status of svc, It will fail on deployment now
+		res, err = obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.False(t, res.IsZero())
+
+		// storagecluster controller waits for deployment status to fetch the replica count and it requeue
+		// as we are using a fake client and it does not fill the status automatically.
+		// update the required status field of the deployment to overcome the failure and requeue.
+		deployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		deployment.Status.AvailableReplicas = 1
+		err = r.Update(context.TODO(), deployment)
+		assert.NoError(t, err)
+
+		// call ensureCreated again after filling the status of deployment, It will pass now
+		res, err = obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.True(t, res.IsZero())
+
+		deployment = &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
+		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
+		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
+
+		service = &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
+		expectedService := GetLoadBalancerProviderAPIServerServiceForTest(instance)
+		assert.Equal(t, expectedService.Spec, service.Spec)
+
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(secret), secret))
+	})
+
+	t.Run("Ensure that Service is not created when AllowRemoteStorageConsumers is enabled and ProviderAPIServerServiceType is set to any other value than NodePort or LoadBalancer", func(t *testing.T) {
+
+		r, instance := createSetupForOcsProviderTest(t, true, corev1.ServiceTypeClusterIP)
+
+		obj := &ocsProviderServer{}
+		_, err := obj.ensureCreated(r, instance)
+		assert.Errorf(t, err, "only supports service of type")
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		assert.True(t, errors.IsNotFound(r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service)))
+	})
+
 	t.Run("Ensure that Deployment,Service,Secret is not created when AllowRemoteStorageConsumers is disabled", func(t *testing.T) {
 
-		r, instance := createSetupForOcsProviderTest(t, false)
+		r, instance := createSetupForOcsProviderTest(t, false, "")
 
 		obj := &ocsProviderServer{}
 		_, err := obj.ensureCreated(r, instance)
@@ -103,7 +179,7 @@ func TestOcsProviderServerEnsureDeleted(t *testing.T) {
 
 	t.Run("Ensure that Deployment,Service,Secret is deleted when AllowRemoteStorageConsumers is disabled", func(t *testing.T) {
 
-		r, instance := createSetupForOcsProviderTest(t, true)
+		r, instance := createSetupForOcsProviderTest(t, true, "")
 		obj := &ocsProviderServer{}
 		// create resources and ignore error as it should be tested via TestOcsProviderServerEnsureCreated
 		_, _ = obj.ensureCreated(r, instance)
@@ -118,7 +194,7 @@ func TestOcsProviderServerEnsureDeleted(t *testing.T) {
 
 	t.Run("Ensure that Deployment,Service,Secret is deleted while uninstalling", func(t *testing.T) {
 
-		r, instance := createSetupForOcsProviderTest(t, true)
+		r, instance := createSetupForOcsProviderTest(t, true, "")
 		obj := &ocsProviderServer{}
 		// create resources and ignore error as it should be tested via TestOcsProviderServerEnsureCreated
 		_, _ = obj.ensureCreated(r, instance)
@@ -149,7 +225,7 @@ func assertNotFoundProviderResources(t *testing.T, cli client.Client) {
 
 }
 
-func createSetupForOcsProviderTest(t *testing.T, allowRemoteStorageConsumers bool) (*StorageClusterReconciler, *ocsv1.StorageCluster) {
+func createSetupForOcsProviderTest(t *testing.T, allowRemoteStorageConsumers bool, providerAPIServerServiceType corev1.ServiceType) (*StorageClusterReconciler, *ocsv1.StorageCluster) {
 
 	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -181,7 +257,8 @@ func createSetupForOcsProviderTest(t *testing.T, allowRemoteStorageConsumers boo
 
 	instance := &ocsv1.StorageCluster{
 		Spec: ocsv1.StorageClusterSpec{
-			AllowRemoteStorageConsumers: allowRemoteStorageConsumers,
+			AllowRemoteStorageConsumers:  allowRemoteStorageConsumers,
+			ProviderAPIServerServiceType: providerAPIServerServiceType,
 		},
 	}
 
@@ -264,6 +341,32 @@ func GetProviderAPIServerDeploymentForTest(instance *ocsv1.StorageCluster) *apps
 }
 
 func GetProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.Service {
+
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ocsProviderServerName,
+			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				"app": "ocsProviderApiServer",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					NodePort:   ocsProviderServiceNodePort,
+					Port:       ocsProviderServicePort,
+					TargetPort: intstr.FromString("ocs-provider"),
+				},
+			},
+			Type: corev1.ServiceTypeNodePort,
+		},
+	}
+}
+
+func GetLoadBalancerProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.Service {
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
