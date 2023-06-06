@@ -2397,6 +2397,13 @@ spec:
                 description: Placement is optional and used to specify placements
                   of OCS components explicitly
                 type: object
+              providerAPIServerServiceType:
+                description: ProviderAPIServerServiceType Indicates the ServiceType
+                  for OCS Provider API Server Service. The supported values are NodePort
+                  or LoadBalancer. The default ServiceType is NodePort if the value
+                  is empty. This will only be used when AllowRemoteStorageConsumers
+                  is set to true
+                type: string
               resources:
                 additionalProperties:
                   description: ResourceRequirements describes the compute resource
