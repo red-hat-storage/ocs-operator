@@ -22,11 +22,15 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 		clusterNameKey              = "CSI_CLUSTER_NAME"
 		enableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
 		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
+		enableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
+		topologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
 	)
 	var (
 		clusterNameVal             = r.getClusterID()
 		enableReadAffinityVal      = strconv.FormatBool(!sc.Spec.ExternalStorage.Enable)
 		cephFSKernelMountOptionVal = getCephFSKernelMountOptions(sc)
+		enableTopologyVal          = strconv.FormatBool(sc.Spec.ManagedResources.CephNonResilientPools.Enable)
+		topologyDomainLabelsVal    = getFailureDomainKey(sc)
 	)
 
 	cm := &corev1.ConfigMap{
@@ -35,8 +39,11 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 			Namespace: sc.Namespace,
 		},
 		Data: map[string]string{
-			clusterNameKey:        clusterNameVal,
-			enableReadAffinityKey: enableReadAffinityVal,
+			clusterNameKey:              clusterNameVal,
+			enableReadAffinityKey:       enableReadAffinityVal,
+			cephFSKernelMountOptionsKey: cephFSKernelMountOptionVal,
+			enableTopologyKey:           enableTopologyVal,
+			topologyDomainLabelsKey:     topologyDomainLabelsVal,
 		},
 	}
 
@@ -57,6 +64,12 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 		}
 		if cm.Data[cephFSKernelMountOptionsKey] != cephFSKernelMountOptionVal {
 			cm.Data[cephFSKernelMountOptionsKey] = cephFSKernelMountOptionVal
+		}
+		if cm.Data[enableTopologyKey] != enableTopologyVal {
+			cm.Data[enableTopologyKey] = enableTopologyVal
+		}
+		if cm.Data[topologyDomainLabelsKey] != topologyDomainLabelsVal {
+			cm.Data[topologyDomainLabelsKey] = topologyDomainLabelsVal
 		}
 		return ctrl.SetControllerReference(sc, cm, r.Scheme)
 	})
