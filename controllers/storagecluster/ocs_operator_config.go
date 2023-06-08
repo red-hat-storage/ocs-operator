@@ -119,7 +119,7 @@ func (r *StorageClusterReconciler) getClusterID() string {
 func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
 	// If Encryption is enabled, Always use secure mode
 	if sc.Spec.Network != nil && sc.Spec.Network.Connections != nil &&
-		sc.Spec.Network.Connections.Encryption.Enabled {
+		sc.Spec.Network.Connections.Encryption != nil && sc.Spec.Network.Connections.Encryption.Enabled {
 		return "ms_mode=secure"
 	}
 
