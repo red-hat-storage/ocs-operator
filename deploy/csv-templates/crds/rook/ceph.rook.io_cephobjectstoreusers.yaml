@@ -36,6 +36,20 @@ spec:
               capabilities:
                 nullable: true
                 properties:
+                  amz-cache:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  bilog:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
                   bucket:
                     enum:
                     - '*'
@@ -43,7 +57,49 @@ spec:
                     - write
                     - read, write
                     type: string
+                  datalog:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  info:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  mdlog:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
                   metadata:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  oidc-provider:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  ratelimit:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  roles:
                     enum:
                     - '*'
                     - read
@@ -58,6 +114,13 @@ spec:
                     - read, write
                     type: string
                   user:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  user-policy:
                     enum:
                     - '*'
                     - read

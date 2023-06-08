@@ -820,6 +820,8 @@ spec:
                     type: integer
                   interval:
                     type: string
+                  metricsDisabled:
+                    type: boolean
                   port:
                     maximum: 65535
                     minimum: 0
