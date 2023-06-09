@@ -28,7 +28,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.63.0
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
-	github.com/rook/rook v1.11.4
+	github.com/rook/rook v1.11.7
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/multierr v1.9.0
@@ -37,15 +37,15 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/ini.v1 v1.67.0
 	gotest.tools/v3 v3.4.0
-	k8s.io/api v0.26.1
-	k8s.io/apiextensions-apiserver v0.26.1
-	k8s.io/apimachinery v0.26.1
-	k8s.io/client-go v0.26.1
+	k8s.io/api v0.26.4
+	k8s.io/apiextensions-apiserver v0.26.4
+	k8s.io/apimachinery v0.26.4
+	k8s.io/client-go v0.26.4
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.90.0
 	k8s.io/utils v0.0.0-20230209194617-a36077c30491
 	open-cluster-management.io/api v0.10.0
-	sigs.k8s.io/controller-runtime v0.14.4
+	sigs.k8s.io/controller-runtime v0.14.5
 )
 
 require (
@@ -139,8 +139,8 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiserver v0.26.1 // indirect
-	k8s.io/component-base v0.26.1 // indirect
+	k8s.io/apiserver v0.26.4 // indirect
+	k8s.io/component-base v0.26.4 // indirect
 	k8s.io/kube-aggregator v0.26.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230217203603-ff9a8e8fa21d // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

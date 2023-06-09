@@ -323,9 +323,14 @@ type DashboardSpec struct {
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring
 type MonitoringSpec struct {
 	// Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
-	// types must exist or the creation will fail.
+	// types must exist or the creation will fail. Default is false.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+
+	// Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
+	// If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
+	// +optional
+	MetricsDisabled bool `json:"metricsDisabled,omitempty"`
 
 	// ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
 	// +optional
@@ -1479,10 +1484,11 @@ type GatewaySpec struct {
 // Kubernetes's v1.EndpointAddress.
 // +structType=atomic
 type EndpointAddress struct {
-	// The IP of this endpoint.
+	// The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.
 	// +optional
 	IP string `json:"ip" protobuf:"bytes,1,opt,name=ip"`
-	// The Hostname of this endpoint
+
+	// The DNS-addressable Hostname of this endpoint. This field will be preferred over IP if both are given.
 	// +optional
 	Hostname string `json:"hostname,omitempty" protobuf:"bytes,3,opt,name=hostname"`
 }
@@ -1519,10 +1525,11 @@ type ObjectEndpoints struct {
 	Secure []string `json:"secure"`
 }
 
-// CephObjectStoreUser represents a Ceph Object Store Gateway User
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectStoreUser represents a Ceph Object Store Gateway User
 // +kubebuilder:resource:shortName=rcou;objectuser
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
@@ -1594,6 +1601,42 @@ type ObjectUserCapSpec struct {
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
 	// Admin capabilities to read/write Ceph object store zones. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
 	Zone string `json:"zone,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write roles for user. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Roles string `json:"roles,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write information about the user. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Info string `json:"info,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api
+	AMZCache string `json:"amz-cache,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to change bucket index logging. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	BiLog string `json:"bilog,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to change metadata logging. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	MdLog string `json:"mdlog,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to change data logging. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	DataLog string `json:"datalog,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to change user policies. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	UserPolicy string `json:"user-policy,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to change oidc provider. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	OidcProvider string `json:"oidc-provider,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to set rate limiter for user and bucket. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	RateLimit string `json:"ratelimit,omitempty"`
 }
 
 // ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
@@ -1613,10 +1656,11 @@ type ObjectUserQuotaSpec struct {
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
 }
 
-// CephObjectRealm represents a Ceph Object Store Gateway Realm
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectRealm represents a Ceph Object Store Gateway Realm
 // +kubebuilder:subresource:status
 type CephObjectRealm struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1648,10 +1692,11 @@ type PullSpec struct {
 	Endpoint string `json:"endpoint,omitempty"`
 }
 
-// CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectZoneGroup struct {
@@ -1677,10 +1722,11 @@ type ObjectZoneGroupSpec struct {
 	Realm string `json:"realm"`
 }
 
-// CephObjectZone represents a Ceph Object Store Gateway Zone
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectZone represents a Ceph Object Store Gateway Zone
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectZone struct {
@@ -1729,10 +1775,11 @@ type ObjectZoneSpec struct {
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
 }
 
-// CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephBucketTopic struct {
@@ -1846,10 +1893,11 @@ type KafkaEndpointSpec struct {
 	AckLevel string `json:"ackLevel,omitempty"`
 }
 
-// CephBucketNotification represents a Bucket Notifications
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephBucketNotification represents a Bucket Notifications
 // +kubebuilder:subresource:status
 type CephBucketNotification struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1924,10 +1972,11 @@ type RGWServiceSpec struct {
 	Annotations Annotations `json:"annotations,omitempty"`
 }
 
-// CephNFS represents a Ceph NFS
 // +genclient
 // +genclient:noStatus
 // +kubebuilder:resource:shortName=nfs,path=cephnfses
+
+// CephNFS represents a Ceph NFS
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 type CephNFS struct {
@@ -2072,23 +2121,25 @@ type KerberosSpec struct {
 
 // KerberosConfigFiles represents the source(s) from which Kerberos configuration should come.
 type KerberosConfigFiles struct {
-	// VolumeSource accepts a standard Kubernetes VolumeSource for Kerberos configuration files like
-	// what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
-	// HostPath. The volume may contain multiple files, all of which will be loaded.
-	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for
+	// Kerberos configuration files like what is normally used to configure Volumes for a Pod. For
+	// example, a ConfigMap, Secret, or HostPath. The volume may contain multiple files, all of
+	// which will be loaded.
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource,omitempty"`
 }
 
 // KerberosKeytabFile represents the source(s) from which the Kerberos keytab file should come.
 type KerberosKeytabFile struct {
-	// VolumeSource accepts a standard Kubernetes VolumeSource for the Kerberos keytab file like
-	// what is normally used to configure Volumes for a Pod. For example, a Secret or HostPath.
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+	// Kerberos keytab file like what is normally used to configure Volumes for a Pod. For example,
+	// a Secret or HostPath.
 	// There are two requirements for the source's content:
 	//   1. The config file must be mountable via `subPath: krb5.keytab`. For example, in a
 	//      Secret, the data item must be named `krb5.keytab`, or `items` must be defined to
 	//      select the key and give it path `krb5.keytab`. A HostPath directory must have the
 	//      `krb5.keytab` file.
 	//   2. The volume or config file must have mode 0600.
-	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource,omitempty"`
 }
 
 // SSSDSpec represents configuration for System Security Services Daemon (SSSD).
@@ -2133,14 +2184,15 @@ type SSSDSidecar struct {
 
 // SSSDSidecarConfigFile represents the source(s) from which the SSSD configuration should come.
 type SSSDSidecarConfigFile struct {
-	// VolumeSource accepts a standard Kubernetes VolumeSource for the SSSD configuration file like
-	// what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
-	// HostPath. There are two requirements for the source's content:
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+	// SSSD configuration file like what is normally used to configure Volumes for a Pod. For
+	// example, a ConfigMap, Secret, or HostPath. There are two requirements for the source's
+	// content:
 	//   1. The config file must be mountable via `subPath: sssd.conf`. For example, in a ConfigMap,
 	//      the data item must be named `sssd.conf`, or `items` must be defined to select the key
 	//      and give it path `sssd.conf`. A HostPath directory must have the `sssd.conf` file.
 	//   2. The volume or config file must have mode 0600.
-	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource,omitempty"`
 }
 
 // SSSDSidecarAdditionalFile represents the source from where additional files for the the SSSD
@@ -2153,13 +2205,13 @@ type SSSDSidecarAdditionalFile struct {
 	// +kubebuilder:validation:Pattern=`^[^:]+$`
 	SubPath string `json:"subPath"`
 
-	// VolumeSource accepts standard Kubernetes VolumeSource for the additional file(s) like what is
-	// normally used to configure Volumes for a Pod. Fore example, a ConfigMap, Secret, or HostPath.
-	// Each VolumeSource adds one or more additional files to the SSSD sidecar container in the
-	// `/etc/sssd/rook-additional/<subPath>` directory.
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+	// additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
+	// ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
+	// SSSD sidecar container in the `/etc/sssd/rook-additional/<subPath>` directory.
 	// Be aware that some files may need to have a specific file mode like 0600 due to requirements
 	// by SSSD for some files. For example, CA or TLS certificates.
-	VolumeSource *v1.VolumeSource `json:"volumeSource"`
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code
@@ -2734,4 +2786,37 @@ type CephBlockPoolRadosNamespaceStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+}
+
+// Represents the source of a volume to mount.
+// Only one of its members may be specified.
+// This is a subset of the full Kubernetes API's VolumeSource that is reduced to what is most likely
+// to be useful for mounting config files/dirs into Rook pods.
+type ConfigFileVolumeSource struct {
+	// hostPath represents a pre-existing file or directory on the host
+	// machine that is directly exposed to the container. This is generally
+	// used for system agents or other privileged things that are allowed
+	// to see the host machine. Most containers will NOT need this.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
+	// ---
+	// +optional
+	HostPath *v1.HostPathVolumeSource `json:"hostPath,omitempty" protobuf:"bytes,1,opt,name=hostPath"`
+	// emptyDir represents a temporary directory that shares a pod's lifetime.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
+	// +optional
+	EmptyDir *v1.EmptyDirVolumeSource `json:"emptyDir,omitempty" protobuf:"bytes,2,opt,name=emptyDir"`
+	// secret represents a secret that should populate this volume.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#secret
+	// +optional
+	Secret *v1.SecretVolumeSource `json:"secret,omitempty" protobuf:"bytes,6,opt,name=secret"`
+	// persistentVolumeClaimVolumeSource represents a reference to a
+	// PersistentVolumeClaim in the same namespace.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
+	// +optional
+	PersistentVolumeClaim *v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty" protobuf:"bytes,10,opt,name=persistentVolumeClaim"`
+	// configMap represents a configMap that should populate this volume
+	// +optional
+	ConfigMap *v1.ConfigMapVolumeSource `json:"configMap,omitempty" protobuf:"bytes,19,opt,name=configMap"`
+	// projected items for all in one resources secrets, configmaps, and downward API
+	Projected *v1.ProjectedVolumeSource `json:"projected,omitempty" protobuf:"bytes,26,opt,name=projected"`
 }
