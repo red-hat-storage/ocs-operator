@@ -352,8 +352,7 @@ func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 // newEncryptedCephBlockPoolStorageClassConfiguration generates configuration options for an encrypted Ceph Block Pool StorageClass.
 // when user has asked for PV encryption during deployment.
 func newEncryptedCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster, serviceName string) StorageClassConfiguration {
-	// PV resize of encrypted volume is not officially supported in ODF 4.10 hence setting it to False
-	allowVolumeExpansion := false
+	allowVolumeExpansion := true
 	encryptedStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
 	encryptedStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForEncryptedCephBlockPoolSC(initData)
 	encryptedStorageClassConfig.storageClass.Parameters["encrypted"] = "true"
