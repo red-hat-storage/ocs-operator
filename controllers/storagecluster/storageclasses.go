@@ -12,6 +12,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -280,6 +281,16 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	}
 }
 
+// newCephBlockPoolVirtualizationStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass for virtualization environment.
+func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
+	virtualizationStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
+	virtualizationStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
+	virtualizationStorageClassConfig.storageClass.ObjectMeta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
+	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
+	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
+	return virtualizationStorageClassConfig
+}
+
 // newNonResilientCephBlockPoolStorageClassConfiguration generates configuration options for a Non-Resilient Ceph Block Pool StorageClass.
 func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
@@ -393,6 +404,12 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	ret := []StorageClassConfiguration{
 		newCephFilesystemStorageClassConfiguration(initData),
 		newCephBlockPoolStorageClassConfiguration(initData),
+	}
+	// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
+	kvcrd := &extv1.CustomResourceDefinition{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "virtualmachines.kubevirt.io", Namespace: ""}, kvcrd)
+	if err == nil {
+		ret = append(ret, newCephBlockPoolVirtualizationStorageClassConfiguration(initData))
 	}
 	if initData.Spec.ManagedResources.CephNonResilientPools.Enable {
 		ret = append(ret, newNonResilientCephBlockPoolStorageClassConfiguration(initData))

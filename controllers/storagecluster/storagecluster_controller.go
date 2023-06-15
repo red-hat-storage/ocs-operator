@@ -14,6 +14,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -161,8 +163,17 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&source.Kind{Type: &ocsv1.OCSInitialization{}}, enqueueStorageClusterRequest)
-
+		Watches(&source.Kind{Type: &ocsv1.OCSInitialization{}}, enqueueStorageClusterRequest).
+		Watches(
+			&source.Kind{
+				Type: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "virtualmachines.kubevirt.io",
+					},
+				},
+			},
+			enqueueStorageClusterRequest,
+		)
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		builder.Owns(&nbv1.NooBaa{})
 	}
