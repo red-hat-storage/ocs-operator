@@ -9,7 +9,6 @@ import (
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,8 +31,7 @@ var (
 			UID: "uid1",
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Capacity: resource.MustParse("1G"),
-			Enable:   true,
+			Enable: true,
 		},
 	}
 
@@ -99,16 +97,16 @@ func TestCreateStorageConsumer(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create consumer should fail if consumer already exists
-	_, err = consumerManager.Create(ctx, "consumer1", "ticket1", resource.MustParse("1G"))
+	_, err = consumerManager.Create(ctx, "consumer1", "ticket1")
 	assert.Error(t, err)
 
 	// Create consumer should fail if ticket is already used
-	_, err = consumerManager.Create(ctx, "consumer3", "ticket1", resource.MustParse("1G"))
+	_, err = consumerManager.Create(ctx, "consumer3", "ticket1")
 	assert.Error(t, err)
 
 	// Create consumer successfully. (Can't validate the UID because fake client does not add UID)
 	assert.Equal(t, 1, len(consumerManager.nameByTicket))
-	_, err = consumerManager.Create(ctx, "consumer2", "ticket2", resource.MustParse("1G"))
+	_, err = consumerManager.Create(ctx, "consumer2", "ticket2")
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(consumerManager.nameByTicket))
 	assert.Equal(t, "consumer1", consumerManager.nameByTicket["ticket1"])
@@ -140,39 +138,6 @@ func TestDeleteStorageConsumer(t *testing.T) {
 	err = consumerManager.Delete(ctx, "uid1")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(consumerManager.nameByUID))
-}
-
-func TestUpdateCapacity(t *testing.T) {
-	ctx := context.TODO()
-	obj := []runtime.Object{}
-
-	obj = append(obj, consumer1)
-	client := newFakeClient(t, obj...)
-	consumerManager, err := newConsumerManager(ctx, client, testNamespace)
-	assert.NoError(t, err)
-
-	// Updating capacity using invalid UID should fail
-	err = consumerManager.UpdateCapacity(ctx, "invalid-uid", resource.MustParse("10G"))
-	assert.Error(t, err)
-
-	// Updating capacity from 1G to 10G using valid UID should succeed
-	consumer, err := consumerManager.Get(ctx, "uid1")
-	assert.NoError(t, err)
-	assert.Equal(t, consumer.Spec.Capacity, resource.MustParse("1G"))
-	err = consumerManager.UpdateCapacity(ctx, "uid1", resource.MustParse("10G"))
-	assert.NoError(t, err)
-	consumer, err = consumerManager.Get(ctx, "uid1")
-	assert.NoError(t, err)
-	assert.Equal(t, consumer.Spec.Capacity, resource.MustParse("10G"))
-
-	// update fails if consumer is disabled
-	consumer.Spec.Enable = false
-	err = consumerManager.client.Update(ctx, consumer)
-	assert.NoError(t, err)
-	err = consumerManager.UpdateCapacity(ctx, "uid1", resource.MustParse("10G"))
-	assert.Error(t, err)
-	assert.Equal(t, errFailedPrecondition, err)
-
 }
 
 func TestGetStorageConsumer(t *testing.T) {

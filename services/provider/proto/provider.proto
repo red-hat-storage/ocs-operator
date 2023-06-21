@@ -18,9 +18,6 @@ service OCSProvider {
   // OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
   rpc OffboardConsumer (OffboardConsumerRequest)
   returns (OffboardConsumerResponse) {}
-  // UpdateCapacity PRC call to increase or decrease the block pool size
-  rpc UpdateCapacity(UpdateCapacityRequest)
-  returns (UpdateCapacityResponse){}
 
   // AcknowledgeOnboarding RPC call acknowledge the onboarding
   rpc AcknowledgeOnboarding(AcknowledgeOnboardingRequest)
@@ -50,16 +47,12 @@ message OnboardConsumerRequest{
     string onboardingTicket = 1;
     // consumerName is the name of the consumer that is used to create the storageConsumer resource
     string consumerName = 2;
-    // capacity is the desired storage requested by the consumer cluster
-    string capacity = 3;
 }
 
 // OnboardConsumerResponse holds the response for OnboardConsumer API request
 message OnboardConsumerResponse{
     // K8s UID (UUID) of the consumer cluster
     string storageConsumerUUID = 1;
-    // grantedCapacity is the storage granted by the provider cluster
-    string grantedCapacity = 2;
 }
 
 
@@ -97,23 +90,6 @@ message OffboardConsumerRequest{
 message OffboardConsumerResponse{
 
 }
-
-
-// UpdateCapacityRequest holds the information required to increase or decrease the block pool size
-// on the provider cluster
-message UpdateCapacityRequest{
-    // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID = 1;
-    // capacity is the desired storage requested by the consumer cluster
-    string capacity = 2;
-}
-
-// UpdateCapacityResponse holds the response for UpdateCapacity API request
-message UpdateCapacityResponse{
-    // grantedCapacity is the storage granted by the provider cluster
-    string grantedCapacity = 2;
-}
-
 
 // AcknowledgeOnboardingRequest holds the information required to acknowledge the onboarding
 message AcknowledgeOnboardingRequest{

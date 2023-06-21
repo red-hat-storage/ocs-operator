@@ -64,9 +64,7 @@ func (c *StorageConsumerCollector) collectStorageConsumersMetadata(storageConsum
 		ch <- prometheus.MustNewConstMetric(c.StorageConsumerMetadata,
 			prometheus.GaugeValue, 1,
 			storageConsumer.Name,
-			storageConsumer.Spec.Capacity.String(),
-			string(storageConsumer.Status.State),
-			storageConsumer.Status.GrantedCapacity.String())
+			string(storageConsumer.Status.State))
 	}
 }
 
