@@ -9,7 +9,6 @@ import (
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
@@ -18,7 +17,6 @@ import (
 
 var (
 	errTicketAlreadyExists = errors.New("onboarding ticket already used by another storageConsumer")
-	errFailedPrecondition  = errors.New("storageConsumer is in disabled state")
 )
 
 type ocsConsumerManager struct {
@@ -56,7 +54,7 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 }
 
 // Create creates a new storageConsumer resource, updates the consumer cache and returns the storageConsumer UID
-func (c *ocsConsumerManager) Create(ctx context.Context, name, ticket string, capacity resource.Quantity) (string, error) {
+func (c *ocsConsumerManager) Create(ctx context.Context, name, ticket string) (string, error) {
 	c.mutex.RLock()
 	if _, ok := c.nameByTicket[ticket]; ok {
 		c.mutex.RUnlock()
@@ -74,8 +72,7 @@ func (c *ocsConsumerManager) Create(ctx context.Context, name, ticket string, ca
 			},
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Capacity: capacity,
-			Enable:   false,
+			Enable: false,
 		},
 	}
 
@@ -138,30 +135,6 @@ func (c *ocsConsumerManager) Delete(ctx context.Context, id string) error {
 	c.mutex.Unlock()
 
 	klog.Infof("successfully deleted storageConsumer resource %q", consumerName)
-
-	return nil
-}
-
-// UpdateCapacity updates the capacity field in storageConsumer resource
-func (c *ocsConsumerManager) UpdateCapacity(ctx context.Context, id string, capacity resource.Quantity) error {
-	// Get storage consumer resource using UID
-	consumerObj, err := c.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	if consumerObj.Status.State == ocsv1alpha1.StorageConsumerStateDisabled || !consumerObj.Spec.Enable {
-		klog.Warningf("storageConsumer %s is in disabled state", consumerObj.Name)
-		return errFailedPrecondition
-	}
-
-	consumerObj.Spec.Capacity = capacity
-	err = c.client.Update(ctx, consumerObj)
-	if err != nil {
-		return fmt.Errorf("failed to update storageConfig resource %q. %v", consumerObj.Name, err)
-	}
-
-	klog.Infof("successfully updated requested capacity field in the StorageConsumer resource %q", consumerObj.Name)
 
 	return nil
 }

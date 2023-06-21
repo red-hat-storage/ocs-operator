@@ -306,8 +306,6 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool() error {
 
 	failureDomain := r.storageCluster.Status.FailureDomain
 
-	capacity := r.storageConsumer.Spec.Capacity.String()
-
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephBlockPool, func() error {
 		if err := r.own(r.cephBlockPool); err != nil {
 			return err
@@ -339,9 +337,6 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool() error {
 					ReplicasPerFailureDomain: 1,
 				},
 				Parameters: r.storageProfile.BlockPoolConfiguration.Parameters,
-				Quotas: rookCephv1.QuotaSpec{
-					MaxSize: &capacity,
-				},
 			},
 		}
 		return nil

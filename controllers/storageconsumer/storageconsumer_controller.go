@@ -156,16 +156,6 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 			r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateReady
 		}
 
-		cephBlockPoolList := &rookCephv1.CephBlockPoolList{}
-		cephBlockPoolListOption := []client.ListOption{
-			client.InNamespace(r.namespace),
-			client.MatchingLabels(map[string]string{StorageConsumerNameLabel: r.storageConsumer.Name}),
-		}
-
-		if err := r.list(cephBlockPoolList, cephBlockPoolListOption); err == nil && len(cephBlockPoolList.Items) > 0 {
-			r.storageConsumer.Status.GrantedCapacity = r.storageConsumer.Spec.Capacity
-		}
-
 	} else {
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
 	}
@@ -260,7 +250,6 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		)).
 		Owns(&rookCephv1.CephClient{}).
 		// Watch non-owned resources cephBlockPool
-		// We are required to update the storageConsumers `GrantedCapacity`.
 		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
 		Watches(
 			&source.Kind{Type: &rookCephv1.CephBlockPool{}},
@@ -297,8 +286,4 @@ func addStorageRelatedAnnotations(obj client.Object, storageConsumerName, storag
 	annotations[StorageConsumerAnnotation] = storageConsumerName
 	annotations[StorageRequestAnnotation] = storageRequest
 	annotations[StorageCephUserTypeAnnotation] = cephUserType
-}
-
-func (r *StorageConsumerReconciler) list(obj client.ObjectList, listOpt []client.ListOption) error {
-	return r.Client.List(r.ctx, obj, listOpt...)
 }

@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
@@ -90,12 +89,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
 
-	// Validate capacity
-	capacity, err := resource.ParseQuantity(req.Capacity)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "%q is not a valid storageConsumer capacity: %v", req.Capacity, err)
-	}
-
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
@@ -106,7 +99,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req.ConsumerName, req.OnboardingTicket, capacity)
+	storageConsumerUUID, err := s.consumerManager.Create(ctx, req.ConsumerName, req.OnboardingTicket)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
@@ -124,8 +117,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		storageConsumerUUID = string(stoageConsumer.UID)
 	}
 
-	// TODO: send correct granted capacity
-	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID, GrantedCapacity: req.Capacity}, nil
+	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
 }
 
 // AcknowledgeOnboarding acknowledge the onboarding is complete
@@ -173,26 +165,6 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	}
 
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
-}
-
-// UpdateCapacity PRC call to increase or decrease the storage pool size
-func (s *OCSProviderServer) UpdateCapacity(ctx context.Context, req *pb.UpdateCapacityRequest) (*pb.UpdateCapacityResponse, error) {
-
-	capacity, err := resource.ParseQuantity(req.Capacity)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "%q is not a valid resource capacity: %v", req.Capacity, err)
-	}
-
-	if err := s.consumerManager.UpdateCapacity(ctx, req.StorageConsumerUUID, capacity); err != nil {
-		if kerrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "failed to update capacity in the storageConsumer resource: %v", err)
-		} else if err == errFailedPrecondition {
-			return nil, status.Errorf(codes.FailedPrecondition, "failed to update capacity in the storageConsumer resource: %v", err)
-		}
-		return nil, status.Errorf(codes.Internal, "failed to update capacity in the storageConsumer resource: %v", err)
-	}
-
-	return &pb.UpdateCapacityResponse{GrantedCapacity: req.Capacity}, nil
 }
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR

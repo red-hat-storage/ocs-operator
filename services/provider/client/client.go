@@ -54,7 +54,7 @@ func (cc *OCSProviderClient) Close() {
 
 // OnboardConsumer to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
-func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, ticket, name, capacity string) (*pb.OnboardConsumerResponse, error) {
+func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, ticket, name string) (*pb.OnboardConsumerResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
@@ -62,7 +62,6 @@ func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, ticket, name, 
 	req := &pb.OnboardConsumerRequest{
 		OnboardingTicket: ticket,
 		ConsumerName:     name,
-		Capacity:         capacity,
 	}
 
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
@@ -101,23 +100,6 @@ func (cc *OCSProviderClient) OffboardConsumer(ctx context.Context, consumerUUID 
 	defer cancel()
 
 	return cc.Client.OffboardConsumer(apiCtx, req)
-}
-
-// UpdateCapacity increases or decreases the storage block pool size
-func (cc *OCSProviderClient) UpdateCapacity(ctx context.Context, consumerUUID, capacity string) (*pb.UpdateCapacityResponse, error) {
-	if cc.Client == nil || cc.clientConn == nil {
-		return nil, fmt.Errorf("provider client is closed")
-	}
-
-	req := &pb.UpdateCapacityRequest{
-		StorageConsumerUUID: consumerUUID,
-		Capacity:            capacity,
-	}
-
-	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
-	defer cancel()
-
-	return cc.Client.UpdateCapacity(apiCtx, req)
 }
 
 func (cc *OCSProviderClient) AcknowledgeOnboarding(ctx context.Context, consumerUUID string) (*pb.AcknowledgeOnboardingResponse, error) {
