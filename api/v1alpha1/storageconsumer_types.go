@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,9 +38,6 @@ const (
 
 // StorageConsumerSpec defines the desired state of StorageConsumer
 type StorageConsumerSpec struct {
-	// Capacity is the total quota size allocated to a consumer.
-	Capacity resource.Quantity `json:"capacity"`
-
 	// Enable flag ignores a reconcile if set to false
 	Enable bool `json:"enable,omitempty"`
 }
@@ -62,8 +58,6 @@ type CephResourcesSpec struct {
 type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
 	State StorageConsumerState `json:"state,omitempty"`
-	// GrantedCapacity holds granted capacity value for the consumer
-	GrantedCapacity resource.Quantity `json:"grantedCapacity,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 	// Timestamp of last heartbeat received from consumer
