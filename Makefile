@@ -233,3 +233,11 @@ export KUSTOMIZE=$(GOBIN)/kustomize
 else
 export KUSTOMIZE=$(shell which kustomize)
 endif
+
+install-noobaa:
+	@echo "Installing noobaa operator"
+	hack/install-noobaa.sh
+
+install-ocs:
+	@echo "Installing ocs operator"
+	hack/install-ocs.sh
