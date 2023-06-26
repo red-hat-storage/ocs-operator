@@ -179,10 +179,34 @@ func TestCollectObjectStoreHealth(t *testing.T) {
 		Message: "",
 	}
 
-	objUnknown := mockCephObjectStore1.DeepCopy()
-	objUnknown.Name = objUnknown.Name + string(cephv1.ConditionType("unknown"))
-	objUnknown.Status = &cephv1.ObjectStoreStatus{
-		Phase:   cephv1.ConditionType("unknown"),
+	objConnecting := mockCephObjectStore1.DeepCopy()
+	objConnecting.Name = objConnecting.Name + string(cephv1.ConditionConnecting)
+	objConnecting.Status = &cephv1.ObjectStoreStatus{
+		Phase:   cephv1.ConditionConnecting,
+		Info:    mockInfo,
+		Message: "",
+	}
+
+	objReady := mockCephObjectStore1.DeepCopy()
+	objReady.Name = objReady.Name + string(cephv1.ConditionReady)
+	objReady.Status = &cephv1.ObjectStoreStatus{
+		Phase:   cephv1.ConditionReady,
+		Info:    mockInfo,
+		Message: "",
+	}
+
+	objDeleting := mockCephObjectStore1.DeepCopy()
+	objDeleting.Name = objDeleting.Name + string(cephv1.ConditionDeleting)
+	objDeleting.Status = &cephv1.ObjectStoreStatus{
+		Phase:   cephv1.ConditionDeleting,
+		Info:    mockInfo,
+		Message: "",
+	}
+
+	objDeletionBlocked := mockCephObjectStore1.DeepCopy()
+	objDeletionBlocked.Name = objDeletionBlocked.Name + string(cephv1.ConditionDeletionIsBlocked)
+	objDeletionBlocked.Status = &cephv1.ObjectStoreStatus{
+		Phase:   cephv1.ConditionDeletionIsBlocked,
 		Info:    mockInfo,
 		Message: "",
 	}
@@ -192,10 +216,13 @@ func TestCollectObjectStoreHealth(t *testing.T) {
 			name: "Collect Ceph Object Store health metrics",
 			args: args{
 				objects: []runtime.Object{
-					objUnknown,
-					objProgressing,
 					objConnected,
+					objProgressing,
 					objFailure,
+					objConnecting,
+					objReady,
+					objDeleting,
+					objDeletionBlocked,
 				},
 			},
 		},
@@ -232,6 +259,14 @@ func TestCollectObjectStoreHealth(t *testing.T) {
 						assert.Equal(t, *metric.Gauge.Value, float64(1))
 					} else if *label.Value == objFailure.Name {
 						assert.Equal(t, *metric.Gauge.Value, float64(2))
+					} else if *label.Value == objConnecting.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(3))
+					} else if *label.Value == objReady.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(4))
+					} else if *label.Value == objDeleting.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(5))
+					} else if *label.Value == objDeletionBlocked.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(6))
 					}
 				} else if *label.Name == "namespace" {
 					assert.Contains(t, cephObjectStoreCollector.AllowedNamespaces, *label.Value)

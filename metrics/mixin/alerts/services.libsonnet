@@ -7,7 +7,7 @@
           {
             alert: 'ClusterObjectStoreState',
             expr: |||
-              ocs_rgw_health_status{%(ocsExporterSelector)s} > 1
+              ocs_rgw_health_status{%(ocsExporterSelector)s} == 2
             ||| % $._config,
             'for': $._config.clusterObjectStoreStateAlertTime,
             labels: {
