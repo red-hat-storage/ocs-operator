@@ -234,10 +234,10 @@ else
 export KUSTOMIZE=$(shell which kustomize)
 endif
 
-install-noobaa:
+install-noobaa: operator-sdk
 	@echo "Installing noobaa operator"
 	hack/install-noobaa.sh
 
-install-ocs:
+install-ocs: operator-sdk
 	@echo "Installing ocs operator"
 	hack/install-ocs.sh
