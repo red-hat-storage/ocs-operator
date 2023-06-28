@@ -173,7 +173,7 @@ unit-test:
 	@echo "Executing unit tests"
 	hack/unit-test.sh
 
-ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-csv verify-operator-bundle verify-latest-deploy-yaml
 
 red-hat-storage-ocs-ci:
 	@echo "Running red-hat-storage ocs-ci test suite"

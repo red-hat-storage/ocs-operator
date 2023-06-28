@@ -267,7 +267,7 @@ func updateNamedResourceInArray(extArr []ExternalResource, extRsrc ExternalResou
 }
 
 func generateRandomPort(minPort, maxPort int) int {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	portRange := minPort - maxPort
 	if portRange < 0 {
 		portRange *= -1
