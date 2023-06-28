@@ -89,6 +89,10 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 }
 
 func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration) error {
+	operatorNamespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		return err
+	}
 	var skippedSC []string
 	for _, scc := range sccs {
 		if scc.reconcileStrategy == ReconcileStrategyIgnore || scc.disable {
@@ -97,7 +101,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		sc := scc.storageClass
 
 		switch {
-		case strings.Contains(sc.Name, "-ceph-rbd") && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-ceph-rbd") || strings.Contains(sc.Provisioner, fmt.Sprintf("%s.rbd.csi.ceph.com", operatorNamespace))) && !scc.isClusterExternal:
 			// wait for CephBlockPool to be ready
 			cephBlockPool := cephv1.CephBlockPool{}
 			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: sc.Parameters["clusterID"]}
@@ -110,7 +114,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-		case strings.Contains(sc.Name, "-ceph-non-resilient-rbd") && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-ceph-non-resilient-rbd") || sc.Parameters["topologyConstrainedPools"] != "") && !scc.isClusterExternal:
 			// wait for CephBlockPools to be ready
 			cephBlockPools := cephv1.CephBlockPoolList{}
 			err := r.Client.List(context.TODO(), &cephBlockPools, client.InNamespace(sc.Parameters["clusterID"]))
@@ -139,7 +143,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-		case strings.Contains(sc.Name, "-cephfs") && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-cephfs") || strings.Contains(sc.Provisioner, fmt.Sprintf("%s.cephfs.csi.ceph.com", operatorNamespace))) && !scc.isClusterExternal:
 			// wait for CephFilesystem to be ready
 			cephFilesystem := cephv1.CephFilesystem{}
 			key := types.NamespacedName{Name: sc.Parameters["fsName"], Namespace: sc.Parameters["clusterID"]}
@@ -152,7 +156,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-		case strings.Contains(sc.Name, "-nfs"):
+		case strings.Contains(sc.Name, "-nfs") || strings.Contains(sc.Provisioner, fmt.Sprintf("%s.nfs.csi.ceph.com", operatorNamespace)):
 			// wait for CephNFS to be ready
 			cephNFS := cephv1.CephNFS{}
 			key := types.NamespacedName{Name: sc.Parameters["nfsCluster"], Namespace: sc.Parameters["clusterID"]}

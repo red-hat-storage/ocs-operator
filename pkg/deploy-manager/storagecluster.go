@@ -11,6 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sv1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -423,4 +424,97 @@ func (t *DeployManager) DeleteStorageCluster() error {
 		return err
 	}
 	return nil
+}
+
+func (t *DeployManager) GetStorageClasses() (map[string]bool, error) {
+	// Get the list of storage classes
+	SCList := &storagev1.StorageClassList{}
+	err := t.Client.List(context.TODO(), SCList)
+	if err != nil {
+		return nil, err
+	}
+
+	SCNames := map[string]bool{}
+	for _, sc := range SCList.Items {
+		SCNames[sc.Name] = true
+	}
+
+	return SCNames, nil
+}
+
+func (t *DeployManager) AddCustomStorageClassName(customSCNames map[string]string) error {
+	sc, err := t.getStorageCluster()
+	if err != nil {
+		return err
+	}
+
+	sc.Spec.ManagedResources = ocsv1.ManagedResourcesSpec{
+		CephBlockPools: ocsv1.ManageCephBlockPools{
+			StorageClassName: customSCNames["CephBlockPools"],
+		},
+		CephFilesystems: ocsv1.ManageCephFilesystems{
+			StorageClassName: customSCNames["CephFilesystems"],
+		},
+	}
+
+	if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+		sc.Spec.ManagedResources = ocsv1.ManagedResourcesSpec{
+			CephNonResilientPools: ocsv1.ManageCephNonResilientPools{
+				StorageClassName: customSCNames["CephNonResilientPools"],
+			},
+		}
+	}
+
+	if sc.Spec.NFS.Enable {
+		sc.Spec.NFS = &ocsv1.NFSSpec{
+			StorageClassName: customSCNames["NFS"],
+		}
+	}
+
+	if sc.Spec.Encryption.StorageClass && sc.Spec.Encryption.KeyManagementService.Enable {
+		sc.Spec.Encryption = ocsv1.EncryptionSpec{
+			StorageClassName: customSCNames["Encryption"],
+		}
+	}
+
+	err = t.Client.Update(context.TODO(), sc)
+	return err
+}
+
+func (t *DeployManager) VerifyStorageClassesExist(oldSC map[string]bool) (bool, error) {
+	currentSC, err := t.GetStorageClasses()
+	if err != nil {
+		return false, err
+	}
+
+	expectedSC := oldSC
+
+	sc, err := t.getStorageCluster()
+	if err != nil {
+		return false, err
+	}
+
+	if sc.Spec.ManagedResources.CephBlockPools.StorageClassName != "" {
+		expectedSC[sc.Spec.ManagedResources.CephBlockPools.StorageClassName] = true
+	}
+	if sc.Spec.ManagedResources.CephFilesystems.StorageClassName != "" {
+		expectedSC[sc.Spec.ManagedResources.CephFilesystems.StorageClassName] = true
+	}
+	if sc.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
+		expectedSC[sc.Spec.ManagedResources.CephNonResilientPools.StorageClassName] = true
+	}
+	if sc.Spec.NFS.StorageClassName != "" {
+		expectedSC[sc.Spec.NFS.StorageClassName] = true
+	}
+	if sc.Spec.Encryption.StorageClassName != "" {
+		expectedSC[sc.Spec.Encryption.StorageClassName] = true
+	}
+
+	for name := range expectedSC {
+		if !currentSC[name] {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

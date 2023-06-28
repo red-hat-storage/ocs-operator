@@ -184,11 +184,24 @@ type ManageCephBlockPools struct {
 	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
 	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
 	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
+	// StorageClassName specifies the name of the storage class created for ceph block pools
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	StorageClassName string `json:"storageClassName,omitempty"`
+	// VirtualizationStorageClassName specifies the name of the storage class created for ceph block pools
+	// for virtualization environment
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	VirtualizationStorageClassName string `json:"virtualizationStorageClassName,omitempty"`
 }
 
 // ManageCephNonResilientPools defines how to reconcile ceph non-resilient pools
 type ManageCephNonResilientPools struct {
 	Enable bool `json:"enable,omitempty"`
+	// StorageClassName specifies the name of the storage class created for ceph non-resilient pools
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	StorageClassName string `json:"storageClassName,omitempty"`
 	// ReconcileStrategy and other related fields are not used for now
 	// They can be added once the feature goes to GA
 }
@@ -198,6 +211,10 @@ type ManageCephFilesystems struct {
 	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
 	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
 	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
+	// StorageClassName specifies the name of the storage class created for cephfs
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 // ManageCephObjectStores defines how to reconcile CephObjectStores
@@ -206,6 +223,10 @@ type ManageCephObjectStores struct {
 	DisableStorageClass bool   `json:"disableStorageClass,omitempty"`
 	GatewayInstances    int32  `json:"gatewayInstances,omitempty"`
 	DisableRoute        bool   `json:"disableRoute,omitempty"`
+	// StorageClassName specifies the name of the storage class created for ceph obc's
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
@@ -351,6 +372,10 @@ type NFSSpec struct {
 	// Enable specifies whether to enable NFS.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
+	// StorageClassName specifies the name of the storage class created for NFS
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 // MonitoringSpec controls the configuration of resources for exposing OCS metrics
@@ -371,7 +396,11 @@ type EncryptionSpec struct {
 	// +optional
 	ClusterWide bool `json:"clusterWide,omitempty"`
 	// +optional
-	StorageClass         bool                     `json:"storageClass,omitempty"`
+	StorageClass bool `json:"storageClass,omitempty"`
+	// StorageClassName specifies the name of the storage class created for ceph encrypted block pools
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	StorageClassName     string                   `json:"storageClassName,omitempty"`
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
 }
 

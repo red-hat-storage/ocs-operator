@@ -479,6 +479,12 @@ spec:
                     type: object
                   storageClass:
                     type: boolean
+                  storageClassName:
+                    description: StorageClassName specifies the name of the storage
+                      class created for ceph encrypted block pools
+                    maxLength: 253
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                    type: string
                 type: object
               externalStorage:
                 description: ExternalStorage is optional and defaults to false. When
@@ -579,6 +585,19 @@ spec:
                         type: boolean
                       reconcileStrategy:
                         type: string
+                      storageClassName:
+                        description: StorageClassName specifies the name of the storage
+                          class created for ceph block pools
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
+                      virtualizationStorageClassName:
+                        description: VirtualizationStorageClassName specifies the
+                          name of the storage class created for ceph block pools for
+                          virtualization environment
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
                     type: object
                   cephCluster:
                     description: ManageCephCluster defines how to reconcile the Ceph
@@ -613,6 +632,12 @@ spec:
                         type: boolean
                       reconcileStrategy:
                         type: string
+                      storageClassName:
+                        description: StorageClassName specifies the name of the storage
+                          class created for cephfs
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
                     type: object
                   cephNonResilientPools:
                     description: ManageCephNonResilientPools defines how to reconcile
@@ -620,6 +645,12 @@ spec:
                     properties:
                       enable:
                         type: boolean
+                      storageClassName:
+                        description: StorageClassName specifies the name of the storage
+                          class created for ceph non-resilient pools
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
                     type: object
                   cephObjectStoreUsers:
                     description: ManageCephObjectStoreUsers defines how to reconcile
@@ -639,6 +670,12 @@ spec:
                         format: int32
                         type: integer
                       reconcileStrategy:
+                        type: string
+                      storageClassName:
+                        description: StorageClassName specifies the name of the storage
+                          class created for ceph obc's
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
                     type: object
                   cephRBDMirror:
@@ -1218,6 +1255,12 @@ spec:
                   enable:
                     description: Enable specifies whether to enable NFS.
                     type: boolean
+                  storageClassName:
+                    description: StorageClassName specifies the name of the storage
+                      class created for NFS
+                    maxLength: 253
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                    type: string
                 type: object
               nodeTopologies:
                 description: NodeTopologies specifies the nodes available for the

@@ -61,30 +61,51 @@ func generateNameForCephObjectStore(initData *ocsv1.StorageCluster) string {
 }
 
 func generateNameForCephRgwSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.ManagedResources.CephObjectStores.StorageClassName != "" {
+		return initData.Spec.ManagedResources.CephObjectStores.StorageClassName
+	}
 	return fmt.Sprintf("%s-ceph-rgw", initData.Name)
 }
 
 func generateNameForCephFilesystemSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.ManagedResources.CephFilesystems.StorageClassName != "" {
+		return initData.Spec.ManagedResources.CephFilesystems.StorageClassName
+	}
 	return fmt.Sprintf("%s-cephfs", initData.Name)
 }
 
 func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.ManagedResources.CephBlockPools.StorageClassName != "" {
+		return initData.Spec.ManagedResources.CephBlockPools.StorageClassName
+	}
 	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
 }
 
 func generateNameForCephBlockPoolVirtualizationSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.ManagedResources.CephBlockPools.VirtualizationStorageClassName != "" {
+		return initData.Spec.ManagedResources.CephBlockPools.VirtualizationStorageClassName
+	}
 	return fmt.Sprintf("%s-ceph-rbd-virtualization", initData.Name)
 }
 
 func generateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
+		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
+	}
 	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
 }
 
 func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.Encryption.StorageClassName != "" {
+		return initData.Spec.Encryption.StorageClassName
+	}
 	return fmt.Sprintf("%s-ceph-rbd-encrypted", initData.Name)
 }
 
 func generateNameForCephNetworkFilesystemSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.NFS.StorageClassName != "" {
+		return initData.Spec.NFS.StorageClassName
+	}
 	return fmt.Sprintf("%s-ceph-nfs", initData.Name)
 }
 

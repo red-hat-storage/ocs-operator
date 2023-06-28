@@ -173,6 +173,8 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 		_ = reconciler.Client.Create(context.TODO(), rtObj)
 	}
 
+	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
+	assert.NoError(t, err)
 	result, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
