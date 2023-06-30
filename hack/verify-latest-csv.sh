@@ -18,18 +18,10 @@ if [[ -n "${NOT_FOUND}" ]];then
 	exit 1
 fi
 
-if [ "$FUSION" == "true" ]; then
-	if [[ -n "$(git status --porcelain deploy/csv-templates deploy/ics-operator config/crd/bases )" ]]; then
-		git diff -u deploy/csv-templates deploy/ics-operator config/crd/bases
-		echo "uncommitted CSV changes. run 'make gen-latest-csv' and commit results."
-		exit 1
-	fi
-else
-	if [[ -n "$(git status --porcelain deploy/csv-templates deploy/ocs-operator config/crd/bases )" ]]; then
-		git diff -u deploy/csv-templates deploy/ocs-operator config/crd/bases
-		echo "uncommitted CSV changes. run 'make gen-latest-csv' and commit results."
-		exit 1
-	fi
+if [[ -n "$(git status --porcelain deploy/csv-templates deploy/ocs-operator config/crd/bases )" ]]; then
+	git diff -u deploy/csv-templates deploy/ocs-operator config/crd/bases
+	echo "uncommitted CSV changes. run 'make gen-latest-csv' and commit results."
+	exit 1
 fi
 
 echo "Success: no out of source tree changes found for CSV"

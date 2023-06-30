@@ -21,10 +21,5 @@ function build_operator_bundle() {
     popd
 }
 
-if [ "$FUSION" == true ]; then
-    echo "Building IBM Fusion Container Storage Operator Bundle"
-    build_operator_bundle ics.Dockerfile
-else
-    echo "Building Red Hat OpenShift Container Storage Operator Bundle"
-    build_operator_bundle Dockerfile
-fi
+echo "Building Red Hat OpenShift Container Storage Operator Bundle"
+build_operator_bundle Dockerfile
