@@ -587,6 +587,9 @@ func getMinDeviceSetReplica(sc *ocsv1.StorageCluster) int {
 	if arbiterEnabled(sc) {
 		return defaults.ArbiterModeDeviceSetReplica
 	}
+	if statusutil.IsSingleNodeDeployment() {
+		return 1
+	}
 	return defaults.DeviceSetReplica
 }
 
@@ -903,7 +906,6 @@ func countAndReplicaOf(ds *ocsv1.StorageDeviceSet) (int, int) {
 }
 
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
-
 	custom := sc.Spec.Resources
 	resources := map[string]corev1.ResourceRequirements{
 		"mon": defaults.DaemonResources["mon"],
@@ -1011,7 +1013,7 @@ func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) rookCephv1.MonSpec
 
 	return rookCephv1.MonSpec{
 		Count:                getMonCount(nodeCount, false),
-		AllowMultiplePerNode: false,
+		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
 	}
 }
 
@@ -1025,7 +1027,7 @@ func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 	}
 	if sc.Spec.Mgr != nil && sc.Spec.Mgr.EnableActivePassive {
 		spec.Count = 2
-		spec.AllowMultiplePerNode = false
+		spec.AllowMultiplePerNode = statusutil.IsSingleNodeDeployment()
 	}
 
 	return spec

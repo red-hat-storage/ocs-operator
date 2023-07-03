@@ -1,0 +1,92 @@
+apiVersion: ocs.openshift.io/v1
+kind: StorageCluster
+metadata:
+  name: sno-storagecluster
+  namespace: openshift-storage
+spec:
+  flexibleScaling: true
+  managedResources: {}
+  manageNodes: false
+  # monDataDirHostPath: /var/lib/rook
+  monPVCTemplate:
+    spec:
+      storageClassName: localblock
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+  placement:
+    mon: {}
+    mds: {}
+    mgr: {}
+    rbd-mirror: {}
+    rgw: {}
+    nfs: {}
+    noobaa-core: {}
+    noobaa-standalone: {}
+    osd: {}
+    osd-prepare: {}
+  resources:
+    mon:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    mds:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    mgr:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    mgr-sidecar:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    nfs:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    noobaa-core:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    noobaa-db:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    noobaa-db-vol:
+      requests:
+        storage: 10Gi
+    noobaa-endpoint:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    rbd-mirror:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    rgw:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+  storageDeviceSets:
+    - count: 3
+      dataPVCTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1
+          storageClassName: localblock
+          volumeMode: Block
+      name: ocs-deviceset
+      placement: {}
+      portable: false
+      replica: 1
+      resources:
+        requests:
+          cpu: 125m
+          memory: 128Mi
