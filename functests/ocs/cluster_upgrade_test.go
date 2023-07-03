@@ -3,7 +3,7 @@ package ocs_test
 import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	tests "github.com/red-hat-storage/ocs-operator/functests"
+	tests "github.com/red-hat-storage/ocs-operator/v4/functests"
 )
 
 var _ = ginkgo.XDescribe("Cluster upgrade", ClusterUpgradeTest)

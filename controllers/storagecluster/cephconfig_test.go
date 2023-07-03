@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	ini "gopkg.in/ini.v1"
 	"gotest.tools/v3/assert"

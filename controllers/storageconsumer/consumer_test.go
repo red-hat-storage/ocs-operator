@@ -19,9 +19,9 @@ package controllers
 import (
 	"testing"
 
-	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
+	v1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

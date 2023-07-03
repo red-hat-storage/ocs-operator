@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
+	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

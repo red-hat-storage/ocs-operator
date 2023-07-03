@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	quotav1 "github.com/openshift/api/quota/v1"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"

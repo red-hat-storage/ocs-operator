@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	configv1 "github.com/openshift/api/config/v1"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

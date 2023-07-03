@@ -3,9 +3,9 @@ package storagecluster
 import (
 	"testing"
 
-	api "github.com/red-hat-storage/ocs-operator/api/v1"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
+	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 

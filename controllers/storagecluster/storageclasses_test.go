@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/stretchr/testify/assert"
 	storagev1 "k8s.io/api/storage/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"

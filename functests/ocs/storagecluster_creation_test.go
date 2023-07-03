@@ -7,9 +7,9 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
-	tests "github.com/red-hat-storage/ocs-operator/functests"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	tests "github.com/red-hat-storage/ocs-operator/v4/functests"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
-	internalcache "github.com/red-hat-storage/ocs-operator/metrics/internal/cache"
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
+	internalcache "github.com/red-hat-storage/ocs-operator/v4/metrics/internal/cache"
+	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
 	"k8s.io/klog/v2"
 )
 

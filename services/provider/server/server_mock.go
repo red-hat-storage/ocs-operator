@@ -3,8 +3,8 @@ package server
 import (
 	"encoding/json"
 
-	"github.com/red-hat-storage/ocs-operator/services/provider/common"
-	pb "github.com/red-hat-storage/ocs-operator/services/provider/pb"
+	"github.com/red-hat-storage/ocs-operator/v4/services/provider/common"
+	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

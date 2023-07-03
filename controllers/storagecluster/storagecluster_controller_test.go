@@ -34,12 +34,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
-	api "github.com/red-hat-storage/ocs-operator/api/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/controllers/defaults"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
-	statusutil "github.com/red-hat-storage/ocs-operator/controllers/util"
-	"github.com/red-hat-storage/ocs-operator/version"
+	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 

@@ -2,7 +2,7 @@ package collectors
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"

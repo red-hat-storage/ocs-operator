@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	openshiftv1 "github.com/openshift/api/template/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/stretchr/testify/assert"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

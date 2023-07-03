@@ -2,7 +2,7 @@ package exporter
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/red-hat-storage/ocs-operator/metrics/internal/version"
+	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/version"
 )
 
 // NewExporterVersionCollector registers a Gauge metric describing the exporter

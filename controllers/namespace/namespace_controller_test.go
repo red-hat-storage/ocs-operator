@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	v1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	v1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

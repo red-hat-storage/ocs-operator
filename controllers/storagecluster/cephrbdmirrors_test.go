@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	api "github.com/red-hat-storage/ocs-operator/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 )
 
 func TestCephRbdMirror(t *testing.T) {

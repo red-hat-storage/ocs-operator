@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
-	"github.com/red-hat-storage/ocs-operator/services/provider/server"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 )

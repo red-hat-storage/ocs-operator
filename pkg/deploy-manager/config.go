@@ -7,7 +7,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	operatorv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

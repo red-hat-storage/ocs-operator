@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/red-hat-storage/ocs-operator/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
