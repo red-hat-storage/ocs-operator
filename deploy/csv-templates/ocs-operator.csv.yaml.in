@@ -70,7 +70,7 @@ metadata:
       ]
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
-    operators.operatorframework.io/builder: operator-sdk-v1.19.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.25.4
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
