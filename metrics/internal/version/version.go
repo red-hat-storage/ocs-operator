@@ -1,7 +1,7 @@
 package version
 
 import (
-	"github.com/red-hat-storage/ocs-operator/version"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 )
 
 // GetVersion returns the version of the exporter.

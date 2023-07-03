@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"reflect"
 
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v1alpha1"
-	controllers "github.com/red-hat-storage/ocs-operator/controllers/storageconsumer"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -1,4 +1,4 @@
-module github.com/red-hat-storage/ocs-operator
+module github.com/red-hat-storage/ocs-operator/v4
 
 go 1.19
 
