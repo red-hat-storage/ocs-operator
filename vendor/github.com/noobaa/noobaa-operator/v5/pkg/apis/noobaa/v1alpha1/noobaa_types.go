@@ -197,6 +197,22 @@ type NooBaaSpec struct {
 	// to true
 	// +optional
 	LoadBalancerSourceSubnets LoadBalancerSourceSubnetSpec `json:"loadBalancerSourceSubnets,omitempty"`
+
+	// Configuration related to autoscaling
+	// +optional
+	Autoscaler AutoscalerSpec `json:"autoscaler,omitempty"`
+}
+
+// AutoscalerSpec defines different actoscaling spec such as autoscaler type and prometheus namespace
+type AutoscalerSpec struct {
+	// Type of autoscaling (optional) for noobaa-endpoint, hpav2(default) and keda - Prometheus metrics based
+	// +kubebuilder:validation:Enum=hpav2;keda
+	// +optional
+	AutoscalerType AutoscalerTypes `json:"autoscalerType,omitempty"`
+
+	// Prometheus namespace that scrap metrics from noobaa
+	// +optional
+	PrometheusNamespace string `json:"prometheusNamespace,omitempty"`
 }
 
 // LoadBalancerSourceSubnetSpec defines the subnets that will be allowed to access the NooBaa services
@@ -217,6 +233,10 @@ type SecuritySpec struct {
 
 // KeyManagementServiceSpec represent various details of the KMS server
 type KeyManagementServiceSpec struct {
+	// +optional
+	EnableKeyRotation bool `json:"enableKeyRotation,omitempty"`
+	// +optional
+	Schedule          string            `json:"schedule,omitempty"`
 	ConnectionDetails map[string]string `json:"connectionDetails,omitempty"`
 	TokenSecretName   string            `json:"tokenSecretName,omitempty"`
 }
@@ -290,6 +310,10 @@ type NooBaaStatus struct {
 	// Readme is a user readable string with explanations on the system
 	// +optional
 	Readme string `json:"readme,omitempty"`
+
+	// LastKeyRotateTime is the time system ran an encryption key rotate
+	// +optional
+	LastKeyRotateTime metav1.Time `json:"lastKeyRotateTime,omitempty"`
 }
 
 // SystemPhase is a string enum type for system phases
@@ -333,14 +357,23 @@ const (
 	// The root key was synchronized from external KMS
 	ConditionKMSSync corev1.ConditionStatus = "Sync"
 
+	// The root key was rotated
+	ConditionKMSKeyRotate corev1.ConditionStatus = "KeyRotate"
+
 	// Invalid external KMS definition
 	ConditionKMSInvalid corev1.ConditionStatus = "Invalid"
 
 	// Error reading secret from external KMS
 	ConditionKMSErrorRead corev1.ConditionStatus = "ErrorRead"
 
-	// Error writing initial root key to eternal KMS
+	// Error writing initial root key to external KMS
 	ConditionKMSErrorWrite corev1.ConditionStatus = "ErrorWrite"
+
+	// Error in data format, internal error
+	ConditionKMSErrorData corev1.ConditionStatus = "ErrorData"
+
+	// Error in data format, internal error
+	ConditionKMSErrorSecretReconcile corev1.ConditionStatus = "ErrorSecretReconcile"
 )
 
 // AccountsStatus is the status info of admin account
@@ -456,4 +489,15 @@ const (
 	DBTypeMongo DBTypes = "mongodb"
 	// DBTypePostgres is postgres
 	DBTypePostgres DBTypes = "postgres"
+)
+
+// AutoscalerTypes is a string enum type for specifying the types of autoscaling supported.
+type AutoscalerTypes string
+
+// These are the valid AutoscalerTypes types:
+const (
+	// AutoscalerTypeKeda is keda
+	AutoscalerTypeKeda AutoscalerTypes = "keda"
+	// AutoscalerTypeHPAV2 is hpav2
+	AutoscalerTypeHPAV2 AutoscalerTypes = "hpav2"
 )
