@@ -370,6 +370,8 @@ func newEncryptedCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageC
 	allowVolumeExpansion := true
 	encryptedStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
 	encryptedStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForEncryptedCephBlockPoolSC(initData)
+	// adding a annotation to support smart cloning across namespace for encrypted volume
+	encryptedStorageClassConfig.storageClass.ObjectMeta.Annotations["cdi.kubevirt.io/clone-strategy"] = "copy"
 	encryptedStorageClassConfig.storageClass.Parameters["encrypted"] = "true"
 	encryptedStorageClassConfig.storageClass.Parameters["encryptionKMSID"] = serviceName
 	encryptedStorageClassConfig.storageClass.AllowVolumeExpansion = &allowVolumeExpansion

@@ -151,6 +151,9 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 				assert.Equal(t, 3, len(actualSc.Parameters))
 			}
 			if scName == scNameEncryptedRbd {
+				// adding this validation as the following annotations must be there for default encrypted rbd sc
+				assert.NotEmpty(t, actualSc.ObjectMeta.Annotations)
+				assert.Equal(t, actualSc.ObjectMeta.Annotations["cdi.kubevirt.io/clone-strategy"], "copy")
 				assert.Equal(t, actualSc.Parameters["encrypted"], "true")
 				assert.NotEmpty(t, actualSc.Parameters["encryptionKMSID"])
 			}
