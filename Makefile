@@ -205,7 +205,7 @@ run: manifests generate
 
 # find or download controller-gen if necessary
 controller-gen:
-ifneq ($(CONTROLLER_GEN_VERSION), $(shell controller-gen --version | awk -F ":" '{print $2}'))
+ifneq ($(CONTROLLER_GEN_VERSION), $(shell $(GOBIN)/controller-gen --version | awk '{print $$2}'))
 	@{ \
 	echo "Installing controller-gen@$(CONTROLLER_GEN_VERSION)" ;\
 	set -e ;\
@@ -214,11 +214,11 @@ ifneq ($(CONTROLLER_GEN_VERSION), $(shell controller-gen --version | awk -F ":" 
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
-CONTROLLER_GEN=$(shell which controller-gen)
+CONTROLLER_GEN=$(shell which $(GOBIN)/controller-gen)
 endif
 
 kustomize:
-ifeq (, $(shell which kustomize))
+ifeq (, $(shell which $(GOBIN)/kustomize))
 	@{ \
 	echo "Installing kustomize/v4@${KUSTOMIZE_VERSION}" ;\
 	set -e ;\
@@ -227,7 +227,7 @@ ifeq (, $(shell which kustomize))
 	}
 export KUSTOMIZE=$(GOBIN)/kustomize
 else
-export KUSTOMIZE=$(shell which kustomize)
+export KUSTOMIZE=$(shell which $(GOBIN)/kustomize)
 endif
 
 install-noobaa: operator-sdk
