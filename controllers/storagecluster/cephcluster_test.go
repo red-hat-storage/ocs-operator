@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
@@ -15,6 +16,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +25,18 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 )
+
+var networkConfig = &configv1.Network{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "cluster",
+		Namespace: "",
+	},
+	Status: configv1.NetworkStatus{
+		ClusterNetwork: []configv1.ClusterNetworkEntry{
+			{CIDR: "198.1v2.3.4/16"},
+		},
+	},
+}
 
 func TestEnsureCephCluster(t *testing.T) {
 	// cases for testing
@@ -74,7 +88,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		reconciler := createFakeStorageClusterReconciler(t)
+		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 		expected, err := newCephCluster(mockStorageCluster.DeepCopy(), "", 3, reconciler.serverVersion, nil, log)
 		assert.NilError(t, err)
@@ -183,7 +197,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster.DeepCopy())
+		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster.DeepCopy(), networkConfig)
 
 		reconciler.platform = &Platform{
 			platform: c.platform,
@@ -1192,4 +1206,69 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		cc, _ := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
 		assert.DeepEqual(t, cc.Spec.Network.Connections, testCase.ccSpec.Network.Connections)
 	}
+}
+
+func TestGetIPFamilyConfig(t *testing.T) {
+	testTable := []struct {
+		label string
+		// status of the configv1.Network object for the cluster
+		networkStatus    configv1.NetworkStatus
+		expectedIPFamily rookCephv1.IPFamilyType
+		isDualStack      bool
+		expectedError    error
+	}{
+		{
+			label: "Case #1: DualStack cluster",
+			networkStatus: configv1.NetworkStatus{
+				ClusterNetwork: []configv1.ClusterNetworkEntry{
+					{CIDR: "198.1v2.3.4/16"},
+					{CIDR: "fd01::/48"},
+				},
+			},
+			expectedIPFamily: "",
+			isDualStack:      true,
+			expectedError:    nil,
+		},
+		{
+			label: "Case #2: IPv6 Single Stack Cluster",
+			networkStatus: configv1.NetworkStatus{
+				ClusterNetwork: []configv1.ClusterNetworkEntry{
+					{CIDR: "fd01::/48"},
+				},
+			},
+			expectedIPFamily: "IPv6",
+			isDualStack:      false,
+			expectedError:    nil,
+		},
+		{
+			label: "Case #1: IPv4 cluster",
+			networkStatus: configv1.NetworkStatus{
+				ClusterNetwork: []configv1.ClusterNetworkEntry{
+					{CIDR: "198.1v2.3.4/16"},
+				},
+			},
+			expectedIPFamily: "IPv4",
+			isDualStack:      false,
+			expectedError:    nil,
+		},
+	}
+
+	for _, tc := range testTable {
+		t.Run(tc.label, func(t *testing.T) {
+			networkConfig := &configv1.Network{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "",
+				},
+				Status: tc.networkStatus,
+			}
+			r := createFakeStorageClusterReconciler(t, networkConfig)
+			ipfamily, isDualStack, err := getIPFamilyConfig(r.Client)
+			assert.Equal(t, ipfamily, tc.expectedIPFamily)
+			assert.Equal(t, isDualStack, tc.isDualStack)
+			assert.Equal(t, err, tc.expectedError)
+		})
+
+	}
+
 }
