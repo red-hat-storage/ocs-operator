@@ -21,6 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	MonitoringNamespace = "openshift-monitoring"
+)
+
 type ocsNoobaaSystem struct{}
 
 func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
@@ -73,6 +77,10 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		Spec: nbv1.NooBaaSpec{
 			Labels: nbv1.LabelsSpec{
 				"monitoring": getNooBaaMonitoringLabels(*sc),
+			},
+			Autoscaler: nbv1.AutoscalerSpec{
+				AutoscalerType:      nbv1.AutoscalerTypeHPAV2,
+				PrometheusNamespace: MonitoringNamespace,
 			},
 		},
 	}
