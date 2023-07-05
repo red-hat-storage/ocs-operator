@@ -115,6 +115,30 @@ func (c *CephObjectStoreCollector) collectObjectStoreHealth(cephObjectStores []*
 				cephObjectStore.Name,
 				cephObjectStore.Namespace,
 				cephObjectStore.Status.Info["endpoint"])
+		case cephv1.ConditionConnecting:
+			ch <- prometheus.MustNewConstMetric(c.RGWHealthStatus,
+				prometheus.GaugeValue, 3,
+				cephObjectStore.Name,
+				cephObjectStore.Namespace,
+				cephObjectStore.Status.Info["endpoint"])
+		case cephv1.ConditionReady:
+			ch <- prometheus.MustNewConstMetric(c.RGWHealthStatus,
+				prometheus.GaugeValue, 4,
+				cephObjectStore.Name,
+				cephObjectStore.Namespace,
+				cephObjectStore.Status.Info["endpoint"])
+		case cephv1.ConditionDeleting:
+			ch <- prometheus.MustNewConstMetric(c.RGWHealthStatus,
+				prometheus.GaugeValue, 5,
+				cephObjectStore.Name,
+				cephObjectStore.Namespace,
+				cephObjectStore.Status.Info["endpoint"])
+		case cephv1.ConditionDeletionIsBlocked:
+			ch <- prometheus.MustNewConstMetric(c.RGWHealthStatus,
+				prometheus.GaugeValue, 6,
+				cephObjectStore.Name,
+				cephObjectStore.Namespace,
+				cephObjectStore.Status.Info["endpoint"])
 		default:
 			klog.Errorf("CephObjectStore in unexpected phase. Must be %q, %q or %q",
 				cephv1.ConditionConnected, cephv1.ConditionProgressing, cephv1.ConditionFailure)
