@@ -524,23 +524,23 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	err = reconciler.Client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
 	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
 
-	// check the provided KMS ConfigMap data is passed on to NooBaa
-	// when clusterWide or kms encryption is enabled
-	if kmsArgs.encryptionEnabled || kmsArgs.clusterWideEncryption || !kmsArgs.kmsDisabled {
-		if kmsArgs.kmsDisabled {
-			// if kms is disabled, then the respective KMS fields should be empty in noobaa object
-			assert.Empty(t, nb.Spec.Security.KeyManagementService.ConnectionDetails)
-			assert.Empty(t, nb.Spec.Security.KeyManagementService.TokenSecretName)
-		} else {
-			// if kms is enabled then only we should see the values populated
-			for k, v := range kmsCM.Data {
-				assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
-			}
-			if kmsArgs.authMethod == VaultTokenAuthMethod {
-				assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
-			}
+	if kmsArgs.kmsDisabled {
+		// if kms is disabled, then the respective KMS fields should be empty in noobaa object
+		assert.Empty(t, nb.Spec.Security.KeyManagementService.ConnectionDetails)
+		assert.Empty(t, nb.Spec.Security.KeyManagementService.TokenSecretName)
+	} else if kmsArgs.encryptionEnabled || kmsArgs.clusterWideEncryption || reconciler.IsNoobaaStandalone {
+		// check the provided KMS ConfigMap data is passed on to NooBaa
+		// only when KMS is enabled and
+		// either clusterWide encryption is turned on or this is a standalone Noobaa cluster
+		for k, v := range kmsCM.Data {
+			assert.Equal(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be same", kmsArgs.testLabel, k))
+		}
+		if kmsArgs.authMethod == VaultTokenAuthMethod {
+			assert.Equal(t, KMSTokenSecretName, nb.Spec.Security.KeyManagementService.TokenSecretName, fmt.Sprintf("Failed: %q. Expected the token-names tobe same", kmsArgs.testLabel))
 		}
 	} else {
+		// in this else part, only KMS is enabled,
+		// so noobaa spec should not be populated
 		for k, v := range kmsCM.Data {
 			assert.NotEqual(t, v, nb.Spec.Security.KeyManagementService.ConnectionDetails[k], fmt.Sprintf("Failed: %q. Expected values for key: %q, to be different", kmsArgs.testLabel, k))
 		}
