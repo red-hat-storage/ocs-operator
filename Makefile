@@ -112,7 +112,8 @@ verify-operator-bundle: operator-sdk
 	@echo "Verifying operator bundle"
 	hack/verify-operator-bundle.sh
 
-operator-bundle:
+operator-bundle: gen-latest-csv
+	@echo "Building ocs operator bundle"
 	hack/build-operator-bundle.sh
 
 operator-index:

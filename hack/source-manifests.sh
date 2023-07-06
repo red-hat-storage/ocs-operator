@@ -104,4 +104,4 @@ gen_ocs_csv
 
 echo "Manifests sourced into $OUTDIR_TEMPLATES directory"
 
-rm bundle.Dockerfile
+mv bundle.Dockerfile Dockerfile.bundle
