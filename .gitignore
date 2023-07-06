@@ -50,6 +50,9 @@ tags
 _output
 _cache
 
+catalog/ocs-bundle.yaml
+catalog/noobaa-bundle.yaml
+
 tools/csv-merger/csv-merger
 tools/csv-checksum/csv-checksum
 tools/cluster-deploy/cluster-deploy
