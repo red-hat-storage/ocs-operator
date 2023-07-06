@@ -1,14 +1,21 @@
-FROM golang:1.19 as builder
+# Build stage 1
 
-WORKDIR /go/src/github.com/red-hat-storage/ocs-operator
+FROM golang:1.20 as builder
+
+WORKDIR /workspace
+
 COPY . .
-USER root
-RUN make build-go
+
+RUN GOOS=linux GOARCH=amd64 go build -tags 'netgo osusergo' -o metrics-exporter metrics/main.go
+
+# Build stage 2
 
 FROM quay.io/ceph/ceph:v17
 
-COPY --from=builder /go/src/github.com/red-hat-storage/ocs-operator/build/_output/bin/metrics-exporter /usr/local/bin/metrics-exporter
+COPY --from=builder workspace/metrics-exporter /usr/local/bin/metrics-exporter
 
-ENTRYPOINT ["/metrics-exporter"]
+RUN chmod +x /usr/local/bin/metrics-exporter
 
-EXPOSE 8080 8081
+USER operator
+
+ENTRYPOINT ["/usr/local/bin/metrics-exporter"]
