@@ -18,6 +18,9 @@ DEFAULT_CSV_VERSION="4.13.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
 
+LOCALBIN="$(pwd)/bin"
+GINKGO="${LOCALBIN}/ginkgo"
+
 OUTDIR="build/_output"
 OUTDIR_BIN="build/_output/bin"
 OUTDIR_OCS_CI="build/_output/ocs-ci-testsuite"
