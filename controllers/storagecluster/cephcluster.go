@@ -114,6 +114,13 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		sc.Spec.StorageDeviceSets[i].Config.TuneSlowDeviceClass = false
 		sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = false
 
+		// Use SSD deviceClass and TuneFastDeviceClass for all internal clusters where deviceClass is not provided by the customer
+		if !sc.Spec.ExternalStorage.Enable && sc.Spec.StorageDeviceSets[i].DeviceClass == "" {
+			sc.Spec.StorageDeviceSets[i].DeviceClass = DeviceTypeSSD
+			sc.Spec.StorageDeviceSets[i].Config.TuneFastDeviceClass = true
+			continue
+		}
+
 		diskSpeed, err := r.checkTuneStorageDevices(ds)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("Failed to check for known device types: %+v", err)
@@ -798,6 +805,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			if ds.DeviceClass != "" {
 				crushDeviceClass = ds.DeviceClass
 			}
+
 			annotations := map[string]string{
 				"crushDeviceClass": crushDeviceClass,
 			}

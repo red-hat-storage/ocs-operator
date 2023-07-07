@@ -108,9 +108,10 @@ func TestEnsureCephCluster(t *testing.T) {
 
 			sc.Spec.StorageDeviceSets = []api.StorageDeviceSet{
 				{
-					Name:    "mock-sds",
-					Count:   3,
-					Replica: 1,
+					Name:        "mock-sds",
+					Count:       3,
+					DeviceClass: "HDD",
+					Replica:     1,
 					DataPVCTemplate: corev1.PersistentVolumeClaim{
 						Spec: corev1.PersistentVolumeClaimSpec{
 							StorageClassName: &fakeStorageClassName,
