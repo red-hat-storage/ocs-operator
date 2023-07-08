@@ -51,4 +51,34 @@ func PVCCreationTest() {
 			})
 		})
 	})
+
+	ginkgo.Describe("cephfs", func() {
+		var pvc *k8sv1.PersistentVolumeClaim
+		var namespace string
+
+		ginkgo.BeforeEach(func() {
+			namespace = tests.TestNamespace
+			pvc = tests.GetRandomPVC(tests.StorageClassCephFS, "1Gi")
+			pvc.Namespace = namespace
+		})
+
+		ginkgo.AfterEach(func() {
+			err := client.Delete(context.TODO(), pvc)
+			if err != nil && !errors.IsNotFound(err) {
+				gomega.Expect(err).To(gomega.BeNil())
+			}
+		})
+
+		ginkgo.Context("create pvc", func() {
+			ginkgo.It("and verify bound status", func() {
+				ginkgo.By("Creating PVC")
+				err := dm.WaitForPVCBound(pvc, namespace)
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Deleting PVC")
+				err = client.Delete(context.TODO(), pvc)
+				gomega.Expect(err).To(gomega.BeNil())
+			})
+		})
+	})
 }
