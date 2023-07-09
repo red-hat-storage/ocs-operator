@@ -61,17 +61,17 @@ $ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
 
 ### Installation
 
-The OCS operator can be installed into an OpenShift cluster using Operator Lifecycle Manager (OLM).
+The OCS operator can be installed into an OpenShift cluster using Operator-sdk CLI.
 
-For quick install using pre-built container images, deploy the [deploy-olm.yaml](deploy/deploy-with-olm.yaml) manifest.
+For quick install using pre-built container images, use the make targets install-ocs & install-noobaa.
 
 ```console
-$ oc create -f ./deploy/deploy-with-olm.yaml
+$ make install-ocs
+$ make install-noobaa
 ```
 
 This creates:
 
-- a custom CatalogSource
 - a new `openshift-storage` Namespace
 - an OperatorGroup
 - a Subscription for OCS & a Subscription for NOOBAA, to the OCS catalog in the `openshift-storage` namespace
