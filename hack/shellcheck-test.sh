@@ -48,7 +48,7 @@ fi
 
 
 cd "${BASE_DIR}" || exit 2
-SCRIPTS=$(find . \( -path "*/vendor/*" -o -path "*/build/*" -o -path "*/_cache/*" \) -prune -o -name "*~" -prune -o -name "*.swp" -prune -o -type f -exec grep -l -e '^#!/bin/bash$' {} \;)
+SCRIPTS=$(find . \( -path "*/vendor/*" -o -path "*/build/*" -o -path "*/_cache/*" \) -prune -o -name "*~" -prune -o -name "*.swp" -prune -o -type f -exec grep -l -e '^#!/usr/bin/env bash$' {} \;)
 
 failed=0
 for script in ${SCRIPTS}; do
