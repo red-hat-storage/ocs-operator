@@ -14,35 +14,26 @@ endif
 KUSTOMIZE_VERSION=v4.5.2
 CONTROLLER_GEN_VERSION=v0.9.2
 
-all: ocs-operator ocs-registry
 
 .PHONY: \
 	build \
 	gen-protobuf \
-	build-go \
 	clean \
 	ocs-operator \
 	operator-bundle \
 	verify-operator-bundle \
-	operator-index \
-	ocs-registry \
-	ocs-registry-master \
-	gen-release-csv \
 	gen-latest-csv \
 	gen-latest-deploy-yaml \
 	gen-latest-prometheus-rules-yamls \
 	verify-latest-deploy-yaml \
 	verify-latest-csv \
-	source-manifests \
 	cluster-deploy \
 	cluster-clean \
-	ocs-operator-openshift-ci-build \
 	functest \
 	shellcheck-test \
 	golangci-lint \
 	update-generated \
 	ocs-operator-ci \
-	red-hat-storage-ocs-ci \
 	unit-test \
 	deps-update
 
@@ -54,13 +45,7 @@ operator-sdk:
 	@echo "Ensuring operator-sdk"
 	hack/ensure-operator-sdk.sh
 
-ocs-operator-openshift-ci-build: build
-
 build: deps-update generate gen-protobuf
-
-build-go:
-	@echo "Building the ocs-operator binary"
-	hack/go-build.sh
 
 ocs-operator: build
 	@echo "Building the ocs-operator image"
@@ -69,10 +54,6 @@ ocs-operator: build
 ocs-metrics-exporter: build
 	@echo "Building the ocs-metrics-exporter image"
 	hack/build-metrics-exporter.sh
-
-source-manifests: operator-sdk manifests kustomize
-	@echo "Sourcing CSV and CRD manifests from component-level operators"
-	hack/source-manifests.sh
 
 gen-protobuf:
 	@echo "Generating protobuf files for gRPC services"
@@ -94,10 +75,6 @@ verify-latest-deploy-yaml: gen-latest-deploy-yaml
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
 
-gen-release-csv: operator-sdk manifests kustomize
-	@echo "Generating unified CSV from sourced component-level operators"
-	hack/generate-unified-csv.sh
-
 verify-latest-csv: gen-latest-csv
 	@echo "Verifying latest CSV"
 	hack/verify-latest-csv.sh
@@ -117,14 +94,6 @@ operator-index:
 operator-catalog:
 	@echo "Building ocs catalog image in file based catalog format"
 	hack/build-operator-catalog.sh
-
-ocs-registry:
-	@echo "Building ocs-registry image in appregistry format"
-	hack/build-appregistry.sh
-
-ocs-registry-master:
-	@echo "Building ocs-registry image in appregistry format using master images for all OCS components"
-	hack/build-master-appregistry.sh
 
 clean:
 	@echo "cleaning previous outputs"
@@ -165,10 +134,6 @@ unit-test:
 	hack/unit-test.sh
 
 ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-csv verify-operator-bundle verify-latest-deploy-yaml
-
-red-hat-storage-ocs-ci:
-	@echo "Running red-hat-storage ocs-ci test suite"
-	hack/red-hat-storage-ocs-ci-tests.sh
 
 # Generate code
 generate: controller-gen
