@@ -9,9 +9,9 @@
   - [Tools](#tools)
   - [Build](#build)
     1. [OCS Operator](#ocs-operator)
-    2. [Unified CSV](#unified-csv)
+    2. [OCS Metric Exporter](#ocs-metric-exporter)
     3. [OCS Operator Bundle](#ocs-operator-bundle)
-    4. [OCS Operator Index](#ocs-operator-index)
+    4. [OCS Operator Catalog](#ocs-operator-catalog)
   - [Deploying development builds](#deploying-development-builds)
 - [Initial Configuration](#initial-configuration)
   - [Modifying Initial Configuration](#modifying-initial-configuration)
@@ -24,8 +24,6 @@
   - [Debugging Functional Test Failures](#debugging-functional-test-failures)
     - [Functional test stdout log](#functional-test-stdout-log)
     - [PROW artifacts](#prow-artifacts)
-- [ocs-ci tests](#ocs-ci-tests)
-- [Ginkgo tests vs ocs-ci tests](#ginkgo-tests-vs-ocs-ci-tests)
 
 ## OpenShift Container Storage Operator
 
@@ -76,14 +74,15 @@ This creates:
 - a custom CatalogSource
 - a new `openshift-storage` Namespace
 - an OperatorGroup
-- a Subscription to the OCS catalog in the `openshift-storage` namespace
+- a Subscription for OCS & a Subscription for NOOBAA, to the OCS catalog in the `openshift-storage` namespace
 
-You can check the status of the CSV using the following command:
+You can check the status of the CSVs using the following command:
 
 ```console
 $ oc get csv -n openshift-storage
-NAME                  DISPLAY                                VERSION   REPLACES   PHASE
-ocs-operator.v0.0.1   OpenShift Container Storage Operator   0.0.1                Succeeded
+NAME                      DISPLAY                       VERSION   REPLACES   PHASE
+noobaa-operator.v5.13.0   NooBaa Operator               5.13.0               Succeeded
+ocs-operator.v4.13.0      OpenShift Container Storage   4.13.0               Succeeded
 ```
 
 This can take a few minutes. Once PHASE says `Succeeded` you can create a StorageCluster.
@@ -105,6 +104,8 @@ $ oc create -f ./config/samples/ocs_v1_storagecluster.yaml
 
 - [controller-gen](https://github.com/kubernetes-sigs/controller-tools)
 
+- [OPM](https://github.com/operator-framework/operator-registry)
+
 ### Build
 
 #### OCS Operator
@@ -115,19 +116,17 @@ The operator image can be built via:
 $ make ocs-operator
 ```
 
-#### Unified CSV
+#### OCS Metric Exporter
 
-Update `hack/common.sh` with the image versions to be used, and run
+The metric exporter image can be built via:
 
 ```console
-$ make gen-latest-csv
+$ make ocs-metrics-exporter
 ```
-
-to generate unified CSV.
 
 #### OCS Operator Bundle
 
-To create an operator bundle image with the bundle generated above, run
+To create an operator bundle image, run
 
 ```console
 $ make operator-bundle
@@ -135,51 +134,45 @@ $ make operator-bundle
 
 > Note: Push the OCS Bundle image to image registry before moving to next step.
 
-#### OCS Operator Index
+#### OCS Operator Catalog
 
-An operator index image can then be built using,
+An operator catalog image can then be built using,
 
 ```console
-$ make operator-index
+$ make operator-catalog
 ```
-
-More details on the catalog generation are available in [docs/catalog-generation.md](docs/catalog-generation.md).
 
 ### Deploying development builds
 
-To install own development builds of OCS, first build and push the ocs-operator image to your own image repository.
+To install own development builds of OCS, first set your own REGISTRY_NAMESPACE and IMAGE_TAG.
 
 ```console
 $ export REGISTRY_NAMESPACE=<quay-username>
 $ export IMAGE_TAG=<some-tag>
-$ make ocs-operator
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG
 ```
 
-Once the ocs-operator image is pushed, edit the CSV to point to the new image.
+Then build and push the ocs-operator & ocs-metrics-exporter image to your own image repository.
 
 ```console
-$ export REGISTRY_NAMESPACE=<quay-username>
-$ export IMAGE_TAG=<some-tag>
-$ make gen-latest-csv
+$ make ocs-operator
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG
+
+$ make ocs-metrics-exporter
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-metrics-exporter:$IMAGE_TAG
 ```
 
 Then build and push the operator bundle image.
 
 ```console
-$ export REGISTRY_NAMESPACE=<quay-username>
-$ export IMAGE_TAG=<some-tag>
 $ make operator-bundle
 $ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-bundle:$IMAGE_TAG
 ```
 
-Next build and push the operator index image.
+Next build and push the operator catalog image.
 
 ```console
-$ export REGISTRY_NAMESPACE=<quay-username>
-$ export IMAGE_TAG=<some-tag>
-$ make operator-index
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-index:$IMAGE_TAG
+$ make operator-catalog
+$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG
 ```
 
 Now create a namespace and an OperatorGroup for OCS
@@ -199,7 +192,7 @@ spec:
 EOF
 ```
 
-Then add a new CatalogSource using the newly built and pushed index image.
+Then add a new CatalogSource using the newly built and pushed catalog image.
 
 ```console
 $ cat <<EOF | oc create -f -
@@ -210,13 +203,13 @@ metadata:
   namespace: openshift-marketplace
 spec:
   sourceType: grpc
-  image: quay.io/$REGISTRY_NAMESPACE/ocs-operator-index:$IMAGE_TAG
+  image: quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG
   displayName: OpenShift Container Storage
   publisher: Red Hat
 EOF
 ```
 
-Finally subscribe to the OCS catalog.
+Finally create ocs & noobaa subscription.
 
 ```console
 $ cat <<EOF | oc create -f -
@@ -228,6 +221,19 @@ metadata:
 spec:
   channel: alpha
   name: ocs-operator
+  source: ocs-catalogsource
+  sourceNamespace: openshift-marketplace
+EOF
+
+$ cat <<EOF | oc create -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: noobaa-subscription
+  namespace: openshift-storage
+spec:
+  channel: alpha
+  name: noobaa-operator
   source: ocs-catalogsource
   sourceNamespace: openshift-marketplace
 EOF
@@ -253,6 +259,11 @@ restored to their original state.
 ## Functional Tests
 
 Our functional test suite uses the [ginkgo](https://onsi.github.io/ginkgo/) testing framework.
+The ginkgo `functests` test suite in this repo is for developers. As new
+functionality is introduced into the ocs-operator, this repo allows developers
+to prove their functionality works by including tests within their PR. This is
+the test suite where we exercise ocs-operator deployment/update/uninstall as
+well as some basic workload functionality like creating PVCs.
 
 ### Prerequisites for running Functional Tests
 
@@ -336,7 +347,7 @@ error occurred.
 This will tell you what test failed and it also outputs some debug information
 pertaining to the test cluster's state after the test suite exits. In prow you
 can find this log by clicking on the `details` link to the right of the
-`ci/prow/ocs-operator-e2e-aws` test entry on your PR. From there you can click
+`ci/prow/ocs-operator-bundle-e2e-aws` test entry on your PR. From there you can click
 the `Raw build-log.txt` link to view the full log.
 
 #### PROW artifacts
@@ -347,38 +358,8 @@ retroactively view information about the test cluster even after the e2e job
 has completed.
 
 To browse through the e2e test cluster artifacts, click on the `details` link
-to the right of the `ci/prow/ocs-operator-e2e-aws` test entry on your PR. From
+to the right of the `ci/prow/ocs-operator-bundle-e2e-aws` test entry on your PR. From
 there look at the top right hand corner for the `artifacts` link. That will
 bring you to a directory tree. Follow the `artifacts/` directory to the
-`ocs-operator-e2e-aws/` directory. There you can find logs and information
-pertaining to ever object in the cluster.
-
-## ocs-ci tests
-
-In addition to the `functest/*` in the ocs-operator source tree we also have
-the ability to run the tests developed in the [red-hat-storage/ocs-ci](https://github.com/red-hat-storage/ocs-ci) repo.
-
-NOTE: Running this test suite requires python3.
-
-To execute the ocs-ci test suite against an already installed ocs-operator, run
-`make red-hat-storage-ocs-ci`. This will download the ocs-ci repo and execute
-a subset of tests against the ocs-operator deployment.
-
-In order to update either the ocs-ci version or subset of tests executed from
-ocs-ci, you'll need to modify the environment variables in hack/common.sh with
-the `REDHAT_OCS_CI` prefix.
-
-## Ginkgo tests vs ocs-ci tests
-
-We currently have two functional test suites. The ginkgo `functests` test suite
-lives in this repo, and there is also an external one called `ocs-ci`.
-
-The ginkgo `functests` test suite in this repo is for developers. As new
-functionality is introduced into the ocs-operator, this repo allows developers
-to prove their functionality works by including tests within their PR. This is
-the test suite where we exercise ocs-operator deployment/update/uninstall as
-well as some basic workload functionality like creating PVCs.
-
-The external `ocs-ci` test suite is maintained by Red Hat QE. We execute this
-test suite against our PRs as another layer of verification in order to catch
-rook/ceph regressions as early as possible.
+`ocs-operator-bundle-e2e-aws/` directory. There you can find logs and information
+pertaining to objects in the cluster.
