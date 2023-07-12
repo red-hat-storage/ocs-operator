@@ -52,9 +52,9 @@ cp "$KUBECONFIG" fakecluster/auth/kubeconfig
 # Openshift CI runs this test within a pod with a randomized uid
 # ocs-ci expects this randomized user to exist in the /etc/passwd file
 # so we need to dynamically create an entry for the user
-if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
-	echo "${USER_NAME:-default}:x:$(id -u):0:${USER_NAME:-default} user:${HOME}:/sbin/nologin" >> /etc/passwd
-fi
+#if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
+#	echo "${USER_NAME:-default}:x:$(id -u):0:${USER_NAME:-default} user:${HOME}:/sbin/nologin" >> /etc/passwd
+#fi
 
 # Create a Python virtual environment for the tests to execute with.
 echo "Using $REDHAT_OCS_CI_PYTHON_BINARY"
