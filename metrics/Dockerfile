@@ -6,7 +6,9 @@ WORKDIR /workspace
 
 COPY . .
 
-RUN GOOS=linux GOARCH=amd64 go build -tags 'netgo osusergo' -o metrics-exporter metrics/main.go
+ARG LDFLAGS
+
+RUN GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o metrics-exporter metrics/main.go
 
 # Build stage 2
 

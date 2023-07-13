@@ -17,6 +17,7 @@ GO_LINT_IMG="${GO_LINT_IMG:-${GO_LINT_IMG_LOCATION}:${GO_LINT_IMG_TAG}}"
 DEFAULT_CSV_VERSION="4.13.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
+LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
 
 OUTDIR="build/_output"
 OUTDIR_BIN="build/_output/bin"

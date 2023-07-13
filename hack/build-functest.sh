@@ -15,8 +15,6 @@ else
 	echo "GINKO binary found at $GINKGO"
 fi
 
-LDFLAGS="-X github.com/red-hat-storage/ocs-operator/version.Version=${CSV_VERSION}"
-
 "${GINKGO}" build --ldflags "${LDFLAGS}" "functests/${suite}/"
 
 mkdir -p $OUTDIR_BIN
