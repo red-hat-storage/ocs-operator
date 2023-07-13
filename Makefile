@@ -63,6 +63,10 @@ gen-latest-csv: operator-sdk manifests kustomize
 	@echo "Generating latest development CSV version using predefined ENV VARs."
 	hack/generate-latest-csv.sh
 
+gen-release-csv: operator-sdk manifests kustomize
+	@echo "Generating unified CSV from sourced component-level operators"
+	hack/generate-unified-csv.sh
+
 gen-latest-deploy-yaml:
 	@echo "Generating latest deployment yaml file"
 	hack/gen-deployment-yaml.sh
