@@ -177,6 +177,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				return reconcile.Result{}, err
 			}
 			if kmsConfigMap != nil {
+				// reset the KMS connection's error field,
+				// it will be anyway set if there is an error
+				sc.Status.KMSServerConnection.KMSServerConnectionError = ""
 				if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
 					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["VAULT_ADDR"]
 				}
