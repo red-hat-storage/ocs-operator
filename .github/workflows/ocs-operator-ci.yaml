@@ -25,17 +25,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.19", "1.20"]
+        go: ["1.20"]
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      # TODO: Our code currently does not pass linting using Go 1.19, so
-      # avoiding it until we bump go.mod to 1.19 as well.
       - uses: actions/setup-go@v3
         with:
-          go-version-file: go.mod
+          go-version: ${{ matrix.go }}
 
       - uses: golangci/golangci-lint-action@v3
         with:
@@ -51,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.19", "1.20"]
+        go: ["1.20"]
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -71,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.19", "1.20"]
+        go: ["1.20"]
     steps:
       - uses: actions/setup-go@v3
         with:
