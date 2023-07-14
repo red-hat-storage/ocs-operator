@@ -1,6 +1,6 @@
 module github.com/red-hat-storage/ocs-operator/v4
 
-go 1.19
+go 1.20
 
 require (
 	github.com/RHsyseng/operator-utils v1.4.12
