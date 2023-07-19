@@ -90,9 +90,10 @@ func (t *DeployManager) DeleteStorageClusterAndWait(namespace string) error {
 	lastReason := ""
 	timeout := 600 * time.Second
 	interval := 10 * time.Second
+	ctx := context.TODO()
 
 	// Wait for storagecluster and cephCluster to terminate
-	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	err = utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		cephClusters := &rookcephv1.CephClusterList{}
 		err = t.Client.List(context.TODO(), cephClusters, client.InNamespace(namespace))
 		if err != nil {
@@ -145,9 +146,10 @@ func (t *DeployManager) DeleteNamespaceAndWait(namespace string) error {
 	lastReason := ""
 	timeout := 600 * time.Second
 	interval := 10 * time.Second
+	ctx := context.TODO()
 
 	// Wait for namespace to terminate
-	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	err = utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		err = t.Client.Get(context.TODO(), types.NamespacedName{
 			Name: namespace,
 		}, &k8sv1.Namespace{})
@@ -194,8 +196,9 @@ func (t *DeployManager) WaitForPVCBound(pvc *k8sv1.PersistentVolumeClaim, namesp
 	lastReason := ""
 	timeout := 100 * time.Second
 	interval := 1 * time.Second
+	ctx := context.TODO()
 
-	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	err = utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		currentPvc := &k8sv1.PersistentVolumeClaim{}
 		err = t.Client.Get(context.TODO(), types.NamespacedName{
 			Name:      pvc.Name,
@@ -232,8 +235,9 @@ func (t *DeployManager) WaitForJobSucceeded(job *batchv1.Job, namespace string) 
 	lastReason := ""
 	timeout := 200 * time.Second
 	interval := 1 * time.Second
+	ctx := context.TODO()
 
-	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	err = utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		currentJob := &batchv1.Job{}
 		err = t.Client.Get(context.TODO(), types.NamespacedName{
 			Name:      job.Name,
