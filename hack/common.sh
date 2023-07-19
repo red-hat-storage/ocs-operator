@@ -41,7 +41,7 @@ NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
-LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.11.7"
+LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.12.0"
 LATEST_NOOBAA_IMAGE="quay.io/noobaa/noobaa-operator:master-20230718"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230718"
 LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
