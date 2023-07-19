@@ -13,7 +13,7 @@ require (
 	github.com/imdario/mergo v0.3.13
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.2.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230606045109-ed1ace00e5d3
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230712090817-288892c02711
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo/v2 v2.8.3
 	github.com/onsi/gomega v1.27.1
