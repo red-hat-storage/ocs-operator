@@ -57,6 +57,13 @@ spec:
                     - write
                     - read, write
                     type: string
+                  buckets:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
                   datalog:
                     enum:
                     - '*'
@@ -121,6 +128,13 @@ spec:
                     - read, write
                     type: string
                   user-policy:
+                    enum:
+                    - '*'
+                    - read
+                    - write
+                    - read, write
+                    type: string
+                  users:
                     enum:
                     - '*'
                     - read
