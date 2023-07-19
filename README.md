@@ -82,7 +82,7 @@ You can check the status of the CSVs using the following command:
 $ oc get csv -n openshift-storage
 NAME                      DISPLAY                       VERSION   REPLACES   PHASE
 noobaa-operator.v5.13.0   NooBaa Operator               5.13.0               Succeeded
-ocs-operator.v4.13.0      OpenShift Container Storage   4.13.0               Succeeded
+ocs-operator.v4.14.0      OpenShift Container Storage   4.14.0               Succeeded
 ```
 
 This can take a few minutes. Once PHASE says `Succeeded` you can create a StorageCluster.
