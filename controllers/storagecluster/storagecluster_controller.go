@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 var (
@@ -122,7 +121,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	enqueueStorageClusterRequest := handler.EnqueueRequestsFromMapFunc(
-		func(obj client.Object) []reconcile.Request {
+		func(context context.Context, obj client.Object) []reconcile.Request {
 
 			ocinit, ok := obj.(*ocsv1.OCSInitialization)
 			if !ok {
@@ -163,13 +162,11 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&source.Kind{Type: &ocsv1.OCSInitialization{}}, enqueueStorageClusterRequest).
+		Watches(&ocsv1.OCSInitialization{}, enqueueStorageClusterRequest).
 		Watches(
-			&source.Kind{
-				Type: &extv1.CustomResourceDefinition{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "virtualmachines.kubevirt.io",
-					},
+			&extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "virtualmachines.kubevirt.io",
 				},
 			},
 			enqueueStorageClusterRequest,

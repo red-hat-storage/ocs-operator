@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // watchNamespace is the namespace the operator is watching.
@@ -173,35 +172,35 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		// Watcher for rook-ceph-operator-config cm
 		Watches(
-			&source.Kind{
-				Type: &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      util.RookCephOperatorConfigName,
-						Namespace: watchNamespace,
-					},
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      util.RookCephOperatorConfigName,
+					Namespace: watchNamespace,
 				},
 			},
-			handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-				return []reconcile.Request{{
-					NamespacedName: InitNamespacedName(),
-				}}
-			}),
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					return []reconcile.Request{{
+						NamespacedName: InitNamespacedName(),
+					}}
+				},
+			),
 		).
 		// Watcher for ocs-operator-config cm
 		Watches(
-			&source.Kind{
-				Type: &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      util.OcsOperatorConfigName,
-						Namespace: watchNamespace,
-					},
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      util.OcsOperatorConfigName,
+					Namespace: watchNamespace,
 				},
 			},
-			handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-				return []reconcile.Request{{
-					NamespacedName: InitNamespacedName(),
-				}}
-			}),
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					return []reconcile.Request{{
+						NamespacedName: InitNamespacedName(),
+					}}
+				},
+			),
 		).
 		Complete(r)
 }

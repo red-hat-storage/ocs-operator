@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -230,7 +229,7 @@ func (r *StorageConsumerReconciler) own(resource metav1.Object) error {
 // SetupWithManager sets up the controller with the Manager.
 func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
-		func(obj client.Object) []reconcile.Request {
+		func(context context.Context, obj client.Object) []reconcile.Request {
 			labels := obj.GetLabels()
 			if value, ok := labels[StorageConsumerNameLabel]; ok {
 				return []reconcile.Request{{
@@ -251,8 +250,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rookCephv1.CephClient{}).
 		// Watch non-owned resources cephBlockPool
 		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
-		Watches(
-			&source.Kind{Type: &rookCephv1.CephBlockPool{}},
+		Watches(&rookCephv1.CephBlockPool{},
 			enqueueStorageConsumerRequest,
 		).
 		Complete(r)
