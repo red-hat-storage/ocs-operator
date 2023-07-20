@@ -25,8 +25,6 @@ type OCSProviderClient interface {
 	GetStorageConfig(ctx context.Context, in *StorageConfigRequest, opts ...grpc.CallOption) (*StorageConfigResponse, error)
 	// OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
 	OffboardConsumer(ctx context.Context, in *OffboardConsumerRequest, opts ...grpc.CallOption) (*OffboardConsumerResponse, error)
-	// UpdateCapacity PRC call to increase or decrease the block pool size
-	UpdateCapacity(ctx context.Context, in *UpdateCapacityRequest, opts ...grpc.CallOption) (*UpdateCapacityResponse, error)
 	// AcknowledgeOnboarding RPC call acknowledge the onboarding
 	AcknowledgeOnboarding(ctx context.Context, in *AcknowledgeOnboardingRequest, opts ...grpc.CallOption) (*AcknowledgeOnboardingResponse, error)
 	// FulfillStorageClassClaim RPC call to create the StorageclassClaim CR on
@@ -70,15 +68,6 @@ func (c *oCSProviderClient) GetStorageConfig(ctx context.Context, in *StorageCon
 func (c *oCSProviderClient) OffboardConsumer(ctx context.Context, in *OffboardConsumerRequest, opts ...grpc.CallOption) (*OffboardConsumerResponse, error) {
 	out := new(OffboardConsumerResponse)
 	err := c.cc.Invoke(ctx, "/provider.OCSProvider/OffboardConsumer", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *oCSProviderClient) UpdateCapacity(ctx context.Context, in *UpdateCapacityRequest, opts ...grpc.CallOption) (*UpdateCapacityResponse, error) {
-	out := new(UpdateCapacityResponse)
-	err := c.cc.Invoke(ctx, "/provider.OCSProvider/UpdateCapacity", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +130,6 @@ type OCSProviderServer interface {
 	GetStorageConfig(context.Context, *StorageConfigRequest) (*StorageConfigResponse, error)
 	// OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
 	OffboardConsumer(context.Context, *OffboardConsumerRequest) (*OffboardConsumerResponse, error)
-	// UpdateCapacity PRC call to increase or decrease the block pool size
-	UpdateCapacity(context.Context, *UpdateCapacityRequest) (*UpdateCapacityResponse, error)
 	// AcknowledgeOnboarding RPC call acknowledge the onboarding
 	AcknowledgeOnboarding(context.Context, *AcknowledgeOnboardingRequest) (*AcknowledgeOnboardingResponse, error)
 	// FulfillStorageClassClaim RPC call to create the StorageclassClaim CR on
@@ -170,9 +157,6 @@ func (UnimplementedOCSProviderServer) GetStorageConfig(context.Context, *Storage
 }
 func (UnimplementedOCSProviderServer) OffboardConsumer(context.Context, *OffboardConsumerRequest) (*OffboardConsumerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method OffboardConsumer not implemented")
-}
-func (UnimplementedOCSProviderServer) UpdateCapacity(context.Context, *UpdateCapacityRequest) (*UpdateCapacityResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateCapacity not implemented")
 }
 func (UnimplementedOCSProviderServer) AcknowledgeOnboarding(context.Context, *AcknowledgeOnboardingRequest) (*AcknowledgeOnboardingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AcknowledgeOnboarding not implemented")
@@ -252,24 +236,6 @@ func _OCSProvider_OffboardConsumer_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(OCSProviderServer).OffboardConsumer(ctx, req.(*OffboardConsumerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _OCSProvider_UpdateCapacity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateCapacityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(OCSProviderServer).UpdateCapacity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/provider.OCSProvider/UpdateCapacity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OCSProviderServer).UpdateCapacity(ctx, req.(*UpdateCapacityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -382,10 +348,6 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "OffboardConsumer",
 			Handler:    _OCSProvider_OffboardConsumer_Handler,
-		},
-		{
-			MethodName: "UpdateCapacity",
-			Handler:    _OCSProvider_UpdateCapacity_Handler,
 		},
 		{
 			MethodName: "AcknowledgeOnboarding",

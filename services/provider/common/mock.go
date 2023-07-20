@@ -26,8 +26,6 @@ const (
 
 	MockConsumerID = "vMHA0ppPbjg5TlgvMFcaH4QlQEJB68u+1jWQJ9O9xvde8fxz5vBuu2F6bVIY6pAYLVrC3FajrK1KxmhFTzNDow=="
 
-	MockGrantedCapacity = "2Ti"
-
 	MockProviderAPI = "MOCK_PROVIDER_API"
 )
 
