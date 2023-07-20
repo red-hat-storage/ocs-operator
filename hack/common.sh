@@ -42,9 +42,9 @@ ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
 LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.11.7"
-LATEST_NOOBAA_IMAGE="quay.io/noobaa/noobaa-operator:master-20230306"
-LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230306"
-LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
+LATEST_NOOBAA_IMAGE="quay.io/noobaa/noobaa-operator:master-20230718"
+LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230718"
+LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17"
 LATEST_ROOK_CSIADDONS_IMAGE="quay.io/csiaddons/k8s-sidecar:v0.6.0"
 # TODO: change image once the quay repo is changed
@@ -76,7 +76,7 @@ BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:-${DEFAULT_BUNDLE_FULL_IMAGE_NA
 FILE_BASED_CATALOG_FULL_IMAGE_NAME="${FILE_BASED_CATALOG_FULL_IMAGE_NAME:-${DEFAULT_FILE_BASED_CATALOG_FULL_IMAGE_NAME}}"
 METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:-${DEFAULT_METRICS_EXPORTER_FULL_IMAGE_NAME}}"
 
-NOOBAA_BUNDLE_FULL_IMAGE_NAME="docker.io/noobaa/noobaa-operator-bundle:v5.13.0"
+NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20230718"
 
 OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-false}"

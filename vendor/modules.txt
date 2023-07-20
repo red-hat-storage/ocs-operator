@@ -101,7 +101,7 @@ github.com/go-openapi/loads
 # github.com/go-openapi/runtime v0.19.24
 ## explicit; go 1.13
 github.com/go-openapi/runtime
-# github.com/go-openapi/spec v0.20.3
+# github.com/go-openapi/spec v0.20.6
 ## explicit; go 1.13
 github.com/go-openapi/spec
 # github.com/go-openapi/strfmt v0.20.0
@@ -278,7 +278,7 @@ github.com/modern-go/reflect2
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/noobaa/noobaa-operator/v5 v5.0.0-20230606045109-ed1ace00e5d3
+# github.com/noobaa/noobaa-operator/v5 v5.0.0-20230712090817-288892c02711
 ## explicit; go 1.19
 github.com/noobaa/noobaa-operator/v5/pkg/apis
 github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1
@@ -441,9 +441,9 @@ github.com/spf13/pflag
 # github.com/stretchr/testify v1.8.2
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
-# github.com/tidwall/pretty v1.0.1
-## explicit
-# go.mongodb.org/mongo-driver v1.7.3
+# github.com/tidwall/pretty v1.2.0
+## explicit; go 1.16
+# go.mongodb.org/mongo-driver v1.9.0
 ## explicit; go 1.10
 go.mongodb.org/mongo-driver/bson
 go.mongodb.org/mongo-driver/bson/bsoncodec
@@ -978,6 +978,10 @@ open-cluster-management.io/api/cluster/v1
 open-cluster-management.io/api/cluster/v1alpha1
 open-cluster-management.io/api/cluster/v1beta1
 open-cluster-management.io/api/cluster/v1beta2
+# sigs.k8s.io/container-object-storage-interface-api v0.1.0
+## explicit; go 1.18
+sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage
+sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage/v1alpha1
 # sigs.k8s.io/controller-runtime v0.14.5
 ## explicit; go 1.19
 sigs.k8s.io/controller-runtime

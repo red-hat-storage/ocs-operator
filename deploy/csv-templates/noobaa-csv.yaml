@@ -2,18 +2,18 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{},"security":{"kms":{}},"loadBalancerSourceSubnets":{}},"status":{}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"NamespaceStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{},"status":{}},{"kind":"NooBaaAccount","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"allow_bucket_creation":false},"status":{}}]'
+    alm-examples: '[{"kind":"NooBaa","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"noobaa","creationTimestamp":null},"spec":{"cleanupPolicy":{},"security":{"kms":{}},"loadBalancerSourceSubnets":{},"autoscaler":{}},"status":{"lastKeyRotateTime":null}},{"kind":"BackingStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"NamespaceStore","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"type":""},"status":{"mode":{}}},{"kind":"BucketClass","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{},"status":{}},{"kind":"NooBaaAccount","apiVersion":"noobaa.io/v1alpha1","metadata":{"name":"default","creationTimestamp":null},"spec":{"allow_bucket_creation":false},"status":{}}]'
     capabilities: Basic Install
     categories: Storage,Big Data
     certified: "false"
-    containerImage: noobaa/noobaa-operator:5.13.0
+    containerImage: noobaa/noobaa-operator:5.14.0
     createdAt: "2019-07-08T13:10:20.940Z"
     description: NooBaa is an object data service for hybrid and multi cloud environments.
     operators.openshift.io/infrastructure-features: ֿ'["disconnected"]'
     repository: https://github.com/noobaa/noobaa-operator
     support: Red Hat
   creationTimestamp: null
-  name: noobaa-operator.v5.13.0
+  name: noobaa-operator.v5.14.0
   namespace: noobaa
 spec:
   apiservicedefinitions: {}
@@ -554,8 +554,12 @@ spec:
           - ""
           resources:
           - namespaces
+          - services
+          - pods
           verbs:
           - get
+          - list
+          - watch
         - apiGroups:
           - storage.k8s.io
           resources:
@@ -601,6 +605,105 @@ spec:
           - securitycontextconstraints
           verbs:
           - '*'
+        - apiGroups:
+          - keda.sh
+          resources:
+          - clustertriggerauthentications
+          - scaledobjects
+          - triggerauthentications
+          - scaledjobs
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - delete
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - prometheuses
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterrolebindings
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+          - delete
+        - apiGroups:
+          - apiregistration.k8s.io
+          resources:
+          - apiservices
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+          - delete
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - rolebindings
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+          - delete
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterroles
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+          - delete
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - prometheuses
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - get
+          - watch
+          - list
+          - delete
+          - update
+          - create
+        - apiGroups:
+          - objectstorage.k8s.io
+          resources:
+          - buckets
+          - bucketaccesses
+          - bucketclaims
+          - bucketaccessclasses
+          - buckets/status
+          - bucketaccesses/status
+          - bucketclaims/status
+          - bucketaccessclasses/status
+          verbs:
+          - get
+          - watch
+          - list
+          - delete
+          - update
+          - create
         serviceAccountName: noobaa
       deployments:
       - name: noobaa-operator
@@ -629,7 +732,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: noobaa/noobaa-operator:5.13.0
+                image: noobaa/noobaa-operator:5.14.0
                 name: noobaa-operator
                 resources:
                   limits:
@@ -638,6 +741,28 @@ spec:
                 volumeMounts:
                 - mountPath: /var/run/secrets/openshift/serviceaccount
                   name: oidc-token
+                - mountPath: /var/lib/cosi
+                  name: socket
+              - args:
+                - --v=5
+                env:
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar:v20221117-v0.1.0-22-g0e67387
+                imagePullPolicy: Always
+                name: objectstorage-provisioner-sidecar
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 512Mi
+                volumeMounts:
+                - mountPath: /var/lib/cosi
+                  name: socket
+              securityContext:
+                seccompProfile:
+                  type: RuntimeDefault
               serviceAccountName: noobaa
               volumes:
               - name: oidc-token
@@ -647,6 +772,15 @@ spec:
                       audience: api
                       expirationSeconds: 3600
                       path: oidc-token
+              - emptyDir: {}
+                name: socket
+              - configMap:
+                  items:
+                  - key: ca-bundle.crt
+                    path: tls-ca-bundle.pem
+                  name: noobaa-ca-inject
+                  optional: true
+                name: noobaa-ca-inject
       permissions:
       - rules:
         - apiGroups:
@@ -759,6 +893,7 @@ spec:
           - patch
           - list
           - watch
+          - delete
         - apiGroups:
           - batch
           resources:
@@ -875,7 +1010,7 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: NooBaa
-  version: 5.13.0
+  version: 5.14.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
