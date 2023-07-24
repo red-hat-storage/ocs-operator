@@ -172,6 +172,8 @@ spec:
                     nullable: true
                     type: boolean
                     x-kubernetes-preserve-unknown-fields: true
+                  disableMultisiteSyncTraffic:
+                    type: boolean
                   externalRgwEndpoints:
                     items:
                       properties:

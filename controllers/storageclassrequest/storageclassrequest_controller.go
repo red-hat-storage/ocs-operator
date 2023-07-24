@@ -41,7 +41,6 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // StorageClassRequestReconciler reconciles a StorageClassRequest object
@@ -138,7 +137,7 @@ func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request r
 
 func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
-		func(obj client.Object) []reconcile.Request {
+		func(context context.Context, obj client.Object) []reconcile.Request {
 			annotations := obj.GetAnnotations()
 			if annotation, found := annotations[v1alpha1.StorageClassRequestAnnotation]; found {
 				parts := strings.Split(annotation, "/")
@@ -151,20 +150,16 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 			}
 			return []reconcile.Request{}
 		})
-	// As we are not setting the Controller OwnerReference on the ceph
-	// resources we are creating as part of the StorageClassRequest, we need to
-	// set IsController to false to get Reconcile Request of StorageClassRequest
-	// for the owned ceph resources updates.
-	enqueueForNonControllerOwner := &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.StorageClassRequest{}, IsController: false}
+	enqueueForOwner := handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1alpha1.StorageClassRequest{})
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.StorageClassRequest{}, builder.WithPredicates(
 			predicate.GenerationChangedPredicate{},
 		)).
-		Watches(&source.Kind{Type: &rookCephv1.CephBlockPool{}}, enqueueForNonControllerOwner).
-		Watches(&source.Kind{Type: &rookCephv1.CephFilesystemSubVolumeGroup{}}, enqueueForNonControllerOwner).
-		Watches(&source.Kind{Type: &rookCephv1.CephClient{}}, enqueueForNonControllerOwner).
-		Watches(&source.Kind{Type: &storagev1.StorageClass{}}, enqueueStorageConsumerRequest).
-		Watches(&source.Kind{Type: &snapapi.VolumeSnapshotClass{}}, enqueueStorageConsumerRequest).
+		Watches(&rookCephv1.CephBlockPool{}, enqueueForOwner).
+		Watches(&rookCephv1.CephFilesystemSubVolumeGroup{}, enqueueForOwner).
+		Watches(&rookCephv1.CephClient{}, enqueueForOwner).
+		Watches(&storagev1.StorageClass{}, enqueueStorageConsumerRequest).
+		Watches(&snapapi.VolumeSnapshotClass{}, enqueueStorageConsumerRequest).
 		Complete(r)
 }
 

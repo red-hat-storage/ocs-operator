@@ -399,8 +399,9 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconciler {
 	registerObjs := []runtime.Object{&v1.StorageCluster{}}
 	registerObjs = append(registerObjs, objs...)
+	sc := &v1.StorageCluster{}
 	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(registerObjs...).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(registerObjs...).WithStatusSubresource(sc).Build()
 
 	return StorageClusterReconciler{
 		Scheme:   scheme,

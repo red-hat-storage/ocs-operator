@@ -238,6 +238,8 @@ spec:
                                 type: object
                             type: object
                         type: object
+                      domainName:
+                        type: string
                       keytabFile:
                         properties:
                           volumeSource:

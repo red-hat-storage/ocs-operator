@@ -888,9 +888,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	assert.Equal(t, noobaa.Name, noobaaMock.Name)
 
 	// Issue a delete
-	now := metav1.Now()
-	sc.SetDeletionTimestamp(&now)
-	err = reconciler.Client.Update(context.TODO(), sc)
+	err = reconciler.Client.Delete(context.TODO(), sc)
 	assert.NoError(t, err)
 
 	sc = &api.StorageCluster{}
@@ -949,6 +947,7 @@ func assertCondition(conditions []conditionsv1.Condition, conditionType conditio
 }
 
 func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
+	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
 	name := mockStorageClusterRequest.NamespacedName.Name
 	namespace := mockStorageClusterRequest.NamespacedName.Namespace
@@ -971,7 +970,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		},
 	}
 	obj = append(obj, cbp, cfs)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	return StorageClusterReconciler{
 		Client:            client,

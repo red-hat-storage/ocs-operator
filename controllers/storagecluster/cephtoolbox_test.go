@@ -268,8 +268,9 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.StorageCluster, reconci
 }
 
 func getTheReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconciler {
+	sc := &v1.StorageCluster{}
 	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).WithStatusSubresource(sc).Build()
 
 	return StorageClusterReconciler{
 		Scheme:   scheme,

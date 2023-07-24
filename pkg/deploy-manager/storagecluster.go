@@ -219,8 +219,9 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 	// storage cluster to fully initialize
 	interval := 10 * time.Second
 	lastReason := ""
+	ctx := context.TODO()
 
-	err := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	err := utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		sc, err := t.getStorageCluster()
 		if err != nil {
 			lastReason = fmt.Sprintf("%v", err)

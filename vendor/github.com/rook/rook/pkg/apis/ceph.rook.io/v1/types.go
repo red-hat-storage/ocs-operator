@@ -1433,6 +1433,14 @@ type GatewaySpec struct {
 	// +optional
 	Placement Placement `json:"placement,omitempty"`
 
+	// DisableMultisiteSyncTraffic, when true, prevents this object store's gateways from
+	// transmitting multisite replication data. Note that this value does not affect whether
+	// gateways receive multisite replication traffic: see ObjectZone.spec.customEndpoints for that.
+	// If false or unset, this object store's gateways will be able to transmit multisite
+	// replication data.
+	// +optional
+	DisableMultisiteSyncTraffic bool `json:"disableMultisiteSyncTraffic,omitempty"`
+
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
@@ -1587,8 +1595,16 @@ type ObjectUserCapSpec struct {
 	User string `json:"user,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store users. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Users string `json:"users,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
 	// Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
 	Bucket string `json:"bucket,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Buckets string `json:"buckets,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
 	// Admin capabilities to read/write Ceph object store metadata. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
@@ -1765,6 +1781,10 @@ type ObjectZoneSpec struct {
 	// In many cases, you should set this to the endpoint of the ingress resource that makes the
 	// CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters.
 	// The list can have one or more endpoints pointing to different RGW servers in the zone.
+	//
+	// If a CephObjectStore endpoint is omitted from this list, that object store's gateways will
+	// not receive multisite replication data
+	// (see CephObjectStore.spec.gateway.disableMultisiteSyncTraffic).
 	// +nullable
 	// +optional
 	CustomEndpoints []string `json:"customEndpoints,omitempty"`
@@ -2096,6 +2116,10 @@ type KerberosSpec struct {
 	// +optional
 	// +kubebuilder:default="nfs"
 	PrincipalName string `json:"principalName"`
+
+	// DomainName should be set to the Kerberos Realm.
+	// +optional
+	DomainName string `json:"domainName"`
 
 	// ConfigFiles defines where the Kerberos configuration should be sourced from. Config files
 	// will be placed into the `/etc/krb5.conf.rook/` directory.
@@ -2820,3 +2844,56 @@ type ConfigFileVolumeSource struct {
 	// projected items for all in one resources secrets, configmaps, and downward API
 	Projected *v1.ProjectedVolumeSource `json:"projected,omitempty" protobuf:"bytes,26,opt,name=projected"`
 }
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephCOSIDriver represents the CRD for the Ceph COSI Driver Deployment
+// +kubebuilder:resource:shortName=cephcosi
+type CephCOSIDriver struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	// Spec represents the specification of a Ceph COSI Driver
+	Spec CephCOSIDriverSpec `json:"spec"`
+}
+
+// CephCOSIDriverList represents a list of Ceph COSI Driver
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type CephCOSIDriverList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephCOSIDriver `json:"items"`
+}
+
+// CephCOSIDriverSpec represents the specification of a Ceph COSI Driver
+type CephCOSIDriverSpec struct {
+	// Image is the container image to run the Ceph COSI driver
+	// +optional
+	Image string `json:"image,omitempty"`
+	// ObjectProvisionerImage is the container image to run the COSI driver sidecar
+	// +optional
+	ObjectProvisionerImage string `json:"objectProvisionerImage,omitempty"`
+	// DeploymentStrategy is the strategy to use to deploy the COSI driver.
+	// +optional
+	// +kubebuilder:validation:Enum=Never;Auto;Always
+	DeploymentStrategy COSIDeploymentStrategy `json:"deploymentStrategy,omitempty"`
+	// Placement is the placement strategy to use for the COSI driver
+	// +optional
+	Placement Placement `json:"placement,omitempty"`
+	// Resources is the resource requirements for the COSI driver
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// COSIDeploymentStrategy represents the strategy to use to deploy the Ceph COSI driver
+type COSIDeploymentStrategy string
+
+const (
+	// Never means the Ceph COSI driver will never deployed
+	COSIDeploymentStrategyNever COSIDeploymentStrategy = "Never"
+	// Auto means the Ceph COSI driver will be deployed automatically if object store is present
+	COSIDeploymentStrategyAuto COSIDeploymentStrategy = "Auto"
+	// Always means the Ceph COSI driver will be deployed even if the object store is not present
+	COSIDeploymentStrategyAlways COSIDeploymentStrategy = "Always"
+)

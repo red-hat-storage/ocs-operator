@@ -16,8 +16,9 @@ import (
 )
 
 func getReconciler(t *testing.T) NamespaceReconciler {
+	ns := &corev1.Namespace{}
 	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(ns).Build()
 	log := logf.Log.WithName("controller_namespace_test")
 
 	return NamespaceReconciler{

@@ -266,6 +266,7 @@ func (t *DeployManager) DumpYAML(ocsCatalogImage string, subscriptionChannel str
 func (t *DeployManager) waitForOCSCatalogSource() error {
 	timeout := 300 * time.Second
 	interval := 10 * time.Second
+	ctx := context.TODO()
 
 	lastReason := ""
 
@@ -274,7 +275,7 @@ func (t *DeployManager) waitForOCSCatalogSource() error {
 		return err
 	}
 
-	err = utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	err = utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		pods := &k8sv1.PodList{}
 		err = t.Client.List(context.TODO(), pods, &client.ListOptions{LabelSelector: labelSelector})
 		if err != nil {
@@ -350,10 +351,11 @@ func (t *DeployManager) WaitForOCSOperator() error {
 
 	timeout := 1000 * time.Second
 	interval := 10 * time.Second
+	ctx := context.TODO()
 
 	lastReason := ""
 
-	err := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	err := utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		for _, name := range deployments {
 			deployment := &appsv1.Deployment{}
 			err = t.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: InstallNamespace}, deployment)
@@ -478,12 +480,13 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 	// NOTE the long timeout above. It can take quite a bit of time for the
 	// ocs operator deployments to roll out
 	interval := 10 * time.Second
+	ctx := context.TODO()
 
 	subscription := "ocs-subscription"
 	operatorName := "ocs-operator"
 
 	lastReason := ""
-	waitErr := utilwait.PollImmediate(interval, timeout, func() (done bool, err error) {
+	waitErr := utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		sub := &operatorv1alpha1.Subscription{}
 		err = t.Client.Get(context.TODO(), types.NamespacedName{Name: subscription, Namespace: InstallNamespace}, sub)
 		if err != nil {
