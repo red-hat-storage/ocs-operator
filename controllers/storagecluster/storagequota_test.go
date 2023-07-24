@@ -117,8 +117,9 @@ func createStorageClusterWithOverprovision() *api.StorageCluster {
 }
 
 func createFakeStorageClusterWithQuotaReconciler(t *testing.T, obj ...runtime.Object) *StorageClusterReconciler {
+	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	return &StorageClusterReconciler{
 		Client:        client,
