@@ -6,7 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	v1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"

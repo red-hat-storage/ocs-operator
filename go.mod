@@ -3,9 +3,9 @@ module github.com/red-hat-storage/ocs-operator/v4
 go 1.20
 
 require (
-	github.com/RHsyseng/operator-utils v1.4.12
+	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi/api v0.0.0-20230215190110-f654066bfe45
+	github.com/ceph/ceph-csi/api v0.0.0-20230713140649-15931b2e4f19
 	github.com/ceph/go-ceph v0.22.0
 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
 	github.com/go-logr/logr v1.2.4
@@ -15,15 +15,15 @@ require (
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.2.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230712090817-288892c02711
 	github.com/oklog/run v1.1.0
-	github.com/onsi/ginkgo/v2 v2.9.7
-	github.com/onsi/gomega v1.27.8
-	github.com/openshift/api v0.0.0-20230217170555-ab002e9c06da
-	github.com/openshift/build-machinery-go v0.0.0-20220913142420-e25cf57ea46d
-	github.com/openshift/client-go v0.0.0-20230120202327-72f107311084
+	github.com/onsi/ginkgo/v2 v2.11.0
+	github.com/onsi/gomega v1.27.9
+	github.com/openshift/api v0.0.0-20230720094506-afcbe27aec7c
+	github.com/openshift/build-machinery-go v0.0.0-20230306181456-d321ffa04533
+	github.com/openshift/client-go v0.0.0-20230718165156-6014fb98e86a
 	github.com/openshift/custom-resource-status v1.1.2
-	github.com/operator-framework/api v0.17.3
-	github.com/operator-framework/operator-lib v0.11.1-0.20230126194151-7fc7204a9445
-	github.com/operator-framework/operator-lifecycle-manager v0.22.0
+	github.com/operator-framework/api v0.17.7-0.20230626210316-aa3e49803e7b
+	github.com/operator-framework/operator-lib v0.11.1-0.20230717184314-6efbe3a22f6f
+	github.com/operator-framework/operator-lifecycle-manager v0.25.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.66.0
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.66.0
 	github.com/prometheus/client_golang v1.16.0
@@ -33,19 +33,18 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/multierr v1.11.0
-	golang.org/x/net v0.11.0
-	google.golang.org/grpc v1.56.1
+	golang.org/x/net v0.12.0
+	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/ini.v1 v1.67.0
-	gotest.tools/v3 v3.4.0
+	gotest.tools/v3 v3.5.0
 	k8s.io/api v0.27.3
 	k8s.io/apiextensions-apiserver v0.27.3
 	k8s.io/apimachinery v0.27.3
 	k8s.io/client-go v0.27.3
-	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.100.1
-	k8s.io/utils v0.0.0-20230505201702-9f6742963106
-	open-cluster-management.io/api v0.10.0
+	k8s.io/utils v0.0.0-20230711102312-30195339c3c7
+	open-cluster-management.io/api v0.11.0
 	sigs.k8s.io/controller-runtime v0.15.0
 )
 
@@ -86,7 +85,7 @@ require (
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
+	github.com/google/pprof v0.0.0-20230510103437-eeec1cb781c3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v1.5.0 // indirect
@@ -127,21 +126,22 @@ require (
 	go.mongodb.org/mongo-driver v1.9.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.10.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/oauth2 v0.9.0 // indirect
-	golang.org/x/sys v0.9.0 // indirect
-	golang.org/x/term v0.9.0 // indirect
-	golang.org/x/text v0.10.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/term v0.10.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools v0.9.3 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
+	google.golang.org/genproto v0.0.0-20230525154841-bd750badd5c6 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiserver v0.27.3 // indirect
 	k8s.io/component-base v0.27.3 // indirect
+	k8s.io/klog v1.0.0 // indirect
 	k8s.io/kube-aggregator v0.26.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
@@ -150,38 +150,17 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace (
-	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3 // required by rook v1.7
-	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook v1.7
-)
+replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
 
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
 	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
-	// Exclude the v3.9.1 tag, because it's very old but is picked
-	// when updating dependencies.
+	// Exclude the v3.9 tags, because these are very old
+	// but are picked when updating dependencies.
+	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	// Exclude pre-go-mod kubernetes tags, because they are older
 	// than v0.x releases but are picked when updating dependencies.
-	k8s.io/client-go v1.4.0
-	k8s.io/client-go v1.5.0
-	k8s.io/client-go v1.5.1
-	k8s.io/client-go v1.5.2
-	k8s.io/client-go v10.0.0+incompatible
-	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/client-go v2.0.0+incompatible
-	k8s.io/client-go v2.0.0-alpha.1+incompatible
-	k8s.io/client-go v3.0.0+incompatible
-	k8s.io/client-go v3.0.0-beta.0+incompatible
-	k8s.io/client-go v4.0.0+incompatible
-	k8s.io/client-go v4.0.0-beta.0+incompatible
-	k8s.io/client-go v5.0.0+incompatible
-	k8s.io/client-go v5.0.1+incompatible
-	k8s.io/client-go v6.0.0+incompatible
-	k8s.io/client-go v7.0.0+incompatible
-	k8s.io/client-go v8.0.0+incompatible
-	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/client-go v9.0.0-invalid+incompatible
 )
