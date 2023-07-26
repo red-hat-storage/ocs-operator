@@ -1836,9 +1836,11 @@ spec:
         version: v1
         displayName: Ceph BlockPool Rados Namespace
         description: Represents a Ceph BlockPool Rados Namespace.
-      - kind: CephRBDMirror
-        name: cephrbdmirrors.ceph.rook.io
+      - kind: CephCOSIDriver
+        name: cephcosidrivers.ceph.rook.io
         version: v1
+        displayName: Ceph COSI Driver
+        description: Represents a Ceph COSI Driver.
   description: |2
 
     The Rook-Ceph storage operator packages, deploys, manages, upgrades and scales Ceph storage for providing persistent storage to infrastructure services (Logging, Metrics, Registry) as well as stateful applications in Kubernetes clusters.

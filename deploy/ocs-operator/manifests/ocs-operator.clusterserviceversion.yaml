@@ -1551,7 +1551,7 @@ metadata:
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.25.4
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassrequests.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io","cephrbdmirrors.ceph.rook.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassrequests.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io","cephcosidrivers.ceph.rook.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -1769,8 +1769,10 @@ spec:
       kind: CephBlockPoolRadosNamespace
       name: cephblockpoolradosnamespaces.ceph.rook.io
       version: v1
-    - kind: CephRBDMirror
-      name: cephrbdmirrors.ceph.rook.io
+    - description: Represents a Ceph COSI Driver.
+      displayName: Ceph COSI Driver
+      kind: CephCOSIDriver
+      name: cephcosidrivers.ceph.rook.io
       version: v1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
@@ -2996,7 +2998,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ROOK_CEPH_IMAGE
-                  value: docker.io/rook/ceph:v1.12.0
+                  value: docker.io/rook/ceph:v1.12.0-6.g7d5cfea91
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v17
                 - name: NOOBAA_CORE_IMAGE
@@ -3153,7 +3155,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: docker.io/rook/ceph:v1.12.0
+                image: docker.io/rook/ceph:v1.12.0-6.g7d5cfea91
                 name: rook-ceph-operator
                 ports:
                 - containerPort: 9443
@@ -3534,7 +3536,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: docker.io/rook/ceph:v1.12.0
+  - image: docker.io/rook/ceph:v1.12.0-6.g7d5cfea91
     name: rook-container
   - image: quay.io/ceph/ceph:v17
     name: ceph-container
