@@ -728,6 +728,7 @@ func (in *StorageClusterSpec) DeepCopyInto(out *StorageClusterSpec) {
 		}
 	}
 	out.Encryption = in.Encryption
+	out.OSDStore = in.OSDStore
 	if in.StorageDeviceSets != nil {
 		in, out := &in.StorageDeviceSets, &out.StorageDeviceSets
 		*out = make([]StorageDeviceSet, len(*in))
