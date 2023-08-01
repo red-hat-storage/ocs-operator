@@ -78,10 +78,6 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 			Labels: nbv1.LabelsSpec{
 				"monitoring": getNooBaaMonitoringLabels(*sc),
 			},
-			Autoscaler: nbv1.AutoscalerSpec{
-				AutoscalerType:      nbv1.AutoscalerTypeHPAV2,
-				PrometheusNamespace: MonitoringNamespace,
-			},
 		},
 	}
 	err = controllerutil.SetControllerReference(sc, nb, r.Scheme)
@@ -168,6 +164,11 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		// definition should hold a constant value. and should not be read from
 		// GetDaemonResources()
 		Resources: &endpointResources,
+	}
+	// Add autoscale spec for noobaa CR
+	nb.Spec.Autoscaler = nbv1.AutoscalerSpec{
+		AutoscalerType:      nbv1.AutoscalerTypeHPAV2,
+		PrometheusNamespace: MonitoringNamespace,
 	}
 
 	// Override with MCG options specified in the storage cluster spec
