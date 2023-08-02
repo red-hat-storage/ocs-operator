@@ -51,7 +51,7 @@ func (p *Platform) getPlatform(c client.Client) (configv1.PlatformType, error) {
 		return "", fmt.Errorf("could not get infrastructure details to determine cloud platform: %v", err)
 	}
 
-	p.platform = infrastructure.Status.Platform //nolint:staticcheck
+	p.platform = infrastructure.Status.PlatformStatus.Type
 
 	return p.platform, nil
 }
