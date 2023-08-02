@@ -6,6 +6,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -26,17 +27,17 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 		return reconcile.Result{}, nil
 	}
 
-	skip, err := r.PlatformsShouldSkipObjectStore()
+	skip, err := platform.PlatformsShouldSkipObjectStore()
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	if skip {
-		platform, err := r.platform.GetPlatform(r.Client)
+		platformType, err := platform.GetPlatformType()
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStore.", "Platform", platform)
+		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStore.", "Platform", platformType)
 		return reconcile.Result{}, nil
 	}
 	var cephObjectStores []*cephv1.CephObjectStore
@@ -61,11 +62,13 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 			return reconcile.Result{}, err
 		}
 	} else {
+		var err error
 		cephObjectStores, err = r.newCephObjectStoreInstances(instance, nil)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	}
+
 	err = r.createCephObjectStores(cephObjectStores, instance)
 	if err != nil {
 		r.Log.Error(err, "Unable to create CephObjectStores for StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))

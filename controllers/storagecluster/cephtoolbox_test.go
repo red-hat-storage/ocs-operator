@@ -194,8 +194,7 @@ func getTheReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconc
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).WithStatusSubresource(sc).Build()
 
 	return StorageClusterReconciler{
-		Scheme:   scheme,
-		Client:   client,
-		platform: &Platform{},
+		Scheme: scheme,
+		Client: client,
 	}
 }

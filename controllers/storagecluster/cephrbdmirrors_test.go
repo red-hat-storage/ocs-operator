@@ -41,25 +41,22 @@ func TestCephRbdMirror(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-		for _, c := range cases {
-			cr := getInitData(c.spec)
-			request := reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "ocsinit",
-					Namespace: "",
-				},
-			}
-			reconciler := createReconcilerFromCustomResources(t, cp, cr)
-			_, err := reconciler.Reconcile(context.TODO(), request)
-			assert.NoError(t, err)
-			switch c.label {
-			case "create-ceph-rbd-mirror":
-				assertCephRbdMirrorCreation(t, reconciler, cr, request)
-			case "delete-ceph-rbd-mirror":
-				assertCephRbdMirrorDeletion(t, reconciler, request)
-			}
+	for _, c := range cases {
+		cr := getInitData(c.spec)
+		request := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      "ocsinit",
+				Namespace: "",
+			},
+		}
+		reconciler := createReconcilerFromCustomResources(t, cr)
+		_, err := reconciler.Reconcile(context.TODO(), request)
+		assert.NoError(t, err)
+		switch c.label {
+		case "create-ceph-rbd-mirror":
+			assertCephRbdMirrorCreation(t, reconciler, cr, request)
+		case "delete-ceph-rbd-mirror":
+			assertCephRbdMirrorDeletion(t, reconciler, request)
 		}
 	}
 }

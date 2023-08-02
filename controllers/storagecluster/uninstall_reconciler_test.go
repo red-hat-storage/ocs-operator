@@ -8,10 +8,12 @@ import (
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	v1 "github.com/openshift/api/config/v1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -28,28 +30,26 @@ import (
 )
 
 func TestReconcileUninstallAnnotations(t *testing.T) {
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
+	t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-		// verify it set default value when nothing is set
-		delete(sc.Annotations, UninstallModeAnnotation)
-		delete(sc.Annotations, CleanupPolicyAnnotation)
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, true)
+	// verify it set default value when nothing is set
+	delete(sc.Annotations, UninstallModeAnnotation)
+	delete(sc.Annotations, CleanupPolicyAnnotation)
+	assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, true)
 
-		// verify it does not return error when there is no update required
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, false)
+	// verify it does not return error when there is no update required
+	assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, false)
 
-		// verify it corrects wrong value
-		sc.ObjectMeta.Annotations[UninstallModeAnnotation] = "blablabla"
-		sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = "blablabla"
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, true)
+	// verify it corrects wrong value
+	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = "blablabla"
+	sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = "blablabla"
+	assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, true)
 
-		// verify it does not change if !default value is set
-		sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallModeForced)
-		sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = string(CleanupPolicyRetain)
-		assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyRetain, UninstallModeForced, false)
-	}
+	// verify it does not change if !default value is set
+	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallModeForced)
+	sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = string(CleanupPolicyRetain)
+	assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyRetain, UninstallModeForced, false)
+	platform.UnsetFakePlatformInstanceForTesting()
 }
 
 func assertStorageClusterUninstallAnnotation(
@@ -74,37 +74,34 @@ func assertStorageClusterUninstallAnnotation(
 }
 
 func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
+	t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
+	// there are two annotations which will be 4 combinations, test all 4 combinations
 
-		// there are two annotations which will be 4 combinations, test all 4 combinations
+	// set default uninstall annotations
+	_, err := reconciler.reconcileUninstallAnnotations(sc)
+	assert.NoError(t, err)
 
-		// set default uninstall annotations
-		_, err := reconciler.reconcileUninstallAnnotations(sc)
-		assert.NoError(t, err)
-
-		combinationsList := []struct {
-			CleanupPolicy             CleanupPolicyType
-			UninstallMode             UninstallModeType
-			CleanupPolicyConfirmation cephv1.CleanupConfirmationProperty
-			AllowUninstallWithVolumes bool
-		}{
-			{CleanupPolicyDelete, UninstallModeGraceful, cephv1.DeleteDataDirOnHostsConfirmation, false},
-			{CleanupPolicyRetain, UninstallModeForced, cephv1.CleanupConfirmationProperty(""), true},
-			{CleanupPolicyRetain, UninstallModeGraceful, cephv1.CleanupConfirmationProperty(""), false},
-			{CleanupPolicyDelete, UninstallModeForced, cephv1.DeleteDataDirOnHostsConfirmation, true},
-		}
-
-		for _, obj := range combinationsList {
-			sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = string(obj.CleanupPolicy)
-			sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(obj.UninstallMode)
-
-			// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
-			assertCephClusterCleanupPolicy(t, reconciler, sc, obj.CleanupPolicyConfirmation, obj.AllowUninstallWithVolumes)
-		}
+	combinationsList := []struct {
+		CleanupPolicy             CleanupPolicyType
+		UninstallMode             UninstallModeType
+		CleanupPolicyConfirmation cephv1.CleanupConfirmationProperty
+		AllowUninstallWithVolumes bool
+	}{
+		{CleanupPolicyDelete, UninstallModeGraceful, cephv1.DeleteDataDirOnHostsConfirmation, false},
+		{CleanupPolicyRetain, UninstallModeForced, cephv1.CleanupConfirmationProperty(""), true},
+		{CleanupPolicyRetain, UninstallModeGraceful, cephv1.CleanupConfirmationProperty(""), false},
+		{CleanupPolicyDelete, UninstallModeForced, cephv1.DeleteDataDirOnHostsConfirmation, true},
 	}
+
+	for _, obj := range combinationsList {
+		sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = string(obj.CleanupPolicy)
+		sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(obj.UninstallMode)
+
+		// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
+		assertCephClusterCleanupPolicy(t, reconciler, sc, obj.CleanupPolicyConfirmation, obj.AllowUninstallWithVolumes)
+	}
+	platform.UnsetFakePlatformInstanceForTesting()
 }
 
 func assertCephClusterCleanupPolicy(
@@ -126,7 +123,6 @@ func assertCephClusterCleanupPolicy(
 }
 
 func TestDeleteStorageClasses(t *testing.T) {
-
 	testList := []struct {
 		label              string
 		storageClassExists bool
@@ -141,13 +137,9 @@ func TestDeleteStorageClasses(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-
-		for _, obj := range testList {
-			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-			assertTestDeleteStorageClasses(t, reconciler, sc, obj.storageClassExists)
-		}
+	for _, obj := range testList {
+		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
+		assertTestDeleteStorageClasses(t, reconciler, sc, obj.storageClassExists)
 	}
 }
 
@@ -195,13 +187,9 @@ func TestDeleteSnapshotClasses(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-
-		for _, obj := range testList {
-			t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-			assertTestDeleteStorageClasses(t, reconciler, sc, obj.SnapshotClassExists)
-		}
+	for _, obj := range testList {
+		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
+		assertTestDeleteStorageClasses(t, reconciler, sc, obj.SnapshotClassExists)
 	}
 }
 
@@ -252,14 +240,10 @@ func TestDeleteNodeAffinityKeyFromNodes(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
+	for _, obj := range testList {
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-
-			assertTestDeleteNodeAffinityKeyFromNodes(t, reconciler, sc, obj.createUserDefinedKey)
-		}
+		assertTestDeleteNodeAffinityKeyFromNodes(t, reconciler, sc, obj.createUserDefinedKey)
 	}
 }
 
@@ -342,14 +326,10 @@ func TestDeleteNodeTaint(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
+	for _, obj := range testList {
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-
-			assertTestDeleteNodeTaint(t, reconciler, sc, obj.createDefaultNodeTaint)
-		}
+		assertTestDeleteNodeTaint(t, reconciler, sc, obj.createDefaultNodeTaint)
 	}
 }
 
@@ -416,14 +396,10 @@ func TestDeleteCephCluster(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
+	for _, obj := range testList {
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-
-			assertTestDeleteCephCluster(t, reconciler, sc, obj.cephClusterExist)
-		}
+		assertTestDeleteCephCluster(t, reconciler, sc, obj.cephClusterExist)
 	}
 }
 
@@ -472,14 +448,10 @@ func TestDeleteCephFilesystems(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
+	for _, obj := range testList {
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-
-			assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephFilesystemsExist)
-		}
+		assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephFilesystemsExist)
 	}
 }
 
@@ -535,14 +507,10 @@ func TestDeleteCephBlockPools(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
+	for _, obj := range testList {
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-		for _, obj := range testList {
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-
-			assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephBlockPoolsExist)
-		}
+		assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephBlockPoolsExist)
 	}
 }
 
@@ -617,26 +585,27 @@ func TestDeleteCephObjectStoreUsers(t *testing.T) {
 	testList := []struct {
 		label                     string
 		CephObjectStoreUsersExist bool
+		platform                  v1.PlatformType
 	}{
 		{
 			label:                     "case 1", // verify deleteCephObjectStoreUsers deletes the CephObjectStoreUsers
 			CephObjectStoreUsersExist: true,
+			platform:                  v1.BareMetalPlatformType,
 		},
 		{
 			label:                     "case 2", // verify does not get error out when CephObjectStoreUsers does not exist
 			CephObjectStoreUsersExist: false,
+			platform:                  v1.AWSPlatformType,
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-
-		for _, obj := range testList {
-			fakeCephObjectStoreUser := getFakeCephObjectStoreUser()
-			runtimeObjs := []client.Object{&fakeCephObjectStoreUser[0], &fakeCephObjectStoreUser[1]}
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs, nil)
-			assertTestDeleteCephObjectStoreUsers(t, reconciler, sc, obj.CephObjectStoreUsersExist)
-		}
+	for _, obj := range testList {
+		platform.SetFakePlatformInstanceForTesting(true, obj.platform)
+		fakeCephObjectStoreUser := getFakeCephObjectStoreUser()
+		runtimeObjs := []client.Object{&fakeCephObjectStoreUser[0], &fakeCephObjectStoreUser[1]}
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, runtimeObjs, nil)
+		assertTestDeleteCephObjectStoreUsers(t, reconciler, sc, obj.CephObjectStoreUsersExist)
+		platform.UnsetFakePlatformInstanceForTesting()
 	}
 }
 
@@ -715,27 +684,28 @@ func TestDeleteCephObjectStores(t *testing.T) {
 	testList := []struct {
 		label                string
 		CephObjectStoreExist bool
+		platform             v1.PlatformType
 	}{
 		{
 			label:                "case 1", // verify deleteCephObjectStore deletes the CephObjectStore
 			CephObjectStoreExist: true,
+			platform:             v1.BareMetalPlatformType,
 		},
 		{
 			label:                "case 2", // verify does not get error out when CephObjectStore does not exist
 			CephObjectStoreExist: false,
+			platform:             v1.AWSPlatformType,
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
+	for _, obj := range testList {
+		platform.SetFakePlatformInstanceForTesting(true, obj.platform)
+		fakeCephObjectStore := getFakeCephObjectStore()
+		runtimeObjs := []client.Object{fakeCephObjectStore}
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, runtimeObjs, nil)
 
-		for _, obj := range testList {
-			fakeCephObjectStore := getFakeCephObjectStore()
-			runtimeObjs := []client.Object{fakeCephObjectStore}
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs, nil)
-
-			assertTestDeleteCephObjectStores(t, reconciler, sc, obj.CephObjectStoreExist)
-		}
+		assertTestDeleteCephObjectStores(t, reconciler, sc, obj.CephObjectStoreExist)
+		platform.UnsetFakePlatformInstanceForTesting()
 	}
 }
 
@@ -811,16 +781,12 @@ func TestSetNoobaaUninstallMode(t *testing.T) {
 		},
 	}
 
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
+	for _, obj := range testList {
+		fakeNoobaa := getFakeNoobaa()
+		runtimeObjs := []client.Object{fakeNoobaa}
+		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, runtimeObjs, nil)
 
-		for _, obj := range testList {
-			fakeNoobaa := getFakeNoobaa()
-			runtimeObjs := []client.Object{fakeNoobaa}
-			_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, runtimeObjs, nil)
-
-			assertTestSetNoobaaUninstallMode(t, reconciler, sc, obj.UninstallMode, obj.NoobaaUninstallMode)
-		}
+		assertTestSetNoobaaUninstallMode(t, reconciler, sc, obj.UninstallMode, obj.NoobaaUninstallMode)
 	}
 }
 

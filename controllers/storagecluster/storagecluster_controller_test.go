@@ -20,6 +20,7 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
@@ -326,7 +327,7 @@ func TestThrottleStorageDevices(t *testing.T) {
 		deviceSets     []api.StorageDeviceSet
 		storageCluster *api.StorageCluster
 		expectedSpeed  diskSpeed
-		platform       *Platform
+		platform       configv1.PlatformType
 	}{
 		{
 			label: "Case 1", // storageclass is gp2-csi or io1
@@ -510,22 +511,21 @@ func TestThrottleStorageDevices(t *testing.T) {
 					Portable: true,
 				},
 			},
-			platform:       &Platform{platform: configv1.AzurePlatformType},
+			platform:       configv1.AzurePlatformType,
 			storageCluster: &api.StorageCluster{},
 			expectedSpeed:  diskSpeedFast,
 		},
 	}
 
 	for _, tc := range testcases {
+		platform.SetFakePlatformInstanceForTesting(true, tc.platform)
 		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster, tc.storageClass)
-		if tc.platform != nil {
-			reconciler.platform = tc.platform
-		}
 		for _, ds := range tc.deviceSets {
 			actualSpeed, err := reconciler.checkTuneStorageDevices(ds)
 			assert.NoError(t, err)
 			assert.Equalf(t, tc.expectedSpeed, actualSpeed, "[%q]: failed to get expected output", tc.label)
 		}
+		platform.UnsetFakePlatformInstanceForTesting()
 	}
 }
 
@@ -1035,7 +1035,6 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		OperatorCondition: newStubOperatorCondition(),
 		serverVersion:     &k8sVersion.Info{},
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
-		platform:          &Platform{platform: configv1.NonePlatformType},
 		clusters:          clusters,
 		OperatorNamespace: operatorNamespace,
 	}
@@ -1120,7 +1119,6 @@ func TestStorageClusterOnMultus(t *testing.T) {
 			Namespace: "",
 		},
 	}
-	platform := &Platform{platform: configv1.NonePlatformType}
 	cases := []struct {
 		testCase  string
 		publicNW  string
@@ -1168,7 +1166,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 				},
 			}
 		}
-		reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(t, platform)
+		reconciler := createFakeInitializationStorageClusterReconciler(t)
 		_ = reconciler.Client.Create(context.TODO(), c.cr)
 		result, err := reconciler.Reconcile(context.TODO(), request)
 		if c.testCase != "default" {

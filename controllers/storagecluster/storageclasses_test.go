@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	configv1 "github.com/openshift/api/config/v1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/stretchr/testify/assert"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -15,8 +15,6 @@ import (
 )
 
 var (
-	allPlatforms = append(SkipObjectStorePlatforms,
-		configv1.NonePlatformType, configv1.PlatformType("NonCloudPlatform"), configv1.IBMCloudPlatformType)
 	dummyKmsAddress  = "http://localhost:3053"
 	dummyKmsProvider = "vault"
 	customSpec       = &api.StorageClusterSpec{
@@ -100,17 +98,13 @@ func TestCustomEncryptedStorageClasses(t *testing.T) {
 }
 
 func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.StorageClusterSpec) {
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-		runtimeObjs := []client.Object{}
-		runtimeObjs = append(runtimeObjs, createVirtualMachineCRD())
-		if pvEncryption {
-			runtimeObjs = append(runtimeObjs, createDummyKMSConfigMap(dummyKmsProvider, dummyKmsAddress, ""))
-		}
-		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-			t, cp, runtimeObjs, customSpec)
-		assertStorageClasses(t, reconciler, cr, request)
+	runtimeObjs := []client.Object{}
+	runtimeObjs = append(runtimeObjs, createVirtualMachineCRD())
+	if pvEncryption {
+		runtimeObjs = append(runtimeObjs, createDummyKMSConfigMap(dummyKmsProvider, dummyKmsAddress, ""))
 	}
+	t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, runtimeObjs, customSpec)
+	assertStorageClasses(t, reconciler, cr, request)
 }
 
 func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
@@ -135,8 +129,9 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	// on a cloud platform, 'Get' should throw an error,
 	// as RGW StorageClass won't be created
-	skip, skipErr := reconciler.PlatformsShouldSkipObjectStore()
+	skip, skipErr := platform.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, skipErr)
+
 	if skip {
 		if pvEncryption {
 			assert.Equal(t, len(expected), 5)

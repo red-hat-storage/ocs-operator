@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	configv1 "github.com/openshift/api/config/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,17 +25,13 @@ func TestCephFileSystem(t *testing.T) {
 			createRuntimeObjects: false,
 		},
 	}
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-		for _, c := range cases {
-			var objects []client.Object
-			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-				t, cp, objects, nil)
-			if c.createRuntimeObjects {
-				objects = createUpdateRuntimeObjects(t, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
-			}
-			assertCephFileSystem(t, reconciler, cr, request)
+	for _, c := range cases {
+		var objects []client.Object
+		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
+		if c.createRuntimeObjects {
+			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
 		}
+		assertCephFileSystem(t, reconciler, cr, request)
 	}
 
 }
@@ -62,8 +57,7 @@ func assertCephFileSystem(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 func TestCreateDefaultSubvolumeGroup(t *testing.T) {
 	var objects []client.Object
-	cp := &Platform{platform: configv1.IBMCloudPlatformType}
-	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, objects, nil)
+	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 	filesystem, err := reconciler.newCephFilesystemInstances(cr)
 	assert.NoError(t, err)
 
@@ -78,8 +72,7 @@ func TestCreateDefaultSubvolumeGroup(t *testing.T) {
 
 func TestDeleteDefaultSubvolumeGroup(t *testing.T) {
 	var objects []client.Object
-	cp := &Platform{platform: configv1.IBMCloudPlatformType}
-	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, objects, nil)
+	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 	filesystem, err := reconciler.newCephFilesystemInstances(cr)
 	assert.NoError(t, err)
 

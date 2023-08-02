@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -462,8 +463,12 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	// a. either 'externalStorage' is enabled
 	// OR
 	// b. current platform is not a cloud-based platform
-	skip, err := r.PlatformsShouldSkipObjectStore()
-	if initData.Spec.ExternalStorage.Enable || err == nil && !skip {
+	skip, err := platform.PlatformsShouldSkipObjectStore()
+	if err != nil {
+		return []StorageClassConfiguration{}, err
+	}
+
+	if initData.Spec.ExternalStorage.Enable || !skip {
 		ret = append(ret, newCephOBCStorageClassConfiguration(initData))
 	}
 	// encrypted Ceph Block Pool storageclass will be returned only if
