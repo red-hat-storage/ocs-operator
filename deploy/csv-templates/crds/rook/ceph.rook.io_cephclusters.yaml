@@ -2763,6 +2763,14 @@ spec:
                       type: object
                     nullable: true
                     type: array
+                  store:
+                    properties:
+                      type:
+                        enum:
+                        - bluestore
+                        - bluestore-rdr
+                        type: string
+                    type: object
                   useAllDevices:
                     type: boolean
                   useAllNodes:
