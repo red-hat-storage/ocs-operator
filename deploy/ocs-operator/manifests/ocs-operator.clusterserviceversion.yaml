@@ -1565,7 +1565,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.25.4
     operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassrequests.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io","cephcosidrivers.ceph.rook.io"]'
     operators.operatorframework.io/operator-type: non-standalone
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
   labels:
@@ -2042,14 +2042,6 @@ spec:
           verbs:
           - delete
           - list
-        - apiGroups:
-          - k8s.cni.cncf.io
-          resources:
-          - network-attachment-definitions
-          verbs:
-          - get
-          - list
-          - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:
@@ -3018,7 +3010,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ROOK_CEPH_IMAGE
-                  value: docker.io/rook/ceph:v1.12.2
+                  value: docker.io/rook/ceph:v1.12.1
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v17
                 - name: NOOBAA_CORE_IMAGE
@@ -3116,10 +3108,6 @@ spec:
                   value: quay.io/csiaddons/k8s-sidecar:v0.6.0
                 - name: CSI_ENABLE_METADATA
                   value: "false"
-                - name: CSI_PLUGIN_PRIORITY_CLASSNAME
-                  value: system-node-critical
-                - name: CSI_PROVISIONER_PRIORITY_CLASSNAME
-                  value: system-cluster-critical
                 - name: CSI_CLUSTER_NAME
                   valueFrom:
                     configMapKeyRef:
@@ -3144,11 +3132,6 @@ spec:
                   valueFrom:
                     configMapKeyRef:
                       key: CSI_TOPOLOGY_DOMAIN_LABELS
-                      name: ocs-operator-config
-                - name: ROOK_CSI_ENABLE_NFS
-                  valueFrom:
-                    configMapKeyRef:
-                      key: ROOK_CSI_ENABLE_NFS
                       name: ocs-operator-config
                 - name: CSI_PROVISIONER_TOLERATIONS
                   value: |2-
@@ -3184,7 +3167,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: docker.io/rook/ceph:v1.12.2
+                image: docker.io/rook/ceph:v1.12.1
                 name: rook-ceph-operator
                 ports:
                 - containerPort: 9443
@@ -3565,7 +3548,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: docker.io/rook/ceph:v1.12.2
+  - image: docker.io/rook/ceph:v1.12.1
     name: rook-container
   - image: quay.io/ceph/ceph:v17
     name: ceph-container
