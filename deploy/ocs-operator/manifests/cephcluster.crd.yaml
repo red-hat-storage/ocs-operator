@@ -125,10 +125,6 @@ spec:
                     maximum: 65535
                     minimum: 0
                     type: integer
-                  prometheusEndpoint:
-                    type: string
-                  prometheusEndpointSSLVerify:
-                    type: boolean
                   ssl:
                     type: boolean
                   urlPrefix:
@@ -397,7 +393,7 @@ spec:
                   allowMultiplePerNode:
                     type: boolean
                   count:
-                    maximum: 5
+                    maximum: 2
                     minimum: 0
                     type: integer
                   modules:
@@ -420,8 +416,6 @@ spec:
                     maximum: 9
                     minimum: 0
                     type: integer
-                  failureDomainLabel:
-                    type: string
                   stretchCluster:
                     properties:
                       failureDomainLabel:
@@ -561,11 +555,6 @@ spec:
                                       items:
                                         type: string
                                       type: array
-                                    allocatedResourceStatuses:
-                                      additionalProperties:
-                                        type: string
-                                      type: object
-                                      x-kubernetes-map-type: granular
                                     allocatedResources:
                                       additionalProperties:
                                         anyOf:
@@ -605,6 +594,8 @@ spec:
                                         type: object
                                       type: array
                                     phase:
+                                      type: string
+                                    resizeStatus:
                                       type: string
                                   type: object
                               type: object
@@ -739,11 +730,6 @@ spec:
                             items:
                               type: string
                             type: array
-                          allocatedResourceStatuses:
-                            additionalProperties:
-                              type: string
-                            type: object
-                            x-kubernetes-map-type: granular
                           allocatedResources:
                             additionalProperties:
                               anyOf:
@@ -784,192 +770,11 @@ spec:
                             type: array
                           phase:
                             type: string
+                          resizeStatus:
+                            type: string
                         type: object
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
-                  zones:
-                    items:
-                      properties:
-                        arbiter:
-                          type: boolean
-                        name:
-                          type: string
-                        volumeClaimTemplate:
-                          properties:
-                            apiVersion:
-                              type: string
-                            kind:
-                              type: string
-                            metadata:
-                              properties:
-                                annotations:
-                                  additionalProperties:
-                                    type: string
-                                  type: object
-                                finalizers:
-                                  items:
-                                    type: string
-                                  type: array
-                                labels:
-                                  additionalProperties:
-                                    type: string
-                                  type: object
-                                name:
-                                  type: string
-                                namespace:
-                                  type: string
-                              type: object
-                            spec:
-                              properties:
-                                accessModes:
-                                  items:
-                                    type: string
-                                  type: array
-                                dataSource:
-                                  properties:
-                                    apiGroup:
-                                      type: string
-                                    kind:
-                                      type: string
-                                    name:
-                                      type: string
-                                  required:
-                                  - kind
-                                  - name
-                                  type: object
-                                  x-kubernetes-map-type: atomic
-                                dataSourceRef:
-                                  properties:
-                                    apiGroup:
-                                      type: string
-                                    kind:
-                                      type: string
-                                    name:
-                                      type: string
-                                    namespace:
-                                      type: string
-                                  required:
-                                  - kind
-                                  - name
-                                  type: object
-                                resources:
-                                  properties:
-                                    claims:
-                                      items:
-                                        properties:
-                                          name:
-                                            type: string
-                                        required:
-                                        - name
-                                        type: object
-                                      type: array
-                                      x-kubernetes-list-map-keys:
-                                      - name
-                                      x-kubernetes-list-type: map
-                                    limits:
-                                      additionalProperties:
-                                        anyOf:
-                                        - type: integer
-                                        - type: string
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      type: object
-                                    requests:
-                                      additionalProperties:
-                                        anyOf:
-                                        - type: integer
-                                        - type: string
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      type: object
-                                  type: object
-                                selector:
-                                  properties:
-                                    matchExpressions:
-                                      items:
-                                        properties:
-                                          key:
-                                            type: string
-                                          operator:
-                                            type: string
-                                          values:
-                                            items:
-                                              type: string
-                                            type: array
-                                        required:
-                                        - key
-                                        - operator
-                                        type: object
-                                      type: array
-                                    matchLabels:
-                                      additionalProperties:
-                                        type: string
-                                      type: object
-                                  type: object
-                                  x-kubernetes-map-type: atomic
-                                storageClassName:
-                                  type: string
-                                volumeMode:
-                                  type: string
-                                volumeName:
-                                  type: string
-                              type: object
-                            status:
-                              properties:
-                                accessModes:
-                                  items:
-                                    type: string
-                                  type: array
-                                allocatedResourceStatuses:
-                                  additionalProperties:
-                                    type: string
-                                  type: object
-                                  x-kubernetes-map-type: granular
-                                allocatedResources:
-                                  additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
-                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
-                                  type: object
-                                capacity:
-                                  additionalProperties:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
-                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
-                                  type: object
-                                conditions:
-                                  items:
-                                    properties:
-                                      lastProbeTime:
-                                        format: date-time
-                                        type: string
-                                      lastTransitionTime:
-                                        format: date-time
-                                        type: string
-                                      message:
-                                        type: string
-                                      reason:
-                                        type: string
-                                      status:
-                                        type: string
-                                      type:
-                                        type: string
-                                    required:
-                                    - status
-                                    - type
-                                    type: object
-                                  type: array
-                                phase:
-                                  type: string
-                              type: object
-                          type: object
-                          x-kubernetes-preserve-unknown-fields: true
-                      type: object
-                    type: array
                 type: object
               monitoring:
                 nullable: true
@@ -1025,20 +830,6 @@ spec:
               network:
                 nullable: true
                 properties:
-                  addressRanges:
-                    nullable: true
-                    properties:
-                      cluster:
-                        items:
-                          pattern: ^[0-9a-fA-F:.]{2,}\/[0-9]{1,3}$
-                          type: string
-                        type: array
-                      public:
-                        items:
-                          pattern: ^[0-9a-fA-F:.]{2,}\/[0-9]{1,3}$
-                          type: string
-                        type: array
-                    type: object
                   connections:
                     nullable: true
                     properties:
@@ -1075,10 +866,6 @@ spec:
                         type: boolean
                     type: object
                   provider:
-                    enum:
-                    - ""
-                    - host
-                    - multus
                     nullable: true
                     type: string
                   selectors:
@@ -1625,8 +1412,6 @@ spec:
                     nullable: true
                     type: array
                     x-kubernetes-preserve-unknown-fields: true
-                  flappingRestartIntervalHours:
-                    type: integer
                   nodes:
                     items:
                       properties:
@@ -1821,11 +1606,6 @@ spec:
                                     items:
                                       type: string
                                     type: array
-                                  allocatedResourceStatuses:
-                                    additionalProperties:
-                                      type: string
-                                    type: object
-                                    x-kubernetes-map-type: granular
                                   allocatedResources:
                                     additionalProperties:
                                       anyOf:
@@ -1865,6 +1645,8 @@ spec:
                                       type: object
                                     type: array
                                   phase:
+                                    type: string
+                                  resizeStatus:
                                     type: string
                                 type: object
                             type: object
@@ -2929,11 +2711,6 @@ spec:
                                     items:
                                       type: string
                                     type: array
-                                  allocatedResourceStatuses:
-                                    additionalProperties:
-                                      type: string
-                                    type: object
-                                    x-kubernetes-map-type: granular
                                   allocatedResources:
                                     additionalProperties:
                                       anyOf:
@@ -2974,6 +2751,8 @@ spec:
                                     type: array
                                   phase:
                                     type: string
+                                  resizeStatus:
+                                    type: string
                                 type: object
                             type: object
                           type: array
@@ -2990,9 +2769,6 @@ spec:
                         enum:
                         - bluestore
                         - bluestore-rdr
-                        type: string
-                      updateStore:
-                        pattern: ^$|^yes-really-update-store$
                         type: string
                     type: object
                   useAllDevices:
@@ -3126,11 +2902,6 @@ spec:
                               items:
                                 type: string
                               type: array
-                            allocatedResourceStatuses:
-                              additionalProperties:
-                                type: string
-                              type: object
-                              x-kubernetes-map-type: granular
                             allocatedResources:
                               additionalProperties:
                                 anyOf:
@@ -3170,6 +2941,8 @@ spec:
                                 type: object
                               type: array
                             phase:
+                              type: string
+                            resizeStatus:
                               type: string
                           type: object
                       type: object
@@ -3293,13 +3066,6 @@ spec:
                           type: string
                       type: object
                     type: array
-                  osd:
-                    properties:
-                      storeType:
-                        additionalProperties:
-                          type: integer
-                        type: object
-                    type: object
                 type: object
               version:
                 properties:
