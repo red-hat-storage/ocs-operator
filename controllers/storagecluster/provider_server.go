@@ -145,6 +145,13 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 
 func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
+	if instance.Spec.ProviderAPIServerServiceType != "" && instance.Spec.ProviderAPIServerServiceType != corev1.ServiceTypeNodePort &&
+		instance.Spec.ProviderAPIServerServiceType != corev1.ServiceTypeLoadBalancer {
+		err := fmt.Errorf("providerAPIServer only supports service of type %s and %s", corev1.ServiceTypeNodePort, corev1.ServiceTypeLoadBalancer)
+		r.Log.Error(err, "Failed to create/update service, Requested ServiceType is", "ServiceType", instance.Spec.ProviderAPIServerServiceType)
+		return reconcile.Result{}, err
+	}
+
 	desiredService := GetProviderAPIServerService(instance)
 	actualService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -306,6 +313,10 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 
 func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service {
 
+	if instance.Spec.ProviderAPIServerServiceType == "" {
+		instance.Spec.ProviderAPIServerServiceType = corev1.ServiceTypeNodePort
+	}
+
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ocsProviderServerName,
@@ -325,7 +336,7 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},
-			Type: corev1.ServiceTypeLoadBalancer,
+			Type: instance.Spec.ProviderAPIServerServiceType,
 		},
 	}
 }
