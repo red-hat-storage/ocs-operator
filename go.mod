@@ -28,8 +28,8 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.66.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.4.0
-	github.com/rook/rook v1.12.0
-	github.com/rook/rook/pkg/apis v0.0.0-20230726224522-d81d21367bb5
+	github.com/rook/rook v1.12.1
+	github.com/rook/rook/pkg/apis v0.0.0-20230803134004-99ba8cd6b647
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/multierr v1.11.0
