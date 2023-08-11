@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -56,6 +58,21 @@ func (obj *ocsJobTemplates) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return reconcile.Result{}, fmt.Errorf("failed to create Template : %v", err.Error())
+		}
+
+		// Delete a template job after the job gets completed
+		// This eliminates the need to delete the older/existing job when triggering the job for a second time
+		job := &batchv1.Job{}
+		err = r.Client.Get(r.ctx, client.ObjectKey{Name: fmt.Sprintf("%s-job", template.Name), Namespace: template.Namespace}, job)
+		if err == nil {
+			if job.Status.Succeeded >= 1 {
+				err = r.Client.Delete(r.ctx, job)
+				if err != nil && !errors.IsNotFound(err) {
+					r.Log.Error(err, "Job couldn't be deleted successfully after completion", "Job", klog.KRef(job.Namespace, job.Name))
+				} else {
+					r.Log.Info("Job deleted successfully after completion", "Job", klog.KRef(job.Namespace, job.Name))
+				}
+			}
 		}
 	}
 
