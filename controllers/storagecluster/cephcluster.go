@@ -72,6 +72,8 @@ const (
 	networkProvider           = "multus"
 	publicNetworkSelectorKey  = "public"
 	clusterNetworkSelectorKey = "cluster"
+	// DisasterRecoveryTargetAnnotation signifies that the cluster is intended to be used for Disaster Recovery
+	DisasterRecoveryTargetAnnotation = "ocs.openshift.io/clusterIsDisasterRecoveryTarget"
 )
 
 const (
@@ -264,6 +266,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Record actual Ceph container image version before attempting update
 	sc.Status.Images.Ceph.ActualImage = found.Spec.CephVersion.Image
 
+	// Prevent removal of any RDR optimizations if they are already applied to the existing cluster spec.
+	cephCluster.Spec.Storage.Store = determineOSDStore(cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
+
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
 	if err != nil {
@@ -408,6 +413,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 		MaxLogSize:  &maxLogSize,
 	}
 
+	osdStore := getOSDStoreConfig(sc)
+	if osdStore.Type != "" {
+		reqLogger.Info("osd store settings", osdStore)
+	}
+
 	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNameForCephCluster(sc),
@@ -437,6 +447,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			},
 			Storage: rookCephv1.StorageScopeSpec{
 				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
+				Store:                  osdStore,
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
@@ -1257,4 +1268,32 @@ func getIPFamilyConfig(c client.Client) (rookCephv1.IPFamilyType, bool, error) {
 	}
 
 	return rookCephv1.IPv4, false, nil
+}
+
+func getOSDStoreConfig(sc *ocsv1.StorageCluster) rookCephv1.OSDStore {
+	osdStore := rookCephv1.OSDStore{}
+	if !sc.Spec.ExternalStorage.Enable && optimizeDisasterRecovery(sc) {
+		osdStore.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
+	}
+
+	return osdStore
+}
+
+// optimizeDisasterRecovery returns true if any RDR optimizations are required
+func optimizeDisasterRecovery(sc *ocsv1.StorageCluster) bool {
+	if annotation, found := sc.GetAnnotations()[DisasterRecoveryTargetAnnotation]; found {
+		if annotation == "true" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func determineOSDStore(newOSDStore, existingOSDStore rookCephv1.OSDStore) rookCephv1.OSDStore {
+	if existingOSDStore.Type == string(rookCephv1.StoreTypeBlueStoreRDR) {
+		return existingOSDStore
+	}
+
+	return newOSDStore
 }
