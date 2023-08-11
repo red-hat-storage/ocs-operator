@@ -17,6 +17,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
 )
@@ -334,6 +335,14 @@ func GetProviderAPIServerDeploymentForTest(instance *ocsv1.StorageCluster) *apps
 						},
 					},
 					ServiceAccountName: ocsProviderServerName,
+					Tolerations: []corev1.Toleration{
+						{
+							Effect:   corev1.TaintEffectNoSchedule,
+							Key:      defaults.NodeTolerationKey,
+							Operator: corev1.TolerationOpEqual,
+							Value:    "true",
+						},
+					},
 				},
 			},
 		},
