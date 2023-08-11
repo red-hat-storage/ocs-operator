@@ -179,9 +179,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				return reconcile.Result{}, err
 			}
 			if kmsConfigMap != nil {
-				// reset the KMS connection's error field,
-				// it will be anyway set if there is an error
-				sc.Status.KMSServerConnection.KMSServerConnectionError = ""
 				if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
 					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["VAULT_ADDR"]
 				}
@@ -268,12 +265,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 	// Prevent removal of any RDR optimizations if they are already applied to the existing cluster spec.
 	cephCluster.Spec.Storage.Store = determineOSDStore(cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
-
-	// Use bluestore-rdr if mirrioring is enabled
-	if sc.Spec.Mirroring.Enabled && !sc.Spec.ExternalStorage.Enable {
-		cephCluster.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
-		cephCluster.Spec.Storage.Store.UpdateStore = "yes-really-update-store"
-	}
 
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
@@ -1032,13 +1023,13 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 		if zone == sc.Spec.NodeTopologies.ArbiterLocation {
 			continue
 		}
-		stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, rookCephv1.MonZoneSpec{
+		stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, rookCephv1.StretchClusterZoneSpec{
 			Name:    zone,
 			Arbiter: false,
 		})
 	}
 
-	arbiterZoneSpec := rookCephv1.MonZoneSpec{
+	arbiterZoneSpec := rookCephv1.StretchClusterZoneSpec{
 		Name:    sc.Spec.NodeTopologies.ArbiterLocation,
 		Arbiter: true,
 	}
