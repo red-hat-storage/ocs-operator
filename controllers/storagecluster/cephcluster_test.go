@@ -1271,5 +1271,59 @@ func TestGetIPFamilyConfig(t *testing.T) {
 		})
 
 	}
+}
 
+func TestCephClusterStoreType(t *testing.T) {
+	sc := &api.StorageCluster{}
+	r := createFakeStorageClusterReconciler(t)
+
+	t.Run("ensure no bluestore optimization", func(t *testing.T) {
+		actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+		assert.NilError(t, err)
+		assert.Equal(t, "", actual.Spec.Storage.Store.Type)
+	})
+
+	t.Run("ensure bluestore optimization based on annotation for internal clusters", func(t *testing.T) {
+		annotations := map[string]string{
+			DisasterRecoveryTargetAnnotation: "true",
+		}
+		sc.Annotations = annotations
+		actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+		assert.NilError(t, err)
+		assert.Equal(t, "bluestore-rdr", actual.Spec.Storage.Store.Type)
+	})
+
+	t.Run("ensure no bluestore optimization for external clusters", func(t *testing.T) {
+		sc.Spec.ExternalStorage.Enable = true
+		actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+		assert.NilError(t, err)
+		assert.Equal(t, "", actual.Spec.Storage.Store.Type)
+	})
+}
+
+func TestEnsureRDROptmizations(t *testing.T) {
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+	sc.Annotations[DisasterRecoveryTargetAnnotation] = "true"
+	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
+
+	// Ensure bluestore-rdr store type if RDR optimization annotation is added
+	var obj ocsCephCluster
+	_, err := obj.ensureCreated(&reconciler, sc)
+	assert.NilError(t, err)
+	actual := &cephv1.CephCluster{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	assert.NilError(t, err)
+	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
+
+	// Ensure bluestoreRDR store is not overridden if required annotations are removed later on
+	testSkipPrometheusRules = true
+	delete(sc.Annotations, DisasterRecoveryTargetAnnotation)
+	_, err = obj.ensureCreated(&reconciler, sc)
+	assert.NilError(t, err)
+	actual = &cephv1.CephCluster{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	assert.NilError(t, err)
+	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
 }
