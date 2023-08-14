@@ -2,10 +2,12 @@ package storagecluster
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -72,6 +74,21 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 			return err
 		}
 
+		// Add multus related annotations, if multus provider is set
+		if isMultus(sc.Spec.Network) {
+			net, err := getMultusPublicNetwork(sc)
+			if err != nil {
+				return err
+			}
+			if net != "" {
+				if toolsDeployment.Spec.Template.ObjectMeta.Annotations == nil {
+					toolsDeployment.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+				}
+				toolsDeployment.Spec.Template.ObjectMeta.Annotations["k8s.v1.cni.cncf.io/networks"] = net
+				toolsDeployment.Spec.Template.Spec.HostNetwork = false
+			}
+		}
+
 		if !isFound {
 			return r.Client.Create(context.TODO(), toolsDeployment)
 		} else if !reflect.DeepEqual(foundToolsDeployment.Spec, toolsDeployment.Spec) {
@@ -98,4 +115,23 @@ func removeDuplicateTolerations(tolerations []corev1.Toleration) []corev1.Tolera
 		}
 	}
 	return list
+}
+
+func getMultusPublicNetwork(sc *ocsv1.StorageCluster) (string, error) {
+	err := validateMultusSelectors(sc.Spec.Network.Selectors)
+	if err != nil {
+		return "", err
+	}
+
+	multusNetNs, err := util.GetOperatorNamespace()
+	if err != nil {
+		return "", err
+	}
+
+	if sc.Spec.Network.Selectors["public"] != "" {
+		multusNetName := sc.Spec.Network.Selectors["public"]
+		return fmt.Sprintf("%s/%s", multusNetNs, multusNetName), nil
+	}
+
+	return "", nil
 }
