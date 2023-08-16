@@ -1,33 +1,50 @@
 package storagecluster
 
 import (
-	"reflect"
+	"context"
+	"fmt"
 	"strconv"
 
+	configv1 "github.com/openshift/api/config/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageCluster) error {
-	ocsOperatorConfigData := map[string]string{
-		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
-		util.EnableReadAffinityKey:       strconv.FormatBool(!sc.Spec.ExternalStorage.Enable),
-		util.CephFSKernelMountOptionsKey: getCephFSKernelMountOptions(sc),
-		util.EnableTopologyKey:           strconv.FormatBool(sc.Spec.ManagedResources.CephNonResilientPools.Enable),
-		util.TopologyDomainLabelsKey:     getFailureDomainKey(sc),
-		util.EnableNFSKey:                getEnableNFSVal(sc),
-	}
+	const (
+		clusterNameKey              = "CSI_CLUSTER_NAME"
+		enableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
+		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
+		enableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
+		topologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
+	)
+	var (
+		clusterNameVal             = r.getClusterID()
+		enableReadAffinityVal      = strconv.FormatBool(!sc.Spec.ExternalStorage.Enable)
+		cephFSKernelMountOptionVal = getCephFSKernelMountOptions(sc)
+		enableTopologyVal          = strconv.FormatBool(sc.Spec.ManagedResources.CephNonResilientPools.Enable)
+		topologyDomainLabelsVal    = getFailureDomainKey(sc)
+	)
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.OcsOperatorConfigName,
 			Namespace: sc.Namespace,
 		},
-		Data: ocsOperatorConfigData,
+		Data: map[string]string{
+			clusterNameKey:              clusterNameVal,
+			enableReadAffinityKey:       enableReadAffinityVal,
+			cephFSKernelMountOptionsKey: cephFSKernelMountOptionVal,
+			enableTopologyKey:           enableTopologyVal,
+			topologyDomainLabelsKey:     topologyDomainLabelsVal,
+		},
 	}
 
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
@@ -38,23 +55,64 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 			existing.BlockOwnerDeletion = nil
 			existing.Controller = nil
 		}
-		if !reflect.DeepEqual(cm.Data, ocsOperatorConfigData) {
-			r.Log.Info("Updating ocs-operator-config configmap")
-			cm.Data = ocsOperatorConfigData
+
+		if cm.Data[clusterNameKey] != clusterNameVal {
+			cm.Data[clusterNameKey] = clusterNameVal
+		}
+		if cm.Data[enableReadAffinityKey] != enableReadAffinityVal {
+			cm.Data[enableReadAffinityKey] = enableReadAffinityVal
+		}
+		if cm.Data[cephFSKernelMountOptionsKey] != cephFSKernelMountOptionVal {
+			cm.Data[cephFSKernelMountOptionsKey] = cephFSKernelMountOptionVal
+		}
+		if cm.Data[enableTopologyKey] != enableTopologyVal {
+			cm.Data[enableTopologyKey] = enableTopologyVal
+		}
+		if cm.Data[topologyDomainLabelsKey] != topologyDomainLabelsVal || topologyDomainLabelsVal == "" {
+			cm.Data[topologyDomainLabelsKey] = topologyDomainLabelsVal
 		}
 		return ctrl.SetControllerReference(sc, cm, r.Scheme)
 	})
 	if err != nil {
-		r.Log.Error(err, "Failed to create/update ocs-operator-config configmap", "OperationResult", opResult)
+		r.Log.Error(err, fmt.Sprintf("failed to update %q configmap", util.OcsOperatorConfigName))
 		return err
 	}
 	// If configmap is created or updated, restart the rook-ceph-operator pod to pick up the new change
 	if opResult == controllerutil.OperationResultCreated || opResult == controllerutil.OperationResultUpdated {
-		r.Log.Info("ocs-operator-config configmap created/updated. Restarting rook-ceph-operator pod to pick up the new values")
-		util.RestartPod(r.ctx, r.Client, &r.Log, "rook-ceph-operator", sc.Namespace)
+		r.restartRookCephOperatorPod(sc.Namespace)
+		r.Log.Info(fmt.Sprintf("%q configmap updated & rook-ceph-operator pod restarted to pick up new values", util.OcsOperatorConfigName),
+			"storageCluster", klog.KRef(sc.Namespace, sc.Name))
 	}
 
 	return nil
+}
+
+// restartRookOperatorPod restarts the rook-operator pod in the OCP cluster
+func (r *StorageClusterReconciler) restartRookCephOperatorPod(namespace string) {
+	podList := &corev1.PodList{}
+	err := r.Client.List(context.TODO(), podList, client.InNamespace(namespace), client.MatchingLabels{"app": "rook-ceph-operator"})
+	if err != nil {
+		r.Log.Error(err, "Failed to list rook-ceph-operator pod")
+		return
+	}
+	for _, pod := range podList.Items {
+		err := r.Client.Delete(context.TODO(), &pod)
+		if err != nil {
+			r.Log.Error(err, "Failed to delete rook-ceph-operator pod")
+			return
+		}
+	}
+}
+
+// getClusterID returns the cluster ID of the OCP-Cluster
+func (r *StorageClusterReconciler) getClusterID() string {
+	clusterVersion := &configv1.ClusterVersion{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "version"}, clusterVersion)
+	if err != nil {
+		r.Log.Error(err, "Failed to get the clusterVersion version of the OCP cluster")
+		return ""
+	}
+	return fmt.Sprint(clusterVersion.Spec.ClusterID)
 }
 
 // getCephFSKernelMountOptions returns the kernel mount options for CephFS based on the spec on the StorageCluster
@@ -82,12 +140,4 @@ func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
 	// If none of the above cases apply, We set RequireMsgr2 true by default on the cephcluster
 	// so we need to set the mount options to prefer-crc
 	return "ms_mode=prefer-crc"
-}
-
-// getEnableNFSVal returns the value of enableNFS based on the spec on the StorageCluster
-func getEnableNFSVal(sc *ocsv1.StorageCluster) string {
-	if sc.Spec.NFS != nil && sc.Spec.NFS.Enable {
-		return "true"
-	}
-	return "false"
 }
