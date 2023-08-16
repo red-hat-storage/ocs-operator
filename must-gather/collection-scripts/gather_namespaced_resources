@@ -212,3 +212,9 @@ if [ "$(oc get networkfence --no-headers -A | awk '{print $1}')" != "" ] ; then
      { oc describe networkfence --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_networkfence_all_ns"
      { oc get networkfence -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_networkfence_all_ns"
 fi
+
+echo "collecting network-attachment-definitions of oc get network-attachment-definitions all namespaces" | tee -a  "${BASE_COLLECTION_PATH}/gather-debug.log"
+if [ "$(oc get network-attachment-definitions --no-headers -A | awk '{print $1}')" != "" ] ; then
+     { oc get network-attachment-definitions -oyaml --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/get_yaml_net_attach_def_all_ns"
+     { oc describe network-attachment-definitions --all-namespaces; } >> "${BASE_COLLECTION_PATH}/namespaces/all/desc_net_attach_def_all_ns"
+fi
