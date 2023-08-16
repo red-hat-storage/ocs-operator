@@ -146,16 +146,11 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 
 func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if instance.Spec.ProviderAPIServerServiceType != "" {
-		switch instance.Spec.ProviderAPIServerServiceType {
-		case corev1.ServiceTypeClusterIP, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
-		default:
-			err := fmt.Errorf("providerAPIServer only supports service of type %s, %s and %s",
-				corev1.ServiceTypeNodePort, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeClusterIP)
-			r.Log.Error(err, "Failed to create/update service, Requested ServiceType is", "ServiceType", instance.Spec.ProviderAPIServerServiceType)
-			return reconcile.Result{}, err
-		}
-
+	if instance.Spec.ProviderAPIServerServiceType != "" && instance.Spec.ProviderAPIServerServiceType != corev1.ServiceTypeNodePort &&
+		instance.Spec.ProviderAPIServerServiceType != corev1.ServiceTypeLoadBalancer {
+		err := fmt.Errorf("providerAPIServer only supports service of type %s and %s", corev1.ServiceTypeNodePort, corev1.ServiceTypeLoadBalancer)
+		r.Log.Error(err, "Failed to create/update service, Requested ServiceType is", "ServiceType", instance.Spec.ProviderAPIServerServiceType)
+		return reconcile.Result{}, err
 	}
 
 	desiredService := GetProviderAPIServerService(instance)
@@ -191,8 +186,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 
 	r.Log.Info("Service create/update succeeded")
 
-	switch instance.Spec.ProviderAPIServerServiceType {
-	case corev1.ServiceTypeLoadBalancer:
+	if instance.Spec.ProviderAPIServerServiceType == corev1.ServiceTypeLoadBalancer {
 		endpoint := o.getLoadBalancerServiceEndpoint(actualService)
 
 		if endpoint == "" {
@@ -202,11 +196,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 		}
 
 		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", endpoint, ocsProviderServicePort)
-
-	case corev1.ServiceTypeClusterIP:
-		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", actualService.Spec.ClusterIP, ocsProviderServicePort)
-
-	default: // Nodeport is the default ServiceType for the provider server
+	} else {
 		nodeAddresses, err := o.getWorkerNodesInternalIPAddresses(r)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -394,13 +384,7 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
-					NodePort: func() int32 {
-						// ClusterIP service doesn't need nodePort
-						if instance.Spec.ProviderAPIServerServiceType == corev1.ServiceTypeClusterIP {
-							return 0
-						}
-						return ocsProviderServiceNodePort
-					}(),
+					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
