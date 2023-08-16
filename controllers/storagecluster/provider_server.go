@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 	"time"
 
 	"go.uber.org/multierr"
@@ -185,27 +186,79 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 
 	r.Log.Info("Service create/update succeeded")
 
-	endpoint := ""
+	if instance.Spec.ProviderAPIServerServiceType == corev1.ServiceTypeLoadBalancer {
+		endpoint := o.getLoadBalancerServiceEndpoint(actualService)
 
-	if len(actualService.Status.LoadBalancer.Ingress) != 0 {
-		if actualService.Status.LoadBalancer.Ingress[0].IP != "" {
-			endpoint = actualService.Status.LoadBalancer.Ingress[0].IP
-		} else if actualService.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			endpoint = actualService.Status.LoadBalancer.Ingress[0].Hostname
+		if endpoint == "" {
+			r.recorder.ReportIfNotPresent(instance, corev1.EventTypeNormal, "Waiting", "Waiting for Ingress on service "+actualService.Name)
+			r.Log.Info("Waiting for Ingress on service", "Service", actualService.Name, "Status", actualService.Status)
+			return reconcile.Result{RequeueAfter: time.Second * 5}, nil
 		}
-	}
 
-	if endpoint == "" {
-		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeNormal, "Waiting", "Waiting for Ingress on service "+actualService.Name)
-		r.Log.Info("Waiting for Ingress on service", "Service", actualService.Name, "Status", actualService.Status)
-		return reconcile.Result{RequeueAfter: time.Second * 5}, nil
-	}
+		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", endpoint, ocsProviderServicePort)
+	} else {
+		nodeAddresses, err := o.getWorkerNodesInternalIPAddresses(r)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
-	instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", endpoint, ocsProviderServicePort)
+		if len(nodeAddresses) == 0 {
+			err = fmt.Errorf("Could not find any worker nodes")
+			r.Log.Error(err, "Worker nodes count is zero")
+			return reconcile.Result{}, err
+		}
+
+		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", nodeAddresses[0], ocsProviderServiceNodePort)
+
+	}
 
 	r.Log.Info("status.storageProviderEndpoint is updated", "Endpoint", instance.Status.StorageProviderEndpoint)
 
 	return reconcile.Result{}, nil
+}
+
+func (o *ocsProviderServer) getLoadBalancerServiceEndpoint(service *corev1.Service) string {
+	endpoint := ""
+
+	if len(service.Status.LoadBalancer.Ingress) != 0 {
+		if service.Status.LoadBalancer.Ingress[0].IP != "" {
+			endpoint = service.Status.LoadBalancer.Ingress[0].IP
+		} else if service.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			endpoint = service.Status.LoadBalancer.Ingress[0].Hostname
+		}
+	}
+
+	return endpoint
+}
+
+// getWorkerNodesInternalIPAddresses return slice of Internal IPAddress of worker nodes
+func (o *ocsProviderServer) getWorkerNodesInternalIPAddresses(r *StorageClusterReconciler) ([]string, error) {
+
+	nodes := &corev1.NodeList{}
+
+	err := r.Client.List(context.TODO(), nodes)
+	if err != nil {
+		r.Log.Error(err, "Failed to list nodes")
+		return nil, err
+	}
+
+	nodeAddresses := []string{}
+
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+		if _, ok := node.ObjectMeta.Labels["node-role.kubernetes.io/worker"]; ok {
+			for _, address := range node.Status.Addresses {
+				if address.Type == corev1.NodeInternalIP {
+					nodeAddresses = append(nodeAddresses, address.Address)
+					break
+				}
+			}
+		}
+	}
+
+	sort.Strings(nodeAddresses)
+
+	return nodeAddresses, nil
 }
 
 func (o *ocsProviderServer) createSecret(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
