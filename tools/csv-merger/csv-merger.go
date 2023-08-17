@@ -243,6 +243,14 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Value: "false",
 			},
 			{
+				Name:  "CSI_PLUGIN_PRIORITY_CLASSNAME",
+				Value: "system-node-critical",
+			},
+			{
+				Name:  "CSI_PROVISIONER_PRIORITY_CLASSNAME",
+				Value: "system-cluster-critical",
+			},
+			{
 				Name: "CSI_CLUSTER_NAME",
 				ValueFrom: &corev1.EnvVarSource{
 					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
