@@ -3108,6 +3108,10 @@ spec:
                   value: quay.io/csiaddons/k8s-sidecar:v0.6.0
                 - name: CSI_ENABLE_METADATA
                   value: "false"
+                - name: CSI_PLUGIN_PRIORITY_CLASSNAME
+                  value: system-node-critical
+                - name: CSI_PROVISIONER_PRIORITY_CLASSNAME
+                  value: system-cluster-critical
                 - name: CSI_CLUSTER_NAME
                   valueFrom:
                     configMapKeyRef:
