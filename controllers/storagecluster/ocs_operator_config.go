@@ -68,7 +68,7 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 		if cm.Data[enableTopologyKey] != enableTopologyVal {
 			cm.Data[enableTopologyKey] = enableTopologyVal
 		}
-		if cm.Data[topologyDomainLabelsKey] != topologyDomainLabelsVal {
+		if cm.Data[topologyDomainLabelsKey] != topologyDomainLabelsVal || topologyDomainLabelsVal == "" {
 			cm.Data[topologyDomainLabelsKey] = topologyDomainLabelsVal
 		}
 		return ctrl.SetControllerReference(sc, cm, r.Scheme)
