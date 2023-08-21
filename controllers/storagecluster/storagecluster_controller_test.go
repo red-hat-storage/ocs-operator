@@ -75,9 +75,6 @@ var mockStorageCluster = &api.StorageCluster{
 		LogCollector: &rookCephv1.LogCollectorSpec{
 			Enabled: false,
 		},
-		OSDStore: rookCephv1.OSDStore{
-			Type: "bluestore",
-		},
 	},
 }
 
