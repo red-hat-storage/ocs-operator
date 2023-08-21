@@ -1,6 +1,8 @@
 package collectors
 
 import (
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -208,18 +210,17 @@ func getAllStorageClasses(
 		klog.Errorf("couldn't list StorageClasses. %v", err)
 		return nil
 	}
-	if len(namespaces) == 0 {
-		return allSCs
-	}
-	var namespacedSCs []*storagev1.StorageClass
-	for _, namespace := range namespaces {
-		for _, eachSC := range allSCs {
-			if eachSC.Namespace == namespace {
-				namespacedSCs = append(namespacedSCs, eachSC)
-			}
+	// Since there can be many StorageClass not related to ceph, we filter
+	// those out based on provisioner value.
+	var odfSC []*storagev1.StorageClass
+	for _, sc := range allSCs {
+		if strings.Contains(sc.Provisioner, "rbd.csi.ceph.com") ||
+			strings.Contains(sc.Provisioner, "cephfs.csi.ceph.com") ||
+			strings.Contains(sc.Provisioner, "nfs.csi.ceph.com") {
+			odfSC = append(odfSC, sc)
 		}
 	}
-	return namespacedSCs
+	return odfSC
 }
 
 func getAllRBDMirrors(lister cephv1listers.CephRBDMirrorLister, namespaces []string) []*cephv1.CephRBDMirror {
