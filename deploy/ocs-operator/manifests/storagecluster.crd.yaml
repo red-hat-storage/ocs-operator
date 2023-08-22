@@ -1290,18 +1290,6 @@ spec:
                     nullable: true
                     type: object
                 type: object
-              osdStore:
-                description: OSDStore is the backend storage type used for creating
-                  the OSDs
-                properties:
-                  type:
-                    description: Type of backend storage to be used while creating
-                      OSDs. If empty, then bluestore will be used
-                    enum:
-                    - bluestore
-                    - bluestore-rdr
-                    type: string
-                type: object
               overprovisionControl:
                 description: OverprovisionControl specifies the allowed hard-limit
                   PVs overprovisioning relative to the effective usable storage capacity.
