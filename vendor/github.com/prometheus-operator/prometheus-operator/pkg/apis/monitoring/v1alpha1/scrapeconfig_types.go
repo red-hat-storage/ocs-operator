@@ -16,6 +16,7 @@ package v1alpha1
 
 import (
 	v1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -80,6 +81,12 @@ type ScrapeConfigSpec struct {
 	// HTTPSDConfigs defines a list of HTTP service discovery configurations.
 	// +optional
 	HTTPSDConfigs []HTTPSDConfig `json:"httpSDConfigs,omitempty"`
+	// KubernetesSDConfigs defines a list of Kubernetes service discovery configurations.
+	// +optional
+	KubernetesSDConfigs []KubernetesSDConfig `json:"kubernetesSDConfigs,omitempty"`
+	// ConsulSDConfigs defines a list of Consul service discovery configurations.
+	// +optional
+	ConsulSDConfigs []ConsulSDConfig `json:"consulSDConfigs,omitempty"`
 	// RelabelConfigs defines how to rewrite the target's labels before scraping.
 	// Prometheus Operator automatically adds relabelings for a few standard Kubernetes fields.
 	// The original scrape job's name is available via the `__tmp_prometheus_job_name` label.
@@ -88,19 +95,55 @@ type ScrapeConfigSpec struct {
 	RelabelConfigs []*v1.RelabelConfig `json:"relabelings,omitempty"`
 	// MetricsPath HTTP path to scrape for metrics. If empty, Prometheus uses the default value (e.g. /metrics).
 	// +optional
-	MetricsPath string `json:"metricsPath,omitempty"`
+	MetricsPath *string `json:"metricsPath,omitempty"`
+	// ScrapeInterval is the interval between consecutive scrapes.
+	// +optional
+	ScrapeInterval *v1.Duration `json:"scrapeInterval,omitempty"`
+	// ScrapeTimeout is the number of seconds to wait until a scrape request times out.
+	// +optional
+	ScrapeTimeout *v1.Duration `json:"scrapeTimeout,omitempty"`
 	// HonorTimestamps controls whether Prometheus respects the timestamps present in scraped data.
 	// +optional
 	HonorTimestamps *bool `json:"honorTimestamps,omitempty"`
 	// HonorLabels chooses the metric's labels on collisions with target labels.
 	// +optional
 	HonorLabels *bool `json:"honorLabels,omitempty"`
+	// Optional HTTP URL parameters
+	// +optional
+	// +mapType:=atomic
+	Params map[string][]string `json:"params,omitempty"`
+	// Configures the protocol scheme used for requests.
+	// If empty, Prometheus uses HTTP by default.
+	// +kubebuilder:validation:Enum=HTTP;HTTPS
+	// +optional
+	Scheme *string `json:"scheme,omitempty"`
 	// BasicAuth information to use on every scrape request.
 	// +optional
 	BasicAuth *v1.BasicAuth `json:"basicAuth,omitempty"`
 	// Authorization header to use on every scrape request.
 	// +optional
 	Authorization *v1.SafeAuthorization `json:"authorization,omitempty"`
+	// TLS configuration to use on every scrape request
+	// +optional
+	TLSConfig *v1.SafeTLSConfig `json:"tlsConfig,omitempty"`
+	// SampleLimit defines per-scrape limit on number of scraped samples that will be accepted.
+	// +optional
+	SampleLimit *uint64 `json:"sampleLimit,omitempty"`
+	// TargetLimit defines a limit on the number of scraped targets that will be accepted.
+	// +optional
+	TargetLimit *uint64 `json:"targetLimit,omitempty"`
+	// Per-scrape limit on number of labels that will be accepted for a sample.
+	// Only valid in Prometheus versions 2.27.0 and newer.
+	// +optional
+	LabelLimit *uint64 `json:"labelLimit,omitempty"`
+	// Per-scrape limit on length of labels name that will be accepted for a sample.
+	// Only valid in Prometheus versions 2.27.0 and newer.
+	// +optional
+	LabelNameLengthLimit *uint64 `json:"labelNameLengthLimit,omitempty"`
+	// Per-scrape limit on length of labels value that will be accepted for a sample.
+	// Only valid in Prometheus versions 2.27.0 and newer.
+	// +optional
+	LabelValueLengthLimit *uint64 `json:"labelValueLengthLimit,omitempty"`
 }
 
 // StaticConfig defines a Prometheus static configuration.
@@ -150,4 +193,106 @@ type HTTPSDConfig struct {
 	// Authorization header configuration to authenticate against the target HTTP endpoint.
 	// +optional
 	Authorization *v1.SafeAuthorization `json:"authorization,omitempty"`
+	// TLS configuration applying to the target HTTP endpoint.
+	// +optional
+	TLSConfig *v1.SafeTLSConfig `json:"tlsConfig,omitempty"`
+}
+
+// KubernetesSDConfig allows retrieving scrape targets from Kubernetes' REST API.
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
+// +k8s:openapi-gen=true
+type KubernetesSDConfig struct {
+	// Role of the Kubernetes entities that should be discovered.
+	// Currently the only supported role is "Node".
+	// +kubebuilder:validation:Enum=Node
+	// +required
+	Role string `json:"role"`
+}
+
+// ConsulSDConfig defines a Consul service discovery configuration
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
+// +k8s:openapi-gen=true
+type ConsulSDConfig struct {
+	// A valid string consisting of a hostname or IP followed by an optional port number.
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	Server string `json:"server"`
+	// Consul ACL TokenRef, if not provided it will use the ACL from the local Consul Agent.
+	// +optional
+	TokenRef *corev1.SecretKeySelector `json:"tokenRef,omitempty"`
+	// Consul Datacenter name, if not provided it will use the local Consul Agent Datacenter.
+	// +optional
+	Datacenter *string `json:"datacenter,omitempty"`
+	// Namespaces are only supported in Consul Enterprise.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+	// Admin Partitions are only supported in Consul Enterprise.
+	// +optional
+	Partition *string `json:"partition,omitempty"`
+	// HTTP Scheme default "http"
+	// +kubebuilder:validation:Enum=HTTP;HTTPS
+	// +optional
+	Scheme *string `json:"scheme,omitempty"`
+	// A list of services for which targets are retrieved. If omitted, all services are scraped.
+	// +listType:=atomic
+	// +optional
+	Services []string `json:"services,omitempty"`
+	// An optional list of tags used to filter nodes for a given service. Services must contain all tags in the list.
+	//+listType:=atomic
+	// +optional
+	Tags []string `json:"tags,omitempty"`
+	// The string by which Consul tags are joined into the tag label.
+	// If unset, Prometheus uses its default value.
+	// +optional
+	TagSeparator *string `json:"tag_separator,omitempty"`
+	// Node metadata key/value pairs to filter nodes for a given service.
+	// +mapType:=atomic
+	// +optional
+	NodeMeta map[string]string `json:"node_meta,omitempty"`
+	// Allow stale Consul results (see https://www.consul.io/api/features/consistency.html). Will reduce load on Consul.
+	// If unset, Prometheus uses its default value.
+	// +optional
+	AllowStale *bool `json:"allow_stale,omitempty"`
+	// The time after which the provided names are refreshed.
+	// On large setup it might be a good idea to increase this value because the catalog will change all the time.
+	// If unset, Prometheus uses its default value.
+	// +optional
+	RefreshInterval *v1.Duration `json:"refresh_interval,omitempty"`
+	// BasicAuth information to authenticate against the Consul Server.
+	// More info: https://prometheus.io/docs/operating/configuration/#endpoints
+	// +optional
+	BasicAuth *v1.BasicAuth `json:"basicAuth,omitempty"`
+	// Authorization header configuration to authenticate against the Consul Server.
+	// +optional
+	Authorization *v1.SafeAuthorization `json:"authorization,omitempty"`
+	// Optional OAuth 2.0 configuration.
+	// +optional
+	Oauth2 *v1.OAuth2 `json:"oauth2,omitempty"`
+	// Optional proxy URL.
+	// +optional
+	ProxyUrl *string `json:"proxy_url,omitempty"`
+	// Comma-separated string that can contain IPs, CIDR notation, domain names
+	// that should be excluded from proxying. IP and domain names can
+	// contain port numbers.
+	// +optional
+	NoProxy *string `json:"no_proxy,omitempty"`
+	// Use proxy URL indicated by environment variables (HTTP_PROXY, https_proxy, HTTPs_PROXY, https_proxy, and no_proxy)
+	// If unset, Prometheus uses its default value.
+	// +optional
+	ProxyFromEnvironment *bool `json:"proxy_from_environment,omitempty"`
+	// Specifies headers to send to proxies during CONNECT requests.
+	// +mapType:=atomic
+	// +optional
+	ProxyConnectHeader map[string]corev1.SecretKeySelector `json:"proxy_connect_header,omitempty"`
+	// Configure whether HTTP requests follow HTTP 3xx redirects.
+	// If unset, Prometheus uses its default value.
+	// +optional
+	FollowRedirects *bool `json:"follow_redirects,omitempty"`
+	// Whether to enable HTTP2.
+	// If unset, Prometheus uses its default value.
+	// +optional
+	EnableHttp2 *bool `json:"enable_http2,omitempty"`
+	// TLS Config
+	// +optional
+	TLSConfig *v1.SafeTLSConfig `json:"tlsConfig,omitempty"`
 }

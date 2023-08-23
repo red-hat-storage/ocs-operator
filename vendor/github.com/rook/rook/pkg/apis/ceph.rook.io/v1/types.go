@@ -420,11 +420,18 @@ type Capacity struct {
 // CephStorage represents flavors of Ceph Cluster Storage
 type CephStorage struct {
 	DeviceClasses []DeviceClasses `json:"deviceClasses,omitempty"`
+	OSD           OSDStatus       `json:"osd,omitempty"`
 }
 
 // DeviceClasses represents device classes of a Ceph Cluster
 type DeviceClasses struct {
 	Name string `json:"name,omitempty"`
+}
+
+// OSDStatus represents OSD status of the ceph Cluster
+type OSDStatus struct {
+	// StoreType is a mapping between the OSD backend stores and number of OSDs using these stores
+	StoreType map[string]int `json:"storeType,omitempty"`
 }
 
 // ClusterVersion represents the version of a Ceph Cluster
@@ -530,6 +537,11 @@ type MonSpec struct {
 	// AllowMultiplePerNode determines if we can run multiple monitors on the same node (not recommended)
 	// +optional
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode,omitempty"`
+	// +optional
+	FailureDomainLabel string `json:"failureDomainLabel,omitempty"`
+	// Zones are specified when we want to provide zonal awareness to mons
+	// +optional
+	Zones []MonZoneSpec `json:"zones,omitempty"`
 	// StretchCluster is the stretch cluster specification
 	// +optional
 	StretchCluster *StretchClusterSpec `json:"stretchCluster,omitempty"`
@@ -550,15 +562,15 @@ type StretchClusterSpec struct {
 	// Zones is the list of zones
 	// +optional
 	// +nullable
-	Zones []StretchClusterZoneSpec `json:"zones,omitempty"`
+	Zones []MonZoneSpec `json:"zones,omitempty"`
 }
 
-// StretchClusterZoneSpec represents the specification of a stretched zone in a Ceph Cluster
-type StretchClusterZoneSpec struct {
+// MonZoneSpec represents the specification of a zone in a Ceph Cluster
+type MonZoneSpec struct {
 	// Name is the name of the zone
 	// +optional
 	Name string `json:"name,omitempty"`
-	// Arbiter determines if the zone contains the arbiter
+	// Arbiter determines if the zone contains the arbiter used for stretch cluster mode
 	// +optional
 	Arbiter bool `json:"arbiter,omitempty"`
 	// VolumeClaimTemplate is the PVC template
@@ -2597,6 +2609,11 @@ type OSDStore struct {
 	// +optional
 	// +kubebuilder:validation:Enum=bluestore;bluestore-rdr;
 	Type string `json:"type,omitempty"`
+	// UpdateStore updates the backend store for existing OSDs. It destroys each OSD one at a time, cleans up the backing disk
+	// and prepares same OSD on that disk
+	// +optional
+	// +kubebuilder:validation:Pattern=`^$|^yes-really-update-store$`
+	UpdateStore string `json:"updateStore,omitempty"`
 }
 
 // Node is a storage nodes
