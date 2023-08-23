@@ -350,7 +350,7 @@ func rbdImageStatus(config *cephMonitorConfig, poolName string) (RBDMirrorStatus
 	}
 
 	args := []string{"mirror", "pool", "status", poolName, "--verbose", "--format", "json", "-m", config.monitor, "--id", config.id, "--key", config.key, "--debug-rbd", "0"}
-	cmd, err := execCommand("rbd", args)
+	cmd, err := execCommand("rbd", args, 30)
 	if err != nil {
 		return rbdMirrorStatusVerbose, err
 	}
@@ -360,7 +360,17 @@ func rbdImageStatus(config *cephMonitorConfig, poolName string) (RBDMirrorStatus
 	return rbdMirrorStatusVerbose, err
 }
 
-func execCommand(command string, args []string) ([]byte, error) {
-	cmd := exec.Command(command, args...)
-	return cmd.CombinedOutput()
+func execCommand(command string, args []string, timeout int) ([]byte, error) {
+	var cancel context.CancelFunc
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, command, args...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil && ctx.Err() == context.DeadlineExceeded {
+		klog.Errorf("command %v timedout in %d seconds", command, timeout)
+		return output, ctx.Err()
+
+	}
+	return output, err
 }
