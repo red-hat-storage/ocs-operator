@@ -74,7 +74,7 @@ func runCephRBDStatus(config *cephMonitorConfig, pool, image string) (Clients, e
 	}
 	imageSpec := fmt.Sprintf("%s/%s", pool, image)
 	args := []string{"status", imageSpec, "--format", "json", "-m", config.monitor, "--id", config.id, "--key", config.key}
-	cmd, err := execCommand("rbd", args)
+	cmd, err := execCommand("rbd", args, 30)
 	if err != nil {
 		return clients, fmt.Errorf("failed with output : %v, err: %v", string(cmd), err)
 	}
