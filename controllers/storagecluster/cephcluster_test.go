@@ -1327,3 +1327,165 @@ func TestEnsureRDROptmizations(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
 }
+
+func TestOsdStoreUpdateRequired(t *testing.T) {
+	testTable := []struct {
+		desc                   string
+		sc                     *ocsv1.StorageCluster
+		existingCluster        cephv1.CephCluster
+		osdStoreUpdateExpected bool
+	}{
+		{
+			desc:                   "no migration is needed if mirroring is not enabled",
+			sc:                     &ocsv1.StorageCluster{},
+			existingCluster:        cephv1.CephCluster{},
+			osdStoreUpdateExpected: false,
+		},
+
+		{
+			desc: "update is required if mirroring is enabled, OSDs are not on bluestore-rdr and cephCluster is Ready",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Mirroring: ocsv1.MirroringSpec{
+						Enabled: true,
+					},
+					StorageDeviceSets: []ocsv1.StorageDeviceSet{
+						{
+							Count:   3,
+							Replica: 1,
+						},
+					},
+				},
+			},
+			existingCluster: cephv1.CephCluster{
+				Status: cephv1.ClusterStatus{
+					Phase:       cephv1.ConditionReady,
+					CephStorage: &cephv1.CephStorage{},
+				},
+			},
+			osdStoreUpdateExpected: true,
+		},
+		{
+			desc: "update is required if mirroring is enabled, all OSDs are not on bluestore-rdr and cephCluster is Ready",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Mirroring: ocsv1.MirroringSpec{
+						Enabled: true,
+					},
+					StorageDeviceSets: []ocsv1.StorageDeviceSet{
+						{
+							Count:   3,
+							Replica: 1,
+						},
+					},
+				},
+			},
+			existingCluster: cephv1.CephCluster{
+				Status: cephv1.ClusterStatus{
+					Phase: cephv1.ConditionReady,
+					CephStorage: &cephv1.CephStorage{
+						OSD: cephv1.OSDStatus{
+							// Only 1 out of 3 OSDs have migrated
+							StoreType: map[string]int{"bluestore-rdr": 1},
+						},
+					},
+				},
+			},
+			osdStoreUpdateExpected: true,
+		},
+		{
+			desc: "update is not required if mirroring is enabled and OSDs are not on bluestore-rdr but ceph Cluster is not Ready",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Mirroring: ocsv1.MirroringSpec{
+						Enabled: true,
+					},
+					StorageDeviceSets: []ocsv1.StorageDeviceSet{
+						{
+							Count:   3,
+							Replica: 1,
+						},
+					},
+				},
+			},
+			existingCluster: cephv1.CephCluster{
+				Status: cephv1.ClusterStatus{
+					Phase:       cephv1.ConditionProgressing,
+					CephStorage: &cephv1.CephStorage{},
+				},
+			},
+			osdStoreUpdateExpected: false,
+		},
+		{
+			desc: "update is not required if cluster is Ready and all the OSDs have migrated to Bluestore-RDR",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Mirroring: ocsv1.MirroringSpec{
+						Enabled: true,
+					},
+					StorageDeviceSets: []ocsv1.StorageDeviceSet{
+						{
+							Count:   3,
+							Replica: 1,
+						},
+					},
+				},
+			},
+			existingCluster: cephv1.CephCluster{
+				Status: cephv1.ClusterStatus{
+					Phase: cephv1.ConditionReady,
+					CephStorage: &cephv1.CephStorage{
+						OSD: cephv1.OSDStatus{
+							StoreType: map[string]int{"bluestore-rdr": 3},
+						},
+					},
+				},
+			},
+			osdStoreUpdateExpected: false,
+		},
+
+		{
+			desc: "don't remove yes-really-update-store flag if OSDs have not migrated",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Mirroring: ocsv1.MirroringSpec{
+						Enabled: true,
+					},
+					StorageDeviceSets: []ocsv1.StorageDeviceSet{
+						{
+							Count:   3,
+							Replica: 1,
+						},
+					},
+				},
+			},
+			existingCluster: cephv1.CephCluster{
+				Spec: cephv1.ClusterSpec{
+					Storage: cephv1.StorageScopeSpec{
+						Store: cephv1.OSDStore{
+							UpdateStore: "yes-really-update-store",
+						},
+					},
+				},
+				Status: cephv1.ClusterStatus{
+					Phase: cephv1.ConditionProgressing,
+					CephStorage: &cephv1.CephStorage{
+						OSD: cephv1.OSDStatus{
+							// Only 2 out of 3 OSDs have migrated
+							StoreType: map[string]int{"bluestore-rdr": 2},
+						},
+					},
+				},
+			},
+			osdStoreUpdateExpected: true,
+		},
+	}
+
+	for _, tc := range testTable {
+		t.Run(tc.desc, func(t *testing.T) {
+			result := osdStoreUpdateRequired(tc.sc, tc.existingCluster)
+			assert.Equal(t, tc.osdStoreUpdateExpected, result)
+		})
+	}
+
+}

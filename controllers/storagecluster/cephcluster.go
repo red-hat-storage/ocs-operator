@@ -74,6 +74,7 @@ const (
 	clusterNetworkSelectorKey = "cluster"
 	// DisasterRecoveryTargetAnnotation signifies that the cluster is intended to be used for Disaster Recovery
 	DisasterRecoveryTargetAnnotation = "ocs.openshift.io/clusterIsDisasterRecoveryTarget"
+	OSDStoreUpdateConfirmation       = "yes-really-update-store"
 )
 
 const (
@@ -268,6 +269,13 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 	// Prevent removal of any RDR optimizations if they are already applied to the existing cluster spec.
 	cephCluster.Spec.Storage.Store = determineOSDStore(cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
+	if osdStoreUpdateRequired(sc, *found) {
+		cephCluster.Spec.Storage.Store.UpdateStore = OSDStoreUpdateConfirmation
+		r.Log.Info("migration of OSDs to bluestore-rdr is required")
+	} else {
+		cephCluster.Spec.Storage.Store.UpdateStore = ""
+		r.Log.Info("no migration of OSDs to bluestore-rdr is required")
+	}
 
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
@@ -1296,4 +1304,37 @@ func determineOSDStore(newOSDStore, existingOSDStore rookCephv1.OSDStore) rookCe
 	}
 
 	return newOSDStore
+}
+
+// osdStoreUpdateRequired returns true if OSD store update to bluestore-rdr is required
+func osdStoreUpdateRequired(sc *ocsv1.StorageCluster, existingCephCluster rookCephv1.CephCluster) bool {
+	updateStore := false
+	if sc.Spec.Mirroring.Enabled {
+		expectedOSDCount := getExpectedOSDCount(sc)
+		bluestoreRDR := string(rookCephv1.StoreTypeBlueStoreRDR)
+		if existingCephCluster.Status.Phase == rookCephv1.ConditionReady &&
+			existingCephCluster.Status.CephStorage.OSD.StoreType[bluestoreRDR] != expectedOSDCount {
+			updateStore = true
+		} else if existingCephCluster.Status.Phase == rookCephv1.ConditionReady &&
+			existingCephCluster.Status.CephStorage.OSD.StoreType[bluestoreRDR] == expectedOSDCount {
+			updateStore = false
+		} else {
+			// For any other scenarios, don't remove the flag if it was already added.
+			if existingCephCluster.Spec.Storage.Store.UpdateStore == OSDStoreUpdateConfirmation {
+				updateStore = true
+			} else {
+				updateStore = false
+			}
+		}
+	}
+
+	return updateStore
+}
+
+func getExpectedOSDCount(sc *ocsv1.StorageCluster) int {
+	count := 0
+	for i := range sc.Spec.StorageDeviceSets {
+		count = count + (sc.Spec.StorageDeviceSets[i].Count * sc.Spec.StorageDeviceSets[i].Replica)
+	}
+	return count
 }
