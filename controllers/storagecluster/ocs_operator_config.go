@@ -24,6 +24,7 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
 		enableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
 		topologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
+		enableNFSKey                = "ROOK_CSI_ENABLE_NFS"
 	)
 	var (
 		clusterNameVal             = r.getClusterID()
@@ -31,6 +32,7 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 		cephFSKernelMountOptionVal = getCephFSKernelMountOptions(sc)
 		enableTopologyVal          = strconv.FormatBool(sc.Spec.ManagedResources.CephNonResilientPools.Enable)
 		topologyDomainLabelsVal    = getFailureDomainKey(sc)
+		enableNFSVal               = getEnableNFSVal(sc)
 	)
 
 	cm := &corev1.ConfigMap{
@@ -44,6 +46,7 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 			cephFSKernelMountOptionsKey: cephFSKernelMountOptionVal,
 			enableTopologyKey:           enableTopologyVal,
 			topologyDomainLabelsKey:     topologyDomainLabelsVal,
+			enableNFSKey:                enableNFSVal,
 		},
 	}
 
@@ -70,6 +73,9 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 		}
 		if cm.Data[topologyDomainLabelsKey] != topologyDomainLabelsVal || topologyDomainLabelsVal == "" {
 			cm.Data[topologyDomainLabelsKey] = topologyDomainLabelsVal
+		}
+		if cm.Data[enableNFSKey] != enableNFSVal {
+			cm.Data[enableNFSKey] = enableNFSVal
 		}
 		return ctrl.SetControllerReference(sc, cm, r.Scheme)
 	})
@@ -140,4 +146,12 @@ func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
 	// If none of the above cases apply, We set RequireMsgr2 true by default on the cephcluster
 	// so we need to set the mount options to prefer-crc
 	return "ms_mode=prefer-crc"
+}
+
+// getEnableNFSVal returns the value of enableNFS based on the spec on the StorageCluster
+func getEnableNFSVal(sc *ocsv1.StorageCluster) string {
+	if sc.Spec.NFS != nil && sc.Spec.NFS.Enable {
+		return "true"
+	}
+	return "false"
 }

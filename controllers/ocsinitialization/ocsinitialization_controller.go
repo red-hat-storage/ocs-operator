@@ -238,6 +238,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
 		enableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
 		topologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
+		enableNFSKey                = "ROOK_CSI_ENABLE_NFS"
 	)
 	ocsOperatorConfig := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -251,6 +252,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 			cephFSKernelMountOptionsKey: "ms_mode=prefer-crc",
 			enableTopologyKey:           "false",
 			topologyDomainLabelsKey:     "",
+			enableNFSKey:                "false",
 		},
 	}
 	err := r.Client.Create(r.ctx, ocsOperatorConfig)
