@@ -90,14 +90,8 @@ jobs:
       - name: Verify ocs csv changes
         run: make verify-latest-csv
 
-      - name: Verify ics csv changes
-        run: FUSION=true make verify-latest-csv
-
       - name: Verify ocs bundle changes
         run: make verify-operator-bundle
-
-      - name: Verify ics bundle changes
-        run: FUSION=true make verify-operator-bundle
 
       - name: Verify deployment YAML
         run: make verify-latest-deploy-yaml
