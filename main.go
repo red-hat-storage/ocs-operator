@@ -23,6 +23,7 @@ import (
 	"os"
 	"runtime"
 
+	nadscheme "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/scheme"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	openshiftConfigv1 "github.com/openshift/api/config/v1"
@@ -88,6 +89,7 @@ func init() {
 	utilruntime.Must(ocsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(operatorsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(nadscheme.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
