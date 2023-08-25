@@ -11,6 +11,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.2.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230306134341-1874f52f83dd
