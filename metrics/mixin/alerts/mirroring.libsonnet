@@ -28,6 +28,7 @@
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
               severity: 'warning',
+              mirroring_image_status: 'unknown',
             },
             annotations: {
               message: 'Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown state.',
@@ -44,6 +45,7 @@
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
               severity: 'warning',
+              mirroring_image_status: 'warning',
             },
             annotations: {
               message: 'Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state.',
@@ -60,6 +62,7 @@
             'for': $._config.odfPoolMirroringImageHealthCriticalAlertTime,
             labels: {
               severity: 'critical',
+              mirroring_image_status: 'error',
             },
             annotations: {
               message: 'Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state.',
