@@ -69,7 +69,7 @@ func TestNamespaceAnnotated(t *testing.T) {
 	_, err = reconciler.Reconcile(ctx, request)
 	assert.NoError(t, err, "failed to reconcile")
 	nsList := &corev1.NamespaceList{}
-	err = reconciler.List(ctx, nsList)
+	err = reconciler.Client.List(ctx, nsList)
 	assert.NoError(t, err, "failed to list namespaces")
 	for _, testNs := range nsList.Items {
 		assert.Equal(t, testNs.Name, "openshift-storage-test")
