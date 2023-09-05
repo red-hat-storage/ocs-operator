@@ -260,5 +260,11 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		r.Log.Error(err, fmt.Sprintf("Failed to create %v configmap", util.OcsOperatorConfigName))
 		return err
 	}
+	// If configmap is created or updated, restart the rook-ceph-operator pod to pick up the new change
+	if opResult == controllerutil.OperationResultCreated || opResult == controllerutil.OperationResultUpdated {
+		r.Log.Info("ocs-operator-config configmap created/updated. Restarting rook-ceph-operator pod to pick up the new values")
+		util.RestartPod(r.ctx, r.Client, &r.Log, "rook-ceph-operator", initialData.Namespace)
+	}
+
 	return nil
 }
