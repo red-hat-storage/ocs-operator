@@ -3,6 +3,7 @@ package ocsinitialization
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -232,33 +234,44 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 // The needed keys from the configmap are passed to rook-ceph operator pod as env variables.
 // When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
 func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
-	const (
-		clusterNameKey              = "CSI_CLUSTER_NAME"
-		enableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
-		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
-		enableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
-		topologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
-		enableNFSKey                = "ROOK_CSI_ENABLE_NFS"
-	)
+	// Default or placeholder data that is put during the creation of the configmap
+	// The values are updated by the StorageCluster controller later if required
+	ocsOperatorConfigData := map[string]string{
+		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
+		util.EnableReadAffinityKey:       "true",
+		util.CephFSKernelMountOptionsKey: "ms_mode=prefer-crc",
+		util.EnableTopologyKey:           "false",
+		util.TopologyDomainLabelsKey:     "",
+		util.EnableNFSKey:                "false",
+	}
 	ocsOperatorConfig := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.OcsOperatorConfigName,
 			Namespace: initialData.Namespace,
 		},
-		// Default or placeholder values for the configmap
-		Data: map[string]string{
-			clusterNameKey:              "",
-			enableReadAffinityKey:       "true",
-			cephFSKernelMountOptionsKey: "ms_mode=prefer-crc",
-			enableTopologyKey:           "false",
-			topologyDomainLabelsKey:     "",
-			enableNFSKey:                "false",
-		},
+		Data: ocsOperatorConfigData,
 	}
-	err := r.Client.Create(r.ctx, ocsOperatorConfig)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		r.Log.Error(err, fmt.Sprintf("Failed to create %v configmap", util.OcsOperatorConfigName))
+	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, ocsOperatorConfig, func() error {
+		// If the configmap is being controlled by a StorageCluster, nothing to do here
+		if metav1.GetControllerOf(ocsOperatorConfig) != nil && metav1.GetControllerOf(ocsOperatorConfig).Kind == "StorageCluster" {
+			return nil
+		}
+		// If the configmap is not controlled by a StorageCluster, keep it updated with the default values & set OCSInitialization as the controller
+		if !reflect.DeepEqual(ocsOperatorConfig.Data, ocsOperatorConfigData) {
+			r.Log.Info("Updating ocs-operator-config configmap")
+			ocsOperatorConfig.Data = ocsOperatorConfigData
+		}
+		return ctrl.SetControllerReference(initialData, ocsOperatorConfig, r.Scheme)
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update ocs-operator-config configmap", "OperationResult", opResult)
 		return err
 	}
+	// If configmap is created or updated, restart the rook-ceph-operator pod to pick up the new change
+	if opResult == controllerutil.OperationResultCreated || opResult == controllerutil.OperationResultUpdated {
+		r.Log.Info("ocs-operator-config configmap created/updated. Restarting rook-ceph-operator pod to pick up the new values")
+		util.RestartPod(r.ctx, r.Client, &r.Log, "rook-ceph-operator", initialData.Namespace)
+	}
+
 	return nil
 }
