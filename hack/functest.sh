@@ -1,9 +1,24 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
+set -e
 
 source hack/common.sh
 
-"$OUTDIR_BIN/${GINKGO_TEST_SUITE}_tests" -ginkgo.v \
-    	--ocs-catalog-image="${FILE_BASED_CATALOG_FULL_IMAGE_NAME}" \
+mkdir -p "${LOCALBIN}"
+
+if ! [ -x "$GINKGO" ]; then
+	echo "Installing GINKGO binary at $GINKGO"
+	GOBIN=${LOCALBIN} go install -v github.com/onsi/ginkgo/v2/ginkgo
+else
+	echo "GINKO binary found at $GINKGO"
+fi
+
+"${GINKGO}" build "functests/${GINKGO_TEST_SUITE}/"
+
+mv "functests/${GINKGO_TEST_SUITE}/${GINKGO_TEST_SUITE}.test" "${LOCALBIN}/${GINKGO_TEST_SUITE}_tests"
+
+"${LOCALBIN}/${GINKGO_TEST_SUITE}_tests" -ginkgo.v \
+    --ocs-catalog-image="${OCS_CATALOG_IMAGE}" \
 	--ocs-subscription-channel="${OCS_SUBSCRIPTION_CHANNEL}" \
 	--install-namespace="${INSTALL_NAMESPACE}" \
 	--upgrade-from-ocs-catalog-image="${UPGRADE_FROM_OCS_REGISTRY_IMAGE}" \
@@ -11,6 +26,7 @@ source hack/common.sh
 	--ocs-operator-install="${OCS_OPERATOR_INSTALL}" \
 	--ocs-cluster-uninstall="${OCS_CLUSTER_UNINSTALL}" "$@"
 
+# shellcheck disable=SC2181
 if [ $? -ne 0 ]; then
 	echo "ERROR: Functest failed."
 	exit 1

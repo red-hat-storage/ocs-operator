@@ -1,21 +1,22 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
 source hack/common.sh
-source hack/docker-common.sh
 source hack/ensure-opm.sh
 
-echo
+[ -z "$CONTAINER_CLI" ] && { echo "Podman or Docker not found"; exit 1; }
+
 echo "Did you push the bundle image? It must be pullable from '$IMAGE_REGISTRY'."
-echo "Run '${IMAGE_BUILD_CMD} push ${BUNDLE_FULL_IMAGE_NAME}'"
-echo
-${OPM} render --output=yaml "${BUNDLE_FULL_IMAGE_NAME}" > catalog/ocs-bundle.yaml
-${OPM} render --output=yaml ${NOOBAA_BUNDLE_FULL_IMAGE_NAME} > catalog/noobaa-bundle.yaml
+echo "Run '${CONTAINER_CLI} push ${BUNDLE_IMAGE} to push operator bundle to image registry.'"
+
+${OPM} render --output=yaml "${BUNDLE_IMAGE}" > catalog/ocs-bundle.yaml
+${OPM} render --output=yaml "${NOOBAA_BUNDLE_IMAGE}" > catalog/noobaa-bundle.yaml
 ${OPM} validate catalog
 ${OPM} generate dockerfile catalog
 
 mv catalog.Dockerfile Dockerfile.catalog
-${IMAGE_BUILD_CMD} build --no-cache -t "${FILE_BASED_CATALOG_FULL_IMAGE_NAME}" -f Dockerfile.catalog .
 
-echo "Run '${IMAGE_BUILD_CMD} push ${FILE_BASED_CATALOG_FULL_IMAGE_NAME}' to push operator catalog image to image registry."
+${CONTAINER_CLI} build --platform="${GOOS}"/"${GOARCH}" --no-cache -t "${CATALOG_IMAGE}" -f Dockerfile.catalog .
+
+echo "Run '${CONTAINER_CLI} push ${CATALOG_IMAGE}' to push operator catalog image to image registry."

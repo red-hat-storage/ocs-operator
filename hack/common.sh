@@ -1,33 +1,64 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # shellcheck disable=SC2034
 # disable unused variable warnings
 
-GO111MODULE="on"
+LOCALBIN="$(pwd)/bin"
+
 GOPROXY="https://proxy.golang.org"
-GOROOT="${GOROOT:-go env GOROOT}"
 GOOS="${GOOS:-linux}"
 GOARCH="${GOARCH:-amd64}"
+GOHOSTOS="$(go env GOHOSTOS)"
+GOHOSTARCH="$(go env GOHOSTARCH)"
 
-GO_LINT_IMG_LOCATION="${GO_LINT_IMG_LOCATION:-golangci/golangci-lint}"
-GO_LINT_IMG_TAG="${GO_LINT_IMG_TAG:-v1.49.0}"
-GO_LINT_IMG="${GO_LINT_IMG:-${GO_LINT_IMG_LOCATION}:${GO_LINT_IMG_TAG}}"
+PODMAN=$(command -v podman || echo "")
+DOCKER=$(command -v docker || echo "")
+CONTAINER_CLI="${CONTAINER_CLI:-${PODMAN:-${DOCKER}}}"
 
-# Current DEV version of the CSV
-DEFAULT_CSV_VERSION="4.14.0"
-CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
-VERSION="${VERSION:-${CSV_VERSION}}"
+VERSION="${VERSION:-4.13.0}"
+REPLACES_VERSION="${REPLACES_VERSION:-}"
+SKIP_RANGE=">=0.0.1 <${VERSION}"
 LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
 
-OUTDIR="build/_output"
-OUTDIR_BIN="build/_output/bin"
-OUTDIR_TEMPLATES="deploy/csv-templates"
-OUTDIR_CRDS="$OUTDIR_TEMPLATES/crds"
-OUTDIR_TOOLS="$OUTDIR/tools"
-OUTDIR_CLUSTER_DEPLOY_MANIFESTS="$OUTDIR/cluster-deploy-manifests"
+CSV_TEMPLATES_DIR="deploy/csv-templates"
+CRDS_DIR="$CSV_TEMPLATES_DIR/crds"
+MANIFESTS_DIR="deploy/ocs-operator/manifests"
+EXTRA_MANIFESTS_DIR="rbac"
+NOOBAA_CSV="$CSV_TEMPLATES_DIR/noobaa-csv.yaml"
+NOOBAA_CRDS="$CRDS_DIR/noobaa"
+ROOK_CSV="$CSV_TEMPLATES_DIR/rook-csv.yaml.in"
+ROOK_CRDS="$CRDS_DIR/rook"
+OCS_CSV="$CSV_TEMPLATES_DIR/ocs-operator.csv.yaml.in"
+OCS_CRDS="$CRDS_DIR/ocs"
 
 DEPLOY_YAML_PATH="deploy/deploy-with-olm.yaml"
-PROMETHEUS_RULES_PATH="metrics/deploy"
+
+OCS_OC_PATH="${OCS_OC_PATH:-oc}"
+
+ROOK_IMAGE="docker.io/rook/ceph:v1.12.2"
+CEPH_IMAGE="quay.io/ceph/ceph:v17"
+NOOBAA_IMAGE="quay.io/noobaa/noobaa-operator:master-20230718"
+NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230718"
+NOOBAA_DB_IMAGE="centos/postgresql-12-centos8"
+ROOK_CSIADDONS_IMAGE="quay.io/csiaddons/k8s-sidecar:v0.6.0"
+# TODO: change image once the quay repo is changed
+MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
+
+IMAGE_REGISTRY="${IMAGE_REGISTRY:-quay.io}"
+REGISTRY_NAMESPACE="${REGISTRY_NAMESPACE:-ocs-dev}"
+IMAGE_TAG="${IMAGE_TAG:-latest}"
+
+OPERATOR_NAME="ocs-operator"
+METRICS_EXPORTER_NAME="ocs-metrics-exporter"
+BUNDLE_NAME="ocs-operator-bundle"
+CATALOG_NAME="ocs-operator-catalog"
+
+OPERATOR_IMAGE="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${OPERATOR_NAME}:${IMAGE_TAG}"
+METRICS_EXPORTER_IMAGE="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${METRICS_EXPORTER_NAME}:${IMAGE_TAG}"
+BUNDLE_IMAGE="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${BUNDLE_NAME}:${IMAGE_TAG}"
+CATALOG_IMAGE="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${CATALOG_NAME}:${IMAGE_TAG}"
+
+NOOBAA_BUNDLE_IMAGE="docker.io/noobaa/noobaa-operator-bundle:v5.13.0"
 
 GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
 
@@ -82,23 +113,36 @@ OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-false}"
 OCS_SUBSCRIPTION_CHANNEL=${OCS_SUBSCRIPTION_CHANNEL:-alpha}
 INSTALL_NAMESPACE="${INSTALL_NAMESPACE:-openshift-storage}"
-OCS_ALLOW_UNSUPPORTED_CEPH_VERSION="${OCS_ALLOW_UNSUPPORTED_CEPH_VERSION:-allowed}"
-
-UPGRADE_FROM_OCS_REGISTRY_IMAGE="${UPGRADE_FROM_OCS_REGISTRY_IMAGE:-quay.io/ocs-dev/ocs-registry:4.2.0}"
-UPGRADE_FROM_OCS_SUBSCRIPTION_CHANNEL="${UPGRADE_FROM_OCS_SUBSCRIPTION_CHANNEL:-$OCS_SUBSCRIPTION_CHANNEL}"
+OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
+OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-false}"
 
 OCS_MUST_GATHER_DIR="${OCS_MUST_GATHER_DIR:-ocs-must-gather}"
 OCP_MUST_GATHER_DIR="${OCP_MUST_GATHER_DIR:-ocp-must-gather}"
 
-OS_TYPE=$(uname)
 
-# Protobuf
-PROTOC_VERSION="3.14.0"
+PROTOC_VERSION="3.20.0"
 PROTOC_GEN_GO_VERSION="1.26.0"
 PROTOC_GEN_GO_GRPC_VERSION="1.1.0"
-OUTDIR_GRPC="build/_output/grpc"
-OUTDIR_PROTO_DIST="build/_output/grpc/dist"
-OUTDIR_PROTO_GOOGLE="build/_output/grpc/google/protobuf"
+
+GRPC_BIN="${LOCALBIN}/grpc"
+PROTOC="${GRPC_BIN}/protoc"
+PROTO_GOOGLE="${GRPC_BIN}/google/protobuf"
+PROTOC_GEN_GO="${GRPC_BIN}/protoc-gen-go"
+PROTOC_GEN_GO_GRPC="${GRPC_BIN}/protoc-gen-go-grpc"
 
 # gRPC services
-declare -a SERVICES=("provider")
+SERVICES=("provider")
+
+OPERATOR_SDK_VERSION="v1.25.4"
+OPERATOR_SDK="${LOCALBIN}/operator-sdk-${OPERATOR_SDK_VERSION}"
+
+OPM_VERSION="v1.28.0"
+OPM="${LOCALBIN}/opm-${OPM_VERSION}"
+
+GOLANGCI_LINT_VERSION="v1.51.1"
+GOLANGCI_LINT="${LOCALBIN}/golangci-lint"
+
+SHELLCHECK="${LOCALBIN}/shellcheck"
+SHELLCHECK_VERSION="v0.9.0"
+
+GINKGO="${LOCALBIN}/ginkgo"

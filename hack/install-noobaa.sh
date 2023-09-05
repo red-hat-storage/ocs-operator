@@ -1,20 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-set -o nounset
-set -o errexit
-set -o pipefail
+set -e
 
 source hack/common.sh
-source hack/operator-sdk-common.sh
 
-NAMESPACE=$(oc get ns "$INSTALL_NAMESPACE" -o jsonpath="{.metadata.name}" 2>/dev/null || true)
-if [[ -n "$NAMESPACE" ]]; then
-    echo "Namespace \"$NAMESPACE\" exists"
-else
-    echo "Namespace \"$INSTALL_NAMESPACE\" does not exist: creating it"
-    oc create ns "$INSTALL_NAMESPACE"
-fi
+"$OCS_OC_PATH" get namespace "$INSTALL_NAMESPACE" >/dev/null 2>&1 && echo "Namespace $INSTALL_NAMESPACE already exists." || \
+    "$OCS_OC_PATH" create namespace "$INSTALL_NAMESPACE" && echo "Namespace $INSTALL_NAMESPACE created."
 
-"$OPERATOR_SDK" run bundle "$NOOBAA_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
+"$OPERATOR_SDK" run bundle "$NOOBAA_BUNDLE_IMAGE" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 
-oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment noobaa-operator
+"$OCS_OC_PATH" wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment noobaa-operator

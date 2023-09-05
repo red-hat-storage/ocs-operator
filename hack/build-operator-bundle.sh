@@ -1,10 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
 source hack/common.sh
-source hack/docker-common.sh
 
-${IMAGE_BUILD_CMD} build --no-cache -t "$BUNDLE_FULL_IMAGE_NAME" -f Dockerfile.bundle .
-echo
-echo "Run '${IMAGE_BUILD_CMD} push ${BUNDLE_FULL_IMAGE_NAME}' to push operator bundle to image registry."
+[ -z "$CONTAINER_CLI" ] && { echo "Podman or Docker not found"; exit 1; }
+
+${CONTAINER_CLI} build --platform="${GOOS}"/"${GOARCH}" --no-cache -t "$BUNDLE_IMAGE" -f Dockerfile.bundle .
+
+echo "Run '${CONTAINER_CLI} push ${BUNDLE_IMAGE}' to push operator bundle to image registry."

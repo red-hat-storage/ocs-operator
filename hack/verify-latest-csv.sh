@@ -1,15 +1,16 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 source hack/common.sh
 
 set -e
 
-CSV="$(find "${OCS_FINAL_DIR}"/ocs-operator.*.yaml)"
+CSV="$(find "${MANIFESTS_DIR}"/ocs-operator.*.yaml)"
 
 NOT_FOUND=""
-for LATEST_IMAGE in "${LATEST_ROOK_IMAGE}" "${LATEST_NOOBAA_CORE_IMAGE}"  "${LATEST_NOOBAA_DB_IMAGE}" "${LATEST_CEPH_IMAGE}"
+
+for LATEST_IMAGE in "$OCS_IMAGE" "$OCS_METRICS_EXPORTER_IMAGE" "${ROOK_IMAGE}" "${CEPH_IMAGE}" "${NOOBAA_CORE_IMAGE}"  "${NOOBAA_DB_IMAGE}" "${ROOK_CSIADDONS_IMAGE}" "${OCS_MUST_GATHER_IMAGE}"
 do
-	grep -q ${LATEST_IMAGE} "${CSV}" || NOT_FOUND="${NOT_FOUND} ${LATEST_IMAGE}"
+	grep -q "${LATEST_IMAGE}" "${CSV}" || NOT_FOUND="${NOT_FOUND} ${LATEST_IMAGE}"
 done
 
 if [[ -n "${NOT_FOUND}" ]];then

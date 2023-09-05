@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 MIXIN_PATH="metrics/mixin"
 BUILD_PATH="metrics/mixin/build"
