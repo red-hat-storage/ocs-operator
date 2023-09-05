@@ -1,19 +1,13 @@
 package storagecluster
 
 import (
-	"context"
-	"fmt"
 	"strconv"
 
-	configv1 "github.com/openshift/api/config/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
 	"github.com/red-hat-storage/ocs-operator/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -73,40 +67,11 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 	}
 	// If configmap is created or updated, restart the rook-ceph-operator pod to pick up the new change
 	if opResult == controllerutil.OperationResultCreated || opResult == controllerutil.OperationResultUpdated {
-		r.restartRookCephOperatorPod(sc.Namespace)
-		r.Log.Info(fmt.Sprintf("%q configmap updated & rook-ceph-operator pod restarted to pick up new values", util.OcsOperatorConfigName),
-			"storageCluster", klog.KRef(sc.Namespace, sc.Name))
+		r.Log.Info("ocs-operator-config configmap created/updated. Restarting rook-ceph-operator pod to pick up the new values")
+		util.RestartPod(r.ctx, r.Client, &r.Log, "rook-ceph-operator", sc.Namespace)
 	}
 
 	return nil
-}
-
-// restartRookOperatorPod restarts the rook-operator pod in the OCP cluster
-func (r *StorageClusterReconciler) restartRookCephOperatorPod(namespace string) {
-	podList := &corev1.PodList{}
-	err := r.Client.List(context.TODO(), podList, client.InNamespace(namespace), client.MatchingLabels{"app": "rook-ceph-operator"})
-	if err != nil {
-		r.Log.Error(err, "Failed to list rook-ceph-operator pod")
-		return
-	}
-	for _, pod := range podList.Items {
-		err := r.Client.Delete(context.TODO(), &pod)
-		if err != nil {
-			r.Log.Error(err, "Failed to delete rook-ceph-operator pod")
-			return
-		}
-	}
-}
-
-// getClusterID returns the cluster ID of the OCP-Cluster
-func (r *StorageClusterReconciler) getClusterID() string {
-	clusterVersion := &configv1.ClusterVersion{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "version"}, clusterVersion)
-	if err != nil {
-		r.Log.Error(err, "Failed to get the clusterVersion version of the OCP cluster")
-		return ""
-	}
-	return fmt.Sprint(clusterVersion.Spec.ClusterID)
 }
 
 // getCephFSKernelMountOptions returns the kernel mount options for CephFS based on the spec on the StorageCluster
