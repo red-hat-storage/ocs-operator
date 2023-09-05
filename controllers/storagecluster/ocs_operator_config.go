@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"reflect"
 	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v1"
@@ -12,30 +13,19 @@ import (
 )
 
 func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageCluster) error {
-	const (
-		clusterNameKey              = "CSI_CLUSTER_NAME"
-		enableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
-		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
-		enableNFSKey                = "ROOK_CSI_ENABLE_NFS"
-	)
-	var (
-		clusterNameVal             = r.getClusterID()
-		enableReadAffinityVal      = strconv.FormatBool(!sc.Spec.ExternalStorage.Enable)
-		cephFSKernelMountOptionVal = getCephFSKernelMountOptions(sc)
-		enableNFSVal               = getEnableNFSVal(sc)
-	)
+	ocsOperatorConfigData := map[string]string{
+		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
+		util.EnableReadAffinityKey:       strconv.FormatBool(!sc.Spec.ExternalStorage.Enable),
+		util.CephFSKernelMountOptionsKey: getCephFSKernelMountOptions(sc),
+		util.EnableNFSKey:                getEnableNFSVal(sc),
+	}
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.OcsOperatorConfigName,
 			Namespace: sc.Namespace,
 		},
-		Data: map[string]string{
-			clusterNameKey:              clusterNameVal,
-			enableReadAffinityKey:       enableReadAffinityVal,
-			cephFSKernelMountOptionsKey: cephFSKernelMountOptionVal,
-			enableNFSKey:                enableNFSVal,
-		},
+		Data: ocsOperatorConfigData,
 	}
 
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
@@ -46,23 +36,14 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 			existing.BlockOwnerDeletion = nil
 			existing.Controller = nil
 		}
-
-		if cm.Data[clusterNameKey] != clusterNameVal {
-			cm.Data[clusterNameKey] = clusterNameVal
-		}
-		if cm.Data[enableReadAffinityKey] != enableReadAffinityVal {
-			cm.Data[enableReadAffinityKey] = enableReadAffinityVal
-		}
-		if cm.Data[cephFSKernelMountOptionsKey] != cephFSKernelMountOptionVal {
-			cm.Data[cephFSKernelMountOptionsKey] = cephFSKernelMountOptionVal
-		}
-		if cm.Data[enableNFSKey] != enableNFSVal {
-			cm.Data[enableNFSKey] = enableNFSVal
+		if !reflect.DeepEqual(cm.Data, ocsOperatorConfigData) {
+			r.Log.Info("Updating ocs-operator-config configmap")
+			cm.Data = ocsOperatorConfigData
 		}
 		return ctrl.SetControllerReference(sc, cm, r.Scheme)
 	})
 	if err != nil {
-		r.Log.Error(err, fmt.Sprintf("failed to update %q configmap", util.OcsOperatorConfigName))
+		r.Log.Error(err, "Failed to create/update ocs-operator-config configmap", "OperationResult", opResult)
 		return err
 	}
 	// If configmap is created or updated, restart the rook-ceph-operator pod to pick up the new change
