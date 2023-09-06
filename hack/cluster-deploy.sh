@@ -13,6 +13,7 @@ set +e
 
 $CLUSTER_DEPLOY --ocs-catalog-image="${CATALOG_FULL_IMAGE_NAME}" --ocs-subscription-channel="${OCS_SUBSCRIPTION_CHANNEL}" --install-namespace="${INSTALL_NAMESPACE}"
 
+# shellcheck disable=SC2181
 if [ $? -ne 0 ]; then
 	hack/dump-debug-info.sh
 	echo "ERROR: cluster-deploy failed."
