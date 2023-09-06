@@ -11,6 +11,7 @@ source hack/common.sh
 	--ocs-operator-install="${OCS_OPERATOR_INSTALL}" \
 	--ocs-cluster-uninstall="${OCS_CLUSTER_UNINSTALL}" "$@"
 
+# shellcheck disable=SC2181
 if [ $? -ne 0 ]; then
 	echo "ERROR: Functest failed."
 	exit 1
