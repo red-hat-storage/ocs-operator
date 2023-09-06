@@ -18,11 +18,15 @@ CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
 LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
 
-OUTDIR="build/_output"
-OUTDIR_BIN="build/_output/bin"
+# Tools & binaries versions and locations
+LOCALBIN="$(pwd)/bin"
+OPERATOR_SDK_VERSION="v1.25.4"
+OPERATOR_SDK="${LOCALBIN}/operator-sdk-${OPERATOR_SDK_VERSION}"
+OPM_VERSION="v1.28.0"
+OPM="${LOCALBIN}/opm-${OPM_VERSION}"
+GINKGO="${LOCALBIN}/ginkgo"
 OUTDIR_TEMPLATES="deploy/csv-templates"
 OUTDIR_CRDS="$OUTDIR_TEMPLATES/crds"
-OUTDIR_TOOLS="$OUTDIR/tools"
 
 DEPLOY_YAML_PATH="deploy/deploy-with-olm.yaml"
 PROMETHEUS_RULES_PATH="metrics/deploy"
