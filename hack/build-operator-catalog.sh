@@ -16,6 +16,6 @@ ${OPM} validate catalog
 ${OPM} generate dockerfile catalog
 
 mv catalog.Dockerfile Dockerfile.catalog
-${IMAGE_BUILD_CMD} build --no-cache -t "${FILE_BASED_CATALOG_FULL_IMAGE_NAME}" -f Dockerfile.catalog .
+${IMAGE_BUILD_CMD} build --platform="${GOOS}"/"${GOARCH}" --no-cache -t "${FILE_BASED_CATALOG_FULL_IMAGE_NAME}" -f Dockerfile.catalog .
 
 echo "Run '${IMAGE_BUILD_CMD} push ${FILE_BASED_CATALOG_FULL_IMAGE_NAME}' to push operator catalog image to image registry."
