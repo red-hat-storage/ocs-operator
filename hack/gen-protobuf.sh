@@ -4,43 +4,54 @@ set -o pipefail
 
 source hack/common.sh
 
+mkdir -p "${LOCALBIN}" "${GRPC_BIN}" "${PROTO_GOOGLE}"
 
-mkdir -p ${OUTDIR} ${OUTDIR_GRPC} ${OUTDIR_PROTO_DIST} ${OUTDIR_PROTO_GOOGLE}
-
-EXISTING_PROTOC=$(${OUTDIR_GRPC}/protoc --version 2> /dev/null)
-EXISTING_PROTOC_GEN_GO=$(${OUTDIR_GRPC}/protoc-gen-go --version 2>&1 | grep protoc-gen-go)
-EXISTING_PROTOC_GEN_GO_GRPC=$(${OUTDIR_GRPC}/protoc-gen-go-grpc --version 2> /dev/null)
-
-if [[ $EXISTING_PROTOC != "libprotoc ${PROTOC_VERSION}" ]]; then
-   # download protoc
-   wget -P ${OUTDIR_PROTO_DIST} --backups=1 \
-		https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip
-   unzip -jod ${OUTDIR_GRPC} ${OUTDIR_PROTO_DIST}/protoc-${PROTOC_VERSION}-linux-x86_64.zip bin/protoc
-
-	# extract descriptor.proto and wrappers.proto
-	unzip -jod ${OUTDIR_PROTO_GOOGLE} ${OUTDIR_PROTO_DIST}/protoc-${PROTOC_VERSION}-linux-x86_64.zip \
-		include/google/protobuf/descriptor.proto \
-		include/google/protobuf/wrappers.proto
+if [[ ${GOHOSTOS} == "linux" ]]; then
+	PROTOC_OS="linux"
+elif [[ ${GOHOSTOS} == "darwin" ]]; then
+	PROTOC_OS="osx"
 fi
 
-if [[ $EXISTING_PROTOC_GEN_GO != "protoc-gen-go v${PROTOC_GEN_GO_VERSION}" ]]; then
-    # download protoc-gen-go
-    wget -P ${OUTDIR_PROTO_DIST} --backups=1 \
-		https://github.com/protocolbuffers/protobuf-go/releases/download/v${PROTOC_GEN_GO_VERSION}/protoc-gen-go.v${PROTOC_GEN_GO_VERSION}.linux.386.tar.gz
-	tar -C  ${OUTDIR_GRPC} -zxvf ${OUTDIR_PROTO_DIST}/protoc-gen-go.v${PROTOC_GEN_GO_VERSION}.linux.386.tar.gz protoc-gen-go
+if [[ ${GOHOSTARCH} == "amd64" ]]; then
+	PROTOC_ARCH="x86_64"
+elif [[ ${GOHOSTARCH} == "arm64" ]]; then
+	PROTOC_ARCH="aarch_64"
 fi
 
-if [[ $EXISTING_PROTOC_GEN_GO_GRPC != "protoc-gen-go-grpc ${PROTOC_GEN_GO_GRPC_VERSION}" ]]; then
-   # download protoc-gen-go-grpc
-	wget -P ${OUTDIR_PROTO_DIST} --backups=1 \
-		https://github.com/grpc/grpc-go/releases/download/cmd%2Fprotoc-gen-go-grpc%2Fv${PROTOC_GEN_GO_GRPC_VERSION}/protoc-gen-go-grpc.v${PROTOC_GEN_GO_GRPC_VERSION}.linux.386.tar.gz
-	tar -C ${OUTDIR_GRPC} -zxvf ${OUTDIR_PROTO_DIST}/protoc-gen-go-grpc.v${PROTOC_GEN_GO_GRPC_VERSION}.linux.386.tar.gz ./protoc-gen-go-grpc
+PROTOC_ZIP="protoc-${PROTOC_VERSION}-${PROTOC_OS}-${PROTOC_ARCH}.zip"
+PROTOC_DL_URL="https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}"
+
+# install protoc
+if [ ! -x "${PROTOC}" ] || [ "$(${PROTOC} --version)" != "libprotoc ${PROTOC_VERSION}" ]; then
+	echo "Installing protoc at ${PROTOC}"
+	echo "Downloading ${PROTOC_DL_URL}"
+	curl -LO "${PROTOC_DL_URL}"
+	unzip -jod "${GRPC_BIN}" "${PROTOC_ZIP}" bin/protoc
+	unzip -jod "${PROTO_GOOGLE}" "${PROTOC_ZIP}" include/google/protobuf/descriptor.proto include/google/protobuf/wrappers.proto
+	rm "${PROTOC_ZIP}"
+else
+	echo "protoc already present at ${PROTOC}"
 fi
 
+# install protoc-gen-go
+if [ ! -x "${PROTOC_GEN_GO}" ] || [ "$(${PROTOC_GEN_GO} --version)" != "protoc-gen-go v${PROTOC_GEN_GO_VERSION}" ]; then
+	echo "Installing protoc-gen-go at ${PROTOC_GEN_GO}"
+	GOBIN=${GRPC_BIN} go install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GEN_GO_VERSION}
+else
+	echo "protoc-gen-go already present at ${PROTOC_GEN_GO}"
+fi
 
+# install protoc-gen-go-grpc
+if [ ! -x "${PROTOC_GEN_GO_GRPC}" ] || [ "$(${PROTOC_GEN_GO_GRPC} --version)" != "protoc-gen-go-grpc ${PROTOC_GEN_GO_GRPC_VERSION}" ]; then
+	echo "Installing protoc-gen-go-grpc at ${PROTOC_GEN_GO_GRPC}"
+	GOBIN=${GRPC_BIN} go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GEN_GO_GRPC_VERSION}
+else
+	echo "protoc-gen-go-grpc already present at ${PROTOC_GEN_GO_GRPC}"
+fi
+
+# generate code
 for service in "${SERVICES[@]}"
 do
-   # generate code
-   ./${OUTDIR_GRPC}/protoc  --proto_path="services/${service}/proto" --go_out="services/${service}/pb" --plugin=${OUTDIR_GRPC}/protoc-gen-go  "${service}.proto"
-   ./${OUTDIR_GRPC}/protoc  --proto_path="services/${service}/proto" --go-grpc_out="services/${service}/pb" --plugin=${OUTDIR_GRPC}/protoc-gen-go-grpc "${service}.proto"
+   ${PROTOC}  --proto_path="services/${service}/proto" --go_out="services/${service}/pb" --plugin="${PROTOC_GEN_GO}"  "${service}.proto"
+   ${PROTOC}  --proto_path="services/${service}/proto" --go-grpc_out="services/${service}/pb" --plugin="${PROTOC_GEN_GO_GRPC}" "${service}.proto"
 done
