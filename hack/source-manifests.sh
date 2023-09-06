@@ -38,12 +38,12 @@ function dump_noobaa_csv() {
 	rm -rf $noobaa_crds_outdir
 	mkdir -p $noobaa_crds_outdir
 
-	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
+	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
 	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
-	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
+	($IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
+	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
 	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $noobaa_crds_outdir/noobaa-crd.yaml
+	($IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $noobaa_crds_outdir/noobaa-crd.yaml
 }
 
 # ==== DUMP ROOK YAMLS ====
@@ -57,16 +57,16 @@ function dump_rook_csv() {
 	mkdir -p $rook_crds_outdir
 
 	crd_list=$(mktemp)
-	echo "Dumping rook csv using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
-	$IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template > $ROOK_CSV
-	echo "Listing rook crds using command: $IMAGE_RUN_CMD --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/"
-	$IMAGE_RUN_CMD --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ > "$crd_list"
+	echo "Dumping rook csv using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
+	$IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template > $ROOK_CSV
+	echo "Listing rook crds using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/"
+	$IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ > "$crd_list"
 	# shellcheck disable=SC2013
 	for i in $(cat "$crd_list"); do
 	        # shellcheck disable=SC2059
 		crd_file=$(printf ${rook_crds_dir}/"$i" | tr -d '[:space:]')
-		echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --entrypoint=cat $ROOK_IMAGE $crd_file"
-		($IMAGE_RUN_CMD --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $rook_crds_outdir/"$(basename "$crd_file")"
+		echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat $ROOK_IMAGE $crd_file"
+		($IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $rook_crds_outdir/"$(basename "$crd_file")"
 	done;
 	rm -f "$crd_list"
 }

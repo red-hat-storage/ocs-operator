@@ -5,6 +5,8 @@
 
 GOOS="${GOOS:-linux}"
 GOARCH="${GOARCH:-amd64}"
+GOHOSTOS="$(go env GOHOSTOS)"
+GOHOSTARCH="$(go env GOHOSTARCH)"
 
 GO_LINT_IMG_LOCATION="${GO_LINT_IMG_LOCATION:-golangci/golangci-lint}"
 GO_LINT_IMG_TAG="${GO_LINT_IMG_TAG:-v1.49.0}"
