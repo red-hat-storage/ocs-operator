@@ -5,7 +5,6 @@ set -o errexit
 set -o pipefail
 
 source hack/common.sh
-source hack/operator-sdk-common.sh
 
 NAMESPACE=$(oc get ns "$INSTALL_NAMESPACE" -o jsonpath="{.metadata.name}" 2>/dev/null || true)
 if [[ -n "$NAMESPACE" ]]; then

@@ -5,7 +5,6 @@
 set -e
 
 source hack/common.sh
-source hack/operator-sdk-common.sh
 
 function help_txt() {
 	echo "Environment Variables"
@@ -27,7 +26,6 @@ fi
 # always start fresh and remove any previous artifacts that may exist.
 mkdir -p $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_CRDS
-mkdir -p $OUTDIR_TOOLS
 
 # ==== DUMP NOOBAA YAMLS ====
 function dump_noobaa_csv() {

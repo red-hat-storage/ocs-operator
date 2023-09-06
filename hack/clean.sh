@@ -4,5 +4,5 @@ set -e
 
 source hack/common.sh
 
-rm -rf ${OUTDIR}
-echo "cleaned $OUTDIR"
+rm -rf "${LOCALBIN}"
+echo "cleaned $LOCALBIN"
