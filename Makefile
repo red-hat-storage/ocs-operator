@@ -91,10 +91,6 @@ operator-bundle: gen-latest-csv
 	@echo "Building ocs operator bundle"
 	hack/build-operator-bundle.sh
 
-operator-index:
-	@echo "Building ocs index image in sqlite db based format"
-	hack/build-operator-index.sh
-
 operator-catalog:
 	@echo "Building ocs catalog image in file based catalog format"
 	hack/build-operator-catalog.sh
