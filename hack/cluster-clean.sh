@@ -65,6 +65,3 @@ for i in "${managed_namespaces[@]}"; do
 		done
 	fi
 done
-
-# clean old
-rm -rf $OUTDIR_CLUSTER_DEPLOY_MANIFESTS
