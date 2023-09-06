@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -117,13 +118,20 @@ func (c *CephBlocklistStore) Resync() error {
 
 	blockList, err := runCephOSDBlocklist(&c.monitorConfig)
 	if err != nil {
-		return fmt.Errorf("failed to get blocklist data: %v", err)
+		klog.Errorf("failed to get blocklist data: %v", err)
+		if err == context.DeadlineExceeded {
+			klog.Errorf("re-creating ceph client, command timedout")
+			c.monitorConfig, err = initCeph(c.kubeClient, c.allowedNamespaces)
+			if err != nil {
+				return fmt.Errorf("failed to recreate ceph client, %v", err)
+			}
+		}
+		// returning an error here will break everything
+		return nil
 	}
 
 	c.Store = blockList
-
 	klog.Infof("Blocklist store sync completed at %v", time.Now())
-
 	return nil
 }
 
@@ -152,7 +160,7 @@ func runCephOSDBlocklist(config *cephMonitorConfig) ([]CephBlocklistLs, error) {
 	}
 
 	args := []string{"osd", "blocklist", "ls", "--format", "json", "-m", config.monitor, "--id", config.id, "--key", config.key}
-	cmd, err := execCommand("ceph", args)
+	cmd, err := execCommand("ceph", args, 30)
 	if err != nil {
 		return blocklistSlice, err
 	}
