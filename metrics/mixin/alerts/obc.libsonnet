@@ -15,7 +15,7 @@
             },
             annotations: {
               message: 'OBC has crossed 80% of the quota(bytes).',
-              description: 'ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.',
               storage_type: $._config.objectStorageType,
               severity_level: 'warning',
             },
@@ -31,7 +31,7 @@
             },
             annotations: {
               message: 'OBC has crossed 80% of the quota(object).',
-              description: 'ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.',
               storage_type: $._config.objectStorageType,
               severity_level: 'warning',
             },
@@ -47,7 +47,7 @@
             },
             annotations: {
               message: 'OBC reached quota(bytes) limit.',
-              description: 'ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the limit set by the quota(bytes) and will be read-only now. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.',
               storage_type: $._config.objectStorageType,
               severity_level: 'error',
             },
@@ -63,7 +63,7 @@
             },
             annotations: {
               message: 'OBC reached quota(object) limit.',
-              description: 'ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the limit set by the quota(objects) and will be read-only now. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.',
               storage_type: $._config.objectStorageType,
               severity_level: 'error',
             },
