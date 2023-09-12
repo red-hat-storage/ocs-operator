@@ -62,6 +62,10 @@ gen-release-csv: operator-sdk manifests kustomize
 	@echo "Generating unified CSV from sourced component-level operators"
 	hack/generate-unified-csv.sh
 
+gen-rook-csv:
+	@echo "Generating rook CSV"
+	hack/generate-rook-csv.sh
+
 gen-latest-deploy-yaml:
 	@echo "Generating latest deployment yaml file"
 	hack/gen-deployment-yaml.sh
