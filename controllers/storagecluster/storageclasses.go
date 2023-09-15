@@ -291,7 +291,7 @@ func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.Sto
 	virtualizationStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
 	virtualizationStorageClassConfig.storageClass.ObjectMeta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
 	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
-	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
+	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce;krbd:osd_request_timeout"
 	return virtualizationStorageClassConfig
 }
 
