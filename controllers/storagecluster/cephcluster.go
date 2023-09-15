@@ -269,6 +269,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Prevent removal of any RDR optimizations if they are already applied to the existing cluster spec.
 	cephCluster.Spec.Storage.Store = determineOSDStore(cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
 
+	// Use bluestore-rdr if mirrioring is enabled
+	if sc.Spec.Mirroring.Enabled && !sc.Spec.ExternalStorage.Enable {
+		cephCluster.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
+		cephCluster.Spec.Storage.Store.UpdateStore = "yes-really-update-store"
+	}
+
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
 	if err != nil {
