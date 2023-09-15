@@ -1,18 +1,9 @@
-# Export GO111MODULE=on to enable project to be built from within GOPATH/src
-export GO111MODULE=on
-# Enable GOPROXY. This speeds up a lot of vendoring operations.
-export GOPROXY=https://proxy.golang.org
-# Export GOROOT. Required for OPERATOR_SDK to work correctly for generate commands.
-export GOROOT=$(shell go env GOROOT)
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
+LOCALBIN=$(shell pwd)/bin
 
-KUSTOMIZE_VERSION=v4.5.2
+KUSTOMIZE_VERSION=v4.5.5
+KUSTOMIZE=$(LOCALBIN)/kustomize
 CONTROLLER_GEN_VERSION=v0.9.2
+CONTROLLER_GEN=$(LOCALBIN)/controller-gen
 
 
 .PHONY: \
@@ -91,10 +82,6 @@ operator-bundle: gen-latest-csv
 	@echo "Building ocs operator bundle"
 	hack/build-operator-bundle.sh
 
-operator-index:
-	@echo "Building ocs index image in sqlite db based format"
-	hack/build-operator-index.sh
-
 operator-catalog:
 	@echo "Building ocs catalog image in file based catalog format"
 	hack/build-operator-catalog.sh
@@ -169,30 +156,29 @@ run: manifests generate
 
 # find or download controller-gen if necessary
 controller-gen:
-ifneq ($(CONTROLLER_GEN_VERSION), $(shell $(GOBIN)/controller-gen --version | awk '{print $$2}'))
-	@{ \
-	echo "Installing controller-gen@$(CONTROLLER_GEN_VERSION)" ;\
-	set -e ;\
-	go install -mod=readonly sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION) ;\
-	echo "Installed controller-gen@$(CONTROLLER_GEN_VERSION)" ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
+ifeq ($(wildcard ${CONTROLLER_GEN}),)
+	@echo "Installing controller-gen@${CONTROLLER_GEN_VERSION} at ${CONTROLLER_GEN}"
+	@GOBIN=$(LOCALBIN) go install -mod=readonly sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION)
+else ifneq ($(shell ${CONTROLLER_GEN} --version | awk '{print $$2}'), $(CONTROLLER_GEN_VERSION))
+	@echo "Installing newer controller-gen@${CONTROLLER_GEN_VERSION} at ${CONTROLLER_GEN}"
+	@GOBIN=$(LOCALBIN) go install -mod=readonly sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION)
 else
-CONTROLLER_GEN=$(shell which $(GOBIN)/controller-gen)
+	@echo "Using existing controller-gen@${CONTROLLER_GEN_VERSION} at ${CONTROLLER_GEN}"
 endif
 
+# find or download kustomize if necessary
 kustomize:
-ifeq (, $(shell which $(GOBIN)/kustomize))
-	@{ \
-	echo "Installing kustomize/v4@${KUSTOMIZE_VERSION}" ;\
-	set -e ;\
-	go install -mod=readonly sigs.k8s.io/kustomize/kustomize/v4@${KUSTOMIZE_VERSION} ;\
-	echo "Installed kustomize/v4@${KUSTOMIZE_VERSION}" ;\
-	}
-export KUSTOMIZE=$(GOBIN)/kustomize
+ifeq ($(wildcard ${KUSTOMIZE}),)
+	@echo "Installing kustomize@${KUSTOMIZE_VERSION} at ${KUSTOMIZE}"
+	@curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+else ifneq ($(shell ${KUSTOMIZE} version | awk -F'[ /]' '/Version/{print $$2}'), $(KUSTOMIZE_VERSION))
+	@echo "Installing newer kustomize@${KUSTOMIZE_VERSION} at ${KUSTOMIZE}"
+	@rm -f ${KUSTOMIZE}
+	@curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
 else
-export KUSTOMIZE=$(shell which $(GOBIN)/kustomize)
+	@echo "Using existing kustomize@${KUSTOMIZE_VERSION} at ${KUSTOMIZE}"
 endif
+export KUSTOMIZE
 
 install-noobaa: operator-sdk
 	@echo "Installing noobaa operator"

@@ -3,16 +3,15 @@
 set -e
 
 source hack/common.sh
-source hack/operator-sdk-common.sh
+
+OPERATOR_SDK_DL_URL="https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_${GOHOSTOS}_${GOHOSTARCH}"
+
+mkdir -p "${LOCALBIN}"
 
 if [ ! -x "${OPERATOR_SDK}" ]; then
-	echo "Downloading operator-sdk: ${OPERATOR_SDK_DL_URL_FULL} --> ${OPERATOR_SDK}"
-	mkdir -p "${OUTDIR_TOOLS}"
-	curl -JL "${OPERATOR_SDK_DL_URL_FULL}" -o "${OPERATOR_SDK}"
+	echo "Installing operator-sdk CLI at ${OPERATOR_SDK}"
+	curl -JL "${OPERATOR_SDK_DL_URL}" -o "${OPERATOR_SDK}"
 	chmod +x "${OPERATOR_SDK}"
 else
-	echo "Using operator-sdk cached at ${OPERATOR_SDK}"
+	echo "Using operator-sdk CLI present at ${OPERATOR_SDK}"
 fi
-
-# Ensure operator-sdk can run properly on local machine
-"${OPERATOR_SDK}" version > /dev/null 2>&1 || echo "Bad operator-sdk binary: ${OPERATOR_SDK}"

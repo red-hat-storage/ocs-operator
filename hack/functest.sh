@@ -2,7 +2,7 @@
 
 source hack/common.sh
 
-"$OUTDIR_BIN/${GINKGO_TEST_SUITE}_tests" -ginkgo.v \
+"${LOCALBIN}/${GINKGO_TEST_SUITE}_tests" -ginkgo.v \
     	--ocs-catalog-image="${FILE_BASED_CATALOG_FULL_IMAGE_NAME}" \
 	--ocs-subscription-channel="${OCS_SUBSCRIPTION_CHANNEL}" \
 	--install-namespace="${INSTALL_NAMESPACE}" \
@@ -11,6 +11,7 @@ source hack/common.sh
 	--ocs-operator-install="${OCS_OPERATOR_INSTALL}" \
 	--ocs-cluster-uninstall="${OCS_CLUSTER_UNINSTALL}" "$@"
 
+# shellcheck disable=SC2181
 if [ $? -ne 0 ]; then
 	echo "ERROR: Functest failed."
 	exit 1

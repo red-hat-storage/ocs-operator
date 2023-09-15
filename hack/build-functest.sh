@@ -4,18 +4,15 @@ set -e
 
 source hack/common.sh
 
-suite="${GINKGO_TEST_SUITE:-ocs}"
-GOBIN="${GOBIN:-$GOPATH/bin}"
-GINKGO=$GOBIN/ginkgo
+mkdir -p "${LOCALBIN}"
 
 if ! [ -x "$GINKGO" ]; then
-	echo "Installing GINKGO"
-	go install -v github.com/onsi/ginkgo/v2/ginkgo@latest
+	echo "Installing GINKGO binary at $GINKGO"
+	GOBIN=${LOCALBIN} go install github.com/onsi/ginkgo/v2/ginkgo
 else
 	echo "GINKO binary found at $GINKGO"
 fi
 
-"${GINKGO}" build --ldflags "${LDFLAGS}" "functests/${suite}/"
+"${GINKGO}" build --ldflags "${LDFLAGS}" "functests/${GINKGO_TEST_SUITE}/"
 
-mkdir -p $OUTDIR_BIN
-mv "functests/${suite}/${suite}.test" "${OUTDIR_BIN}/${suite}_tests"
+mv "functests/${GINKGO_TEST_SUITE}/${GINKGO_TEST_SUITE}.test" "${LOCALBIN}/${GINKGO_TEST_SUITE}_tests"
