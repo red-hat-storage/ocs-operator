@@ -109,22 +109,6 @@ type StorageClusterSpec struct {
 	// DefaultStorageProfile is the default storage profile to use for
 	// the storageclassrequest as StorageProfile is optional.
 	DefaultStorageProfile string `json:"defaultStorageProfile,omitempty"`
-
-	StorageProfiles []StorageProfile `json:"storageProfiles,omitempty"`
-}
-
-// StorageProfile is the storage profile to use for the storageclassrequest.
-type StorageProfile struct {
-	// +kubebuilder:validation:Required
-	// Name of the storage profile.
-	Name string `json:"name"`
-	// +kubebuilder:validation:Required
-	// DeviceClass is the deviceclass name.
-	DeviceClass string `json:"deviceClass"`
-	// configurations to use for cephfilesystem.
-	SharedFilesystemConfiguration SharedFilesystemConfigurationSpec `json:"sharedFilesystemConfiguration,omitempty"`
-	// configurations to use for  profile specific blockpool.
-	BlockPoolConfiguration BlockPoolConfigurationSpec `json:"blockPoolConfiguration,omitempty"`
 }
 
 type SharedFilesystemConfigurationSpec struct {
