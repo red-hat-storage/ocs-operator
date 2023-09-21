@@ -63,11 +63,16 @@ metadata:
           "apiVersion": "ocs.openshift.io/v1",
           "kind": "StorageProfile",
           "metadata": {
-            "name": "medium"
+            "labels": {
+              "app.kubernetes.io/created-by": "ocs-operator",
+              "app.kubernetes.io/instance": "storageprofile-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "storageprofile",
+              "app.kubernetes.io/part-of": "ocs-operator"
+            },
+            "name": "storageprofile-sample"
           },
-          "spec": {
-            "deviceClass": "ssd"
-          }
+          "spec": null
         },
         {
           "apiVersion": "ocs.openshift.io/v1alpha1",
@@ -81,7 +86,7 @@ metadata:
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     operators.operatorframework.io/builder: operator-sdk-v1.25.4
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
   name: ocs-operator.v4.15.0

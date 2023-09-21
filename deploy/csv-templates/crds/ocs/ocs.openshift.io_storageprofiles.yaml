@@ -47,6 +47,9 @@ spec:
                 description: DeviceClass is the deviceclass name.
                 maxLength: 512
                 type: string
+                x-kubernetes-validations:
+                - message: DeviceClass is immutable
+                  rule: self == oldSelf
               sharedFilesystemConfiguration:
                 description: configurations to use for cephfilesystem.
                 properties:
