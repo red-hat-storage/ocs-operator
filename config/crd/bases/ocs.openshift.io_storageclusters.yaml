@@ -6225,38 +6225,6 @@ spec:
                   - name
                   type: object
                 type: array
-              storageProfiles:
-                items:
-                  description: StorageProfile is the storage profile to use for the
-                    storageclassrequest.
-                  properties:
-                    blockPoolConfiguration:
-                      description: configurations to use for  profile specific blockpool.
-                      properties:
-                        parameters:
-                          additionalProperties:
-                            type: string
-                          type: object
-                      type: object
-                    deviceClass:
-                      description: DeviceClass is the deviceclass name.
-                      type: string
-                    name:
-                      description: Name of the storage profile.
-                      type: string
-                    sharedFilesystemConfiguration:
-                      description: configurations to use for cephfilesystem.
-                      properties:
-                        parameters:
-                          additionalProperties:
-                            type: string
-                          type: object
-                      type: object
-                  required:
-                  - deviceClass
-                  - name
-                  type: object
-                type: array
               version:
                 description: Version specifies the version of StorageCluster
                 type: string
