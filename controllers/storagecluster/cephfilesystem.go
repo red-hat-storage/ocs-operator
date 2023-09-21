@@ -41,7 +41,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 		},
 	}
 
-	if initData.Spec.StorageProfiles == nil {
+	if len(r.StorageProfiles.Items) == 0 {
 		// standalone deployment will not have storageProfile, we need to
 		// define default dataPool, if storageProfile is set this will be
 		// overridden.
@@ -56,9 +56,9 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 		}
 	} else {
 		// set deviceClass and parameters from storageProfile
-		for i := range initData.Spec.StorageProfiles {
-			deviceClass := initData.Spec.StorageProfiles[i].DeviceClass
-			parameters := initData.Spec.StorageProfiles[i].SharedFilesystemConfiguration.Parameters
+		for i := range r.StorageProfiles.Items {
+			deviceClass := r.StorageProfiles.Items[i].Spec.DeviceClass
+			parameters := r.StorageProfiles.Items[i].Spec.SharedFilesystemConfiguration.Parameters
 			ret.Spec.DataPools = append(ret.Spec.DataPools, cephv1.NamedPoolSpec{
 				Name: deviceClass,
 				PoolSpec: cephv1.PoolSpec{

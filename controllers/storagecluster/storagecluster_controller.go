@@ -3,8 +3,6 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-	"os"
-
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -20,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -92,6 +91,7 @@ type StorageClusterReconciler struct {
 	recorder           *util.EventReporter
 	OperatorCondition  conditions.Condition
 	IsNoobaaStandalone bool
+	StorageProfiles    ocsv1.StorageProfileList
 }
 
 // SetupWithManager sets up a controller with manager
@@ -155,6 +155,44 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
+	enqueueStorageProfileRequest := handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, obj client.Object) []reconcile.Request {
+			spobj, ok := obj.(*ocsv1.StorageProfile)
+			if !ok {
+				return []reconcile.Request{}
+			}
+
+			if spobj.Status.Phase != util.PhaseReady {
+				return []reconcile.Request{}
+			}
+
+			// Get the StorageProfile objects
+			spList := &ocsv1.StorageProfileList{}
+			err := r.Client.List(r.ctx, spList, &client.ListOptions{Namespace: obj.GetNamespace()})
+			if err != nil {
+				r.Log.Error(err, "Unable to list StorageProfile objects")
+				return []reconcile.Request{}
+			}
+
+			// Add the StorageProfile object to the StorageProfile set
+			spList.Items = append(spList.Items, *spobj)
+			// Save the StorageProfile set
+			r.StorageProfiles = *spList
+
+			// Return name and namespace of the StorageProfile object
+			request := []reconcile.Request{}
+			for _, sp := range spList.Items {
+				request = append(request, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: sp.Namespace,
+						Name:      sp.Name,
+					},
+				})
+			}
+			return request
+		},
+	)
+
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}).
@@ -163,6 +201,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&ocsv1.OCSInitialization{}, enqueueStorageClusterRequest).
+		Watches(&ocsv1.StorageProfile{}, enqueueStorageProfileRequest).
 		Watches(
 			&extv1.CustomResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{

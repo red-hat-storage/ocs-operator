@@ -223,10 +223,15 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 		profileName = r.storageCluster.Spec.DefaultStorageProfile
 	}
 
-	for i := range r.storageCluster.Spec.StorageProfiles {
-		profile := &r.storageCluster.Spec.StorageProfiles[i]
+	storageProfileList := &v1.StorageProfileList{}
+	if err := r.list(storageProfileList, client.InNamespace(r.OperatorNamespace)); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	for _, storageProfile := range storageProfileList.Items {
+		profile := storageProfile
 		if profile.Name == profileName {
-			r.storageProfile = profile
+			r.storageProfile = &profile
 			break
 		}
 	}
@@ -305,7 +310,7 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool() error {
 		if err := r.own(r.cephBlockPool); err != nil {
 			return err
 		}
-		deviceClass := r.storageProfile.DeviceClass
+		deviceClass := r.storageProfile.Spec.DeviceClass
 		deviceSetList := r.storageCluster.Spec.StorageDeviceSets
 		var deviceSet *v1.StorageDeviceSet
 		for i := range deviceSetList {
@@ -331,7 +336,7 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool() error {
 					Size:                     3,
 					ReplicasPerFailureDomain: 1,
 				},
-				Parameters: r.storageProfile.BlockPoolConfiguration.Parameters,
+				Parameters: r.storageProfile.Spec.BlockPoolConfiguration.Parameters,
 			},
 		}
 		return nil
@@ -377,7 +382,7 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup() 
 		if err := r.own(r.cephFilesystemSubVolumeGroup); err != nil {
 			return err
 		}
-		deviceClass := r.storageProfile.DeviceClass
+		deviceClass := r.storageProfile.Spec.DeviceClass
 		dataPool := &rookCephv1.NamedPoolSpec{}
 		for i := range cephFilesystem.Spec.DataPools {
 			if cephFilesystem.Spec.DataPools[i].DeviceClass == deviceClass {
