@@ -123,7 +123,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	enqueueStorageClusterRequest := handler.EnqueueRequestsFromMapFunc(
-		func(context context.Context, obj client.Object) []reconcile.Request {
+		func(_ context.Context, obj client.Object) []reconcile.Request {
 
 			ocinit, ok := obj.(*ocsv1.OCSInitialization)
 			if !ok {
