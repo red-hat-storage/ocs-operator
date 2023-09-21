@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -19,59 +20,83 @@ type ocsCephFilesystems struct{}
 
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
 // on first run.
-func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
+func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
 	ret := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephFilesystem(initData),
-			Namespace: initData.Namespace,
+			Name:      generateNameForCephFilesystem(initStorageCluster),
+			Namespace: initStorageCluster.Namespace,
 		},
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.PoolSpec{
-				Replicated:    generateCephReplicatedSpec(initData, "metadata"),
-				FailureDomain: initData.Status.FailureDomain,
+				Replicated:    generateCephReplicatedSpec(initStorageCluster, "metadata"),
+				FailureDomain: initStorageCluster.Status.FailureDomain,
 			},
 			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount:   1,
 				ActiveStandby: true,
-				Placement:     getPlacement(initData, "mds"),
-				Resources:     defaults.GetDaemonResources("mds", initData.Spec.Resources),
+				Placement:     getPlacement(initStorageCluster, "mds"),
+				Resources:     defaults.GetDaemonResources("mds", initStorageCluster.Spec.Resources),
 				// set PriorityClassName for the MDS pods
 				PriorityClassName: openshiftUserCritical,
 			},
 		},
 	}
 
-	if initData.Spec.StorageProfiles == nil {
-		// standalone deployment will not have storageProfile, we need to
-		// define default dataPool, if storageProfile is set this will be
-		// overridden.
+	// not in provider mode
+	if !initStorageCluster.Spec.AllowRemoteStorageConsumers {
+		// standalone deployment that isn't in provider cluster will not
+		// have storageProfile, we need to define default dataPool, if
+		// storageProfile is set this will be overridden.
 		ret.Spec.DataPools = []cephv1.NamedPoolSpec{
 			{
 				PoolSpec: cephv1.PoolSpec{
-					DeviceClass:   generateDeviceClass(initData),
-					Replicated:    generateCephReplicatedSpec(initData, "data"),
-					FailureDomain: initData.Status.FailureDomain,
+					DeviceClass:   generateDeviceClass(initStorageCluster),
+					Replicated:    generateCephReplicatedSpec(initStorageCluster, "data"),
+					FailureDomain: initStorageCluster.Status.FailureDomain,
 				},
 			},
 		}
 	} else {
+		// Load all StorageProfile objects in the StorageCluster's namespace
+		storageProfiles := &ocsv1.StorageProfileList{}
+		err := r.Client.List(r.ctx, storageProfiles, client.InNamespace(initStorageCluster.GetNamespace()))
+		if err != nil {
+			r.Log.Error(err, "unable to list StorageProfile objects")
+		}
 		// set deviceClass and parameters from storageProfile
-		for i := range initData.Spec.StorageProfiles {
-			deviceClass := initData.Spec.StorageProfiles[i].DeviceClass
-			parameters := initData.Spec.StorageProfiles[i].SharedFilesystemConfiguration.Parameters
+		for i := range storageProfiles.Items {
+			storageProfile := storageProfiles.Items[i]
+			spSpec := &storageProfile.Spec
+			deviceClass := spSpec.DeviceClass
+			if len(deviceClass) == 0 {
+				r.Log.Error(nil, "Storage profile has an empty device class. Skipping.", "StorageProfile", klog.KRef(storageProfile.Namespace, storageProfile.Name))
+				storageProfile.Status.Phase = ocsv1.StorageProfilePhaseRejected
+				if updateErr := r.Client.Status().Update(r.ctx, &storageProfile); updateErr != nil {
+					r.Log.Error(updateErr, "Could not update StorageProfile.", "StorageProfile", klog.KRef(storageProfile.Namespace, storageProfile.Name))
+					return nil, updateErr
+				}
+				continue
+			} else {
+				storageProfile.Status.Phase = ""
+				if updateErr := r.Client.Status().Update(r.ctx, &storageProfile); updateErr != nil {
+					r.Log.Error(updateErr, "Could not update StorageProfile.", "StorageProfile", klog.KRef(storageProfile.Namespace, storageProfile.Name))
+					return nil, updateErr
+				}
+			}
+			parameters := spSpec.SharedFilesystemConfiguration.Parameters
 			ret.Spec.DataPools = append(ret.Spec.DataPools, cephv1.NamedPoolSpec{
 				Name: deviceClass,
 				PoolSpec: cephv1.PoolSpec{
-					Replicated:    generateCephReplicatedSpec(initData, "data"),
+					Replicated:    generateCephReplicatedSpec(initStorageCluster, "data"),
 					DeviceClass:   deviceClass,
 					Parameters:    parameters,
-					FailureDomain: initData.Status.FailureDomain,
+					FailureDomain: initStorageCluster.Status.FailureDomain,
 				},
 			})
 		}
 	}
 
-	err := controllerutil.SetControllerReference(initData, ret, r.Scheme)
+	err := controllerutil.SetControllerReference(initStorageCluster, ret, r.Scheme)
 	if err != nil {
 		r.Log.Error(err, "Unable to set Controller Reference for CephFileSystem.", "CephFileSystem", klog.KRef(ret.Namespace, ret.Name))
 		return nil, err

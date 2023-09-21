@@ -60,6 +60,21 @@ metadata:
           }
         },
         {
+          "apiVersion": "ocs.openshift.io/v1",
+          "kind": "StorageProfile",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "ocs-operator",
+              "app.kubernetes.io/instance": "storageprofile-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "storageprofile",
+              "app.kubernetes.io/part-of": "ocs-operator"
+            },
+            "name": "storageprofile-sample"
+          },
+          "spec": null
+        },
+        {
           "apiVersion": "ocs.openshift.io/v1alpha1",
           "kind": "StorageConsumer",
           "metadata": {
@@ -110,6 +125,9 @@ spec:
       kind: StorageConsumer
       name: storageconsumers.ocs.openshift.io
       version: v1alpha1
+    - kind: StorageProfile
+      name: storageprofiles.ocs.openshift.io
+      version: v1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
 
