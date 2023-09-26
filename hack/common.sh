@@ -20,10 +20,6 @@ LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VER
 
 # Tools & binaries versions and locations
 LOCALBIN="$(pwd)/bin"
-OPERATOR_SDK_VERSION="v1.25.4"
-OPERATOR_SDK="${LOCALBIN}/operator-sdk-${OPERATOR_SDK_VERSION}"
-OPM_VERSION="v1.28.0"
-OPM="${LOCALBIN}/opm-${OPM_VERSION}"
 GINKGO="${LOCALBIN}/ginkgo"
 GOLANGCI_LINT_VERSION="v1.51.1"
 GOLANGCI_LINT="${LOCALBIN}/golangci-lint"

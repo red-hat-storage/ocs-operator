@@ -1,10 +1,16 @@
 LOCALBIN=$(shell pwd)/bin
 
+GOHOSTOS=$(shell go env GOHOSTOS)
+GOHOSTARCH=$(shell go env GOHOSTARCH)
+
 KUSTOMIZE_VERSION=v4.5.5
 KUSTOMIZE=$(LOCALBIN)/kustomize
 CONTROLLER_GEN_VERSION=v0.9.2
 CONTROLLER_GEN=$(LOCALBIN)/controller-gen
-
+OPERATOR_SDK_VERSION=v1.25.4
+OPERATOR_SDK=$(LOCALBIN)/operator-sdk-$(OPERATOR_SDK_VERSION)
+OPM_VERSION=v1.28.0
+OPM=$(LOCALBIN)/opm-$(OPM_VERSION)
 
 .PHONY: \
 	build \
@@ -176,6 +182,30 @@ else
 	@echo "Using existing kustomize@${KUSTOMIZE_VERSION} at ${KUSTOMIZE}"
 endif
 export KUSTOMIZE
+
+# find or download operator-sdk if necessary
+operator-sdk:
+ifeq ($(wildcard ${OPERATOR_SDK}),)
+	@echo "Installing operator-sdk@${OPERATOR_SDK_VERSION} at ${OPERATOR_SDK}"
+	@mkdir -p $(LOCALBIN)
+	@curl -JL "https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_${GOHOSTOS}_${GOHOSTARCH}" -o ${OPERATOR_SDK}
+	@chmod +x ${OPERATOR_SDK}
+else
+	@echo "Using existing operator-sdk@${OPERATOR_SDK_VERSION} at ${OPERATOR_SDK}"
+endif
+export OPERATOR_SDK
+
+# find or download opm if necessary
+opm:
+ifeq ($(wildcard ${OPM}),)
+	@echo "Installing opm@${OPM_VERSION} at ${OPM}"
+	@mkdir -p $(LOCALBIN)
+	@curl -JL "https://github.com/operator-framework/operator-registry/releases/download/${OPM_VERSION}/${GOHOSTOS}-${GOHOSTARCH}-opm" -o ${OPM}
+	@chmod +x ${OPM}
+else
+	@echo "Using existing opm@${OPM_VERSION} at ${OPM}"
+endif
+export OPM
 
 install-noobaa: operator-sdk
 	@echo "Installing noobaa operator"
