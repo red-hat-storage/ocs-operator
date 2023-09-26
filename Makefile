@@ -98,11 +98,8 @@ cluster-clean:
 	@echo "Removing ocs install from cluster"
 	hack/cluster-clean.sh
 
-build-functest:
-	@echo "Building functional tests"
-	hack/build-functest.sh
 
-functest: build-functest
+functest:
 	@echo "Running ocs developer functional test suite"
 	hack/functest.sh $(ARGS)
 
