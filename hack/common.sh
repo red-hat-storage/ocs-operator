@@ -44,12 +44,10 @@ OCS_OC_PATH="${OCS_OC_PATH:-oc}"
 OCS_FINAL_DIR="deploy/ocs-operator/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
-NOOBAA_CSV="$OUTDIR_TEMPLATES/noobaa-csv.yaml"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
 LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.12.2"
-LATEST_NOOBAA_IMAGE="quay.io/noobaa/noobaa-operator:master-20230718"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230718"
 LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17"
