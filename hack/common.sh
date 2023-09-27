@@ -30,8 +30,6 @@ GOLANGCI_LINT="${LOCALBIN}/golangci-lint"
 SHELLCHECK_VERSION="v0.9.0"
 SHELLCHECK="${LOCALBIN}/shellcheck"
 
-OUTDIR_TEMPLATES="deploy/csv-templates"
-OUTDIR_CRDS="$OUTDIR_TEMPLATES/crds"
 
 DEPLOY_YAML_PATH="deploy/deploy-with-olm.yaml"
 PROMETHEUS_RULES_PATH="metrics/deploy"
@@ -41,11 +39,15 @@ GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
 # This env var allows developers to point to a custom oc tool that isn't in $PATH
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"
+
 BUNDLE_MANIFESTS_DIR="bundle/manifests"
 EXTRA_MANIFESTS_DIR="deploy/extra-manifests"
-
-ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
-OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
+CSV_TEMPLATES_DIR="deploy/csv-templates"
+CRDS_DIR="deploy/crds"
+ROOK_CSV="$CSV_TEMPLATES_DIR/rook-csv.yaml"
+OCS_CSV="$CSV_TEMPLATES_DIR/ocs-operator-csv.yaml"
+ROOK_CRDS="$CRDS_DIR/rook"
+OCS_CRDS="$CRDS_DIR/ocs"
 
 LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.12.2"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230718"

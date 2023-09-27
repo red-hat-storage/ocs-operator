@@ -62,7 +62,7 @@ $CSV_MERGER \
 	--ocs-image="$OCS_IMAGE" \
 	--ocs-metrics-exporter-image="$OCS_METRICS_EXPORTER_IMAGE" \
 	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
-	--crds-directory="$OUTDIR_CRDS" \
+	--crds-directory="$CRDS_DIR" \
 	--manifests-directory=$EXTRA_MANIFESTS_DIR \
 	--olm-bundle-directory="$BUNDLE_MANIFESTS_DIR" \
 	--timestamp="$TIMESTAMP" \
