@@ -63,7 +63,7 @@ $CSV_MERGER \
 	--ocs-metrics-exporter-image="$OCS_METRICS_EXPORTER_IMAGE" \
 	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
 	--crds-directory="$OUTDIR_CRDS" \
-	--manifests-directory=$BUNDLEMANIFESTS_DIR \
+	--manifests-directory=$EXTRA_MANIFESTS_DIR \
 	--olm-bundle-directory="$OCS_FINAL_DIR" \
 	--timestamp="$TIMESTAMP" \
 	--rook-csiaddons-image="$ROOK_CSIADDONS_IMAGE"

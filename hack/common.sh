@@ -42,7 +42,7 @@ GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
 # defaults to just using the 'oc' binary provided in $PATH
 OCS_OC_PATH="${OCS_OC_PATH:-oc}"
 OCS_FINAL_DIR="deploy/ocs-operator/manifests"
-BUNDLEMANIFESTS_DIR="rbac"
+EXTRA_MANIFESTS_DIR="deploy/extra-manifests"
 
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
