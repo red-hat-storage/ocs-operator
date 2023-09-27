@@ -1,23 +1,11 @@
 #!/usr/bin/env bash
 
-# example: ROOK_IMAGE=build-e858f56d/ceph-amd64:latest OCS_IMAGE=placeholder CSV_VERSION=1.1.1 hack/generate-manifests.sh
-
 set -e
 
 source hack/common.sh
 
-function help_txt() {
-	echo "Environment Variables"
-	echo "    ROOK_IMAGE:           (required) The rook operator container image to integrate with"
-	echo ""
-	echo "Example usage:"
-	echo "    ROOK_IMAGE=<image> $0"
-}
-
 # check required env vars
-if [ -z "$ROOK_IMAGE" ]; then
-	help_txt
-	echo ""
+if [ -z "$CSV_VERSION" ] || [ -z "$OCS_IMAGE" ] || [ -z "$ROOK_IMAGE" ]; then
 	echo "ERROR: Missing required environment variables"
 	exit 1
 fi
