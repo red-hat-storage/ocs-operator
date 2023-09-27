@@ -56,7 +56,7 @@ function dump_rook_csv() {
 # This is the base CSV everything else gets merged into later on.
 function gen_ocs_csv() {
 	echo "Generating OpenShift Container Storage CSV"
-	rm -rf "$(dirname $OCS_FINAL_DIR)"
+	rm -rf "$(dirname $BUNDLE_MANIFESTS_DIR)"
 	ocs_crds_outdir="$OUTDIR_CRDS/ocs"
 	rm -rf $OUTDIR_TEMPLATES/manifests/ocs-operator.clusterserviceversion.yaml
 	rm -rf $OCS_CSV
@@ -66,8 +66,8 @@ function gen_ocs_csv() {
 	pushd config/manager
 	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
 	popd
-	$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --overwrite=false --output-dir deploy/ocs-operator--package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ocs-metrics-exporter
-	mv deploy/ocs-operator/manifests/*clusterserviceversion.yaml $OCS_CSV
+	$KUSTOMIZE build config/manifests | $OPERATOR_SDK generate bundle -q --package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ocs-metrics-exporter
+	mv $BUNDLE_MANIFESTS_DIR/*clusterserviceversion.yaml $OCS_CSV
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
