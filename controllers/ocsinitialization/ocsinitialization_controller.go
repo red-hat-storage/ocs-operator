@@ -237,6 +237,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		clusterNameKey              = "CSI_CLUSTER_NAME"
 		enableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
 		cephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
+		enableNFSKey                = "ROOK_CSI_ENABLE_NFS"
 	)
 	ocsOperatorConfig := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -248,6 +249,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 			clusterNameKey:              "",
 			enableReadAffinityKey:       "true",
 			cephFSKernelMountOptionsKey: "ms_mode=prefer-crc",
+			enableNFSKey:                "false",
 		},
 	}
 	err := r.Client.Create(r.ctx, ocsOperatorConfig)

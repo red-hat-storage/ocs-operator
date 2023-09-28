@@ -271,6 +271,17 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				},
 			},
 			{
+				Name: "ROOK_CSI_ENABLE_NFS",
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "ocs-operator-config",
+						},
+						Key: "ROOK_CSI_ENABLE_NFS",
+					},
+				},
+			},
+			{
 				Name: "CSI_PROVISIONER_TOLERATIONS",
 				Value: `
 - key: node.ocs.openshift.io/storage
