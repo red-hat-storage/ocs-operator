@@ -101,7 +101,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon, namespace) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-mgr"}[5m]) * 60)) > 0.95
+        (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon, namespace) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-exporter"}[5m]) * 60)) > 0.95
       for: 5m
       labels:
         severity: warning
