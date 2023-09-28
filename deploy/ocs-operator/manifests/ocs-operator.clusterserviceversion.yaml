@@ -2996,6 +2996,11 @@ spec:
                     configMapKeyRef:
                       key: CSI_CEPHFS_KERNEL_MOUNT_OPTIONS
                       name: ocs-operator-config
+                - name: ROOK_CSI_ENABLE_NFS
+                  valueFrom:
+                    configMapKeyRef:
+                      key: ROOK_CSI_ENABLE_NFS
+                      name: ocs-operator-config
                 - name: CSI_PROVISIONER_TOLERATIONS
                   value: |2-
 
