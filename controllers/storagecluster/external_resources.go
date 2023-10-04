@@ -190,6 +190,9 @@ func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger, tlsEnable
 		return nil, err
 	}
 	gateWay.ExternalRgwEndpoints = []corev1.EndpointAddress{{IP: hostIP}}
+	if net.ParseIP(hostIP) == nil {
+		gateWay.ExternalRgwEndpoints = []corev1.EndpointAddress{{Hostname: hostIP}}
+	}
 	var portInt64 int64
 	if portInt64, err = strconv.ParseInt(portStr, 10, 32); err != nil {
 		reqLogger.Error(err,
