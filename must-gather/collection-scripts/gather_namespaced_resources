@@ -115,6 +115,12 @@ for INSTALL_NAMESPACE in $PRODUCT_NAMESPACE $INSTALL_NAMESPACES $MANAGED_FUSION_
      { oc get storagesystem -n "${INSTALL_NAMESPACE}" -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storagesystem.yaml" 2>&1
      { oc get storageconsumer -n "${INSTALL_NAMESPACE}" -o yaml; } > "$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/storageconsumer.yaml" 2>&1
 
+     # Collect oc get events with sorted timestamp
+     dbglog "collecting output of oc get events with sorted timestamp"
+     { oc get event -o custom-columns="LAST SEEN:{lastTimestamp},FIRST SEEN:{firstTimestamp},COUNT:{count},NAME:{metadata.name},KIND:{involvedObject.kind},SUBOBJECT:{involvedObject.fieldPath},TYPE:{type},REASON:{reason},SOURCE:{source.component},MESSAGE:{message}" --sort-by=lastTimestamp -nopenshift-storage; } >"$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/events_get" 2>&1
+     { oc describe events -n openshift-storage; } >"$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/events_desc" 2>&1
+     { oc get events -n openshift-storage -o yaml; } >"$BASE_COLLECTION_PATH/namespaces/${INSTALL_NAMESPACE}/oc_output/events_yaml" 2>&1
+
      # Create the dir for data from all namespaces
      mkdir -p "${BASE_COLLECTION_PATH}/namespaces/all/"
 
