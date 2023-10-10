@@ -87,7 +87,7 @@ func enableCephBlocklistMirrorStore(opts *options.Options) {
 	go reflector.Run(opts.StopCh)
 }
 
-// RegisterPersistentVolumeAttributesCollector registers PV attribute colletor to registry
+// RegisterPersistentVolumeAttributesCollector registers PV attribute collector to registry
 func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry, opts *options.Options) {
 	if !pvStoreEnabled {
 		enablePVStore(opts)
