@@ -66,7 +66,7 @@ func enableRBDMirrorStore(opts *options.Options) {
 	rbdMirrorStoreEnabled = true
 }
 
-// RegisterPersistentVolumeAttributesCollector registers PV attribute colletor to registry
+// RegisterPersistentVolumeAttributesCollector registers PV attribute collector to registry
 func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry, opts *options.Options) {
 	if !pvStoreEnabled {
 		enablePVStore(opts)
