@@ -398,11 +398,11 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephObjectStoreUsers{},
 				&ocsCephRGWRoutes{},
 				&ocsStorageClass{},
-				&ocsNoobaaSystem{},
 				&ocsSnapshotClass{},
 				&ocsJobTemplates{},
 				&ocsCephRbdMirrors{},
 				&ocsClusterClaim{},
+				&ocsNoobaaSystem{},
 			}
 		} else {
 			// noobaa-only ensure functions
