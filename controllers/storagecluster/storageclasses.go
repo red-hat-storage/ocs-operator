@@ -288,8 +288,10 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 // newCephBlockPoolVirtualizationStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass for virtualization environment.
 func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	virtualizationStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
-	virtualizationStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
-	virtualizationStorageClassConfig.storageClass.ObjectMeta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
+	meta := virtualizationStorageClassConfig.storageClass.ObjectMeta
+	meta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
+	meta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
+	meta.Annotations["storageclass.kubevirt.io/is-default-virt-class"] = "true"
 	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
 	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
 	return virtualizationStorageClassConfig
