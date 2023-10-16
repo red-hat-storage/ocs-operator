@@ -549,7 +549,7 @@ func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
 	return false
 }
 
-func validateMultusSelectors(selectors map[string]string) error {
+func validateMultusSelectors(selectors map[rookCephv1.CephNetworkType]string) error {
 	publicNetwork, validPublicNetworkKey := selectors[publicNetworkSelectorKey]
 	clusterNetwork, validClusterNetworkKey := selectors[clusterNetworkSelectorKey]
 	if !validPublicNetworkKey && !validClusterNetworkKey {
