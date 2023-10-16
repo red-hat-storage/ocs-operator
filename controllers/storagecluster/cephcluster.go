@@ -446,8 +446,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Enabled: true,
 			},
 			Storage: rookCephv1.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
-				Store:                  osdStore,
+				StorageClassDeviceSets:       newStorageClassDeviceSets(sc, serverVersion),
+				Store:                        osdStore,
+				FlappingRestartIntervalHours: 24,
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
