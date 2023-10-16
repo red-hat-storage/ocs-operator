@@ -435,7 +435,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Image:            cephImage,
 				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
-			Mon:             generateMonSpec(sc, nodeCount),
+			Mon:             generateMonSpec(sc),
 			Mgr:             generateMgrSpec(sc),
 			DataDirHostPath: "/var/lib/rook",
 			DisruptionManagement: rookCephv1.DisruptionManagementSpec{
@@ -696,7 +696,7 @@ func getMgrCount(arbiterMode bool) int {
 	return defaults.DefaultMgrCount
 }
 
-func getMonCount(nodeCount int, arbiter bool) int {
+func getMonCount(monCount int, arbiter bool) int {
 	// return static value if overridden
 	override := os.Getenv(monCountOverrideEnvVar)
 	if override != "" {
@@ -711,6 +711,11 @@ func getMonCount(nodeCount int, arbiter bool) int {
 	if arbiter {
 		return defaults.ArbiterModeMonCount
 	}
+
+	if monCount != 0 {
+		return monCount
+	}
+
 	return defaults.DefaultMonCount
 }
 
@@ -1050,17 +1055,17 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 	return &stretchClusterSpec
 }
 
-func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) rookCephv1.MonSpec {
+func generateMonSpec(sc *ocsv1.StorageCluster) rookCephv1.MonSpec {
 	if arbiterEnabled(sc) {
 		return rookCephv1.MonSpec{
-			Count:                getMonCount(nodeCount, true),
+			Count:                getMonCount(sc.Spec.ManagedResources.CephCluster.MonCount, true),
 			AllowMultiplePerNode: false,
 			StretchCluster:       generateStretchClusterSpec(sc),
 		}
 	}
 
 	return rookCephv1.MonSpec{
-		Count:                getMonCount(nodeCount, false),
+		Count:                getMonCount(sc.Spec.ManagedResources.CephCluster.MonCount, false),
 		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
 	}
 }
