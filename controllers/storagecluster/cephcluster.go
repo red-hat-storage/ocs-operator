@@ -446,8 +446,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Enabled: true,
 			},
 			Storage: rookCephv1.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
-				Store:                  osdStore,
+				StorageClassDeviceSets:       newStorageClassDeviceSets(sc, serverVersion),
+				Store:                        osdStore,
+				FlappingRestartIntervalHours: 24,
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
@@ -543,7 +544,7 @@ func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
 	return false
 }
 
-func validateMultusSelectors(selectors map[string]string) error {
+func validateMultusSelectors(selectors map[rookCephv1.CephNetworkType]string) error {
 	publicNetwork, validPublicNetworkKey := selectors[publicNetworkSelectorKey]
 	clusterNetwork, validClusterNetworkKey := selectors[clusterNetworkSelectorKey]
 	if !validPublicNetworkKey && !validClusterNetworkKey {
