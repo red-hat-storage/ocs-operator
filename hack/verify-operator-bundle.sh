@@ -4,4 +4,4 @@ set -e
 
 source hack/ensure-operator-sdk.sh
 
-${OPERATOR_SDK} bundle validate "$(dirname $OCS_FINAL_DIR)" --verbose
+${OPERATOR_SDK} bundle validate "$(dirname "$BUNDLE_MANIFESTS_DIR")" --verbose
