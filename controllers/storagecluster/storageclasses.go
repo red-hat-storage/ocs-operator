@@ -288,7 +288,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 // newCephBlockPoolVirtualizationStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass for virtualization environment.
 func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	virtualizationStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
-	meta := virtualizationStorageClassConfig.storageClass.ObjectMeta
+	meta := &virtualizationStorageClassConfig.storageClass.ObjectMeta
 	meta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
 	meta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
 	meta.Annotations["storageclass.kubevirt.io/is-default-virt-class"] = "true"

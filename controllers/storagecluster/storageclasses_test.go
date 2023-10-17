@@ -8,6 +8,8 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/stretchr/testify/assert"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -53,6 +55,32 @@ var (
 			},
 		},
 	}
+	createVirtualMachineCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "virtualmachines"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "kubevirt.io",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "kubevirt.io",
+				Scope: extv1.NamespaceScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "VirtualMachine",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
 )
 
 func TestDefaultStorageClasses(t *testing.T) {
@@ -75,6 +103,7 @@ func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.Storage
 	for _, eachPlatform := range allPlatforms {
 		cp := &Platform{platform: eachPlatform}
 		runtimeObjs := []client.Object{}
+		runtimeObjs = append(runtimeObjs, createVirtualMachineCRD())
 		if pvEncryption {
 			runtimeObjs = append(runtimeObjs, createDummyKMSConfigMap(dummyKmsProvider, dummyKmsAddress, ""))
 		}
@@ -91,6 +120,7 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 	scNameRbd := generateNameForCephBlockPoolSC(cr)
 	scNameEncryptedRbd := generateNameForEncryptedCephBlockPoolSC(cr)
 	scNameRgw := generateNameForCephRgwSC(cr)
+	scNameVirt := generateNameForCephBlockPoolVirtualizationSC(cr)
 
 	actual := map[string]*storagev1.StorageClass{
 		scNameCephfs:       {},
@@ -98,6 +128,7 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 		scNameRbd:          {},
 		scNameEncryptedRbd: {},
 		scNameRgw:          {},
+		scNameVirt:         {},
 	}
 	expected, err := reconciler.newStorageClassConfigurations(cr)
 	assert.NoError(t, err)
@@ -108,16 +139,16 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 	assert.NoError(t, skipErr)
 	if skip {
 		if pvEncryption {
-			assert.Equal(t, len(expected), 4)
+			assert.Equal(t, len(expected), 5)
 		} else {
-			assert.Equal(t, len(expected), 3)
+			assert.Equal(t, len(expected), 4)
 		}
 	} else {
 		if pvEncryption {
-			assert.Equal(t, len(expected), 5)
+			assert.Equal(t, len(expected), 6)
 		} else {
 			// if not a cloud platform, RGW StorageClass should be created/updated
-			assert.Equal(t, len(expected), 4)
+			assert.Equal(t, len(expected), 5)
 		}
 	}
 
@@ -156,6 +187,9 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 				assert.Equal(t, actualSc.ObjectMeta.Annotations["cdi.kubevirt.io/clone-strategy"], "copy")
 				assert.Equal(t, actualSc.Parameters["encrypted"], "true")
 				assert.NotEmpty(t, actualSc.Parameters["encryptionKMSID"])
+			}
+			if scName == scNameVirt {
+				assert.Equal(t, actualSc.ObjectMeta.Annotations["storageclass.kubevirt.io/is-default-virt-class"], "true")
 			}
 		}
 	}
