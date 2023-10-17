@@ -1054,7 +1054,7 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 func TestMonCountChange(t *testing.T) {
 	for nodeCount := 0; nodeCount <= 10; nodeCount++ {
 		monCountExpected := defaults.DefaultMonCount
-		monCountActual := getMonCount(nodeCount, false)
+		monCountActual := getMonCount(0, false)
 		assert.Equal(t, monCountExpected, monCountActual)
 	}
 }

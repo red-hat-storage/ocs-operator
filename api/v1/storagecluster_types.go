@@ -171,6 +171,8 @@ type ManagedResourcesSpec struct {
 // ManageCephCluster defines how to reconcile the Ceph cluster definition
 type ManageCephCluster struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	// +kubebuilder:validation:Enum=3;5
+	MonCount int `json:"monCount,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
