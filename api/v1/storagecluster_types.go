@@ -185,11 +185,13 @@ type ManageCephDashboard struct {
 	SSL bool `json:"ssl,omitempty"`
 }
 
-// ManageCephBlockPools defines how to reconcilea CephBlockPools
+// ManageCephBlockPools defines how to reconcile CephBlockPools
 type ManageCephBlockPools struct {
 	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
 	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
 	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
+	// if set to true, the storageClass created for cephBlockPools will be annotated as the default for the whole cluster
+	DefaultStorageClass bool `json:"defaultStorageClass,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph block pools
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
