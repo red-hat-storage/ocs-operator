@@ -629,8 +629,13 @@ spec:
                   resources reconciled with the StorageCluster
                 properties:
                   cephBlockPools:
-                    description: ManageCephBlockPools defines how to reconcilea CephBlockPools
+                    description: ManageCephBlockPools defines how to reconcile CephBlockPools
                     properties:
+                      defaultStorageClass:
+                        description: if set to true, the storageClass created for
+                          cephBlockPools will be annotated as the default for the
+                          whole cluster
+                        type: boolean
                       disableSnapshotClass:
                         type: boolean
                       disableStorageClass:
