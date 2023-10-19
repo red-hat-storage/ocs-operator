@@ -240,7 +240,7 @@ func TestCreateSCCs(t *testing.T) {
 
 		if tc.sccCreated {
 			ocs.Status.SCCsCreated = true
-			err := reconciler.Client.Update(context.TODO(), &ocs)
+			err := reconciler.Client.Status().Update(context.TODO(), &ocs)
 			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
 

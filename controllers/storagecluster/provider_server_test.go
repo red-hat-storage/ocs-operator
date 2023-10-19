@@ -43,7 +43,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 				Hostname: "fake",
 			},
 		}
-		err = r.Update(context.TODO(), service)
+		err = r.Status().Update(context.TODO(), service)
 		assert.NoError(t, err)
 
 		// call ensureCreated again after filling the status of svc, It will fail on deployment now
@@ -58,7 +58,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		deployment.Status.AvailableReplicas = 1
-		err = r.Update(context.TODO(), deployment)
+		err = r.Status().Update(context.TODO(), deployment)
 		assert.NoError(t, err)
 
 		// call ensureCreated again after filling the status of deployment, It will pass now
@@ -106,7 +106,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 				Hostname: "fake",
 			},
 		}
-		err = r.Update(context.TODO(), service)
+		err = r.Status().Update(context.TODO(), service)
 		assert.NoError(t, err)
 
 		// call ensureCreated again after filling the status of svc, It will fail on deployment now
@@ -121,7 +121,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		deployment.Status.AvailableReplicas = 1
-		err = r.Update(context.TODO(), deployment)
+		err = r.Status().Update(context.TODO(), deployment)
 		assert.NoError(t, err)
 
 		// call ensureCreated again after filling the status of deployment, It will pass now

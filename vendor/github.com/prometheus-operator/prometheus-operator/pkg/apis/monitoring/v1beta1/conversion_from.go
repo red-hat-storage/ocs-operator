@@ -333,6 +333,16 @@ func convertSlackConfigFrom(in v1alpha1.SlackConfig) SlackConfig {
 	}
 }
 
+func convertWebexConfigFrom(in v1alpha1.WebexConfig) WebexConfig {
+	return WebexConfig{
+		APIURL:       (*URL)(in.APIURL),
+		HTTPConfig:   convertHTTPConfigFrom(in.HTTPConfig),
+		Message:      in.Message,
+		RoomID:       in.RoomID,
+		SendResolved: in.SendResolved,
+	}
+}
+
 func convertWebhookConfigFrom(in v1alpha1.WebhookConfig) WebhookConfig {
 	return WebhookConfig{
 		SendResolved: in.SendResolved,
@@ -397,7 +407,9 @@ func convertPushoverConfigFrom(in v1alpha1.PushoverConfig) PushoverConfig {
 	return PushoverConfig{
 		SendResolved: in.SendResolved,
 		UserKey:      convertSecretKeySelectorFrom(in.UserKey),
+		UserKeyFile:  in.UserKeyFile,
 		Token:        convertSecretKeySelectorFrom(in.Token),
+		TokenFile:    in.TokenFile,
 		Title:        in.Title,
 		Message:      in.Message,
 		URL:          in.URL,
@@ -431,11 +443,22 @@ func convertTelegramConfigFrom(in v1alpha1.TelegramConfig) TelegramConfig {
 		SendResolved:         in.SendResolved,
 		APIURL:               in.APIURL,
 		BotToken:             convertSecretKeySelectorFrom(in.BotToken),
+		BotTokenFile:         in.BotTokenFile,
 		ChatID:               in.ChatID,
 		Message:              in.Message,
 		DisableNotifications: in.DisableNotifications,
 		ParseMode:            in.ParseMode,
 		HTTPConfig:           convertHTTPConfigFrom(in.HTTPConfig),
+	}
+}
+
+func convertMSTeamsConfigFrom(in v1alpha1.MSTeamsConfig) MSTeamsConfig {
+	return MSTeamsConfig{
+		SendResolved: in.SendResolved,
+		WebhookURL:   in.WebhookURL,
+		Title:        in.Title,
+		Text:         in.Text,
+		HTTPConfig:   convertHTTPConfigFrom(in.HTTPConfig),
 	}
 }
 
@@ -475,6 +498,13 @@ func (dst *AlertmanagerConfig) ConvertFrom(srcRaw conversion.Hub) error {
 			out.SlackConfigs = append(
 				out.SlackConfigs,
 				convertSlackConfigFrom(in),
+			)
+		}
+
+		for _, in := range in.WebexConfigs {
+			out.WebexConfigs = append(
+				out.WebexConfigs,
+				convertWebexConfigFrom(in),
 			)
 		}
 
@@ -524,6 +554,13 @@ func (dst *AlertmanagerConfig) ConvertFrom(srcRaw conversion.Hub) error {
 			out.TelegramConfigs = append(
 				out.TelegramConfigs,
 				convertTelegramConfigFrom(in),
+			)
+		}
+
+		for _, in := range in.MSTeamsConfigs {
+			out.MSTeamsConfigs = append(
+				out.MSTeamsConfigs,
+				convertMSTeamsConfigFrom(in),
 			)
 		}
 
