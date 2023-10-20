@@ -256,6 +256,7 @@ type ManageCephRBDMirror struct {
 type MgrSpec struct {
 	// EnableActivePassive can be set as true to deploy 2 ceph manager pods, one active and one standby
 	// Ceph will promote the standby mgr when the active mgr goes down due to any reason
+	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future. By default we now have 2 ceph manager pods, one active and one standby."
 	EnableActivePassive bool `json:"enableActivePassive,omitempty"`
 }
 
