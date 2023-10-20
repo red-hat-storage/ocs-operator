@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	storageClassSkippedError = "some StorageClasses were skipped while waiting for pre-requisites to be met"
+	storageClassSkippedError      = "some StorageClasses were skipped while waiting for pre-requisites to be met"
+	defaultStorageClassAnnotation = "storageclass.kubernetes.io/is-default-class"
 )
 
 // StorageClassConfiguration provides configuration options for a StorageClass.
@@ -254,7 +255,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	managementSpec := initData.Spec.ManagedResources.CephBlockPools
-	return StorageClassConfiguration{
+	scc := StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: generateNameForCephBlockPoolSC(initData),
@@ -284,6 +285,10 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 		disable:           managementSpec.DisableStorageClass,
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
+	if initData.Spec.ManagedResources.CephBlockPools.DefaultStorageClass {
+		scc.storageClass.Annotations[defaultStorageClassAnnotation] = "true"
+	}
+	return scc
 }
 
 // newCephBlockPoolVirtualizationStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass for virtualization environment.
@@ -293,6 +298,8 @@ func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.Sto
 	meta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
 	meta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
 	meta.Annotations["storageclass.kubevirt.io/is-default-virt-class"] = "true"
+	// remove the default storageClass annotation as it's not meant for the virtualization storageClass
+	delete(meta.Annotations, defaultStorageClassAnnotation)
 	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
 	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
 	return virtualizationStorageClassConfig
