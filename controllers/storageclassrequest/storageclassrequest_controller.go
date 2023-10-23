@@ -189,6 +189,23 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
+	profileName := r.StorageClassRequest.Spec.StorageProfile
+	if profileName == "" {
+		profileName = r.storageCluster.Spec.DefaultStorageProfile
+	}
+
+	// Fetch StorageProfile by name in the StorageCluster's namespace
+	storageProfile := v1.StorageProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      profileName,
+			Namespace: r.storageCluster.Namespace,
+		},
+	}
+
+	if err := r.get(&storageProfile); err != nil {
+		return reconcile.Result{}, fmt.Errorf("no storage profile CR found for storage profile %s", profileName)
+	}
+
 	// check request status already contains the name of the resource. if not, add it.
 	if r.StorageClassRequest.Spec.Type == "blockpool" {
 		r.cephBlockPool = &rookCephv1.CephBlockPool{}
@@ -215,23 +232,6 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 		if r.cephFilesystemSubVolumeGroup.Name == "" {
 			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s-%s", r.storageConsumer.Name, generateUUID())
 		}
-	}
-
-	profileName := r.StorageClassRequest.Spec.StorageProfile
-	if profileName == "" {
-		profileName = r.storageCluster.Spec.DefaultStorageProfile
-	}
-
-	// Fetch StorageProfile by name in the StorageCluster's namespace
-	storageProfile := v1.StorageProfile{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      profileName,
-			Namespace: r.storageCluster.Namespace,
-		},
-	}
-
-	if err := r.get(&storageProfile); err != nil {
-		return reconcile.Result{}, fmt.Errorf("no storage profile CR found for storage profile %s", profileName)
 	}
 
 	r.cephClientProvisioner = &rookCephv1.CephClient{}
