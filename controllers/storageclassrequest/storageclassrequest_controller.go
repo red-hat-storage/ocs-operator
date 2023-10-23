@@ -321,6 +321,7 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool(storageProfile *v
 		}
 
 		addLabel(r.cephBlockPool, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
+		addLabel(r.cephBlockPool, controllers.StorageProfileSpecLabel, storageProfile.GetSpecHash())
 
 		r.cephBlockPool.Spec = rookCephv1.NamedBlockPoolSpec{
 			PoolSpec: rookCephv1.PoolSpec{
@@ -389,6 +390,7 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup(st
 		}
 
 		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
+		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageProfileSpecLabel, storageProfile.GetSpecHash())
 		// This label is required to set the dataPool on the CephFS
 		// storageclass so that each PVC created from CephFS storageclass can
 		// use correct dataPool backed by deviceclass.
