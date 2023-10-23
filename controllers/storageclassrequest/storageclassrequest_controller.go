@@ -216,8 +216,29 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 				break
 			}
 		}
+
+		// check if a cephblockpool resource exists for the desired storageconsumer and storageprofile.
 		if r.cephBlockPool.Name == "" {
-			r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
+			cephBlockPoolList := &rookCephv1.CephBlockPoolList{}
+			listOptions := &client.MatchingLabels{
+				controllers.StorageConsumerNameLabel: r.storageConsumer.Name,
+				controllers.StorageProfileSpecLabel:  storageProfile.GetSpecHash(),
+			}
+			if err := r.list(cephBlockPoolList, client.InNamespace(r.OperatorNamespace), listOptions); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			// if we found no CephBlockPools, generate a new name
+			// if we found only one CephBlockPool with our query, we're good
+			// if we found more than one CephBlockPool, we can't determine which one to select, so error out
+			cbpItemsLen := len(cephBlockPoolList.Items)
+			if cbpItemsLen == 0 {
+				r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
+			} else if cbpItemsLen == 1 {
+				r.cephBlockPool.Name = cephBlockPoolList.Items[0].GetName()
+			} else {
+				return reconcile.Result{}, fmt.Errorf("invalid number of CephBlockPools for storage consumer %q and storage profile %q: found %d, expecting 0 or 1", r.storageConsumer.Name, profileName, cbpItemsLen)
+			}
 		}
 
 	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
