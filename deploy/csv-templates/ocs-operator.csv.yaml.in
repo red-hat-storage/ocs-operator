@@ -63,16 +63,11 @@ metadata:
           "apiVersion": "ocs.openshift.io/v1",
           "kind": "StorageProfile",
           "metadata": {
-            "labels": {
-              "app.kubernetes.io/created-by": "ocs-operator",
-              "app.kubernetes.io/instance": "storageprofile-sample",
-              "app.kubernetes.io/managed-by": "kustomize",
-              "app.kubernetes.io/name": "storageprofile",
-              "app.kubernetes.io/part-of": "ocs-operator"
-            },
-            "name": "storageprofile-sample"
+            "name": "medium"
           },
-          "spec": null
+          "spec": {
+            "deviceClass": "ssd"
+          }
         },
         {
           "apiVersion": "ocs.openshift.io/v1alpha1",
