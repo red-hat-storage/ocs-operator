@@ -17,6 +17,11 @@ limitations under the License.
 package v1
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -91,4 +96,14 @@ const (
 
 func init() {
 	SchemeBuilder.Register(&StorageProfile{}, &StorageProfileList{})
+}
+
+func (sp *StorageProfile) GetSpecHash() string {
+	specJSON, err := json.Marshal(sp.Spec)
+	if err != nil {
+		errStr := fmt.Errorf("failed to marshal StorageProfile.Spec for %s", sp.Name)
+		panic(errStr)
+	}
+	specHash := md5.Sum(specJSON)
+	return hex.EncodeToString(specHash[:])
 }
