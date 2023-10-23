@@ -1,12 +1,6 @@
 apiVersion: ocs.openshift.io/v1
 kind: StorageProfile
 metadata:
-  labels:
-    app.kubernetes.io/name: storageprofile
-    app.kubernetes.io/instance: storageprofile-sample
-    app.kubernetes.io/part-of: ocs-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: ocs-operator
-  name: storageprofile-sample
+  name: medium
 spec:
-  # TODO(user): Add fields here
+  deviceClass: ssd
