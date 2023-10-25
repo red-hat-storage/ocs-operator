@@ -41,6 +41,9 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: Parameters is immutable
+                      rule: self == oldSelf
                 type: object
               deviceClass:
                 description: DeviceClass is the deviceclass name.
@@ -53,6 +56,9 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: Parameters is immutable
+                      rule: self == oldSelf
                 type: object
             required:
             - deviceClass
