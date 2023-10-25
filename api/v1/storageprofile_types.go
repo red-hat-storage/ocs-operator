@@ -24,35 +24,26 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // StorageProfileSpec defines the desired state of StorageProfile
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.deviceClass) || has(self.deviceClass)", message="deviceClass is required once set"
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.sharedFilesystemConfiguration) || has(self.sharedFilesystemConfiguration)", message="sharedFilesystemConfiguration is required once set"
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.blockPoolConfiguration) || has(self.blockPoolConfiguration)", message="blockPoolConfiguration is required once set"
 type StorageProfileSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="DeviceClass is immutable"
 	// +kubebuilder:validation:MaxLength=512
 	// DeviceClass is the deviceclass name.
 	DeviceClass string `json:"deviceClass"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="SharedFilesystemConfiguration is immutable"
+	// +kubebuilder:validation:XValidation:rule="has(self.parameters) == has(oldSelf.parameters)",message="SharedFilesystemConfiguration is immutable"
 	// configurations to use for cephfilesystem.
 	SharedFilesystemConfiguration SharedFilesystemConfigurationSpec `json:"sharedFilesystemConfiguration,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="BlockPoolConfiguration is immutable"
+	// +kubebuilder:validation:XValidation:rule="has(self.parameters) == has(oldSelf.parameters)",message="BlockPoolConfiguration is immutable"
 	// configurations to use for  profile specific blockpool.
 	BlockPoolConfiguration BlockPoolConfigurationSpec `json:"blockPoolConfiguration,omitempty"`
 }
 
 // StorageProfileStatus defines the observed state of StorageProfile
 type StorageProfileStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Phase describes the Phase of StorageProfile
 	// This is used by OLM UI to provide status information
 	// to the user
@@ -67,7 +58,9 @@ type StorageProfile struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   StorageProfileSpec   `json:"spec,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="StorageProfileSpec is immutable"
+	Spec   StorageProfileSpec   `json:"spec"`
 	Status StorageProfileStatus `json:"status,omitempty"`
 }
 
