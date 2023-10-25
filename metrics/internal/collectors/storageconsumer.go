@@ -31,7 +31,7 @@ func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollecto
 		StorageConsumerMetadata: prometheus.NewDesc(
 			prometheus.BuildFQName("ocs", "storage_consumer", "metadata"),
 			`Attributes of OCS Storage Consumers`,
-			[]string{"storage_consumer_name", "capacity", "state", "granted_capacity"},
+			[]string{"storage_consumer_name", "state"},
 			nil,
 		),
 		Informer: sharedIndexInformer,
