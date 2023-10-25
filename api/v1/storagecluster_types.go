@@ -112,10 +112,14 @@ type StorageClusterSpec struct {
 }
 
 type SharedFilesystemConfigurationSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Parameters is immutable"
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
 type BlockPoolConfigurationSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Parameters is immutable"
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
