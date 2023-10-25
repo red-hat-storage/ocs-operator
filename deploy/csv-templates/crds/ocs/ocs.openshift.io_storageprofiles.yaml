@@ -42,10 +42,13 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: Parameters is immutable
+                      rule: self == oldSelf
                 type: object
                 x-kubernetes-validations:
                 - message: BlockPoolConfiguration is immutable
-                  rule: self == oldSelf
+                  rule: has(self.field) == has(oldSelf.field)
               deviceClass:
                 description: DeviceClass is the deviceclass name.
                 maxLength: 512
@@ -60,18 +63,19 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: Parameters is immutable
+                      rule: self == oldSelf
                 type: object
                 x-kubernetes-validations:
                 - message: SharedFilesystemConfiguration is immutable
-                  rule: self == oldSelf
+                  rule: has(self.field) == has(oldSelf.field)
+            required:
+            - deviceClass
             type: object
             x-kubernetes-validations:
-            - message: deviceClass is required once set
-              rule: '!has(oldSelf.deviceClass) || has(self.deviceClass)'
-            - message: sharedFilesystemConfiguration is required once set
-              rule: '!has(oldSelf.sharedFilesystemConfiguration) || has(self.sharedFilesystemConfiguration)'
-            - message: blockPoolConfiguration is required once set
-              rule: '!has(oldSelf.blockPoolConfiguration) || has(self.blockPoolConfiguration)'
+            - message: StorageProfileSpec is immutable
+              rule: has(self.field) == has(oldSelf.field)
           status:
             description: StorageProfileStatus defines the observed state of StorageProfile
             properties:
