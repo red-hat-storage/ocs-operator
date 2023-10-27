@@ -135,7 +135,7 @@ spec:
     rules:
     - alert: ObcQuotaBytesAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
         message: OBC has crossed 80% of the quota(bytes).
         severity_level: warning
         storage_type: RGW
@@ -146,7 +146,7 @@ spec:
         severity: warning
     - alert: ObcQuotaObjectsAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
         message: OBC has crossed 80% of the quota(object).
         severity_level: warning
         storage_type: RGW
@@ -157,7 +157,7 @@ spec:
         severity: warning
     - alert: ObcQuotaBytesExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the limit set by the quota(bytes) and will be read-only now. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
         message: OBC reached quota(bytes) limit.
         severity_level: error
         storage_type: RGW
@@ -168,7 +168,7 @@ spec:
         severity: critical
     - alert: ObcQuotaObjectsExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{$labels.objectbucketclaim}} has crossed the limit set by the quota(objects) and will be read-only now. Increase the quota in the {{$labels.objectbucketclaim}} OBC custom resource immediately.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
         message: OBC reached quota(object) limit.
         severity_level: error
         storage_type: RGW
