@@ -227,3 +227,41 @@ spec:
       for: 5s
       labels:
         severity: critical
+  - name: storage-client-alerts.rules
+    rules:
+    - alert: StorageClientHeartbeatMissed
+      annotations:
+        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 120 (s). Lossy network connectivity might exist
+        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 120 (s)
+        severity_level: warning
+      expr: |
+        (time() - 120) > (ocs_storage_client_last_heartbeat > 0)
+      labels:
+        severity: warning
+    - alert: StorageClientHeartbeatMissed
+      annotations:
+        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 300 (s). Client might have lost internet connectivity
+        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 300 (s)
+        severity_level: critical
+      expr: |
+        (time() - 300) > (ocs_storage_client_last_heartbeat > 0)
+      labels:
+        severity: critical
+    - alert: StorageClientIncompatiblePlatformVersion
+      annotations:
+        description: Storage Client Platform ({{ $labels.storage_consumer_name }}) lags by more than 1 minor version. Client configuration may be incompatible
+        message: Storage Client Platform ({{ $labels.storage_consumer_name }}) lags by more than 1 minor version
+        severity_level: warning
+      expr: |
+        floor((ocs_storage_client_cluster_version > 0) - ignoring(storage_consumer_name) group_left() (ocs_storage_provider_cluster_version > 0) / 1000) > 1 <= -1
+      labels:
+        severity: warning
+    - alert: StorageClientIncompatibleOperatorVersion
+      annotations:
+        description: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by more than 1 minor version. Client configuration may be incompatible
+        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by more than 1 minor version
+        severity_level: warning
+      expr: |
+        floor((ocs_storage_client_operator_version > 0) - ignoring(storage_consumer_name) group_left() (ocs_storage_provider_operator_version > 0) / 1000) > 1 <= -1
+      labels:
+        severity: warning

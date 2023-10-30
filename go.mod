@@ -20,7 +20,7 @@ require (
 	github.com/onsi/gomega v1.27.10
 	github.com/openshift/api v0.0.0-20231010191030-1f9525271dda
 	github.com/openshift/build-machinery-go v0.0.0-20230306181456-d321ffa04533
-	github.com/openshift/client-go v0.0.0-20230718165156-6014fb98e86a
+	github.com/openshift/client-go v0.0.0-20231005121823-e81400b97c46
 	github.com/openshift/custom-resource-status v1.1.2
 	github.com/operator-framework/api v0.17.7-0.20230626210316-aa3e49803e7b
 	github.com/operator-framework/operator-lib v0.11.1-0.20230717184314-6efbe3a22f6f
