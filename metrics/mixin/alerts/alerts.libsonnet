@@ -2,4 +2,5 @@
 (import 'obc.libsonnet') +
 (import 'services.libsonnet') +
 (import 'blocklist.libsonnet') +
-(import 'encryption.libsonnet')
+(import 'encryption.libsonnet') +
+(import 'storage-client.libsonnet')

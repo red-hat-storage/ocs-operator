@@ -22,5 +22,11 @@
     jobs: {
       ocsExporter: $._config.ExporterSelector,
     },
+
+    // Storage Consumer
+    clientCheckinWarnSec: 120,
+    clientCheckinCritSec: 300,
+    clientPlatformCanLagByMinorVer: 1,
+    clientOperatorCanLagByMinorVer: 1,
   },
 }
