@@ -66,6 +66,19 @@ spec:
                       type: string
                   type: object
                 type: array
+              client:
+                description: Information of storage client received from consumer
+                properties:
+                  operatorVersion:
+                    description: StorageClient Operator Version
+                    type: string
+                  platformVersion:
+                    description: StorageClient Platform Version
+                    type: string
+                required:
+                - operatorVersion
+                - platformVersion
+                type: object
               lastHeartbeat:
                 description: Timestamp of last heartbeat received from consumer
                 format: date-time

@@ -62,6 +62,16 @@ type StorageConsumerStatus struct {
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
+	// Information of storage client received from consumer
+	Client ClientStatus `json:"client,omitempty"`
+}
+
+// ClientStatus is the information pushed from connected storage client
+type ClientStatus struct {
+	// StorageClient Platform Version
+	PlatformVersion string `json:"platformVersion"`
+	// StorageClient Operator Version
+	OperatorVersion string `json:"operatorVersion"`
 }
 
 //+kubebuilder:object:root=true
