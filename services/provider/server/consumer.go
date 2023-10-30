@@ -2,12 +2,12 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	cs "github.com/red-hat-storage/ocs-operator/v4/services/provider/clientstatus"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -199,36 +199,19 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	return consumerObj, nil
 }
 
-func (c *ocsConsumerManager) UpdateStatusLastHeatbeat(ctx context.Context, id string) error {
-	uid := types.UID(id)
-
-	c.mutex.RLock()
-	consumerName, ok := c.nameByUID[uid]
-	if !ok {
-		c.mutex.RUnlock()
-		klog.Warningf("no storageConsumer found with UID %q", id)
-		return nil
+func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string, status cs.StorageClientStatus) error {
+	consumerObj, err := c.Get(ctx, id)
+	if err != nil {
+		return err
 	}
-	c.mutex.RUnlock()
 
-	patchInfo := struct {
-		Op    string      `json:"op"`
-		Path  string      `json:"path"`
-		Value interface{} `json:"value"`
-	}{
-		Op:    "replace",
-		Path:  "/status/lastHeartbeat",
-		Value: metav1.Now(),
-	}
-	jsonPatchInfo, _ := json.Marshal([]interface{}{patchInfo})
-	patch := client.RawPatch(types.JSONPatchType, jsonPatchInfo)
+	consumerObj.Status.LastHeartbeat = metav1.Now()
+	consumerObj.Status.Client.PlatformVersion = status.GetPlatformVersion()
+	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
 
-	consumerObj := &ocsv1alpha1.StorageConsumer{}
-	consumerObj.Name = consumerName
-	consumerObj.Namespace = c.namespace
-	if err := c.client.Status().Patch(ctx, consumerObj, patch); err != nil {
-		return fmt.Errorf("Failed to patch Status.LastHeartbeat for StorageConsumer %v: %v", consumerName, err)
+	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
+		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
 	}
-	klog.Infof("successfully updated Status.LastHeartbeat for StorageConsumer %v", consumerName)
+	klog.Infof("successfully updated Status for StorageConsumer %v", consumerObj.Name)
 	return nil
 }

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blang/semver/v4"
 	"github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
@@ -653,11 +654,20 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 // ReportStatus rpc call to check if a consumer can reach to the provider.
 func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStatusRequest) (*pb.ReportStatusResponse, error) {
 	// Update the status in storageConsumer CR
-	if err := s.consumerManager.UpdateStatusLastHeatbeat(ctx, req.StorageConsumerUUID); err != nil {
+
+	if _, err := semver.Parse(req.ClientPlatformVersion); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientPlatformVersion: %v", err)
+	}
+
+	if _, err := semver.Parse(req.ClientOperatorVersion); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientOperatorVersion: %v", err)
+	}
+
+	if err := s.consumerManager.UpdateConsumerStatus(ctx, req.StorageConsumerUUID, req); err != nil {
 		if kerrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "Failed to update lastHeartbeat in the storageConsumer resource: %v", err)
+			return nil, status.Errorf(codes.NotFound, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat in the storageConsumer resource: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 	}
 
 	return &pb.ReportStatusResponse{}, nil
