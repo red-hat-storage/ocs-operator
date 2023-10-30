@@ -109,3 +109,20 @@ jobs:
           check_hidden: true
           skip: vendor
           ignore_words_list: xdescribe,contails,shouldnot
+
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - uses: wagoid/commitlint-github-action@v5
+      with:
+        configFile: './.github/workflows/conf/commitlintrc.json'
+        helpURL: |
+          Some helpful links
+          Naming Conventions -> https://commitlint.js.org/#/concepts-commit-conventions
+          Rules -> https://commitlint.js.org/#/reference-rules
+          How to Write a Good Git Commit Message -> https://chris.beams.io/posts/git-commit
+
