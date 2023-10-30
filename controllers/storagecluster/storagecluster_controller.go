@@ -125,16 +125,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	enqueueStorageClusterRequest := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
-
-			ocinit, ok := obj.(*ocsv1.OCSInitialization)
-			if !ok {
-				return []reconcile.Request{}
-			}
-
-			if ocinit.Status.Phase != util.PhaseReady {
-				return []reconcile.Request{}
-			}
-
 			// Get the StorageCluster objects
 			scList := &ocsv1.StorageClusterList{}
 			err := r.Client.List(context, scList, &client.ListOptions{Namespace: obj.GetNamespace()})
@@ -195,7 +185,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&ocsv1.OCSInitialization{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1.StorageProfile{}, enqueueFromStorageProfile).
 		Watches(
 			&extv1.CustomResourceDefinition{
