@@ -162,14 +162,10 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 		Complete(r)
 }
 
-func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, error) {
-	r.log.Info("Running StorageClassRequest controller in Converged/Provider Mode")
-
-	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestInitializing
-
+func (r *StorageClassRequestReconciler) initPhase(storageProfile *v1.StorageProfile) error {
 	gvk, err := apiutil.GVKForObject(&v1alpha1.StorageConsumer{}, r.Client.Scheme())
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to get gvk for consumer  %w", err)
+		return fmt.Errorf("failed to get gvk for consumer  %w", err)
 	}
 	// reading storageConsumer Name from StorageClassRequest ownerReferences
 	ownerRefs := r.StorageClassRequest.GetOwnerReferences()
@@ -182,11 +178,11 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 		}
 	}
 	if r.storageConsumer == nil {
-		return reconcile.Result{}, fmt.Errorf("no storage consumer owner ref on the storage class request")
+		return fmt.Errorf("no storage consumer owner ref on the storage class request")
 	}
 
 	if err := r.get(r.storageConsumer); err != nil {
-		return reconcile.Result{}, err
+		return err
 	}
 
 	profileName := r.StorageClassRequest.Spec.StorageProfile
@@ -195,15 +191,11 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 	}
 
 	// Fetch StorageProfile by name in the StorageCluster's namespace
-	storageProfile := v1.StorageProfile{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      profileName,
-			Namespace: r.storageCluster.Namespace,
-		},
-	}
+	storageProfile.Name = profileName
+	storageProfile.Namespace = r.storageCluster.Namespace
 
-	if err := r.get(&storageProfile); err != nil {
-		return reconcile.Result{}, fmt.Errorf("no storage profile CR found for storage profile %s", profileName)
+	if err := r.get(storageProfile); err != nil {
+		return fmt.Errorf("no storage profile CR found for storage profile %s", profileName)
 	}
 
 	// check request status already contains the name of the resource. if not, add it.
@@ -225,7 +217,7 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 				controllers.StorageProfileSpecLabel:  storageProfile.GetSpecHash(),
 			}
 			if err := r.list(cephBlockPoolList, client.InNamespace(r.OperatorNamespace), listOptions); err != nil {
-				return reconcile.Result{}, err
+				return err
 			}
 
 			// if we found no CephBlockPools, generate a new name
@@ -237,7 +229,7 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 			} else if cbpItemsLen == 1 {
 				r.cephBlockPool.Name = cephBlockPoolList.Items[0].GetName()
 			} else {
-				return reconcile.Result{}, fmt.Errorf("invalid number of CephBlockPools for storage consumer %q and storage profile %q: found %d, expecting 0 or 1", r.storageConsumer.Name, profileName, cbpItemsLen)
+				return fmt.Errorf("invalid number of CephBlockPools for storage consumer %q and storage profile %q: found %d, expecting 0 or 1", r.storageConsumer.Name, storageProfile.Name, cbpItemsLen)
 			}
 		}
 
@@ -267,6 +259,20 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 
 	for _, cephResourceSpec := range r.StorageClassRequest.Status.CephResources {
 		r.cephResourcesByName[cephResourceSpec.Name] = cephResourceSpec
+	}
+
+	return nil
+}
+
+func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, error) {
+	r.log.Info("Running StorageClassRequest controller in Converged/Provider Mode")
+
+	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestInitializing
+
+	storageProfile := v1.StorageProfile{}
+
+	if err := r.initPhase(&storageProfile); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestCreating
