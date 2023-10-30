@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -292,6 +294,46 @@ func TestNewCephClusterMonData(t *testing.T) {
 			}
 		}
 
+	}
+}
+
+func TestGenerateMgrSpec(t *testing.T) {
+	cases := []struct {
+		label        string
+		sc           *api.StorageCluster
+		isSingleNode bool
+		expectedMgr  cephv1.MgrSpec
+	}{
+		{
+			label: "Default case",
+			sc:    &api.StorageCluster{},
+			expectedMgr: cephv1.MgrSpec{
+				Count: defaults.DefaultMgrCount,
+				Modules: []cephv1.Module{
+					{Name: "pg_autoscaler", Enabled: true},
+					{Name: "balancer", Enabled: true},
+				},
+			},
+		},
+		{
+			label:        "Single node deployment",
+			sc:           &api.StorageCluster{},
+			isSingleNode: true,
+			expectedMgr: cephv1.MgrSpec{
+				Count: 1,
+				Modules: []cephv1.Module{
+					{Name: "pg_autoscaler", Enabled: true},
+					{Name: "balancer", Enabled: true},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
+		t.Setenv(util.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
+		actual := generateMgrSpec(c.sc)
+		assert.DeepEqual(t, c.expectedMgr, actual)
 	}
 }
 

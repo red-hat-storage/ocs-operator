@@ -1054,7 +1054,7 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 func TestMonCountChange(t *testing.T) {
 	for nodeCount := 0; nodeCount <= 10; nodeCount++ {
 		monCountExpected := defaults.DefaultMonCount
-		monCountActual := getMonCount(nodeCount, false)
+		monCountActual := getMonCount(0, false)
 		assert.Equal(t, monCountExpected, monCountActual)
 	}
 }
@@ -1109,9 +1109,9 @@ func TestStorageClusterOnMultus(t *testing.T) {
 		if c.testCase != "default" {
 			c.cr.Spec.Network = &rookCephv1.NetworkSpec{
 				Provider: networkProvider,
-				Selectors: map[string]string{
-					"public":  c.publicNW,
-					"cluster": c.clusterNW,
+				Selectors: map[rookCephv1.CephNetworkType]string{
+					rookCephv1.CephNetworkPublic:  c.publicNW,
+					rookCephv1.CephNetworkCluster: c.clusterNW,
 				},
 			}
 		}

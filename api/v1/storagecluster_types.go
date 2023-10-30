@@ -171,6 +171,8 @@ type ManagedResourcesSpec struct {
 // ManageCephCluster defines how to reconcile the Ceph cluster definition
 type ManageCephCluster struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	// +kubebuilder:validation:Enum=3;5
+	MonCount int `json:"monCount,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
@@ -185,11 +187,13 @@ type ManageCephDashboard struct {
 	SSL bool `json:"ssl,omitempty"`
 }
 
-// ManageCephBlockPools defines how to reconcilea CephBlockPools
+// ManageCephBlockPools defines how to reconcile CephBlockPools
 type ManageCephBlockPools struct {
 	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
 	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
 	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
+	// if set to true, the storageClass created for cephBlockPools will be annotated as the default for the whole cluster
+	DefaultStorageClass bool `json:"defaultStorageClass,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph block pools
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
@@ -254,6 +258,7 @@ type ManageCephRBDMirror struct {
 type MgrSpec struct {
 	// EnableActivePassive can be set as true to deploy 2 ceph manager pods, one active and one standby
 	// Ceph will promote the standby mgr when the active mgr goes down due to any reason
+	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future. By default we now have 2 ceph manager pods, one active and one standby."
 	EnableActivePassive bool `json:"enableActivePassive,omitempty"`
 }
 

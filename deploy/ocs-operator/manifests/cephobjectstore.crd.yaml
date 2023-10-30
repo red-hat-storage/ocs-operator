@@ -30,6 +30,10 @@ spec:
             type: object
           spec:
             properties:
+              allowUsersInNamespaces:
+                items:
+                  type: string
+                type: array
               dataPool:
                 nullable: true
                 properties:

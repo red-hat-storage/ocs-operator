@@ -435,7 +435,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Image:            cephImage,
 				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
-			Mon:             generateMonSpec(sc, nodeCount),
+			Mon:             generateMonSpec(sc),
 			Mgr:             generateMgrSpec(sc),
 			DataDirHostPath: "/var/lib/rook",
 			DisruptionManagement: rookCephv1.DisruptionManagementSpec{
@@ -452,8 +452,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Enabled: true,
 			},
 			Storage: rookCephv1.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
-				Store:                  osdStore,
+				StorageClassDeviceSets:       newStorageClassDeviceSets(sc, serverVersion),
+				Store:                        osdStore,
+				FlappingRestartIntervalHours: 24,
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
@@ -549,7 +550,7 @@ func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
 	return false
 }
 
-func validateMultusSelectors(selectors map[string]string) error {
+func validateMultusSelectors(selectors map[rookCephv1.CephNetworkType]string) error {
 	publicNetwork, validPublicNetworkKey := selectors[publicNetworkSelectorKey]
 	clusterNetwork, validClusterNetworkKey := selectors[clusterNetworkSelectorKey]
 	if !validPublicNetworkKey && !validClusterNetworkKey {
@@ -689,14 +690,14 @@ func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 	return maxReplica
 }
 
-func getMgrCount(arbiterMode bool) int {
-	if arbiterMode {
-		return defaults.ArbiterModeMgrCount
+func getMgrCount() int {
+	if statusutil.IsSingleNodeDeployment() {
+		return 1
 	}
 	return defaults.DefaultMgrCount
 }
 
-func getMonCount(nodeCount int, arbiter bool) int {
+func getMonCount(monCount int, arbiter bool) int {
 	// return static value if overridden
 	override := os.Getenv(monCountOverrideEnvVar)
 	if override != "" {
@@ -711,6 +712,11 @@ func getMonCount(nodeCount int, arbiter bool) int {
 	if arbiter {
 		return defaults.ArbiterModeMonCount
 	}
+
+	if monCount != 0 {
+		return monCount
+	}
+
 	return defaults.DefaultMonCount
 }
 
@@ -1050,32 +1056,28 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 	return &stretchClusterSpec
 }
 
-func generateMonSpec(sc *ocsv1.StorageCluster, nodeCount int) rookCephv1.MonSpec {
+func generateMonSpec(sc *ocsv1.StorageCluster) rookCephv1.MonSpec {
 	if arbiterEnabled(sc) {
 		return rookCephv1.MonSpec{
-			Count:                getMonCount(nodeCount, true),
+			Count:                getMonCount(sc.Spec.ManagedResources.CephCluster.MonCount, true),
 			AllowMultiplePerNode: false,
 			StretchCluster:       generateStretchClusterSpec(sc),
 		}
 	}
 
 	return rookCephv1.MonSpec{
-		Count:                getMonCount(nodeCount, false),
+		Count:                getMonCount(sc.Spec.ManagedResources.CephCluster.MonCount, false),
 		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
 	}
 }
 
 func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 	spec := rookCephv1.MgrSpec{
-		Count: getMgrCount(arbiterEnabled(sc)),
+		Count: getMgrCount(),
 		Modules: []rookCephv1.Module{
 			{Name: "pg_autoscaler", Enabled: true},
 			{Name: "balancer", Enabled: true},
 		},
-	}
-	if sc.Spec.Mgr != nil && sc.Spec.Mgr.EnableActivePassive {
-		spec.Count = 2
-		spec.AllowMultiplePerNode = statusutil.IsSingleNodeDeployment()
 	}
 
 	return spec
