@@ -220,6 +220,14 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - clusterversions
+          verbs:
+          - get
+          - list
+          - watch
         serviceAccountName: ocs-metrics-exporter
       - rules:
         - apiGroups:
