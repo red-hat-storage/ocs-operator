@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	cs "github.com/red-hat-storage/ocs-operator/v4/services/provider/clientstatus"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 
 	"google.golang.org/grpc"
@@ -188,13 +189,18 @@ func (cc *OCSProviderClient) GetStorageClassClaimConfig(ctx context.Context, con
 	return cc.Client.GetStorageClassClaimConfig(apiCtx, req)
 }
 
-func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID string) (*pb.ReportStatusResponse, error) {
+func NewStorageClientStatus() cs.StorageClientStatus {
+	return &pb.ReportStatusRequest{}
+}
+
+func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID string, status cs.StorageClientStatus) (*pb.ReportStatusResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("Provider client is closed")
 	}
-	req := &pb.ReportStatusRequest{
-		StorageConsumerUUID: consumerUUID,
-	}
+
+	// panic if the request wasn't constructed using "NewStorageClientStatus()"
+	req := status.(*pb.ReportStatusRequest)
+	req.StorageConsumerUUID = consumerUUID
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
 	defer cancel()
 
