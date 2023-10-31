@@ -269,12 +269,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Prevent removal of any RDR optimizations if they are already applied to the existing cluster spec.
 	cephCluster.Spec.Storage.Store = determineOSDStore(cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
 
-	// Use bluestore-rdr if mirrioring is enabled
-	if sc.Spec.Mirroring.Enabled && !sc.Spec.ExternalStorage.Enable {
-		cephCluster.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
-		cephCluster.Spec.Storage.Store.UpdateStore = "yes-really-update-store"
-	}
-
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
 	if err != nil {
@@ -452,8 +446,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				Enabled: true,
 			},
 			Storage: rookCephv1.StorageScopeSpec{
-				StorageClassDeviceSets: newStorageClassDeviceSets(sc, serverVersion),
-				Store:                  osdStore,
+				StorageClassDeviceSets:       newStorageClassDeviceSets(sc, serverVersion),
+				Store:                        osdStore,
+				FlappingRestartIntervalHours: 24,
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
@@ -549,7 +544,7 @@ func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
 	return false
 }
 
-func validateMultusSelectors(selectors map[string]string) error {
+func validateMultusSelectors(selectors map[rookCephv1.CephNetworkType]string) error {
 	publicNetwork, validPublicNetworkKey := selectors[publicNetworkSelectorKey]
 	clusterNetwork, validClusterNetworkKey := selectors[clusterNetworkSelectorKey]
 	if !validPublicNetworkKey && !validClusterNetworkKey {
