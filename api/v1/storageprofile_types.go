@@ -31,18 +31,15 @@ import (
 // StorageProfileSpec defines the desired state of StorageProfile
 type StorageProfileSpec struct {
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="DeviceClass is immutable"
 	// +kubebuilder:validation:MaxLength=512
 	// DeviceClass is the deviceclass name.
 	DeviceClass string `json:"deviceClass"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="has(self.parameters) == has(oldSelf.parameters)",message="SharedFilesystemConfiguration is immutable"
 	// configurations to use for cephfilesystem.
 	SharedFilesystemConfiguration SharedFilesystemConfigurationSpec `json:"sharedFilesystemConfiguration,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="has(self.parameters) == has(oldSelf.parameters)",message="BlockPoolConfiguration is immutable"
 	// configurations to use for  profile specific blockpool.
 	BlockPoolConfiguration BlockPoolConfigurationSpec `json:"blockPoolConfiguration,omitempty"`
 }
@@ -64,7 +61,7 @@ type StorageProfile struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="StorageProfileSpec is immutable"
+	// +kubebuilder:validation:XValidation:rule="oldSelf == self",message="spec is immutable"
 	Spec   StorageProfileSpec   `json:"spec"`
 	Status StorageProfileStatus `json:"status,omitempty"`
 }
@@ -82,8 +79,6 @@ type StorageProfileList struct {
 type StorageProfilePhase string
 
 const (
-	StorageProfilePhaseFailed   StorageProfilePhase = "Failed"
-	StorageProfilePhaseReady    StorageProfilePhase = "Ready"
 	StorageProfilePhaseRejected StorageProfilePhase = "Rejected"
 )
 

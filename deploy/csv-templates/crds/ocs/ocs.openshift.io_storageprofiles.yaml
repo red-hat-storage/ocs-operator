@@ -42,20 +42,11 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
-                    x-kubernetes-validations:
-                    - message: Parameters is immutable
-                      rule: self == oldSelf
                 type: object
-                x-kubernetes-validations:
-                - message: BlockPoolConfiguration is immutable
-                  rule: has(self.field) == has(oldSelf.field)
               deviceClass:
                 description: DeviceClass is the deviceclass name.
                 maxLength: 512
                 type: string
-                x-kubernetes-validations:
-                - message: DeviceClass is immutable
-                  rule: self == oldSelf
               sharedFilesystemConfiguration:
                 description: configurations to use for cephfilesystem.
                 properties:
@@ -63,19 +54,13 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
-                    x-kubernetes-validations:
-                    - message: Parameters is immutable
-                      rule: self == oldSelf
                 type: object
-                x-kubernetes-validations:
-                - message: SharedFilesystemConfiguration is immutable
-                  rule: has(self.field) == has(oldSelf.field)
             required:
             - deviceClass
             type: object
             x-kubernetes-validations:
-            - message: StorageProfileSpec is immutable
-              rule: has(self.field) == has(oldSelf.field)
+            - message: spec is immutable
+              rule: oldSelf == self
           status:
             description: StorageProfileStatus defines the observed state of StorageProfile
             properties:
@@ -84,6 +69,8 @@ spec:
                   by OLM UI to provide status information to the user
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
