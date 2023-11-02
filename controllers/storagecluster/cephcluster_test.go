@@ -1369,3 +1369,31 @@ func TestEnsureRDROptmizations(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
 }
+
+func TestEnsureRDRMigration(t *testing.T) {
+	sc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
+
+	// Ensure bluestore store type if RDR optimization annotation is not added
+	var obj ocsCephCluster
+	_, err := obj.ensureCreated(&reconciler, sc)
+	assert.NilError(t, err)
+	actual := &cephv1.CephCluster{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	assert.NilError(t, err)
+	assert.Equal(t, "", actual.Spec.Storage.Store.Type)
+	assert.Equal(t, "", actual.Spec.Storage.Store.UpdateStore)
+
+	// Ensure bluestoreRDR migration is set if RDR optimization annotation is added later on
+	testSkipPrometheusRules = true
+	sc.Annotations[DisasterRecoveryTargetAnnotation] = "true"
+	_, err = obj.ensureCreated(&reconciler, sc)
+	assert.NilError(t, err)
+	actual = &cephv1.CephCluster{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	assert.NilError(t, err)
+	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
+	assert.Equal(t, "yes-really-update-store", actual.Spec.Storage.Store.UpdateStore)
+}

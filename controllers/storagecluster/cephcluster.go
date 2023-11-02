@@ -266,8 +266,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Record actual Ceph container image version before attempting update
 	sc.Status.Images.Ceph.ActualImage = found.Spec.CephVersion.Image
 
-	// Prevent removal of any RDR optimizations if they are already applied to the existing cluster spec.
-	cephCluster.Spec.Storage.Store = determineOSDStore(cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
+	// Allow migration of OSD to bluestore-rdr if RDR optimization annotation is added on an existing cluster.
+	// Prevent changing the bluestore-rdr settings if they are already applied in the existing ceph cluster.
+	cephCluster.Spec.Storage.Store = determineOSDStore(sc, cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
 
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
@@ -1292,10 +1293,23 @@ func optimizeDisasterRecovery(sc *ocsv1.StorageCluster) bool {
 	return false
 }
 
-func determineOSDStore(newOSDStore, existingOSDStore rookCephv1.OSDStore) rookCephv1.OSDStore {
+func determineOSDStore(sc *ocsv1.StorageCluster, newOSDStore, existingOSDStore rookCephv1.OSDStore) rookCephv1.OSDStore {
 	if existingOSDStore.Type == string(rookCephv1.StoreTypeBlueStoreRDR) {
 		return existingOSDStore
+	} else if !sc.Spec.ExternalStorage.Enable && (isBluestore(existingOSDStore) && optimizeDisasterRecovery(sc)) {
+		return rookCephv1.OSDStore{
+			Type:        string(rookCephv1.StoreTypeBlueStoreRDR),
+			UpdateStore: "yes-really-update-store",
+		}
 	}
 
 	return newOSDStore
+}
+
+func isBluestore(store rookCephv1.OSDStore) bool {
+	if store.Type == string(rookCephv1.StoreTypeBlueStore) || store.Type == "" {
+		return true
+	}
+
+	return false
 }
