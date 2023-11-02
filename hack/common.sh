@@ -54,7 +54,7 @@ LATEST_ROOK_IMAGE="rook/ceph:v1.10.0"
 LATEST_NOOBAA_IMAGE="noobaa/noobaa-operator:master-20220916"
 LATEST_NOOBAA_CORE_IMAGE="noobaa/noobaa-core:master-20220916"
 LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
-LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17"
+LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17.2.6"
 LATEST_ROOK_CSIADDONS_IMAGE="csiaddons/k8s-sidecar:v0.5.0"
 
 DEFAULT_IMAGE_REGISTRY="quay.io"
