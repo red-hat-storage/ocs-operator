@@ -2893,7 +2893,7 @@ spec:
                 - name: ROOK_CEPH_IMAGE
                   value: docker.io/rook/ceph:v1.11.4
                 - name: CEPH_IMAGE
-                  value: quay.io/ceph/ceph:v17
+                  value: quay.io/ceph/ceph:v17.2.6
                 - name: NOOBAA_CORE_IMAGE
                   value: quay.io/noobaa/noobaa-core:master-20230306
                 - name: NOOBAA_DB_IMAGE
@@ -3424,7 +3424,7 @@ spec:
   relatedImages:
   - image: docker.io/rook/ceph:v1.11.4
     name: rook-container
-  - image: quay.io/ceph/ceph:v17
+  - image: quay.io/ceph/ceph:v17.2.6
     name: ceph-container
   - image: quay.io/csiaddons/k8s-sidecar:v0.6.0
     name: csiaddons-sidecar
