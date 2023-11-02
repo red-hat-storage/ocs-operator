@@ -112,10 +112,12 @@ type StorageClusterSpec struct {
 }
 
 type SharedFilesystemConfigurationSpec struct {
+	// +kubebuilder:validation:Optional
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
 type BlockPoolConfigurationSpec struct {
+	// +kubebuilder:validation:Optional
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
