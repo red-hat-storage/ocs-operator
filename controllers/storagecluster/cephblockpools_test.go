@@ -118,7 +118,7 @@ func getInitData(customSpec *api.StorageClusterSpec) *api.StorageCluster {
 
 func createReconcilerFromCustomResources(t *testing.T, platform *Platform, cr *api.StorageCluster) StorageClusterReconciler {
 	reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(
-		t, platform, &nbv1.NooBaa{})
+		t, platform, nil, &nbv1.NooBaa{})
 
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
