@@ -149,6 +149,8 @@ spec:
                     - read, write
                     type: string
                 type: object
+              clusterNamespace:
+                type: string
               displayName:
                 type: string
               quotas:

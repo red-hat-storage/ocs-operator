@@ -17,6 +17,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type externalResource struct {
@@ -138,7 +139,7 @@ var (
 
 func TestGetExternalResources(t *testing.T) {
 	ctx := context.TODO()
-	objects := []runtime.Object{
+	objects := []crClient.Object{
 		consumerResource,
 		consumerResource1,
 		consumerResource2,
@@ -278,7 +279,7 @@ func TestGetExternalResources(t *testing.T) {
 	assert.Nil(t, storageConRes)
 
 	// When CephClient status is empty
-	objects = []runtime.Object{
+	objects = []crClient.Object{
 		&rookCephv1.CephClient{},
 	}
 	s := runtime.NewScheme()
@@ -303,7 +304,7 @@ func TestGetExternalResources(t *testing.T) {
 
 	// When CephClient status info is empty
 
-	objects = []runtime.Object{
+	objects = []crClient.Object{
 		&rookCephv1.CephClient{},
 	}
 	s = runtime.NewScheme()
@@ -389,7 +390,7 @@ func TestOCSProviderServerStorageClassRequest(t *testing.T) {
 	}
 
 	ctx := context.TODO()
-	objects := []runtime.Object{
+	objects := []crClient.Object{
 		consumerResource,
 		claimResourceUnderDeletion,
 	}
@@ -455,7 +456,7 @@ func TestOCSProviderServerRevokeStorageClassClaim(t *testing.T) {
 	}
 
 	ctx := context.TODO()
-	objects := []runtime.Object{
+	objects := []crClient.Object{
 		consumerResource,
 		claimResource,
 	}
@@ -673,7 +674,7 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	)
 
 	ctx := context.TODO()
-	objects := []runtime.Object{
+	objects := []crClient.Object{
 		consumerResource,
 		blockPoolClaimResource,
 		sharedFilesystemClaimResource,

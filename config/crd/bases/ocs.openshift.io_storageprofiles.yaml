@@ -43,16 +43,10 @@ spec:
                       type: string
                     type: object
                 type: object
-                x-kubernetes-validations:
-                - message: BlockPoolConfiguration is immutable
-                  rule: self == oldSelf
               deviceClass:
                 description: DeviceClass is the deviceclass name.
                 maxLength: 512
                 type: string
-                x-kubernetes-validations:
-                - message: DeviceClass is immutable
-                  rule: self == oldSelf
               sharedFilesystemConfiguration:
                 description: configurations to use for cephfilesystem.
                 properties:
@@ -61,17 +55,12 @@ spec:
                       type: string
                     type: object
                 type: object
-                x-kubernetes-validations:
-                - message: SharedFilesystemConfiguration is immutable
-                  rule: self == oldSelf
+            required:
+            - deviceClass
             type: object
             x-kubernetes-validations:
-            - message: deviceClass is required once set
-              rule: '!has(oldSelf.deviceClass) || has(self.deviceClass)'
-            - message: sharedFilesystemConfiguration is required once set
-              rule: '!has(oldSelf.sharedFilesystemConfiguration) || has(self.sharedFilesystemConfiguration)'
-            - message: blockPoolConfiguration is required once set
-              rule: '!has(oldSelf.blockPoolConfiguration) || has(self.blockPoolConfiguration)'
+            - message: spec is immutable
+              rule: oldSelf == self
           status:
             description: StorageProfileStatus defines the observed state of StorageProfile
             properties:
@@ -80,6 +69,8 @@ spec:
                   by OLM UI to provide status information to the user
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

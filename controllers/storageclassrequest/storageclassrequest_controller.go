@@ -189,34 +189,6 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
-	// check request status already contains the name of the resource. if not, add it.
-	if r.StorageClassRequest.Spec.Type == "blockpool" {
-		r.cephBlockPool = &rookCephv1.CephBlockPool{}
-		r.cephBlockPool.Namespace = r.OperatorNamespace
-		for _, res := range r.StorageClassRequest.Status.CephResources {
-			if res.Kind == "CephBlockPool" {
-				r.cephBlockPool.Name = res.Name
-				break
-			}
-		}
-		if r.cephBlockPool.Name == "" {
-			r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
-		}
-
-	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
-		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
-		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
-		for _, res := range r.StorageClassRequest.Status.CephResources {
-			if res.Kind == "CephFilesystemSubVolumeGroup" {
-				r.cephFilesystemSubVolumeGroup.Name = res.Name
-				break
-			}
-		}
-		if r.cephFilesystemSubVolumeGroup.Name == "" {
-			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s-%s", r.storageConsumer.Name, generateUUID())
-		}
-	}
-
 	profileName := r.StorageClassRequest.Spec.StorageProfile
 	if profileName == "" {
 		profileName = r.storageCluster.Spec.DefaultStorageProfile
@@ -232,6 +204,55 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 
 	if err := r.get(&storageProfile); err != nil {
 		return reconcile.Result{}, fmt.Errorf("no storage profile CR found for storage profile %s", profileName)
+	}
+
+	// check request status already contains the name of the resource. if not, add it.
+	if r.StorageClassRequest.Spec.Type == "blockpool" {
+		r.cephBlockPool = &rookCephv1.CephBlockPool{}
+		r.cephBlockPool.Namespace = r.OperatorNamespace
+		for _, res := range r.StorageClassRequest.Status.CephResources {
+			if res.Kind == "CephBlockPool" {
+				r.cephBlockPool.Name = res.Name
+				break
+			}
+		}
+
+		// check if a cephblockpool resource exists for the desired storageconsumer and storageprofile.
+		if r.cephBlockPool.Name == "" {
+			cephBlockPoolList := &rookCephv1.CephBlockPoolList{}
+			listOptions := &client.MatchingLabels{
+				controllers.StorageConsumerNameLabel: r.storageConsumer.Name,
+				controllers.StorageProfileSpecLabel:  storageProfile.GetSpecHash(),
+			}
+			if err := r.list(cephBlockPoolList, client.InNamespace(r.OperatorNamespace), listOptions); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			// if we found no CephBlockPools, generate a new name
+			// if we found only one CephBlockPool with our query, we're good
+			// if we found more than one CephBlockPool, we can't determine which one to select, so error out
+			cbpItemsLen := len(cephBlockPoolList.Items)
+			if cbpItemsLen == 0 {
+				r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
+			} else if cbpItemsLen == 1 {
+				r.cephBlockPool.Name = cephBlockPoolList.Items[0].GetName()
+			} else {
+				return reconcile.Result{}, fmt.Errorf("invalid number of CephBlockPools for storage consumer %q and storage profile %q: found %d, expecting 0 or 1", r.storageConsumer.Name, profileName, cbpItemsLen)
+			}
+		}
+
+	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
+		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
+		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
+		for _, res := range r.StorageClassRequest.Status.CephResources {
+			if res.Kind == "CephFilesystemSubVolumeGroup" {
+				r.cephFilesystemSubVolumeGroup.Name = res.Name
+				break
+			}
+		}
+		if r.cephFilesystemSubVolumeGroup.Name == "" {
+			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s-%s", r.storageConsumer.Name, generateUUID())
+		}
 	}
 
 	r.cephClientProvisioner = &rookCephv1.CephClient{}
@@ -321,6 +342,7 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool(storageProfile *v
 		}
 
 		addLabel(r.cephBlockPool, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
+		addLabel(r.cephBlockPool, controllers.StorageProfileSpecLabel, storageProfile.GetSpecHash())
 
 		r.cephBlockPool.Spec = rookCephv1.NamedBlockPoolSpec{
 			PoolSpec: rookCephv1.PoolSpec{
@@ -389,6 +411,7 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup(st
 		}
 
 		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
+		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageProfileSpecLabel, storageProfile.GetSpecHash())
 		// This label is required to set the dataPool on the CephFS
 		// storageclass so that each PVC created from CephFS storageclass can
 		// use correct dataPool backed by deviceclass.

@@ -155,6 +155,8 @@ message StorageClassClaimConfigResponse{
 
 message ReportStatusRequest{
     string storageConsumerUUID = 1;
+    string clientPlatformVersion = 2;
+    string clientOperatorVersion = 3;
 }
 
 message ReportStatusResponse{}
