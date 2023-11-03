@@ -43,6 +43,7 @@ const (
 	ProviderCertsMountPoint      = "/mnt/cert"
 	onboardingTicketKeySecret    = "onboarding-ticket-key"
 	storageClassRequestNameLabel = "ocs.openshift.io/storageclassrequest-name"
+	notAvailable                 = "N/A"
 )
 
 const (
@@ -654,13 +655,22 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 // ReportStatus rpc call to check if a consumer can reach to the provider.
 func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStatusRequest) (*pb.ReportStatusResponse, error) {
 	// Update the status in storageConsumer CR
+	klog.Infof("Client status report received: %+v", req)
 
-	if _, err := semver.Parse(req.ClientPlatformVersion); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientPlatformVersion: %v", err)
+	if req.ClientOperatorVersion == "" {
+		req.ClientOperatorVersion = notAvailable
+	} else {
+		if _, err := semver.Parse(req.ClientOperatorVersion); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientOperatorVersion: %v", err)
+		}
 	}
 
-	if _, err := semver.Parse(req.ClientOperatorVersion); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientOperatorVersion: %v", err)
+	if req.ClientPlatformVersion == "" {
+		req.ClientPlatformVersion = notAvailable
+	} else {
+		if _, err := semver.Parse(req.ClientPlatformVersion); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientPlatformVersion: %v", err)
+		}
 	}
 
 	if err := s.consumerManager.UpdateConsumerStatus(ctx, req.StorageConsumerUUID, req); err != nil {
