@@ -225,9 +225,12 @@ func (r *StorageClassRequestReconciler) initPhase(storageProfile *v1.StorageProf
 			// if we found more than one CephBlockPool, we can't determine which one to select, so error out
 			cbpItemsLen := len(cephBlockPoolList.Items)
 			if cbpItemsLen == 0 {
-				r.cephBlockPool.Name = fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
+				cbpNewName := fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
+				r.log.V(1).Info("no valid CephBlockPool found, creating new one", "CephBlockPool", cbpNewName)
+				r.cephBlockPool.Name = cbpNewName
 			} else if cbpItemsLen == 1 {
 				r.cephBlockPool.Name = cephBlockPoolList.Items[0].GetName()
+				r.log.V(1).Info("valid CephBlockPool found", "CephBlockPool", r.cephBlockPool.Name)
 			} else {
 				return fmt.Errorf("invalid number of CephBlockPools for storage consumer %q and storage profile %q: found %d, expecting 0 or 1", r.storageConsumer.Name, storageProfile.Name, cbpItemsLen)
 			}
@@ -344,7 +347,7 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool(storageProfile *v
 		}
 
 		if deviceSet == nil {
-			return fmt.Errorf("could not find device set definition named %s in storagecluster", deviceClass)
+			return fmt.Errorf("could not find device set with device class %q in storagecluster", deviceClass)
 		}
 
 		addLabel(r.cephBlockPool, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
