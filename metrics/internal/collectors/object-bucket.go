@@ -12,6 +12,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -143,6 +144,14 @@ func (c *ObjectBucketCollector) getAllObjectBuckets(cephObjectStore cephv1.CephO
 		LabelSelector: selector,
 	}
 
+	// collect the OBC list
+	objectBucketClaimList, err := c.bktclient.ObjectbucketV1alpha1().
+		ObjectBucketClaims(cephObjectStore.Namespace).List(context.TODO(), listOpts)
+	// any error, don't panic
+	if err != nil {
+		// make a non-nil OBC List with Items 'nil'
+		objectBucketClaimList = &libbucket.ObjectBucketClaimList{Items: nil}
+	}
 	objectBucketsList, err := c.bktclient.ObjectbucketV1alpha1().ObjectBuckets().List(context.TODO(), listOpts)
 	if err != nil {
 		klog.Errorf("Couldn't list ObjectBuckets. %v", err)
@@ -153,6 +162,18 @@ func (c *ObjectBucketCollector) getAllObjectBuckets(cephObjectStore cephv1.CephO
 	//filter based on ceph-object store
 	bucketHost, _ := getEndpoint(cephObjectStore)
 	for _, ob := range objectBucketsList.Items {
+		// if this ob's claimref object is not set (to an OBC), try to set it
+		if ob.Spec.ClaimRef == nil || ob.Spec.ClaimRef.Name == "" {
+			// this for loop will be safely skipped if the 'Items' object is 'nil'
+			for _, obc := range objectBucketClaimList.Items {
+				// add the OBC details into the matching OB's spec.claimref
+				if obc.Spec.ObjectBucketName == ob.Name {
+					ob.Spec.ClaimRef = &corev1.ObjectReference{Name: obc.Name, Namespace: obc.Namespace}
+					// found the obc associated with this ob
+					break
+				}
+			}
+		}
 		if ob.Spec.Endpoint.BucketHost == bucketHost {
 			objectBuckets = append(objectBuckets, ob)
 		}
