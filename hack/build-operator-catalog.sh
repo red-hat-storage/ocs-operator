@@ -4,7 +4,6 @@ set -e
 
 source hack/common.sh
 source hack/docker-common.sh
-source hack/ensure-opm.sh
 
 echo
 echo "Did you push the bundle image? It must be pullable from '$IMAGE_REGISTRY'."
