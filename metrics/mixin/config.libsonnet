@@ -26,7 +26,6 @@
     // Storage Consumer
     clientCheckinWarnSec: 120,
     clientCheckinCritSec: 300,
-    clientPlatformCanLagByMinorVer: 1,
-    clientOperatorCanLagByMinorVer: 1,
+    clientOperatorMinorVerDiff: 1,
   },
 }
