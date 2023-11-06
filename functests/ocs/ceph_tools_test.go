@@ -34,10 +34,10 @@ func newRookCephTools() (*RookCephTools, error) {
 	return retOCSObj, nil
 }
 
-func (rctObj *RookCephTools) patchOCSInit(patch string) error {
-	init := &ocsv1.OCSInitialization{
+func (rctObj *RookCephTools) patchStorageCluster(patch string) error {
+	init := &ocsv1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ocsinit",
+			Name:      "test-storagecluster",
 			Namespace: rctObj.namespace,
 		},
 	}
@@ -98,20 +98,20 @@ func rookCephToolsTest() {
 
 	ginkgo.Describe("Deployment", func() {
 		ginkgo.AfterEach(func() {
-			err = rctObj.patchOCSInit(disableToolsPatch)
+			err = rctObj.patchStorageCluster(disableToolsPatch)
 			gomega.Expect(err).To(gomega.BeNil())
 		})
 
 		ginkgo.It("Ensure enable tools works", func() {
 			ginkgo.By("Setting enableCephTools=true")
-			err = rctObj.patchOCSInit(enableToolsPatch)
+			err = rctObj.patchStorageCluster(enableToolsPatch)
 			gomega.Expect(err).To(gomega.BeNil())
 
 			ginkgo.By("Ensuring tools are created")
 			gomega.Eventually(rctObj.toolsPodOnlineCheck, 200*time.Second, 1*time.Second).ShouldNot(gomega.HaveOccurred())
 
 			ginkgo.By("Setting enableCephTools=false")
-			err = rctObj.patchOCSInit(disableToolsPatch)
+			err = rctObj.patchStorageCluster(disableToolsPatch)
 			gomega.Expect(err).To(gomega.BeNil())
 
 			ginkgo.By("Ensuring tools are removed")
