@@ -32,7 +32,6 @@ var (
 	replacesCsvVersion = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
 	skipRange          = flag.String("skip-range", "", "the CSV version skip range")
 	rookCSVStr         = flag.String("rook-csv-filepath", "", "path to rook csv yaml file")
-	noobaaCSVStr       = flag.String("noobaa-csv-filepath", "", "path to noobaa csv yaml file")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
 	timestamp          = flag.String("timestamp", "false", "bool value to enable/disable timestamp changes in CSV")
 
@@ -502,11 +501,9 @@ func contains(slice []string, s string) bool {
 func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
 	rookCSV := unmarshalCSV(*rookCSVStr)
-	noobaaCSV := unmarshalCSV(*noobaaCSVStr)
 
 	mergeCsvs := []*csvv1.ClusterServiceVersion{
 		rookCSV,
-		noobaaCSV,
 	}
 
 	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
@@ -517,29 +514,25 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 
 	// Merge CSVs into Unified CSV
 	for _, csv := range mergeCsvs {
-		if csv == noobaaCSV {
-			continue
-		} else {
-			strategySpec := csv.Spec.InstallStrategy.StrategySpec
+		strategySpec := csv.Spec.InstallStrategy.StrategySpec
 
-			deploymentspecs := strategySpec.DeploymentSpecs
-			clusterPermissions := strategySpec.ClusterPermissions
-			permissions := strategySpec.Permissions
+		deploymentspecs := strategySpec.DeploymentSpecs
+		clusterPermissions := strategySpec.ClusterPermissions
+		permissions := strategySpec.Permissions
 
-			templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, deploymentspecs...)
-			templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
-			templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
+		templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, deploymentspecs...)
+		templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
+		templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
 
-			for _, definition := range csv.Spec.CustomResourceDefinitions.Owned {
-				// do not add vr and vrc to csv, this will be owned by csi-addons now.
-				if !(definition.Name == "volumereplications.replication.storage.openshift.io" ||
-					definition.Name == "volumereplicationclasses.replication.storage.openshift.io") {
-					ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-				}
+		for _, definition := range csv.Spec.CustomResourceDefinitions.Owned {
+			// do not add vr and vrc to csv, this will be owned by csi-addons now.
+			if !(definition.Name == "volumereplications.replication.storage.openshift.io" ||
+				definition.Name == "volumereplicationclasses.replication.storage.openshift.io") {
+				ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
 			}
-
 		}
 	}
+
 	// whitelisting APIs
 	for index, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
 		if !contains(exposedAPIs, definition.Name) {
@@ -863,7 +856,7 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 
 func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 	var crdFiles []string
-	crdDirs := []string{"ocs", "rook", "noobaa"}
+	crdDirs := []string{"ocs", "rook"}
 
 	for _, dir := range crdDirs {
 		crdDir := filepath.Join(*inputCrdsDir, dir)
@@ -1026,8 +1019,6 @@ func main() {
 		log.Fatal("--csv-version is required")
 	} else if *rookCSVStr == "" {
 		log.Fatal("--rook-csv-filepath is required")
-	} else if *noobaaCSVStr == "" {
-		log.Fatal("--noobaa-csv-filepath is required")
 	} else if *ocsCSVStr == "" {
 		log.Fatal("--ocs-csv-filepath is required")
 	} else if *rookContainerImage == "" {

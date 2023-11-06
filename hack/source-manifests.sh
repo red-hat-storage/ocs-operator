@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# example: ROOK_IMAGE=build-e858f56d/ceph-amd64:latest NOOBAA_IMAGE=noobaa/noobaa-operator:1.1.0 OCS_IMAGE=placeholder CSV_VERSION=1.1.1 hack/generate-manifests.sh
+# example: ROOK_IMAGE=build-e858f56d/ceph-amd64:latest OCS_IMAGE=placeholder CSV_VERSION=1.1.1 hack/generate-manifests.sh
 
 set -e
 
@@ -8,15 +8,14 @@ source hack/common.sh
 
 function help_txt() {
 	echo "Environment Variables"
-	echo "    NOOBAA_IMAGE:         (required) The noobaa operator container image to integrate with"
 	echo "    ROOK_IMAGE:           (required) The rook operator container image to integrate with"
 	echo ""
 	echo "Example usage:"
-	echo "    NOOBAA_IMAGE=<image> ROOK_IMAGE=<image> $0"
+	echo "    ROOK_IMAGE=<image> $0"
 }
 
 # check required env vars
-if [ -z "$NOOBAA_IMAGE" ] || [ -z "$ROOK_IMAGE" ]; then
+if [ -z "$ROOK_IMAGE" ]; then
 	help_txt
 	echo ""
 	echo "ERROR: Missing required environment variables"
@@ -26,23 +25,6 @@ fi
 # always start fresh and remove any previous artifacts that may exist.
 mkdir -p $OUTDIR_TEMPLATES
 mkdir -p $OUTDIR_CRDS
-
-# ==== DUMP NOOBAA YAMLS ====
-function dump_noobaa_csv() {
-	noobaa_dump_crds_cmd="crd yaml"
-	noobaa_dump_csv_cmd="olm csv"
-	noobaa_crds_outdir="$OUTDIR_CRDS/noobaa"
-	rm -rf $NOOBAA_CSV
-	rm -rf $noobaa_crds_outdir
-	mkdir -p $noobaa_crds_outdir
-
-	echo "Dumping Noobaa csv using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_csv_cmd"
-	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_csv_cmd) > $NOOBAA_CSV
-	echo "Dumping Noobaa crds using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator $NOOBAA_IMAGE $noobaa_dump_crds_cmd"
-	# shellcheck disable=SC2086
-	($IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=/usr/local/bin/noobaa-operator "$NOOBAA_IMAGE" $noobaa_dump_crds_cmd) > $noobaa_crds_outdir/noobaa-crd.yaml
-}
 
 # ==== DUMP ROOK YAMLS ====
 function dump_rook_csv() {
@@ -94,7 +76,6 @@ function gen_ocs_csv() {
 
 if [ -z "$OPENSHIFT_BUILD_NAMESPACE" ] && [ -z "$SKIP_CSV_DUMP" ]; then
 	source hack/docker-common.sh
-	dump_noobaa_csv
 	dump_rook_csv
 fi
 
