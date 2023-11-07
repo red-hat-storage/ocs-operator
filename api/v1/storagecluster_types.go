@@ -171,6 +171,8 @@ type ManagedResourcesSpec struct {
 // ManageCephCluster defines how to reconcile the Ceph cluster definition
 type ManageCephCluster struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	// +kubebuilder:validation:Enum=1;2
+	MgrCount int `json:"mgrCount,omitempty"`
 	// +kubebuilder:validation:Enum=3;5
 	MonCount int `json:"monCount,omitempty"`
 }
@@ -218,9 +220,10 @@ type ManageCephNonResilientPools struct {
 
 // ManageCephFilesystems defines how to reconcile CephFilesystems
 type ManageCephFilesystems struct {
-	ReconcileStrategy    string `json:"reconcileStrategy,omitempty"`
-	DisableStorageClass  bool   `json:"disableStorageClass,omitempty"`
-	DisableSnapshotClass bool   `json:"disableSnapshotClass,omitempty"`
+	ReconcileStrategy     string `json:"reconcileStrategy,omitempty"`
+	DisableStorageClass   bool   `json:"disableStorageClass,omitempty"`
+	ActiveMetadataServers int    `json:"activeMetadataServers,omitempty"`
+	DisableSnapshotClass  bool   `json:"disableSnapshotClass,omitempty"`
 	// StorageClassName specifies the name of the storage class created for cephfs
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
@@ -231,7 +234,7 @@ type ManageCephFilesystems struct {
 type ManageCephObjectStores struct {
 	ReconcileStrategy   string `json:"reconcileStrategy,omitempty"`
 	DisableStorageClass bool   `json:"disableStorageClass,omitempty"`
-	GatewayInstances    int32  `json:"gatewayInstances,omitempty"`
+	GatewayInstances    int    `json:"gatewayInstances,omitempty"`
 	DisableRoute        bool   `json:"disableRoute,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253

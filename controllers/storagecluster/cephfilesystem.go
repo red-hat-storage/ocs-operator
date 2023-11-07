@@ -34,7 +34,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 				FailureDomain: initData.Status.FailureDomain,
 			},
 			MetadataServer: cephv1.MetadataServerSpec{
-				ActiveCount:   1,
+				ActiveCount:   int32(getActiveMetadataServers(initData)),
 				ActiveStandby: true,
 				Placement:     getPlacement(initData, "mds"),
 				Resources:     defaults.GetDaemonResources("mds", initData.Spec.Resources),
@@ -246,4 +246,13 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 
 	}
 	return reconcile.Result{}, nil
+}
+
+func getActiveMetadataServers(sc *ocsv1.StorageCluster) int {
+	activeMds := sc.Spec.ManagedResources.CephFilesystems.ActiveMetadataServers
+	if activeMds != 0 {
+		return activeMds
+	}
+
+	return defaults.CephFSActiveMetadataServers
 }

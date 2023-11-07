@@ -22,6 +22,8 @@ const (
 var (
 	// DefaultMgrCount is the default number of Ceph Manager Pods
 	DefaultMgrCount = 2
+	// ArbiterModeMgrCount is the number of Ceph Manager pods in arbiter mode
+	ArbiterModeMgrCount = 2
 	// DefaultMonCount is the number of monitors to be configured for the CephCluster
 	DefaultMonCount = 3
 	// ArbiterModeMonCount is the number of monitors to be configured for the CephCluster in arbiter mode
@@ -30,6 +32,8 @@ var (
 	// StorageClassDeviceSets per StorageCluster StorageDeviceSet
 	// This is equal to the default number of failure domains for OSDs
 	DeviceSetReplica = 3
+	// CephFSActiveMetadataServerCount is the default number of active CephFS metadata servers
+	CephFSActiveMetadataServers = 1
 	// CephObjectStoreGatewayInstances is the default number of RGW instances to create
 	CephObjectStoreGatewayInstances = 1
 	// ArbiterCephObjectStoreGatewayInstances is the default number of RGW instances to create when arbiter is enabled
