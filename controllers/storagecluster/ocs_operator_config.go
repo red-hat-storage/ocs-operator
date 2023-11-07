@@ -15,6 +15,7 @@ import (
 func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageCluster) error {
 	ocsOperatorConfigData := map[string]string{
 		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
+		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!r.IsMultipleStorageClusters),
 		util.EnableReadAffinityKey:       strconv.FormatBool(!sc.Spec.ExternalStorage.Enable),
 		util.CephFSKernelMountOptionsKey: getCephFSKernelMountOptions(sc),
 		util.EnableTopologyKey:           strconv.FormatBool(sc.Spec.ManagedResources.CephNonResilientPools.Enable),

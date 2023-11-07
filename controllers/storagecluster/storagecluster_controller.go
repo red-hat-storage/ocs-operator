@@ -80,19 +80,20 @@ type ImageMap struct {
 // nolint:revive
 type StorageClusterReconciler struct {
 	client.Client
-	ctx                context.Context
-	Log                logr.Logger
-	Scheme             *runtime.Scheme
-	serverVersion      *version.Info
-	conditions         []conditionsv1.Condition
-	phase              string
-	nodeCount          int
-	platform           *Platform
-	images             ImageMap
-	recorder           *util.EventReporter
-	OperatorCondition  conditions.Condition
-	IsNoobaaStandalone bool
-	clusters           *util.Clusters
+	ctx                       context.Context
+	Log                       logr.Logger
+	Scheme                    *runtime.Scheme
+	serverVersion             *version.Info
+	conditions                []conditionsv1.Condition
+	phase                     string
+	nodeCount                 int
+	platform                  *Platform
+	images                    ImageMap
+	recorder                  *util.EventReporter
+	OperatorCondition         conditions.Condition
+	IsNoobaaStandalone        bool
+	IsMultipleStorageClusters bool
+	clusters                  *util.Clusters
 }
 
 // SetupWithManager sets up a controller with manager

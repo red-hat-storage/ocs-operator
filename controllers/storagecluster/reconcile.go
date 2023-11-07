@@ -171,6 +171,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 		r.Log.Error(err, "Failed to get clusters")
 		return reconcile.Result{}, err
 	}
+	r.IsMultipleStorageClusters = len(r.clusters.GetStorageClusters()) > 1
 
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases(sc, request)
