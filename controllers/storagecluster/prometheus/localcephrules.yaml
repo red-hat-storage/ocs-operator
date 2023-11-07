@@ -278,6 +278,17 @@ spec:
       for: 10m
       labels:
         severity: warning
+    - alert: CephMonLowNumber
+      annotations:
+        description: The number of node failure zones available (5) allow to increase the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
+        message: The current number of Ceph monitors can be increased in order to improve cluster resilience
+        severity_level: info
+        storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/CephMonLowNumber.md
+      expr: |
+        (count(ceph_mon_metadata)) < (count(count by (label_failure_domain_beta_kubernetes_io_zone, label_provider_id) (ocs_node_labels))) and (count(count by (label_failure_domain_beta_kubernetes_io_zone, label_provider_id) (ocs_node_labels))) >= 5
+      labels:
+        severity: info
   - name: cluster-utilization-alert.rules
     rules:
     - alert: CephClusterNearFull
