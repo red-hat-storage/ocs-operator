@@ -27,6 +27,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.20.1
 	github.com/onsi/gomega v1.34.1
 	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.75.0
 	github.com/prometheus/client_model v0.6.1
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240731064750-930a78b89d84
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-20240731064750-930a78b89d84
