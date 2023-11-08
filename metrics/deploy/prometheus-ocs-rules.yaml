@@ -253,15 +253,15 @@ spec:
         message: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by 1 minor version
         severity_level: warning
       expr: |
-        floor(((ocs_storage_provider_operator_version > 0) - ignoring(storage_consumer_name) group_right() (ocs_storage_client_operator_version > 0)) / 1000) == 1
+        floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) == 1
       labels:
         severity: warning
     - alert: StorageClientIncompatibleOperatorVersion
       annotations:
         description: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than 1 minor version. Client configuration may be incompatible and unsupported
         message: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than 1 minor version
-        severity_level: warning
+        severity_level: critical
       expr: |
-        floor(((ocs_storage_provider_operator_version > 0) - ignoring(storage_consumer_name) group_right() (ocs_storage_client_operator_version > 0)) / 1000) > 1 or floor(((ocs_storage_client_operator_version > 0) - ignoring(storage_consumer_name) group_left() (ocs_storage_provider_operator_version > 0)) / 1000) >= 1
+        floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
       labels:
         severity: critical
