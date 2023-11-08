@@ -1,0 +1,49 @@
+Test OCS Operator's metrics and alerts
+
+To execute the default tests, run
+
+`bash run_tests.sh`
+
+This will do a default tests, on both 'deploy/prometheus-ocs-rules.yaml' and 'deploy/prometheus-ocs-rules-external.yaml' files.
+
+The program has the capability to build 'json' prometheus rule files from the provided jsonnet files and run all the tests provided in the given template directories.
+
+Further help on the arguments that can be provided
+
+```bash
+bash run_tests.sh -h
+Alert test directory: <Directory-where-test-framework-resides>
+Metrics directory: <Root-directory-where-metrics-code-resides>
+Usage of test-alerts:
+  -metrics-dir string
+        path to the metrics dir location
+  -output-dir string
+        output dir location (default "tmp")
+  -rule-files value
+        comma separated prometheus rule files in jsonnet/json/yaml format (default "prometheus-ocs-rules.yaml" file in 'metrics/deploy' directory)
+  -test-templates value
+        comma separated template file/directory names
+  -verbose
+        turn on the verbose mode
+```
+
+Example to explicitly run only internal mode alert tests,
+
+`bash run_tests.sh -test-templates=templates -rule-files="../deploy/prometheus-ocs-rules.yaml"`
+
+Another example to test only external mode alerts,
+
+`bash run_tests.sh -test-templates templates-external -rule-files ../deploy/prometheus-ocs-rules.yaml`
+ 
+An example (hypothetical example) to show a bit more complicated scenario, where we have to test already existing PrometheusRule files (in YAML/JSON formats and not processing any jsonnet files) against a few selected/chosen test template files.
+
+`bash run_tests.sh -rule-files="prometheus-ocs-rules.json, ../controllers/prometheus/localcephrules.yaml" -test-templates="templates-dir-for-localcephrules, templates/odfPoolMirroringImageHealth.json.template, templates-external/obcQuotaBytesAlert.json.template" -output-dir=my-output-dir -verbose`
+
+As arguments for '-test-templates', we can pass comma separated combinations of template files (files ending with 'json.template') and directories containing these template files.
+
+We can split our tests into multiple '.json.template' files. Usually each '.json.template' file contains tests for a single alert and all such related template files can be stored under a single directory.
+Sample template files, for internal alerts, can be found under 'templates' directory and 'templates-external' directory contain templates for exetrnal alerts.
+These template files will be internally executed and a '.json' file (corresponding to each template file) will be created.
+
+Similarly, '-rule-files' arguments can contain a comma separated list of prometheus-rule files. Argument files can be in 'Jsonnet', 'JSON' or 'YAML' format. If the file is in 'Jsonnet' format, the program will try to run 'jsonnet' command and create the corresponding rule files (in json format).
+These prometheus-rule files (provided through '-rule-files' argument) will be processed and converted to 'groups' files and (these groups files will be) used as header file names in the (above created '.json') test files.
