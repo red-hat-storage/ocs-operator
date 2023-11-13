@@ -2636,6 +2636,20 @@ spec:
                   is empty. This will only be used when AllowRemoteStorageConsumers
                   is set to true
                 type: string
+              resourceProfile:
+                description: 'Resource Profile can be used to choose from a set of
+                  predefined resource profiles for the ceph daemons. We have 3 profiles
+                  lean: suitable for clusters with limited resources, balanced: suitable
+                  for most use cases, performance: suitable for clusters with high
+                  amount of resources.'
+                enum:
+                - lean
+                - Lean
+                - balanced
+                - Balanced
+                - performance
+                - Performance
+                type: string
               resources:
                 additionalProperties:
                   description: ResourceRequirements describes the compute resource
