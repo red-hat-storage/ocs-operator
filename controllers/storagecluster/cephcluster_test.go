@@ -580,7 +580,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		for i, scds := range actual {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count/3, scds.Count)
-			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
+			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
@@ -646,7 +646,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		for i, scds := range actual {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count/3, scds.Count)
-			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
+			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
@@ -879,7 +879,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 		for i, scds := range actual {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count, scds.Count)
-			assert.DeepEqual(t, defaults.DaemonResources["osd"], scds.Resources)
+			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
@@ -896,29 +896,66 @@ func TestNewCephDaemonResources(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		spec     *api.StorageCluster
+		sc       *api.StorageCluster
 		expected map[string]corev1.ResourceRequirements
 	}{
 		{
-			name: "When nothing is passed to StorageCluster.Spec.Resources (Defaults)",
-			spec: &api.StorageCluster{
+			name: "No ResourceRequirements are set & No ResourceProfile is set",
+			sc: &api.StorageCluster{
 				Spec: api.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{},
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mon": defaults.DaemonResources["mon"],
-				"mgr": defaults.DaemonResources["mgr"],
-				"mds": defaults.DaemonResources["mds"],
-				"rgw": defaults.DaemonResources["rgw"],
+				"mgr": defaults.BalancedDaemonResources["mgr"],
+				"mon": defaults.BalancedDaemonResources["mon"],
 			},
 		},
 		{
-			name: "Overriding defaults",
-			spec: &api.StorageCluster{
+			name: "No ResourceRequirements are set & ResourceProfile is `lean`",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources:       map[string]corev1.ResourceRequirements{},
+					ResourceProfile: "lean",
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mgr": defaults.LeanDaemonResources["mgr"],
+				"mon": defaults.LeanDaemonResources["mon"],
+			},
+		},
+		{
+			name: "No ResourceRequirements are set & ResourceProfile is `balanced`",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources:       map[string]corev1.ResourceRequirements{},
+					ResourceProfile: "balanced",
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mgr": defaults.BalancedDaemonResources["mgr"],
+				"mon": defaults.BalancedDaemonResources["mon"],
+			},
+		},
+		{
+			name: "No ResourceRequirements are set & ResourceProfile is `performance`",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources:       map[string]corev1.ResourceRequirements{},
+					ResourceProfile: "performance",
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mgr": defaults.PerformanceDaemonResources["mgr"],
+				"mon": defaults.PerformanceDaemonResources["mon"],
+			},
+		},
+		{
+			name: "Some ResourceRequirements are passed & ResourceProfile is not set",
+			sc: &api.StorageCluster{
 				Spec: api.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{
-						"mds": {
+						"mon": {
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("6"),
 								corev1.ResourceMemory: resource.MustParse("16Gi"),
@@ -932,9 +969,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mon": defaults.DaemonResources["mon"],
-				"mgr": defaults.DaemonResources["mgr"],
-				"mds": {
+				"mgr": defaults.BalancedDaemonResources["mgr"],
+				"mon": {
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("6"),
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
@@ -944,12 +980,44 @@ func TestNewCephDaemonResources(t *testing.T) {
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
 					},
 				},
-				"rgw": defaults.DaemonResources["rgw"],
 			},
 		},
 		{
-			name: "Passing a new key",
-			spec: &api.StorageCluster{
+			name: "Some ResourceRequirements are passed & ResourceProfile is also set",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{
+						"mgr": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
+					},
+					ResourceProfile: "performance",
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mgr": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+				},
+				"mon": defaults.PerformanceDaemonResources["mon"],
+			},
+		},
+		{
+			name: "Some new custom ResourceRequirements are passed & ResourceProfile is not set",
+			sc: &api.StorageCluster{
 				Spec: api.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{
 						"crashcollector": {
@@ -966,10 +1034,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mon": defaults.DaemonResources["mon"],
-				"mgr": defaults.DaemonResources["mgr"],
-				"mds": defaults.DaemonResources["mds"],
-				"rgw": defaults.DaemonResources["rgw"],
+				"mon": defaults.BalancedDaemonResources["mon"],
+				"mgr": defaults.BalancedDaemonResources["mgr"],
 				"crashcollector": {
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("6"),
@@ -983,28 +1049,44 @@ func TestNewCephDaemonResources(t *testing.T) {
 			},
 		},
 		{
-			name: "When nothing is passed to StorageCluster.Spec.Resources (Defaults) and arbiter is enabled",
-			spec: &api.StorageCluster{
+			name: "Some new custom ResourceRequirements are passed & ResourceProfile is also set",
+			sc: &api.StorageCluster{
 				Spec: api.StorageClusterSpec{
-					Resources: map[string]corev1.ResourceRequirements{},
-					Arbiter: api.ArbiterSpec{
-						Enable: true,
+					Resources: map[string]corev1.ResourceRequirements{
+						"crashcollector": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("6"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
 					},
+					ResourceProfile: "lean",
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mon":         defaults.DaemonResources["mon"],
-				"mgr":         defaults.DaemonResources["mgr"],
-				"mds":         defaults.DaemonResources["mds"],
-				"rgw":         defaults.DaemonResources["rgw"],
-				"mgr-sidecar": defaults.DaemonResources["mgr-sidecar"],
+				"mgr": defaults.LeanDaemonResources["mgr"],
+				"mon": defaults.LeanDaemonResources["mon"],
+				"crashcollector": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("6"),
+						corev1.ResourceMemory: resource.MustParse("16Gi"),
+					},
+				},
 			},
 		},
 	}
 
 	for _, c := range cases {
 		t.Logf("Case: %s\n", c.name)
-		got := newCephDaemonResources(c.spec)
+		got := newCephDaemonResources(c.sc)
 		assert.DeepEqual(t, c.expected, got)
 	}
 }
