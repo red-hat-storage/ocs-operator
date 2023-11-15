@@ -399,7 +399,7 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup(st
 			return err
 		}
 		deviceClass := storageProfile.Spec.DeviceClass
-		dataPool := &rookCephv1.NamedPoolSpec{}
+		var dataPool *rookCephv1.NamedPoolSpec
 		for i := range cephFilesystem.Spec.DataPools {
 			if cephFilesystem.Spec.DataPools[i].DeviceClass == deviceClass {
 				dataPool = &cephFilesystem.Spec.DataPools[i]
