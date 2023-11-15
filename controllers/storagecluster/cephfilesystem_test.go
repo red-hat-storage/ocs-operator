@@ -55,4 +55,20 @@ func assertCephFileSystem(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	assert.Equal(t, expectedAf[0].ObjectMeta.Name, actualFs.ObjectMeta.Name)
 	assert.Equal(t, expectedAf[0].Spec, actualFs.Spec)
+
+	actualFsSVG := &cephv1.CephFilesystemSubVolumeGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephfilesystem-subvolumegroup",
+		},
+	}
+	actualFs.Namespace = request.Namespace
+	request.Name = "ocsinit-cephfilesystem-subvolumegroup"
+	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualFsSVG)
+	assert.NoError(t, err)
+
+	expectedAfSVG := newCephFileSystemSubVolumeGroup(actualFs)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(actualFsSVG.OwnerReferences))
+	assert.Equal(t, expectedAfSVG.ObjectMeta.Name, actualFsSVG.ObjectMeta.Name)
+	assert.Equal(t, expectedAfSVG.Spec, actualFsSVG.Spec)
 }
