@@ -80,6 +80,18 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initData *ocsv1.St
 	return []*cephv1.CephFilesystem{ret}, nil
 }
 
+func newCephFileSystemSubVolumeGroup(cephFS *cephv1.CephFilesystem) *cephv1.CephFilesystemSubVolumeGroup {
+	return &cephv1.CephFilesystemSubVolumeGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephFilesystemSubVolumeGroup(*cephFS),
+			Namespace: cephFS.Namespace,
+		},
+		Spec: cephv1.CephFilesystemSubVolumeGroupSpec{
+			FilesystemName: cephFS.Name,
+		},
+	}
+}
+
 // ensureCreated ensures that cephFilesystem resources exist in the desired
 // state.
 func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
@@ -121,6 +133,22 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 				return reconcile.Result{}, err
 			}
 		}
+
+		// Create or Update CephFilesystemSubVolumeGroup CR
+		cephFileSystemSubVolumeGroup := newCephFileSystemSubVolumeGroup(cephFilesystem)
+		opResult, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, cephFileSystemSubVolumeGroup, func() error {
+			// if deletion timestamp is set, don't update
+			if cephFileSystemSubVolumeGroup.GetDeletionTimestamp() != nil {
+				return nil
+			}
+			cephFileSystemSubVolumeGroup.Spec = newCephFileSystemSubVolumeGroup(cephFilesystem).Spec
+			return controllerutil.SetControllerReference(instance, cephFileSystemSubVolumeGroup, r.Scheme)
+		})
+		if err != nil {
+			r.Log.Error(err, "Unable to create or update CephFilesystemSubVolumeGroup.", "CephFileSystemSubVolumeGroup", klog.KRef(cephFileSystemSubVolumeGroup.Namespace, cephFileSystemSubVolumeGroup.Name))
+			return reconcile.Result{}, err
+		}
+		r.Log.Info(fmt.Sprintf("CephFilesystemSubVolumeGroup %s", opResult), "CephFileSystemSubVolumeGroup", klog.KRef(cephFileSystemSubVolumeGroup.Namespace, cephFileSystemSubVolumeGroup.Name))
 	}
 
 	return reconcile.Result{}, nil
@@ -152,6 +180,19 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 				r.Log.Error(err, "Uninstall: Failed to delete CephFileSystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))
 				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephFileSystem %v: %v", foundCephFilesystem.Name, err)
 			}
+		}
+
+		cephFileSystemSubVolumeGroup := newCephFileSystemSubVolumeGroup(cephFilesystem)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{
+			Name:      generateNameForCephFilesystemSubVolumeGroup(*cephFilesystem),
+			Namespace: cephFilesystem.Namespace,
+		}, cephFileSystemSubVolumeGroup)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				r.Log.Info("Uninstall: CephFilesystemSubVolumeGroup is deleted.", "CephFileSystemSubVolumeGroup", klog.KRef(cephFileSystemSubVolumeGroup.Namespace, cephFileSystemSubVolumeGroup.Name))
+			}
+		} else {
+			r.Log.Error(err, "Uninstall: Waiting for CephFilesystemSubVolumeGroup to be deleted.", "CephFileSystemSubVolumeGroup", klog.KRef(cephFileSystemSubVolumeGroup.Namespace, cephFileSystemSubVolumeGroup.Name))
 		}
 
 		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)

@@ -22,6 +22,10 @@ func generateNameForCephFilesystem(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephfilesystem", initData.Name)
 }
 
+func generateNameForCephFilesystemSubVolumeGroup(cephfs cephv1.CephFilesystem) string {
+	return fmt.Sprintf("%s-subvolumegroup", cephfs.Name)
+}
+
 func generateNameForCephNFS(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephnfs", initData.Name)
 }
