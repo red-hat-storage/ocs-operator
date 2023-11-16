@@ -377,6 +377,22 @@ type MultiCloudGatewaySpec struct {
 	// +nullable
 	// +optional
 	DisableLoadBalancerService bool `json:"disableLoadBalancerService,omitempty"`
+
+	// Allows Noobaa to connect to an external Postgres server
+	// +optional
+	ExternalPgConfig *ExternalPGSpec `json:"externalPgConfig,omitempty"`
+}
+
+type ExternalPGSpec struct {
+	// PGSecret stores the secret name which contains connection string of the Postgres server
+	// +optional
+	PGSecretName string `json:"pgSecretName,omitempty"`
+	// AllowSelfSignedCerts will allow the Postgres server to use self signed certificates to authenticate
+	// +optional
+	AllowSelfSignedCerts bool `json:"allowSelfSignedCerts,omitempty"`
+	// TLSSecret stores the secret name which contains the client side certificates if enabled
+	// +optional
+	TLSSecretName string `json:"tlsSecretName,omitempty"`
 }
 
 // NFSSpec defines specific nfs configuration options
