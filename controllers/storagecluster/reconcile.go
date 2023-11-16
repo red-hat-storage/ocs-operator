@@ -27,6 +27,7 @@ import (
 
 // ReconcileStrategy is a string representing how we want to reconcile
 // (or not) a particular resource
+// Just a test PR
 type ReconcileStrategy string
 
 // StorageClassProvisionerType is a string representing StorageClass Provisioner. E.g: aws-ebs
