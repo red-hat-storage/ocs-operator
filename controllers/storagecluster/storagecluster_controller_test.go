@@ -67,6 +67,7 @@ var mockStorageCluster = &api.StorageCluster{
 			UninstallModeAnnotation: string(UninstallModeGraceful),
 			CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 		},
+		Finalizers: []string{storageClusterFinalizer},
 	},
 	Spec: api.StorageClusterSpec{
 		Monitoring: &api.MonitoringSpec{

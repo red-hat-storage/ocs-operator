@@ -127,6 +127,7 @@ func createExternalClusterReconcilerFromCustomResources(
 				UninstallModeAnnotation: string(UninstallModeGraceful),
 				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 			},
+			Finalizers: []string{storageClusterFinalizer},
 		},
 		Spec: api.StorageClusterSpec{
 			ExternalStorage: api.ExternalStorageClusterSpec{
