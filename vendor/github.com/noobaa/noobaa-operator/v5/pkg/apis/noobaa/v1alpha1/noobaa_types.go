@@ -7,7 +7,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
-// Note 1: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+// Note 1: Run "make gen-api" to regenerate code after modifying this file
 // Note 2: Add custom validation using kubebuilder tags: https://book.kubebuilder.io/reference/generating-crd.html
 
 func init() {
@@ -116,6 +116,22 @@ type NooBaaSpec struct {
 	// MongoDbURL (optional) overrides the default mongo db remote url
 	// +optional
 	MongoDbURL string `json:"mongoDbURL,omitempty"`
+
+	// ExternalPgSecret (optional) holds an optional secret with a url to an extrenal Postgres DB to be used
+	// +optional
+	ExternalPgSecret *corev1.SecretReference `json:"externalPgSecret,omitempty"`
+
+	// ExternalPgSSLRequired (optional) holds an optional boolean to force ssl connections to the external Postgres DB
+	// +optional
+	ExternalPgSSLRequired bool `json:"externalPgSSLRequired,omitempty"`
+
+	// ExternalPgSSLUnauthorized (optional) holds an optional boolean to allow unauthorized connections to external Postgres DB
+	// +optional
+	ExternalPgSSLUnauthorized bool `json:"externalPgSSLUnauthorized,omitempty"`
+
+	// ExternalPgSSLSecret (optional) holds an optional secret with client key and cert used for connecting to external Postgres DB
+	// +optional
+	ExternalPgSSLSecret *corev1.SecretReference `json:"externalPgSSLSecret,omitempty"`
 
 	// DebugLevel (optional) sets the debug level
 	// +optional
@@ -478,6 +494,9 @@ const (
 
 	// DeleteOBCConfirmation represents the validation to destry obc
 	DeleteOBCConfirmation CleanupConfirmationProperty = "yes-really-destroy-obc"
+
+	// SkipTopologyConstraints is Annotation name for disabling default topology Constraints
+	SkipTopologyConstraints = "noobaa.io/skip_topology_spread_constraints"
 )
 
 // DBTypes is a string enum type for specify the types of DB that are supported.
