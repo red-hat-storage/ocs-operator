@@ -1266,6 +1266,23 @@ spec:
                             type: object
                         type: object
                     type: object
+                  externalPgConfig:
+                    description: Allows Noobaa to connect to an external Postgres
+                      server
+                    properties:
+                      allowSelfSignedCerts:
+                        description: AllowSelfSignedCerts will allow the Postgres
+                          server to use self signed certificates to authenticate
+                        type: boolean
+                      pgSecretName:
+                        description: PGSecret stores the secret name which contains
+                          connection string of the Postgres server
+                        type: string
+                      tlsSecretName:
+                        description: TLSSecret stores the secret name which contains
+                          the client side certificates if enabled
+                        type: string
+                    type: object
                   reconcileStrategy:
                     description: ReconcileStrategy specifies whether to reconcile
                       NooBaa CRs. Valid values are "manage", "standalone", "ignore"

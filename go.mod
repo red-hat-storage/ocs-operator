@@ -14,7 +14,7 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.2.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230712090817-288892c02711
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20230919064207-0b6979c00d6a
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
@@ -126,7 +126,7 @@ require (
 	golang.org/x/tools v0.14.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -150,6 +150,10 @@ exclude (
 	// but are picked when updating dependencies.
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
+
+	// Noobaa operator is requiring this version of rook which is not compatible with the
+	// version of rook we are using. Because it uses 2 go.mods
+	github.com/rook/rook v1.12.3-0.20230823002913-59e66edf92f7
 	// Exclude pre-go-mod kubernetes tags, because they are older
 	// than v0.x releases but are picked when updating dependencies.
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
