@@ -61,6 +61,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -129,14 +130,12 @@ func main() {
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                  scheme,
-		MetricsBindAddress:      metricsAddr,
+		Metrics:                 metrics.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress:  probeAddr,
-		Port:                    9443,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "ab76f4c9.openshift.io",
 		LeaderElectionNamespace: operatorNamespace,
-		Namespace:               operatorNamespace,
-		Cache:                   cache.Options{Namespaces: []string{operatorNamespace}},
+		Cache:                   cache.Options{DefaultNamespaces: map[string]cache.Config{operatorNamespace: {}}},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

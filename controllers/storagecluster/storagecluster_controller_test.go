@@ -67,6 +67,7 @@ var mockStorageCluster = &api.StorageCluster{
 			UninstallModeAnnotation: string(UninstallModeGraceful),
 			CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 		},
+		Finalizers: []string{storageClusterFinalizer},
 	},
 	Spec: api.StorageClusterSpec{
 		Monitoring: &api.MonitoringSpec{
@@ -592,8 +593,7 @@ func TestIsActiveStorageCluster(t *testing.T) {
 			isActive: true,
 		},
 		{
-			label:           "Case 4", // storageCluster2 should be active as there are no other storageClusters available
-			storageCluster1: &api.StorageCluster{},
+			label: "Case 4", // storageCluster2 should be active as there are no other storageClusters available
 			storageCluster2: &api.StorageCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "storage-test-b",
@@ -605,7 +605,14 @@ func TestIsActiveStorageCluster(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		reconciler := createFakeStorageClusterReconciler(t, tc.storageCluster1, tc.storageCluster2)
+
+		var reconciler StorageClusterReconciler
+		if tc.storageCluster1 != nil && tc.storageCluster2 != nil {
+			reconciler = createFakeStorageClusterReconciler(t, tc.storageCluster1, tc.storageCluster2)
+		} else {
+			reconciler = createFakeStorageClusterReconciler(t, tc.storageCluster2)
+		}
+
 		actual, err := reconciler.isActiveStorageCluster(tc.storageCluster2)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.isActive, actual, "[%q] failed to assert if current storagecluster is active or not", tc.label)
@@ -972,6 +979,11 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	obj = append(obj, cbp, cfs)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
+	clusters, err := util.GetClusters(context.TODO(), client)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get clusters %s", err.Error()))
+	}
+
 	return StorageClusterReconciler{
 		Client:            client,
 		Scheme:            scheme,
@@ -979,6 +991,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		serverVersion:     &k8sVersion.Info{},
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 		platform:          &Platform{platform: configv1.NonePlatformType},
+		clusters:          clusters,
 	}
 }
 

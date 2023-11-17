@@ -13,7 +13,7 @@ GO_LINT_IMG_TAG="${GO_LINT_IMG_TAG:-v1.49.0}"
 GO_LINT_IMG="${GO_LINT_IMG:-${GO_LINT_IMG_LOCATION}:${GO_LINT_IMG_TAG}}"
 
 # Current DEV version of the CSV
-DEFAULT_CSV_VERSION="4.14.0"
+DEFAULT_CSV_VERSION="4.15.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
 LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
@@ -47,7 +47,7 @@ BUNDLEMANIFESTS_DIR="rbac"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
-LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.12.5-17.ge48f4f088"
+LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.12.7-31.g997289bec"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230718"
 LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17.2.6"

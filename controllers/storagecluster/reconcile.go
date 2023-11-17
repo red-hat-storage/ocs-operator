@@ -12,6 +12,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
 	corev1 "k8s.io/api/core/v1"
@@ -163,11 +164,19 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 
 	r.IsNoobaaStandalone = sc.Spec.MultiCloudGateway != nil &&
 		ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) == ReconcileStrategyStandalone
+
+	var err error
+	r.clusters, err = util.GetClusters(ctx, r.Client)
+	if err != nil {
+		r.Log.Error(err, "Failed to get clusters")
+		return reconcile.Result{}, err
+	}
+
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases(sc, request)
 
 	// Ensure that cephtoolbox is deployed as instructed by the user
-	err := r.ensureToolsDeployment(sc)
+	err = r.ensureToolsDeployment(sc)
 	if err != nil {
 		r.Log.Error(err, "Failed to process ceph tools deployment.", "CephToolDeployment", klog.KRef(sc.Namespace, rookCephToolDeploymentName))
 		return reconcile.Result{}, err
@@ -644,7 +653,6 @@ func (r *StorageClusterReconciler) validateStorageDeviceSets(sc *ocsv1.StorageCl
 }
 
 func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {
-	storageClusterList := ocsv1.StorageClusterList{}
 
 	// instance is already marked for deletion
 	// do not mark it as active
@@ -652,18 +660,26 @@ func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.Storag
 		return false, nil
 	}
 
-	err := r.Client.List(context.TODO(), &storageClusterList, client.InNamespace(instance.Namespace))
-	if err != nil {
-		return false, fmt.Errorf("Error fetching StorageClusterList. %+v", err)
+	var storageClusterList []ocsv1.StorageCluster
+	if !instance.Spec.ExternalStorage.Enable {
+		storageClusterList = r.clusters.GetInternalStorageClusters()
+	} else {
+		storageClusterList = r.clusters.GetExternalStorageClusters()
 	}
 
 	// There is only one StorageCluster i.e. instance
-	if len(storageClusterList.Items) == 1 {
+	if len(storageClusterList) == 1 {
 		return true, nil
 	}
 
+	return r.isStorageClusterNotIgnored(instance, storageClusterList)
+}
+
+func (r *StorageClusterReconciler) isStorageClusterNotIgnored(
+	instance *ocsv1.StorageCluster, storageClusters []ocsv1.StorageCluster) (bool, error) {
+
 	// There are many StorageClusters. Check if this is Active
-	for n, storageCluster := range storageClusterList.Items {
+	for n, storageCluster := range storageClusters {
 		if storageCluster.Status.Phase != statusutil.PhaseIgnored &&
 			storageCluster.ObjectMeta.Name != instance.ObjectMeta.Name {
 			// Both StorageClusters are in creation phase
@@ -674,7 +690,7 @@ func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.Storag
 				} else if storageCluster.CreationTimestamp.Equal(&instance.CreationTimestamp) && storageCluster.Name < instance.Name {
 					return false, nil
 				}
-				if n == len(storageClusterList.Items)-1 {
+				if n == len(storageClusters)-1 {
 					return true, nil
 				}
 				continue
@@ -682,6 +698,7 @@ func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.Storag
 			return false, nil
 		}
 	}
+
 	return true, nil
 }
 

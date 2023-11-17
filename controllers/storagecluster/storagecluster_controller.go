@@ -92,6 +92,7 @@ type StorageClusterReconciler struct {
 	recorder           *util.EventReporter
 	OperatorCondition  conditions.Condition
 	IsNoobaaStandalone bool
+	clusters           *util.Clusters
 }
 
 // SetupWithManager sets up a controller with manager

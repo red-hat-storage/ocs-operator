@@ -39,6 +39,7 @@ func createStorageCluster(scName, failureDomainName string,
 				UninstallModeAnnotation: string(UninstallModeGraceful),
 				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 			},
+			Finalizers: []string{storageClusterFinalizer},
 		},
 		Spec: api.StorageClusterSpec{
 			Monitoring: &api.MonitoringSpec{

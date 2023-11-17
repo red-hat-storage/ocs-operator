@@ -74,7 +74,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
-  name: ocs-operator.v4.14.0
+  name: ocs-operator.v4.15.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -167,6 +167,7 @@ spec:
           - objectbucket.io
           resources:
           - objectbuckets
+          - objectbucketclaims
           verbs:
           - get
           - list
@@ -610,4 +611,4 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Red Hat
-  version: 4.14.0
+  version: 4.15.0
