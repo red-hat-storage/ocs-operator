@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 )
 
 func TestCephFileSystem(t *testing.T) {
@@ -87,4 +88,38 @@ func TestDeleteDefaultSubvolumeGroup(t *testing.T) {
 	svg := &cephv1.CephFilesystemSubVolumeGroup{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: defaultSubvolumeGroupName, Namespace: filesystem[0].Namespace}, svg)
 	assert.Error(t, err) // error as csi svg is deleted
+}
+
+func TestGetActiveMetadataServers(t *testing.T) {
+	var cases = []struct {
+		label                         string
+		sc                            *api.StorageCluster
+		expectedActiveMetadataServers int
+	}{
+		{
+			label:                         "Default case",
+			sc:                            &api.StorageCluster{},
+			expectedActiveMetadataServers: defaults.CephFSActiveMetadataServers,
+		},
+		{
+			label: "ActiveMetadataServers is set on the StorageCluster CR Spec",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephFilesystems: api.ManageCephFilesystems{
+							ActiveMetadataServers: 2,
+						},
+					},
+				},
+			},
+			expectedActiveMetadataServers: 2,
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
+		actualActiveMetadataServers := getActiveMetadataServers(c.sc)
+		assert.Equal(t, c.expectedActiveMetadataServers, actualActiveMetadataServers)
+	}
+
 }
