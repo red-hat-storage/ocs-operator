@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,4 +69,48 @@ func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, c
 	cr.Spec.ManagedResources.CephObjectStores.GatewayInstances = 2
 	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil)
 	assert.Equal(t, expectedCos[0].Spec.Gateway.Instances, int32(2))
+}
+
+func TestGetCephObjectStoreGatewayInstances(t *testing.T) {
+	var cases = []struct {
+		label                                   string
+		sc                                      *api.StorageCluster
+		expectedCephObjectStoreGatewayInstances int
+	}{
+		{
+			label:                                   "Default case",
+			sc:                                      &api.StorageCluster{},
+			expectedCephObjectStoreGatewayInstances: defaults.CephObjectStoreGatewayInstances,
+		},
+		{
+			label: "CephObjectStoreGatewayInstances is set on the StorageCluster CR Spec",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephObjectStores: api.ManageCephObjectStores{
+							GatewayInstances: 2,
+						},
+					},
+				},
+			},
+			expectedCephObjectStoreGatewayInstances: 2,
+		},
+		{
+			label: "Arbiter Mode",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Arbiter: api.ArbiterSpec{
+						Enable: true,
+					},
+				},
+			},
+			expectedCephObjectStoreGatewayInstances: defaults.ArbiterCephObjectStoreGatewayInstances,
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
+		actualCephObjectStoreGatewayInstances := getCephObjectStoreGatewayInstances(c.sc)
+		assert.Equal(t, c.expectedCephObjectStoreGatewayInstances, actualCephObjectStoreGatewayInstances)
+	}
 }

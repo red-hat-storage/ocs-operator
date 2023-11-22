@@ -660,6 +660,11 @@ spec:
                     description: ManageCephCluster defines how to reconcile the Ceph
                       cluster definition
                     properties:
+                      mgrCount:
+                        enum:
+                        - 1
+                        - 2
+                        type: integer
                       monCount:
                         enum:
                         - 3
@@ -688,6 +693,8 @@ spec:
                   cephFilesystems:
                     description: ManageCephFilesystems defines how to reconcile CephFilesystems
                     properties:
+                      activeMetadataServers:
+                        type: integer
                       disableSnapshotClass:
                         type: boolean
                       disableStorageClass:
@@ -729,7 +736,6 @@ spec:
                       disableStorageClass:
                         type: boolean
                       gatewayInstances:
-                        format: int32
                         type: integer
                       reconcileStrategy:
                         type: string

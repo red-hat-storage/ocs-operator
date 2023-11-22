@@ -1064,14 +1064,6 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
-func TestMonCountChange(t *testing.T) {
-	for nodeCount := 0; nodeCount <= 10; nodeCount++ {
-		monCountExpected := defaults.DefaultMonCount
-		monCountActual := getMonCount(0, false)
-		assert.Equal(t, monCountExpected, monCountActual)
-	}
-}
-
 // TestStorageClusterOnMultus tests if multus configurations in StorageCluster are successfully applied to CephClusterCR
 func TestStorageClusterOnMultus(t *testing.T) {
 	request := reconcile.Request{

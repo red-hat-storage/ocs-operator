@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -685,33 +684,28 @@ func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 	return maxReplica
 }
 
-func getMgrCount() int {
+func getMgrCount(sc *ocsv1.StorageCluster) int {
+	if arbiterEnabled(sc) {
+		return defaults.ArbiterModeMgrCount
+	}
+	mgrCount := sc.Spec.ManagedResources.CephCluster.MgrCount
+	if mgrCount != 0 {
+		return mgrCount
+	}
 	if statusutil.IsSingleNodeDeployment() {
 		return 1
 	}
 	return defaults.DefaultMgrCount
 }
 
-func getMonCount(monCount int, arbiter bool) int {
-	// return static value if overridden
-	override := os.Getenv(monCountOverrideEnvVar)
-	if override != "" {
-		count, err := strconv.Atoi(override)
-		if err != nil {
-			log.Error(err, "Could not decode env var.", "monCountOverrideEnvVar", monCountOverrideEnvVar)
-		} else {
-			return count
-		}
-	}
-
-	if arbiter {
+func getMonCount(sc *ocsv1.StorageCluster) int {
+	if arbiterEnabled(sc) {
 		return defaults.ArbiterModeMonCount
 	}
-
+	monCount := sc.Spec.ManagedResources.CephCluster.MonCount
 	if monCount != 0 {
 		return monCount
 	}
-
 	return defaults.DefaultMonCount
 }
 
@@ -1052,23 +1046,20 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 }
 
 func generateMonSpec(sc *ocsv1.StorageCluster) rookCephv1.MonSpec {
-	if arbiterEnabled(sc) {
-		return rookCephv1.MonSpec{
-			Count:                getMonCount(sc.Spec.ManagedResources.CephCluster.MonCount, true),
-			AllowMultiplePerNode: false,
-			StretchCluster:       generateStretchClusterSpec(sc),
-		}
-	}
-
-	return rookCephv1.MonSpec{
-		Count:                getMonCount(sc.Spec.ManagedResources.CephCluster.MonCount, false),
+	spec := rookCephv1.MonSpec{
+		Count:                getMonCount(sc),
 		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
 	}
+	if arbiterEnabled(sc) {
+		spec.StretchCluster = generateStretchClusterSpec(sc)
+	}
+	return spec
 }
 
 func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 	spec := rookCephv1.MgrSpec{
-		Count: getMgrCount(),
+		Count:                getMgrCount(sc),
+		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
 		Modules: []rookCephv1.Module{
 			{Name: "pg_autoscaler", Enabled: true},
 			{Name: "balancer", Enabled: true},
@@ -1076,13 +1067,6 @@ func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 	}
 
 	return spec
-}
-
-func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int32 {
-	if arbiterEnabled(sc) {
-		return int32(defaults.ArbiterCephObjectStoreGatewayInstances)
-	}
-	return int32(defaults.CephObjectStoreGatewayInstances)
 }
 
 // addStrictFailureDomainTSC adds hard topology constraints at failure domain level

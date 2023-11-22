@@ -40,8 +40,6 @@ type resourceManager interface {
 type ocsJobTemplates struct{}
 
 const (
-	monCountOverrideEnvVar = "MON_COUNT_OVERRIDE"
-
 	// Name of MetadataPVCTemplate
 	metadataPVCName = "metadata"
 	// Name of WalPVCTemplate

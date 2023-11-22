@@ -156,10 +156,6 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap) ([]*cephv1.CephObjectStore, error) {
-	gatewayInstances := initData.Spec.ManagedResources.CephObjectStores.GatewayInstances
-	if gatewayInstances == 0 {
-		gatewayInstances = getCephObjectStoreGatewayInstances(initData)
-	}
 	ret := []*cephv1.CephObjectStore{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -186,7 +182,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 							"service.kubernetes.io/topology-mode":                "Auto",
 						},
 					},
-					Instances: gatewayInstances,
+					Instances: int32(getCephObjectStoreGatewayInstances(initData)),
 					Placement: getPlacement(initData, "rgw"),
 					Resources: defaults.GetDaemonResources("rgw", initData.Spec.Resources),
 					// set PriorityClassName for the rgw pods
@@ -236,4 +232,15 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		}
 	}
 	return ret, nil
+}
+
+func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int {
+	if arbiterEnabled(sc) {
+		return defaults.ArbiterCephObjectStoreGatewayInstances
+	}
+	customGatewayInstances := sc.Spec.ManagedResources.CephObjectStores.GatewayInstances
+	if customGatewayInstances != 0 {
+		return customGatewayInstances
+	}
+	return defaults.CephObjectStoreGatewayInstances
 }

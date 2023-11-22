@@ -369,18 +369,21 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
 					PodAntiAffinity: &corev1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										{
-											Key:      "app",
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"rook-ceph-mds"},
+								Weight: 100,
+								PodAffinityTerm: corev1.PodAffinityTerm{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "app",
+												Operator: metav1.LabelSelectorOpIn,
+												Values:   []string{"rook-ceph-mds"},
+											},
 										},
 									},
+									TopologyKey: zoneTopologyLabel,
 								},
-								TopologyKey: zoneTopologyLabel,
 							},
 						},
 					},

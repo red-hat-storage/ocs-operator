@@ -78,9 +78,6 @@ var (
 				getOcsToleration(),
 			},
 			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					getPodAffinityTerm("rook-ceph-rgw"),
-				},
 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 					getWeightedPodAffinityTerm(100, "rook-ceph-rgw"),
 				},
@@ -92,8 +89,8 @@ var (
 				getOcsToleration(),
 			},
 			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					getPodAffinityTerm("rook-ceph-mds"),
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					getWeightedPodAffinityTerm(100, "rook-ceph-mds"),
 				},
 			},
 		},

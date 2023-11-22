@@ -308,7 +308,51 @@ func TestGenerateMgrSpec(t *testing.T) {
 			label: "Default case",
 			sc:    &api.StorageCluster{},
 			expectedMgr: cephv1.MgrSpec{
-				Count: defaults.DefaultMgrCount,
+				Count:                defaults.DefaultMgrCount,
+				AllowMultiplePerNode: false,
+				Modules: []cephv1.Module{
+					{Name: "pg_autoscaler", Enabled: true},
+					{Name: "balancer", Enabled: true},
+				},
+			},
+		},
+		{
+			label: "MgrCount is set to 1 on the storageCluster CR Spec",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephCluster: api.ManageCephCluster{
+							MgrCount: 1,
+						},
+					},
+				},
+			},
+			expectedMgr: cephv1.MgrSpec{
+				Count:                1,
+				AllowMultiplePerNode: false,
+				Modules: []cephv1.Module{
+					{Name: "pg_autoscaler", Enabled: true},
+					{Name: "balancer", Enabled: true},
+				},
+			},
+		},
+		{
+			label: "MgrCount is set to 1 on the storageCluster CR Spec & it's arbiter mode",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					Arbiter: api.ArbiterSpec{
+						Enable: true,
+					},
+					ManagedResources: api.ManagedResourcesSpec{
+						CephCluster: api.ManageCephCluster{
+							MgrCount: 1,
+						},
+					},
+				},
+			},
+			expectedMgr: cephv1.MgrSpec{
+				Count:                2,
+				AllowMultiplePerNode: false,
 				Modules: []cephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
@@ -320,7 +364,8 @@ func TestGenerateMgrSpec(t *testing.T) {
 			sc:           &api.StorageCluster{},
 			isSingleNode: true,
 			expectedMgr: cephv1.MgrSpec{
-				Count: 1,
+				Count:                1,
+				AllowMultiplePerNode: true,
 				Modules: []cephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
@@ -335,6 +380,111 @@ func TestGenerateMgrSpec(t *testing.T) {
 		actual := generateMgrSpec(c.sc)
 		assert.DeepEqual(t, c.expectedMgr, actual)
 	}
+}
+
+func TestGenerateMonSpec(t *testing.T) {
+	arbiterSc := &api.StorageCluster{
+		Spec: api.StorageClusterSpec{
+			Arbiter: api.ArbiterSpec{
+				Enable: true,
+			},
+			NodeTopologies: &api.NodeTopologyMap{
+				ArbiterLocation: "zone3",
+			},
+		},
+		Status: api.StorageClusterStatus{
+			NodeTopologies: &api.NodeTopologyMap{
+				Labels: map[string]api.TopologyLabelValues{
+					zoneTopologyLabel: []string{
+						"zone1",
+						"zone2",
+					},
+				},
+				ArbiterLocation: "zone3",
+			},
+			FailureDomain:       "zone",
+			FailureDomainKey:    zoneTopologyLabel,
+			FailureDomainValues: []string{"zone1", "zone2"},
+		},
+	}
+
+	cases := []struct {
+		label        string
+		sc           *api.StorageCluster
+		isSingleNode bool
+		expectedMon  cephv1.MonSpec
+	}{
+		{
+			label: "Default case",
+			sc:    &api.StorageCluster{},
+			expectedMon: cephv1.MonSpec{
+				Count:                defaults.DefaultMonCount,
+				AllowMultiplePerNode: false,
+			},
+		},
+		{
+			label: "MonCount is set to 5 on the storageCluster CR Spec",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephCluster: api.ManageCephCluster{
+							MonCount: 5,
+						},
+					},
+				},
+			},
+			expectedMon: cephv1.MonSpec{
+				Count:                5,
+				AllowMultiplePerNode: false,
+			},
+		},
+		{
+			label: "Arbiter Mode",
+			sc:    arbiterSc,
+			expectedMon: cephv1.MonSpec{
+				Count:                defaults.ArbiterModeMonCount,
+				AllowMultiplePerNode: false,
+				StretchCluster:       generateStretchClusterSpec(arbiterSc),
+			},
+		},
+		{
+			label: "Arbiter Mode with MonCount set to 3 on the storageCluster CR Spec",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephCluster: api.ManageCephCluster{
+							MonCount: 3,
+						},
+					},
+					Arbiter:        arbiterSc.Spec.Arbiter,
+					NodeTopologies: arbiterSc.Spec.NodeTopologies,
+				},
+				Status: arbiterSc.Status,
+			},
+			expectedMon: cephv1.MonSpec{
+				Count:                5,
+				AllowMultiplePerNode: false,
+				StretchCluster:       generateStretchClusterSpec(arbiterSc),
+			},
+		},
+		{
+			label:        "Single node deployment",
+			sc:           &api.StorageCluster{},
+			isSingleNode: true,
+			expectedMon: cephv1.MonSpec{
+				Count:                3,
+				AllowMultiplePerNode: true,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
+		t.Setenv(util.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
+		actual := generateMonSpec(c.sc)
+		assert.DeepEqual(t, c.expectedMon, actual)
+	}
+
 }
 
 func TestStorageClassDeviceSetCreation(t *testing.T) {
