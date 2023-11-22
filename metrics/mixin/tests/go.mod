@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.70.0
+	github.com/prometheus/common v0.45.0
 	k8s.io/apimachinery v0.29.0
 )
 
