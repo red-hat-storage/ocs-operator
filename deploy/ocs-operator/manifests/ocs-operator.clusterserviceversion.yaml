@@ -3136,7 +3136,10 @@ spec:
                 - operator
                 env:
                 - name: ROOK_CURRENT_NAMESPACE_ONLY
-                  value: "true"
+                  valueFrom:
+                    configMapKeyRef:
+                      key: ROOK_CURRENT_NAMESPACE_ONLY
+                      name: ocs-operator-config
                 - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
                   value: "false"
                 - name: ROOK_LOG_LEVEL

@@ -238,6 +238,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 	// The values are updated by the StorageCluster controller later if required
 	ocsOperatorConfigData := map[string]string{
 		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
+		util.RookCurrentNamespaceOnlyKey: "true",
 		util.EnableReadAffinityKey:       "true",
 		util.CephFSKernelMountOptionsKey: "ms_mode=prefer-crc",
 		util.EnableTopologyKey:           "false",

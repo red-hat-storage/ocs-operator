@@ -30,6 +30,7 @@ const (
 
 	// These are the keys in the ocs-operator-config configmap
 	ClusterNameKey              = "CSI_CLUSTER_NAME"
+	RookCurrentNamespaceOnlyKey = "ROOK_CURRENT_NAMESPACE_ONLY"
 	EnableReadAffinityKey       = "CSI_ENABLE_READ_AFFINITY"
 	CephFSKernelMountOptionsKey = "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS"
 	EnableTopologyKey           = "CSI_ENABLE_TOPOLOGY"

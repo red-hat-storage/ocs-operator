@@ -170,8 +170,15 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	} else if strings.Contains(csv.Name, "rook") || strings.Contains(csv.Name, "ceph") {
 		vars := []corev1.EnvVar{
 			{
-				Name:  "ROOK_CURRENT_NAMESPACE_ONLY",
-				Value: "true",
+				Name: "ROOK_CURRENT_NAMESPACE_ONLY",
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "ocs-operator-config",
+						},
+						Key: "ROOK_CURRENT_NAMESPACE_ONLY",
+					},
+				},
 			},
 			{
 				Name:  "ROOK_ALLOW_MULTIPLE_FILESYSTEMS",
