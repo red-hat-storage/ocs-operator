@@ -15,9 +15,13 @@ import (
 	"strings"
 	"text/template"
 
+	promTestUnit "github.com/red-hat-storage/ocs-operator/metrics/v4/tests/prometheus/testunit"
+
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
 )
+
+const templateExtention = ".template"
 
 type AlertLogger struct {
 	logOut *log.Logger
@@ -195,6 +199,9 @@ func ProcessJSONAlertFile(jsonFiles, testTemplates []string, outputDirPath strin
 
 	// handle template files
 	allTemplateFiles := listAllTemplateFiles(testTemplates, l)
+	for indx, eachTemplateFile := range allTemplateFiles {
+		allTemplateFiles[indx] = prepareTemplateFile(eachTemplateFile, outputDirPath, l)
+	}
 	if len(allTemplateFiles) == 0 {
 		l.ExitOnErrorf(errors.New("no test template file(s) provided"), "no valid test template found in: %+v", testTemplates)
 	}
@@ -254,14 +261,14 @@ func ProcessJSONAlertFile(jsonFiles, testTemplates []string, outputDirPath strin
 			"could not extract any valid 'groups' file from JSON file list: %+v", jsonFiles)
 	}
 
-	replaceRegex := regexp.MustCompile(`\.json\.template$`)
+	replaceRegex := regexp.MustCompile(`\.template$`)
 	var allJSONTestFilesMap = make(map[string]struct{})
 	// here we are processing the template files which contain the tests
 	for _, templateFile := range allTemplateFiles {
 		// use the template file to generate a proper alert test file
 		templateFileBaseFile := filepath.Base(templateFile)
 		t := template.Must(template.ParseFiles(templateFile))
-		outputTestFile := replaceRegex.ReplaceAllString(templateFileBaseFile, ".json")
+		outputTestFile := replaceRegex.ReplaceAllString(templateFileBaseFile, "")
 		outputTestFile = filepath.Join(outputDirPath, outputTestFile)
 		// if the file is already present, continue
 		if _, ok := allJSONTestFilesMap[outputTestFile]; ok {
@@ -313,15 +320,74 @@ func listAllTemplateFiles(templates []string, l *AlertLogger) (existingTemplates
 			}
 			for _, f := range dirEntries {
 				fName := filepath.Join(t, f.Name())
-				if !f.IsDir() && strings.HasSuffix(fName, ".json.template") {
+				if !f.IsDir() && strings.HasSuffix(fName, templateExtention) {
 					existingTemplates = append(existingTemplates, fName)
 				}
 			}
-		} else if strings.HasSuffix(t, ".json.template") {
+		} else {
 			existingTemplates = append(existingTemplates, t)
 		}
 	}
 	return
+}
+
+// prepareTemplateFile function will try to add '{{.PrometheusRuleFile}}'
+// template line to the provided template file.
+// On a successful completion, a new template file will be written to the
+// output directory and the function will return this new file path.
+// On any error it will return the given/provided file name, without any modification.
+func prepareTemplateFile(templateFileName, outputDir string, l *AlertLogger) string {
+	// EXPERIMENTAL CODE
+	var ptUnit promTestUnit.PrometheusTestUnit
+	jsonBytes, err := os.ReadFile(templateFileName)
+	if err != nil {
+		return templateFileName
+	}
+	err = k8sYAML.NewYAMLOrJSONDecoder(bytes.NewBuffer(jsonBytes), 1000).Decode(&ptUnit)
+	if err != nil {
+		l.Errorf(err, "error while converting %q file to json/yaml format", templateFileName)
+		return templateFileName
+	}
+	// check whether 'RuleFiles' already have a '{{.PrometheusRuleFile}}'
+	haveTemplateLine := false
+	for _, ruleFile := range ptUnit.RuleFiles {
+		if strings.Contains(ruleFile, "{{.PrometheusRuleFile}}") {
+			haveTemplateLine = true
+			break
+		}
+	}
+	if !haveTemplateLine {
+		ptUnit.RuleFiles = append(ptUnit.RuleFiles, "{{.PrometheusRuleFile}}")
+	}
+	templateBaseName := filepath.Base(templateFileName)
+	newTemplateFileName := filepath.Join(outputDir, templateBaseName)
+	if !strings.HasSuffix(newTemplateFileName, templateExtention) {
+		newTemplateFileName = fmt.Sprintf("%s%s", newTemplateFileName, templateExtention)
+	}
+	jsonBytes, err = json.MarshalIndent(ptUnit, "", "    ")
+	if err != nil {
+		return templateFileName
+	}
+	newTemplateFile, err := os.Create(newTemplateFileName)
+	if err != nil {
+		return templateFileName
+	}
+	splitLines := strings.Split(string(jsonBytes), fmt.Sprintln())
+	for _, line := range splitLines {
+		if strings.Contains(line, "{{.PrometheusRuleFile}}") {
+			line = strings.Replace(line, `"{{.PrometheusRuleFile}}"`, `{{.PrometheusRuleFile}}`, -1)
+		}
+		_, err = newTemplateFile.WriteString(fmt.Sprintln(line))
+		if err != nil {
+			break
+		}
+	}
+	newTemplateFile.Close()
+	if err != nil {
+		return templateFileName
+	}
+	return newTemplateFileName
+	// EXPERIMENTAL CODE ENDS
 }
 
 func processJsonnetFiles(jFiles []string, outputDir string, l *AlertLogger) []string {
