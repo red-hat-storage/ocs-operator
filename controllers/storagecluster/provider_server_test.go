@@ -179,7 +179,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		deployment.Status.AvailableReplicas = 1
-		err = r.Update(context.TODO(), deployment)
+		err = r.Status().Update(context.TODO(), deployment)
 		assert.NoError(t, err)
 
 		// call ensureCreated again after filling the status of deployment, It will pass now
