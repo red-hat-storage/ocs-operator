@@ -157,6 +157,36 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
+	enqueueFromStorageProfile := handler.EnqueueRequestsFromMapFunc(
+		func(_ context.Context, obj client.Object) []reconcile.Request {
+			// only storage profile is being watched
+			_ = obj.(*ocsv1.StorageProfile)
+
+			// Get the StorageCluster object
+			scList := &ocsv1.StorageClusterList{}
+			err := r.Client.List(r.ctx, scList, client.InNamespace(obj.GetNamespace()), client.Limit(1))
+			if err != nil {
+				r.Log.Error(err, "Unable to list StorageCluster objects")
+				return []reconcile.Request{}
+			}
+
+			if len(scList.Items) == 0 {
+				return []reconcile.Request{}
+			}
+
+			sc := scList.Items[0]
+			// Return name and namespace of StorageCluster
+			return []reconcile.Request{
+				{
+					NamespacedName: types.NamespacedName{
+						Name:      sc.Name,
+						Namespace: sc.Namespace,
+					},
+				},
+			}
+		},
+	)
+
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}).
@@ -165,6 +195,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&ocsv1.OCSInitialization{}, enqueueStorageClusterRequest).
+		Watches(&ocsv1.StorageProfile{}, enqueueFromStorageProfile).
 		Watches(
 			&extv1.CustomResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{

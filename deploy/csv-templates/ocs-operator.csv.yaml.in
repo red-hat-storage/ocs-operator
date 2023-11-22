@@ -60,6 +60,16 @@ metadata:
           }
         },
         {
+          "apiVersion": "ocs.openshift.io/v1",
+          "kind": "StorageProfile",
+          "metadata": {
+            "name": "medium"
+          },
+          "spec": {
+            "deviceClass": "ssd"
+          }
+        },
+        {
           "apiVersion": "ocs.openshift.io/v1alpha1",
           "kind": "StorageConsumer",
           "metadata": {
@@ -110,6 +120,9 @@ spec:
       kind: StorageConsumer
       name: storageconsumers.ocs.openshift.io
       version: v1alpha1
+    - kind: StorageProfile
+      name: storageprofiles.ocs.openshift.io
+      version: v1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
 

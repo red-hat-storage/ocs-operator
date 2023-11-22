@@ -1,0 +1,6 @@
+apiVersion: ocs.openshift.io/v1
+kind: StorageProfile
+metadata:
+  name: medium
+spec:
+  deviceClass: ssd
