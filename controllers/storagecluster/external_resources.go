@@ -25,19 +25,23 @@ import (
 )
 
 const (
-	externalClusterDetailsSecret = "rook-ceph-external-cluster-details"
-	externalClusterDetailsKey    = "external_cluster_details"
-	cephFsStorageClassName       = "cephfs"
-	cephRbdStorageClassName      = "ceph-rbd"
-	cephRgwStorageClassName      = "ceph-rgw"
-	externalCephRgwEndpointKey   = "endpoint"
-	cephRgwTLSSecretKey          = "ceph-rgw-tls-cert"
+	externalClusterDetailsSecret          = "rook-ceph-external-cluster-details"
+	externalClusterDetailsKey             = "external_cluster_details"
+	cephFsStorageClassName                = "cephfs"
+	cephRbdStorageClassName               = "ceph-rbd"
+	cephRbdRadosNamespaceStorageClassName = "ceph-rbd-rados-namespace"
+	cephRgwStorageClassName               = "ceph-rgw"
+	externalCephRgwEndpointKey            = "endpoint"
+	cephRgwTLSSecretKey                   = "ceph-rgw-tls-cert"
 )
 
 const (
 	rookCephOperatorConfigName = "rook-ceph-operator-config"
 	rookEnableCephFSCSIKey     = "ROOK_CSI_ENABLE_CEPHFS"
 )
+
+// store the name of the rados-namespace
+var radosNamespaceName string
 
 var (
 	// externalOCSResources will hold the ExternalResources for storageclusters
@@ -290,6 +294,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
 	availableSCCs := []StorageClassConfiguration{}
+
 	data, ok := externalOCSResources[instance.UID]
 	if !ok {
 		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
@@ -347,6 +352,22 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				r.Log.Error(err, "Could not create CephFilesystemSubVolumeGroup.", "CephFilesystemSubVolumeGroup", klog.KRef(found.Namespace, found.Name))
 				return err
 			}
+		case "CephBlockPoolRadosNamespace":
+			radosNamespaceName = d.Data["radosNamespace"]
+			rbdPool := d.Data["pool"]
+			radosNamespace := &cephv1.CephBlockPoolRadosNamespace{ObjectMeta: objectMeta}
+			mutateFn := func() error {
+				radosNamespace.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
+					BlockPoolName: rbdPool,
+				}
+				return nil
+			}
+			_, err := ctrl.CreateOrUpdate(context.TODO(), r.Client, radosNamespace, mutateFn)
+			if err != nil {
+				r.Log.Error(err, "Could not create CephBlockPoolRadosNamespace.", "CephBlockPoolRadosNamespace", klog.KRef(radosNamespace.Namespace, radosNamespace.Name))
+				return err
+			}
+
 		case "StorageClass":
 			var scc StorageClassConfiguration
 			if d.Name == cephFsStorageClassName {
@@ -354,6 +375,10 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
 				scc = newCephBlockPoolStorageClassConfiguration(instance)
+			} else if d.Name == cephRbdRadosNamespaceStorageClassName {
+				scc = newCephBlockPoolStorageClassConfiguration(instance)
+				// update the storageclass name to rados storagesclass name
+				scc.storageClass.Name = fmt.Sprintf("%s-%s", instance.Name, d.Name)
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
@@ -381,7 +406,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		}
 	}
 	// creating only the available storageClasses
-	err = r.createStorageClasses(availableSCCs)
+	err = r.createStorageClasses(availableSCCs, instance.Namespace)
 	if err != nil {
 		r.Log.Error(err, "Failed to create needed StorageClasses.")
 		return err

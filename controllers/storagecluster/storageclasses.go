@@ -45,7 +45,7 @@ func (obj *ocsStorageClass) ensureCreated(r *StorageClusterReconciler, instance 
 		return reconcile.Result{}, err
 	}
 
-	err = r.createStorageClasses(scs)
+	err = r.createStorageClasses(scs, instance.Namespace)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -90,7 +90,7 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 	return reconcile.Result{}, nil
 }
 
-func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration) error {
+func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration, namespace string) error {
 	operatorNamespace, err := util.GetOperatorNamespace()
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		case (strings.Contains(sc.Name, "-ceph-rbd") || strings.Contains(sc.Provisioner, fmt.Sprintf("%s.rbd.csi.ceph.com", operatorNamespace))) && !scc.isClusterExternal:
 			// wait for CephBlockPool to be ready
 			cephBlockPool := cephv1.CephBlockPool{}
-			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: sc.Parameters["clusterID"]}
+			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: namespace}
 			err := r.Client.Get(context.TODO(), key, &cephBlockPool)
 			if err != nil || cephBlockPool.Status == nil || cephBlockPool.Status.Phase != cephv1.ConditionType(util.PhaseReady) {
 				r.Log.Info("Waiting for CephBlockPool to be Ready. Skip reconciling StorageClass",
@@ -116,10 +116,27 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
+			if scc.isClusterExternal {
+				// if rados namespace is provided, update the `sc cluster-id = rados-namespace cluster-id``
+				if strings.Contains(sc.Name, "-rados-namespace") && radosNamespaceName != "" {
+					radosNamespace := cephv1.CephBlockPoolRadosNamespace{}
+					key = types.NamespacedName{Name: radosNamespaceName, Namespace: namespace}
+					err := r.Client.Get(context.TODO(), key, &radosNamespace)
+					if err != nil || radosNamespace.Status == nil || radosNamespace.Status.Phase != cephv1.ConditionType(util.PhaseReady) || radosNamespace.Status.Info["clusterID"] == "" {
+						r.Log.Info("Waiting for radosNamespace to be Ready. Skip reconciling StorageClass",
+							"radosNamespace", klog.KRef(key.Namespace, key.Name),
+							"StorageClass", klog.KRef("", sc.Name),
+						)
+						skippedSC = append(skippedSC, sc.Name)
+						continue
+					}
+					sc.Parameters["clusterID"] = radosNamespace.Status.Info["clusterID"]
+				}
+			}
 		case (strings.Contains(sc.Name, "-ceph-non-resilient-rbd") || sc.Parameters["topologyConstrainedPools"] != "") && !scc.isClusterExternal:
 			// wait for CephBlockPools to be ready
 			cephBlockPools := cephv1.CephBlockPoolList{}
-			err := r.Client.List(context.TODO(), &cephBlockPools, client.InNamespace(sc.Parameters["clusterID"]))
+			err := r.Client.List(context.TODO(), &cephBlockPools, client.InNamespace(namespace))
 			if err != nil {
 				skippedSC = append(skippedSC, sc.Name)
 				continue
@@ -148,7 +165,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		case (strings.Contains(sc.Name, "-cephfs") || strings.Contains(sc.Provisioner, fmt.Sprintf("%s.cephfs.csi.ceph.com", operatorNamespace))) && !scc.isClusterExternal:
 			// wait for CephFilesystem to be ready
 			cephFilesystem := cephv1.CephFilesystem{}
-			key := types.NamespacedName{Name: sc.Parameters["fsName"], Namespace: sc.Parameters["clusterID"]}
+			key := types.NamespacedName{Name: sc.Parameters["fsName"], Namespace: namespace}
 			err := r.Client.Get(context.TODO(), key, &cephFilesystem)
 			if err != nil || cephFilesystem.Status == nil || cephFilesystem.Status.Phase != cephv1.ConditionType(util.PhaseReady) {
 				r.Log.Info("Waiting for CephFilesystem to be Ready. Skip reconciling StorageClass",
@@ -161,7 +178,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		case strings.Contains(sc.Name, "-nfs") || strings.Contains(sc.Provisioner, fmt.Sprintf("%s.nfs.csi.ceph.com", operatorNamespace)):
 			// wait for CephNFS to be ready
 			cephNFS := cephv1.CephNFS{}
-			key := types.NamespacedName{Name: sc.Parameters["nfsCluster"], Namespace: sc.Parameters["clusterID"]}
+			key := types.NamespacedName{Name: sc.Parameters["nfsCluster"], Namespace: namespace}
 			err := r.Client.Get(context.TODO(), key, &cephNFS)
 			if err != nil || cephNFS.Status == nil || cephNFS.Status.Phase != util.PhaseReady {
 				r.Log.Info("Waiting for CephNFS to be Ready. Skip reconciling StorageClass",
