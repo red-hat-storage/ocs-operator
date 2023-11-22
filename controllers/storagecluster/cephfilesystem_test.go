@@ -4,9 +4,11 @@ import (
 	"context"
 	"testing"
 
+	configv1 "github.com/openshift/api/config/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -55,4 +57,34 @@ func assertCephFileSystem(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	assert.Equal(t, expectedAf[0].ObjectMeta.Name, actualFs.ObjectMeta.Name)
 	assert.Equal(t, expectedAf[0].Spec, actualFs.Spec)
+}
+
+func TestCreateDefaultSubvolumeGroup(t *testing.T) {
+	var objects []client.Object
+	cp := &Platform{platform: configv1.IBMCloudPlatformType}
+	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, objects, nil)
+	filesystem, err := reconciler.newCephFilesystemInstances(cr)
+	assert.NoError(t, err)
+
+	err = reconciler.createDefaultSubvolumeGroup(filesystem[0].Name, filesystem[0].Namespace, filesystem[0].OwnerReferences)
+	assert.NoError(t, err)
+
+	svg := &cephv1.CephFilesystemSubVolumeGroup{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: defaultSubvolumeGroupName, Namespace: filesystem[0].Namespace}, svg)
+	assert.NoError(t, err) // no error
+}
+
+func TestDeleteDefaultSubvolumeGroup(t *testing.T) {
+	var objects []client.Object
+	cp := &Platform{platform: configv1.IBMCloudPlatformType}
+	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, objects, nil)
+	filesystem, err := reconciler.newCephFilesystemInstances(cr)
+	assert.NoError(t, err)
+
+	err = reconciler.deleteDefaultSubvolumeGroup(filesystem[0].Name, filesystem[0].Namespace, filesystem[0].OwnerReferences)
+	assert.NoError(t, err)
+
+	svg := &cephv1.CephFilesystemSubVolumeGroup{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: defaultSubvolumeGroupName, Namespace: filesystem[0].Namespace}, svg)
+	assert.Error(t, err) // error as csi svg is deleted
 }
