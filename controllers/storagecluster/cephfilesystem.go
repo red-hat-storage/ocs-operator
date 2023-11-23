@@ -41,6 +41,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 				Resources:     defaults.GetProfileDaemonResources("mds", initStorageCluster),
 				// set PriorityClassName for the MDS pods
 				PriorityClassName: openshiftUserCritical,
+				Labels:            cephv1.Labels{defaults.ODFResourceProfileKey: initStorageCluster.Spec.ResourceProfile},
 			},
 		},
 	}

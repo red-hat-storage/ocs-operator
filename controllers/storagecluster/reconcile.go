@@ -471,6 +471,26 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			return returnRes, nil
 		}
 	}
+	// Process resource profiles only if the cluster is not external or provider mode or noobaa standalone, and if the resource profile has changed
+	if !(instance.Spec.ExternalStorage.Enable || instance.Spec.AllowRemoteStorageConsumers || r.IsNoobaaStandalone) &&
+		(instance.Spec.ResourceProfile != instance.Status.LastAppliedResourceProfile) {
+		err := r.ensureResourceProfileChangeApplied(instance)
+		if err != nil {
+			if err == errResourceProfileChangeApplying {
+				reason := ocsv1.ReconcileFailed
+				message := err.Error()
+				statusutil.SetProgressingCondition(&instance.Status.Conditions, reason, message)
+				instance.Status.Phase = statusutil.PhaseProgressing
+				return reconcile.Result{Requeue: true}, nil
+			} else if err == errResourceProfileChangeFailed {
+				reason := ocsv1.ReconcileFailed
+				message := err.Error()
+				statusutil.SetErrorCondition(&instance.Status.Conditions, reason, message)
+				instance.Status.Phase = statusutil.PhaseError
+			}
+			return reconcile.Result{}, err
+		}
+	}
 	// All component operators are in a happy state.
 	if r.conditions == nil {
 		r.Log.Info("No component operator reported negatively.")

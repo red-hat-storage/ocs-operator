@@ -496,6 +496,9 @@ type StorageClusterStatus struct {
 	// +optional
 	FailureDomainValues []string `json:"failureDomainValues,omitempty"`
 
+	// LastAppliedResourceProfile is the resource profile that was last applied successfully & is currently in use.
+	LastAppliedResourceProfile string `json:"lastAppliedResourceProfile,omitempty"`
+
 	// StorageProviderEndpoint holds endpoint info on Provider cluster which is required
 	// for consumer to establish connection with the storage providing cluster.
 	StorageProviderEndpoint string `json:"storageProviderEndpoint,omitempty"`
