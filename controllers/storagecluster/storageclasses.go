@@ -116,23 +116,26 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-			if scc.isClusterExternal {
-				// if rados namespace is provided, update the `sc cluster-id = rados-namespace cluster-id``
-				if strings.Contains(sc.Name, "-rados-namespace") && radosNamespaceName != "" {
-					radosNamespace := cephv1.CephBlockPoolRadosNamespace{}
-					key = types.NamespacedName{Name: radosNamespaceName, Namespace: namespace}
-					err := r.Client.Get(context.TODO(), key, &radosNamespace)
-					if err != nil || radosNamespace.Status == nil || radosNamespace.Status.Phase != cephv1.ConditionType(util.PhaseReady) || radosNamespace.Status.Info["clusterID"] == "" {
-						r.Log.Info("Waiting for radosNamespace to be Ready. Skip reconciling StorageClass",
-							"radosNamespace", klog.KRef(key.Namespace, key.Name),
-							"StorageClass", klog.KRef("", sc.Name),
-						)
-						skippedSC = append(skippedSC, sc.Name)
-						continue
-					}
-					sc.Parameters["clusterID"] = radosNamespace.Status.Info["clusterID"]
-				}
+		case (scc.isClusterExternal && strings.Contains(sc.Name, "-rados-namespace")):
+			// if rados namespace is provided, update the `storageclass cluster-id = rados-namespace cluster-id`
+			if radosNamespaceName == "" {
+				r.Log.Info("radosNamespaceName not updated successfully")
+				skippedSC = append(skippedSC, sc.Name)
+				continue
 			}
+			radosNamespace := cephv1.CephBlockPoolRadosNamespace{}
+			key := types.NamespacedName{Name: radosNamespaceName, Namespace: namespace}
+			err := r.Client.Get(context.TODO(), key, &radosNamespace)
+			if err != nil || radosNamespace.Status == nil || radosNamespace.Status.Phase != cephv1.ConditionType(util.PhaseReady) || radosNamespace.Status.Info["clusterID"] == "" {
+				r.Log.Info("Waiting for radosNamespace to be Ready. Skip reconciling StorageClass",
+					"radosNamespace", klog.KRef(key.Namespace, key.Name),
+					"StorageClass", klog.KRef("", sc.Name),
+				)
+				skippedSC = append(skippedSC, sc.Name)
+				continue
+			}
+			sc.Parameters["clusterID"] = radosNamespace.Status.Info["clusterID"]
+
 		case (strings.Contains(sc.Name, "-ceph-non-resilient-rbd") || sc.Parameters["topologyConstrainedPools"] != "") && !scc.isClusterExternal:
 			// wait for CephBlockPools to be ready
 			cephBlockPools := cephv1.CephBlockPoolList{}

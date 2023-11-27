@@ -353,8 +353,9 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				return err
 			}
 		case "CephBlockPoolRadosNamespace":
-			radosNamespaceName = d.Data["radosNamespace"]
+			radosNamespaceName = d.Data["radosNamespaceName"]
 			rbdPool := d.Data["pool"]
+			objectMeta.Name = radosNamespaceName
 			radosNamespace := &cephv1.CephBlockPoolRadosNamespace{ObjectMeta: objectMeta}
 			mutateFn := func() error {
 				radosNamespace.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
