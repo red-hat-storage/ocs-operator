@@ -298,8 +298,6 @@ func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.Sto
 	meta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
 	meta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
 	meta.Annotations["storageclass.kubevirt.io/is-default-virt-class"] = "true"
-	// remove the default storageClass annotation as it's not meant for the virtualization storageClass
-	delete(meta.Annotations, defaultStorageClassAnnotation)
 	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
 	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
 	return virtualizationStorageClassConfig
