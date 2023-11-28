@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"regexp"
 	"testing"
 
@@ -602,7 +603,49 @@ func TestIsActiveStorageCluster(t *testing.T) {
 			},
 			isActive: true,
 		},
+		{
+			label: "Case 5", // internal storageCluster should be ignored if it is another namespace than operatorNamespace
+			storageCluster2: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-b",
+					Namespace: "storage-test",
+				},
+			},
+			isActive: false,
+		},
+		{
+			label: "Case 6", // external storageCluster should be allowed if it is in another namespace than operatorNamespace
+			storageCluster2: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-b",
+					Namespace: "storage-test",
+				},
+				Spec: api.StorageClusterSpec{
+					ExternalStorage: api.ExternalStorageClusterSpec{
+						Enable: true,
+					},
+				},
+			},
+			isActive: true,
+		},
+		{
+			label: "Case 7", // external storageCluster should be allowed if it is in same namespace as operatorNamespace
+			storageCluster2: &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "storage-test-b",
+					Namespace: "storage-test-ns",
+				},
+				Spec: api.StorageClusterSpec{
+					ExternalStorage: api.ExternalStorageClusterSpec{
+						Enable: true,
+					},
+				},
+			},
+			isActive: true,
+		},
 	}
+
+	os.Setenv("OPERATOR_NAMESPACE", "storage-test-ns")
 
 	for _, tc := range testcases {
 
@@ -984,6 +1027,11 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		panic(fmt.Sprintf("Failed to get clusters %s", err.Error()))
 	}
 
+	operatorNamespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		operatorNamespace = "openshift-storage"
+	}
+
 	return StorageClusterReconciler{
 		Client:            client,
 		Scheme:            scheme,
@@ -992,6 +1040,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 		platform:          &Platform{platform: configv1.NonePlatformType},
 		clusters:          clusters,
+		OperatorNamespace: operatorNamespace,
 	}
 }
 

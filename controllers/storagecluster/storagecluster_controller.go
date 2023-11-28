@@ -94,6 +94,7 @@ type StorageClusterReconciler struct {
 	IsNoobaaStandalone        bool
 	IsMultipleStorageClusters bool
 	clusters                  *util.Clusters
+	OperatorNamespace         string
 }
 
 // SetupWithManager sets up a controller with manager
