@@ -26,7 +26,7 @@ func (r *StorageClusterReconciler) ensureOCSOperatorConfig(sc *ocsv1.StorageClus
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.OcsOperatorConfigName,
-			Namespace: sc.Namespace,
+			Namespace: r.OperatorNamespace,
 		},
 		Data: ocsOperatorConfigData,
 	}

@@ -59,10 +59,10 @@ func (r *StorageClusterReconciler) setRookCSICephFS(
 	enableDisableFlag bool, instance *ocsv1.StorageCluster) error {
 	rookCephOperatorConfig := &corev1.ConfigMap{}
 	err := r.Client.Get(context.TODO(),
-		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: instance.ObjectMeta.Namespace},
+		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: r.OperatorNamespace},
 		rookCephOperatorConfig)
 	if err != nil {
-		r.Log.Error(err, "Unable to get RookCeph ConfigMap.", "RookCephConfigMap", klog.KRef(instance.Namespace, rookCephOperatorConfigName))
+		r.Log.Error(err, "Unable to get RookCeph ConfigMap.", "RookCephConfigMap", klog.KRef(r.OperatorNamespace, rookCephOperatorConfigName))
 		return err
 	}
 	enableDisableFlagStr := fmt.Sprintf("%v", enableDisableFlag)
