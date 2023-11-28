@@ -723,7 +723,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 	for _, ds := range storageDeviceSets {
 		resources := ds.Resources
 		if resources.Requests == nil && resources.Limits == nil {
-			resources = defaults.DaemonResources["osd"]
+			resources = defaults.GetProfileDaemonResources("osd", sc)
 		}
 
 		portable := ds.Portable
@@ -875,7 +875,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			ds := rookCephv1.StorageClassDeviceSet{}
 			ds.Name = failureDomainValue
 			ds.Count = 1
-			ds.Resources = defaults.DaemonResources["osd"]
+			ds.Resources = defaults.GetProfileDaemonResources("osd", sc)
 			// passing on existing defaults from existing devcicesets
 			ds.TuneSlowDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneSlowDeviceClass
 			ds.TuneFastDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneFastDeviceClass
@@ -949,17 +949,11 @@ func countAndReplicaOf(ds *ocsv1.StorageDeviceSet) (int, int) {
 }
 
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
-	custom := sc.Spec.Resources
 	resources := map[string]corev1.ResourceRequirements{
-		"mon": defaults.DaemonResources["mon"],
-		"mgr": defaults.DaemonResources["mgr"],
-		"mds": defaults.DaemonResources["mds"],
-		"rgw": defaults.DaemonResources["rgw"],
+		"mon": defaults.GetProfileDaemonResources("mon", sc),
+		"mgr": defaults.GetProfileDaemonResources("mgr", sc),
 	}
-	if arbiterEnabled(sc) {
-		resources["mgr-sidecar"] = defaults.DaemonResources["mgr-sidecar"]
-	}
-
+	custom := sc.Spec.Resources
 	for k := range custom {
 		if r, ok := custom[k]; ok {
 			resources[k] = r

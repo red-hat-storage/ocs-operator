@@ -43,14 +43,21 @@ type StorageClusterSpec struct {
 	// Placement is optional and used to specify placements of OCS components explicitly
 	Placement rookCephv1.PlacementSpec `json:"placement,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
-	Resources          map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
-	Encryption         EncryptionSpec                         `json:"encryption,omitempty"`
-	StorageDeviceSets  []StorageDeviceSet                     `json:"storageDeviceSets,omitempty"`
-	MonPVCTemplate     *corev1.PersistentVolumeClaim          `json:"monPVCTemplate,omitempty"`
-	MonDataDirHostPath string                                 `json:"monDataDirHostPath,omitempty"`
-	Mgr                *MgrSpec                               `json:"mgr,omitempty"`
-	MultiCloudGateway  *MultiCloudGatewaySpec                 `json:"multiCloudGateway,omitempty"`
-	NFS                *NFSSpec                               `json:"nfs,omitempty"`
+	Resources map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
+	// Resource Profile can be used to choose from a set of predefined resource profiles for the ceph daemons.
+	// We have 3 profiles
+	// lean: suitable for clusters with limited resources,
+	// balanced: suitable for most use cases,
+	// performance: suitable for clusters with high amount of resources.
+	// +kubebuilder:validation:Enum=lean;Lean;balanced;Balanced;performance;Performance
+	ResourceProfile    string                        `json:"resourceProfile,omitempty"`
+	Encryption         EncryptionSpec                `json:"encryption,omitempty"`
+	StorageDeviceSets  []StorageDeviceSet            `json:"storageDeviceSets,omitempty"`
+	MonPVCTemplate     *corev1.PersistentVolumeClaim `json:"monPVCTemplate,omitempty"`
+	MonDataDirHostPath string                        `json:"monDataDirHostPath,omitempty"`
+	Mgr                *MgrSpec                      `json:"mgr,omitempty"`
+	MultiCloudGateway  *MultiCloudGatewaySpec        `json:"multiCloudGateway,omitempty"`
+	NFS                *NFSSpec                      `json:"nfs,omitempty"`
 	// Monitoring controls the configuration of resources for exposing OCS metrics
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 	// Version specifies the version of StorageCluster

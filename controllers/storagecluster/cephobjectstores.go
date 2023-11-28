@@ -184,7 +184,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					},
 					Instances: int32(getCephObjectStoreGatewayInstances(initData)),
 					Placement: getPlacement(initData, "rgw"),
-					Resources: defaults.GetDaemonResources("rgw", initData.Spec.Resources),
+					Resources: defaults.GetProfileDaemonResources("rgw", initData),
 					// set PriorityClassName for the rgw pods
 					PriorityClassName: openshiftUserCritical,
 				},
