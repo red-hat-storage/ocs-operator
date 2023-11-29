@@ -227,6 +227,7 @@ spec:
         message: PVC {{ $labels.persistentvolumeclaim }} is critically full. Data deletion or PVC expansion is required.
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/PersistentVolumeUsageCritical.md
       expr: |
         (kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) / (kubelet_volume_stats_capacity_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) > 0.85
       for: 5s
@@ -240,6 +241,7 @@ spec:
         message: Storage cluster is in error state
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephClusterErrorState.md
       expr: |
         ceph_health_status{job="rook-ceph-mgr"} > 1
       for: 10m
@@ -251,6 +253,7 @@ spec:
         message: Storage cluster is in degraded state
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephClusterWarningState.md
       expr: |
         ceph_health_status{job="rook-ceph-mgr"} == 1
       for: 15m
@@ -262,6 +265,7 @@ spec:
         message: There are multiple versions of storage services running.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDVersionMismatch.md
       expr: |
         count by (namespace) (count by (ceph_version, namespace) (ceph_osd_metadata{job="rook-ceph-mgr", ceph_version != ""})) > 1
       for: 10m
@@ -273,6 +277,7 @@ spec:
         message: There are multiple versions of storage services running.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonVersionMismatch.md
       expr: |
         count by (namespace) (count by (ceph_version, namespace) (ceph_mon_metadata{job="rook-ceph-mgr", ceph_version != ""})) > 1
       for: 10m
@@ -286,6 +291,7 @@ spec:
         message: Storage cluster is nearing full. Data deletion or cluster expansion is required.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephClusterNearFull.md
       expr: |
         ceph_cluster_total_used_raw_bytes / ceph_cluster_total_bytes > 0.75
       for: 5s
@@ -297,6 +303,7 @@ spec:
         message: Storage cluster is critically full and needs immediate data deletion or cluster expansion.
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephClusterCriticallyFull.md
       expr: |
         ceph_cluster_total_used_raw_bytes / ceph_cluster_total_bytes > 0.80
       for: 5s
@@ -308,6 +315,7 @@ spec:
         message: Storage cluster is read-only now and needs immediate data deletion or cluster expansion.
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephClusterReadOnly.md
       expr: |
         ceph_cluster_total_used_raw_bytes / ceph_cluster_total_bytes >= 0.85
       for: 0s
@@ -321,6 +329,7 @@ spec:
         message: Storage pool quota(bytes) is near exhaustion.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolQuotaBytesNearExhaustion.md
       expr: |
         (ceph_pool_stored_raw * on (pool_id) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.70
       for: 1m
@@ -332,6 +341,7 @@ spec:
         message: Storage pool quota(bytes) is critically exhausted.
         severity_level: critical
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolQuotaBytesCriticallyExhausted.md
       expr: |
         (ceph_pool_stored_raw * on (pool_id) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.90
       for: 1m
