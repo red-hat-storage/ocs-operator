@@ -39,17 +39,7 @@ rules:
 - apiGroups:
   - ceph.rook.io
   resources:
-  - cephblockpools
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - ceph.rook.io
-  resources:
+  - cephblockpoolradosnamespaces
   - cephblockpools
   - cephclusters
   - cephfilesystems
@@ -59,6 +49,17 @@ rules:
   - cephrbdmirrors
   verbs:
   - '*'
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephblockpools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - ceph.rook.io
   resources:
