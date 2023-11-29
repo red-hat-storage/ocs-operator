@@ -127,6 +127,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	defaultNamespaces := map[string]cache.Config{
+		operatorNamespace:            {},
+		"openshift-storage-extended": {},
+	}
+
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                  scheme,
@@ -135,7 +140,7 @@ func main() {
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "ab76f4c9.openshift.io",
 		LeaderElectionNamespace: operatorNamespace,
-		Cache:                   cache.Options{DefaultNamespaces: map[string]cache.Config{operatorNamespace: {}}},
+		Cache:                   cache.Options{DefaultNamespaces: defaultNamespaces},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
