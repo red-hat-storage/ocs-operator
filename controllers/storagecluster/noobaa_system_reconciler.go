@@ -172,7 +172,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	}
 
 	// Override with MCG options specified in the storage cluster spec
-	if sc.Spec.MultiCloudGateway != nil && sc.Spec.MultiCloudGateway.DbStorageClassName != "" {
+	if sc.Spec.MultiCloudGateway != nil {
 		dbStorageClass := sc.Spec.MultiCloudGateway.DbStorageClassName
 		if dbStorageClass != "" {
 			nb.Spec.DBStorageClass = &dbStorageClass
@@ -191,16 +191,17 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 			}
 		}
 		nb.Spec.DisableLoadBalancerService = sc.Spec.MultiCloudGateway.DisableLoadBalancerService
-	}
 
-	if sc.Spec.MultiCloudGateway != nil && sc.Spec.MultiCloudGateway.ExternalPgConfig != nil && sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName != "" {
-		nb.Spec.ExternalPgSSLRequired = true
-		nb.Spec.ExternalPgSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName, Namespace: sc.Namespace}
-		nb.Spec.ExternalPgSSLUnauthorized = sc.Spec.MultiCloudGateway.ExternalPgConfig.AllowSelfSignedCerts
-		if sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName != "" {
-			nb.Spec.ExternalPgSSLSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName, Namespace: sc.Namespace}
+		if sc.Spec.MultiCloudGateway.ExternalPgConfig != nil && sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName != "" {
+			nb.Spec.ExternalPgSSLRequired = true
+			nb.Spec.ExternalPgSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName, Namespace: sc.Namespace}
+			nb.Spec.ExternalPgSSLUnauthorized = sc.Spec.MultiCloudGateway.ExternalPgConfig.AllowSelfSignedCerts
+			if sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName != "" {
+				nb.Spec.ExternalPgSSLSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName, Namespace: sc.Namespace}
+			}
 		}
 	}
+
 	// Add KMS details to Noobaa spec, only if
 	// KMS is enabled, along with
 	// ClusterWide encryption OR in a StandAlone Noobaa cluster mode
