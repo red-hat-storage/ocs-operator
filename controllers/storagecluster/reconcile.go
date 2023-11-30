@@ -659,6 +659,11 @@ func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.Storag
 		return false, nil
 	}
 
+	// Ensure that the internal storageCluster is only allowed in the OperatorNamespace.
+	if !instance.Spec.ExternalStorage.Enable && instance.Namespace != r.OperatorNamespace {
+		return false, nil
+	}
+
 	var storageClusterList []ocsv1.StorageCluster
 	if !instance.Spec.ExternalStorage.Enable {
 		storageClusterList = r.clusters.GetInternalStorageClusters()
