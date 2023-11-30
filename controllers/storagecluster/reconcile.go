@@ -377,8 +377,14 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 		r.Log.Info("StorageCluster is terminated, skipping reconciliation.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-		returnErr := r.SetOperatorConditions("Skipping StorageCluster reconciliation", "Terminated", metav1.ConditionTrue, nil)
-		return reconcile.Result{}, returnErr
+
+		// mark operator upgradeable if and only if all other storageclusters are ready or current cluster is the last cluster
+		if r.clusters.AreOtherStorageClustersReady(instance) {
+			returnErr := r.SetOperatorConditions("Skipping StorageCluster reconciliation", "Terminated", metav1.ConditionTrue, nil)
+			return reconcile.Result{}, returnErr
+		}
+
+		return reconcile.Result{}, nil
 	}
 
 	// in-memory conditions should start off empty. It will only ever hold
@@ -487,10 +493,16 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		// to set upgradeable to true.
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
 			instance.Status.Phase = statusutil.PhaseReady
-			returnErr := r.SetOperatorConditions(message, reason, metav1.ConditionTrue, nil)
-			if returnErr != nil {
-				return reconcile.Result{}, returnErr
+
+			// mark operator upgradeable if and only if all storageclusters are ready
+			if r.clusters.AreOtherStorageClustersReady(instance) {
+				returnErr := r.SetOperatorConditions(message, reason, metav1.ConditionTrue, nil)
+				if returnErr != nil {
+					return reconcile.Result{}, returnErr
+				}
 			}
+			return reconcile.Result{}, nil
+
 		}
 	} else {
 		// If any component operator reports negatively we want to write that to

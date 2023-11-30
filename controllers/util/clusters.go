@@ -113,3 +113,18 @@ func GetClusters(ctx context.Context, cli client.Client) (*Clusters, error) {
 		namespacedNames:         namespacedNames,
 	}, nil
 }
+
+// AreOtherStorageClustersReady checks if all other storage clusters (internal and external) are ready.
+func (c *Clusters) AreOtherStorageClustersReady(instance *ocsv1.StorageCluster) bool {
+
+	for _, sc := range append(c.internalStorageClusters, c.externalStorageClusters...) {
+		// ignore the current recociling storage cluster as its status will set in the current reconcile
+		if sc.Name != instance.Name && sc.Namespace != instance.Namespace {
+			if sc.Status.Phase != PhaseReady {
+				return false
+			}
+		}
+	}
+
+	return true
+}
