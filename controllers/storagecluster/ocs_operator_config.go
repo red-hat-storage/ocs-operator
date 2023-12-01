@@ -6,6 +6,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -83,6 +84,17 @@ func getCephFSKernelMountOptions(sc *ocsv1.StorageCluster) string {
 	// If none of the above cases apply, We set RequireMsgr2 true by default on the cephcluster
 	// so we need to set the mount options to prefer-crc
 	return "ms_mode=prefer-crc"
+}
+
+// getReadAffinityyOptions returns the read affinity options based on the spec on the StorageCluster.
+func getReadAffinityOptions(sc *ocsv1.StorageCluster) rookCephv1.ReadAffinitySpec {
+	if sc.Spec.CSI != nil && sc.Spec.CSI.ReadAffinity != nil {
+		return *sc.Spec.CSI.ReadAffinity
+	}
+
+	return rookCephv1.ReadAffinitySpec{
+		Enabled: !sc.Spec.ExternalStorage.Enable,
+	}
 }
 
 // getEnableNFSVal returns the value of enableNFS based on the spec on the StorageCluster

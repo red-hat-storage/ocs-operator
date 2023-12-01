@@ -58,6 +58,7 @@ type StorageClusterSpec struct {
 	Mgr                *MgrSpec                      `json:"mgr,omitempty"`
 	MultiCloudGateway  *MultiCloudGatewaySpec        `json:"multiCloudGateway,omitempty"`
 	NFS                *NFSSpec                      `json:"nfs,omitempty"`
+	CSI                *CSIDriverSpec                `json:"csi,omitempty"`
 	// Monitoring controls the configuration of resources for exposing OCS metrics
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 	// Version specifies the version of StorageCluster
@@ -116,6 +117,13 @@ type StorageClusterSpec struct {
 	// DefaultStorageProfile is the default storage profile to use for
 	// the storageclassrequest as StorageProfile is optional.
 	DefaultStorageProfile string `json:"defaultStorageProfile,omitempty"`
+}
+
+// CSIDriverSpec defines the CSI driver settings for the StorageCluster.
+type CSIDriverSpec struct {
+	// ReadAffinity defines the read affinity settings for CSI driver.
+	// +kubebuilder:validation:Optional
+	ReadAffinity *rookCephv1.ReadAffinitySpec `json:"readAffinity,omitempty"`
 }
 
 type SharedFilesystemConfigurationSpec struct {
