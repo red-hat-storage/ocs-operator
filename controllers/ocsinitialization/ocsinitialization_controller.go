@@ -23,8 +23,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// watchNamespace is the namespace the operator is watching.
-var watchNamespace string
+// operatorNamespace is the namespace the operator is running in
+var operatorNamespace string
 
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
 
@@ -33,7 +33,7 @@ const wrongNamespacedName = "Ignoring this resource. Only one should exist, and 
 func InitNamespacedName() types.NamespacedName {
 	return types.NamespacedName{
 		Name:      "ocsinit",
-		Namespace: watchNamespace,
+		Namespace: operatorNamespace,
 	}
 }
 
@@ -41,10 +41,11 @@ func InitNamespacedName() types.NamespacedName {
 // nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
-	ctx            context.Context
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	SecurityClient secv1client.SecurityV1Interface
+	ctx               context.Context
+	Log               logr.Logger
+	Scheme            *runtime.Scheme
+	SecurityClient    secv1client.SecurityV1Interface
+	OperatorNamespace string
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -163,11 +164,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 
 // SetupWithManager sets up a controller with a manager
 func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	ns, err := util.GetWatchNamespace()
-	if err != nil {
-		return err
-	}
-	watchNamespace = ns
+	operatorNamespace = r.OperatorNamespace
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}).
@@ -177,7 +174,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      util.RookCephOperatorConfigName,
-					Namespace: watchNamespace,
+					Namespace: r.OperatorNamespace,
 				},
 			},
 			handler.EnqueueRequestsFromMapFunc(
@@ -193,7 +190,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      util.OcsOperatorConfigName,
-					Namespace: watchNamespace,
+					Namespace: r.OperatorNamespace,
 				},
 			},
 			handler.EnqueueRequestsFromMapFunc(

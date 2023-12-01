@@ -163,10 +163,11 @@ func main() {
 	}
 
 	if err = (&ocsinitialization.OCSInitializationReconciler{
-		Client:         mgr.GetClient(),
-		Log:            ctrl.Log.WithName("controllers").WithName("OCSInitialization"),
-		Scheme:         mgr.GetScheme(),
-		SecurityClient: secv1client.NewForConfigOrDie(mgr.GetConfig()),
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("OCSInitialization"),
+		Scheme:            mgr.GetScheme(),
+		SecurityClient:    secv1client.NewForConfigOrDie(mgr.GetConfig()),
+		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OCSInitialization")
 		os.Exit(1)
