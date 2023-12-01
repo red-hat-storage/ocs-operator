@@ -3187,16 +3187,6 @@ spec:
                     configMapKeyRef:
                       key: CSI_CLUSTER_NAME
                       name: ocs-operator-config
-                - name: CSI_ENABLE_READ_AFFINITY
-                  valueFrom:
-                    configMapKeyRef:
-                      key: CSI_ENABLE_READ_AFFINITY
-                      name: ocs-operator-config
-                - name: CSI_CEPHFS_KERNEL_MOUNT_OPTIONS
-                  valueFrom:
-                    configMapKeyRef:
-                      key: CSI_CEPHFS_KERNEL_MOUNT_OPTIONS
-                      name: ocs-operator-config
                 - name: CSI_ENABLE_TOPOLOGY
                   valueFrom:
                     configMapKeyRef:
