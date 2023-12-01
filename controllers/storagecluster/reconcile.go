@@ -110,7 +110,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephnfses;cephobjectstores;cephobjectstoreusers;cephrbdmirrors;cephblockpoolradosnamespaces,verbs=*
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaas,verbs=*
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=*
-// +kubebuilder:rbac:groups=core,resources=pods;services;endpoints;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=*
+// +kubebuilder:rbac:groups=core,resources=pods;services;serviceaccounts;endpoints;persistentvolumes;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=*
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=*
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors;prometheusrules,verbs=get;list;watch;create;update;delete
@@ -128,6 +128,8 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=cluster.open-cluster-management.io,resources=clusterclaims,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings;rolebindings;clusterroles;roles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=objectbucket.io,resources=objectbuckets;objectbucketclaims,verbs=get;list;watch
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -172,7 +174,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	r.IsMultipleStorageClusters = len(r.clusters.GetStorageClusters()) > 1
 
 	// Reconcile changes to the cluster
-	result, reconcileError := r.reconcilePhases(sc, request)
+	result, reconcileError := r.reconcilePhases(ctx, sc, request)
 
 	// Ensure that cephtoolbox is deployed as instructed by the user
 	err = r.ensureToolsDeployment(sc)
@@ -285,6 +287,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 }
 
 func (r *StorageClusterReconciler) reconcilePhases(
+	ctx context.Context,
 	instance *ocsv1.StorageCluster,
 	request reconcile.Request) (reconcile.Result, error) {
 
@@ -561,12 +564,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				ReconcileStrategy: string(ReconcileStrategyUnknown),
 			}
 		}
-		if err := r.enableMetricsExporter(instance); err != nil {
+		if err := r.enableMetricsExporter(ctx, instance); err != nil {
 			r.Log.Error(err, "Failed to reconcile metrics exporter.")
 			return reconcile.Result{}, err
 		}
 
-		if err := r.enablePrometheusRules(instance); err != nil {
+		if err := r.enablePrometheusRules(ctx, instance); err != nil {
 			r.Log.Error(err, "Failed to reconcile prometheus rules.")
 			return reconcile.Result{}, err
 		}
