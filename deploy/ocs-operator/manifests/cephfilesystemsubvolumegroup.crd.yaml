@@ -32,6 +32,8 @@ spec:
             properties:
               filesystemName:
                 type: string
+              name:
+                type: string
             required:
             - filesystemName
             type: object

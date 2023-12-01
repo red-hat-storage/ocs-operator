@@ -30,7 +30,6 @@ type CephV1Interface interface {
 	CephBlockPoolRadosNamespacesGetter
 	CephBucketNotificationsGetter
 	CephBucketTopicsGetter
-	CephCOSIDriversGetter
 	CephClientsGetter
 	CephClustersGetter
 	CephFilesystemsGetter
@@ -64,10 +63,6 @@ func (c *CephV1Client) CephBucketNotifications(namespace string) CephBucketNotif
 
 func (c *CephV1Client) CephBucketTopics(namespace string) CephBucketTopicInterface {
 	return newCephBucketTopics(c, namespace)
-}
-
-func (c *CephV1Client) CephCOSIDrivers(namespace string) CephCOSIDriverInterface {
-	return newCephCOSIDrivers(c, namespace)
 }
 
 func (c *CephV1Client) CephClients(namespace string) CephClientInterface {

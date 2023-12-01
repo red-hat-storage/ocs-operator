@@ -116,6 +116,25 @@ spec:
                   disable:
                     type: boolean
                 type: object
+              csi:
+                properties:
+                  cephfs:
+                    properties:
+                      fuseMountOptions:
+                        type: string
+                      kernelMountOptions:
+                        type: string
+                    type: object
+                  readAffinity:
+                    properties:
+                      crushLocationLabels:
+                        items:
+                          type: string
+                        type: array
+                      enabled:
+                        type: boolean
+                    type: object
+                type: object
               dashboard:
                 nullable: true
                 properties:
@@ -152,6 +171,8 @@ spec:
                   pgHealthCheckTimeout:
                     format: int64
                     type: integer
+                  pgHealthyRegex:
+                    type: string
                 type: object
               external:
                 nullable: true

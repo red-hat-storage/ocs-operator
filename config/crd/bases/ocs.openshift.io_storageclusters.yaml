@@ -503,6 +503,26 @@ spec:
                       type: string
                   type: object
                 type: array
+              csi:
+                description: CSIDriverSpec defines the CSI driver settings for the
+                  StorageCluster.
+                properties:
+                  readAffinity:
+                    description: ReadAffinity defines the read affinity settings for
+                      CSI driver.
+                    properties:
+                      crushLocationLabels:
+                        description: CrushLocationLabels defines which node labels
+                          to use as CRUSH location. This should correspond to the
+                          values set in the CRUSH map.
+                        items:
+                          type: string
+                        type: array
+                      enabled:
+                        description: Enables read affinity for CSI driver.
+                        type: boolean
+                    type: object
+                type: object
               defaultStorageProfile:
                 description: DefaultStorageProfile is the default storage profile
                   to use for the storageclassrequest as StorageProfile is optional.

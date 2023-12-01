@@ -3077,7 +3077,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ROOK_CEPH_IMAGE
-                  value: docker.io/rook/ceph:v1.12.7-31.g997289bec
+                  value: docker.io/rook/ceph:v1.12.0.545.geacc7e744
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v17.2.6
                 - name: NOOBAA_CORE_IMAGE
@@ -3246,7 +3246,7 @@ spec:
                       fieldPath: metadata.namespace
                 - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
                   value: "true"
-                image: docker.io/rook/ceph:v1.12.7-31.g997289bec
+                image: docker.io/rook/ceph:v1.12.0.545.geacc7e744
                 name: rook-ceph-operator
                 ports:
                 - containerPort: 9443
@@ -3627,7 +3627,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: docker.io/rook/ceph:v1.12.7-31.g997289bec
+  - image: docker.io/rook/ceph:v1.12.0.545.geacc7e744
     name: rook-container
   - image: quay.io/ceph/ceph:v17.2.6
     name: ceph-container
