@@ -28,6 +28,11 @@ const (
 type ocsNoobaaSystem struct{}
 
 func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
+	// skip noobaa reconcile if it is not requested from same namespace as operator
+	if sc.Namespace != r.OperatorNamespace {
+		return reconcile.Result{}, nil
+	}
+
 	var err error
 	var reconcileStrategy ReconcileStrategy
 
@@ -240,6 +245,11 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 // ensureDeleted Delete noobaa system in the namespace
 func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
+	// skip noobaa reconcile if it is not requested from same namespace as operator
+	if sc.Namespace != r.OperatorNamespace {
+		return reconcile.Result{}, nil
+	}
+
 	// Delete only if this is being managed by the OCS operator
 	if sc.Spec.MultiCloudGateway != nil {
 		reconcileStrategy := ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy)

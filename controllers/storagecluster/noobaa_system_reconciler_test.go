@@ -32,7 +32,7 @@ var noobaaReconcileTestLogger = logf.Log.WithName("noobaa_system_reconciler_test
 func TestEnsureNooBaaSystem(t *testing.T) {
 	namespacedName := types.NamespacedName{
 		Name:      "noobaa",
-		Namespace: "test_ns",
+		Namespace: "openshift-storage",
 	}
 	sc := v1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -130,10 +130,60 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	}
 }
 
+func TestNooBaaSkipUnskip(t *testing.T) {
+	t.Run("Ensure noobaa is skipped in namespace other than operator namespace", func(t *testing.T) {
+		var obj ocsNoobaaSystem
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
+		sc := v1.StorageCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ocs",
+				Namespace: "test-ns",
+			},
+		}
+		_, err := obj.ensureCreated(&reconciler, &sc)
+		assert.NoError(t, err)
+
+		noobaa := &nbv1.NooBaa{}
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Namespace: sc.Namespace, Name: "noobaa"}, noobaa)
+		assert.True(t, errors.IsNotFound(err))
+	})
+
+	t.Run("Ensure noobaa is created in namespace same as operator namespace", func(t *testing.T) {
+		var obj ocsNoobaaSystem
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
+		sc := v1.StorageCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ocs",
+				Namespace: "openshift-storage",
+			},
+			Status: v1.StorageClusterStatus{
+				Images: v1.ImagesStatus{
+					NooBaaCore: &v1.ComponentImageStatus{},
+					NooBaaDB:   &v1.ComponentImageStatus{},
+				},
+			},
+		}
+
+		cephCluster := cephv1.CephCluster{}
+		cephCluster.Name = generateNameForCephClusterFromString(sc.Name)
+		cephCluster.Namespace = sc.Namespace
+		cephCluster.Status.State = cephv1.ClusterStateCreated
+		err := reconciler.Client.Create(context.TODO(), &cephCluster)
+		assert.NoError(t, err)
+
+		_, err = obj.ensureCreated(&reconciler, &sc)
+		assert.NoError(t, err)
+
+		noobaa := &nbv1.NooBaa{}
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Namespace: sc.Namespace, Name: "noobaa"}, noobaa)
+		assert.NoError(t, err)
+	})
+}
+
 func TestNooBaaReconcileStrategy(t *testing.T) {
 	namespacedName := types.NamespacedName{
 		Name:      "noobaa",
-		Namespace: "test_ns",
+		Namespace: "openshift-storage",
 	}
 
 	cases := []struct {
@@ -404,9 +454,10 @@ func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconcile
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(registerObjs...).WithStatusSubresource(sc).Build()
 
 	return StorageClusterReconciler{
-		Scheme:   scheme,
-		Client:   client,
-		platform: &Platform{},
+		Scheme:            scheme,
+		Client:            client,
+		platform:          &Platform{},
+		OperatorNamespace: "openshift-storage",
 	}
 }
 
