@@ -3,11 +3,13 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -29,11 +31,13 @@ const (
 )
 
 var (
-	ClusterClaimGroup  = "odf"
-	OdfVersion         = fmt.Sprintf("version.%s.openshift.io", ClusterClaimGroup)
-	StorageSystemName  = fmt.Sprintf("storagesystemname.%s.openshift.io", ClusterClaimGroup)
-	StorageClusterName = fmt.Sprintf("storageclustername.%s.openshift.io", ClusterClaimGroup)
-	CephFsid           = fmt.Sprintf("cephfsid.%s.openshift.io", ClusterClaimGroup)
+	ClusterClaimGroup  = "odf.openshift.io"
+	OdfVersion         = fmt.Sprintf("version.%s", ClusterClaimGroup)
+	StorageSystemName  = fmt.Sprintf("storagesystemname.%s", ClusterClaimGroup)
+	StorageClusterName = fmt.Sprintf("storageclustername.%s", ClusterClaimGroup)
+	CephFsid           = fmt.Sprintf("cephfsid.%s", ClusterClaimGroup)
+	BlueStoreEnabled   = fmt.Sprintf("bluestore.enabled.%s", ClusterClaimGroup)
+	DRStoreType        = "bluestore-rdr"
 )
 
 type ocsClusterClaim struct{}
@@ -95,10 +99,17 @@ func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance 
 		return reconcile.Result{}, err
 	}
 
+	isBlueStoreEnabled, err := creator.getBlueStoreStatus()
+	if err != nil {
+		r.Log.Error(err, "failed to retrieve bluestore status for storagecluster. retrying again")
+		return reconcile.Result{}, err
+	}
+
 	err = creator.setStorageSystemName(storageSystemName).
 		setStorageClusterName(instance.Name).
 		setOdfVersion(odfVersion).
 		setCephFsid(cephFsid).
+		setBlueStoreStatus(isBlueStoreEnabled).
 		create()
 
 	return reconcile.Result{}, err
@@ -187,6 +198,32 @@ func (c *ClusterClaimCreator) getCephFsid() (string, error) {
 	return "", fmt.Errorf("failed to fetch ceph fsid from %q secret", RookCephMonSecretName)
 }
 
+func (c *ClusterClaimCreator) getBlueStoreStatus() (bool, error) {
+	if c.StorageCluster != nil {
+		var cephCluster rookCephv1.CephCluster
+		var ccName string
+		var ccNamespace string
+		for _, obj := range c.StorageCluster.Status.RelatedObjects {
+			if obj.Kind == "CephCluster" {
+				ccName = obj.Name
+				ccNamespace = obj.Namespace
+				break
+			}
+		}
+
+		err := c.Client.Get(c.Context, types.NamespacedName{Name: ccName, Namespace: ccNamespace}, &cephCluster)
+		if err != nil {
+			return false, err
+		}
+
+		if cephCluster.Spec.Storage.Store.Type == DRStoreType {
+			return true, nil
+		}
+	}
+
+	return false, fmt.Errorf("StorageCluster instance is nil and CephCluster object cannot be fetched")
+}
+
 func (c *ClusterClaimCreator) setStorageSystemName(name string) *ClusterClaimCreator {
 	c.Values[StorageSystemName] = name
 	return c
@@ -204,6 +241,11 @@ func (c *ClusterClaimCreator) setStorageClusterName(name string) *ClusterClaimCr
 
 func (c *ClusterClaimCreator) setCephFsid(fsid string) *ClusterClaimCreator {
 	c.Values[CephFsid] = fsid
+	return c
+}
+
+func (c *ClusterClaimCreator) setBlueStoreStatus(blueStoreEnabled bool) *ClusterClaimCreator {
+	c.Values[BlueStoreEnabled] = strconv.FormatBool(blueStoreEnabled)
 	return c
 }
 
@@ -226,7 +268,7 @@ func (obj *ocsClusterClaim) ensureDeleted(r *StorageClusterReconciler, _ *ocsv1.
 		}
 		return reconcile.Result{}, nil
 	}
-	names := []string{OdfVersion, StorageSystemName, StorageClusterName, CephFsid}
+	names := []string{OdfVersion, StorageSystemName, StorageClusterName, CephFsid, BlueStoreEnabled}
 	for _, name := range names {
 		cc := clusterv1alpha1.ClusterClaim{
 			ObjectMeta: metav1.ObjectMeta{
