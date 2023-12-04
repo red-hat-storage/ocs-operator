@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -29,21 +30,23 @@ const (
 )
 
 var (
-	ClusterClaimGroup  = "odf"
-	OdfVersion         = fmt.Sprintf("version.%s.openshift.io", ClusterClaimGroup)
-	StorageSystemName  = fmt.Sprintf("storagesystemname.%s.openshift.io", ClusterClaimGroup)
-	StorageClusterName = fmt.Sprintf("storageclustername.%s.openshift.io", ClusterClaimGroup)
-	CephFsid           = fmt.Sprintf("cephfsid.%s.openshift.io", ClusterClaimGroup)
+	ClusterClaimGroup   = "odf"
+	OdfVersion          = fmt.Sprintf("version.%s.openshift.io", ClusterClaimGroup)
+	StorageSystemName   = fmt.Sprintf("storagesystemname.%s.openshift.io", ClusterClaimGroup)
+	StorageClusterName  = fmt.Sprintf("storageclustername.%s.openshift.io", ClusterClaimGroup)
+	StorageClusterCount = fmt.Sprintf("count.storageclusters.%s.openshift.io", ClusterClaimGroup)
+	CephFsid            = fmt.Sprintf("cephfsid.%s.openshift.io", ClusterClaimGroup)
 )
 
 type ocsClusterClaim struct{}
 
 type ClusterClaimCreator struct {
-	Context        context.Context
-	Logger         logr.Logger
-	Client         client.Client
-	Values         map[string]string
-	StorageCluster *ocsv1.StorageCluster
+	Context             context.Context
+	Logger              logr.Logger
+	Client              client.Client
+	Values              map[string]string
+	StorageCluster      *ocsv1.StorageCluster
+	StorageClusterCount int
 }
 
 func doesClusterClaimCrdExist(ctx context.Context, client client.Client) (bool, error) {
@@ -83,6 +86,8 @@ func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance 
 		return reconcile.Result{}, err
 	}
 
+	storageClusterCount := len(r.clusters.GetStorageClusters())
+
 	cephFsid, err := creator.getCephFsid()
 	if err != nil {
 		r.Log.Error(err, "failed to get ceph fsid from secret. retrying again")
@@ -95,7 +100,8 @@ func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance 
 		return reconcile.Result{}, err
 	}
 
-	err = creator.setStorageSystemName(storageSystemName).
+	err = creator.setStorageClusterCount(strconv.Itoa(storageClusterCount)).
+		setStorageSystemName(storageSystemName).
 		setStorageClusterName(instance.Name).
 		setOdfVersion(odfVersion).
 		setCephFsid(cephFsid).
@@ -185,6 +191,11 @@ func (c *ClusterClaimCreator) getCephFsid() (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to fetch ceph fsid from %q secret", RookCephMonSecretName)
+}
+
+func (c *ClusterClaimCreator) setStorageClusterCount(count string) *ClusterClaimCreator {
+	c.Values[StorageClusterCount] = count
+	return c
 }
 
 func (c *ClusterClaimCreator) setStorageSystemName(name string) *ClusterClaimCreator {
