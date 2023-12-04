@@ -770,6 +770,9 @@ spec:
                     description: ManageCephRBDMirror defines how to reconcile Ceph
                       RBDMirror
                     properties:
+                      daemonCount:
+                        default: 1
+                        type: integer
                       reconcileStrategy:
                         type: string
                     type: object

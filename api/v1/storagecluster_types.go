@@ -256,6 +256,8 @@ type ManageCephToolbox struct {
 // ManageCephRBDMirror defines how to reconcile Ceph RBDMirror
 type ManageCephRBDMirror struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	// +kubebuilder:default=1
+	DaemonCount int `json:"daemonCount,omitempty"`
 }
 
 // MgrSpec defines the settings for the Ceph Manager
