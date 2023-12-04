@@ -144,3 +144,16 @@ func (c *Clusters) AreOtherStorageClustersReady(instance *ocsv1.StorageCluster) 
 func (c *Clusters) HasMultipleStorageClustersInNamespace(namespace string) bool {
 	return len(c.GetStorageClustersInNamespace(namespace)) > 1
 }
+
+func (c *Clusters) HasMultipleStorageClustersWithSameName(name string) bool {
+
+	var count int
+
+	for _, scName := range c.GetNames() {
+		if scName == name {
+			count++
+		}
+	}
+
+	return count > 1
+}

@@ -665,6 +665,11 @@ func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.Storag
 		return false
 	}
 
+	// Do not allow Multiple Storage Clusters with same name
+	if r.clusters.HasMultipleStorageClustersWithSameName(instance.Name) {
+		return false
+	}
+
 	// Do not allow Multiple Storage Clusters in same namespace
 	if r.clusters.HasMultipleStorageClustersInNamespace(instance.Namespace) &&
 		!r.isStorageClusterNotIgnored(instance, r.clusters.GetStorageClustersInNamespace(instance.Namespace)) {
