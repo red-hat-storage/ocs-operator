@@ -302,11 +302,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	// If Update request is made and StorageCluster is PhaseIgnored, no need to
 	// proceed further
 	if instance.Status.Phase == "" {
-		isActive, err := r.isActiveStorageCluster(instance)
-		if err != nil {
-			r.Log.Error(err, "StorageCluster could not be reconciled. Retrying.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-			return reconcile.Result{}, err
-		}
+		isActive := r.isActiveStorageCluster(instance)
 		if !isActive {
 			instance.Status.Phase = statusutil.PhaseIgnored
 			return reconcile.Result{}, nil
@@ -656,17 +652,17 @@ func (r *StorageClusterReconciler) validateStorageDeviceSets(sc *ocsv1.StorageCl
 	return nil
 }
 
-func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.StorageCluster) (bool, error) {
+func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.StorageCluster) bool {
 
 	// instance is already marked for deletion
 	// do not mark it as active
 	if !instance.GetDeletionTimestamp().IsZero() {
-		return false, nil
+		return false
 	}
 
 	// Ensure that the internal storageCluster is only allowed in the OperatorNamespace.
 	if !instance.Spec.ExternalStorage.Enable && instance.Namespace != r.OperatorNamespace {
-		return false, nil
+		return false
 	}
 
 	var storageClusterList []ocsv1.StorageCluster
@@ -678,14 +674,14 @@ func (r *StorageClusterReconciler) isActiveStorageCluster(instance *ocsv1.Storag
 
 	// There is only one StorageCluster i.e. instance
 	if len(storageClusterList) == 1 {
-		return true, nil
+		return true
 	}
 
 	return r.isStorageClusterNotIgnored(instance, storageClusterList)
 }
 
 func (r *StorageClusterReconciler) isStorageClusterNotIgnored(
-	instance *ocsv1.StorageCluster, storageClusters []ocsv1.StorageCluster) (bool, error) {
+	instance *ocsv1.StorageCluster, storageClusters []ocsv1.StorageCluster) bool {
 
 	// There are many StorageClusters. Check if this is Active
 	for n, storageCluster := range storageClusters {
@@ -695,20 +691,20 @@ func (r *StorageClusterReconciler) isStorageClusterNotIgnored(
 			// Tiebreak using CreationTimestamp and Alphanumeric ordering
 			if storageCluster.Status.Phase == "" {
 				if storageCluster.CreationTimestamp.Before(&instance.CreationTimestamp) {
-					return false, nil
+					return false
 				} else if storageCluster.CreationTimestamp.Equal(&instance.CreationTimestamp) && storageCluster.Name < instance.Name {
-					return false, nil
+					return false
 				}
 				if n == len(storageClusters)-1 {
-					return true, nil
+					return true
 				}
 				continue
 			}
-			return false, nil
+			return false
 		}
 	}
 
-	return true, nil
+	return true
 }
 
 // Checks whether a string is contained within a slice
