@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
@@ -23,8 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// watchNamespace is the namespace the operator is watching.
-var watchNamespace string
+// operatorNamespace is the namespace the operator is running in
+var operatorNamespace string
 
 const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
 
@@ -33,7 +34,7 @@ const wrongNamespacedName = "Ignoring this resource. Only one should exist, and 
 func InitNamespacedName() types.NamespacedName {
 	return types.NamespacedName{
 		Name:      "ocsinit",
-		Namespace: watchNamespace,
+		Namespace: operatorNamespace,
 	}
 }
 
@@ -41,10 +42,12 @@ func InitNamespacedName() types.NamespacedName {
 // nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
-	ctx            context.Context
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	SecurityClient secv1client.SecurityV1Interface
+	ctx               context.Context
+	Log               logr.Logger
+	Scheme            *runtime.Scheme
+	SecurityClient    secv1client.SecurityV1Interface
+	OperatorNamespace string
+	clusters          *util.Clusters
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -118,6 +121,12 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		}
 	}
 
+	r.clusters, err = util.GetClusters(ctx, r.Client)
+	if err != nil {
+		r.Log.Error(err, "Failed to get clusters")
+		return reconcile.Result{}, err
+	}
+
 	err = r.ensureSCCs(instance)
 	if err != nil {
 		reason := ocsv1.ReconcileFailed
@@ -163,21 +172,29 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 
 // SetupWithManager sets up a controller with a manager
 func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	ns, err := util.GetWatchNamespace()
-	if err != nil {
-		return err
-	}
-	watchNamespace = ns
+	operatorNamespace = r.OperatorNamespace
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}).
 		Owns(&appsv1.Deployment{}).
+		// Watcher for storagecluster required to update
+		// ocs-operator-config configmap if storagecluster spec changes
+		Watches(
+			&ocsv1.StorageCluster{},
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					return []reconcile.Request{{
+						NamespacedName: InitNamespacedName(),
+					}}
+				},
+			),
+		).
 		// Watcher for rook-ceph-operator-config cm
 		Watches(
 			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      util.RookCephOperatorConfigName,
-					Namespace: watchNamespace,
+					Namespace: r.OperatorNamespace,
 				},
 			},
 			handler.EnqueueRequestsFromMapFunc(
@@ -193,7 +210,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      util.OcsOperatorConfigName,
-					Namespace: watchNamespace,
+					Namespace: r.OperatorNamespace,
 				},
 			},
 			handler.EnqueueRequestsFromMapFunc(
@@ -227,24 +244,21 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 	return nil
 }
 
-// ensureOcsOperatorConfigExists ensures that the ocs-operator-config exists & if not create it with default values
+// ensureOcsOperatorConfigExists ensures that the ocs-operator-config exists & if not create/update it with required values
 // This configmap is reserved just for ocs operator use, primarily meant for passing values to rook-ceph-operator
 // It is not meant to be modified by the user
-// The values are set by the storagecluster controller at the start of the Reconcile
+// The values are set considering all storageclusters into account.
 // The needed keys from the configmap are passed to rook-ceph operator pod as env variables.
 // When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
 func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
-	// Default or placeholder data that is put during the creation of the configmap
-	// The values are updated by the StorageCluster controller later if required
 	ocsOperatorConfigData := map[string]string{
 		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
-		util.RookCurrentNamespaceOnlyKey: "true",
-		util.EnableReadAffinityKey:       "true",
-		util.CephFSKernelMountOptionsKey: "ms_mode=prefer-crc",
-		util.EnableTopologyKey:           "false",
-		util.TopologyDomainLabelsKey:     "",
-		util.EnableNFSKey:                "false",
+		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!(len(r.clusters.GetStorageClusters()) > 1)),
+		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
+		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
+		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
 	}
+
 	ocsOperatorConfig := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.OcsOperatorConfigName,
@@ -253,15 +267,18 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		Data: ocsOperatorConfigData,
 	}
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, ocsOperatorConfig, func() error {
-		// If the configmap is being controlled by a StorageCluster, nothing to do here
-		if metav1.GetControllerOf(ocsOperatorConfig) != nil && metav1.GetControllerOf(ocsOperatorConfig).Kind == "StorageCluster" {
-			return nil
-		}
-		// If the configmap is not controlled by a StorageCluster, keep it updated with the default values & set OCSInitialization as the controller
 		if !reflect.DeepEqual(ocsOperatorConfig.Data, ocsOperatorConfigData) {
 			r.Log.Info("Updating ocs-operator-config configmap")
 			ocsOperatorConfig.Data = ocsOperatorConfigData
 		}
+
+		// This configmap was controlled by the storageCluster before 4.15.
+		// We are required to remove storageCluster as a controller before adding OCSInitialization as controller.
+		if existing := metav1.GetControllerOfNoCopy(ocsOperatorConfig); existing != nil && existing.Kind == "StorageCluster" {
+			existing.BlockOwnerDeletion = nil
+			existing.Controller = nil
+		}
+
 		return ctrl.SetControllerReference(initialData, ocsOperatorConfig, r.Scheme)
 	})
 	if err != nil {
@@ -275,4 +292,40 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 	}
 
 	return nil
+}
+
+func (r *OCSInitializationReconciler) getEnableTopologyKeyValue() string {
+
+	// return true even if one of the storagecluster has enabled it
+	for _, sc := range r.clusters.GetStorageClusters() {
+		if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+			return "true"
+		}
+	}
+
+	return "false"
+}
+
+func (r *OCSInitializationReconciler) getTopologyDomainLabelsKeyValue() string {
+
+	// return value from the internal storagecluster as failureDomain is set only in internal cluster
+	for _, sc := range r.clusters.GetStorageClusters() {
+		if !sc.Spec.ExternalStorage.Enable && sc.Status.FailureDomainKey != "" {
+			return sc.Status.FailureDomainKey
+		}
+	}
+
+	return ""
+}
+
+func (r *OCSInitializationReconciler) getEnableNFSKeyValue() string {
+
+	// return true even if one of the storagecluster is using NFS
+	for _, sc := range r.clusters.GetStorageClusters() {
+		if sc.Spec.NFS != nil && sc.Spec.NFS.Enable {
+			return "true"
+		}
+	}
+
+	return "false"
 }
