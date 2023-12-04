@@ -199,7 +199,7 @@ func (c *ClusterClaimCreator) setStorageClusterCount(count string) *ClusterClaim
 }
 
 func (c *ClusterClaimCreator) setStorageSystemName(name string) *ClusterClaimCreator {
-	c.Values[StorageSystemName] = name
+	c.Values[StorageSystemName] = fmt.Sprintf("%s/%s", name, c.StorageCluster.GetNamespace())
 	return c
 }
 
@@ -209,7 +209,7 @@ func (c *ClusterClaimCreator) setOdfVersion(version string) *ClusterClaimCreator
 }
 
 func (c *ClusterClaimCreator) setStorageClusterName(name string) *ClusterClaimCreator {
-	c.Values[StorageClusterName] = name
+	c.Values[StorageClusterName] = fmt.Sprintf("%s/%s", name, c.StorageCluster.GetNamespace())
 	return c
 }
 
