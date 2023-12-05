@@ -66,7 +66,7 @@ The scope of this directory is to provide OCS specific Prometheus rule files usi
                      clusterRequestsAlertTime,
                      storage_type: $._config.storageType,
                      severity_level: 'error',
-                     runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ClusterRequests.md
+                     runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ClusterRequests.md',
                   },
                },
                ],
@@ -77,6 +77,7 @@ The scope of this directory is to provide OCS specific Prometheus rule files usi
 
       ```
       * Define constants like clusterRequestsAlertTime, storageType in the metrics/mixin/config.libsonnet file.
+      * Double check there is 'runbook' file for document the alert properly. 'runbook_url' annotation will store the link.
       * Add this file to **metrics/mixin/alerts/alerts.libsonnet** or **metrics/mixin/alerts/alerts-external.libsonnet** depending on the type(For internal or external cluster)
     * Test the alert/rule generation by using targets in metrics/mixin/Makefile. Eg:  `make prometheus_alert_rules.yaml`. This is **optional** and can be used to isolate issues.
 

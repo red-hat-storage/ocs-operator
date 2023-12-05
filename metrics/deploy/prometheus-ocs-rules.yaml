@@ -71,6 +71,7 @@ spec:
         message: Mirror daemon is unhealthy.
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfMirrorDaemonStatus.md
       expr: |
         ((count by(namespace) (ocs_mirror_daemon_count{job="ocs-metrics-exporter"} == 0)) * on(namespace) group_left() (count by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"} == 1))) > 0
       for: 1m
@@ -82,6 +83,7 @@ spec:
         message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown state.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
       expr: |
         (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
       for: 1m
@@ -94,6 +96,7 @@ spec:
         message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
       expr: |
         (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
       for: 1m
@@ -106,6 +109,7 @@ spec:
         message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state.
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
       expr: |
         (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
       for: 10s
@@ -202,6 +206,7 @@ spec:
         description: An RBD client might be blocked by Ceph on node {{ $labels.node_name }}. This alert is triggered when the ocs_rbd_client_blocklisted metric reports a value of 1 for the node and there are pods in a CreateContainerError state on the node. This may cause the filesystem for the PVCs to be in a read-only state. Please check the pod description for more details.
         message: An RBD client might be blocked by Ceph on node {{ $labels.node_name }}.
         severity_level: error
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFRBDClientBlocked.md'
       expr: |
         (
           ocs_rbd_client_blocklisted{node=~".+"} == 1
@@ -222,6 +227,7 @@ spec:
         message: Storage Cluster KMS Server is in un-connected state. Please check KMS config.
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/KMSServerConnectionAlert.md
       expr: |
         ocs_storagecluster_kms_connection_status{job="ocs-metrics-exporter"} == 1
       for: 5s

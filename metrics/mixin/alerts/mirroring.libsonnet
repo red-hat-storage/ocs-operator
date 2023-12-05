@@ -18,6 +18,7 @@
               description: 'Mirror daemon is in unhealthy status for more than %s. Mirroring on this cluster is not working as expected.' % $._config.odfMirrorDaemonStatusAlertTime,
               storage_type: $._config.cephStorageType,
               severity_level: 'error',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfMirrorDaemonStatus.md',
             },
           },
           {
@@ -35,6 +36,7 @@
               description: 'Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown state for more than %s. Mirroring might not work as expected.' % $._config.odfPoolMirroringImageHealthWarningAlertTime,
               storage_type: $._config.cephStorageType,
               severity_level: 'warning',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md',
             },
           },
           {

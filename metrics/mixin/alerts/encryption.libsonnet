@@ -18,6 +18,7 @@
               description: 'Storage Cluster KMS Server is in un-connected state for more than %s. Please check KMS config.' % $._config.ocsStorageClusterKMSConnectionAlert,
               storage_type: $._config.cephStorageType,
               severity_level: 'error',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/KMSServerConnectionAlert.md',
             },
           },
         ],
