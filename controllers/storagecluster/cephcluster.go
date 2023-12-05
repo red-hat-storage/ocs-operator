@@ -461,9 +461,13 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				rookCephv1.KeyOSD: systemNodeCritical,
 			},
 			Resources: newCephDaemonResources(sc),
-			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
+			// if resource profile change is in progress, then set this flag to false
+			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
 			LogCollector: logCollector,
 			Labels: rookCephv1.LabelsSpec{
+				rookCephv1.KeyMgr:        rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
+				rookCephv1.KeyMon:        rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
+				rookCephv1.KeyOSD:        rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
 				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
 			},
 			CSI: rookCephv1.CSIDriverSpec{
@@ -1302,4 +1306,13 @@ func isBluestore(store rookCephv1.OSDStore) bool {
 	}
 
 	return false
+}
+
+func (r *StorageClusterReconciler) getOsdCount(sc *ocsv1.StorageCluster) int {
+	storageClassDeviceSets := newStorageClassDeviceSets(sc, r.serverVersion)
+	osdCount := 0
+	for _, ds := range storageClassDeviceSets {
+		osdCount += ds.Count
+	}
+	return osdCount
 }

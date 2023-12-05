@@ -11,6 +11,8 @@ const (
 	// RackTopologyKey is the node label used to distribute storage nodes
 	// when there are not enough AZs presnet across the nodes
 	RackTopologyKey = "topology.rook.io/rack"
+	// ODFResourceProfileKey is the label key used to identify the resource profile of the pod
+	ODFResourceProfileKey = "odf-resource-profile"
 	// KubeMajorTopologySpreadConstraints is the minimum major kube version to support TSC
 	// used along with KubeMinorTSC for version comparison
 	KubeMajorTopologySpreadConstraints = "1"
