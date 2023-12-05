@@ -514,8 +514,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 					return reconcile.Result{}, returnErr
 				}
 			}
-			return reconcile.Result{}, nil
-
 		}
 	} else {
 		// If any component operator reports negatively we want to write that to
