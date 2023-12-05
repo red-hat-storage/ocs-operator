@@ -1,14 +1,19 @@
 package collectors
 
 import (
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
+	"golang.org/x/net/context"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -22,7 +27,9 @@ var _ prometheus.Collector = &CephClusterCollector{}
 
 // CephClusterCollector is a custom collector for CephCluster Custom Resource
 type CephClusterCollector struct {
+	kubeClient        clientset.Interface
 	MirrorDaemonCount *prometheus.Desc
+	OCSNodeLabels     *prometheus.Desc
 	Informer          cache.SharedIndexInformer
 	AllowedNamespaces []string
 }
@@ -38,10 +45,17 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 
 	return &CephClusterCollector{
+		kubeClient: clientset.NewForConfigOrDie(opts.Kubeconfig),
 		MirrorDaemonCount: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, mirrorDaemonSubsystem, "count"),
 			`Mirror Daemon Count.`,
 			[]string{"ceph_cluster", "namespace"},
+			nil,
+		),
+		OCSNodeLabels: prometheus.NewDesc(
+			`ocs_node_labels`,
+			`Labels for the Ceph node`,
+			[]string{"label_kubernetes_io_hostname", "label_failure_domain_beta_kubernetes_io_zone", "label_provider_id"},
 			nil,
 		),
 		Informer:          sharedIndexInformer,
@@ -58,6 +72,7 @@ func (c *CephClusterCollector) Run(stopCh <-chan struct{}) {
 func (c *CephClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
 		c.MirrorDaemonCount,
+		c.OCSNodeLabels,
 	}
 
 	for _, d := range ds {
@@ -69,9 +84,12 @@ func (c *CephClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *CephClusterCollector) Collect(ch chan<- prometheus.Metric) {
 	cephClusterLister := cephv1listers.NewCephClusterLister(c.Informer.GetIndexer())
 	cephClusterListers := getAllCephClusters(cephClusterLister, c.AllowedNamespaces)
-
 	if len(cephClusterListers) > 0 {
 		c.collectMirrorinDaemonCount(cephClusterListers, ch)
+	}
+	cephNodes := c.getCephClusterNodes()
+	if len(cephNodes.Items) > 0 {
+		c.collectNodeLabels(cephNodes, ch)
 	}
 }
 
@@ -114,5 +132,39 @@ func (c *CephClusterCollector) collectMirrorinDaemonCount(cephClusters []*cephv1
 			prometheus.GaugeValue, 0,
 			cephCluster.Name,
 			cephCluster.Namespace)
+	}
+}
+
+func (c *CephClusterCollector) getCephClusterNodes() (cephNodes *corev1.NodeList) {
+	cephNodes, err := c.kubeClient.CoreV1().Nodes().List(context.Background(),
+		metav1.ListOptions{LabelSelector: "cluster.ocs.openshift.io/openshift-storage="})
+	for _, node := range cephNodes.Items {
+		klog.Infof("Node: %s", node.ObjectMeta.Name)
+	}
+	if err != nil {
+		klog.Errorf("couldn't get odf nodes for getting labels: %v", err)
+		return &corev1.NodeList{
+			TypeMeta: metav1.TypeMeta{
+				Kind: "NodeList",
+			},
+			Items: []corev1.Node{},
+		}
+	}
+	return cephNodes
+}
+
+func (c *CephClusterCollector) collectNodeLabels(cephNodes *corev1.NodeList, ch chan<- prometheus.Metric) {
+	for _, node := range cephNodes.Items {
+		providerID := node.Spec.ProviderID
+		providerData := strings.Split(providerID, "://")
+		if len(providerData) > 0 {
+			providerID = providerData[0]
+		}
+		ch <- prometheus.MustNewConstMetric(c.OCSNodeLabels,
+			prometheus.GaugeValue, 1,
+			node.ObjectMeta.Name,
+			node.Labels["failure-domain.beta.kubernetes.io/zone"],
+			providerID)
+
 	}
 }
