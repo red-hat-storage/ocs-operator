@@ -7,7 +7,7 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	tests "github.com/red-hat-storage/ocs-operator/v4/functests"
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

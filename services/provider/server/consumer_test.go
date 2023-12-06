@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	providerClient "github.com/red-hat-storage/ocs-operator/v4/services/provider/client"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"

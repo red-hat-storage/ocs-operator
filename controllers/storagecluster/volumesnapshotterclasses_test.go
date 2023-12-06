@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
-	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"

@@ -7,7 +7,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/prometheus/client_golang/prometheus"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/version"
 	"k8s.io/apimachinery/pkg/fields"

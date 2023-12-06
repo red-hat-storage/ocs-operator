@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	routev1 "github.com/openshift/api/route/v1"
-	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"

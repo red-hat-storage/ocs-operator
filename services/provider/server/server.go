@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
-	"github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
