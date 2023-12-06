@@ -21,6 +21,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
+	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	"google.golang.org/grpc"
@@ -57,6 +58,7 @@ type OCSProviderServer struct {
 	consumerManager            *ocsConsumerManager
 	storageClassRequestManager *storageClassRequestManager
 	namespace                  string
+	version                    *semver.Version
 }
 
 type onboardingTicket struct {
@@ -80,16 +82,31 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new StorageClassRequest instance. %v", err)
 	}
 
+	version, err := semver.Make(ocsVersion.Version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse operator version as semver. %v", err)
+	}
+
 	return &OCSProviderServer{
 		client:                     client,
 		consumerManager:            consumerManager,
 		storageClassRequestManager: storageClassRequestManager,
 		namespace:                  namespace,
+		version:                    &version,
 	}, nil
 }
 
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
+
+	version, err := semver.Make(req.ClientOperatorVersion)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "malformed ClientPlatformVersion for client %q is provided. %v", req.ConsumerName, err)
+	}
+
+	if s.version.Minor != version.Minor || s.version.Major != version.Major {
+		return nil, status.Errorf(codes.InvalidArgument, "both major and minor version of server and client %q should match for onboarding process", req.ConsumerName)
+	}
 
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
