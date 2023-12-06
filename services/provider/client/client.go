@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	cs "github.com/red-hat-storage/ocs-operator/v4/services/provider/clientstatus"
+	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 
 	"google.golang.org/grpc"
@@ -53,17 +53,18 @@ func (cc *OCSProviderClient) Close() {
 	cc.Client = nil
 }
 
+func NewOnboardConsumerRequest() ifaces.StorageClientOnboarding {
+	return &pb.OnboardConsumerRequest{}
+}
+
 // OnboardConsumer to validate the consumer and create StorageConsumer
 // resource on the StorageProvider cluster
-func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, ticket, name string) (*pb.OnboardConsumerResponse, error) {
+func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, onboard ifaces.StorageClientOnboarding) (*pb.OnboardConsumerResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
 
-	req := &pb.OnboardConsumerRequest{
-		OnboardingTicket: ticket,
-		ConsumerName:     name,
-	}
+	req := onboard.(*pb.OnboardConsumerRequest)
 
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
 	defer cancel()
@@ -189,11 +190,11 @@ func (cc *OCSProviderClient) GetStorageClassClaimConfig(ctx context.Context, con
 	return cc.Client.GetStorageClassClaimConfig(apiCtx, req)
 }
 
-func NewStorageClientStatus() cs.StorageClientStatus {
+func NewStorageClientStatus() ifaces.StorageClientStatus {
 	return &pb.ReportStatusRequest{}
 }
 
-func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID string, status cs.StorageClientStatus) (*pb.ReportStatusResponse, error) {
+func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID string, status ifaces.StorageClientStatus) (*pb.ReportStatusResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("Provider client is closed")
 	}
