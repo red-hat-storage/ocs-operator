@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 )
 
 func TestCephFileSystem(t *testing.T) {

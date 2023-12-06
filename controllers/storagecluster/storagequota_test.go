@@ -6,7 +6,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
-	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
