@@ -82,7 +82,3 @@ type OCSInitializationList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []OCSInitialization `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&OCSInitialization{}, &OCSInitializationList{})
-}

@@ -8,14 +8,20 @@ import (
 	"testing"
 
 	"github.com/blang/semver/v4"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
+	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +29,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,15 +39,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
-	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	"github.com/red-hat-storage/ocs-operator/v4/version"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 const (
@@ -996,7 +994,9 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 }
 
 func createFakeScheme(t *testing.T) *runtime.Scheme {
-	scheme, err := api.SchemeBuilder.Build()
+	scheme := runtime.NewScheme()
+
+	err := api.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
 	}
