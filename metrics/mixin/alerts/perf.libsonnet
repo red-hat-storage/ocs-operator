@@ -34,6 +34,22 @@
               severity_level: 'warning',
             },
           },
+
+          {
+            alert: 'MDSCPUUsageHigh',
+            expr: |||
+              pod:container_cpu_usage:sum{%(mdsSelector)s}/ on(pod) kube_pod_resource_limit{resource='cpu',%(mdsSelector)s} > 0.67
+            ||| % $._config,
+            'for': $._config.mds_cpu_usage_high_threshold_duration,
+            labels: {
+              severity: 'warning',
+            },
+            annotations: {
+              message: 'Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage',
+              description: 'Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage.\nPlease consider increasing the number of active metadata servers,\nit can be done by increasing the number of activeMetadataServers parameter in the StorageCluster CR.',
+              severity_level: 'warning',
+            },
+          },
         ],
       },
     ],
