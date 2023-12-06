@@ -32,7 +32,9 @@ import (
 )
 
 func createFakeScheme(t *testing.T) *runtime.Scheme {
-	scheme, err := v1.SchemeBuilder.Build()
+	scheme := runtime.NewScheme()
+
+	err := v1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
 	}

@@ -82,10 +82,6 @@ const (
 	StorageProfilePhaseRejected StorageProfilePhase = "Rejected"
 )
 
-func init() {
-	SchemeBuilder.Register(&StorageProfile{}, &StorageProfileList{})
-}
-
 func (sp *StorageProfile) GetSpecHash() string {
 	specJSON, err := json.Marshal(sp.Spec)
 	if err != nil {

@@ -614,10 +614,6 @@ type ArbiterSpec struct {
 	ArbiterMonPVCTemplate       *corev1.PersistentVolumeClaim `json:"arbiterMonPVCTemplate,omitempty"`
 }
 
-func init() {
-	SchemeBuilder.Register(&StorageCluster{}, &StorageClusterList{})
-}
-
 // OverprovisionControlSpec defines the allowed overprovisioning PVC consumption from the underlying cluster.
 // This may be an absolute value or as a percentage of the overall effective capacity.
 // One, and only one of those two (Capacity and Percentage) may be defined.

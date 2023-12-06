@@ -94,7 +94,3 @@ type StorageConsumerList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []StorageConsumer `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&StorageConsumer{}, &StorageConsumerList{})
-}

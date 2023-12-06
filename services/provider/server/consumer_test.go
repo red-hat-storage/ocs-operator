@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -48,7 +49,9 @@ var (
 )
 
 func newFakeClient(t *testing.T, obj ...client.Object) client.Client {
-	scheme, err := api.SchemeBuilder.Build()
+	scheme := runtime.NewScheme()
+
+	err := api.AddToScheme(scheme)
 	assert.NoError(t, err, "unable to build scheme")
 
 	err = corev1.AddToScheme(scheme)
