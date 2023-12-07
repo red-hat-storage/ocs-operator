@@ -10,6 +10,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -155,35 +156,16 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
-	enqueueFromStorageProfile := handler.EnqueueRequestsFromMapFunc(
-		func(_ context.Context, obj client.Object) []reconcile.Request {
-			// only storage profile is being watched
-			_ = obj.(*ocsv1.StorageProfile)
-
-			// Get the StorageCluster object
-			scList := &ocsv1.StorageClusterList{}
-			err := r.Client.List(r.ctx, scList, client.InNamespace(obj.GetNamespace()), client.Limit(1))
-			if err != nil {
-				r.Log.Error(err, "Unable to list StorageCluster objects")
-				return []reconcile.Request{}
+	ocsClientOperatorVersionPredicate := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
 			}
-
-			if len(scList.Items) == 0 {
-				return []reconcile.Request{}
-			}
-
-			sc := scList.Items[0]
-			// Return name and namespace of StorageCluster
-			return []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      sc.Name,
-						Namespace: sc.Namespace,
-					},
-				},
-			}
+			oldObj := e.ObjectOld.(*ocsv1alpha1.StorageConsumer)
+			newObj := e.ObjectNew.(*ocsv1alpha1.StorageConsumer)
+			return oldObj.Status.Client.OperatorVersion != newObj.Status.Client.OperatorVersion
 		},
-	)
+	}
 
 	onboardingSecretPredicates := builder.WithPredicates(
 		predicate.NewPredicateFuncs(
@@ -201,7 +183,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&ocsv1.OCSInitialization{}, enqueueStorageClusterRequest).
-		Watches(&ocsv1.StorageProfile{}, enqueueFromStorageProfile).
+		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
 		Watches(
 			&extv1.CustomResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
@@ -210,7 +192,8 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			enqueueStorageClusterRequest,
 		).
-		Watches(&corev1.Secret{}, enqueueStorageClusterRequest, onboardingSecretPredicates)
+		Watches(&corev1.Secret{}, enqueueStorageClusterRequest, onboardingSecretPredicates).
+		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(ocsClientOperatorVersionPredicate))
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		builder.Owns(&nbv1.NooBaa{})
 	}
