@@ -1878,71 +1878,6 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephobjectstores
-          - cephblockpools
-          - cephclusters
-          - cephrbdmirrors
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - quota.openshift.io
-          resources:
-          - clusterresourcequotas
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - objectbucket.io
-          resources:
-          - objectbuckets
-          - objectbucketclaims
-          verbs:
-          - get
-          - list
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - secrets
-          verbs:
-          - get
-          - list
-        - apiGroups:
-          - ""
-          resources:
-          - persistentvolumes
-          - persistentvolumeclaims
-          - pods
-          - nodes
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - storage.k8s.io
-          resources:
-          - storageclasses
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
-          - storageconsumers
-          - storageclusters
-          verbs:
-          - get
-          - list
-          - watch
-        serviceAccountName: ocs-metrics-exporter
-      - rules:
-        - apiGroups:
           - apiextensions.k8s.io
           resources:
           - customresourcedefinitions
@@ -3043,14 +2978,6 @@ spec:
           verbs:
           - use
         serviceAccountName: rook-ceph-system
-      - rules:
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - '*'
-          verbs:
-          - '*'
-        serviceAccountName: ocs-metrics-exporter
       deployments:
       - name: ocs-operator
         spec:
@@ -3076,6 +3003,8 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: OCS_METRICS_EXPORTER_IMAGE
+                  value: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 - name: ROOK_CEPH_IMAGE
                   value: docker.io/rook/ceph:v1.12.0.545.geacc7e744
                 - name: CEPH_IMAGE
@@ -3267,53 +3196,6 @@ spec:
                 name: default-config-dir
               - emptyDir: {}
                 name: webhook-cert
-      - name: ocs-metrics-exporter
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app.kubernetes.io/component: ocs-metrics-exporter
-              app.kubernetes.io/name: ocs-metrics-exporter
-          strategy: {}
-          template:
-            metadata:
-              labels:
-                app.kubernetes.io/component: ocs-metrics-exporter
-                app.kubernetes.io/name: ocs-metrics-exporter
-                app.kubernetes.io/version: 0.0.1
-            spec:
-              containers:
-              - args:
-                - --namespaces=$(WATCH_NAMESPACE)
-                command:
-                - /usr/local/bin/metrics-exporter
-                env:
-                - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.namespace
-                image: quay.io/ocs-dev/ocs-metrics-exporter:latest
-                name: ocs-metrics-exporter
-                ports:
-                - containerPort: 8080
-                - containerPort: 8081
-                resources: {}
-                securityContext:
-                  privileged: false
-                  runAsNonRoot: true
-                volumeMounts:
-                - mountPath: /etc/ceph
-                  name: ceph-config
-              serviceAccountName: ocs-metrics-exporter
-              tolerations:
-              - effect: NoSchedule
-                key: node.ocs.openshift.io/storage
-                operator: Equal
-                value: "true"
-              volumes:
-              - configMap:
-                  name: ocs-metrics-exporter-ceph-conf
-                name: ceph-config
       permissions:
       - rules:
         - apiGroups:
