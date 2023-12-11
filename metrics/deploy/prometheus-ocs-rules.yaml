@@ -265,7 +265,7 @@ spec:
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
       labels:
         severity: critical
-  - name: mds-performance-alerts.rules
+  - name: ceph-daemon-performance-alerts.rules
     rules:
     - alert: MDSCacheUsageHigh
       annotations:
@@ -277,3 +277,12 @@ spec:
       for: 5m
       labels:
         severity: critical
+    - alert: OSDCPULoadHigh
+      annotations:
+        description: High CPU usage in the OSD container on pod {{ $labels.pod }}. Please create more OSDs to increase performance
+        message: High CPU usage detected in OSD container on pod {{ $labels.pod}}.
+        severity_level: warning
+      expr: "pod:container_cpu_usage:sum{pod=~\"rook-ceph-osd-.*\"} > 0.35 \n"
+      for: 15m
+      labels:
+        severity: warning
