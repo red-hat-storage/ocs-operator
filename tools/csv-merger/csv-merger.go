@@ -21,7 +21,6 @@ import (
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbac "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -549,16 +548,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		d.Spec.Template.Spec.Tolerations = ocsNodeToleration
 	}
 
-	templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, csvv1.StrategyDeploymentPermissions{
-		ServiceAccountName: "ocs-metrics-exporter",
-		Rules: []rbac.PolicyRule{
-			{
-				APIGroups: []string{"monitoring.coreos.com"},
-				Resources: []string{"*"},
-				Verbs:     []string{"*"},
-			},
-		},
-	})
 	fmt.Println(templateStrategySpec.DeploymentSpecs)
 
 	// Set correct csv versions and name
