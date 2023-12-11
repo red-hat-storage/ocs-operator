@@ -185,6 +185,14 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
+	onboardingSecretPredicates := builder.WithPredicates(
+		predicate.NewPredicateFuncs(
+			func(client client.Object) bool {
+				return client.GetName() == onboardingTicketPublicKeySecretName
+			},
+		),
+	)
+
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}).
@@ -201,7 +209,8 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			},
 			enqueueStorageClusterRequest,
-		)
+		).
+		Watches(&corev1.Secret{}, enqueueStorageClusterRequest, onboardingSecretPredicates)
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		builder.Owns(&nbv1.NooBaa{})
 	}
