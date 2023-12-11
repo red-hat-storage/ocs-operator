@@ -16,6 +16,8 @@
     ocsStorageClusterKMSConnectionAlert: '5s',
     mdsCacheUsageAlertTime: '5m',
     osdCPULoadHighAlertTime: '15m',
+    mdsSelector: 'pod=~"rook-ceph-mds.*"',
+    mds_cpu_usage_high_threshold_duration: '6h',
 
     // Constants
     objectStorageType: 'RGW',

@@ -286,3 +286,16 @@ spec:
       for: 15m
       labels:
         severity: warning
+    - alert: MDSCPUUsageHigh
+      annotations:
+        description: |-
+          Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage.
+          Please consider increasing the number of active metadata servers,
+          it can be done by increasing the number of activeMetadataServers parameter in the StorageCluster CR.
+        message: Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
+        severity_level: warning
+      expr: |
+        pod:container_cpu_usage:sum{pod=~"rook-ceph-mds.*"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-mds.*"} > 0.67
+      for: 6h
+      labels:
+        severity: warning
