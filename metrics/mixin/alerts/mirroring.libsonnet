@@ -87,6 +87,7 @@
               description: 'Persistent volume {{ $labels.name }}/{{ $labels.namespace }} is not mirrored properly to peer site {{ $labels.site_name }} for more than %s. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}.' % $._config.odfPoolMirroringImageHealthWarningAlertTime,
               storage_type: $._config.cephStorageType,
               severity_level: 'error',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md'
             },
           },
           {

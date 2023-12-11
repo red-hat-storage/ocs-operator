@@ -69,6 +69,7 @@ spec:
       annotations:
         description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
         message: OBC has crossed 80% of the quota(bytes).
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesAlert.md
         severity_level: warning
         storage_type: RGW
       expr: |
@@ -130,7 +131,6 @@ spec:
         message: Storage Cluster KMS Server is in un-connected state. Please check KMS config.
         severity_level: error
         storage_type: ceph
-        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/KMSServerConnectionAlert.md
       expr: |
         ocs_storagecluster_kms_connection_status{job="ocs-metrics-exporter"} == 1
       for: 5s
