@@ -32,6 +32,18 @@ func (c *Clusters) GetStorageClusters() []ocsv1.StorageCluster {
 	return storageClusters
 }
 
+func (c *Clusters) GetStorageClustersInNamespace(namespace string) []ocsv1.StorageCluster {
+	storageClusters := make([]ocsv1.StorageCluster, 0)
+
+	for _, sc := range c.GetStorageClusters() {
+		if sc.Namespace == namespace {
+			storageClusters = append(storageClusters, sc)
+		}
+	}
+
+	return storageClusters
+}
+
 func (c *Clusters) GetNames() []string {
 	return c.names
 }
@@ -127,4 +139,21 @@ func (c *Clusters) AreOtherStorageClustersReady(instance *ocsv1.StorageCluster) 
 	}
 
 	return true
+}
+
+func (c *Clusters) HasMultipleStorageClustersInNamespace(namespace string) bool {
+	return len(c.GetStorageClustersInNamespace(namespace)) > 1
+}
+
+func (c *Clusters) HasMultipleStorageClustersWithSameName(name string) bool {
+
+	var count int
+
+	for _, scName := range c.GetNames() {
+		if scName == name {
+			count++
+		}
+	}
+
+	return count > 1
 }

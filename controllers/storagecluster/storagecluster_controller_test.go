@@ -656,8 +656,7 @@ func TestIsActiveStorageCluster(t *testing.T) {
 			reconciler = createFakeStorageClusterReconciler(t, tc.storageCluster2)
 		}
 
-		actual, err := reconciler.isActiveStorageCluster(tc.storageCluster2)
-		assert.NoError(t, err)
+		actual := reconciler.isActiveStorageCluster(tc.storageCluster2)
 		assert.Equalf(t, tc.isActive, actual, "[%q] failed to assert if current storagecluster is active or not", tc.label)
 	}
 
