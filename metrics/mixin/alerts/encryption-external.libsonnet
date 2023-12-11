@@ -14,8 +14,8 @@
               severity: 'critical',
             },
             annotations: {
-              message: 'Storage Cluster KMS Server is in un-connected state. Please check KMS config.',
-              description: 'Storage Cluster KMS Server is in un-connected state for more than %s. Please check KMS config.' % $._config.ocsStorageClusterKMSConnectionAlert,
+              message: 'Storage Cluster KMS Server is in un-connected state. Please check KMS config in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.',
+              description: 'Storage Cluster KMS Server is in un-connected state for more than %s. Please check KMS config in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.ocsStorageClusterKMSConnectionAlert,
               storage_type: $._config.cephStorageType,
               severity_level: 'error',
             },

@@ -67,8 +67,8 @@ spec:
     rules:
     - alert: ObcQuotaBytesAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
-        message: OBC has crossed 80% of the quota(bytes).
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
+        message: OBC has crossed 80% of the quota(bytes) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesAlert.md
         severity_level: warning
         storage_type: RGW
@@ -79,8 +79,8 @@ spec:
         severity: warning
     - alert: ObcQuotaObjectsAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
-        message: OBC has crossed 80% of the quota(object).
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
+        message: OBC has crossed 80% of the quota(object) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         severity_level: warning
         storage_type: RGW
       expr: |
@@ -90,8 +90,8 @@ spec:
         severity: warning
     - alert: ObcQuotaBytesExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
-        message: OBC reached quota(bytes) limit.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
+        message: OBC reached quota(bytes) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         severity_level: error
         storage_type: RGW
       expr: |
@@ -101,8 +101,8 @@ spec:
         severity: critical
     - alert: ObcQuotaObjectsExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
-        message: OBC reached quota(object) limit.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
+        message: OBC reached quota(object) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         severity_level: error
         storage_type: RGW
       expr: |
@@ -114,8 +114,8 @@ spec:
     rules:
     - alert: ClusterObjectStoreState
       annotations:
-        description: Cluster Object Store is in unhealthy state for more than 15s. Please check Ceph cluster health or RGW connection.
-        message: Cluster Object Store is in unhealthy state. Please check Ceph cluster health or RGW connection.
+        description: Cluster Object Store is in unhealthy state for more than 15s. Please check Ceph cluster health or RGW connection in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Cluster Object Store is in unhealthy state. Please check Ceph cluster health or RGW connection in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         severity_level: error
         storage_type: RGW
       expr: |
@@ -127,8 +127,8 @@ spec:
     rules:
     - alert: KMSServerConnectionAlert
       annotations:
-        description: Storage Cluster KMS Server is in un-connected state for more than 5s. Please check KMS config.
-        message: Storage Cluster KMS Server is in un-connected state. Please check KMS config.
+        description: Storage Cluster KMS Server is in un-connected state for more than 5s. Please check KMS config in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Cluster KMS Server is in un-connected state. Please check KMS config in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         severity_level: error
         storage_type: ceph
       expr: |
