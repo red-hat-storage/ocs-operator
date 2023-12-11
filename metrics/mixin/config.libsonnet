@@ -13,6 +13,7 @@
     odfPoolMirroringImageHealthCriticalAlertTime: '10s',
     blockedRBDClientAlertTime: '10s',
     ocsStorageClusterKMSConnectionAlert: '5s',
+    mdsCacheUsageAlertTime: '5m',
 
     // Constants
     objectStorageType: 'RGW',
