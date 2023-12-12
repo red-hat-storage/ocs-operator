@@ -1308,8 +1308,8 @@ func isBluestore(store rookCephv1.OSDStore) bool {
 	return false
 }
 
-func (r *StorageClusterReconciler) getOsdCount(sc *ocsv1.StorageCluster) int {
-	storageClassDeviceSets := newStorageClassDeviceSets(sc, r.serverVersion)
+func getOsdCount(sc *ocsv1.StorageCluster, serverVersion *version.Info) int {
+	storageClassDeviceSets := newStorageClassDeviceSets(sc, serverVersion)
 	osdCount := 0
 	for _, ds := range storageClassDeviceSets {
 		osdCount += ds.Count

@@ -51,7 +51,7 @@ func (r *StorageClusterReconciler) ensureResourceProfileChangeApplied(sc *ocsv1.
 	}
 
 	// Verify if expected number of osd pods with the current resource profile label are running
-	if err := r.verifyDaemonWithResourceProfile(sc.Namespace, map[string]string{"app": "rook-ceph-osd", defaults.ODFResourceProfileKey: currentResourceProfile}, r.getOsdCount(sc)); err != nil {
+	if err := r.verifyDaemonWithResourceProfile(sc.Namespace, map[string]string{"app": "rook-ceph-osd", defaults.ODFResourceProfileKey: currentResourceProfile}, getOsdCount(sc, r.serverVersion)); err != nil {
 		return err
 	}
 
