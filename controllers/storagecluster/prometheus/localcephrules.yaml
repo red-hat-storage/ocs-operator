@@ -137,6 +137,7 @@ spec:
         message: Ceph storage osd flapping.
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDFlapping.md
       expr: |
         changes(ceph_osd_up[5m]) >= 10
       for: 0s
@@ -170,6 +171,7 @@ spec:
         message: Disk not accessible
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDDiskUnavailable.md
       expr: |
         label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace) group_left(host, device) label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"host","$1","exported_instance","(.*)")
       for: 1m
@@ -181,6 +183,7 @@ spec:
         message: OSD requests are taking too long to process.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDSlowOps.md
       expr: |
         ceph_healthcheck_slow_ops > 0
       for: 30s
@@ -192,6 +195,7 @@ spec:
         message: Data recovery is slow
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephDataRecoveryTakingTooLong.md
       expr: |
         ceph_pg_undersized > 0
       for: 2h
@@ -203,6 +207,7 @@ spec:
         message: Self heal problems detected
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPgRepairTakingTooLong.md
       expr: |
         ceph_pg_inconsistent > 0
       for: 1h
@@ -216,6 +221,7 @@ spec:
         message: PVC {{ $labels.persistentvolumeclaim }} is nearing full. Data deletion or PVC expansion is required.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDNearFull.md
       expr: |
         (kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) / (kubelet_volume_stats_capacity_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) > 0.75
       for: 5s

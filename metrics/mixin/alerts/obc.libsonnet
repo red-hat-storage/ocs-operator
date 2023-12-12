@@ -18,6 +18,7 @@
               description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.',
               storage_type: $._config.objectStorageType,
               severity_level: 'warning',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesAlert.md',
             },
           },
           {
