@@ -286,8 +286,10 @@ spec:
           - events
           - nodes
           - persistentvolumeclaims
+          - persistentvolumes
           - pods
           - secrets
+          - serviceaccounts
           - services
           verbs:
           - '*'
@@ -342,6 +344,15 @@ spec:
           - noobaas
           verbs:
           - '*'
+        - apiGroups:
+          - objectbucket.io
+          resources:
+          - objectbucketclaims
+          - objectbuckets
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - ocs.openshift.io
           resources:
@@ -428,6 +439,21 @@ spec:
           - clusterresourcequotas
           verbs:
           - '*'
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterrolebindings
+          - clusterroles
+          - rolebindings
+          - roles
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - route.openshift.io
           resources:

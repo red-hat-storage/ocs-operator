@@ -13,8 +13,8 @@
               severity: 'warning',
             },
             annotations: {
-              message: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s)' % $._config.clientCheckinWarnSec,
-              description: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s). Lossy network connectivity might exist' % $._config.clientCheckinWarnSec,
+              message: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientCheckinWarnSec,
+              description: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s). Lossy network connectivity might exist in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientCheckinWarnSec,
               severity_level: 'warning',
             },
           },
@@ -27,8 +27,8 @@
               severity: 'critical',
             },
             annotations: {
-              message: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s)' % $._config.clientCheckinCritSec,
-              description: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s). Client might have lost internet connectivity' % $._config.clientCheckinCritSec,
+              message: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientCheckinCritSec,
+              description: 'Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than %d (s). Client might have lost internet connectivity in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientCheckinCritSec,
               severity_level: 'critical',
             },
           },
@@ -43,8 +43,8 @@
               severity: 'warning',
             },
             annotations: {
-              message: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by %d minor version' % $._config.clientOperatorMinorVerDiff,
-              description: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by %d minor version. Client configuration may be incompatible' % $._config.clientOperatorMinorVerDiff,
+              message: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by %d minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientOperatorMinorVerDiff,
+              description: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by %d minor version. Client configuration may be incompatible in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientOperatorMinorVerDiff,
               severity_level: 'warning',
             },
           },
@@ -60,8 +60,8 @@
               severity: 'critical',
             },
             annotations: {
-              message: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than %d minor version' % $._config.clientOperatorMinorVerDiff,
-              description: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than %d minor version. Client configuration may be incompatible and unsupported' % $._config.clientOperatorMinorVerDiff,
+              message: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than %d minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientOperatorMinorVerDiff,
+              description: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than %d minor version. Client configuration may be incompatible and unsupported in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clientOperatorMinorVerDiff,
               severity_level: 'critical',
             },
           },

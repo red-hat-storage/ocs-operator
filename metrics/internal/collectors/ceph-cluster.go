@@ -41,7 +41,7 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 		klog.Error(err)
 	}
 
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", metav1.NamespaceAll, fields.Everything())
+	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", searchInNamespace(opts), fields.Everything())
 	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 
 	return &CephClusterCollector{

@@ -38,6 +38,7 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 	r.images.Ceph = os.Getenv("CEPH_IMAGE")
 	r.images.NooBaaCore = os.Getenv("NOOBAA_CORE_IMAGE")
 	r.images.NooBaaDB = os.Getenv("NOOBAA_DB_IMAGE")
+	r.images.OCSMetricsExporter = os.Getenv("OCS_METRICS_EXPORTER_IMAGE")
 
 	if r.images.Ceph == "" {
 		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
@@ -50,6 +51,10 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 	} else if r.images.NooBaaDB == "" {
 		err := fmt.Errorf("NOOBAA_DB_IMAGE environment variable not found")
 		r.Log.Error(err, "Missing NOOBAA_DB_IMAGE environment variable for ocs initialization.")
+		return err
+	} else if r.images.OCSMetricsExporter == "" {
+		err := fmt.Errorf("OCS_METRICS_EXPORTER_IMAGE environment variable not found")
+		r.Log.Error(err, "Missing OCS_METRICS_EXPORTER_IMAGE environment variable for ocs initialization.")
 		return err
 	}
 	return nil
@@ -71,9 +76,10 @@ func (r *StorageClusterReconciler) initializeServerVersion() error {
 
 // ImageMap holds mapping information between component image name and the image url
 type ImageMap struct {
-	Ceph       string
-	NooBaaCore string
-	NooBaaDB   string
+	Ceph               string
+	NooBaaCore         string
+	NooBaaDB           string
+	OCSMetricsExporter string
 }
 
 // StorageClusterReconciler reconciles a StorageCluster object

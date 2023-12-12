@@ -10,7 +10,6 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/version"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
@@ -34,7 +33,7 @@ func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollecto
 		klog.Error(err)
 		return nil
 	}
-	lw := cache.NewListWatchFromClient(ocsClient, "storageconsumers", metav1.NamespaceAll, fields.Everything())
+	lw := cache.NewListWatchFromClient(ocsClient, "storageconsumers", searchInNamespace(opts), fields.Everything())
 	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &ocsv1alpha1.StorageConsumer{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 
 	return &StorageConsumerCollector{

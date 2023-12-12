@@ -14,8 +14,8 @@
               severity: 'warning',
             },
             annotations: {
-              message: 'OBC has crossed 80% of the quota(bytes).',
-              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.',
+              message: 'OBC has crossed 80% of the quota(bytes) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.',
               storage_type: $._config.objectStorageType,
               severity_level: 'warning',
               runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesAlert.md',
@@ -31,8 +31,8 @@
               severity: 'warning',
             },
             annotations: {
-              message: 'OBC has crossed 80% of the quota(object).',
-              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.',
+              message: 'OBC has crossed 80% of the quota(object) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.',
               storage_type: $._config.objectStorageType,
               severity_level: 'warning',
             },
@@ -47,8 +47,8 @@
               severity: 'critical',
             },
             annotations: {
-              message: 'OBC reached quota(bytes) limit.',
-              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.',
+              message: 'OBC reached quota(bytes) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.',
               storage_type: $._config.objectStorageType,
               severity_level: 'error',
             },
@@ -63,8 +63,8 @@
               severity: 'critical',
             },
             annotations: {
-              message: 'OBC reached quota(object) limit.',
-              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.',
+              message: 'OBC reached quota(object) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.',
+              description: 'ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.',
               storage_type: $._config.objectStorageType,
               severity_level: 'error',
             },
