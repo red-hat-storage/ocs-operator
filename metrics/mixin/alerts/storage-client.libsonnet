@@ -48,23 +48,6 @@
               severity_level: 'warning',
             },
           },
-          {
-            # divide by 1000 here removes patch version
-            # critical if client lags provider by more than one minor version or
-            # client is ahead of provider
-            alert: 'StorageClientIncompatibleOperatorVersion',
-            expr: |||
-              floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > %(clientOperatorMinorVerDiff)d or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= %(clientOperatorMinorVerDiff)d
-            ||| % $._config,
-            labels: {
-              severity: 'critical',
-            },
-            annotations: {
-              message: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than %d minor version' % $._config.clientOperatorMinorVerDiff,
-              description: 'Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than %d minor version. Client configuration may be incompatible and unsupported' % $._config.clientOperatorMinorVerDiff,
-              severity_level: 'critical',
-            },
-          },
         ],
       },
     ],
