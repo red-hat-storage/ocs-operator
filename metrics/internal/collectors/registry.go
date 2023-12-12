@@ -9,6 +9,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -17,6 +18,14 @@ const (
 	// name of the project/exporter
 	namespace = "ocs"
 )
+
+func searchInNamespace(opts *options.Options) (returnNamespace string) {
+	returnNamespace = metav1.NamespaceAll
+	if opts != nil && len(opts.AllowedNamespaces) == 1 {
+		returnNamespace = opts.AllowedNamespaces[0]
+	}
+	return
+}
 
 // RegisterCustomResourceCollectors registers the custom resource collectors
 // in the given prometheus.Registry
@@ -71,7 +80,7 @@ var rbdMirrorStore *internalcache.RBDMirrorStore
 func enableRBDMirrorStore(opts *options.Options) {
 	rbdMirrorStore = internalcache.NewRBDMirrorStore(opts)
 	rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, corev1.NamespaceAll, "")
+	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, searchInNamespace(opts), "")
 	reflector := cache.NewReflector(lw, &cephv1.CephBlockPool{}, rbdMirrorStore, 30*time.Second)
 	go reflector.Run(opts.StopCh)
 	rbdMirrorStoreEnabled = true
@@ -82,7 +91,7 @@ var cephBlocklistStore *internalcache.CephBlocklistStore
 func enableCephBlocklistMirrorStore(opts *options.Options) {
 	cephBlocklistStore = internalcache.NewCephBlocklistStore(opts)
 	rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, corev1.NamespaceAll, "")
+	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, searchInNamespace(opts), "")
 	reflector := cache.NewReflector(lw, &cephv1.CephBlockPool{}, cephBlocklistStore, 30*time.Second)
 	go reflector.Run(opts.StopCh)
 }
