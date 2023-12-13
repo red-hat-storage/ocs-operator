@@ -1365,7 +1365,8 @@ spec:
                         properties:
                           enabled:
                             description: Whether to compress the data in transit across
-                              the wire. The default is not set.
+                              the wire. The default is not set. Requires Ceph Quincy
+                              (v17) or newer.
                             type: boolean
                         type: object
                       encryption:
