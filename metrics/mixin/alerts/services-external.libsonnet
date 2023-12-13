@@ -15,6 +15,7 @@
             },
             annotations: {
               message: 'Cluster Object Store is in unhealthy state. Please check Ceph cluster health or RGW connection in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ClusterObjectStoreState.md',
               description: 'Cluster Object Store is in unhealthy state for more than %s. Please check Ceph cluster health or RGW connection in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.clusterObjectStoreStateAlertTime,
               storage_type: $._config.objectStorageType,
               severity_level: 'error',
