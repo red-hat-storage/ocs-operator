@@ -579,11 +579,6 @@ const expectedPrometheusK8RoleJSON = `
 			"apiGroups":[""],
 			"resources":["services","endpoints","pods"],
 			"verbs":["get","list","watch"]
-		},
-		{
-			"apiGroups":[""],
-			"resources":["persistentvolumeclaims","pods","configmaps","secrets"],
-			"verbs":["get","list","watch"]
 		}
 	]
 }
@@ -597,7 +592,7 @@ const expectedMetricExporterRoleJSON = `
 	"rules":[
 		{
 			"apiGroups":[""],
-			"resources":["secrets","configmaps"],
+			"resources":["secrets","configmaps","persistentvolumeclaims","pods"],
 			"verbs":["get","list","watch"]
 		},
 		{
