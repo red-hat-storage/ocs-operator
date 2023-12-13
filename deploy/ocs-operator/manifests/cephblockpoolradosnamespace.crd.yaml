@@ -28,6 +28,8 @@ spec:
             properties:
               blockPoolName:
                 type: string
+              name:
+                type: string
             required:
             - blockPoolName
             type: object

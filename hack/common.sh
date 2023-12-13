@@ -47,10 +47,10 @@ BUNDLEMANIFESTS_DIR="rbac"
 ROOK_CSV="$OUTDIR_TEMPLATES/rook-csv.yaml.in"
 OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 
-LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.12.0.545.geacc7e744"
+LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.13.0-beta.0.41.g1647c2afc"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230718"
 LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
-LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17.2.6"
+LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v18.2.0"
 LATEST_ROOK_CSIADDONS_IMAGE="quay.io/csiaddons/k8s-sidecar:v0.6.0"
 # TODO: change image once the quay repo is changed
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"

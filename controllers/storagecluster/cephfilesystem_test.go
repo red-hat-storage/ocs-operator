@@ -71,7 +71,8 @@ func TestCreateDefaultSubvolumeGroup(t *testing.T) {
 	assert.NoError(t, err)
 
 	svg := &cephv1.CephFilesystemSubVolumeGroup{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: defaultSubvolumeGroupName, Namespace: filesystem[0].Namespace}, svg)
+	expectedsvgName := generateNameForCephSubvolumeGroup(filesystem[0].Name)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expectedsvgName, Namespace: filesystem[0].Namespace}, svg)
 	assert.NoError(t, err) // no error
 }
 
@@ -86,7 +87,8 @@ func TestDeleteDefaultSubvolumeGroup(t *testing.T) {
 	assert.NoError(t, err)
 
 	svg := &cephv1.CephFilesystemSubVolumeGroup{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: defaultSubvolumeGroupName, Namespace: filesystem[0].Namespace}, svg)
+	expectedsvgName := generateNameForCephSubvolumeGroup(filesystem[0].Name)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expectedsvgName, Namespace: filesystem[0].Namespace}, svg)
 	assert.Error(t, err) // error as csi svg is deleted
 }
 

@@ -34,6 +34,30 @@ spec:
                 type: string
               name:
                 type: string
+              pinning:
+                properties:
+                  distributed:
+                    maximum: 1
+                    minimum: 0
+                    nullable: true
+                    type: integer
+                  export:
+                    maximum: 256
+                    minimum: -1
+                    nullable: true
+                    type: integer
+                  random:
+                    maximum: 1
+                    minimum: 0
+                    nullable: true
+                    type: number
+                type: object
+                x-kubernetes-validations:
+                - message: only one pinning type should be set
+                  rule: (has(self.export) && !has(self.distributed) && !has(self.random))
+                    || (!has(self.export) && has(self.distributed) && !has(self.random))
+                    || (!has(self.export) && !has(self.distributed) && has(self.random))
+                    || (!has(self.export) && !has(self.distributed) && !has(self.random))
             required:
             - filesystemName
             type: object

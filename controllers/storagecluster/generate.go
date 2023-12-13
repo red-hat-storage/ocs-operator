@@ -171,3 +171,8 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 func generateStorageQuotaName(storageClassName, quotaName string) string {
 	return fmt.Sprintf("%s-%s", storageClassName, quotaName)
 }
+
+// generateNameForCephSubvolumeGroup function generates a name for CephFilesystemSubVolumeGroup
+func generateNameForCephSubvolumeGroup(filesystemName string) string {
+	return fmt.Sprintf("%s-%s", filesystemName, defaultSubvolumeGroupName)
+}
