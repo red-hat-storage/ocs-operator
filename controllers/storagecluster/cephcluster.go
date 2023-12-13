@@ -165,7 +165,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			return reconcile.Result{}, err
 		}
 		r.Log.Info("Monitoring Information found. Monitoring will be enabled on the external cluster.", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
-		cephCluster = newExternalCephCluster(sc, r.images.Ceph, monitoringIP, monitoringPort)
+		cephCluster = newExternalCephCluster(sc, monitoringIP, monitoringPort)
 	} else {
 		// Add KMS details to CephCluster spec, only if
 		// cluster-wide encryption is enabled
@@ -190,12 +190,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 					return reconcile.Result{}, err
 				}
 			}
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, kmsConfigMap, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.serverVersion, kmsConfigMap, r.Log)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 		} else {
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.nodeCount, r.serverVersion, nil, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.serverVersion, nil, r.Log)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
@@ -397,7 +397,7 @@ func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -585,7 +585,7 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	return networkSpec
 }
 
-func newExternalCephCluster(sc *ocsv1.StorageCluster, cephImage, monitoringIP, monitoringPort string) *rookCephv1.CephCluster {
+func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPort string) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -1131,7 +1131,7 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 		changePromRuleExpr(prometheusRule, replaceTokens)
 	}
 
-	if err := createOrUpdatePrometheusRule(r, sc, prometheusRule); err != nil {
+	if err := createOrUpdatePrometheusRule(r, prometheusRule); err != nil {
 		r.Log.Error(err, "Prometheus rules could not be created.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
 		return err
 	}
@@ -1199,7 +1199,7 @@ func parsePrometheusRule(rules string) (*monitoringv1.PrometheusRule, error) {
 }
 
 // createOrUpdatePrometheusRule creates a prometheusRule object or an error
-func createOrUpdatePrometheusRule(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, prometheusRule *monitoringv1.PrometheusRule) error {
+func createOrUpdatePrometheusRule(r *StorageClusterReconciler, prometheusRule *monitoringv1.PrometheusRule) error {
 	name := prometheusRule.GetName()
 	namespace := prometheusRule.GetNamespace()
 	client, err := getMonitoringClient()

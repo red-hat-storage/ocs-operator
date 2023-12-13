@@ -61,7 +61,7 @@ func createStorageCluster(scName, failureDomainName string,
 	return cr
 }
 
-func createUpdateRuntimeObjects(t *testing.T, cp *Platform, r StorageClusterReconciler) []client.Object {
+func createUpdateRuntimeObjects(t *testing.T, r StorageClusterReconciler) []client.Object {
 	csfs := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfs",

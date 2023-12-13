@@ -34,7 +34,7 @@ func (obj *ocsTopologyMap) ensureCreated(r *StorageClusterReconciler, instance *
 }
 
 // ensureDeleted is dummy func for the ocsTopologyMap
-func (obj *ocsTopologyMap) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+func (obj *ocsTopologyMap) ensureDeleted(_ *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
 

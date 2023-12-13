@@ -80,12 +80,11 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 					return nil, updateErr
 				}
 				continue
-			} else {
-				storageProfile.Status.Phase = ""
-				if updateErr := r.Client.Status().Update(r.ctx, &storageProfile); updateErr != nil {
-					r.Log.Error(updateErr, "Could not update StorageProfile.", "StorageProfile", klog.KRef(storageProfile.Namespace, storageProfile.Name))
-					return nil, updateErr
-				}
+			}
+			storageProfile.Status.Phase = ""
+			if updateErr := r.Client.Status().Update(r.ctx, &storageProfile); updateErr != nil {
+				r.Log.Error(updateErr, "Could not update StorageProfile.", "StorageProfile", klog.KRef(storageProfile.Namespace, storageProfile.Name))
+				return nil, updateErr
 			}
 			parameters := spSpec.SharedFilesystemConfiguration.Parameters
 			ret.Spec.DataPools = append(ret.Spec.DataPools, cephv1.NamedPoolSpec{
@@ -203,7 +202,7 @@ func (r *StorageClusterReconciler) createDefaultSubvolumeGroup(filesystemName, f
 	return nil
 }
 
-func (r *StorageClusterReconciler) deleteDefaultSubvolumeGroup(filesystemName, filesystemNamespace string, ownerReferences []metav1.OwnerReference) error {
+func (r *StorageClusterReconciler) deleteDefaultSubvolumeGroup(filesystemName, filesystemNamespace string) error {
 	existingsvg := &cephv1.CephFilesystemSubVolumeGroup{}
 	svgName := generateNameForCephSubvolumeGroup(filesystemName)
 	err := r.Client.Get(r.ctx, types.NamespacedName{Name: svgName, Namespace: filesystemNamespace}, existingsvg)
@@ -259,7 +258,7 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 		// skip for the ocs provider mode
 		if !sc.Spec.AllowRemoteStorageConsumers {
 			cephSVGName := generateNameForCephSubvolumeGroup(cephFilesystem.Name)
-			err = r.deleteDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace, cephFilesystem.ObjectMeta.OwnerReferences)
+			err = r.deleteDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: unable to delete subvolumegroup", "subvolumegroup", klog.KRef(cephFilesystem.Namespace, cephSVGName))
 				return reconcile.Result{}, err

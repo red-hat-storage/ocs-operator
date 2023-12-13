@@ -112,10 +112,10 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 				}
 				// no error, continue with the next iteration
 				continue
-			} else {
-				r.Log.Error(err, "Failed to 'Get' SnapshotClass.", "SnapshotClass", klog.KRef(vsc.Namespace, vsc.Name))
-				return err
 			}
+
+			r.Log.Error(err, "Failed to 'Get' SnapshotClass.", "SnapshotClass", klog.KRef(vsc.Namespace, vsc.Name))
+			return err
 		}
 		if vscc.reconcileStrategy == ReconcileStrategyInit {
 			return nil

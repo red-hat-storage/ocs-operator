@@ -21,6 +21,6 @@ func (stubCondition) Get(_ context.Context) (*metav1.Condition, error) {
 
 }
 
-func (stubCondition) Set(_ context.Context, status metav1.ConditionStatus, option ...conditions.Option) error {
+func (stubCondition) Set(_ context.Context, _ metav1.ConditionStatus, _ ...conditions.Option) error {
 	return nil
 }

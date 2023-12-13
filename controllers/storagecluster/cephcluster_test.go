@@ -92,7 +92,7 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
-		expected, err := newCephCluster(mockStorageCluster.DeepCopy(), "", 3, reconciler.serverVersion, nil, log)
+		expected, err := newCephCluster(mockStorageCluster.DeepCopy(), "", reconciler.serverVersion, nil, log)
 		assert.NilError(t, err)
 		expected.Status.State = c.cephClusterState
 
@@ -210,7 +210,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
-		cc, err := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+		cc, err := newCephCluster(sc, "", reconciler.serverVersion, nil, log)
 		assert.NilError(t, err)
 		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
 		assert.NilError(t, err)
@@ -276,7 +276,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 		c.sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
-		actual, err := newCephCluster(c.sc, "", 3, serverVersion, nil, log)
+		actual, err := newCephCluster(c.sc, "", serverVersion, nil, log)
 		assert.NilError(t, err)
 		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
@@ -1323,13 +1323,13 @@ func TestLogCollector(t *testing.T) {
 	sc.Spec.LogCollector = &defaultLogCollector
 
 	r := createFakeStorageClusterReconciler(t)
-	actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+	actual, err := newCephCluster(sc, "", r.serverVersion, nil, log)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
 
 	// when disabled in storageCluster
 	sc.Spec.LogCollector = &cephv1.LogCollectorSpec{}
-	actual, err = newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+	actual, err = newCephCluster(sc, "", r.serverVersion, nil, log)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
 
@@ -1337,7 +1337,7 @@ func TestLogCollector(t *testing.T) {
 	assert.NilError(t, err)
 	sc.Spec.LogCollector.MaxLogSize = &maxLogSize
 
-	actual, err = newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+	actual, err = newCephCluster(sc, "", r.serverVersion, nil, log)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector.MaxLogSize, &maxLogSize)
 }
@@ -1466,7 +1466,7 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Spec.Network = testCase.scSpec.Network
 		sc.Spec.ExternalStorage.Enable = true
-		cc := newExternalCephCluster(sc, "", "", "")
+		cc := newExternalCephCluster(sc, "", "")
 		assert.DeepEqual(t, cc.Spec.Network.Connections, testCase.ccSpec.Network.Connections)
 	}
 	// Test for internal mode
@@ -1478,7 +1478,7 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		sc.Spec.Network = testCase.scSpec.Network
 		reconciler := createFakeStorageClusterReconciler(t)
 		testCase.ccSpec.Network.Connections.RequireMsgr2 = true
-		cc, _ := newCephCluster(sc, "", 3, reconciler.serverVersion, nil, log)
+		cc, _ := newCephCluster(sc, "", reconciler.serverVersion, nil, log)
 		assert.DeepEqual(t, cc.Spec.Network.Connections, testCase.ccSpec.Network.Connections)
 	}
 }
@@ -1552,7 +1552,7 @@ func TestCephClusterStoreType(t *testing.T) {
 	r := createFakeStorageClusterReconciler(t)
 
 	t.Run("ensure no bluestore optimization", func(t *testing.T) {
-		actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+		actual, err := newCephCluster(sc, "", r.serverVersion, nil, log)
 		assert.NilError(t, err)
 		assert.Equal(t, "", actual.Spec.Storage.Store.Type)
 	})
@@ -1562,14 +1562,14 @@ func TestCephClusterStoreType(t *testing.T) {
 			DisasterRecoveryTargetAnnotation: "true",
 		}
 		sc.Annotations = annotations
-		actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+		actual, err := newCephCluster(sc, "", r.serverVersion, nil, log)
 		assert.NilError(t, err)
 		assert.Equal(t, "bluestore-rdr", actual.Spec.Storage.Store.Type)
 	})
 
 	t.Run("ensure no bluestore optimization for external clusters", func(t *testing.T) {
 		sc.Spec.ExternalStorage.Enable = true
-		actual, err := newCephCluster(sc, "", 3, r.serverVersion, nil, log)
+		actual, err := newCephCluster(sc, "", r.serverVersion, nil, log)
 		assert.NilError(t, err)
 		assert.Equal(t, "", actual.Spec.Storage.Store.Type)
 	})

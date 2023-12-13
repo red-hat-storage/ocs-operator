@@ -66,7 +66,7 @@ func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollecto
 
 func (c *StorageConsumerCollector) Collect(ch chan<- prometheus.Metric) {
 	storageConsumerLister := NewStorageConsumerLister(c.Informer.GetIndexer())
-	storageConsumers := getAllStorageConsumers(storageConsumerLister, c.AllowedNamespace)
+	storageConsumers := getAllStorageConsumers(storageConsumerLister)
 	if len(storageConsumers) > 0 {
 		c.collectStorageConsumersMetadata(storageConsumers, ch)
 	}
@@ -140,7 +140,7 @@ func (c *StorageConsumerCollector) collectStorageConsumersMetadata(storageConsum
 	}
 }
 
-func getAllStorageConsumers(lister StorageConsumerLister, namespace string) (storageConsumers []*ocsv1alpha1.StorageConsumer) {
+func getAllStorageConsumers(lister StorageConsumerLister) (storageConsumers []*ocsv1alpha1.StorageConsumer) {
 	storageConsumers, err := lister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("couldn't list StorageConsumer. %v", err)

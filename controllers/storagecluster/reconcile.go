@@ -158,7 +158,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 		return reconcile.Result{}, err
 	}
 
-	if err := r.validateStorageClusterSpec(sc, request); err != nil {
+	if err := r.validateStorageClusterSpec(sc); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -174,7 +174,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	r.IsMultipleStorageClusters = len(r.clusters.GetStorageClusters()) > 1
 
 	// Reconcile changes to the cluster
-	result, reconcileError := r.reconcilePhases(ctx, sc, request)
+	result, reconcileError := r.reconcilePhases(ctx, sc)
 
 	// Ensure that cephtoolbox is deployed as instructed by the user
 	err = r.ensureToolsDeployment(sc)
@@ -218,7 +218,7 @@ func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageClust
 }
 
 // validateStorageClusterSpec must be called before reconciling. Any syntactic and semantic errors in the CR must be caught here.
-func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.StorageCluster, request reconcile.Request) error {
+func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.StorageCluster) error {
 	if err := versionCheck(instance, r.Log); err != nil {
 		r.Log.Error(err, "Failed to validate StorageCluster version.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
@@ -250,7 +250,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		}
 	}
 
-	if err := validateArbiterSpec(instance, r.Log); err != nil {
+	if err := validateArbiterSpec(instance); err != nil {
 		r.Log.Error(err, "Failed to validate ArbiterSpec.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
@@ -261,7 +261,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		return err
 	}
 
-	if err := validateOverprovisionControlSpec(instance, r.Log); err != nil {
+	if err := validateOverprovisionControlSpec(instance); err != nil {
 		r.Log.Error(err, "Failed to validate OverprovisionControlSpec.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
@@ -272,7 +272,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 		return err
 	}
 
-	if err := validateCustomStorageClassNames(instance, r.Log); err != nil {
+	if err := validateCustomStorageClassNames(instance); err != nil {
 		r.Log.Error(err, "Failed to validate custom StorageClassNames.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, statusutil.EventReasonValidationFailed, err.Error())
 		instance.Status.Phase = statusutil.PhaseError
@@ -288,8 +288,7 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 
 func (r *StorageClusterReconciler) reconcilePhases(
 	ctx context.Context,
-	instance *ocsv1.StorageCluster,
-	request reconcile.Request) (reconcile.Result, error) {
+	instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	if instance.Spec.ExternalStorage.Enable {
 		r.Log.Info("Reconciling external StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
@@ -762,7 +761,7 @@ func remove(slice []string, s string) (result []string) {
 	return
 }
 
-func validateArbiterSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func validateArbiterSpec(sc *ocsv1.StorageCluster) error {
 
 	if sc.Spec.Arbiter.Enable && sc.Spec.FlexibleScaling {
 		return fmt.Errorf("arbiter and flexibleScaling both can't be enabled")
@@ -773,7 +772,7 @@ func validateArbiterSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error 
 	return nil
 }
 
-func validateOverprovisionControlSpec(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func validateOverprovisionControlSpec(sc *ocsv1.StorageCluster) error {
 	for _, opc := range sc.Spec.OverprovisionControl {
 		val, ok := opc.Capacity.AsInt64()
 		if !ok {
@@ -792,7 +791,7 @@ func validateOverprovisionControlSpec(sc *ocsv1.StorageCluster, reqLogger logr.L
 	return nil
 }
 
-func validateCustomStorageClassNames(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
+func validateCustomStorageClassNames(sc *ocsv1.StorageCluster) error {
 	scMap := make(map[string]bool)
 	duplicateNames := []string{}
 	if sc.Spec.ManagedResources.CephBlockPools.StorageClassName != "" {

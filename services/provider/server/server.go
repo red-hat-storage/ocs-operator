@@ -77,7 +77,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageClassRequestManager, err := newStorageClassRequestManager(ctx, client, namespace)
+	storageClassRequestManager, err := newStorageClassRequestManager(client, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new StorageClassRequest instance. %v", err)
 	}

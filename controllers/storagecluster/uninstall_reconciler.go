@@ -56,8 +56,8 @@ func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.Stor
 		}
 		for _, node := range nodes.Items {
 			r.Log.Info("Uninstall: Deleting OCS label from Node.", "Node", node.Name)
-			new := node.DeepCopy()
-			delete(new.ObjectMeta.Labels, defaults.NodeAffinityKey)
+			updatedNode := node.DeepCopy()
+			delete(updatedNode.ObjectMeta.Labels, defaults.NodeAffinityKey)
 
 			oldJSON, err := json.Marshal(node)
 			if err != nil {
@@ -65,7 +65,7 @@ func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.Stor
 				continue
 			}
 
-			newJSON, err := json.Marshal(new)
+			newJSON, err := json.Marshal(updatedNode)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Unable to remove the NodeAffinityKey from the Node.", "Node", node.Name)
 				continue
@@ -99,13 +99,13 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (er
 	}
 	for _, node := range nodes.Items {
 		r.Log.Info("Uninstall: Deleting OCS NodeTolerationKey from the Node.", "Node", node.Name)
-		new := node.DeepCopy()
-		new.Spec.Taints = make([]corev1.Taint, 0)
+		updatedNode := node.DeepCopy()
+		updatedNode.Spec.Taints = make([]corev1.Taint, 0)
 		for _, taint := range node.Spec.Taints {
 			if defaults.NodeTolerationKey == taint.Key {
 				continue
 			}
-			new.Spec.Taints = append(new.Spec.Taints, taint)
+			updatedNode.Spec.Taints = append(updatedNode.Spec.Taints, taint)
 		}
 
 		oldJSON, err := json.Marshal(node)
@@ -114,7 +114,7 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (er
 			continue
 		}
 
-		newJSON, err := json.Marshal(new)
+		newJSON, err := json.Marshal(updatedNode)
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Unable to remove the NodeTolerationKey from the Node.", "Node", node.Name)
 			continue

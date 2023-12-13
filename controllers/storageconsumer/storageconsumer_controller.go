@@ -76,6 +76,7 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 	prevLogger := r.Log
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.ctx = ctx
 
 	r.Log.Info("Reconciling StorageConsumer.", "StorageConsumer", klog.KRef(request.Namespace, request.Name))
 
