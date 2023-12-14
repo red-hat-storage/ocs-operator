@@ -6,7 +6,7 @@ data:
     auth_cluster_required = cephx
     auth_service_required = cephx
     auth_client_required = cephx
-  # keyring is a required key and its value should be empty
+  # keyring is a required key and its value should be empty 
   keyring: |
 metadata:
   name: ocs-metrics-exporter-ceph-conf
