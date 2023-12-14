@@ -49,7 +49,7 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 	}
 
 	// create/update clusterrole for metrics exporter
-	if err := updateMetricsExporterClusterRoles(ctx, r, instance); err != nil {
+	if err := updateMetricsExporterClusterRoles(ctx, r); err != nil {
 		r.Log.Error(err, "unable to update clusterroles for metrics exporter")
 		return err
 	}
@@ -548,8 +548,7 @@ const metricsExporterClusterRoleJSON = `
 	]
 }`
 
-func updateMetricsExporterClusterRoles(ctx context.Context,
-	r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterReconciler) error {
 	currentClusterRole := new(rbacv1.ClusterRole)
 	var expectedClusterRole = new(rbacv1.ClusterRole)
 	err := json.Unmarshal([]byte(metricsExporterClusterRoleJSON), expectedClusterRole)

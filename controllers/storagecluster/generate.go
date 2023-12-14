@@ -2,11 +2,9 @@ package storagecluster
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
@@ -109,10 +107,6 @@ func generateNameForCephNetworkFilesystemSC(initData *ocsv1.StorageCluster) stri
 		return initData.Spec.NFS.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-nfs", initData.Name)
-}
-
-func generateNameForNFSCSIProvisioner(initData *ocsv1.StorageCluster) string {
-	return fmt.Sprintf("%s.nfs.csi.ceph.com", os.Getenv(util.OperatorNamespaceEnvVar))
 }
 
 // generateNameForSnapshotClass function generates 'SnapshotClass' name.

@@ -39,7 +39,7 @@ func TestCephBlockPools(t *testing.T) {
 			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 				t, cp, objects, nil)
 			if c.createRuntimeObjects {
-				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
+				objects = createUpdateRuntimeObjects(t, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
 			}
 			assertCephBlockPools(t, reconciler, cr, request, false, false)
 			assertCephNFSBlockPool(t, reconciler, cr, request)

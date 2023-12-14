@@ -25,7 +25,7 @@ type storageClassRequestManager struct {
 	namespace string
 }
 
-func newStorageClassRequestManager(ctx context.Context, cl client.Client, namespace string) (*storageClassRequestManager, error) {
+func newStorageClassRequestManager(cl client.Client, namespace string) (*storageClassRequestManager, error) {
 	return &storageClassRequestManager{
 		client:    cl,
 		namespace: namespace,

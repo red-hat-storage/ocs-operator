@@ -103,7 +103,7 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 }
 
 // ensureDeleted is dummy func for the ocsCephConfig
-func (obj *ocsCephConfig) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+func (obj *ocsCephConfig) ensureDeleted(_ *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
 

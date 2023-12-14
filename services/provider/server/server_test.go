@@ -396,7 +396,7 @@ func TestOCSProviderServerStorageClassRequest(t *testing.T) {
 	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
 	assert.NoError(t, err)
 
-	storageClassRequestManager, err := newStorageClassRequestManager(ctx, client, serverNamespace)
+	storageClassRequestManager, err := newStorageClassRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{
@@ -462,7 +462,7 @@ func TestOCSProviderServerRevokeStorageClassClaim(t *testing.T) {
 	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
 	assert.NoError(t, err)
 
-	storageRequestManager, err := newStorageClassRequestManager(ctx, client, serverNamespace)
+	storageRequestManager, err := newStorageClassRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{
@@ -684,7 +684,7 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
 	assert.NoError(t, err)
 
-	storageClassRequestManager, err := newStorageClassRequestManager(ctx, client, serverNamespace)
+	storageClassRequestManager, err := newStorageClassRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{

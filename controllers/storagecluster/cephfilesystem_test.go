@@ -33,7 +33,7 @@ func TestCephFileSystem(t *testing.T) {
 			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
 				t, cp, objects, nil)
 			if c.createRuntimeObjects {
-				objects = createUpdateRuntimeObjects(t, cp, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
+				objects = createUpdateRuntimeObjects(t, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
 			}
 			assertCephFileSystem(t, reconciler, cr, request)
 		}
@@ -83,7 +83,7 @@ func TestDeleteDefaultSubvolumeGroup(t *testing.T) {
 	filesystem, err := reconciler.newCephFilesystemInstances(cr)
 	assert.NoError(t, err)
 
-	err = reconciler.deleteDefaultSubvolumeGroup(filesystem[0].Name, filesystem[0].Namespace, filesystem[0].OwnerReferences)
+	err = reconciler.deleteDefaultSubvolumeGroup(filesystem[0].Name, filesystem[0].Namespace)
 	assert.NoError(t, err)
 
 	svg := &cephv1.CephFilesystemSubVolumeGroup{}

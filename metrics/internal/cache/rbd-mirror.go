@@ -269,11 +269,11 @@ func (s *RBDMirrorStore) ListKeys() []string {
 	return nil
 }
 
-func (s *RBDMirrorStore) Get(obj interface{}) (item interface{}, exists bool, err error) {
+func (s *RBDMirrorStore) Get(_ interface{}) (item interface{}, exists bool, err error) {
 	return nil, false, nil
 }
 
-func (s *RBDMirrorStore) GetByKey(key string) (item interface{}, exists bool, err error) {
+func (s *RBDMirrorStore) GetByKey(_ string) (item interface{}, exists bool, err error) {
 	return nil, false, nil
 }
 

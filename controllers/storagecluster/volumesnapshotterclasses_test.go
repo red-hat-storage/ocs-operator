@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
@@ -15,13 +14,13 @@ import (
 func TestVolumeSnapshotterClasses(t *testing.T) {
 	for _, eachPlatform := range allPlatforms {
 		cp := &Platform{platform: eachPlatform}
-		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
-		assertVolumeSnapshotterClasses(t, reconciler, cr, request)
+		t, reconciler, _, request := initStorageClusterResourceCreateUpdateTestWithPlatform(t, cp, nil, nil)
+		assertVolumeSnapshotterClasses(t, reconciler, request)
 	}
 }
 
 func assertVolumeSnapshotterClasses(t *testing.T, reconciler StorageClusterReconciler,
-	cr *api.StorageCluster, request reconcile.Request) {
+	request reconcile.Request) {
 	rbdVSCName := "ocsinit-rbdplugin-snapclass"
 	cephfsVSCName := "ocsinit-cephfsplugin-snapclass"
 	cephnfsVSCName := "ocsinit-nfsplugin-snapclass"

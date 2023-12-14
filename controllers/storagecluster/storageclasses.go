@@ -374,7 +374,7 @@ func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 					"description": "Provides RWO and RWX Filesystem volumes",
 				},
 			},
-			Provisioner:          generateNameForNFSCSIProvisioner(initData),
+			Provisioner:          fmt.Sprintf("%s.nfs.csi.ceph.com", os.Getenv(util.OperatorNamespaceEnvVar)),
 			ReclaimPolicy:        &persistentVolumeReclaimDelete,
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{

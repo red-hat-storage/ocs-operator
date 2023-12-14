@@ -58,7 +58,7 @@ func TestCephRbdMirror(t *testing.T) {
 			case "create-ceph-rbd-mirror":
 				assertCephRbdMirrorCreation(t, reconciler, cr, request)
 			case "delete-ceph-rbd-mirror":
-				assertCephRbdMirrorDeletion(t, reconciler, cr, request)
+				assertCephRbdMirrorDeletion(t, reconciler, request)
 			}
 		}
 	}
@@ -83,7 +83,7 @@ func assertCephRbdMirrorCreation(t *testing.T, reconciler StorageClusterReconcil
 	assert.Equal(t, expectedCrm[0].Spec, actualCrm.Spec)
 }
 
-func assertCephRbdMirrorDeletion(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephRbdMirrorDeletion(t *testing.T, reconciler StorageClusterReconciler, request reconcile.Request) {
 	actualCrm := &cephv1.CephRBDMirror{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephrbdmirror",

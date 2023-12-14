@@ -76,9 +76,9 @@ type StorageClassAdvancedFeatureProvider struct {
 	cache.SharedIndexInformer
 }
 
-func (s *StorageClassAdvancedFeatureProvider) AdvancedFeature(namespaces ...string) int {
+func (s *StorageClassAdvancedFeatureProvider) AdvancedFeature(_ ...string) int {
 	storageClassLister := storagev1listers.NewStorageClassLister(s.GetIndexer())
-	storageClasses := getAllStorageClasses(storageClassLister, namespaces)
+	storageClasses := getAllStorageClasses(storageClassLister)
 	for _, storageClass := range storageClasses {
 		if storageClass.Parameters["encrypted"] == "true" {
 			return 1
@@ -87,7 +87,7 @@ func (s *StorageClassAdvancedFeatureProvider) AdvancedFeature(namespaces ...stri
 	return 0
 }
 
-func NewStorageClassAdvancedFeatureProvider(opts *options.Options, client *kubernetes.Clientset) AdvancedFeatureProvider {
+func NewStorageClassAdvancedFeatureProvider(client *kubernetes.Clientset) AdvancedFeatureProvider {
 	storageclassClient := client.StorageV1()
 	// for any cluster-scoped resource,
 	// pass a 'nil' option to 'searchInNamespace()' function to get 'NamespaceAll'
@@ -148,7 +148,7 @@ func NewClusterAdvancedFeatureCollector(opts *options.Options) *ClusterAdvanceFe
 
 	if k8Client, err := kubernetes.NewForConfig(opts.Kubeconfig); err == nil {
 		advFeatureProviders = append(
-			advFeatureProviders, NewStorageClassAdvancedFeatureProvider(opts, k8Client))
+			advFeatureProviders, NewStorageClassAdvancedFeatureProvider(k8Client))
 	} else { // logging any error occurred
 		klog.Errorf("unable to get K8 Client, no StorageClass information available: %v", err)
 	}
@@ -202,9 +202,7 @@ func (c *ClusterAdvanceFeatureCollector) collectAdvancedFeatureUse(ch chan<- pro
 	)
 }
 
-func getAllStorageClasses(
-	lister storagev1listers.StorageClassLister,
-	namespaces []string) []*storagev1.StorageClass {
+func getAllStorageClasses(lister storagev1listers.StorageClassLister) []*storagev1.StorageClass {
 	var err error
 	allSCs, err := lister.List(labels.Everything())
 	if err != nil {

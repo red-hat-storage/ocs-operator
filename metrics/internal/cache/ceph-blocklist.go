@@ -70,11 +70,11 @@ func NewCephBlocklistStore(opts *options.Options) *CephBlocklistStore {
 	}
 }
 
-func (c *CephBlocklistStore) Add(obj interface{}) error {
+func (c *CephBlocklistStore) Add(_ interface{}) error {
 	return c.Resync()
 }
 
-func (c *CephBlocklistStore) Get(obj interface{}) (item interface{}, exists bool, err error) {
+func (c *CephBlocklistStore) Get(_ interface{}) (item interface{}, exists bool, err error) {
 	return nil, false, nil
 }
 
@@ -94,11 +94,11 @@ func (c *CephBlocklistStore) ListKeys() []string {
 	return nil
 }
 
-func (c *CephBlocklistStore) Replace(list []interface{}, _ string) error {
+func (c *CephBlocklistStore) Replace(_ []interface{}, _ string) error {
 	return nil
 }
 
-func (c *CephBlocklistStore) GetByKey(key string) (item interface{}, exists bool, err error) {
+func (c *CephBlocklistStore) GetByKey(_ string) (item interface{}, exists bool, err error) {
 	return nil, false, nil
 }
 
@@ -135,7 +135,7 @@ func (c *CephBlocklistStore) Resync() error {
 	return nil
 }
 
-func (c *CephBlocklistStore) Delete(obj interface{}) error {
+func (c *CephBlocklistStore) Delete(_ interface{}) error {
 	return nil
 }
 

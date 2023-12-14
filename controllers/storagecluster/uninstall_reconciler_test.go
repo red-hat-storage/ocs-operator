@@ -310,13 +310,13 @@ func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler StorageClusterR
 
 	// Add labels on nodes
 	for _, node := range nodes.Items {
-		new := node.DeepCopy()
-		new.ObjectMeta.Labels[fakeKey] = fakeVal
+		updatedNode := node.DeepCopy()
+		updatedNode.ObjectMeta.Labels[fakeKey] = fakeVal
 
 		oldJSON, err := json.Marshal(node)
 		assert.NoError(t, err)
 
-		newJSON, err := json.Marshal(new)
+		newJSON, err := json.Marshal(updatedNode)
 		assert.NoError(t, err)
 
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
@@ -383,13 +383,13 @@ func addDefaultNodeTaintOnNodes(t *testing.T, reconciler StorageClusterReconcile
 	assert.NotEqual(t, 0, len(nodes.Items))
 
 	for _, node := range nodes.Items {
-		new := node.DeepCopy()
-		new.Spec.Taints = append(new.Spec.Taints, corev1.Taint{Key: defaults.NodeTolerationKey, Effect: corev1.TaintEffectNoSchedule})
+		updatedNode := node.DeepCopy()
+		updatedNode.Spec.Taints = append(updatedNode.Spec.Taints, corev1.Taint{Key: defaults.NodeTolerationKey, Effect: corev1.TaintEffectNoSchedule})
 
 		oldJSON, err := json.Marshal(node)
 		assert.NoError(t, err)
 
-		newJSON, err := json.Marshal(new)
+		newJSON, err := json.Marshal(updatedNode)
 		assert.NoError(t, err)
 
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)

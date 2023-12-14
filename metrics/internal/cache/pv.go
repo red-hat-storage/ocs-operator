@@ -213,12 +213,12 @@ func (p *PersistentVolumeStore) ListKeys() []string {
 }
 
 // Get implements the Get method of the store interface.
-func (p *PersistentVolumeStore) Get(obj interface{}) (item interface{}, exists bool, err error) {
+func (p *PersistentVolumeStore) Get(_ interface{}) (item interface{}, exists bool, err error) {
 	return nil, false, nil
 }
 
 // GetByKey implements the GetByKey method of the store interface.
-func (p *PersistentVolumeStore) GetByKey(key string) (item interface{}, exists bool, err error) {
+func (p *PersistentVolumeStore) GetByKey(_ string) (item interface{}, exists bool, err error) {
 	return nil, false, nil
 }
 

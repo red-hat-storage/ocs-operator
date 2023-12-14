@@ -113,7 +113,7 @@ func RegisterRBDMirrorCollector(registry *prometheus.Registry, opts *options.Opt
 	if !rbdMirrorStoreEnabled {
 		enableRBDMirrorStore(opts)
 	}
-	rbdMirrorCollector := NewRBDMirrorCollector(rbdMirrorStore, pvStore, opts)
+	rbdMirrorCollector := NewRBDMirrorCollector(rbdMirrorStore, pvStore)
 	registry.MustRegister(rbdMirrorCollector)
 }
 

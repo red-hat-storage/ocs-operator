@@ -133,7 +133,7 @@ func createOrUpdateBackingStorageclass(r *StorageClusterReconciler, bsc *ocsv1.B
 }
 
 // ensureDeleted deletes the backing storageclasses
-func (obj *backingStorageClasses) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
+func (obj *backingStorageClasses) ensureDeleted(r *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
 	existingBackingStorageClasses := &v1.StorageClassList{}
 	err := r.Client.List(
 		r.ctx,
