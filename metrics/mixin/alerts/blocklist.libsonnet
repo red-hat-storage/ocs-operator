@@ -12,7 +12,7 @@
               )
               and on(node) (
                 kube_pod_container_status_waiting_reason{reason="CreateContainerError"}
-                * on(pod, namespace) group_left(node)
+                * on(pod, namespace, managedBy) group_left(node)
                 kube_pod_info
               ) > 0
             ||| % $._config,

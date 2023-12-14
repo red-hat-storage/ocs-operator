@@ -7,7 +7,7 @@
           {
             alert: 'ObcQuotaBytesAlert',
             expr: |||
-              (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) > 0.80
+              (ocs_objectbucketclaim_info * on (namespace, objectbucket, managedBy) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) > 0.80
             ||| % $._config,
             'for': $._config.odfObcQuotaAlertTime,
             labels: {
@@ -24,7 +24,7 @@
           {
             alert: 'ObcQuotaObjectsAlert',
             expr: |||
-              (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) > 0.80
+              (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) > 0.80
             ||| % $._config,
             'for': $._config.odfObcQuotaAlertTime,
             labels: {
@@ -40,7 +40,7 @@
           {
             alert: 'ObcQuotaBytesExhausedAlert',
             expr: |||
-              (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) >= 1
+              (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) >= 1
             ||| % $._config,
             'for': $._config.odfObcQuotaCriticalAlertTime,
             labels: {
@@ -56,7 +56,7 @@
           {
             alert: 'ObcQuotaObjectsExhausedAlert',
             expr: |||
-              (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) >= 1
+              (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) >= 1
             ||| % $._config,
             'for': $._config.odfObcQuotaCriticalAlertTime,
             labels: {

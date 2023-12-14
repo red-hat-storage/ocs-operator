@@ -7,7 +7,7 @@
           {
             alert: 'OdfMirrorDaemonStatus',
             expr: |||
-              ((count by(namespace) (ocs_mirror_daemon_count{%(ocsExporterSelector)s} == 0)) * on(namespace) group_left() (count by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s} == 1))) > 0
+              ((count by(namespace, managedBy) (ocs_mirror_daemon_count{%(ocsExporterSelector)s} == 0)) * on(namespace, managedBy) group_left() (count by(namespace, managedBy) (ocs_pool_mirroring_status{%(ocsExporterSelector)s} == 1))) > 0
             ||| % $._config,
             'for': $._config.odfMirrorDaemonStatusAlertTime,
             labels: {
@@ -24,7 +24,7 @@
           {
             alert: 'OdfPoolMirroringImageHealth',
             expr: |||
-              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 1
+              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 1
             ||| % $._config,
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
@@ -42,7 +42,7 @@
           {
             alert: 'OdfPoolMirroringImageHealth',
             expr: |||
-              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 2
+              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 2
             ||| % $._config,
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
@@ -60,7 +60,7 @@
           {
             alert: 'OdfPoolMirroringImageHealth',
             expr: |||
-              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 3
+              (ocs_pool_mirroring_image_health{%(ocsExporterSelector)s}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{%(ocsExporterSelector)s}))) == 3
             ||| % $._config,
             'for': $._config.odfPoolMirroringImageHealthCriticalAlertTime,
             labels: {
@@ -78,7 +78,7 @@
           {
             alert: 'ODFPersistentVolumeMirrorStatus',
             expr: |||
-              ocs_rbd_mirror_image_state{%(ocsExporterSelector)s} * on(image,pool_name) group_left(name,namespace) ocs_rbd_pv_metadata{%(ocsExporterSelector)s} == 1
+              ocs_rbd_mirror_image_state{%(ocsExporterSelector)s} * on(image,pool_name) group_left(name,namespace,managedBy) ocs_rbd_pv_metadata{%(ocsExporterSelector)s} == 1
             ||| % $._config,
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
@@ -95,7 +95,7 @@
           {
             alert: 'ODFPersistentVolumeMirrorStatus',
             expr: |||
-              ocs_rbd_mirror_image_state{%(ocsExporterSelector)s} * on(image,pool_name) group_left(name,namespace) ocs_rbd_pv_metadata{%(ocsExporterSelector)s} == 0
+              ocs_rbd_mirror_image_state{%(ocsExporterSelector)s} * on(image,pool_name) group_left(name,namespace,managedBy) ocs_rbd_pv_metadata{%(ocsExporterSelector)s} == 0
             ||| % $._config,
             'for': $._config.odfPoolMirroringImageHealthWarningAlertTime,
             labels: {
