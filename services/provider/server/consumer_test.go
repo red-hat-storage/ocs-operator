@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
-	api "github.com/red-hat-storage/ocs-operator/v4/api/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	providerClient "github.com/red-hat-storage/ocs-operator/v4/services/provider/client"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -48,7 +49,9 @@ var (
 )
 
 func newFakeClient(t *testing.T, obj ...client.Object) client.Client {
-	scheme, err := api.SchemeBuilder.Build()
+	scheme := runtime.NewScheme()
+
+	err := api.AddToScheme(scheme)
 	assert.NoError(t, err, "unable to build scheme")
 
 	err = corev1.AddToScheme(scheme)

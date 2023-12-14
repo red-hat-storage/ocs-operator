@@ -9,7 +9,7 @@ import (
 	fakeSecClient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1/fake"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	v1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -79,7 +79,9 @@ func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconci
 }
 
 func createFakeScheme(t *testing.T) *runtime.Scheme {
-	scheme, err := v1.SchemeBuilder.Build()
+	scheme := runtime.NewScheme()
+
+	err := v1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	v1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +29,9 @@ func getReconciler(t *testing.T) NamespaceReconciler {
 }
 
 func createFakeScheme(t *testing.T) *runtime.Scheme {
-	scheme, err := v1.SchemeBuilder.Build()
+	scheme := runtime.NewScheme()
+
+	err := v1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "unable to build scheme")
 	}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/RHsyseng/operator-utils/pkg/validation"
 	"github.com/ghodss/yaml"
-	v1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
+	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
 	"github.com/stretchr/testify/assert"
 )
