@@ -1,0 +1,82 @@
+{
+    "evaluation_interval": "1m",
+    "tests": [
+        {
+            "name": "OdfMirrorDaemonStatus",
+            "alert_rule_test": [
+                {
+                    "alertname": "OdfMirrorDaemonStatus",
+                    "eval_time": "1m"
+                },
+                {
+                    "alertname": "OdfMirrorDaemonStatus",
+                    "eval_time": "6m",
+                    "exp_alerts": [
+                        {
+                            "exp_annotations": {
+                                "description": "Mirror daemon is in unhealthy status for more than 1m. Mirroring is not working as expected in namespace:cluster openshift-storage:ocs-storagesystem.",
+                                "message": "Mirror daemon is unhealthy in namespace:cluster openshift-storage:ocs-storagesystem.",
+                                "severity_level": "error",
+                                "storage_type": "ceph",
+				"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfMirrorDaemonStatus.md"
+                            },
+                            "exp_labels": {
+                                "severity": "critical",
+                                "managedBy": "ocs-storagesystem",
+                                "namespace": "openshift-storage"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "alertname": "OdfMirrorDaemonStatus",
+                    "eval_time": "9m"
+                }
+            ],
+            "input_series": [
+                {
+                    "series": "ocs_mirror_daemon_count{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\"}",
+                    "values": "0x7 1x3"
+                },
+                {
+                    "series": "ocs_pool_mirroring_status{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\"}",
+                    "values": "0x2 1x8"
+                }
+            ],
+            "interval": "1m",
+            "promql_expr_test": [
+                {
+                    "eval_time": "3m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_mirror_daemon_count{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\"}",
+                            "value": 0
+                        }
+                    ],
+                    "expr": "ocs_mirror_daemon_count == 0"
+                },
+                {
+                    "eval_time": "9m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_mirror_daemon_count{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\"}",
+                            "value": 1
+                        }
+                    ],
+                    "expr": "ocs_mirror_daemon_count == 1"
+                },
+                {
+                    "eval_time": "6m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_status{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\"}",
+                            "value": 1
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_status == 1"
+                }
+            ]
+        }
+    ]
+}
+
