@@ -21,7 +21,8 @@ import (
 
 const (
 	metricsExporterName     = "ocs-metrics-exporter"
-	metricsExporterRoleName = "ocs-metrics-svc"
+	prometheusRoleName      = "ocs-metrics-svc"
+	metricsExporterRoleName = metricsExporterName
 	portMetrics             = "metrics"
 	portExporter            = "exporter"
 	metricsPath             = "/metrics"
@@ -621,61 +622,45 @@ const expectedMetricExporterRoleJSON = `
 
 func createMetricsExporterRoles(ctx context.Context,
 	r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	// create/update prometheus server needed roles
-	var expectedRole = new(rbacv1.Role)
-	err := json.Unmarshal([]byte(expectedPrometheusK8RoleJSON), expectedRole)
-	if err != nil {
-		r.Log.Error(err, "an unexpected error occurred while unmarshalling prometheus role")
-		return err
-	}
-	currentRole := new(rbacv1.Role)
-	expectedRole.Name, currentRole.Name = metricsExporterRoleName, metricsExporterRoleName
-	expectedRole.Namespace, currentRole.Namespace = instance.Namespace, instance.Namespace
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRole, func() error {
-		expectedRulesLen := len(expectedRole.Rules)
-		if len(currentRole.Rules) != expectedRulesLen {
-			currentRole.Rules = make([]rbacv1.PolicyRule, expectedRulesLen)
-		}
-		copy(currentRole.Rules, expectedRole.Rules)
-		currentRole.OwnerReferences = []metav1.OwnerReference{{
-			APIVersion: instance.APIVersion,
-			Kind:       instance.Kind,
-			Name:       instance.Name,
-			UID:        instance.UID,
-		}}
-		return nil
-	})
-	if err != nil {
-		r.Log.Error(err, "failed to create/update prometheus roles")
-		return err
+	var jsonRoles = map[string]string{
+		prometheusRoleName:      expectedPrometheusK8RoleJSON,
+		metricsExporterRoleName: expectedMetricExporterRoleJSON,
 	}
 
-	// create/update metrics exporter roles
-	expectedRole = new(rbacv1.Role)
-	err = json.Unmarshal([]byte(expectedMetricExporterRoleJSON), expectedRole)
-	if err != nil {
-		r.Log.Error(err, "an unexpected error occurred while unmarshalling metrics exporter role")
-		return err
-	}
-	currentRole = new(rbacv1.Role)
-	expectedRole.Name, currentRole.Name = metricsExporterName, metricsExporterName
-	expectedRole.Namespace, currentRole.Namespace = instance.Namespace, instance.Namespace
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRole, func() error {
-		expectedRulesLen := len(expectedRole.Rules)
-		if len(currentRole.Rules) != expectedRulesLen {
-			currentRole.Rules = make([]rbacv1.PolicyRule, expectedRulesLen)
+	for roleName, jsonRole := range jsonRoles {
+		// create expected roles
+		var expectedRole = new(rbacv1.Role)
+		err := json.Unmarshal([]byte(jsonRole), expectedRole)
+		if err != nil {
+			r.Log.Error(err,
+				"an unexpected error occurred while unmarshalling following JSON role",
+				"JSONRoleName", roleName,
+				"JSONRole", jsonRole)
+			return err
 		}
-		copy(currentRole.Rules, expectedRole.Rules)
-		currentRole.OwnerReferences = []metav1.OwnerReference{{
-			APIVersion: instance.APIVersion,
-			Kind:       instance.Kind,
-			Name:       instance.Name,
-			UID:        instance.UID,
-		}}
-		return nil
-	})
-
-	return err
+		currentRole := new(rbacv1.Role)
+		expectedRole.Name, currentRole.Name = roleName, roleName
+		expectedRole.Namespace, currentRole.Namespace = instance.Namespace, instance.Namespace
+		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRole, func() error {
+			expectedRulesLen := len(expectedRole.Rules)
+			if len(currentRole.Rules) != expectedRulesLen {
+				currentRole.Rules = make([]rbacv1.PolicyRule, expectedRulesLen)
+			}
+			copy(currentRole.Rules, expectedRole.Rules)
+			currentRole.OwnerReferences = []metav1.OwnerReference{{
+				APIVersion: instance.APIVersion,
+				Kind:       instance.Kind,
+				Name:       instance.Name,
+				UID:        instance.UID,
+			}}
+			return nil
+		})
+		if err != nil {
+			r.Log.Error(err, "failed to create/update exporter role", "RoleName", roleName)
+			return err
+		}
+	}
+	return nil
 }
 
 const expectedPrometheusK8RoleBindingJSON = `
@@ -687,14 +672,7 @@ const expectedPrometheusK8RoleBindingJSON = `
 		"apiGroup":"rbac.authorization.k8s.io",
 		"kind":"Role",
 		"name":"ocs-metrics-svc"
-	},
-	"subjects":[
-		{
-			"kind":"ServiceAccount",
-			"name":"prometheus-k8s",
-			"namespace":"openshift-monitoring"
-		}
-	]
+	}
 }`
 
 // expectedMetricsExporterRoleBindingJSON rolebindings for metrics exporter
@@ -713,73 +691,80 @@ const expectedMetricsExporterRoleBindingJSON = `
 
 func createMetricsExporterRolebindings(ctx context.Context,
 	r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	// rolebinding for prometheus
-	var expectedRoleBinding = new(rbacv1.RoleBinding)
-	err := json.Unmarshal([]byte(expectedPrometheusK8RoleBindingJSON), expectedRoleBinding)
-	if err != nil {
-		r.Log.Error(err,
-			"an unexpected error occurred while unmarshalling prometheus rolebinding")
-		return err
+	var roleBindings = []string{
+		expectedPrometheusK8RoleBindingJSON, expectedMetricsExporterRoleBindingJSON,
 	}
-	currentRoleBinding := new(rbacv1.RoleBinding)
-	expectedRoleBinding.Name, currentRoleBinding.Name = metricsExporterRoleName, metricsExporterRoleName
-	expectedRoleBinding.Namespace, currentRoleBinding.Namespace = instance.Namespace, instance.Namespace
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRoleBinding, func() error {
-		currentRoleBinding.RoleRef.APIGroup = expectedRoleBinding.RoleRef.APIGroup
-		currentRoleBinding.RoleRef.Kind = expectedRoleBinding.RoleRef.Kind
-		currentRoleBinding.RoleRef.Name = expectedRoleBinding.RoleRef.Name
-		expectedSubjectsLen := len(expectedRoleBinding.Subjects)
-		if len(currentRoleBinding.Subjects) != expectedSubjectsLen {
-			currentRoleBinding.Subjects = make([]rbacv1.Subject, expectedSubjectsLen)
+	var roleBindingNames = []string{
+		// rolebindings have the same names as the roles
+		prometheusRoleName, metricsExporterRoleName,
+	}
+	var roleBindingSubjects = []rbacv1.Subject{
+		// subject for prometheus-k8 rolebinding
+		{
+			Kind:      "ServiceAccount",
+			Name:      "prometheus-k8s",
+			Namespace: "openshift-monitoring",
+		},
+		// subject for metrics exporter rolebinding
+		{
+			Kind:      "ServiceAccount",
+			Name:      metricsExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	for rbIndx, roleBinding := range roleBindings {
+		var roleBindingName = roleBindingNames[rbIndx]
+		var roleBindingSubject = roleBindingSubjects[rbIndx]
+
+		var expectedRoleBinding = new(rbacv1.RoleBinding)
+		err := json.Unmarshal([]byte(roleBinding), expectedRoleBinding)
+		if err != nil {
+			r.Log.Error(err,
+				"an unexpected error occurred while unmarshalling rolebinding",
+				"RoleBindingName", roleBindingName,
+				"RoleBindingJSON", roleBinding)
+			return err
 		}
-		copy(currentRoleBinding.Subjects, expectedRoleBinding.Subjects)
-		currentRoleBinding.OwnerReferences = []metav1.OwnerReference{{
-			APIVersion: instance.APIVersion,
-			Kind:       instance.Kind,
-			Name:       instance.Name,
-			UID:        instance.UID,
-		}}
-		return nil
-	})
-	if err != nil {
-		r.Log.Error(err, "error while create/update prometheus rolebindings")
-		return err
-	}
+		currentRoleBinding := new(rbacv1.RoleBinding)
+		// name
+		expectedRoleBinding.Name = roleBindingName
+		currentRoleBinding.Name = roleBindingName
+		// namespace
+		expectedRoleBinding.Namespace = instance.Namespace
+		currentRoleBinding.Namespace = instance.Namespace
+		// expected role reference name
+		// PS: we use the same name for both roles and rolebindings
+		expectedRoleBinding.RoleRef.Name = roleBindingName
+		// expected subjects
+		expectedRoleBinding.Subjects = []rbacv1.Subject{roleBindingSubject}
 
-	// rolebinding for metrics exporter
-	expectedRoleBinding = new(rbacv1.RoleBinding)
-	err = json.Unmarshal([]byte(expectedMetricsExporterRoleBindingJSON), expectedRoleBinding)
-	if err != nil {
-		r.Log.Error(err,
-			"an unexpected error occurred while unmarshalling metrics exporter rolebinding")
-		return err
-	}
-	currentRoleBinding = new(rbacv1.RoleBinding)
-	expectedRoleBinding.Name, currentRoleBinding.Name = metricsExporterName, metricsExporterName
-	expectedRoleBinding.Namespace, currentRoleBinding.Namespace = instance.Namespace, instance.Namespace
+		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRoleBinding, func() error {
+			// add expected role reference
+			currentRoleBinding.RoleRef = expectedRoleBinding.RoleRef
 
-	expectedRoleBinding.Subjects = make([]rbacv1.Subject, 1)
-	expectedRoleBinding.Subjects[0].Kind = "ServiceAccount"
-	expectedRoleBinding.Subjects[0].Name = metricsExporterName
-	expectedRoleBinding.Subjects[0].Namespace = instance.Namespace
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRoleBinding, func() error {
-		currentRoleBinding.RoleRef.APIGroup = expectedRoleBinding.RoleRef.APIGroup
-		currentRoleBinding.RoleRef.Kind = expectedRoleBinding.RoleRef.Kind
-		currentRoleBinding.RoleRef.Name = expectedRoleBinding.RoleRef.Name
-		expectedSubjectsLen := len(expectedRoleBinding.Subjects)
-		if len(currentRoleBinding.Subjects) != expectedSubjectsLen {
+			// add expected subjects
+			expectedSubjectsLen := len(expectedRoleBinding.Subjects)
 			currentRoleBinding.Subjects = make([]rbacv1.Subject, expectedSubjectsLen)
-		}
-		copy(currentRoleBinding.Subjects, expectedRoleBinding.Subjects)
-		currentRoleBinding.OwnerReferences = []metav1.OwnerReference{{
-			APIVersion: instance.APIVersion,
-			Kind:       instance.Kind,
-			Name:       instance.Name,
-			UID:        instance.UID,
-		}}
-		return nil
-	})
+			copy(currentRoleBinding.Subjects, expectedRoleBinding.Subjects)
 
-	return err
+			// add owner references
+			currentRoleBinding.OwnerReferences = []metav1.OwnerReference{{
+				APIVersion: instance.APIVersion,
+				Kind:       instance.Kind,
+				Name:       instance.Name,
+				UID:        instance.UID,
+			}}
+
+			return nil
+		})
+		if err != nil {
+			r.Log.Error(err,
+				"error while create/update metrics exporter rolebinding",
+				"RoleBindingName", roleBindingName)
+			return err
+		}
+	}
+
+	return nil
 }
