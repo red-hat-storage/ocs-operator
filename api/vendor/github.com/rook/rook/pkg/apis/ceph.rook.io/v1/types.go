@@ -1946,7 +1946,6 @@ type HTTPEndpointSpec struct {
 	// +optional
 	DisableVerifySSL bool `json:"disableVerifySSL,omitempty"`
 	// Send the notifications with the CloudEvents header: https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md
-	// Supported for Ceph Quincy (v17) or newer.
 	// +optional
 	SendCloudEvents bool `json:"sendCloudEvents,omitempty"`
 }
@@ -2464,7 +2463,7 @@ type EncryptionSpec struct {
 
 type CompressionSpec struct {
 	// Whether to compress the data in transit across the wire.
-	// The default is not set. Requires Ceph Quincy (v17) or newer.
+	// The default is not set.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 }
@@ -2931,6 +2930,31 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// list of Ceph Filesystem volumes with `ceph fs volume ls`. To learn more about Ceph Filesystem
 	// abstractions see https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-volumes-and-subvolumes
 	FilesystemName string `json:"filesystemName"`
+	// Pinning configuration of CephFilesystemSubVolumeGroup,
+	// reference https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups
+	// only one out of (export, distributed, random) can be set at a time
+	// +optional
+	Pinning CephFilesystemSubVolumeGroupSpecPinning `json:"pinning,omitempty"`
+}
+
+// CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup
+// +kubebuilder:validation:XValidation:message="only one pinning type should be set",rule="(has(self.export) && !has(self.distributed) && !has(self.random)) || (!has(self.export) && has(self.distributed) && !has(self.random)) || (!has(self.export) && !has(self.distributed) && has(self.random)) || (!has(self.export) && !has(self.distributed) && !has(self.random))"
+type CephFilesystemSubVolumeGroupSpecPinning struct {
+	// +kubebuilder:validation:Minimum=-1
+	// +kubebuilder:validation:Maximum=256
+	// +optional
+	// +nullable
+	Export *int `json:"export,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=1
+	// +optional
+	// +nullable
+	Distributed *int `json:"distributed,omitempty"`
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	Random *float64 `json:"random,,omitempty"`
 }
 
 // CephFilesystemSubVolumeGroupStatus represents the Status of Ceph Filesystem SubVolumeGroup
@@ -2973,6 +2997,9 @@ type CephBlockPoolRadosNamespaceList struct {
 
 // CephBlockPoolRadosNamespaceSpec represents the specification of a CephBlockPool Rados Namespace
 type CephBlockPoolRadosNamespaceSpec struct {
+	// The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.
+	// +optional
+	Name string `json:"name,omitempty"`
 	// BlockPoolName is the name of Ceph BlockPool. Typically it's the name of
 	// the CephBlockPool CR.
 	BlockPoolName string `json:"blockPoolName"`
