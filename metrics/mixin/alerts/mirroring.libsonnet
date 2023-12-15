@@ -54,6 +54,7 @@
               description: 'Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state for more than %s. Mirroring might not work as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.odfPoolMirroringImageHealthWarningAlertTime,
               storage_type: $._config.cephStorageType,
               severity_level: 'warning',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md',
             },
           },
           {
@@ -71,6 +72,7 @@
               description: 'Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state for more than %s. Mirroring is not working as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.' % $._config.odfPoolMirroringImageHealthCriticalAlertTime,
               storage_type: $._config.cephStorageType,
               severity_level: 'error',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md',
             },
           },
           {
@@ -104,6 +106,7 @@
               description: 'Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} to peer site {{ $labels.site_name }} for more than %s. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}' % $._config.odfPoolMirroringImageHealthWarningAlertTime,
               storage_type: $._config.cephStorageType,
               severity_level: 'warning',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md'
             },
           },
         ],

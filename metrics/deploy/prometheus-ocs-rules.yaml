@@ -94,6 +94,7 @@ spec:
       annotations:
         description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state for more than 1m. Mirroring might not work as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: warning
         storage_type: ceph
       expr: |
@@ -106,6 +107,7 @@ spec:
       annotations:
         description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state for more than 10s. Mirroring is not working as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: error
         storage_type: ceph
       expr: |
@@ -130,6 +132,7 @@ spec:
       annotations:
         description: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} to peer site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}
         message: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} mirroring to peer site {{ $labels.site_name }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md
         severity_level: warning
         storage_type: ceph
       expr: |
