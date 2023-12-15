@@ -24,7 +24,6 @@ CONTROLLER_GEN=$(LOCALBIN)/controller-gen
 	shellcheck-test \
 	golangci-lint \
 	update-generated \
-	ocs-operator-ci \
 	unit-test \
 	deps-update
 
@@ -125,8 +124,6 @@ lint: ## Run golangci-lint inside a container
 unit-test:
 	@echo "Executing unit tests"
 	hack/unit-test.sh
-
-ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-csv verify-operator-bundle verify-latest-deploy-yaml
 
 # Generate code
 generate: controller-gen
