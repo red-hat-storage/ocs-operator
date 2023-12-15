@@ -101,10 +101,9 @@ jobs:
 
       - uses: codespell-project/actions-codespell@master
         with:
-          exclude_file: go.sum
           check_filenames: true
           check_hidden: true
-          skip: vendor
+          skip: vendor,go.sum,api/go.sum,go.work.sum
           ignore_words_list: xdescribe,contails,shouldnot
 
   commitlint:
@@ -122,4 +121,3 @@ jobs:
           Naming Conventions -> https://commitlint.js.org/#/concepts-commit-conventions
           Rules -> https://commitlint.js.org/#/reference-rules
           How to Write a Good Git Commit Message -> https://chris.beams.io/posts/git-commit
-
