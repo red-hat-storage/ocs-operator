@@ -133,7 +133,7 @@ func (c *CephBlockPoolCollector) collectMirroringImageHealth(cephBlockPools []*c
 				cephBlockPool.Name,
 				cephBlockPool.Namespace)
 		default:
-			klog.Errorf("Invalid image health for pool %s. Must be OK, UNKNOWN, WARNING or ERROR", cephBlockPool.Name)
+			klog.Errorf("Invalid image health, %q, for pool %s. Must be OK, UNKNOWN, WARNING or ERROR.", imageHealth, cephBlockPool.Name)
 		}
 	}
 }
