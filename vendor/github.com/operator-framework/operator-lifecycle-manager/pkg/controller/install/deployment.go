@@ -153,6 +153,10 @@ func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1
 
 	// Set custom labels before CSV owner labels
 	dep.SetLabels(specLabels)
+	if dep.Labels == nil {
+		dep.Labels = map[string]string{}
+	}
+	dep.Labels[OLMManagedLabelKey] = OLMManagedLabelValue
 
 	ownerutil.AddNonBlockingOwner(dep, i.owner)
 	ownerutil.AddOwnerLabelsForKind(dep, i.owner, v1alpha1.ClusterServiceVersionKind)
