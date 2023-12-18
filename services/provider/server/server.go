@@ -688,5 +688,9 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 	}
 
-	return &pb.ReportStatusResponse{}, nil
+	// trims X.Y.Z -> X.Y, version value is set during build time, so no additional checks are required
+	desiredVerison := ocsVersion.Version[0:strings.LastIndex(ocsVersion.Version, ".")]
+	return &pb.ReportStatusResponse{
+		DesiredClientOperatorVersion: desiredVerison,
+	}, nil
 }
