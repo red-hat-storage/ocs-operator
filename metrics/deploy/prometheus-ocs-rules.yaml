@@ -73,7 +73,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        ((count by(namespace) (ocs_mirror_daemon_count{job="ocs-metrics-exporter"} == 0)) * on(namespace) group_left() (count by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"} == 1))) > 0
+        ((count by(namespace, managedBy) (ocs_mirror_daemon_count{job="ocs-metrics-exporter"} == 0)) * on(namespace, managedBy) group_left() (count by(namespace, managedBy) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"} == 1))) > 0
       for: 1m
       labels:
         severity: critical
@@ -85,7 +85,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
       for: 1m
       labels:
         mirroring_image_status: unknown
@@ -94,10 +94,11 @@ spec:
       annotations:
         description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state for more than 1m. Mirroring might not work as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
       for: 1m
       labels:
         mirroring_image_status: warning
@@ -106,10 +107,11 @@ spec:
       annotations:
         description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state for more than 10s. Mirroring is not working as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: error
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace) group_left() (max by(namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
       for: 10s
       labels:
         mirroring_image_status: error
@@ -122,7 +124,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name) group_left(name,namespace) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 1
+        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name) group_left(name,namespace,managedBy) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 1
       for: 1m
       labels:
         severity: critical
@@ -130,10 +132,11 @@ spec:
       annotations:
         description: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} to peer site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}
         message: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} mirroring to peer site {{ $labels.site_name }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md
         severity_level: warning
         storage_type: ceph
       expr: |
-        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name) group_left(name,namespace) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 0
+        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name) group_left(name,namespace,managedBy) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 0
       for: 1m
       labels:
         severity: warning
@@ -147,7 +150,7 @@ spec:
         severity_level: warning
         storage_type: RGW
       expr: |
-        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) > 0.80
+        (ocs_objectbucketclaim_info * on (namespace, objectbucket, managedBy) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) > 0.80
       for: 10s
       labels:
         severity: warning
@@ -158,7 +161,7 @@ spec:
         severity_level: warning
         storage_type: RGW
       expr: |
-        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) > 0.80
+        (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) > 0.80
       for: 10s
       labels:
         severity: warning
@@ -169,7 +172,7 @@ spec:
         severity_level: error
         storage_type: RGW
       expr: |
-        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) >= 1
+        (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) >= 1
       for: 0s
       labels:
         severity: critical
@@ -180,7 +183,7 @@ spec:
         severity_level: error
         storage_type: RGW
       expr: |
-        (ocs_objectbucketclaim_info * on (namespace, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) >= 1
+        (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) >= 1
       for: 0s
       labels:
         severity: critical
@@ -213,7 +216,7 @@ spec:
         )
         and on(node) (
           kube_pod_container_status_waiting_reason{reason="CreateContainerError"}
-          * on(pod, namespace) group_left(node)
+          * on(pod, namespace, managedBy) group_left(node)
           kube_pod_info
         ) > 0
       for: 10s
