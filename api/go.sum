@@ -576,8 +576,8 @@ github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRW
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+o7JKHSa8/e818NopupXU1YMK5fe1lsApnBw=
 github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32/go.mod h1:9wM+0iRr9ahx58uYLpLIr5fm8diHn0JbqRycJi6w0Ms=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/noobaa/noobaa-operator/v5 v5.14.0 h1:OjmYylFBQ0bMZi7yWtYc+Tc5g3n7nQp5gXNC5PivCzA=
-github.com/noobaa/noobaa-operator/v5 v5.14.0/go.mod h1:dGjhx/zjLbYIoXVtIpXEvr8j4aUiQi1bpl+EVXmhx3E=
+github.com/noobaa/noobaa-operator/v5 v5.0.0-20231213124549-5d7b0417716d h1:zlBMMEl0uFEFiqm174Y3zW5pKUVv+9B9K0X0pE6Ero4=
+github.com/noobaa/noobaa-operator/v5 v5.0.0-20231213124549-5d7b0417716d/go.mod h1:48xbW+3yjKwYY32WqE3xTFhNzgIwOUEhPubqbDWIIkQ=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
@@ -616,8 +616,8 @@ github.com/onsi/gomega v1.24.0/go.mod h1:Z/NWtiqwBrwUt4/2loMmHL63EDLnYHmVbuBpDr2
 github.com/onsi/gomega v1.24.1/go.mod h1:3AOiACssS3/MajrniINInwbfOOtfZvplPzuRSmvt1jM=
 github.com/onsi/gomega v1.27.10 h1:naR28SdDFlqrG6kScpT8VWpu1xWY5nJRCF3XaYyBjhI=
 github.com/openshift/api v0.0.0-20210105115604-44119421ec6b/go.mod h1:aqU5Cq+kqKKPbDMqxo9FojgDeSpNJI7iuskjXjtojDg=
-github.com/openshift/api v0.0.0-20231204192004-bfea29e5e6c4 h1:5RyeLvTSZEn/fDQA6e6+qIvFPssWjreY8pbwfg4/EEQ=
-github.com/openshift/api v0.0.0-20231204192004-bfea29e5e6c4/go.mod h1:qNtV0315F+f8ld52TLtPvrfivZpdimOzTi3kn9IVbtU=
+github.com/openshift/api v0.0.0-20231212225112-7cca8a108d7b h1:H7Iu44OPp8/6mp2jSixn/9mTbprXBATMmw9GQrnnyK4=
+github.com/openshift/api v0.0.0-20231212225112-7cca8a108d7b/go.mod h1:qNtV0315F+f8ld52TLtPvrfivZpdimOzTi3kn9IVbtU=
 github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab/go.mod h1:b1BuldmJlbA/xYtdZvKi+7j5YGB44qJUJDZ9zwiNCfE=
 github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47/go.mod h1:u7NRAjtYVAKokiI9LouzTv4mhds8P4S1TwdVAfbjKSk=
 github.com/openshift/custom-resource-status v1.1.2 h1:C3DL44LEbvlbItfd8mT5jWrqPfHnSOQoQf/sypqA6A4=
@@ -674,8 +674,8 @@ github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
 github.com/rogpeppe/go-internal v1.8.1/go.mod h1:JeRgkft04UBgHMgCIwADu4Pn6Mtm5d4nPKWu0nJ5d+o=
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
-github.com/rook/rook/pkg/apis v0.0.0-20231211195439-c80ea7b64424 h1:HyAkh3ViNuiwy9KDutl2ZnpVAQH6ovwcTSm7RFxr6mI=
-github.com/rook/rook/pkg/apis v0.0.0-20231211195439-c80ea7b64424/go.mod h1:O8Sz/J0NOLteScktaNByccS8u5RVAvi9AvDegO2I2rM=
+github.com/rook/rook/pkg/apis v0.0.0-20231215165123-32de0fb5f69b h1:4Wf9IbN7OiKLMooLYwXb8q7IolfGtjtUcE0G2HSFaKQ=
+github.com/rook/rook/pkg/apis v0.0.0-20231215165123-32de0fb5f69b/go.mod h1:O8Sz/J0NOLteScktaNByccS8u5RVAvi9AvDegO2I2rM=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=

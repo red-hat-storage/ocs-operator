@@ -3,10 +3,10 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 go 1.20
 
 require (
-	github.com/noobaa/noobaa-operator/v5 v5.14.0
-	github.com/openshift/api v0.0.0-20231204192004-bfea29e5e6c4
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20231213124549-5d7b0417716d
+	github.com/openshift/api v0.0.0-20231212225112-7cca8a108d7b
 	github.com/openshift/custom-resource-status v1.1.2
-	github.com/rook/rook/pkg/apis v0.0.0-20231211195439-c80ea7b64424
+	github.com/rook/rook/pkg/apis v0.0.0-20231215165123-32de0fb5f69b
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
 )
@@ -86,10 +86,6 @@ exclude (
 	// but are picked when updating dependencies.
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
-
-	// Noobaa operator is requiring this version of rook which is not compatible with the
-	// version of rook we are using. Because it uses 2 go.mods
-	github.com/rook/rook v1.12.3-0.20230823002913-59e66edf92f7
 	// Exclude pre-go-mod kubernetes tags, because they are older
 	// than v0.x releases but are picked when updating dependencies.
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible

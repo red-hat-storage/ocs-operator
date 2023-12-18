@@ -117,6 +117,22 @@ type NooBaaSpec struct {
 	// +optional
 	MongoDbURL string `json:"mongoDbURL,omitempty"`
 
+	// ExternalPgSecret (optional) holds an optional secret with a url to an extrenal Postgres DB to be used
+	// +optional
+	ExternalPgSecret *corev1.SecretReference `json:"externalPgSecret,omitempty"`
+
+	// ExternalPgSSLRequired (optional) holds an optional boolean to force ssl connections to the external Postgres DB
+	// +optional
+	ExternalPgSSLRequired bool `json:"externalPgSSLRequired,omitempty"`
+
+	// ExternalPgSSLUnauthorized (optional) holds an optional boolean to allow unauthorized connections to external Postgres DB
+	// +optional
+	ExternalPgSSLUnauthorized bool `json:"externalPgSSLUnauthorized,omitempty"`
+
+	// ExternalPgSSLSecret (optional) holds an optional secret with client key and cert used for connecting to external Postgres DB
+	// +optional
+	ExternalPgSSLSecret *corev1.SecretReference `json:"externalPgSSLSecret,omitempty"`
+
 	// DebugLevel (optional) sets the debug level
 	// +optional
 	// +kubebuilder:validation:Enum=all;nsfs;warn;default_level
