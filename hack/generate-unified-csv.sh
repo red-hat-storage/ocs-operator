@@ -63,6 +63,7 @@ $CSV_MERGER \
 	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
 	--ocs-image="$OCS_IMAGE" \
 	--ocs-metrics-exporter-image="$OCS_METRICS_EXPORTER_IMAGE" \
+	--ux-backend-oauth-image="$UX_BACKEND_OAUTH_IMAGE" \
 	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
 	--crds-directory="$OUTDIR_CRDS" \
 	--manifests-directory=$BUNDLEMANIFESTS_DIR \
