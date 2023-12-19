@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	onboardingTicketPublicKeySecretName  = "onboarding-ticket-key" //Name of existing public key which is used ocs-operator
-	onboardingTicketPrivateKeySecretName = "onboarding-ticket-private-key"
-	serviceAccountName                   = "onboarding-secret-generator"
+	onboardingTicketPublicKeySecretName = "onboarding-ticket-key" //Name of existing public key which is used ocs-operator
+	onboardingPrivateKeySecretName      = "onboarding-private-key"
+	serviceAccountName                  = "onboarding-secret-generator"
 )
 
 func main() {
@@ -60,7 +60,7 @@ func main() {
 
 		privateSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        onboardingTicketPrivateKeySecretName,
+				Name:        onboardingPrivateKeySecretName,
 				Namespace:   operatorNamespace,
 				Annotations: map[string]string{"kubernetes.io/service-account.name": serviceAccountName},
 			},
