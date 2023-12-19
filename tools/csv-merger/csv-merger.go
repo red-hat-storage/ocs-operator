@@ -48,6 +48,7 @@ var (
 	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
 	ocsMetricsExporterImage  = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
+	uxBackendOauthImage      = flag.String("ux-backend-oauth-image", "", "ux backend oauth container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	rookCsiAddonsImage       = flag.String("rook-csiaddons-image", "", "csi-addons container image")
 
@@ -157,6 +158,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			},
 			{
 				Name:  "ONBOARDING_SECRET_GENERATOR_IMAGE",
+				Value: *ocsContainerImage,
+			},
+			{
+				Name:  "UX_BACKEND_SERVER_IMAGE",
 				Value: *ocsContainerImage,
 			},
 			{
@@ -572,6 +577,11 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		Spec: getMetricsExporterDeployment(),
 	}
 	templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, metricExporterStrategySpec)
+	uxBackendStrategySpec := csvv1.StrategyDeploymentSpec{
+		Name: "ux-backend-server",
+		Spec: getUXBackendServerDeployment(),
+	}
+	templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, uxBackendStrategySpec)
 
 	// Add tolerations to deployments
 	for i := range templateStrategySpec.DeploymentSpecs {
@@ -862,6 +872,12 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 			"image": *ocsMetricsExporterImage,
 		})
 	}
+	if *uxBackendOauthImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "ux-backend-oauth-image",
+			"image": *uxBackendOauthImage,
+		})
+	}
 	return unstructured.SetNestedSlice(r.Object, relatedImages, "spec", "relatedImages")
 }
 
@@ -1023,6 +1039,124 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 	return deployment
 }
 
+func getUXBackendServerDeployment() appsv1.DeploymentSpec {
+	replica := int32(1)
+	ptrToTrue := true
+	deployment := appsv1.DeploymentSpec{
+		Replicas: &replica,
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/component": "ux-backend-server",
+				"app.kubernetes.io/name":      "ux-backend-server",
+				"app":                         "ux-backend-server",
+			},
+		},
+		Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
+		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"app.kubernetes.io/component": "ux-backend-server",
+					"app.kubernetes.io/name":      "ux-backend-server",
+					"app":                         "ux-backend-server",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name: "ux-backend-server",
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "onboarding-private-key",
+								MountPath: "/etc/private-key",
+							},
+							{
+								Name:      "ux-cert-secret",
+								MountPath: "/etc/tls/private",
+							},
+						},
+						Image:           *ocsContainerImage,
+						ImagePullPolicy: "IfNotPresent",
+						Command:         []string{"/usr/local/bin/ux-backend-server"},
+						Ports: []corev1.ContainerPort{
+							{
+								ContainerPort: 8080,
+							},
+						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "ONBOARDING_TOKEN_LIFETIME",
+								Value: os.Getenv("ONBOARDING_TOKEN_LIFETIME"),
+							},
+							{
+								Name:  "UX_BACKEND_PORT",
+								Value: os.Getenv("UX_BACKEND_PORT"),
+							},
+						},
+					},
+					{
+						Name: "oauth-proxy",
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "ux-proxy-secret",
+								MountPath: "/etc/proxy/secrets",
+							},
+							{
+								Name:      "ux-cert-secret",
+								MountPath: "/etc/tls/private",
+							},
+						},
+						Image:           *uxBackendOauthImage,
+						ImagePullPolicy: "IfNotPresent",
+						Args: []string{"-provider=openshift",
+							"-https-address=:8888",
+							"-http-address=", "-email-domain=*",
+							"-upstream=https://localhost:8080/onboarding-tokens",
+							"-tls-cert=/etc/tls/private/tls.crt",
+							"-tls-key=/etc/tls/private/tls.key",
+							"-cookie-secret-file=/etc/proxy/secrets/session_secret",
+							"-openshift-service-account=ux-backend-server",
+							"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"},
+						Ports: []corev1.ContainerPort{
+							{
+								ContainerPort: 8888,
+							},
+						},
+					},
+				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "onboarding-private-key",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "onboarding-private-key",
+								Optional:   &ptrToTrue,
+							},
+						},
+					},
+					{
+						Name: "ux-proxy-secret",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "ux-backend-proxy",
+							},
+						},
+					},
+					{
+						Name: "ux-cert-secret",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "ux-cert-secret",
+							},
+						},
+					},
+				},
+				ServiceAccountName: "ux-backend-server",
+			},
+		},
+	}
+	return deployment
+}
+
 func main() {
 	flag.Parse()
 
@@ -1050,6 +1184,9 @@ func main() {
 		log.Fatal("--crds-directory is required")
 	} else if *outputDir == "" {
 		log.Fatal("--olm-bundle-directory is required")
+	} else if *uxBackendOauthImage == "" {
+		// this image can be used quay.io/openshift/origin-oauth-proxy:4.14
+		log.Fatal("--ux-backend-oauth-image is required")
 	}
 
 	// start with a fresh output directory if it already exists
