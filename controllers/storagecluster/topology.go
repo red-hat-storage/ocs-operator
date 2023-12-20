@@ -276,10 +276,7 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 		return err
 	}
 
-	if sc.Status.NodeTopologies == nil || sc.Status.NodeTopologies.Labels == nil {
-		sc.Status.NodeTopologies = ocsv1.NewNodeTopologyMap()
-	}
-	topologyMap := sc.Status.NodeTopologies
+	topologyMap := ocsv1.NewNodeTopologyMap()
 	nodeRacks := ocsv1.NewNodeTopologyMap()
 
 	r.nodeCount = len(nodes.Items)
@@ -309,6 +306,7 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 	}
 
 	filterDuplicateLabels(sc, nodes, topologyMap)
+	sc.Status.NodeTopologies = topologyMap
 	setFailureDomain(sc)
 
 	if getFailureDomain(sc) == "rack" {
