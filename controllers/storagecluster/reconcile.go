@@ -12,6 +12,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
@@ -505,12 +506,34 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		if instance.Status.Phase != statusutil.PhaseClusterExpanding {
 			instance.Status.Phase = statusutil.PhaseReady
 
+			var returnErr error
+			var notUpgradeableReasons, notUpgradeableMessages []string
 			// mark operator upgradeable if and only if all storageclusters are ready
-			if r.clusters.AreOtherStorageClustersReady(instance) {
-				returnErr := r.SetOperatorConditions(message, reason, metav1.ConditionTrue, nil)
-				if returnErr != nil {
-					return reconcile.Result{}, returnErr
+			if !r.clusters.AreOtherStorageClustersReady(instance) {
+				notUpgradeableReasons = append(notUpgradeableReasons, "NotReady")
+				notUpgradeableMessages = append(notUpgradeableMessages, "StorageCluster is not ready")
+			}
+			// check operator upgradeability based on connected clients
+			if instance.Spec.AllowRemoteStorageConsumers {
+				if count, err := getUnsupportedClientsCount(r, instance.Namespace); err != nil {
+					notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
+					notUpgradeableMessages = append(notUpgradeableMessages, "Unable to determine status of connected ODF Clients")
+				} else if count != 0 {
+					notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
+					notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
 				}
+			}
+			if len(notUpgradeableMessages) > 0 {
+				// we are not upgradeable
+				returnErr = r.SetOperatorConditions(
+					strings.Join(notUpgradeableMessages, ";"), strings.Join(notUpgradeableReasons, ";"),
+					metav1.ConditionFalse, nil)
+			} else {
+				// we are upgradeable
+				returnErr = r.SetOperatorConditions(message, reason, metav1.ConditionTrue, nil)
+			}
+			if returnErr != nil {
+				return reconcile.Result{}, returnErr
 			}
 		}
 	} else {
@@ -837,4 +860,29 @@ func validateCustomStorageClassNames(sc *ocsv1.StorageCluster) error {
 	}
 
 	return nil
+}
+
+func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (int, error) {
+	scList := &ocsv1alpha1.StorageConsumerList{}
+	err := r.Client.List(r.ctx, scList, client.InNamespace(namespace))
+	if err != nil {
+		r.Log.Error(err, "Failed to list StorageConsumers")
+		return -1, err
+	}
+	var count int
+	providerVersion, _ := semver.Make(version.Version)
+	for idx := range scList.Items {
+		clientVersion, err := semver.Make(scList.Items[idx].Status.Client.OperatorVersion)
+		if err == nil {
+			// provider operator and client operator should be on same version for full compatibility
+			if providerVersion.Major != clientVersion.Major || providerVersion.Minor != clientVersion.Minor {
+				count++
+			}
+		} else {
+			r.Log.Error(err, "Failed to parse client operator version", "StorageConsumer", scList.Items[idx].GetName())
+			count++
+		}
+	}
+
+	return count, nil
 }
