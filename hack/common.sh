@@ -54,7 +54,7 @@ LATEST_ROOK_IMAGE="docker.io/rook/ceph:v1.11.4"
 LATEST_NOOBAA_IMAGE="quay.io/noobaa/noobaa-operator:master-20230306"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20230306"
 LATEST_NOOBAA_DB_IMAGE="centos/postgresql-12-centos7"
-LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17"
+LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v17.2.6"
 LATEST_ROOK_CSIADDONS_IMAGE="quay.io/csiaddons/k8s-sidecar:v0.6.0"
 # TODO: change image once the quay repo is changed
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
