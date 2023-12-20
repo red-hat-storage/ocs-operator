@@ -47,8 +47,6 @@ message OnboardConsumerRequest{
     string onboardingTicket = 1;
     // consumerName is the name of the consumer that is used to create the storageConsumer resource
     string consumerName = 2;
-    // clientOperatorVersion is the semver version of ocs-client-operator
-    string clientOperatorVersion = 3;
 }
 
 // OnboardConsumerResponse holds the response for OnboardConsumer API request
