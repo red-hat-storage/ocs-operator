@@ -756,6 +756,8 @@ spec:
                         type: boolean
                       gatewayInstances:
                         type: integer
+                      hostNetwork:
+                        type: boolean
                       reconcileStrategy:
                         type: string
                       storageClassName:
