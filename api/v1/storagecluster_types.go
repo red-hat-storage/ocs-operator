@@ -237,6 +237,7 @@ type ManageCephObjectStores struct {
 	DisableStorageClass bool   `json:"disableStorageClass,omitempty"`
 	GatewayInstances    int    `json:"gatewayInstances,omitempty"`
 	DisableRoute        bool   `json:"disableRoute,omitempty"`
+	HostNetwork         *bool  `json:"hostNetwork,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
