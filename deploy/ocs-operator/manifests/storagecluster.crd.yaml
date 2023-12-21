@@ -720,6 +720,8 @@ spec:
                       gatewayInstances:
                         format: int32
                         type: integer
+                      hostNetwork:
+                        type: boolean
                       reconcileStrategy:
                         type: string
                       storageClassName:
