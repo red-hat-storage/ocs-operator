@@ -21,6 +21,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
+	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	"google.golang.org/grpc"
@@ -91,6 +92,17 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
 
+	version, err := semver.FinalizeVersion(req.ClientOperatorVersion)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "malformed ClientOperatorVersion for client %q is provided. %v", req.ConsumerName, err)
+	}
+
+	serverVersion, _ := semver.Make(ocsVersion.Version)
+	clientVersion, _ := semver.Make(version)
+	if serverVersion.Major != clientVersion.Major || serverVersion.Minor != clientVersion.Minor {
+		return nil, status.Errorf(codes.FailedPrecondition, "both server and client %q operators major and minor versions should match for onboarding process", req.ConsumerName)
+	}
+
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
@@ -101,7 +113,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req.ConsumerName, req.OnboardingTicket)
+	storageConsumerUUID, err := s.consumerManager.Create(ctx, req)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
