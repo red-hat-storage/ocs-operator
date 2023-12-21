@@ -103,10 +103,15 @@ func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance 
 		return reconcile.Result{}, err
 	}
 
-	isDROptimized, err := creator.getIsDROptimized(r.serverVersion)
-	if err != nil {
-		r.Log.Error(err, "failed to get cephcluster status. retrying again")
-		return reconcile.Result{}, err
+	var isDROptimized = "false"
+	// Set isDROptmized to "false" in case of external clusters as we currently don't have to way to determine
+	// if external cluster OSDs are using bluestore-rdr
+	if !instance.Spec.ExternalStorage.Enable {
+		isDROptimized, err = creator.getIsDROptimized(r.serverVersion)
+		if err != nil {
+			r.Log.Error(err, "failed to get cephcluster status. retrying again")
+			return reconcile.Result{}, err
+		}
 	}
 
 	err = creator.setStorageClusterCount(strconv.Itoa(storageClusterCount)).
