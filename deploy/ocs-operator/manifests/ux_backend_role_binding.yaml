@@ -1,12 +1,12 @@
-apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: onboarding-secret-generator
+  name: ux-backend-server
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: onboarding-secret-generator
+  name: ux-backend-server
 subjects:
 - kind: ServiceAccount
-  name: onboarding-secret-generator
+  name: ux-backend-server
   namespace: openshift-storage
