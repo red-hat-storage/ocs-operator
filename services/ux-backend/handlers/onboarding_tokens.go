@@ -1,4 +1,4 @@
-package handler
+package handlers
 
 import (
 	"crypto"
@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/red-hat-storage/ocs-operator/v4/services/types"
+	sharedTypes "github.com/red-hat-storage/ocs-operator/v4/services"
 	"k8s.io/klog/v2"
 )
 
@@ -68,7 +68,7 @@ func generateOnboardingToken(tokenLifetimeInHours int) (string, error) {
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
 
-	payload, err := json.Marshal(types.OnboardingTicket{
+	payload, err := json.Marshal(sharedTypes.OnboardingTicket{
 		ID:             uuid.New().String(),
 		ExpirationDate: tokenExpirationDate,
 	})

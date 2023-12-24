@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	handler "github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
 	"k8s.io/klog/v2"
 )
 
@@ -53,7 +53,7 @@ func main() {
 		os.Exit(-1)
 	}
 	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
-		handler.OnboardingTokensHandler(w, r, config.tokenLifetimeInHours)
+		handlers.OnboardingTokensHandler(w, r, config.tokenLifetimeInHours)
 
 	})
 

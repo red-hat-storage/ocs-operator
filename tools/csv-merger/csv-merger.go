@@ -163,10 +163,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Value: *ocsContainerImage,
 			},
 			{
-				Name:  "UX_BACKEND_SERVER_IMAGE",
-				Value: *ocsContainerImage,
-			},
-			{
 				Name: util.OperatorNamespaceEnvVar,
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{

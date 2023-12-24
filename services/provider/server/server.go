@@ -24,7 +24,7 @@ import (
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
-	sharedTypes "github.com/red-hat-storage/ocs-operator/v4/services/types"
+	sharedTypes "github.com/red-hat-storage/ocs-operator/v4/services"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
