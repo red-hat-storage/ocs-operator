@@ -24,7 +24,7 @@ import (
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
-	sharedTypes "github.com/red-hat-storage/ocs-operator/v4/services/types"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -441,7 +441,7 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 		return fmt.Errorf("failed to decode onboarding ticket: %v", err)
 	}
 
-	var ticketData sharedTypes.OnboardingTicket
+	var ticketData services.OnboardingTicket
 	err = json.Unmarshal(message, &ticketData)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)

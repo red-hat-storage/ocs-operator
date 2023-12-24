@@ -1,4 +1,4 @@
-package types
+package services
 
 type OnboardingTicket struct {
 	ID             string `json:"id"`
