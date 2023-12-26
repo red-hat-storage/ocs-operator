@@ -201,6 +201,11 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			r.Log.Error(err, "Failed to set ControllerReference for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
 			return nil, err
 		}
+
+		if initData.Spec.ManagedResources.CephObjectStores.HostNetwork != nil {
+			obj.Spec.Gateway.HostNetwork = initData.Spec.ManagedResources.CephObjectStores.HostNetwork
+		}
+
 		// if kmsConfig is not 'nil', add the KMS details to ObjectStore spec
 		if kmsConfigMap != nil {
 
