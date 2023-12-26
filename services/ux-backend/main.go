@@ -7,8 +7,9 @@ import (
 	"os"
 	"strconv"
 
-	handler "github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
 	"k8s.io/klog/v2"
+
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboardingtokens"
 )
 
 type serverConfig struct {
@@ -26,7 +27,7 @@ func loadAndValidateServerConfig() (*serverConfig, error) {
 		klog.Infof("No user-defined token lifetime provided, defaulting to %d ", defaultTokenLifetimeInHours)
 		config.tokenLifetimeInHours = defaultTokenLifetimeInHours
 	} else if config.tokenLifetimeInHours, err = strconv.Atoi(tokenLifetimeInHoursAsString); err != nil {
-		return nil, fmt.Errorf("Malformed user-defined Token lifetime: %s. shutting down: %v", tokenLifetimeInHoursAsString, err)
+		return nil, fmt.Errorf("malformed user-defined Token lifetime %s, %v", tokenLifetimeInHoursAsString, err)
 	}
 
 	klog.Infof("generated tokens will be valid for %d hours", config.tokenLifetimeInHours)
@@ -37,7 +38,7 @@ func loadAndValidateServerConfig() (*serverConfig, error) {
 		klog.Infof("No user-defined server listening port provided, defaulting to %d ", defaultListeningPort)
 		config.listenPort = defaultListeningPort
 	} else if config.listenPort, err = strconv.Atoi(listenPortAsString); err != nil {
-		return nil, fmt.Errorf("Malformed user-defined listening port:  %s. shutting down: %v", listenPortAsString, err)
+		return nil, fmt.Errorf("malformed user-defined listening port %s, %v", listenPortAsString, err)
 	}
 
 	return &config, nil
@@ -50,11 +51,11 @@ func main() {
 	config, err := loadAndValidateServerConfig()
 	if err != nil {
 		klog.Errorf("failed to load server config: %v", err)
+		klog.Info("shutting down!")
 		os.Exit(-1)
 	}
 	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
-		handler.OnboardingTokensHandler(w, r, config.tokenLifetimeInHours)
-
+		onboardingtokens.HandleRequest(w, r, config.tokenLifetimeInHours)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)

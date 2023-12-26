@@ -1,4 +1,4 @@
-package handler
+package onboardingtokens
 
 import (
 	"crypto"
@@ -15,64 +15,64 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/red-hat-storage/ocs-operator/v4/services/types"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"k8s.io/klog/v2"
 )
 
-const onboardingPrivateKeyFilePath = "/etc/private-key/key"
+const (
+	onboardingPrivateKeyFilePath = "/etc/private-key/key"
+	ContentTypeTextPlain         = "text/plain"
+)
 
-func OnboardingTokensHandler(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
-
-	var err error
+func HandleRequest(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
 	switch r.Method {
 	case "POST":
+		handlePost(w, tokenLifetimeInHours)
+	default:
+		handleUnsupportedMethod(w, r)
+	}
+}
 
-		onboardingToken, err := generateOnboardingToken(tokenLifetimeInHours)
-		if err != nil {
-			klog.Errorf("failed to get onboardig token: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Header().Set("Content-Type", "text/text")
-			_, err = w.Write([]byte("Failed to generate token"))
+func handlePost(w http.ResponseWriter, tokenLifetimeInHours int) {
+	if onboardingToken, err := generateOnboardingToken(tokenLifetimeInHours); err != nil {
+		klog.Errorf("failed to get onboardig token: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", ContentTypeTextPlain)
 
-			if err != nil {
-				klog.Errorf("failed write data to response writer, %v", err)
-			}
-			return
+		if _, err := w.Write([]byte("Failed to generate token")); err != nil {
+			klog.Errorf("failed write data to response writer, %v", err)
 		}
-
+	} else {
 		klog.Info("onboarding token generated successfully")
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "text/text")
+		w.Header().Set("Content-Type", ContentTypeTextPlain)
 
-		_, err = w.Write([]byte(onboardingToken))
-		if err != nil {
-			klog.Errorf("failed write data to response writer: %v", err)
-			return
-		}
-
-	default:
-		klog.Info("Only POST method should be used to send data to this endpoint /onboarding-tokens")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Header().Set("Content-Type", "text/text")
-		_, err = w.Write([]byte(fmt.Sprintf("Unsupported method : %s", r.Method)))
-		if err != nil {
+		if _, err = w.Write([]byte(onboardingToken)); err != nil {
 			klog.Errorf("failed write data to response writer: %v", err)
 		}
-		return
+	}
+}
+
+func handleUnsupportedMethod(w http.ResponseWriter, r *http.Request) {
+	klog.Info("Only POST method should be used to send data to this endpoint /onboarding-tokens")
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	w.Header().Set("Content-Type", ContentTypeTextPlain)
+	w.Header().Set("Allow", "POST")
+
+	if _, err := w.Write([]byte(fmt.Sprintf("Unsupported method : %s", r.Method))); err != nil {
+		klog.Errorf("failed write data to response writer: %v", err)
 	}
 }
 
 func generateOnboardingToken(tokenLifetimeInHours int) (string, error) {
-
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
 
-	payload, err := json.Marshal(types.OnboardingTicket{
+	payload, err := json.Marshal(services.OnboardingTicket{
 		ID:             uuid.New().String(),
 		ExpirationDate: tokenExpirationDate,
 	})
-
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal the payload: %v", err)
 	}
@@ -102,7 +102,6 @@ func generateOnboardingToken(tokenLifetimeInHours int) (string, error) {
 }
 
 func readAndDecodeOnboardingPrivateKey() (*rsa.PrivateKey, error) {
-
 	pemString, err := os.ReadFile(onboardingPrivateKeyFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read onboarding private key: %v", err)
