@@ -552,6 +552,7 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		Name: "ux-backend-server",
 		Spec: getUXBackendServerDeployment(),
 	}
+
 	templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, uxBackendStrategySpec)
 
 	// Add tolerations to deployments
@@ -995,12 +996,17 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 						Args: []string{"-provider=openshift",
 							"-https-address=:8888",
 							"-http-address=", "-email-domain=*",
-							"-upstream=https://localhost:8080/onboarding-tokens",
+							"-upstream=https://ux-backend-proxy.openshift-storage.svc:8080/onboarding-tokens",
 							"-tls-cert=/etc/tls/private/tls.crt",
 							"-tls-key=/etc/tls/private/tls.key",
 							"-cookie-secret-file=/etc/proxy/secrets/session_secret",
 							"-openshift-service-account=ux-backend-server",
-							"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"},
+							"-openshift-delegate-urls={\"/\":{\"resource\":\"StorageConsumer\",\"namespace\":\"openshift-storage\",\"verb\":\"get\"}}",
+							"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+							"-skip-provider-button=true",
+							"-tls-client-ca=/etc/tls/private/tls.crt",
+							"-upstream-ca=/etc/tls/private/tls.crt",
+						},
 						Ports: []corev1.ContainerPort{
 							{
 								ContainerPort: 8888,

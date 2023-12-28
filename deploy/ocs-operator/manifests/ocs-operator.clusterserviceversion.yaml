@@ -2282,6 +2282,20 @@ spec:
         serviceAccountName: ocs-operator
       - rules:
         - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        serviceAccountName: ux-backend-server
+      - rules:
+        - apiGroups:
           - ""
           resources:
           - configmaps
@@ -3291,12 +3305,16 @@ spec:
                 - -https-address=:8888
                 - -http-address=
                 - -email-domain=*
-                - -upstream=https://localhost:8080/onboarding-tokens
+                - -upstream=https://ux-backend-proxy.openshift-storage.svc:8080/onboarding-tokens
                 - -tls-cert=/etc/tls/private/tls.crt
                 - -tls-key=/etc/tls/private/tls.key
                 - -cookie-secret-file=/etc/proxy/secrets/session_secret
                 - -openshift-service-account=ux-backend-server
+                - -openshift-delegate-urls={"/":{"resource":"StorageConsumer","namespace":"openshift-storage","verb":"get"}}
                 - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                - -skip-provider-button=true
+                - -tls-client-ca=/etc/tls/private/tls.crt
+                - -upstream-ca=/etc/tls/private/tls.crt
                 image: quay.io/openshift/origin-oauth-proxy:latest
                 imagePullPolicy: IfNotPresent
                 name: oauth-proxy

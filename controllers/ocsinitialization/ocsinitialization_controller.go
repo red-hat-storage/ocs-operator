@@ -405,6 +405,15 @@ func (r *OCSInitializationReconciler) reconcileUXBackendService(initialData *ocs
 						IntVal: 8888,
 					},
 				},
+				{
+					Name:     "upstream",
+					Port:     8080,
+					Protocol: corev1.ProtocolTCP,
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: 8080,
+					},
+				},
 			},
 			Selector:        map[string]string{"app": "ux-backend-server"},
 			SessionAffinity: "None",
