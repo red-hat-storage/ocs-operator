@@ -3,7 +3,7 @@ package cache
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

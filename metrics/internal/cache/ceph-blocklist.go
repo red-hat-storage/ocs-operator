@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"

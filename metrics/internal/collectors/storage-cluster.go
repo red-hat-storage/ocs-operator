@@ -8,7 +8,7 @@ import (
 	"k8s.io/klog/v2"
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 )
 
 type StorageClusterCollector struct {

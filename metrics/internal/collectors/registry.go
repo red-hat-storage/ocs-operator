@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	internalcache "github.com/red-hat-storage/ocs-operator/v4/metrics/internal/cache"
-	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
+	internalcache "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/cache"
+	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
