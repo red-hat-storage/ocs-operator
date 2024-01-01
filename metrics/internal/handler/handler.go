@@ -15,23 +15,24 @@ const (
 
 // RegisterExporterMuxHandlers registers the handlers needed to serve the
 // exporter self metrics
-func RegisterExporterMuxHandlers(mux *http.ServeMux, exporterRegistry *prometheus.Registry) {
-	metricsHandler := promhttp.HandlerFor(exporterRegistry, promhttp.HandlerOpts{})
+func RegisterExporterMuxHandlers(mux *http.ServeMux, exporterRegistry *prometheus.Registry, opts promhttp.HandlerOpts) {
+	metricsHandler := promhttp.HandlerFor(exporterRegistry, opts)
 	mux.Handle(metricsPath, metricsHandler)
 }
 
 // RegisterRBDMirrorMuxHandlers registers handlers needed to serve RBD mirror metrics
-func RegisterRBDMirrorMuxHandlers(mux *http.ServeMux, rbdRegistry *prometheus.Registry) {
-	metricsHandler := promhttp.HandlerFor(rbdRegistry, promhttp.HandlerOpts{})
+func RegisterRBDMirrorMuxHandlers(mux *http.ServeMux, rbdRegistry *prometheus.Registry, opts promhttp.HandlerOpts) {
+	metricsHandler := promhttp.HandlerFor(rbdRegistry, opts)
+
 	mux.Handle(rbdMetricsPath, metricsHandler)
 }
 
 // RegisterCustomResourceMuxHandlers registers the handlers needed to serve metrics
 // about Custom Resources
-func RegisterCustomResourceMuxHandlers(mux *http.ServeMux, customResourceRegistry *prometheus.Registry, exporterRegistry *prometheus.Registry) {
+func RegisterCustomResourceMuxHandlers(mux *http.ServeMux, customResourceRegistry *prometheus.Registry, exporterRegistry *prometheus.Registry, opts promhttp.HandlerOpts) {
 	// Instrument metricsPath handler and register it inside the exporterRegistry
 	metricsHandler := InstrumentMetricHandler(exporterRegistry,
-		promhttp.HandlerFor(customResourceRegistry, promhttp.HandlerOpts{}),
+		promhttp.HandlerFor(customResourceRegistry, opts),
 	)
 	mux.Handle(metricsPath, metricsHandler)
 
