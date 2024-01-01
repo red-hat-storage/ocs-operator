@@ -8,6 +8,7 @@ import (
 
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/collectors"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/metrics/internal/handler"
@@ -15,6 +16,14 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
+
+var _ promhttp.Logger = promhttplogger{}
+
+type promhttplogger struct{}
+
+func (log promhttplogger) Println(v ...interface{}) {
+	klog.Errorln(v...)
+}
 
 func main() {
 	opts := options.NewOptions()
@@ -26,6 +35,7 @@ func main() {
 		opts.Usage()
 		os.Exit(0)
 	}
+
 	klog.Infof("using options: %+v", opts)
 
 	opts.StopCh = make(chan struct{})
@@ -37,13 +47,21 @@ func main() {
 	}
 	opts.Kubeconfig = kubeconfig
 
+	promHandlerOpts := func(registry *prometheus.Registry) promhttp.HandlerOpts {
+		return promhttp.HandlerOpts{
+			ErrorLog:      promhttplogger{},
+			ErrorHandling: promhttp.ContinueOnError,
+			Registry:      registry,
+		}
+	}
+
 	exporterRegistry := prometheus.NewRegistry()
 	// Add exporter self metrics collectors to the registry.
 	exporter.RegisterExporterCollectors(exporterRegistry)
 
 	// serves exporter self metrics
 	exporterMux := http.NewServeMux()
-	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry)
+	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry, promHandlerOpts(exporterRegistry))
 
 	customResourceRegistry := prometheus.NewRegistry()
 	// Add custom resource collectors to the registry.
@@ -57,14 +75,14 @@ func main() {
 
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
-	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry)
+	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))
 
 	rbdRegistry := prometheus.NewRegistry()
 	// Add rbd mirror metrics collector to registry
 	collectors.RegisterRBDMirrorCollector(rbdRegistry, opts)
 
 	// server rbd mirror metrics
-	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry)
+	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
 
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
