@@ -26,6 +26,7 @@ type Options struct {
 	ExporterPort      int
 	Help              bool
 	AllowedNamespaces []string
+	IsDevelopment     bool
 
 	flags      *pflag.FlagSet
 	StopCh     chan struct{}
@@ -54,6 +55,7 @@ func (o *Options) AddFlags() {
 	o.flags.IntVar(&o.ExporterPort, "exporter-port", exporterMetricsPort, "Port to expose exporter self metrics on.")
 	o.flags.BoolVar(&o.Help, "help", false, "To display Usage information.")
 	o.flags.StringArrayVar(&o.AllowedNamespaces, "namespaces", []string{"openshift-storage"}, "List of namespaces to be monitored.")
+	o.flags.BoolVar(&o.IsDevelopment, "development", false, "If we are running in development mode")
 }
 
 // Parse parses the flags
