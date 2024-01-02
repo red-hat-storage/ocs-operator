@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/go-logr/zapr"
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -13,6 +14,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/handler"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
+	"go.uber.org/zap"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
@@ -36,8 +38,14 @@ func main() {
 		os.Exit(0)
 	}
 
-	klog.Infof("using options: %+v", opts)
+	logr := zap.Must(zap.NewProduction())
+	if opts.IsDevelopment {
+		logr = zap.Must(zap.NewDevelopment())
+	}
+	klog.SetLogger(zapr.NewLogger(logr))
+	defer klog.Flush()
 
+	klog.Infof("using options: %+v", opts)
 	opts.StopCh = make(chan struct{})
 	defer close(opts.StopCh)
 
