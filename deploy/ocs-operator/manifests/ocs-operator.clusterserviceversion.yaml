@@ -1745,6 +1745,7 @@ spec:
           - objectbucket.io
           resources:
           - objectbuckets
+          - objectbucketclaims
           verbs:
           - get
           - list
