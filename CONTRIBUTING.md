@@ -11,12 +11,14 @@ Developers must follow these steps to make a change:
 1. Fork the `red-hat-storage/ocs-operator` repository on GitHub.
 2. Create a branch from the master branch, or from a versioned branch (such
    as `release-4.2`) if you are proposing a backport.
-3. Make changes.
-4. Create tests as needed and ensure that all tests pass.
-5. Ensure your commit messages include sign-off.
-6. Push your changes to a branch in your fork of the repository.
-7. Submit a pull request to the `red-hat-storage/ocs-operator` repository.
-8. Work with the community to make any necessary changes through the code
+3. Create the [Design doc](#design-doc) and get it approved before making any
+   changes to the actual code.
+4. Make changes.
+5. Create tests as needed and ensure that all tests pass.
+6. Ensure your commit messages include sign-off.
+7. Push your changes to a branch in your fork of the repository.
+8. Submit a pull request to the `red-hat-storage/ocs-operator` repository.
+9. Work with the community to make any necessary changes through the code
    review process (effectively repeating steps 3-8 as needed).
 
 ## Developer Environment Installation
@@ -37,7 +39,7 @@ make ocs-operator-ci
 
 ### Commits Per Pull Request
 
-*This requirement cannot be tested by make ocs-operator-ci.*
+*This requirement cannot be tested by `make ocs-operator-ci`.*
 
 OCS-operator is a project which maintains several versioned branches
 independently. When backports are necessary, monolithic commits make it
@@ -51,6 +53,7 @@ when it is possible and reasonable, divide your pull request into more commits.
 
 Some times when it will almost always make sense to separate parts of a change
 into their own commits are:
+- Auto generated changes for example vendor, bundle etc.
 - Changes to unrelated formatting and typo-fixing.
 - Refactoring changes that prepare the codebase for your logical change.
 - Similar changes to multiple parts of the codebase (for instance, similar
@@ -66,12 +69,12 @@ sure each commit passes CI checks as above.
 
 ### Commit and Pull Request Messages
 
-*This requirement cannot be fully tested by make ocs-operator-ci.*
+*This requirement cannot be fully tested by make `ocs-operator-ci`.*
 
 - The message must begin with a single summary line describing the change.
   - It must be capitalized.
   - It must not end with a period.
-  - It must be <= 80 characters in length.
+  - It must be <= 72 characters in length.
   - *Recommendation*: It should be written in the *imperative mood*: "Fix bug x"
     rather than "Fixed bug x" or "Fixes bug x". (The sentence "If applied, this
     commit will \<your summary\>" should be grammatical.)
@@ -89,7 +92,7 @@ sure each commit passes CI checks as above.
 - The message must end with a sign-off, as discussed in [Certificate of
   Origin](#certificate-of-origin).
   - The sign-off must be preceded by a single blank line to separate it from
-    the preceding section. 
+    the preceding section.
   - If the code has multiple authors:
      - Each author must add a sign-off.
      - *Recommendation*: A "Co-authored-by:" line should be added for each
@@ -97,6 +100,13 @@ sure each commit passes CI checks as above.
 
 Pull request messages should follow the same format, but for the entire set of
 changes contained in the pull request.
+
+### Design Doc
+
+Design Docs essentials:
+- Justification for the change.
+- What are the potential approaches?
+- Why we picked one over the others?
 
 ### Coding Style
 
@@ -115,11 +125,14 @@ can be run directly by running:
 
 ```
 make unit-test
-``` 
+```
 
 *It is of special note that many of the mock objects in the [StorageCluster
 tests](./pkg/controller/storagecluster/storagecluster_controller_test.go) are
-reused in many other test cases. Please avoid using the global mock variables directly, instead use the mock variables by creating DeepCopy() to prevent modification of global mock variables. They may be useful in developing your own.*
+reused in many other test cases. Please avoid using the global mock variables
+directly, instead use the mock variables by creating DeepCopy() to prevent
+modification of global mock variables. They may be useful in developing your
+own.*
 
 ### Certificate of Origin
 
