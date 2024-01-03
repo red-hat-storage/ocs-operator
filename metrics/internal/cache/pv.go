@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -8,7 +8,7 @@ import (
 
 	libbucket "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	bktclient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
-	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
