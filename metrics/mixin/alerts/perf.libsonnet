@@ -7,7 +7,7 @@
           {
             alert: 'MDSCacheUsageHigh',
             expr: |||
-              ceph_mds_mem_rss / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container="mds", resource="memory"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") * .5) > .95
+              (ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container="mds", resource="memory"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") * .5) > .95
             ||| % $._config,
             'for': $._config.mdsCacheUsageAlertTime,
             labels: {
