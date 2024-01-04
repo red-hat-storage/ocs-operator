@@ -157,6 +157,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Value: *ocsContainerImage,
 			},
 			{
+				Name:  "ONBOARDING_SECRET_GENERATOR_IMAGE",
+				Value: *ocsContainerImage,
+			},
+			{
 				Name: util.OperatorNamespaceEnvVar,
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{
