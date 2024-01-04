@@ -343,6 +343,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
+	// Update the currentMonCount field in StoragCluster status from the cephCluster CR
+	if !sc.Spec.ExternalStorage.Enable {
+		sc.Status.CurrentMonCount = cephCluster.Spec.Mon.Count
+	}
+
 	// Create the prometheus rules if required by the cephcluster CR
 	if err := createPrometheusRules(r, sc, cephCluster); err != nil {
 		r.Log.Error(err, "Unable to create or update prometheus rules.", "CephCluster", klog.KRef(found.Namespace, found.Name))
