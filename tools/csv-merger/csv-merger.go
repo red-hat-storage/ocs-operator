@@ -163,10 +163,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Value: *ocsContainerImage,
 			},
 			{
-				Name:  "UX_BACKEND_SERVER_IMAGE",
-				Value: *ocsContainerImage,
-			},
-			{
 				Name: util.OperatorNamespaceEnvVar,
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{
@@ -980,6 +976,10 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 								Name:  "UX_BACKEND_PORT",
 								Value: os.Getenv("UX_BACKEND_PORT"),
 							},
+							{
+								Name:  "TLS_ENABLED",
+								Value: os.Getenv("TLS_ENABLED"),
+							},
 						},
 					},
 					{
@@ -999,11 +999,12 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 						Args: []string{"-provider=openshift",
 							"-https-address=:8888",
 							"-http-address=", "-email-domain=*",
-							"-upstream=https://localhost:8080/onboarding-tokens",
+							"-upstream=http://localhost:8080/",
 							"-tls-cert=/etc/tls/private/tls.crt",
 							"-tls-key=/etc/tls/private/tls.key",
 							"-cookie-secret-file=/etc/proxy/secrets/session_secret",
 							"-openshift-service-account=ux-backend-server",
+							`-openshift-delegate-urls={"/":{"resource":"StorageCluster","namespace":"openshift-storage","verb":"create"}}`,
 							"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"},
 						Ports: []corev1.ContainerPort{
 							{
