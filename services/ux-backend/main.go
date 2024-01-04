@@ -18,37 +18,34 @@ type serverConfig struct {
 	tlsEnabled           bool
 }
 
+func readEnvVar[T any](envVarName string, defaultValue T, parser func(str string) (T, error)) (T, error) {
+	if str := os.Getenv(envVarName); str == "" {
+		klog.Infof("no user-defined %s provided, defaulting to %v", envVarName, defaultValue)
+		return defaultValue, nil
+	} else if value, err := parser(str); err != nil {
+		return *new(T), fmt.Errorf("malformed user-defined %s value %s: %v", envVarName, str, err)
+	} else {
+		return value, nil
+	}
+}
+
 func loadAndValidateServerConfig() (*serverConfig, error) {
 	var config serverConfig
-
 	var err error
-	defaultTokenLifetimeInHours := 48
-	tokenLifetimeInHoursAsString := os.Getenv("ONBOARDING_TOKEN_LIFETIME")
-	if tokenLifetimeInHoursAsString == "" {
-		klog.Infof("No user-defined token lifetime provided, defaulting to %d ", defaultTokenLifetimeInHours)
-		config.tokenLifetimeInHours = defaultTokenLifetimeInHours
-	} else if config.tokenLifetimeInHours, err = strconv.Atoi(tokenLifetimeInHoursAsString); err != nil {
-		return nil, fmt.Errorf("malformed user-defined Token lifetime %s, %v", tokenLifetimeInHoursAsString, err)
+
+	config.tokenLifetimeInHours, err = readEnvVar("ONBOARDING_TOKEN_LIFETIME", 48, strconv.Atoi)
+	if err != nil {
+		return nil, err
 	}
 
-	klog.Infof("generated tokens will be valid for %d hours", config.tokenLifetimeInHours)
-
-	defaultListeningPort := 8080
-	listenPortAsString := os.Getenv("UX_BACKEND_PORT")
-	if listenPortAsString == "" {
-		klog.Infof("No user-defined server listening port provided, defaulting to %d ", defaultListeningPort)
-		config.listenPort = defaultListeningPort
-	} else if config.listenPort, err = strconv.Atoi(listenPortAsString); err != nil {
-		return nil, fmt.Errorf("malformed user-defined listening port %s, %v", listenPortAsString, err)
+	config.listenPort, err = readEnvVar("UX_BACKEND_PORT", 8080, strconv.Atoi)
+	if err != nil {
+		return nil, err
 	}
 
-	defaultTLSEnabled := false
-	tlsEnabledAsString := os.Getenv("TLS_ENABLED")
-	if tlsEnabledAsString == "" {
-		klog.Infof("No user-defined TLS enabled value provided, defaulting to %t ", defaultTLSEnabled)
-		config.tlsEnabled = defaultTLSEnabled
-	} else if config.tlsEnabled, err = strconv.ParseBool(tlsEnabledAsString); err != nil {
-		return nil, fmt.Errorf("malformed user-defined TLS Enabled value %s, %v", tlsEnabledAsString, err)
+	config.tlsEnabled, err = readEnvVar("TLS_ENABLED", false, strconv.ParseBool)
+	if err != nil {
+		return nil, err
 	}
 
 	return &config, nil
