@@ -2265,6 +2265,20 @@ spec:
         serviceAccountName: ocs-operator
       - rules:
         - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        serviceAccountName: ux-backend-server
+      - rules:
+        - apiGroups:
           - ""
           resources:
           - configmaps
@@ -3077,8 +3091,6 @@ spec:
                   value: quay.io/ocs-dev/ocs-operator:latest
                 - name: ONBOARDING_SECRET_GENERATOR_IMAGE
                   value: quay.io/ocs-dev/ocs-operator:latest
-                - name: UX_BACKEND_SERVER_IMAGE
-                  value: quay.io/ocs-dev/ocs-operator:latest
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
                     fieldRef:
@@ -3337,6 +3349,7 @@ spec:
                 env:
                 - name: ONBOARDING_TOKEN_LIFETIME
                 - name: UX_BACKEND_PORT
+                - name: TLS_ENABLED
                 image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: IfNotPresent
                 name: ux-backend-server
@@ -3353,11 +3366,12 @@ spec:
                 - -https-address=:8888
                 - -http-address=
                 - -email-domain=*
-                - -upstream=https://localhost:8080/onboarding-tokens
+                - -upstream=http://localhost:8080/
                 - -tls-cert=/etc/tls/private/tls.crt
                 - -tls-key=/etc/tls/private/tls.key
                 - -cookie-secret-file=/etc/proxy/secrets/session_secret
                 - -openshift-service-account=ux-backend-server
+                - -openshift-delegate-urls={"/":{"resource":"StorageCluster","namespace":"openshift-storage","verb":"create"}}
                 - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
                 image: quay.io/openshift/origin-oauth-proxy:latest
                 imagePullPolicy: IfNotPresent
