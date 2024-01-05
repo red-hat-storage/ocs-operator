@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	cs "github.com/red-hat-storage/ocs-operator/v4/services/provider/clientstatus"
+	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,7 +54,9 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 }
 
 // Create creates a new storageConsumer resource, updates the consumer cache and returns the storageConsumer UID
-func (c *ocsConsumerManager) Create(ctx context.Context, name, ticket string) (string, error) {
+func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageClientOnboarding) (string, error) {
+	ticket := onboard.GetOnboardingTicket()
+	name := onboard.GetConsumerName()
 	c.mutex.RLock()
 	if _, ok := c.nameByTicket[ticket]; ok {
 		c.mutex.RUnlock()
@@ -73,6 +75,11 @@ func (c *ocsConsumerManager) Create(ctx context.Context, name, ticket string) (s
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
 			Enable: false,
+		},
+		Status: ocsv1alpha1.StorageConsumerStatus{
+			Client: ocsv1alpha1.ClientStatus{
+				OperatorVersion: onboard.GetClientOperatorVersion(),
+			},
 		},
 	}
 
@@ -199,7 +206,7 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	return consumerObj, nil
 }
 
-func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string, status cs.StorageClientStatus) error {
+func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string, status ifaces.StorageClientStatus) error {
 	consumerObj, err := c.Get(ctx, id)
 	if err != nil {
 		return err
