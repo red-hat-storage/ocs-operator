@@ -24,6 +24,7 @@ import (
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
+	sharedTypes "github.com/red-hat-storage/ocs-operator/v4/services/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -58,11 +59,6 @@ type OCSProviderServer struct {
 	consumerManager            *ocsConsumerManager
 	storageClassRequestManager *storageClassRequestManager
 	namespace                  string
-}
-
-type onboardingTicket struct {
-	ID             string `json:"id"`
-	ExpirationDate int64  `json:"expirationDate,string"`
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
@@ -445,7 +441,7 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 		return fmt.Errorf("failed to decode onboarding ticket: %v", err)
 	}
 
-	var ticketData onboardingTicket
+	var ticketData sharedTypes.OnboardingTicket
 	err = json.Unmarshal(message, &ticketData)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)
