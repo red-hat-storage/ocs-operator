@@ -15,6 +15,7 @@ import (
 type serverConfig struct {
 	listenPort           int
 	tokenLifetimeInHours int
+	tlsEnabled           bool
 }
 
 func loadAndValidateServerConfig() (*serverConfig, error) {
@@ -41,6 +42,15 @@ func loadAndValidateServerConfig() (*serverConfig, error) {
 		return nil, fmt.Errorf("malformed user-defined listening port %s, %v", listenPortAsString, err)
 	}
 
+	defaultTLSEnabled := false
+	tlsEnabledAsString := os.Getenv("TLS_ENABLED")
+	if tlsEnabledAsString == "" {
+		klog.Infof("No user-defined TLS enabled value provided, defaulting to %t ", defaultTLSEnabled)
+		config.tlsEnabled = defaultTLSEnabled
+	} else if config.tlsEnabled, err = strconv.ParseBool(tlsEnabledAsString); err != nil {
+		return nil, fmt.Errorf("malformed user-defined TLS Enabled value %s, %v", tlsEnabledAsString, err)
+	}
+
 	return &config, nil
 }
 
@@ -60,11 +70,18 @@ func main() {
 
 	klog.Info("ux backend server listening on port ", config.listenPort)
 
-	log.Fatal(http.ListenAndServeTLS(
-		fmt.Sprintf("%s%d", ":", config.listenPort),
-		"/etc/tls/private/tls.crt",
-		"/etc/tls/private/tls.key",
-		nil,
-	))
+	addr := fmt.Sprintf("%s%d", ":", config.listenPort)
+	if config.tlsEnabled {
+		klog.Info("Server configured to run with TLS")
+		err = http.ListenAndServeTLS(addr,
+			"/etc/tls/private/tls.crt",
+			"/etc/tls/private/tls.key",
+			nil,
+		)
+	} else {
+		klog.Info("Server configured to run without TLS")
+		err = http.ListenAndServe(addr, nil)
+	}
+	log.Fatal(err)
 
 }
