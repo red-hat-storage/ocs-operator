@@ -30,11 +30,10 @@ func main() {
 		panic(err)
 	}
 	pemBlock, _ := pem.Decode(keyfile)
-	key, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+	pubKey, err := x509.ParsePKCS1PublicKey(pemBlock.Bytes)
 	if err != nil {
 		panic(err)
 	}
-	pubKey := key.(*rsa.PublicKey)
 
 	fmt.Printf("Reading ticket from: %s\n", *ticketfileStr)
 	ticketData, err := os.ReadFile(*ticketfileStr)
