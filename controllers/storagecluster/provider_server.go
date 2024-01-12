@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -454,6 +455,8 @@ func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
 			Namespace: instance.Namespace,
 		},
 		Spec: batchv1.JobSpec{
+			// Eligible to delete automatically when job finishes
+			TTLSecondsAfterFinished: ptr.To(int32(0)),
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
