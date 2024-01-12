@@ -164,14 +164,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
-	onboardingSecretPredicates := builder.WithPredicates(
-		predicate.NewPredicateFuncs(
-			func(client client.Object) bool {
-				return client.GetName() == onboardingTicketPublicKeySecretName
-			},
-		),
-	)
-
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}).
@@ -179,6 +171,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
 		Watches(
 			&extv1.CustomResourceDefinition{
@@ -188,7 +181,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			enqueueStorageClusterRequest,
 		).
-		Watches(&corev1.Secret{}, enqueueStorageClusterRequest, onboardingSecretPredicates).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(ocsClientOperatorVersionPredicate))
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		builder.Owns(&nbv1.NooBaa{})
