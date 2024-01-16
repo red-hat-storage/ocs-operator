@@ -81,6 +81,7 @@ spec:
       annotations:
         description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
         message: OBC has crossed 80% of the quota(object) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaObjectsAlert.md
         severity_level: warning
         storage_type: RGW
       expr: |
@@ -92,6 +93,7 @@ spec:
       annotations:
         description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
         message: OBC reached quota(bytes) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesExhausedAlert.md
         severity_level: error
         storage_type: RGW
       expr: |
@@ -103,6 +105,7 @@ spec:
       annotations:
         description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
         message: OBC reached quota(object) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaObjectsExhausedAlert.md
         severity_level: error
         storage_type: RGW
       expr: |
@@ -116,6 +119,7 @@ spec:
       annotations:
         description: Cluster Object Store is in unhealthy state for more than 15s. Please check Ceph cluster health or RGW connection in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         message: Cluster Object Store is in unhealthy state. Please check Ceph cluster health or RGW connection in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ClusterObjectStoreState.md
         severity_level: error
         storage_type: RGW
       expr: |

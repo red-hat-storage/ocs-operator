@@ -41,6 +41,7 @@ spec:
         message: Storage metrics collector service not available anymore.
         severity_level: critical
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMgrIsAbsent.md
       expr: |
         label_replace((up{job="rook-ceph-mgr"} == 0 or absent(up{job="rook-ceph-mgr"})), "namespace", "openshift-storage", "", "")
       for: 5m
@@ -52,6 +53,7 @@ spec:
         message: Storage metrics collector service doesn't have required no of replicas.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMgrIsMissingReplicas.md
       expr: |
         sum by (namespace) (kube_deployment_spec_replicas{deployment=~"rook-ceph-mgr-.*"}) < 1
       for: 5m
@@ -65,6 +67,7 @@ spec:
         message: Insufficient replicas for storage metadata service.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsMissingReplicas.md
       expr: |
         sum by (namespace) (ceph_mds_metadata{job="rook-ceph-mgr"} == 1) < 2
       for: 5m
@@ -78,6 +81,7 @@ spec:
         message: Storage quorum at risk
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonQuorumAtRisk.md
       expr: |
         count by (namespace) (ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= (floor(count by (namespace) (ceph_mon_metadata{job="rook-ceph-mgr"}) / 2) + 1)
       for: 15m
@@ -87,6 +91,7 @@ spec:
       annotations:
         description: Storage cluster quorum is lost. Contact Support.
         message: Storage quorum is lost
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonQuorumLost.md
         severity_level: critical
         storage_type: ceph
       expr: |
@@ -100,6 +105,7 @@ spec:
         message: Storage Cluster has seen many leader changes recently.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonHighNumberOfLeaderChanges.md
       expr: |
         (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon, namespace) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-exporter"}[5m]) * 60)) > 0.95
       for: 5m
@@ -111,6 +117,7 @@ spec:
       annotations:
         description: Storage node {{ $labels.node }} went down. Please check the node immediately.
         message: Storage node {{ $labels.node }} went down
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephNodeDown.md
         severity_level: error
         storage_type: ceph
       expr: |
@@ -124,6 +131,7 @@ spec:
       annotations:
         description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{ $labels.device_class }} has crossed 80% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{ $labels.device_class }}.
         message: Back-end storage device is critically full.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDCriticallyFull.md
         severity_level: error
         storage_type: ceph
       expr: |
