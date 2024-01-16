@@ -157,6 +157,7 @@ spec:
         message: Back-end storage device is nearing full.
         severity_level: warning
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDNearFull.md
       expr: |
         (ceph_osd_metadata * on (ceph_daemon, namespace) group_right(device_class,hostname) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.75
       for: 40s
@@ -168,6 +169,7 @@ spec:
         message: Disk not responding
         severity_level: error
         storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDDiskNotResponding.md
       expr: |
         label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace) group_left(host, device) label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"host","$1","exported_instance","(.*)")
       for: 15m
