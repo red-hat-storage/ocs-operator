@@ -1,4 +1,5 @@
-kind: Role
+---
+kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitor-mgr
@@ -12,3 +13,37 @@ rules:
   - list
   - create
   - update
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-monitor
+rules:
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-metrics
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+---
