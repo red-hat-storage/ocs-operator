@@ -514,6 +514,9 @@ type StorageClusterStatus struct {
 
 	// KMSServerConnection holds the connection state to the KMS server.
 	KMSServerConnection KMSServerConnectionStatus `json:"kmsServerConnection,omitempty"`
+
+	// CurrentMonCount holds the value of ceph mons configured in ceph cluster.
+	CurrentMonCount int `json:"currentMonCount,omitempty"`
 }
 
 // ImagesStatus maps every component image name it's reconciliation status information

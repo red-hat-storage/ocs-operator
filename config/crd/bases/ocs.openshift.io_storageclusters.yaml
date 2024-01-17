@@ -6340,6 +6340,10 @@ spec:
                   - type
                   type: object
                 type: array
+              currentMonCount:
+                description: CurrentMonCount holds the value of ceph mons configured
+                  in ceph cluster.
+                type: integer
               externalSecretHash:
                 description: ExternalSecretHash holds the checksum value of external
                   secret data.
