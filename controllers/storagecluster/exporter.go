@@ -72,6 +72,11 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 		return err
 	}
 
+	// create/update rook-ceph monitoring rolebindings
+	if err := createRookCephClusterRolebindings(ctx, r, instance); err != nil {
+		return err
+	}
+
 	// create/update the config-map needed for the exporter deployment
 	if err := createMetricsExporterConfigMap(ctx, r, instance); err != nil {
 		r.Log.Error(err, "failed to create configmap for metrics exporter")
@@ -705,6 +710,77 @@ func createMetricsExporterRolebindings(ctx context.Context, r *StorageClusterRec
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func createRookCephClusterRolebindings(ctx context.Context,
+	r *StorageClusterReconciler, _ *ocsv1.StorageCluster) error {
+	// rookCephMonitorMgrRoleBinding is a cluster rolebinding for monitor mgr
+	rookCephMonitorMgrRoleBinding := rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-ceph-monitor-mgr",
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "rook-ceph-monitor-mgr",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "rook-ceph-mgr",
+				Namespace: r.OperatorNamespace,
+			},
+		},
+	}
+
+	// rookCephMonitorRoleBinding is a cluster rolebinding for rook-ceph monitor
+	rookCephMonitorRoleBinding := rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-ceph-monitor",
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "rook-ceph-monitor",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "rook-ceph-system",
+				Namespace: r.OperatorNamespace,
+			},
+		},
+	}
+
+	var roleBindings = []rbacv1.ClusterRoleBinding{
+		rookCephMonitorMgrRoleBinding, rookCephMonitorRoleBinding,
+	}
+
+	for _, expectedClusterRoleBinding := range roleBindings {
+		currentClusterRoleBinding := new(rbacv1.ClusterRoleBinding)
+		expectedClusterRoleBinding.ObjectMeta.DeepCopyInto(&currentClusterRoleBinding.ObjectMeta)
+
+		_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentClusterRoleBinding, func() error {
+			// add expected role reference
+			if currentClusterRoleBinding.CreationTimestamp.IsZero() {
+				// RoleRef is immutable. So inject it only while creating new object.
+				currentClusterRoleBinding.RoleRef = expectedClusterRoleBinding.RoleRef
+			}
+
+			// add expected subjects
+			currentClusterRoleBinding.Subjects = expectedClusterRoleBinding.Subjects
+			return nil
+		})
+		if err != nil {
+			r.Log.Error(err,
+				"error while create/update rook ceph rolebinding",
+				"RoleBindingName", expectedClusterRoleBinding.Name,
+			)
+			return err
+		}
 	}
 
 	return nil
