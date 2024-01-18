@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/imdario/mergo"
@@ -56,7 +55,7 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 	}
 
 	// create/update the cluster wide role-bindings for the above serviceaccount
-	if err := updateMetricsExporterClusterRoleBindings(ctx, r, instance); err != nil {
+	if err := updateMetricsExporterClusterRoleBindings(ctx, r); err != nil {
 		r.Log.Error(err, "unable to update rolebindings for metrics exporter")
 		return err
 	}
@@ -271,19 +270,28 @@ func createMetricsExporterServiceMonitor(ctx context.Context, r *StorageClusterR
 	return serviceMonitor, nil
 }
 
-func getMetricExporterDeployment(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) *appsv1.Deployment {
+func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 	var (
-		falsePtr                      = new(bool) // defaults to 'false'
-		truePtr                       = new(bool)
-		progressDeadlineSeconds int32 = 600
-		replicas                int32 = 1
-		revisionHistoryLimit    int32 = 1
-		maxSurge                      = intstr.Parse("25%")
-		maxUnavailable                = intstr.Parse("25%")
+		falsePtr = new(bool) // defaults to 'false'
+		truePtr  = new(bool)
 	)
 	*truePtr = true
-	dep := &appsv1.Deployment{
+
+	currentDep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentDep, func() error {
+		if currentDep.ObjectMeta.CreationTimestamp.IsZero() {
+			// Selector is immutable. Inject it only while creating new object.
+			currentDep.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: exporterLabels,
+			}
+		}
+
+		currentDep.ObjectMeta = metav1.ObjectMeta{
 			Name:      metricsExporterName,
 			Namespace: instance.Namespace,
 			OwnerReferences: []metav1.OwnerReference{{
@@ -299,31 +307,19 @@ func getMetricExporterDeployment(r *StorageClusterReconciler, instance *ocsv1.St
 				nameLabel:      exporterLabels[nameLabel],
 				versionLabel:   version.Version,
 			},
-		},
-		Spec: appsv1.DeploymentSpec{
-			ProgressDeadlineSeconds: &progressDeadlineSeconds,
-			Replicas:                &replicas,
-			RevisionHistoryLimit:    &revisionHistoryLimit,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: exporterLabels,
-			},
-			Strategy: appsv1.DeploymentStrategy{
-				RollingUpdate: &appsv1.RollingUpdateDeployment{
-					MaxSurge:       &maxSurge,
-					MaxUnavailable: &maxUnavailable,
+		}
+
+		currentDep.Spec.Template = corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					componentLabel: exporterLabels[componentLabel],
+					nameLabel:      exporterLabels[nameLabel],
+					versionLabel:   version.Version,
 				},
-				Type: appsv1.RollingUpdateDeploymentStrategyType,
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						componentLabel: exporterLabels[componentLabel],
-						nameLabel:      exporterLabels[nameLabel],
-						versionLabel:   version.Version,
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
 						Args:    []string{"--namespaces", instance.Namespace},
 						Command: []string{"/usr/local/bin/metrics-exporter"},
 						Image:   r.images.OCSMetricsExporter,
@@ -339,86 +335,38 @@ func getMetricExporterDeployment(r *StorageClusterReconciler, instance *ocsv1.St
 							Name:      "ceph-config",
 							MountPath: "/etc/ceph",
 						}},
-					}},
-					ServiceAccountName: metricsExporterName,
-					Volumes: []corev1.Volume{{
-						Name: "ceph-config",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "ocs-metrics-exporter-ceph-conf",
-								},
+					},
+				},
+				ServiceAccountName: metricsExporterName,
+				Volumes: []corev1.Volume{{
+					Name: "ceph-config",
+					VolumeSource: corev1.VolumeSource{
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "ocs-metrics-exporter-ceph-conf",
 							},
 						},
-					}},
-				},
+					},
+				}},
 			},
-		},
-	}
-	return dep
-}
-
-func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	expectedDep := getMetricExporterDeployment(r, instance)
-	namespacedName := types.NamespacedName{
-		Name:      expectedDep.Name,
-		Namespace: expectedDep.Namespace,
-	}
-	r.Log.Info("Deploying metrics exporter", "NamespacedName", namespacedName)
-
-	currentDep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      expectedDep.Name,
-			Namespace: expectedDep.Namespace,
-		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentDep, func() error {
-		currentDep.ResourceVersion = expectedDep.ResourceVersion
-		var currentImage string
-		var currentOwner metav1.OwnerReference
-		if len(currentDep.Spec.Template.Spec.Containers) > 0 {
-			currentImage = currentDep.Spec.Template.Spec.Containers[0].Image
-			// log if the images are different
-			if currentImage != expectedDep.Spec.Template.Spec.Containers[0].Image {
-				r.Log.Info("Different container image specified in the exporter deployment",
-					"CurrentImage", currentImage,
-					"DefaultImage", expectedDep.Spec.Template.Spec.Containers[0].Image)
-			}
-		} else {
-			currentImage = expectedDep.Spec.Template.Spec.Containers[0].Image
-		}
-		if len(currentDep.OwnerReferences) > 0 {
-			currentDep.OwnerReferences[0].DeepCopyInto(&currentOwner)
-		} else {
-			expectedDep.OwnerReferences[0].DeepCopyInto(&currentOwner)
-		}
-		if currentDep.Labels == nil {
-			currentDep.Labels = make(map[string]string)
-		}
-		for lKey, lValue := range expectedDep.Labels {
-			currentDep.Labels[lKey] = lValue
-		}
-		expectedDep.Spec.DeepCopyInto(&currentDep.Spec)
-		if len(currentDep.OwnerReferences) == 0 {
-			currentDep.OwnerReferences = make([]metav1.OwnerReference, 1)
-		}
-		// set the image and ownerref back to the current deployment
-		currentDep.Spec.Template.Spec.Containers[0].Image = currentImage
-		if currentOwner.APIVersion != "" && currentOwner.Kind != "" && currentOwner.Name != "" &&
-			currentOwner.UID != "" {
-			currentOwner.DeepCopyInto(&currentDep.OwnerReferences[0])
 		}
 		return nil
 	}); err != nil {
-		r.Log.Error(err, "failed to create/update metrics exporter deployment", "NamespacedName", namespacedName)
 		return err
 	}
+
 	return nil
 }
 
 func createMetricsExporterServiceAccount(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	expectedServiceAccount := corev1.ServiceAccount{
+	currentServiceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentServiceAccount, func() error {
+		currentServiceAccount.ObjectMeta = metav1.ObjectMeta{
 			Name:      metricsExporterName,
 			Namespace: instance.Namespace,
 			Labels: map[string]string{
@@ -432,79 +380,71 @@ func createMetricsExporterServiceAccount(ctx context.Context, r *StorageClusterR
 				Name:       instance.Name,
 				UID:        instance.UID,
 			}},
-		},
-	}
-	currentServiceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      expectedServiceAccount.Name,
-			Namespace: expectedServiceAccount.Namespace,
-		},
-	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentServiceAccount, func() error {
-		if len(currentServiceAccount.OwnerReferences) == 0 {
-			currentServiceAccount.OwnerReferences = make([]metav1.OwnerReference, 1)
-		}
-		currentOwner := &currentServiceAccount.OwnerReferences[0]
-		// if any of the ownerref criteria is not satisfied,
-		// set to the expected SA owenerref
-		if currentOwner.APIVersion == "" || currentOwner.Kind == "" ||
-			currentOwner.Name == "" || currentOwner.UID == "" {
-			currentServiceAccount.OwnerReferences[0] = expectedServiceAccount.OwnerReferences[0]
 		}
 		return nil
 	})
 	return err
 }
 
-// updateMetricsExporterClusterRoleBindings function updates the
-// cluster level rolebindings for the metrics exporter in this namespace
-func updateMetricsExporterClusterRoleBindings(ctx context.Context,
-	r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	currentCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{
-		Name: metricsExporterName,
-	}}
+// updateMetricsExporterClusterRoleBindings function updates the cluster level rolebindings for the metrics exporter in this namespace
+func updateMetricsExporterClusterRoleBindings(ctx context.Context, r *StorageClusterReconciler) error {
+	currentCRB := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: metricsExporterName,
+		},
+	}
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentCRB, func() error {
-		currentCRB.RoleRef.Name = metricsExporterName
-		currentCRB.RoleRef.Kind = "ClusterRole"
-		currentCRB.RoleRef.APIGroup = "rbac.authorization.k8s.io"
-		subjectNotFound := true
-		expectedSubject := rbacv1.Subject{
-			Kind:      "ServiceAccount",
-			Name:      metricsExporterName,
-			Namespace: instance.Namespace,
-		}
-		for _, subject := range currentCRB.Subjects {
-			if subject.Kind == expectedSubject.Kind &&
-				subject.Name == expectedSubject.Name &&
-				subject.Namespace == expectedSubject.Namespace {
-				subjectNotFound = false
-				break
+		if currentCRB.CreationTimestamp.IsZero() {
+			currentCRB.RoleRef = rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     metricsExporterName,
 			}
 		}
-		if subjectNotFound {
-			currentCRB.Subjects = append(currentCRB.Subjects, expectedSubject)
+
+		currentCRB.ObjectMeta = metav1.ObjectMeta{
+			Name: metricsExporterName,
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
 		}
+
+		currentCRB.Subjects = []rbacv1.Subject{}
+		for _, ns := range r.clusters.GetNamespaces() {
+			subject := rbacv1.Subject{
+				Kind:      "ServiceAccount",
+				Name:      metricsExporterName,
+				Namespace: ns,
+			}
+			currentCRB.Subjects = append(currentCRB.Subjects, subject)
+		}
+
 		return nil
 	})
+
 	return err
 }
 
-func createMetricsExporterConfigMap(ctx context.Context,
-	r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	configMapName := "ocs-metrics-exporter-ceph-conf"
+func createMetricsExporterConfigMap(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 	currentConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapName,
+			Name:      "ocs-metrics-exporter-ceph-conf",
 			Namespace: instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion: instance.APIVersion,
-				Kind:       instance.Kind,
-				Name:       instance.Name,
-				UID:        instance.UID,
-			}},
 		},
 	}
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentConfigMap, func() error {
+		currentConfigMap.ObjectMeta = metav1.ObjectMeta{
+			Name:      "ocs-metrics-exporter-ceph-conf",
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
+		}
+
 		currentConfigMap.Data = map[string]string{
 			"ceph.conf": `
 [global]
@@ -515,254 +455,256 @@ auth_client_required = cephx
 			// keyring is a required key and its value should be empty
 			"keyring": "",
 		}
+
 		return nil
 	})
+
 	return err
 }
-
-const metricsExporterClusterRoleJSON = `
-{
-	"apiVersion":"rbac.authorization.k8s.io/v1",
-	"kind":"ClusterRole",
-	"metadata":{"name":"ocs-metrics-exporter"},
-	"rules":[
-		{
-			"apiGroups":[""],
-			"resources":["persistentvolumes","nodes"],
-			"verbs":["get","list","watch"]
-		},
-		{
-			"apiGroups":["quota.openshift.io"],
-			"resources":["clusterresourcequotas"],
-			"verbs":["get","list","watch"]
-		},
-		{
-			"apiGroups":["storage.k8s.io"],
-			"resources":["storageclasses"],
-			"verbs":["get","list","watch"]
-		},
-		{
-			"apiGroups":["objectbucket.io"],
-			"resources":["objectbuckets"],
-			"verbs":["get","list"]
-		}
-	]
-}`
 
 func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterReconciler) error {
-	currentClusterRole := new(rbacv1.ClusterRole)
-	var expectedClusterRole = new(rbacv1.ClusterRole)
-	err := json.Unmarshal([]byte(metricsExporterClusterRoleJSON), expectedClusterRole)
-	if err != nil {
-		r.Log.Error(err, "an unexpected error occurred while unmarshalling clusterrole yaml")
-		return err
+	currentClusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: metricsExporterName,
+		},
 	}
-	expectedClusterRole.Name, currentClusterRole.Name = metricsExporterName, metricsExporterName
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentClusterRole, func() error {
-		expectedRulesLen := len(expectedClusterRole.Rules)
-		if len(currentClusterRole.Rules) != expectedRulesLen {
-			currentClusterRole.Rules = make([]rbacv1.PolicyRule, expectedRulesLen)
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentClusterRole, func() error {
+		currentClusterRole.ObjectMeta = metav1.ObjectMeta{
+			Name: metricsExporterName,
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
 		}
-		copy(currentClusterRole.Rules, expectedClusterRole.Rules)
+
+		currentClusterRole.Rules = []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"persistentvolumes", "persistentvolumeclaims", "pods", "nodes"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"quota.openshift.io"},
+				Resources: []string{"clusterresourcequotas"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"storage.k8s.io"},
+				Resources: []string{"storageclasses"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"objectbucket.io"},
+				Resources: []string{"objectbuckets"},
+				Verbs:     []string{"get", "list"},
+			},
+		}
+
 		return nil
 	})
+
 	return err
 }
 
-const expectedPrometheusK8RoleJSON = `
-{
-	"apiVersion":"rbac.authorization.k8s.io/v1",
-	"kind":"Role",
-	"metadata":{"name":"ocs-metrics-svc"},
-	"rules":[
-		{
-			"apiGroups":[""],
-			"resources":["services","endpoints","pods"],
-			"verbs":["get","list","watch"]
-		}
-	]
-}
-`
+func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
 
-const expectedMetricExporterRoleJSON = `
-{
-	"apiVersion":"rbac.authorization.k8s.io/v1",
-	"kind":"Role",
-	"metadata":{"name":"ocs-metrics-exporter"},
-	"rules":[
-		{
-			"apiGroups":[""],
-			"resources":["secrets","configmaps","persistentvolumeclaims","pods"],
-			"verbs":["get","list","watch"]
-		},
-		{
-			"apiGroups":["monitoring.coreos.com"],
-			"resources":["prometheusrules","servicemonitors"],
-			"verbs":["get","list","watch","create","update","delete"]
-		},
-		{
-			"apiGroups":["ceph.rook.io"],
-			"resources":["cephobjectstores","cephclusters","cephblockpools","cephrbdmirrors"],
-			"verbs":["get","list","watch"]
-		},
-		{
-			"apiGroups":["objectbucket.io"],
-			"resources":["objectbucketclaims"],
-			"verbs":["get","list"]
-		},
-		{
-			"apiGroups":["ocs.openshift.io"],
-			"resources":["storageconsumers","storageclusters"],
-			"verbs":["get","list","watch"]
-		}
-	]
-}
-`
-
-func createMetricsExporterRoles(ctx context.Context,
-	r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	var jsonRoles = map[string]string{
-		prometheusRoleName:      expectedPrometheusK8RoleJSON,
-		metricsExporterRoleName: expectedMetricExporterRoleJSON,
-	}
-
-	for roleName, jsonRole := range jsonRoles {
-		// create expected roles
-		var expectedRole = new(rbacv1.Role)
-		err := json.Unmarshal([]byte(jsonRole), expectedRole)
-		if err != nil {
-			r.Log.Error(err,
-				"an unexpected error occurred while unmarshalling following JSON role",
-				"JSONRoleName", roleName,
-				"JSONRole", jsonRole)
-			return err
-		}
-		currentRole := new(rbacv1.Role)
-		expectedRole.Name, currentRole.Name = roleName, roleName
-		expectedRole.Namespace, currentRole.Namespace = instance.Namespace, instance.Namespace
-		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRole, func() error {
-			expectedRulesLen := len(expectedRole.Rules)
-			if len(currentRole.Rules) != expectedRulesLen {
-				currentRole.Rules = make([]rbacv1.PolicyRule, expectedRulesLen)
-			}
-			copy(currentRole.Rules, expectedRole.Rules)
-			currentRole.OwnerReferences = []metav1.OwnerReference{{
-				APIVersion: instance.APIVersion,
-				Kind:       instance.Kind,
-				Name:       instance.Name,
-				UID:        instance.UID,
-			}}
-			return nil
-		})
-		if err != nil {
-			r.Log.Error(err, "failed to create/update exporter role", "RoleName", roleName)
-			return err
-		}
-	}
-	return nil
-}
-
-const expectedPrometheusK8RoleBindingJSON = `
-{
-	"apiVersion":"rbac.authorization.k8s.io/v1",
-	"kind":"RoleBinding",
-	"metadata":{"name":"ocs-metrics-svc"},
-	"roleRef":{
-		"apiGroup":"rbac.authorization.k8s.io",
-		"kind":"Role",
-		"name":"ocs-metrics-svc"
-	}
-}`
-
-// expectedMetricsExporterRoleBindingJSON rolebindings for metrics exporter
-// it doesn't contain 'subject' part, which is added in the create code below
-const expectedMetricsExporterRoleBindingJSON = `
-{
-	"apiVersion":"rbac.authorization.k8s.io/v1",
-	"kind":"RoleBinding",
-	"metadata":{"name":"ocs-metrics-exporter"},
-	"roleRef":{
-		"apiGroup":"rbac.authorization.k8s.io",
-		"kind":"Role",
-		"name":"ocs-metrics-exporter"
-	}
-}`
-
-func createMetricsExporterRolebindings(ctx context.Context,
-	r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	var roleBindings = []string{
-		expectedPrometheusK8RoleBindingJSON, expectedMetricsExporterRoleBindingJSON,
-	}
-	var roleBindingNames = []string{
-		// rolebindings have the same names as the roles
-		prometheusRoleName, metricsExporterRoleName,
-	}
-	var roleBindingSubjects = []rbacv1.Subject{
-		// subject for prometheus-k8 rolebinding
-		{
-			Kind:      "ServiceAccount",
-			Name:      "prometheus-k8s",
-			Namespace: "openshift-monitoring",
-		},
-		// subject for metrics exporter rolebinding
-		{
-			Kind:      "ServiceAccount",
-			Name:      metricsExporterName,
+	currentPrometheusK8sRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      prometheusRoleName,
 			Namespace: instance.Namespace,
 		},
 	}
-
-	for rbIndx, roleBinding := range roleBindings {
-		var roleBindingName = roleBindingNames[rbIndx]
-		var roleBindingSubject = roleBindingSubjects[rbIndx]
-
-		var expectedRoleBinding = new(rbacv1.RoleBinding)
-		err := json.Unmarshal([]byte(roleBinding), expectedRoleBinding)
-		if err != nil {
-			r.Log.Error(err,
-				"an unexpected error occurred while unmarshalling rolebinding",
-				"RoleBindingName", roleBindingName,
-				"RoleBindingJSON", roleBinding)
-			return err
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentPrometheusK8sRole, func() error {
+		currentPrometheusK8sRole.ObjectMeta = metav1.ObjectMeta{
+			Name:      prometheusRoleName,
+			Namespace: instance.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: instance.APIVersion,
+					Kind:       instance.Kind,
+					Name:       instance.Name,
+					UID:        instance.UID,
+				},
+			},
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
 		}
-		currentRoleBinding := new(rbacv1.RoleBinding)
-		// name
-		expectedRoleBinding.Name = roleBindingName
-		currentRoleBinding.Name = roleBindingName
-		// namespace
-		expectedRoleBinding.Namespace = instance.Namespace
-		currentRoleBinding.Namespace = instance.Namespace
-		// expected role reference name
-		// PS: we use the same name for both roles and rolebindings
-		expectedRoleBinding.RoleRef.Name = roleBindingName
-		// expected subjects
-		expectedRoleBinding.Subjects = []rbacv1.Subject{roleBindingSubject}
 
-		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentRoleBinding, func() error {
-			// add expected role reference
-			currentRoleBinding.RoleRef = expectedRoleBinding.RoleRef
+		currentPrometheusK8sRole.Rules = []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"services", "endpoints", "pods"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+		}
 
-			// add expected subjects
-			expectedSubjectsLen := len(expectedRoleBinding.Subjects)
-			currentRoleBinding.Subjects = make([]rbacv1.Subject, expectedSubjectsLen)
-			copy(currentRoleBinding.Subjects, expectedRoleBinding.Subjects)
+		return nil
+	})
 
-			// add owner references
-			currentRoleBinding.OwnerReferences = []metav1.OwnerReference{{
+	if err != nil {
+		return err
+	}
+
+	currentMetricExporterRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterRoleName,
+			Namespace: instance.Namespace,
+		},
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentMetricExporterRole, func() error {
+		currentMetricExporterRole.ObjectMeta = metav1.ObjectMeta{
+			Name:      metricsExporterRoleName,
+			Namespace: instance.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: instance.APIVersion,
+					Kind:       instance.Kind,
+					Name:       instance.Name,
+					UID:        instance.UID,
+				},
+			},
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
+		}
+
+		currentMetricExporterRole.Rules = []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"secrets", "configmaps"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"monitoring.coreos.com"},
+				Resources: []string{"prometheusrules", "servicemonitors"},
+				Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+			},
+			{
+				APIGroups: []string{"ceph.rook.io"},
+				Resources: []string{"cephobjectstores", "cephclusters", "cephblockpools", "cephrbdmirrors"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"objectbucket.io"},
+				Resources: []string{"objectbucketclaims"},
+				Verbs:     []string{"get", "list"},
+			},
+			{
+				APIGroups: []string{"ocs.openshift.io"},
+				Resources: []string{"storageconsumers", "storageclusters"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createMetricsExporterRolebindings(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	currentPrometheusK8RoleBinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      prometheusRoleName,
+			Namespace: instance.Namespace,
+		},
+	}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentPrometheusK8RoleBinding, func() error {
+		if currentPrometheusK8RoleBinding.CreationTimestamp.IsZero() {
+			// RoleRef is immutable. So inject it only while creating new object.
+			currentPrometheusK8RoleBinding.RoleRef = rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "Role",
+				Name:     prometheusRoleName,
+			}
+		}
+
+		currentPrometheusK8RoleBinding.ObjectMeta = metav1.ObjectMeta{
+			Name:      prometheusRoleName,
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
+			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: instance.APIVersion,
 				Kind:       instance.Kind,
 				Name:       instance.Name,
 				UID:        instance.UID,
-			}}
-
-			return nil
-		})
-		if err != nil {
-			r.Log.Error(err,
-				"error while create/update metrics exporter rolebinding",
-				"RoleBindingName", roleBindingName)
-			return err
+			}},
 		}
+
+		currentPrometheusK8RoleBinding.Subjects = []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "prometheus-k8s",
+				Namespace: "openshift-monitoring",
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	currentMetricsExporterRoleBinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterRoleName,
+			Namespace: instance.Namespace,
+		},
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentMetricsExporterRoleBinding, func() error {
+		if currentMetricsExporterRoleBinding.CreationTimestamp.IsZero() {
+			// RoleRef is immutable. So inject it only while creating new object.
+			currentMetricsExporterRoleBinding.RoleRef = rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "Role",
+				Name:     metricsExporterRoleName,
+			}
+		}
+
+		currentMetricsExporterRoleBinding.ObjectMeta = metav1.ObjectMeta{
+			Name:      metricsExporterRoleName,
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: instance.APIVersion,
+				Kind:       instance.Kind,
+				Name:       instance.Name,
+				UID:        instance.UID,
+			}},
+		}
+
+		currentMetricsExporterRoleBinding.Subjects = []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      metricsExporterName,
+				Namespace: instance.Namespace,
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
 	return nil
