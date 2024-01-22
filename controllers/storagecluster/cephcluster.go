@@ -296,6 +296,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			statusutil.MapCephClusterNegativeConditions(&r.conditions, found)
 		}
 	}
+	
 
 	// When phase is expanding, wait for CephCluster state to be updating
 	// this means expansion is in progress and overall system is progressing
