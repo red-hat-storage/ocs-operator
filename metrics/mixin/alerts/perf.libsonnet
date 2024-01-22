@@ -22,7 +22,7 @@
           {
             alert: 'OSDCPULoadHigh',
             expr: |||
-              pod:container_cpu_usage:sum{%(osdSelector)s} > 0.35 
+              pod:container_cpu_usage:sum{%(osdSelector)s} / on(pod) kube_pod_resource_limit{resource='cpu',%(osdSelector)s} > 0.80
             ||| % $._config,
             'for': $._config.osdCPULoadHighAlertTime,
             labels: {
@@ -30,7 +30,7 @@
             },
             annotations: {
               message: 'High CPU usage detected in OSD container on pod {{ $labels.pod}}.',
-              description: 'High CPU usage in the OSD container on pod {{ $labels.pod }}. Please create more OSDs to increase performance',
+              description: 'CPU usage for osd on pod {{ $labels.pod }} has exceeded 80%. Consider creating more OSDs to increase performance',
               severity_level: 'warning',
             },
           },

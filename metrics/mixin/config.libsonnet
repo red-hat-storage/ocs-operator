@@ -15,7 +15,7 @@
     blockedRBDClientAlertTime: '10s',
     ocsStorageClusterKMSConnectionAlert: '5s',
     mdsCacheUsageAlertTime: '5m',
-    osdCPULoadHighAlertTime: '15m',
+    osdCPULoadHighAlertTime: '30m',
     mdsSelector: 'pod=~"rook-ceph-mds.*"',
     mds_cpu_usage_high_threshold_duration: '6h',
 
