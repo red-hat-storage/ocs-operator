@@ -171,6 +171,10 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 		return fmt.Errorf("failed to get node name for pod: %v", err)
 	}
 
+	if nodeName == "" {
+		return nil
+	}
+
 	for _, client := range clients.Watchers {
 		p.RBDClientMap[client.Address] = appendIfNotExists(p.RBDClientMap[client.Address], nodeName)
 	}
@@ -179,8 +183,8 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 }
 
 func getNodeNameForPV(pv *corev1.PersistentVolume, kubeClient clientset.Interface) (string, error) {
-	if pv.Spec.ClaimRef == nil {
-		return "", fmt.Errorf("persistent volume %s is not bound to any claim", pv.Name)
+	if pv.Status.Phase != corev1.VolumeBound {
+		return "", nil
 	}
 
 	pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(pv.Spec.ClaimRef.Namespace).Get(context.Background(), pv.Spec.ClaimRef.Name, metav1.GetOptions{})
@@ -207,7 +211,7 @@ func getNodeNameForPV(pv *corev1.PersistentVolume, kubeClient clientset.Interfac
 		}
 	}
 
-	return "", fmt.Errorf("no pod is using PVC %s/%s", pvc.Namespace, pvc.Name)
+	return "", nil
 }
 
 // Update updates the existing entry in the PersistentVolumeStore.
