@@ -1709,7 +1709,9 @@ spec:
       kind: StorageConsumer
       name: storageconsumers.ocs.openshift.io
       version: v1alpha1
-    - kind: StorageProfile
+    - description: StorageProfile is the Schema for the storageprofiles API
+      displayName: Storage Profile
+      kind: StorageProfile
       name: storageprofiles.ocs.openshift.io
       version: v1
     - description: Represents a Ceph cluster.
