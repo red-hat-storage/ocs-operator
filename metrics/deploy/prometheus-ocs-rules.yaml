@@ -306,6 +306,7 @@ spec:
           Please consider increasing the number of active metadata servers,
           it can be done by increasing the number of activeMetadataServers parameter in the StorageCluster CR.
         message: Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHigh.md
         severity_level: warning
       expr: |
         pod:container_cpu_usage:sum{pod=~"rook-ceph-mds.*"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-mds.*"} > 0.67
