@@ -19,6 +19,9 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// this is a dummy PR, where only this comment is added
+// this PR is pushed to see whether CI tests are passing or not
+// in main
 var _ promhttp.Logger = promhttplogger{}
 
 type promhttplogger struct{}
