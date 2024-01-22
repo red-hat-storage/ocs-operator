@@ -47,6 +47,7 @@
             annotations: {
               message: 'Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage',
               description: 'Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage.\nPlease consider increasing the number of active metadata servers,\nit can be done by increasing the number of activeMetadataServers parameter in the StorageCluster CR.',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHigh.md',
               severity_level: 'warning',
             },
           },
