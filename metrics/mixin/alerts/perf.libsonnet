@@ -17,6 +17,7 @@
               message: 'High MDS cache usage for the daemon {{ $labels.ceph_daemon }}.',
               description: 'MDS cache usage for the daemon {{ $labels.ceph_daemon }} has exceeded above 95% of the requested value. Increase the memory request for {{ $labels.ceph_daemon }} pod.',
               severity_level: 'error',
+              runbook_url: 'https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCacheUsageHigh.md',
             }
           },
           {
