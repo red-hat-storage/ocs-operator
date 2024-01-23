@@ -895,24 +895,24 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 		for _, failureDomainValue := range sc.Status.FailureDomainValues {
 			ds := rookCephv1.StorageClassDeviceSet{}
 			ds.Name = failureDomainValue
-			ds.Count = 1
-			ds.Resources = defaults.GetProfileDaemonResources("osd", sc)
+			ds.Count = sc.Spec.ManagedResources.CephNonResilientPools.Count
+			ds.Resources = sc.Spec.ManagedResources.CephNonResilientPools.Resources
+			if ds.Resources.Requests == nil && ds.Resources.Limits == nil {
+				ds.Resources = defaults.GetProfileDaemonResources("osd", sc)
+			}
 			// passing on existing defaults from existing devcicesets
 			ds.TuneSlowDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneSlowDeviceClass
 			ds.TuneFastDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneFastDeviceClass
 			annotations := map[string]string{
 				"crushDeviceClass": failureDomainValue,
 			}
-			// using the spec for volumeclaimtemplate from existing devicesets including the storageclass
-			volumeClaimTemplateSpec := storageClassDeviceSets[0].VolumeClaimTemplates[0].Spec
-			ds.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: annotations,
-					},
-					Spec: volumeClaimTemplateSpec,
-				},
+			if !reflect.DeepEqual(sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate, corev1.PersistentVolumeClaim{}) {
+				ds.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate}
+			} else {
+				// If not defined use the spec for volumeclaimtemplate from existing devicesets
+				ds.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{sc.Spec.StorageDeviceSets[0].DataPVCTemplate}
 			}
+			ds.VolumeClaimTemplates[0].Annotations = annotations
 			ds.Portable = sc.Status.FailureDomain != "host"
 			placement := rookCephv1.Placement{}
 			// Portable OSDs must have an node affinity to their zone
