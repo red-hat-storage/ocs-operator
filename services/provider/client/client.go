@@ -207,3 +207,20 @@ func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID stri
 
 	return cc.Client.ReportStatus(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) PeerBlockPool(ctx context.Context, secretName string, pool, token []byte) (*pb.PeerBlockPoolResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.PeerBlockPoolRequest{
+		SecretName: secretName,
+		Pool:       pool,
+		Token:      token,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.PeerBlockPool(apiCtx, req)
+}
