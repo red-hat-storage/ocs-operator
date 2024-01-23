@@ -1,6 +1,8 @@
 package collectors
 
 import (
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/red-hat-storage/ocs-operator/v4/metrics/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -107,11 +109,18 @@ func getAllBlockPools(lister cephv1listers.CephBlockPoolLister, namespaces []str
 func (c *CephBlockPoolCollector) collectMirroringImageHealth(cephBlockPools []*cephv1.CephBlockPool, ch chan<- prometheus.Metric) {
 	for _, cephBlockPool := range cephBlockPools {
 		var imageHealth string
-		mirroringStatus := cephBlockPool.Status.MirroringStatus
-		if mirroringStatus != nil {
-			imageHealth = mirroringStatus.Summary.ImageHealth
+
+		if !cephBlockPool.Spec.Mirroring.Enabled {
+			continue
 		}
-		switch imageHealth {
+
+		mirroringStatus := cephBlockPool.Status.MirroringStatus
+		if mirroringStatus == nil || mirroringStatus.Summary == nil || len(strings.TrimSpace(mirroringStatus.Summary.ImageHealth)) == 0 {
+			klog.Errorf("Mirroring is enabled on CephBlockPool %q but image health status is not available.", cephBlockPool.Name)
+			continue
+		}
+
+		switch mirroringStatus.Summary.ImageHealth {
 		case "OK":
 			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
 				prometheus.GaugeValue, 0,
