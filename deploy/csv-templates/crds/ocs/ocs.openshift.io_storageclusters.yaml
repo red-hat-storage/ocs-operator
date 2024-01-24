@@ -1244,6 +1244,8 @@ spec:
                     properties:
                       daemonCount:
                         default: 1
+                        maximum: 1
+                        minimum: 0
                         type: integer
                       reconcileStrategy:
                         type: string
