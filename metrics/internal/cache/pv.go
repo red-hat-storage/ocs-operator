@@ -114,8 +114,20 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 		return fmt.Errorf("unexpected object of type %T", obj)
 	}
 
-	klog.Infof("PV store addition started at %v for PV %v", time.Now(), pv.Name)
+	p.Mutex.Lock()
+	defer p.Mutex.Unlock()
 
+	klog.Infof("PV store addition started at %v for PV %v", time.Now(), pv.Name)
+	if err := p.add(pv); err != nil {
+		return err
+	}
+	klog.Infof("PV store addition completed at %v", time.Now())
+
+	return nil
+}
+
+// add is not thread-safe. So, it must to be called from a thread safe function only.
+func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 	provisioner := pv.Annotations["pv.kubernetes.io/provisioned-by"]
 	if !strings.Contains(provisioner, ".rbd.csi.ceph.com") {
 		klog.Infof("Skipping non Ceph CSI RBD volume %s", pv.Name)
@@ -134,9 +146,6 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 			return fmt.Errorf("failed to initialize ceph: %v", err)
 		}
 	}
-
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
 
 	p.Store[pv.GetUID()] = PersistentVolumeAttributes{
 		PersistentVolumeName:           pv.Name,
@@ -159,8 +168,6 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 	for _, client := range clients.Watchers {
 		p.RBDClientMap[client.Address] = appendIfNotExists(p.RBDClientMap[client.Address], nodeName)
 	}
-
-	klog.Infof("PV store addition completed at %v", time.Now())
 
 	return nil
 }
@@ -258,17 +265,16 @@ func (p *PersistentVolumeStore) Replace(list []interface{}, _ string) error {
 func (p *PersistentVolumeStore) Resync() error {
 	klog.Infof("PV store Resync started at %v", time.Now())
 
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
-
 	pvList, err := p.kubeClient.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list persistent volumes: %v", err)
 	}
 
+	p.Mutex.Lock()
+	defer p.Mutex.Unlock()
+
 	for _, pv := range pvList.Items {
-		klog.Info("now processing: ", pv.Name)
-		err := p.Add(pv)
+		err := p.add(&pv)
 		if err != nil {
 			return fmt.Errorf("failed to process PV: %s err: %v", pv.Name, err)
 		}
