@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	configv1 "github.com/openshift/api/config/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ini "gopkg.in/ini.v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
@@ -20,14 +22,14 @@ import (
 type ocsCephConfig struct{}
 
 const (
-	rookConfigMapName          = "rook-config-override"
+	rookOverrideConfigMapName  = "rook-config-override"
 	globalSectionKey           = "global"
 	publicNetworkKey           = "public_network"
 	warningOnPoolRedundancyKey = "mon_warn_on_pool_no_redundancy"
 )
 
 var (
-	defaultRookConfigData = `
+	defaultRookConfig = `
 [global]
 bdev_flock_retry = 20
 mon_osd_full_ratio = .85
@@ -46,58 +48,33 @@ osd_memory_target_cgroup_limit_ratio = 0.8
 // the desired state.
 func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	reconcileStrategy := ReconcileStrategy(sc.Spec.ManagedResources.CephConfig.ReconcileStrategy)
-	if reconcileStrategy == ReconcileStrategyIgnore {
+	if reconcileStrategy == ReconcileStrategyIgnore || reconcileStrategy == ReconcileStrategyInit {
 		return reconcile.Result{}, nil
 	}
-	found := &corev1.ConfigMap{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: sc.Namespace}, found)
-	if err == nil && reconcileStrategy == ReconcileStrategyInit {
-		return reconcile.Result{}, nil
-	} else if err != nil && !errors.IsNotFound(err) {
-		return reconcile.Result{}, err
-	}
-
-	ownerRef := metav1.OwnerReference{
-		UID:        sc.UID,
-		APIVersion: sc.APIVersion,
-		Kind:       sc.Kind,
-		Name:       sc.Name,
-	}
-	rookConfigData, configErr := getRookCephConfig(r, sc)
+	rookConfig, configErr := getRookCephConfig(r, sc)
 	if configErr != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to get rook ceph config data: %w", err)
+		return reconcile.Result{}, fmt.Errorf("failed to get rook ceph config data: %w", configErr)
 	}
-	cm := &corev1.ConfigMap{
+	rookConfigOverrideData := map[string]string{
+		"config": rookConfig,
+	}
+	rookConfigOverrideCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            rookConfigMapName,
-			Namespace:       sc.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Name:      rookOverrideConfigMapName,
+			Namespace: sc.Namespace,
 		},
-		Data: map[string]string{
-			"config": rookConfigData,
-		},
+		Data: rookConfigOverrideData,
 	}
-
+	_, err := ctrl.CreateOrUpdate(context.Background(), r.Client, rookConfigOverrideCM, func() error {
+		if !reflect.DeepEqual(rookConfigOverrideCM.Data, rookConfigOverrideData) {
+			r.Log.Info("updating rook config override configmap", "ConfigMap", klog.KRef(sc.Namespace, rookOverrideConfigMapName))
+			rookConfigOverrideCM.Data = rookConfigOverrideData
+		}
+		return ctrl.SetControllerReference(sc, rookConfigOverrideCM, r.Scheme)
+	})
 	if err != nil {
-		r.Log.Info("Creating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
-		err = r.Client.Create(context.TODO(), cm)
-		if err != nil {
-			r.Log.Error(err, "Failed to create Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, rookConfigMapName))
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, err
-	}
-
-	ownerRefFound := false
-	for _, ownerRef := range found.OwnerReferences {
-		if ownerRef.UID == sc.UID {
-			ownerRefFound = true
-		}
-	}
-	val, ok := found.Data["config"]
-	if !ok || val != defaultRookConfigData || !ownerRefFound {
-		r.Log.Info("Updating Ceph ConfigMap.", "ConfigMap", klog.KRef(sc.Namespace, cm.Name))
-		return reconcile.Result{}, r.Client.Update(context.TODO(), cm)
+		r.Log.Error(err, "failed to create or update rook config override", "ConfigMap", klog.KRef(sc.Namespace, rookOverrideConfigMapName))
+		return reconcile.Result{}, fmt.Errorf("failed to create or update rook config override: %w", err)
 	}
 	return reconcile.Result{}, nil
 }
@@ -130,11 +107,11 @@ func updateRookConfig(defaultRookConfigData string, section string, key string, 
 }
 
 func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (string, error) {
-	rookConfigData := defaultRookConfigData
+	rookConfig := defaultRookConfig
 	// if Non-Resilient pools are there then suppress the warning for pool no redundancy
 	if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
 		var err error
-		rookConfigData, err = updateRookConfig(rookConfigData, globalSectionKey, warningOnPoolRedundancyKey, "false")
+		rookConfig, err = updateRookConfig(rookConfig, globalSectionKey, warningOnPoolRedundancyKey, "false")
 		if err != nil {
 			return "", fmt.Errorf("failed to set no warning on no redundancy pool for rook config: %v", err)
 		}
@@ -157,10 +134,10 @@ func getRookCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (s
 			return "", fmt.Errorf("no CIDR is detected")
 		}
 		cidrName := strings.Join(cidrNameArray, ",")
-		rookConfigData, err = updateRookConfig(rookConfigData, globalSectionKey, publicNetworkKey, cidrName)
+		rookConfig, err = updateRookConfig(rookConfig, globalSectionKey, publicNetworkKey, cidrName)
 		if err != nil {
 			return "", fmt.Errorf("failed to set network configuration for rook: %v", err)
 		}
 	}
-	return rookConfigData, nil
+	return rookConfig, nil
 }
