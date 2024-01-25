@@ -136,8 +136,8 @@ func TestDualStack(t *testing.T) {
 			assert.NilError(t, err, "ensure created failed")
 		}
 		// get the output
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: rookConfigMapName, Namespace: "test"}, configMap)
-		assert.NilError(t, err, "expected to find configmap %q: %+v", rookConfigMapName, err)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: rookOverrideConfigMapName, Namespace: "test"}, configMap)
+		assert.NilError(t, err, "expected to find configmap %q: %+v", rookOverrideConfigMapName, err)
 
 		// compare with the expected results
 		cfg, err := ini.Load([]byte(configMap.Data["config"]))
