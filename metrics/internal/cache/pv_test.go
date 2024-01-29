@@ -15,7 +15,8 @@ var _ = Describe("PersistentVolume Cache", func() {
 	defer GinkgoRecover()
 	opts := &options.Options{
 		Kubeconfig:        &rest.Config{},
-		AllowedNamespaces: []string{},
+		AllowedNamespaces: []string{""},
+		CephAuthNamespace: "",
 	}
 
 	When("new cache is requested", func() {
@@ -28,7 +29,7 @@ var _ = Describe("PersistentVolume Cache", func() {
 
 	When("PV is added", func() {
 		pvStore := NewPersistentVolumeStore(opts)
-		pvStore.initCephFn = func(kubeclient kubernetes.Interface, allowedNamespaces []string) (cephMonitorConfig, error) {
+		pvStore.initCephFn = func(kubeclient kubernetes.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error) {
 			return cephMonitorConfig{}, nil
 		}
 		pvStore.runCephRBDStatusFn = func(config *cephMonitorConfig, pool, image string) (Clients, error) {
