@@ -52,21 +52,23 @@ func (c *CephBlocklistLs) UnmarshalJSON(data []byte) error {
 }
 
 type CephBlocklistStore struct {
-	Mutex             sync.RWMutex
-	Store             []CephBlocklistLs
-	monitorConfig     cephMonitorConfig
-	kubeClient        clientset.Interface
-	allowedNamespaces []string
+	Mutex                sync.RWMutex
+	Store                []CephBlocklistLs
+	monitorConfig        cephMonitorConfig
+	kubeClient           clientset.Interface
+	cephClusterNamespace string
+	cephAuthNamespace    string
 }
 
 var _ cache.Store = &CephBlocklistStore{}
 
 func NewCephBlocklistStore(opts *options.Options) *CephBlocklistStore {
 	return &CephBlocklistStore{
-		Store:             []CephBlocklistLs{},
-		kubeClient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
-		monitorConfig:     cephMonitorConfig{},
-		allowedNamespaces: opts.AllowedNamespaces,
+		Store:                []CephBlocklistLs{},
+		kubeClient:           clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig:        cephMonitorConfig{},
+		cephClusterNamespace: opts.AllowedNamespaces[0],
+		cephAuthNamespace:    opts.CephAuthNamespace,
 	}
 }
 
@@ -110,7 +112,7 @@ func (c *CephBlocklistStore) Resync() error {
 
 	if (c.monitorConfig == cephMonitorConfig{}) {
 		var err error
-		c.monitorConfig, err = initCeph(c.kubeClient, c.allowedNamespaces)
+		c.monitorConfig, err = initCeph(c.kubeClient, c.cephClusterNamespace, c.cephAuthNamespace)
 		if err != nil {
 			return fmt.Errorf("failed to initialize ceph: %v", err)
 		}
@@ -121,7 +123,7 @@ func (c *CephBlocklistStore) Resync() error {
 		klog.Errorf("failed to get blocklist data: %v", err)
 		if err == context.DeadlineExceeded {
 			klog.Errorf("re-creating ceph client, command timedout")
-			c.monitorConfig, err = initCeph(c.kubeClient, c.allowedNamespaces)
+			c.monitorConfig, err = initCeph(c.kubeClient, c.cephClusterNamespace, c.cephAuthNamespace)
 			if err != nil {
 				return fmt.Errorf("failed to recreate ceph client, %v", err)
 			}
