@@ -149,6 +149,10 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 		}
 	}
 
+	if p.monitorConfig.clusterID != pv.Spec.CSI.VolumeAttributes["clusterID"] {
+		return nil
+	}
+
 	p.Store[pv.GetUID()] = PersistentVolumeAttributes{
 		PersistentVolumeName:           pv.Name,
 		PersistentVolumeClaimName:      pv.Spec.ClaimRef.Name,
