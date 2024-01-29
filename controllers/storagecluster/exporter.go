@@ -488,6 +488,12 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 
 		currentClusterRole.Rules = []rbacv1.PolicyRule{
 			{
+				APIGroups:     []string{""},
+				Resources:     []string{"configmaps"},
+				Verbs:         []string{"get"},
+				ResourceNames: []string{"rook-ceph-csi-config"},
+			},
+			{
 				APIGroups: []string{""},
 				Resources: []string{"persistentvolumes", "persistentvolumeclaims", "pods", "nodes"},
 				Verbs:     []string{"get", "list", "watch"},
