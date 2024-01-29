@@ -10,6 +10,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -61,7 +62,7 @@ func createStorageCluster(scName, failureDomainName string,
 	return cr
 }
 
-func createUpdateRuntimeObjects(t *testing.T, r StorageClusterReconciler) []client.Object {
+func createUpdateRuntimeObjects(t *testing.T) []client.Object {
 	csfs := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfs",
@@ -104,8 +105,9 @@ func createUpdateRuntimeObjects(t *testing.T, r StorageClusterReconciler) []clie
 	}
 	updateRTObjects := []client.Object{csfs, csrbd, cfs, cbp, crm, cnfs, cnfsbp, cnfssvc}
 
-	skip, err := r.PlatformsShouldSkipObjectStore()
+	skip, err := platform.PlatformsShouldSkipObjectStore()
 	assert.NoError(t, err)
+
 	if !skip {
 		csobc := &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
@@ -141,8 +143,9 @@ func createUpdateRuntimeObjects(t *testing.T, r StorageClusterReconciler) []clie
 	return updateRTObjects
 }
 
-func initStorageClusterResourceCreateUpdateTestWithPlatform(
-	t *testing.T, platform *Platform, runtimeObjs []client.Object, customSpec *api.StorageClusterSpec) (*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
+func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []client.Object,
+	customSpec *api.StorageClusterSpec) (*testing.T, StorageClusterReconciler,
+	*api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
 	if customSpec != nil {
 		_ = mergo.Merge(&cr.Spec, customSpec)
@@ -166,8 +169,8 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, tbd)
 	}
 
-	reconciler := createFakeInitializationStorageClusterReconcilerWithPlatform(
-		t, platform, rtObjsToCreateReconciler...)
+	reconciler := createFakeInitializationStorageClusterReconciler(
+		t, rtObjsToCreateReconciler...)
 
 	_ = reconciler.Client.Create(context.TODO(), cr)
 	for _, rtObj := range runtimeObjs {
@@ -186,13 +189,6 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 }
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
-	return createFakeInitializationStorageClusterReconcilerWithPlatform(
-		t, &Platform{platform: configv1.NonePlatformType}, obj...)
-}
-
-func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
-	platform *Platform,
-	obj ...runtime.Object) StorageClusterReconciler {
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
 	cfs := &cephv1.CephFilesystem{
@@ -239,9 +235,6 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 
 	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
-	if platform == nil {
-		platform = &Platform{platform: configv1.NonePlatformType}
-	}
 
 	return StorageClusterReconciler{
 		Client:            client,
@@ -249,6 +242,5 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 		serverVersion:     &version.Info{},
 		OperatorCondition: newStubOperatorCondition(),
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
-		platform:          platform,
 	}
 }

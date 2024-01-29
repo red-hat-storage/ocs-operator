@@ -5,8 +5,10 @@ import (
 	"context"
 	"testing"
 
+	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -18,23 +20,23 @@ func TestCephRGWRoutes(t *testing.T) {
 	var cases = []struct {
 		label                string
 		createRuntimeObjects bool
+		platform             configv1.PlatformType
 	}{
 		{
 			label:                "case 1", // Ensure that RGW routes are created on non-cloud Platform
 			createRuntimeObjects: false,
 		},
 	}
-	for _, eachPlatform := range allPlatforms {
-		cp := &Platform{platform: eachPlatform}
-		for _, c := range cases {
-			var objects []client.Object
-			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithPlatform(
-				t, cp, objects, nil)
-			if c.createRuntimeObjects {
-				objects = createUpdateRuntimeObjects(t, reconciler) //nolint:staticcheck //no need to use objects as they update in runtime
-			}
-			assertCephRGWRoutes(t, reconciler, cr, request)
+
+	for _, c := range cases {
+		platform.SetFakePlatformInstanceForTesting(true, c.platform)
+		var objects []client.Object
+		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
+		if c.createRuntimeObjects {
+			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
 		}
+		assertCephRGWRoutes(t, reconciler, cr, request)
+		platform.UnsetFakePlatformInstanceForTesting()
 	}
 }
 func assertCephRGWRoutes(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
@@ -45,7 +47,9 @@ func assertCephRGWRoutes(t *testing.T, reconciler StorageClusterReconciler, cr *
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCos)
 	// for any cloud platform, 'route' should not be created
 	// 'Get' should have thrown an error
-	if skipObjectStore(reconciler.platform.platform) {
+	platformType, detectErr := platform.GetPlatformType()
+	assert.NoError(t, detectErr)
+	if platform.SkipObjectStore(platformType) {
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)

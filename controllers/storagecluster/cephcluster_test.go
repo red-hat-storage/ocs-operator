@@ -15,6 +15,7 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -196,16 +197,13 @@ func TestCephClusterMonTimeout(t *testing.T) {
 
 	for _, c := range cases {
 		t.Logf("Case: %s\n", c.label)
+		platform.SetFakePlatformInstanceForTesting(true, c.platform)
+
 		sc := &api.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
 
 		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster.DeepCopy(), networkConfig)
-
-		reconciler.platform = &Platform{
-			platform: c.platform,
-		}
-
 		var obj ocsCephCluster
 		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
@@ -219,6 +217,8 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		} else {
 			assert.Equal(t, "", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
 		}
+
+		platform.UnsetFakePlatformInstanceForTesting()
 	}
 }
 

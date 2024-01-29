@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	configv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/stretchr/testify/assert"
@@ -126,7 +125,6 @@ func createFakeStorageClusterWithQuotaReconciler(t *testing.T, obj ...runtime.Ob
 		Scheme:        scheme,
 		serverVersion: &k8sVersion.Info{},
 		Log:           logf.Log.WithName("storagequota_test"),
-		platform:      &Platform{platform: configv1.NonePlatformType},
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -208,10 +209,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, err
 	}
 
-	platform, err := r.platform.GetPlatform(r.Client)
+	platform, err := platform.GetPlatformType()
 	if err != nil {
-		r.Log.Error(err, "Failed to get Platform.", "Platform", platform)
-	} else if platform == v1.IBMCloudPlatformType {
+		return reconcile.Result{}, err
+	}
+
+	if platform == v1.IBMCloudPlatformType {
 		r.Log.Info("Increasing Mon failover timeout to 15m.", "Platform", platform)
 		cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
 	}
@@ -1017,7 +1020,7 @@ func (r *StorageClusterReconciler) checkTuneStorageDevices(ds ocsv1.StorageDevic
 		return dt.speed, nil
 	}
 
-	tuneFastDevices, err := r.DevicesDefaultToFastForThisPlatform()
+	tuneFastDevices, err := platform.DevicesDefaultToFastForThisPlatform()
 	if err != nil {
 		return diskSpeedUnknown, err
 	}
