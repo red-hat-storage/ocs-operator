@@ -325,7 +325,10 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Args:    []string{"--namespaces", instance.Namespace},
+						Args: []string{
+							"--namespaces", instance.Namespace,
+							"--ceph-auth-namespace", r.OperatorNamespace,
+						},
 						Command: []string{"/usr/local/bin/metrics-exporter"},
 						Image:   r.images.OCSMetricsExporter,
 						Name:    metricsExporterName,
