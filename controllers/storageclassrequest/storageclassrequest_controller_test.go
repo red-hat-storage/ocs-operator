@@ -16,6 +16,7 @@ package storageclassrequest
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -32,6 +33,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	pgAutoscaleMode    = "pg_autoscale_mode"
+	pgNum              = "pg_num"
+	pgpNum             = "pgp_num"
+	namespaceName      = "test-ns"
+	deviceClass        = "ssd"
+	storageProfileKind = "StorageProfile"
+)
+
 var fakeStorageProfile = &v1.StorageProfile{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "medium",
@@ -40,6 +50,46 @@ var fakeStorageProfile = &v1.StorageProfile{
 	Spec: v1.StorageProfileSpec{
 		DeviceClass: "ssd",
 	},
+}
+
+var validStorageProfile = &v1.StorageProfile{
+	TypeMeta: metav1.TypeMeta{Kind: storageProfileKind},
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "valid",
+		Namespace: namespaceName,
+	},
+	Spec: v1.StorageProfileSpec{
+		DeviceClass: deviceClass,
+		BlockPoolConfiguration: v1.BlockPoolConfigurationSpec{
+			Parameters: map[string]string{
+				pgAutoscaleMode: "on",
+				pgNum:           "128",
+				pgpNum:          "128",
+			},
+		},
+	},
+	Status: v1.StorageProfileStatus{Phase: ""},
+}
+
+// A rejected StorageProfile is one that is invalid due to having a blank device class field and is set to
+// Rejected in its phase.
+var rejectedStorageProfile = &v1.StorageProfile{
+	TypeMeta: metav1.TypeMeta{Kind: storageProfileKind},
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "rejected",
+		Namespace: namespaceName,
+	},
+	Spec: v1.StorageProfileSpec{
+		DeviceClass: "",
+		BlockPoolConfiguration: v1.BlockPoolConfigurationSpec{
+			Parameters: map[string]string{
+				pgAutoscaleMode: "on",
+				pgNum:           "128",
+				pgpNum:          "128",
+			},
+		},
+	},
+	Status: v1.StorageProfileStatus{Phase: ""},
 }
 
 var fakeStorageCluster = &v1.StorageCluster{
@@ -216,6 +266,200 @@ func TestProfileReconcile(t *testing.T) {
 	req.Namespace = r.OperatorNamespace
 	_, err = r.Reconcile(context.TODO(), req)
 	assert.NoError(t, err, caseLabel)
+}
+
+func TestStorageProfileCephBlockPool(t *testing.T) {
+	var err error
+	var caseCounter int
+
+	var primaryTestCases = []struct {
+		label            string
+		expectedPoolName string
+		failureExpected  bool
+		createObjects    []runtime.Object
+		storageProfile   *v1.StorageProfile
+	}{
+		{
+			label:            "valid profile",
+			expectedPoolName: "test-valid-blockpool",
+			failureExpected:  false,
+			storageProfile:   validStorageProfile,
+			createObjects: []runtime.Object{
+				&rookCephv1.CephBlockPool{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-valid-blockpool",
+						Namespace: namespaceName,
+						Labels: map[string]string{
+							controllers.StorageConsumerNameLabel: fakeStorageConsumer.Name,
+							controllers.StorageProfileSpecLabel:  validStorageProfile.GetSpecHash(),
+						},
+					}, Spec: rookCephv1.NamedBlockPoolSpec{
+						Name: "spec",
+						PoolSpec: rookCephv1.PoolSpec{
+							FailureDomain: "zone",
+							DeviceClass:   deviceClass,
+							Parameters:    map[string]string{},
+						},
+					},
+				},
+			},
+		},
+		{
+			label:            "rejected profile",
+			expectedPoolName: "test-rejected-blockpool",
+			failureExpected:  true,
+			storageProfile:   rejectedStorageProfile,
+			createObjects: []runtime.Object{
+				&rookCephv1.CephBlockPool{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-rejected-blockpool",
+						Namespace: namespaceName,
+						Labels: map[string]string{
+							controllers.StorageConsumerNameLabel: fakeStorageConsumer.Name,
+							controllers.StorageProfileSpecLabel:  rejectedStorageProfile.GetSpecHash(),
+						},
+					}, Spec: rookCephv1.NamedBlockPoolSpec{
+						Name: "spec",
+						PoolSpec: rookCephv1.PoolSpec{
+							FailureDomain: "zone",
+							DeviceClass:   deviceClass,
+							Parameters:    map[string]string{},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range primaryTestCases {
+		caseCounter++
+		caseLabel := fmt.Sprintf("Case %d: %s", caseCounter, c.label)
+		fmt.Println(caseLabel)
+
+		r := createFakeReconciler(t)
+		r.storageCluster.Spec.DefaultStorageProfile = c.storageProfile.Name
+		r.StorageClassRequest.Spec.Type = "blockpool"
+
+		r.StorageClassRequest.Spec.StorageProfile = c.storageProfile.Name
+
+		c.createObjects = append(c.createObjects, c.storageProfile)
+		c.createObjects = append(c.createObjects, fakeStorageConsumer)
+
+		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
+		r.Client = fakeClient.Build()
+
+		_, err = r.reconcilePhases()
+		if c.failureExpected {
+			assert.Error(t, err, caseLabel)
+			continue
+		}
+		assert.NoError(t, err, caseLabel)
+
+		assert.Equal(t, c.expectedPoolName, r.cephBlockPool.Name, caseLabel)
+
+		if strings.Contains(c.expectedPoolName, "valid") {
+			expectedStorageProfileParameters := validStorageProfile.Spec.BlockPoolConfiguration.Parameters
+			actualBlockPoolParameters := r.cephBlockPool.Spec.Parameters
+			assert.Equal(t, expectedStorageProfileParameters, actualBlockPoolParameters, caseLabel)
+			assert.NotEqual(t, v1.StorageProfilePhaseRejected, c.storageProfile.Status.Phase)
+		} else {
+			actualBlockPoolParameters := r.cephBlockPool.Spec.Parameters
+			assert.Equal(t, v1.StorageProfilePhaseRejected, c.storageProfile.Status.Phase)
+			assert.Nil(t, actualBlockPoolParameters, caseLabel)
+		}
+	}
+
+}
+
+func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
+	var err error
+	var caseCounter int
+
+	var primaryTestCases = []struct {
+		label             string
+		expectedGroupName string
+		failureExpected   bool
+		createObjects     []runtime.Object
+		cephResources     []*v1alpha1.CephResourcesSpec
+		storageProfile    *v1.StorageProfile
+		cephFs            *rookCephv1.CephFilesystem
+	}{
+		{
+			label:             "valid profile",
+			expectedGroupName: "test-subvolgroup",
+			storageProfile:    fakeStorageProfile,
+			cephFs:            fakeCephFs,
+			failureExpected:   false,
+			cephResources: []*v1alpha1.CephResourcesSpec{
+				{
+					Name: "test-subvolgroup",
+					Kind: "CephFilesystemSubVolumeGroup",
+				},
+			},
+			createObjects: []runtime.Object{
+				&rookCephv1.CephFilesystemSubVolumeGroup{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-subvolgroup",
+						Namespace: namespaceName,
+					},
+					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
+				},
+			},
+		},
+		{
+			label:             "rejected profile",
+			expectedGroupName: "test-subvolgroup",
+			storageProfile:    rejectedStorageProfile,
+			cephFs:            fakeCephFs,
+			failureExpected:   true,
+			cephResources: []*v1alpha1.CephResourcesSpec{
+				{
+					Name: "test-subvolgroup",
+					Kind: "CephFilesystemSubVolumeGroup",
+				},
+			},
+			createObjects: []runtime.Object{
+				&rookCephv1.CephFilesystemSubVolumeGroup{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-subvolgroup",
+						Namespace: namespaceName,
+					},
+					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
+				},
+			},
+		},
+	}
+
+	for _, c := range primaryTestCases {
+		caseCounter++
+		caseLabel := fmt.Sprintf("Case %d: %s", caseCounter, c.label)
+		fmt.Println(caseLabel)
+
+		r := createFakeReconciler(t)
+		if strings.Contains(c.label, "rejected") {
+			r.storageCluster.Spec.DefaultStorageProfile = rejectedStorageProfile.Name
+		}
+
+		r.StorageClassRequest.Status.CephResources = c.cephResources
+		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
+		r.StorageClassRequest.Spec.StorageProfile = c.storageProfile.Name
+
+		c.createObjects = append(c.createObjects, c.cephFs)
+		c.createObjects = append(c.createObjects, c.storageProfile)
+		c.createObjects = append(c.createObjects, fakeStorageConsumer)
+		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
+
+		r.Client = fakeClient.Build()
+		r.StorageClassRequest.Status.CephResources = c.cephResources
+
+		_, err = r.reconcilePhases()
+		if c.failureExpected {
+			assert.Error(t, err, caseLabel)
+			continue
+		}
+		assert.NoError(t, err, caseLabel)
+		assert.Equal(t, c.expectedGroupName, r.cephFilesystemSubVolumeGroup.Name, caseLabel)
+	}
 }
 
 func TestCephBlockPool(t *testing.T) {

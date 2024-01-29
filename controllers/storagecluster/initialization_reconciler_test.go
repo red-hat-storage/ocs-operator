@@ -143,6 +143,120 @@ func createUpdateRuntimeObjects(t *testing.T) []client.Object {
 	return updateRTObjects
 }
 
+func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtimeObjs []client.Object,
+	customSpec *api.StorageClusterSpec, storageProfiles *api.StorageProfileList, remoteConsumers bool) (*testing.T, StorageClusterReconciler,
+	*api.StorageCluster, reconcile.Request, []reconcile.Request) {
+	cr := createDefaultStorageCluster()
+	if customSpec != nil {
+		_ = mergo.Merge(&cr.Spec, customSpec)
+	}
+	requestOCSInit := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+	requests := []reconcile.Request{requestOCSInit}
+
+	rtObjsToCreateReconciler := []runtime.Object{&nbv1.NooBaa{}}
+	// runtimeObjs are present, it means tests are for update
+	// add all the update required changes
+	if runtimeObjs != nil {
+		tbd := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rook-ceph-tools",
+			},
+		}
+		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, tbd)
+	}
+
+	if remoteConsumers {
+		node := &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"node-role.kubernetes.io/worker": "",
+				},
+			},
+			Status: v1.NodeStatus{
+				Addresses: []v1.NodeAddress{
+					{
+						Type:    v1.NodeInternalIP,
+						Address: "0:0:0:0",
+					},
+				},
+			},
+		}
+
+		os.Setenv(providerAPIServerImage, "fake-image")
+		os.Setenv(util.WatchNamespaceEnvVar, "")
+		os.Setenv(onboardingSecretGeneratorImage, "fake-image")
+
+		deployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		deployment.Status.AvailableReplicas = 1
+
+		service := &v1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+		service.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{
+			{
+				Hostname: "fake",
+			},
+		}
+
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		}
+
+		addedRuntimeObjects := []runtime.Object{node, service, deployment, secret}
+		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, addedRuntimeObjects...)
+
+	}
+
+	// Unpacks StorageProfile list to runtime objects array
+	var storageProfileRuntimeObjects []runtime.Object
+	for _, sp := range storageProfiles.Items {
+		storageProfileRuntimeObjects = append(storageProfileRuntimeObjects, &sp)
+	}
+	rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, storageProfileRuntimeObjects...)
+
+	reconciler := createFakeInitializationStorageClusterReconciler(t, rtObjsToCreateReconciler...)
+
+	_ = reconciler.Client.Create(context.TODO(), cr)
+	for _, rtObj := range runtimeObjs {
+		_ = reconciler.Client.Create(context.TODO(), rtObj)
+	}
+
+	var requestsStorageProfiles []reconcile.Request
+	for _, sp := range storageProfiles.Items {
+		requestSP := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      sp.Name,
+				Namespace: cr.Namespace,
+			},
+		}
+		_ = reconciler.Client.Create(context.TODO(), &sp)
+		requestsStorageProfiles = append(requestsStorageProfiles, requestSP)
+		requests = append(requests, requestSP)
+
+	}
+
+	spList := &api.StorageProfileList{}
+	_ = reconciler.Client.List(context.TODO(), spList)
+	for _, request := range requests {
+		err := os.Setenv("OPERATOR_NAMESPACE", request.Namespace)
+		assert.NoError(t, err)
+		result, err := reconciler.Reconcile(context.TODO(), request)
+		assert.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, result)
+		err = os.Setenv("WATCH_NAMESPACE", request.Namespace)
+		assert.NoError(t, err)
+	}
+
+	return t, reconciler, cr, requestOCSInit, requestsStorageProfiles
+}
+
 func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []client.Object,
 	customSpec *api.StorageClusterSpec) (*testing.T, StorageClusterReconciler,
 	*api.StorageCluster, reconcile.Request) {
@@ -233,8 +347,21 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		},
 	}
 
-	obj = append(obj, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
+	statusSubresourceObjs := []client.Object{sc}
+	var runtimeObjects []runtime.Object
+
+	for _, objIt := range obj {
+		if objIt != nil {
+			if objIt.GetObjectKind().GroupVersionKind().Kind == "StorageProfile" {
+				statusSubresourceObjs = append(statusSubresourceObjs, objIt.(client.Object))
+			} else {
+				runtimeObjects = append(runtimeObjects, objIt)
+			}
+		}
+	}
+
+	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjects...).WithStatusSubresource(statusSubresourceObjs...).Build()
 
 	return StorageClusterReconciler{
 		Client:            client,
