@@ -43,12 +43,13 @@ const (
 )
 
 var fakeStorageProfile = &v1.StorageProfile{
+	TypeMeta: metav1.TypeMeta{Kind: storageProfileKind},
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "medium",
-		Namespace: "test-ns",
+		Namespace: namespaceName,
 	},
 	Spec: v1.StorageProfileSpec{
-		DeviceClass: "ssd",
+		DeviceClass: deviceClass,
 	},
 }
 
@@ -95,13 +96,13 @@ var rejectedStorageProfile = &v1.StorageProfile{
 var fakeStorageCluster = &v1.StorageCluster{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "test-storagecluster",
-		Namespace: "test-ns",
+		Namespace: namespaceName,
 	},
 	Spec: v1.StorageClusterSpec{
 		DefaultStorageProfile: fakeStorageProfile.Name,
 		StorageDeviceSets: []v1.StorageDeviceSet{
 			{
-				DeviceClass: "ssd",
+				DeviceClass: deviceClass,
 			},
 		},
 	},
@@ -113,7 +114,7 @@ var fakeStorageCluster = &v1.StorageCluster{
 var fakeStorageConsumer = &v1alpha1.StorageConsumer{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "test-consumer",
-		Namespace: "test-ns",
+		Namespace: namespaceName,
 	},
 }
 
@@ -126,7 +127,7 @@ var fakeCephFs = &rookCephv1.CephFilesystem{
 		DataPools: []rookCephv1.NamedPoolSpec{
 			{
 				PoolSpec: rookCephv1.PoolSpec{
-					DeviceClass: "ssd",
+					DeviceClass: deviceClass,
 				},
 			},
 		},
@@ -159,7 +160,7 @@ func createFakeReconciler(t *testing.T) StorageClassRequestReconciler {
 
 	fakeReconciler.Scheme = createFakeScheme(t)
 	fakeReconciler.log = log.Log.WithName("controller_storagecluster_test")
-	fakeReconciler.OperatorNamespace = "test-ns"
+	fakeReconciler.OperatorNamespace = namespaceName
 	fakeReconciler.StorageClassRequest = &v1alpha1.StorageClassRequest{}
 	fakeReconciler.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
 

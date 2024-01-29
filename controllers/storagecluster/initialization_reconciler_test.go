@@ -264,7 +264,7 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	if customSpec != nil {
 		_ = mergo.Merge(&cr.Spec, customSpec)
 	}
-	request := reconcile.Request{
+	requestOCSInit := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
 			Namespace: "",
@@ -293,13 +293,13 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 
 	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
 	assert.NoError(t, err)
-	result, err := reconciler.Reconcile(context.TODO(), request)
+	result, err := reconciler.Reconcile(context.TODO(), requestOCSInit)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 	err = os.Setenv("WATCH_NAMESPACE", cr.Namespace)
 	assert.NoError(t, err)
 
-	return t, reconciler, cr, request
+	return t, reconciler, cr, requestOCSInit
 }
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
