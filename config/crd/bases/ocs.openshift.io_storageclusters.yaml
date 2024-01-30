@@ -542,6 +542,20 @@ spec:
                       UI will keep sending this flag for backward compatibility (OCP
                       4.10 + OCS 4.9)
                     type: boolean
+                  keyRotation:
+                    description: KeyRotation defines options for Key Rotation.
+                    properties:
+                      enable:
+                        default: false
+                        description: Enable represents whether the key rotation is
+                          enabled.
+                        type: boolean
+                      schedule:
+                        default: '@weekly'
+                        description: Schedule represents the cron schedule for key
+                          rotation.
+                        type: string
+                    type: object
                   kms:
                     description: KeyManagementServiceSpec provides a way to enable
                       KMS

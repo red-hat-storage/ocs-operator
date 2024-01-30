@@ -447,6 +447,21 @@ type EncryptionSpec struct {
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName     string                   `json:"storageClassName,omitempty"`
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+	// KeyRotation defines options for Key Rotation.
+	// +optional
+	KeyRotation KeyRotationSpec `json:"keyRotation,omitempty"`
+}
+
+// KeyRotationSpec represents the settings for Key Rotation.
+type KeyRotationSpec struct {
+	// Enable represents whether the key rotation is enabled.
+	// +optional
+	// +kubebuilder:default=false
+	Enable bool `json:"enable,omitempty"`
+	// Schedule represents the cron schedule for key rotation.
+	// +optional
+	// +kubebuilder:default="@weekly"
+	Schedule string `json:"schedule,omitempty"`
 }
 
 type MirroringSpec struct {

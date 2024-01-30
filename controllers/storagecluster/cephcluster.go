@@ -20,6 +20,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -201,6 +202,10 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				return reconcile.Result{}, err
 			}
 		}
+
+		isEnabled, rotationSchedule := util.GetKeyRotationSpec(sc)
+		cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
+		cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 	}
 
 	// Set StorageCluster instance as the owner and controller
