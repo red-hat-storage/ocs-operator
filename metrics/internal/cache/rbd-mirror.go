@@ -13,9 +13,9 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
+	apierror "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -90,6 +90,7 @@ type RBDMirrorPeerSite struct {
 type csiClusterConfig struct {
 	ClusterID string   `json:"clusterID"`
 	Monitors  []string `json:"monitors"`
+	Namespace string   `json:"namespace"`
 }
 
 // Cache mirror data for all CephBlockPools with mirroring enabled
@@ -104,33 +105,29 @@ type RBDMirrorStore struct {
 	Store map[types.UID]RBDMirrorPoolStatusVerbose
 	// rbdCommandInput is a struct that contains the input for the rbd command
 	// for each AllowdNamespaces
-	rbdCommandInput   map[string]*cephMonitorConfig
-	kubeclient        clientset.Interface
-	allowedNamespaces []string
+	rbdCommandInput      map[string]*cephMonitorConfig
+	kubeclient           clientset.Interface
+	cephClusterNamespace string
+	cephAuthNamespace    string
+	// Functions to make testing easier
+	initCephFn       func(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error)
+	rbdImageStatusFn func(config *cephMonitorConfig, poolName string) (RBDMirrorStatusVerbose, error)
 }
 
 func NewRBDMirrorStore(opts *options.Options) *RBDMirrorStore {
 	return &RBDMirrorStore{
-		Store:             map[types.UID]RBDMirrorPoolStatusVerbose{},
-		rbdCommandInput:   map[string]*cephMonitorConfig{},
-		kubeclient:        clientset.NewForConfigOrDie(opts.Kubeconfig),
-		allowedNamespaces: opts.AllowedNamespaces,
+		Store:                map[types.UID]RBDMirrorPoolStatusVerbose{},
+		rbdCommandInput:      map[string]*cephMonitorConfig{},
+		kubeclient:           clientset.NewForConfigOrDie(opts.Kubeconfig),
+		cephClusterNamespace: opts.AllowedNamespaces[0],
+		cephAuthNamespace:    opts.CephAuthNamespace,
+		initCephFn:           initCeph,
+		rbdImageStatusFn:     rbdImageStatus,
 	}
 }
 
 func (s *RBDMirrorStore) WithRBDCommandInput(namespace string) error {
-	var allow bool
-	for _, item := range s.allowedNamespaces {
-		if item == namespace {
-			allow = true
-			break
-		}
-	}
-	if !allow {
-		return fmt.Errorf("rbd-mirror metrics collection from namespace %q is not allowed", namespace)
-	}
-
-	input, err := initCeph(s.kubeclient, []string{namespace})
+	input, err := s.initCephFn(s.kubeclient, namespace, s.cephAuthNamespace)
 	if err != nil {
 		return err
 	}
@@ -140,31 +137,34 @@ func (s *RBDMirrorStore) WithRBDCommandInput(namespace string) error {
 	return nil
 }
 
-func initCeph(kubeclient clientset.Interface, allowedNamespaces []string) (cephMonitorConfig, error) {
+func initCeph(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error) {
 	var err error
 	var namespace string
 	var secret *corev1.Secret
-	// find a namespace which has the expected secret
-	for _, currentNamespace := range allowedNamespaces {
-		secret, err = kubeclient.CoreV1().Secrets(currentNamespace).Get(context.TODO(), "rook-ceph-mon", v1.GetOptions{})
-		// if we are successful, collect the namespace and break
-		if err == nil {
-			namespace = currentNamespace
-			break
+
+	secret, err = kubeclient.CoreV1().Secrets(cephClusterNamespace).Get(context.TODO(), "ocs-metrics-exporter-ceph-auth", metav1.GetOptions{})
+	if err != nil && !apierror.IsNotFound(err) {
+		return cephMonitorConfig{}, err
+	}
+
+	if apierror.IsNotFound(err) {
+		secret, err = kubeclient.CoreV1().Secrets(cephClusterNamespace).Get(context.TODO(), "rook-csi-rbd-provisioner", metav1.GetOptions{})
+		if err != nil {
+			return cephMonitorConfig{}, err
 		}
 	}
-	// under any of these circumstances we should not proceed
-	if err != nil || secret == nil || namespace == "" {
-		return cephMonitorConfig{}, fmt.Errorf("failed to get secret in any of these namespaces %+v: %v",
-			allowedNamespaces, err)
-	}
-	key, ok := secret.Data["ceph-secret"]
-	if !ok {
-		return cephMonitorConfig{}, fmt.Errorf("failed to get client key from secret in namespace %q", namespace)
-	}
-	id := "admin"
 
-	configmap, err := kubeclient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "rook-ceph-csi-config", v1.GetOptions{})
+	id, ok := secret.Data["userID"]
+	if !ok {
+		return cephMonitorConfig{}, fmt.Errorf("failed to get ceph user id in namespace %q", namespace)
+	}
+
+	key, ok := secret.Data["userKey"]
+	if !ok {
+		return cephMonitorConfig{}, fmt.Errorf("failed to get ceph user key in namespace %q", namespace)
+	}
+
+	configmap, err := kubeclient.CoreV1().ConfigMaps(cephAuthNamespace).Get(context.TODO(), "rook-ceph-csi-config", metav1.GetOptions{})
 	if err != nil {
 		return cephMonitorConfig{}, fmt.Errorf("failed to get configmap in namespace %q: %v", namespace, err)
 	}
@@ -174,23 +174,35 @@ func initCeph(kubeclient clientset.Interface, allowedNamespaces []string) (cephM
 		return cephMonitorConfig{}, fmt.Errorf("failed to get CSI cluster config from configmap in namespace %q", namespace)
 	}
 
-	var clusterConfig []csiClusterConfig
-	err = json.Unmarshal([]byte(data), &clusterConfig)
+	var clusterConfigs []csiClusterConfig
+	err = json.Unmarshal([]byte(data), &clusterConfigs)
 	if err != nil {
 		return cephMonitorConfig{}, fmt.Errorf("failed to unmarshal csi-cluster-config-json in namespace %q: %v", namespace, err)
 	}
 
-	if len(clusterConfig) == 0 {
+	if len(clusterConfigs) == 0 {
 		return cephMonitorConfig{}, fmt.Errorf("expected 1 or more CSI cluster config but found 0 from configmap in namespace %q", namespace)
 	}
-	if len(clusterConfig[0].Monitors) == 0 {
+
+	var clusterConfig csiClusterConfig
+	for idx := range clusterConfigs {
+		if clusterConfigs[idx].Namespace == cephClusterNamespace {
+			clusterConfig = clusterConfigs[idx]
+			break
+		}
+	}
+
+	if len(clusterConfig.Monitors) == 0 {
 		return cephMonitorConfig{}, fmt.Errorf("expected 1 or more monitors but found 0 from configmap in namespace %q", namespace)
 	}
 
 	input := cephMonitorConfig{}
-	input.monitor = clusterConfig[0].Monitors[0]
-	input.id = id
+	input.clusterID = clusterConfig.ClusterID
+	input.cephClusterNamespace = clusterConfig.Namespace
+	input.monitor = clusterConfig.Monitors[0]
+	input.id = string(id)
 	input.key = string(key)
+
 	return input, nil
 }
 
@@ -218,7 +230,7 @@ func (s *RBDMirrorStore) Add(obj interface{}) error {
 		}
 	}
 
-	mirrorStatus, err := rbdImageStatus(s.rbdCommandInput[pool.Namespace], pool.Name)
+	mirrorStatus, err := s.rbdImageStatusFn(s.rbdCommandInput[pool.Namespace], pool.Name)
 	if err != nil {
 		return fmt.Errorf("rbd command error: %v", err)
 	}
@@ -298,7 +310,7 @@ func (s *RBDMirrorStore) Resync() error {
 			}
 		}
 
-		mirrorStatus, err := rbdImageStatus(s.rbdCommandInput[poolStatusVerbose.PoolNamespace], poolStatusVerbose.PoolName)
+		mirrorStatus, err := s.rbdImageStatusFn(s.rbdCommandInput[poolStatusVerbose.PoolNamespace], poolStatusVerbose.PoolName)
 		if err != nil {
 			klog.Errorf("rbd command error: %v", err)
 			continue
@@ -330,7 +342,7 @@ func CreateCephBlockPoolListWatch(cephClient rookclient.Interface, namespace, fi
 /* RBD CLI Commands */
 
 type cephMonitorConfig struct {
-	monitor, id, key string
+	clusterID, cephClusterNamespace, monitor, id, key string
 }
 
 func rbdImageStatus(config *cephMonitorConfig, poolName string) (RBDMirrorStatusVerbose, error) {
