@@ -32,13 +32,14 @@ type PersistentVolumeStore struct {
 	// Store is a map of PV UID to PersistentVolumeAttributes
 	Store map[types.UID]PersistentVolumeAttributes
 	// RBDClientMap is a map of RBD client addresses to the names of the nodes whose images had this client as a watcher
-	RBDClientMap      map[string][]string
-	monitorConfig     cephMonitorConfig
-	kubeClient        clientset.Interface
-	allowedNamespaces []string
+	RBDClientMap         map[string][]string
+	monitorConfig        cephMonitorConfig
+	kubeClient           clientset.Interface
+	cephClusterNamespace string
+	cephAuthNamespace    string
 
 	// Functions to make testing easier
-	initCephFn         func(kubeclient clientset.Interface, allowedNamespaces []string) (cephMonitorConfig, error)
+	initCephFn         func(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error)
 	runCephRBDStatusFn func(config *cephMonitorConfig, pool, image string) (Clients, error)
 	// TODO: Use fake k8s client instead
 	getNodeNameForPVFn func(pv *corev1.PersistentVolume, kubeClient clientset.Interface) (string, error)
@@ -64,14 +65,15 @@ type PersistentVolumeAttributes struct {
 
 func NewPersistentVolumeStore(opts *options.Options) *PersistentVolumeStore {
 	return &PersistentVolumeStore{
-		Store:              map[types.UID]PersistentVolumeAttributes{},
-		RBDClientMap:       map[string][]string{},
-		kubeClient:         clientset.NewForConfigOrDie(opts.Kubeconfig),
-		monitorConfig:      cephMonitorConfig{},
-		allowedNamespaces:  opts.AllowedNamespaces,
-		initCephFn:         initCeph,
-		runCephRBDStatusFn: runCephRBDStatus,
-		getNodeNameForPVFn: getNodeNameForPV,
+		Store:                map[types.UID]PersistentVolumeAttributes{},
+		RBDClientMap:         map[string][]string{},
+		kubeClient:           clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig:        cephMonitorConfig{},
+		cephClusterNamespace: opts.AllowedNamespaces[0],
+		cephAuthNamespace:    opts.CephAuthNamespace,
+		initCephFn:           initCeph,
+		runCephRBDStatusFn:   runCephRBDStatus,
+		getNodeNameForPVFn:   getNodeNameForPV,
 	}
 }
 
@@ -141,10 +143,14 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 
 	if (p.monitorConfig == cephMonitorConfig{}) {
 		var err error
-		p.monitorConfig, err = p.initCephFn(p.kubeClient, p.allowedNamespaces)
+		p.monitorConfig, err = p.initCephFn(p.kubeClient, p.cephClusterNamespace, p.cephAuthNamespace)
 		if err != nil {
 			return fmt.Errorf("failed to initialize ceph: %v", err)
 		}
+	}
+
+	if p.monitorConfig.clusterID != pv.Spec.CSI.VolumeAttributes["clusterID"] {
+		return nil
 	}
 
 	p.Store[pv.GetUID()] = PersistentVolumeAttributes{

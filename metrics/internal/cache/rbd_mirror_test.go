@@ -7,7 +7,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
@@ -15,7 +15,8 @@ var _ = Describe("RBDMirror Cache", func() {
 	defer GinkgoRecover()
 	opts := &options.Options{
 		Kubeconfig:        &rest.Config{},
-		AllowedNamespaces: []string{},
+		AllowedNamespaces: []string{""},
+		CephAuthNamespace: "",
 	}
 
 	When("new cache is requested", func() {
@@ -28,13 +29,14 @@ var _ = Describe("RBDMirror Cache", func() {
 
 	When("new CephBlockPool is added", func() {
 		rbdMirrorStore := NewRBDMirrorStore(opts)
-		rbdMirrorStore.initCephFn = func(kubeclient kubernetes.Interface, allowedNamespaces []string) (cephMonitorConfig, error) {
+		rbdMirrorStore.initCephFn = func(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error) {
 			return cephMonitorConfig{}, nil
 		}
 		rbdMirrorStore.rbdImageStatusFn = func(config *cephMonitorConfig, poolName string) (RBDMirrorStatusVerbose, error) {
 			return RBDMirrorStatusVerbose{}, nil
 		}
-		rbdMirrorStore.allowedNamespaces = []string{"test-namespace"}
+		rbdMirrorStore.cephClusterNamespace = "test-namespace"
+		rbdMirrorStore.cephAuthNamespace = "test-namespace"
 
 		When("CephBlockPool mirroring is not enabled", func() {
 			pool := cephv1.CephBlockPool{
