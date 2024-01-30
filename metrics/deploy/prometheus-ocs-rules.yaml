@@ -278,6 +278,21 @@ spec:
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
       labels:
         severity: critical
+  - name: storage-cluster-alerts.rules
+    rules:
+    - alert: CephMonLowNumber
+      annotations:
+        description: The number of node failure zones available (5) allow to increase
+          the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
+        message: The current number of Ceph monitors can be increased in order to
+          improve cluster resilience.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonLowNumber.md
+        severity_level: info
+        storage_type: ceph
+      expr: |
+        ((count by (managedBy, namespace) (ceph_mon_metadata)) - on(managedBy,namespace) group_right() (ocs_storagecluster_failure_domain_count>=5)) < 0
+      labels:
+        severity: info
   - name: ceph-daemon-performance-alerts.rules
     rules:
     - alert: MDSCacheUsageHigh
