@@ -46,7 +46,7 @@ func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType Snap
 		ObjectMeta: metav1.ObjectMeta{
 			Name: generateNameForSnapshotClass(instance, snapShotterType),
 		},
-		Driver: generateNameForSnapshotClassDriver(instance, snapShotterType),
+		Driver: generateNameForSnapshotClassDriver(snapShotterType),
 		Parameters: map[string]string{
 			"clusterID":                instance.Namespace,
 			snapshotterSecretName:      generateNameForSnapshotClassSecret(instance, snapShotterType),
