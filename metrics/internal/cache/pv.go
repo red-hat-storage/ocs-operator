@@ -165,6 +165,10 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 		return fmt.Errorf("failed to get node name for pod: %v", err)
 	}
 
+	if nodeName == "" {
+		return nil
+	}
+
 	for _, client := range clients.Watchers {
 		p.RBDClientMap[client.Address] = appendIfNotExists(p.RBDClientMap[client.Address], nodeName)
 	}
@@ -173,35 +177,25 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 }
 
 func getNodeNameForPV(pv *corev1.PersistentVolume, kubeClient clientset.Interface) (string, error) {
-	if pv.Spec.ClaimRef == nil {
-		return "", fmt.Errorf("persistent volume %s is not bound to any claim", pv.Name)
+	if pv.Status.Phase != corev1.VolumeBound {
+		return "", nil
 	}
 
-	pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(pv.Spec.ClaimRef.Namespace).Get(context.Background(), pv.Spec.ClaimRef.Name, metav1.GetOptions{})
+	nodeList, err := kubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to get PVC %s/%s: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
+		return "", err
 	}
 
-	if pvc.Spec.VolumeName != pv.Name {
-		return "", fmt.Errorf("persistent volume %s is not bound to claim %s/%s", pv.Name, pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name)
-	}
-
-	podList, err := kubeClient.CoreV1().Pods(pvc.Namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to list pods in namespace %s: %v", pvc.Namespace, err)
-	}
-
-	for _, pod := range podList.Items {
-		if pod.Spec.Volumes != nil {
-			for _, volume := range pod.Spec.Volumes {
-				if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
-					return pod.Spec.NodeName, nil
-				}
+	uniqueVolumeName := fmt.Sprintf("kubernetes.io/csi/%s^%s", pv.Spec.CSI.Driver, pv.Spec.CSI.VolumeHandle)
+	for _, node := range nodeList.Items {
+		for _, volumeInUse := range node.Status.VolumesInUse {
+			if volumeInUse == corev1.UniqueVolumeName(uniqueVolumeName) {
+				return node.Name, nil
 			}
 		}
 	}
 
-	return "", fmt.Errorf("no pod is using PVC %s/%s", pvc.Namespace, pvc.Name)
+	return "", nil
 }
 
 // Update updates the existing entry in the PersistentVolumeStore.
