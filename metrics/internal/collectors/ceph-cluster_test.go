@@ -9,7 +9,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephv1listers "github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -219,70 +218,4 @@ func TestCollectMirrorinDaemonCount(t *testing.T) {
 		}
 	}
 
-}
-
-func TestCollectNodeLabels(t *testing.T) {
-	mockOpts.StopCh = make(chan struct{})
-	defer close(mockOpts.StopCh)
-
-	cephClusterCollector := getMockCephClusterCollector(t, mockOpts)
-
-	cephNodeList := &corev1.NodeList{
-		TypeMeta: metav1.TypeMeta{Kind: "NodeList"},
-		Items: []corev1.Node{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "Node1",
-					Labels: map[string]string{
-						"cluster.ocs.openshift.io/openshift-storage": "",
-						"failure-domain.beta.kubernetes.io/zone":     "zonea",
-						"hostnameLabel":                              "node1",
-					},
-				},
-				Spec: corev1.NodeSpec{
-					ProviderID: "aws://x",
-				},
-			},
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "Node2",
-					Labels: map[string]string{
-						"cluster.ocs.openshift.io/openshift-storage": "",
-						"failure-domain.beta.kubernetes.io/zone":     "",
-						"hostnameLabel":                              "node2",
-					},
-				},
-				Spec: corev1.NodeSpec{
-					ProviderID: "aws",
-				},
-			},
-		},
-	}
-
-	ch := make(chan prometheus.Metric)
-	metric := dto.Metric{}
-	go func() {
-		cephClusterCollector.collectNodeLabels(cephNodeList, ch)
-		close(ch)
-	}()
-
-	for m := range ch {
-		assert.Contains(t, m.Desc().String(), "ocs_node_labels")
-		metric.Reset()
-		err := m.Write(&metric)
-		assert.Nil(t, err)
-		labels := metric.GetLabel()
-		assert.Equal(t, len(labels), 3)
-		for _, label := range labels {
-			if *label.Name == "label_provider_id" {
-				assert.True(t, *label.Value == "aws" || *label.Value == "")
-			}
-			if *label.Name == "label_failure_domain_beta_kubernetes_io_zone" {
-				assert.True(t, *label.Value == "zonea" || *label.Value == "")
-			}
-			if *label.Name == "hostnameLabel" {
-				assert.True(t, *label.Value == "node1" || *label.Value == "node2")
-			}
-		}
-	}
 }
