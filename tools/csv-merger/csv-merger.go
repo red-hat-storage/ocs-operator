@@ -276,6 +276,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				},
 			},
 			{
+				Name:  "CSI_DRIVER_NAME_PREFIX",
+				Value: "openshift-storage",
+			},
+			{
 				Name: "CSI_ENABLE_TOPOLOGY",
 				ValueFrom: &corev1.EnvVarSource{
 					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
