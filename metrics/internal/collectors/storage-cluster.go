@@ -13,6 +13,7 @@ import (
 
 type StorageClusterCollector struct {
 	KMSServerConnectionStatus *prometheus.Desc
+	FailureDomainCount        *prometheus.Desc
 	Informer                  cache.SharedIndexInformer
 }
 
@@ -33,6 +34,11 @@ func NewStorageClusterCollector(opts *options.Options) *StorageClusterCollector 
 			[]string{"name", "namespace"},
 			nil,
 		),
+		FailureDomainCount: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "storagecluster", "failure_domain_count"),
+			"Count of failure domains for StorageCluster with given name and namespace",
+			[]string{"name", "namespace", "failure_domain"},
+			nil),
 		Informer: sharedIndexInformer,
 	}
 }
@@ -44,6 +50,7 @@ func (c *StorageClusterCollector) Run(stopCh <-chan struct{}) {
 func (c *StorageClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
 		c.KMSServerConnectionStatus,
+		c.FailureDomainCount,
 	}
 	for _, d := range ds {
 		ch <- d
@@ -53,9 +60,11 @@ func (c *StorageClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *StorageClusterCollector) Collect(ch chan<- prometheus.Metric) {
 	scLister := NewStorageClusterLister(c.Informer.GetIndexer())
 	storageClusters := getAllStorageClusters(scLister)
-	if len(storageClusters) > 0 {
-		c.collectKMSConnectionStatuses(ch, storageClusters)
+	if len(storageClusters) == 0 {
+		return
 	}
+	c.collectKMSConnectionStatuses(ch, storageClusters)
+	c.collectStorageClusterFailureDomains(ch, storageClusters)
 }
 
 func getAllStorageClusters(lister StorageClusterLister) []*v1.StorageCluster {
@@ -82,6 +91,29 @@ func (c *StorageClusterCollector) collectKMSConnectionStatuses(ch chan<- prometh
 			float64(v),
 			storageCluster.Name,
 			storageCluster.Namespace,
+		)
+	}
+}
+
+func (c *StorageClusterCollector) collectStorageClusterFailureDomains(ch chan<- prometheus.Metric, storageClusters []*v1.StorageCluster) {
+	for _, storageCluster := range storageClusters {
+		if storageCluster.Spec.ExternalStorage.Enable {
+			continue
+		}
+		failureDomain := storageCluster.Status.FailureDomain
+		failureDomainCount := len(storageCluster.Status.FailureDomainValues)
+
+		if failureDomain == "" || failureDomainCount == 0 {
+			continue
+		}
+
+		ch <- prometheus.MustNewConstMetric(
+			c.FailureDomainCount,
+			prometheus.GaugeValue,
+			float64(failureDomainCount),
+			storageCluster.Name,
+			storageCluster.Namespace,
+			failureDomain,
 		)
 	}
 }
