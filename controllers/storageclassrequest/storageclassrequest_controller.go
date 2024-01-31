@@ -16,7 +16,9 @@ package storageclassrequest
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
@@ -30,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -116,10 +119,72 @@ func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request r
 
 	result, reconcileError = r.reconcilePhases()
 
-	// Apply status changes to the StorageClassRequest
-	statusError := r.Client.Status().Update(r.ctx, r.StorageClassRequest)
+	statusUpdated := false
+
+	// keep updating the status:
+	// 1. If status update fails due to
+	//   1.1 IsNotFound -> exit as the object must be deleted
+	//   1.2 IsConflict -> the cr got updated, fetch the resource again and retry
+	//   1.3 any other reason, we can retry status update
+	// 2. If status update succeeds -> exit
+	statusError := wait.PollUntilContextTimeout(r.ctx, 100*time.Millisecond, 2*time.Second, true, func(_ context.Context) (done bool, err error) {
+		// Apply status changes to the StorageClassRequest
+		statusError := r.Client.Status().Update(r.ctx, r.StorageClassRequest)
+		if statusError != nil {
+			if errors.IsNotFound(statusError) {
+				return true, statusError
+			}
+			if errors.IsConflict(statusError) {
+				tempStorageClassRequest := &v1alpha1.StorageClassRequest{}
+				tempStorageClassRequest.Name = request.Name
+				tempStorageClassRequest.Namespace = request.Namespace
+
+				if err := r.get(tempStorageClassRequest); err != nil {
+					if errors.IsNotFound(err) {
+						r.log.Error(err, "StorageClassRequest resource not found. Ignoring since object must be deleted.")
+						return true, err
+					}
+					r.log.Error(err, "Failed to get StorageClassRequest.")
+					return false, err
+				}
+				r.StorageClassRequest.Status.DeepCopyInto(&tempStorageClassRequest.Status)
+				tempStorageClassRequest.DeepCopyInto(r.StorageClassRequest)
+				return false, nil
+			}
+			r.log.Error(statusError, "Failed to update StorageClassRequest status.")
+			return false, statusError
+		}
+		statusUpdated = true
+		return true, nil
+	})
 	if statusError != nil {
-		r.log.Info("Failed to update StorageClassRequest status.")
+		r.log.Error(statusError, "Error waiting for StorageClassRequest status to update",
+			"StorageClassRequest", r.StorageClassRequest.Name)
+	}
+
+	if statusUpdated {
+		err := wait.PollUntilContextTimeout(r.ctx, 100*time.Millisecond, 2*time.Second, true, func(_ context.Context) (done bool, err error) {
+
+			// wait for the cache to update so that we don't create multiple resources
+			cachedStorageClassRequest := &v1alpha1.StorageClassRequest{}
+			cachedStorageClassRequest.Name = request.Name
+			cachedStorageClassRequest.Namespace = request.Namespace
+
+			if err := r.get(cachedStorageClassRequest); err != nil {
+				if errors.IsNotFound(err) {
+					r.log.Error(err, "StorageClassRequest resource not found. Ignoring since object must be deleted.")
+					return true, err
+				}
+				r.log.Error(err, "Failed to get StorageClassRequest.")
+				return false, err
+			}
+			return reflect.DeepEqual(cachedStorageClassRequest.Status, r.StorageClassRequest.Status), nil
+		})
+
+		if err != nil {
+			r.log.Error(err, "Error waiting for cached StorageClassRequest to update",
+				"StorageClassRequest", r.StorageClassRequest.Name)
+		}
 	}
 
 	// Reconcile errors have higher priority than status update errors
