@@ -3196,6 +3196,8 @@ spec:
                     configMapKeyRef:
                       key: CSI_CLUSTER_NAME
                       name: ocs-operator-config
+                - name: CSI_DRIVER_NAME_PREFIX
+                  value: openshift-storage
                 - name: CSI_ENABLE_TOPOLOGY
                   valueFrom:
                     configMapKeyRef:
