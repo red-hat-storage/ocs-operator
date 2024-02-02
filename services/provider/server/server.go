@@ -404,12 +404,12 @@ func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rs
 		return nil, fmt.Errorf("invalid PEM block")
 	}
 
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	publicKey, err := x509.ParsePKCS1PublicKey(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse public key. %v", err)
 	}
 
-	return key.(*rsa.PublicKey), nil
+	return publicKey, nil
 }
 
 func mustMarshal(data map[string]string) []byte {
