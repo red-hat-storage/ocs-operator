@@ -10,9 +10,17 @@ spec:
   groups:
   - name: ocs_performance.rules
     rules:
-    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"}, \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\", \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by (instance,device) \n    (1,\n      (\n        rate(node_disk_read_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      )\n    )\n)\n"
+    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
+        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
+        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by
+        (instance,device) \n    (1,\n      (\n        rate(node_disk_read_time_seconds_total[1m])
+        / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      )\n    )\n)\n"
       record: cluster:ceph_disk_latency_read:join_ceph_node_disk_rate1m
-    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"}, \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\", \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by (instance,device) \n    (1,\n      (\n        rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n)\n"
+    - expr: "sum by (namespace, managedBy) (\n    topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
+        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
+        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left topk by
+        (instance,device) \n    (1,\n      (\n        rate(node_disk_write_time_seconds_total[1m])
+        / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n)\n"
       record: cluster:ceph_disk_latency_write:join_ceph_node_disk_rate1m
   - name: ODF_standardized_metrics.rules
     rules:
@@ -46,7 +54,14 @@ spec:
         system_type: OCS
         system_vendor: Red Hat
       record: odf_system_throughput_total_bytes
-    - expr: "sum by (namespace, managedBy, job, service)\n(\n  topk by (ceph_daemon) (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"}, \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\", \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left() topk by (instance,device) \n  (1,\n    (\n      (  \n          rate(node_disk_read_time_seconds_total[1m]) / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      ) +\n      (\n          rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_writes_completed_total[1m]), 1))\n      )\n    )\n  )\n)\n"
+    - expr: "sum by (namespace, managedBy, job, service)\n(\n  topk by (ceph_daemon)
+        (1, label_replace(label_replace(ceph_disk_occupation{job=\"rook-ceph-mgr\"},
+        \"instance\", \"$1\", \"exported_instance\", \"(.*)\"), \"device\", \"$1\",
+        \"device\", \"/dev/(.*)\")) \n  * on(instance, device) group_left() topk by
+        (instance,device) \n  (1,\n    (\n      (  \n          rate(node_disk_read_time_seconds_total[1m])
+        / (clamp_min(rate(node_disk_reads_completed_total[1m]), 1))\n      ) +\n      (\n
+        \         rate(node_disk_write_time_seconds_total[1m]) / (clamp_min(rate(node_disk_writes_completed_total[1m]),
+        1))\n      )\n    )\n  )\n)\n"
       labels:
         system_type: OCS
         system_vendor: Red Hat
@@ -67,8 +82,11 @@ spec:
     rules:
     - alert: OdfMirrorDaemonStatus
       annotations:
-        description: Mirror daemon is in unhealthy status for more than 1m. Mirroring is not working as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Mirror daemon is unhealthy in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Mirror daemon is in unhealthy status for more than 1m. Mirroring
+          is not working as expected in namespace:cluster {{ $labels.namespace }}:{{
+          $labels.managedBy }}.
+        message: Mirror daemon is unhealthy in namespace:cluster {{ $labels.namespace
+          }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfMirrorDaemonStatus.md
         severity_level: error
         storage_type: ceph
@@ -79,8 +97,12 @@ spec:
         severity: critical
     - alert: OdfPoolMirroringImageHealth
       annotations:
-        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown state for more than 1m. Mirroring might not work as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown state in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+          Unknown state for more than 1m. Mirroring might not work as expected in
+          namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown
+          state in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
+          }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: warning
         storage_type: ceph
@@ -92,8 +114,11 @@ spec:
         severity: warning
     - alert: OdfPoolMirroringImageHealth
       annotations:
-        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state for more than 1m. Mirroring might not work as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+          Warning state for more than 1m. Mirroring might not work as expected in
+          namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning
+          state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: warning
         storage_type: ceph
@@ -105,8 +130,11 @@ spec:
         severity: warning
     - alert: OdfPoolMirroringImageHealth
       annotations:
-        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state for more than 10s. Mirroring is not working as expected in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+          Error state for more than 10s. Mirroring is not working as expected in namespace:cluster
+          {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error
+          state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: error
         storage_type: ceph
@@ -118,8 +146,14 @@ spec:
         severity: critical
     - alert: ODFPersistentVolumeMirrorStatus
       annotations:
-        description: Persistent volume {{ $labels.name }}/{{ $labels.namespace }} is not mirrored properly to peer site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Persistent volume {{ $labels.name }}/{{ $labels.namespace }} is not mirrored properly to peer site {{ $labels.site_name }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Persistent volume {{ $labels.name }}/{{ $labels.namespace }}
+          is not mirrored properly to peer site {{ $labels.site_name }} for more than
+          1m. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name
+          }}. Please check namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
+          }}.
+        message: Persistent volume {{ $labels.name }}/{{ $labels.namespace }} is not
+          mirrored properly to peer site {{ $labels.site_name }} in namespace:cluster
+          {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md
         severity_level: error
         storage_type: ceph
@@ -130,8 +164,13 @@ spec:
         severity: critical
     - alert: ODFPersistentVolumeMirrorStatus
       annotations:
-        description: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} to peer site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}
-        message: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace }} mirroring to peer site {{ $labels.site_name }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace
+          }} to peer site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image
+          }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace:cluster
+          {{ $labels.namespace }}:{{ $labels.managedBy }}
+        message: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace
+          }} mirroring to peer site {{ $labels.site_name }} in namespace:cluster {{
+          $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md
         severity_level: warning
         storage_type: ceph
@@ -144,8 +183,13 @@ spec:
     rules:
     - alert: ObcQuotaBytesAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
-        message: OBC has crossed 80% of the quota(bytes) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed
+          80% of the size limit set by the quota(bytes) and will become read-only
+          on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{
+          $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim
+          }} OBC custom resource.
+        message: OBC has crossed 80% of the quota(bytes) in namespace:cluster {{ $labels.namespace
+          }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesAlert.md
         severity_level: warning
         storage_type: RGW
@@ -156,8 +200,13 @@ spec:
         severity: warning
     - alert: ObcQuotaObjectsAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed 80% of the size limit set by the quota(objects) and will become read-only on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource.
-        message: OBC has crossed 80% of the quota(object) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed
+          80% of the size limit set by the quota(objects) and will become read-only
+          on reaching the quota limit in namespace:cluster {{ $labels.namespace }}:{{
+          $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim
+          }} OBC custom resource.
+        message: OBC has crossed 80% of the quota(object) in namespace:cluster {{
+          $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaObjectsAlert.md
         severity_level: warning
         storage_type: RGW
@@ -168,8 +217,12 @@ spec:
         severity: warning
     - alert: ObcQuotaBytesExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(bytes) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
-        message: OBC reached quota(bytes) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed
+          the limit set by the quota(bytes) and will be read-only now in namespace:cluster
+          {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the
+          {{ $labels.objectbucketclaim }} OBC custom resource immediately.
+        message: OBC reached quota(bytes) limit in namespace:cluster {{ $labels.namespace
+          }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesExhausedAlert.md
         severity_level: error
         storage_type: RGW
@@ -180,8 +233,12 @@ spec:
         severity: critical
     - alert: ObcQuotaObjectsExhausedAlert
       annotations:
-        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed the limit set by the quota(objects) and will be read-only now in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the {{ $labels.objectbucketclaim }} OBC custom resource immediately.
-        message: OBC reached quota(object) limit in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: ObjectBucketClaim {{ $labels.objectbucketclaim }} has crossed
+          the limit set by the quota(objects) and will be read-only now in namespace:cluster
+          {{ $labels.namespace }}:{{ $labels.managedBy }}. Increase the quota in the
+          {{ $labels.objectbucketclaim }} OBC custom resource immediately.
+        message: OBC reached quota(object) limit in namespace:cluster {{ $labels.namespace
+          }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaObjectsExhausedAlert.md
         severity_level: error
         storage_type: RGW
@@ -194,8 +251,13 @@ spec:
     rules:
     - alert: ClusterObjectStoreState
       annotations:
-        description: RGW endpoint of the Ceph object store is in a failure state or one or more Rook Ceph RGW deployments have fewer ready replicas than required for more than 15s. Please check the health of the Ceph cluster and the deployments in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Cluster Object Store is in unhealthy state or number of ready replicas for Rook Ceph RGW deployments is less than the desired replicas in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: RGW endpoint of the Ceph object store is in a failure state or
+          one or more Rook Ceph RGW deployments have fewer ready replicas than required
+          for more than 15s. Please check the health of the Ceph cluster and the deployments
+          in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Cluster Object Store is in unhealthy state or number of ready replicas
+          for Rook Ceph RGW deployments is less than the desired replicas in namespace:cluster
+          {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ClusterObjectStoreState.md
         severity_level: error
         storage_type: RGW
@@ -210,8 +272,14 @@ spec:
     rules:
     - alert: ODFRBDClientBlocked
       annotations:
-        description: An RBD client might be blocked by Ceph on node {{ $labels.node_name }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}. This alert is triggered when the ocs_rbd_client_blocklisted metric reports a value of 1 for the node and there are pods in a CreateContainerError state on the node. This may cause the filesystem for the PVCs to be in a read-only state. Please check the pod description for more details.
-        message: An RBD client might be blocked by Ceph on node {{ $labels.node_name }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: An RBD client might be blocked by Ceph on node {{ $labels.node_name
+          }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+          This alert is triggered when the ocs_rbd_client_blocklisted metric reports
+          a value of 1 for the node and there are pods in a CreateContainerError state
+          on the node. This may cause the filesystem for the PVCs to be in a read-only
+          state. Please check the pod description for more details.
+        message: An RBD client might be blocked by Ceph on node {{ $labels.node_name
+          }} in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFRBDClientBlocked.md
         severity_level: error
       expr: |
@@ -230,8 +298,12 @@ spec:
     rules:
     - alert: KMSServerConnectionAlert
       annotations:
-        description: Storage Cluster KMS Server is in un-connected state for more than 5s. Please check KMS config in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Cluster KMS Server is in un-connected state. Please check KMS config in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Storage Cluster KMS Server is in un-connected state for more
+          than 5s. Please check KMS config in namespace:cluster {{ $labels.namespace
+          }}:{{ $labels.managedBy }}.
+        message: Storage Cluster KMS Server is in un-connected state. Please check
+          KMS config in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
+          }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/KMSServerConnectionAlert.md
         severity_level: error
         storage_type: ceph
@@ -244,8 +316,12 @@ spec:
     rules:
     - alert: StorageClientHeartbeatMissed
       annotations:
-        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 120 (s). Lossy network connectivity might exist in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 120 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat
+          missed for more than 120 (s). Lossy network connectivity might exist in
+          namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed
+          for more than 120 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
+          }}.
         severity_level: warning
       expr: |
         (time() - 120) > (ocs_storage_client_last_heartbeat > 0)
@@ -253,8 +329,12 @@ spec:
         severity: warning
     - alert: StorageClientHeartbeatMissed
       annotations:
-        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 300 (s). Client might have lost internet connectivity in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 300 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat
+          missed for more than 300 (s). Client might have lost internet connectivity
+          in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed
+          for more than 300 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
+          }}.
         severity_level: critical
       expr: |
         (time() - 300) > (ocs_storage_client_last_heartbeat > 0)
@@ -262,8 +342,12 @@ spec:
         severity: critical
     - alert: StorageClientIncompatibleOperatorVersion
       annotations:
-        description: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by 1 minor version. Client configuration may be incompatible in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by 1 minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Storage Client Operator ({{ $labels.storage_consumer_name }})
+          lags by 1 minor version. Client configuration may be incompatible in namespace:cluster
+          {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags
+          by 1 minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
+          }}.
         severity_level: warning
       expr: |
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) == 1
@@ -271,8 +355,13 @@ spec:
         severity: warning
     - alert: StorageClientIncompatibleOperatorVersion
       annotations:
-        description: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than 1 minor version. Client configuration may be incompatible and unsupported in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than 1 minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Storage Client Operator ({{ $labels.storage_consumer_name }})
+          differs by more than 1 minor version. Client configuration may be incompatible
+          and unsupported in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
+          }}.
+        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs
+          by more than 1 minor version in namespace:cluster {{ $labels.namespace }}:{{
+          $labels.managedBy }}.
         severity_level: critical
       expr: |
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
@@ -297,7 +386,9 @@ spec:
     rules:
     - alert: MDSCacheUsageHigh
       annotations:
-        description: MDS cache usage for the daemon {{ $labels.ceph_daemon }} has exceeded above 95% of the requested value. Increase the memory request for {{ $labels.ceph_daemon }} pod.
+        description: MDS cache usage for the daemon {{ $labels.ceph_daemon }} has
+          exceeded above 95% of the requested value. Increase the memory request for
+          {{ $labels.ceph_daemon }} pod.
         message: High MDS cache usage for the daemon {{ $labels.ceph_daemon }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCacheUsageHigh.md
         severity_level: error
@@ -308,7 +399,8 @@ spec:
         severity: critical
     - alert: OSDCPULoadHigh
       annotations:
-        description: CPU usage for osd on pod {{ $labels.pod }} has exceeded 80%. Consider creating more OSDs to increase performance
+        description: CPU usage for osd on pod {{ $labels.pod }} has exceeded 80%.
+          Consider creating more OSDs to increase performance
         message: High CPU usage detected in OSD container on pod {{ $labels.pod}}.
         severity_level: warning
       expr: |
