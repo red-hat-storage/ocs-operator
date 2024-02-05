@@ -7,7 +7,7 @@
           {
             alert: 'CephMonLowNumber',
             expr: |||
-              ((count by (managedBy, namespace) (ceph_mon_metadata)) - on(managedBy,namespace) group_right() (ocs_storagecluster_failure_domain_count>=5)) < 0
+              ((count by (managedBy, namespace) (ceph_mon_metadata)<5) - on(managedBy,namespace) group_right() (ocs_storagecluster_failure_domain_count>=5)) < 0
             |||,
             labels: {
               severity: 'info',
