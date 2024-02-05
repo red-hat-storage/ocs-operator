@@ -1,0 +1,23 @@
+---
+name: ocs-operator prometheus rules
+
+on:
+  push:
+    paths:
+      - 'metrics/**'
+  pull_request:
+    paths:
+      - 'metrics/**'
+jobs:
+  verify-deployment-prom:
+    name: verify deployment prometheus yaml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - id: setup-jsonnet
+        uses: zendesk/setup-jsonnet@v1
+
+      - name: Verify deployment prometheus YAML
+        run: make verify-latest-prometheus-rules-yamls
