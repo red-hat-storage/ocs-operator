@@ -316,12 +316,9 @@ spec:
     rules:
     - alert: StorageClientHeartbeatMissed
       annotations:
-        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat
-          missed for more than 120 (s). Lossy network connectivity might exist in
-          namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed
-          for more than 120 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
-          }}.
+        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 120 (s). Lossy network connectivity might exist in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 120 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageClientHeartbeatMissed.md
         severity_level: warning
       expr: |
         (time() - 120) > (ocs_storage_client_last_heartbeat > 0)
@@ -329,12 +326,9 @@ spec:
         severity: warning
     - alert: StorageClientHeartbeatMissed
       annotations:
-        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat
-          missed for more than 300 (s). Client might have lost internet connectivity
-          in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed
-          for more than 300 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
-          }}.
+        description: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 300 (s). Client might have lost network connectivity in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Client ({{ $labels.storage_consumer_name }}) heartbeat missed for more than 300 (s) in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageClientHeartbeatMissed.md
         severity_level: critical
       expr: |
         (time() - 300) > (ocs_storage_client_last_heartbeat > 0)
@@ -342,12 +336,9 @@ spec:
         severity: critical
     - alert: StorageClientIncompatibleOperatorVersion
       annotations:
-        description: Storage Client Operator ({{ $labels.storage_consumer_name }})
-          lags by 1 minor version. Client configuration may be incompatible in namespace:cluster
-          {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags
-          by 1 minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
-          }}.
+        description: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by 1 minor version. Client configuration may be incompatible in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) lags by 1 minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageClientIncompatibleOperatorVersion.md
         severity_level: warning
       expr: |
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) == 1
@@ -355,13 +346,9 @@ spec:
         severity: warning
     - alert: StorageClientIncompatibleOperatorVersion
       annotations:
-        description: Storage Client Operator ({{ $labels.storage_consumer_name }})
-          differs by more than 1 minor version. Client configuration may be incompatible
-          and unsupported in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
-          }}.
-        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs
-          by more than 1 minor version in namespace:cluster {{ $labels.namespace }}:{{
-          $labels.managedBy }}.
+        description: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than 1 minor version. Client configuration may be incompatible and unsupported in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage Client Operator ({{ $labels.storage_consumer_name }}) differs by more than 1 minor version in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageClientIncompatibleOperatorVersion.md
         severity_level: critical
       expr: |
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
@@ -371,10 +358,8 @@ spec:
     rules:
     - alert: CephMonLowNumber
       annotations:
-        description: The number of node failure zones available (5) allow to increase
-          the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
-        message: The current number of Ceph monitors can be increased in order to
-          improve cluster resilience.
+        description: The number of node failure zones available (5) allow to increase the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
+        message: The current number of Ceph monitors can be increased in order to improve cluster resilience.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonLowNumber.md
         severity_level: info
         storage_type: ceph
