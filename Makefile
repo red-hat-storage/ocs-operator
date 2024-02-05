@@ -66,10 +66,6 @@ gen-latest-deploy-yaml:
 	@echo "Generating latest deployment yaml file"
 	hack/gen-deployment-yaml.sh
 
-gen-latest-prometheus-rules-yamls:
-	@echo "Generating latest Prometheus rules yamls"
-	hack/gen-promethues-rules.sh
-
 verify-latest-deploy-yaml: gen-latest-deploy-yaml
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
