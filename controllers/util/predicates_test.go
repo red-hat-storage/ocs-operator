@@ -8,11 +8,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-var one = int64(1)
 var now = metav1.NewTime(time.Now())
 
 func TestComposePredicatesUpdate(t *testing.T) {
@@ -50,10 +50,10 @@ func TestComposePredicatesUpdate(t *testing.T) {
 				Namespace:                  "foo",
 				SelfLink:                   "foo",
 				UID:                        types.UID("foo"),
-				Generation:                 one,
+				Generation:                 1,
 				CreationTimestamp:          now,
 				DeletionTimestamp:          &now,
-				DeletionGracePeriodSeconds: &one,
+				DeletionGracePeriodSeconds: ptr.To(int64(1)),
 				OwnerReferences:            []metav1.OwnerReference{{}},
 				ManagedFields:              []metav1.ManagedFieldsEntry{{}},
 			},
@@ -127,10 +127,10 @@ func TestMetadataChangedPredicateUpdate(t *testing.T) {
 				SelfLink:                   "foo",
 				UID:                        types.UID("foo"),
 				ResourceVersion:            "foo",
-				Generation:                 one,
+				Generation:                 1,
 				CreationTimestamp:          now,
 				DeletionTimestamp:          &now,
-				DeletionGracePeriodSeconds: &one,
+				DeletionGracePeriodSeconds: ptr.To(int64(1)),
 				OwnerReferences:            []metav1.OwnerReference{{}},
 				ManagedFields:              []metav1.ManagedFieldsEntry{{}},
 			},

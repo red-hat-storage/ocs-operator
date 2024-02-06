@@ -24,6 +24,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 )
 
 var (
@@ -929,10 +930,8 @@ func copyManifests() {
 }
 
 func getUXBackendServerDeployment() appsv1.DeploymentSpec {
-	replica := int32(1)
-	ptrToTrue := true
 	deployment := appsv1.DeploymentSpec{
-		Replicas: &replica,
+		Replicas: ptr.To(int32(1)),
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"app.kubernetes.io/component": "ux-backend-server",
@@ -1023,7 +1022,7 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "onboarding-private-key",
-								Optional:   &ptrToTrue,
+								Optional:   ptr.To(true),
 							},
 						},
 					},

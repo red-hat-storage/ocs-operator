@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -276,12 +277,6 @@ func createMetricsExporterServiceMonitor(ctx context.Context, r *StorageClusterR
 }
 
 func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	var (
-		falsePtr = new(bool) // defaults to 'false'
-		truePtr  = new(bool)
-	)
-	*truePtr = true
-
 	currentDep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      metricsExporterName,
@@ -301,8 +296,8 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 			Namespace: instance.Namespace,
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion:         instance.APIVersion,
-				BlockOwnerDeletion: falsePtr,
-				Controller:         falsePtr,
+				BlockOwnerDeletion: ptr.To(false),
+				Controller:         ptr.To(false),
 				Kind:               instance.Kind,
 				Name:               instance.Name,
 				UID:                instance.UID,
@@ -337,7 +332,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							{ContainerPort: 8081},
 						},
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot: truePtr,
+							RunAsNonRoot: ptr.To(true),
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "ceph-config",
