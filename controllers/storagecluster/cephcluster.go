@@ -470,10 +470,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
 			LogCollector: logCollector,
 			Labels: rookCephv1.LabelsSpec{
-				rookCephv1.KeyMgr:        rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
-				rookCephv1.KeyMon:        rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
-				rookCephv1.KeyOSD:        rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
-				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
+				rookCephv1.KeyMgr:          rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
+				rookCephv1.KeyMon:          rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
+				rookCephv1.KeyOSD:          rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
+				rookCephv1.KeyMonitoring:   getCephClusterMonitoringLabels(*sc),
+				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
 			},
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: getReadAffinityOptions(sc),
@@ -632,7 +633,8 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 			Monitoring: monitoringSpec,
 			Network:    getNetworkSpec(*sc),
 			Labels: rookCephv1.LabelsSpec{
-				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
+				rookCephv1.KeyMonitoring:   getCephClusterMonitoringLabels(*sc),
+				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
 			},
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: getReadAffinityOptions(sc),
