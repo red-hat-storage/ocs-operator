@@ -198,10 +198,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		nb.Spec.DisableLoadBalancerService = sc.Spec.MultiCloudGateway.DisableLoadBalancerService
 
 		if sc.Spec.MultiCloudGateway.ExternalPgConfig != nil && sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName != "" {
-			nb.Spec.ExternalPgSSLRequired = true
 			nb.Spec.ExternalPgSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName, Namespace: sc.Namespace}
 			nb.Spec.ExternalPgSSLUnauthorized = sc.Spec.MultiCloudGateway.ExternalPgConfig.AllowSelfSignedCerts
 			if sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName != "" {
+				nb.Spec.ExternalPgSSLRequired = true
 				nb.Spec.ExternalPgSSLSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName, Namespace: sc.Namespace}
 			}
 		}
