@@ -34,12 +34,13 @@ import (
 )
 
 const (
-	pgAutoscaleMode    = "pg_autoscale_mode"
-	pgNum              = "pg_num"
-	pgpNum             = "pgp_num"
-	namespaceName      = "test-ns"
-	deviceClass        = "ssd"
-	storageProfileKind = "StorageProfile"
+	pgAutoscaleMode        = "pg_autoscale_mode"
+	pgNum                  = "pg_num"
+	pgpNum                 = "pgp_num"
+	namespaceName          = "test-ns"
+	deviceClass            = "ssd"
+	storageProfileKind     = "StorageProfile"
+	storageClassRequestUID = "storageClassRequestUUID"
 )
 
 var fakeStorageProfile = &v1.StorageProfile{
@@ -161,7 +162,11 @@ func createFakeReconciler(t *testing.T) StorageClassRequestReconciler {
 	fakeReconciler.Scheme = createFakeScheme(t)
 	fakeReconciler.log = log.Log.WithName("controller_storagecluster_test")
 	fakeReconciler.OperatorNamespace = namespaceName
-	fakeReconciler.StorageClassRequest = &v1alpha1.StorageClassRequest{}
+	fakeReconciler.StorageClassRequest = &v1alpha1.StorageClassRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			UID: storageClassRequestUID,
+		},
+	}
 	fakeReconciler.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
 
 	fakeReconciler.storageConsumer = fakeStorageConsumer
@@ -402,6 +407,11 @@ func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-subvolgroup",
 						Namespace: namespaceName,
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								UID: storageClassRequestUID,
+							},
+						},
 					},
 					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
 				},
@@ -441,7 +451,6 @@ func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
 			r.storageCluster.Spec.DefaultStorageProfile = rejectedStorageProfile.Name
 		}
 
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 		r.StorageClassRequest.Spec.StorageProfile = c.storageProfile.Name
 
@@ -451,7 +460,6 @@ func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
 		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
 
 		r.Client = fakeClient.Build()
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 
 		_, err = r.reconcilePhases()
 		if c.failureExpected {
@@ -644,7 +652,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 			label: "No CephFilesystemSubVolumeGroup exists",
 		},
 		{
-			label:             "Request status already has valid CephResource",
+			label:             "CephFilesystemSubVolumeGroup already has valid ownerReference",
 			expectedGroupName: "test-subvolgroup",
 			cephResources: []*v1alpha1.CephResourcesSpec{
 				{
@@ -655,20 +663,15 @@ func TestCephFsSubVolGroup(t *testing.T) {
 			createObjects: []runtime.Object{
 				&rookCephv1.CephFilesystemSubVolumeGroup{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-blockpool",
+						Name:      "test-subvolgroup",
 						Namespace: "test-ns",
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								UID: storageClassRequestUID,
+							},
+						},
 					},
 					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
-				},
-			},
-		},
-		{
-			label:             "Request status has CephResource that doesn't exist",
-			expectedGroupName: "test-subvolgroup",
-			cephResources: []*v1alpha1.CephResourcesSpec{
-				{
-					Name: "test-subvolgroup",
-					Kind: "CephFilesystemSubVolumeGroup",
 				},
 			},
 		},
@@ -680,7 +683,6 @@ func TestCephFsSubVolGroup(t *testing.T) {
 		fmt.Println(caseLabel)
 
 		r := createFakeReconciler(t)
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 		r.StorageClassRequest.Spec.StorageProfile = fakeStorageProfile.Name
 
@@ -690,7 +692,6 @@ func TestCephFsSubVolGroup(t *testing.T) {
 		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
 
 		r.Client = fakeClient.Build()
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 
 		_, err = r.reconcilePhases()
 		assert.NoError(t, err, caseLabel)
