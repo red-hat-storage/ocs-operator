@@ -15,6 +15,8 @@ package storageclassrequest
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -24,6 +26,7 @@ import (
 	v1 "github.com/red-hat-storage/ocs-operator/v4/api/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -239,14 +242,33 @@ func (r *StorageClassRequestReconciler) initPhase(storageProfile *v1.StorageProf
 	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
 		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
-		for _, res := range r.StorageClassRequest.Status.CephResources {
-			if res.Kind == "CephFilesystemSubVolumeGroup" {
-				r.cephFilesystemSubVolumeGroup.Name = res.Name
-				break
-			}
+
+		cephFilesystemSubVolumeGroupList := &rookCephv1.CephFilesystemSubVolumeGroupList{}
+		err := r.Client.List(r.ctx, cephFilesystemSubVolumeGroupList, client.InNamespace(r.OperatorNamespace))
+		if err != nil {
+			return err
 		}
-		if r.cephFilesystemSubVolumeGroup.Name == "" {
-			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s-%s", r.storageConsumer.Name, generateUUID())
+		ownedCephFilesystemSubVolumeGroups := util.Filter(
+			cephFilesystemSubVolumeGroupList.Items,
+			func(item *rookCephv1.CephFilesystemSubVolumeGroup) bool {
+				for i := range item.OwnerReferences {
+					if item.OwnerReferences[i].UID == r.StorageClassRequest.UID {
+						return true
+					}
+				}
+				return false
+			})
+
+		svgItemsLen := len(ownedCephFilesystemSubVolumeGroups)
+		if svgItemsLen == 0 {
+			md5Sum := md5.Sum([]byte(r.StorageClassRequest.Name))
+			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(md5Sum[:16]))
+		} else if svgItemsLen == 1 {
+			r.cephFilesystemSubVolumeGroup.Name = ownedCephFilesystemSubVolumeGroups[0].GetName()
+			r.log.V(1).Info(fmt.Sprintf("CephFilesystemSubVolumeGroup found: %s", r.cephFilesystemSubVolumeGroup.Name))
+		} else {
+			return fmt.Errorf(
+				"invalid number of CephFilesystemSubVolumeGroups owned by StorageClassRequest %q: expecting 0-1, found %d", r.StorageClassRequest.Name, svgItemsLen)
 		}
 	}
 
