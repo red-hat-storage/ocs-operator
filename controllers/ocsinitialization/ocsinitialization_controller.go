@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,7 +27,10 @@ import (
 // watchNamespace is the namespace the operator is watching.
 var watchNamespace string
 
-const wrongNamespacedName = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
+const (
+	wrongNamespacedName     = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
+	random30CharacterString = "KP7TThmSTZegSGmHuPKLnSaaAHSG3RSgqw6akBj0oVk"
+)
 
 // InitNamespacedName returns a NamespacedName for the singleton instance that
 // should exist.
@@ -151,6 +155,18 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
+	err = r.reconcileUXBackendSecret(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure uxbackend secret")
+		return reconcile.Result{}, err
+	}
+
+	err = r.reconcileUXBackendService(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure uxbackend service")
+		return reconcile.Result{}, err
+	}
+
 	reason := ocsv1.ReconcileCompleted
 	message := ocsv1.ReconcileCompletedMessage
 	util.SetCompleteCondition(&instance.Status.Conditions, reason, message)
@@ -172,6 +188,8 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
+		Owns(&corev1.Secret{}).
 		// Watcher for rook-ceph-operator-config cm
 		Watches(
 			&corev1.ConfigMap{
@@ -272,6 +290,84 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		r.Log.Info("ocs-operator-config configmap created/updated. Restarting rook-ceph-operator pod to pick up the new values")
 		util.RestartPod(r.ctx, r.Client, &r.Log, "rook-ceph-operator", initialData.Namespace)
 	}
+
+	return nil
+}
+
+func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
+
+	var err error
+
+	secret := &corev1.Secret{}
+	secret.Name = "ux-backend-proxy"
+	secret.Namespace = initialData.Namespace
+
+	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, secret, func() error {
+
+		if err := ctrl.SetControllerReference(initialData, secret, r.Scheme); err != nil {
+			return err
+		}
+
+		secret.StringData = map[string]string{
+			"session_secret": random30CharacterString,
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update ux-backend secret")
+		return err
+	}
+
+	r.Log.Info("Secret creation succeeded", "Name", secret.Name)
+
+	return nil
+}
+
+func (r *OCSInitializationReconciler) reconcileUXBackendService(initialData *ocsv1.OCSInitialization) error {
+
+	var err error
+
+	service := &corev1.Service{}
+	service.Name = "ux-backend-proxy"
+	service.Namespace = initialData.Namespace
+
+	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, service, func() error {
+
+		if err := ctrl.SetControllerReference(initialData, service, r.Scheme); err != nil {
+			return err
+		}
+
+		service.Annotations = map[string]string{
+			"service.beta.openshift.io/serving-cert-secret-name": "ux-cert-secret",
+		}
+		service.Spec = corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "proxy",
+					Port:     8888,
+					Protocol: corev1.ProtocolTCP,
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: 8888,
+					},
+				},
+			},
+			Selector:        map[string]string{"app": "ux-backend-server"},
+			SessionAffinity: "None",
+			Type:            "ClusterIP",
+		}
+
+		return nil
+
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update ux-backend service")
+		return err
+	}
+	r.Log.Info("Service creation succeeded", "Name", service.Name)
 
 	return nil
 }

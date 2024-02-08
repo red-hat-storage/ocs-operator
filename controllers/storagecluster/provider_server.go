@@ -10,10 +10,13 @@ import (
 
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -24,8 +27,11 @@ import (
 )
 
 const (
-	ocsProviderServerName  = "ocs-provider-server"
-	providerAPIServerImage = "PROVIDER_API_SERVER_IMAGE"
+	ocsProviderServerName               = "ocs-provider-server"
+	providerAPIServerImage              = "PROVIDER_API_SERVER_IMAGE"
+	onboardingSecretGeneratorImage      = "ONBOARDING_SECRET_GENERATOR_IMAGE"
+	onboardingJobName                   = "onboarding-secret-generator"
+	onboardingTicketPublicKeySecretName = "onboarding-ticket-key"
 
 	ocsProviderServicePort     = int32(50051)
 	ocsProviderServiceNodePort = int32(31659)
@@ -58,6 +64,12 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 	}
 
 	if res, err := o.createDeployment(r, instance); err != nil {
+		return reconcile.Result{}, err
+	} else if !res.IsZero() {
+		return res, nil
+	}
+
+	if res, err := o.createJob(r, instance); err != nil {
 		return reconcile.Result{}, err
 	} else if !res.IsZero() {
 		return res, nil
@@ -433,4 +445,64 @@ func RandomString(l int) string {
 	}
 
 	return string(bytes)
+}
+
+func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
+
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      onboardingJobName,
+			Namespace: instance.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			// Eligible to delete automatically when job finishes
+			TTLSecondsAfterFinished: ptr.To(int32(0)),
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					RestartPolicy:      corev1.RestartPolicyOnFailure,
+					ServiceAccountName: onboardingJobName,
+					Containers: []corev1.Container{
+						{
+							Name:    onboardingJobName,
+							Image:   os.Getenv(onboardingSecretGeneratorImage),
+							Command: []string{"/usr/local/bin/onboarding-secret-generator"},
+							Env: []corev1.EnvVar{
+								{
+									Name:  util.OperatorNamespaceEnvVar,
+									Value: os.Getenv(util.OperatorNamespaceEnvVar),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	var err error
+	if os.Getenv(onboardingSecretGeneratorImage) == "" {
+		err = fmt.Errorf("OnboardingSecretGeneratorImage env var is not set")
+		r.Log.Error(err, "No value set for env variable")
+
+		return reconcile.Result{}, err
+	}
+
+	actualSecret := &corev1.Secret{}
+	// Creating the job only if public is not found
+	err = r.Client.Get(context.Background(), types.NamespacedName{Name: onboardingTicketPublicKeySecretName,
+		Namespace: instance.Namespace}, actualSecret)
+
+	if errors.IsNotFound(err) {
+		onboardingSecretGeneratorJob := getOnboardingJobObject(instance)
+		err = r.Client.Create(context.Background(), onboardingSecretGeneratorJob)
+	}
+	if err != nil {
+		r.Log.Error(err, "failed to create/ensure secret")
+		return reconcile.Result{}, err
+	}
+
+	r.Log.Info("Job is running as desired")
+	return reconcile.Result{}, nil
 }

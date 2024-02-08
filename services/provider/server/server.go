@@ -21,8 +21,10 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/v4/api/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
+	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -59,11 +61,6 @@ type OCSProviderServer struct {
 	namespace                  string
 }
 
-type onboardingTicket struct {
-	ID             string `json:"id"`
-	ExpirationDate int64  `json:"expirationDate,string"`
-}
-
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
 	client, err := newClient()
 	if err != nil {
@@ -91,6 +88,17 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
 
+	version, err := semver.FinalizeVersion(req.ClientOperatorVersion)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "malformed ClientOperatorVersion for client %q is provided. %v", req.ConsumerName, err)
+	}
+
+	serverVersion, _ := semver.Make(ocsVersion.Version)
+	clientVersion, _ := semver.Make(version)
+	if serverVersion.Major != clientVersion.Major || serverVersion.Minor != clientVersion.Minor {
+		return nil, status.Errorf(codes.FailedPrecondition, "both server and client %q operators major and minor versions should match for onboarding process", req.ConsumerName)
+	}
+
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
@@ -101,7 +109,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req.ConsumerName, req.OnboardingTicket)
+	storageConsumerUUID, err := s.consumerManager.Create(ctx, req)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
@@ -396,12 +404,12 @@ func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rs
 		return nil, fmt.Errorf("invalid PEM block")
 	}
 
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	publicKey, err := x509.ParsePKCS1PublicKey(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse public key. %v", err)
 	}
 
-	return key.(*rsa.PublicKey), nil
+	return publicKey, nil
 }
 
 func mustMarshal(data map[string]string) []byte {
@@ -433,7 +441,7 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 		return fmt.Errorf("failed to decode onboarding ticket: %v", err)
 	}
 
-	var ticketData onboardingTicket
+	var ticketData services.OnboardingTicket
 	err = json.Unmarshal(message, &ticketData)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)

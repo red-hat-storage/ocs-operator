@@ -100,20 +100,41 @@ func TestCreateStorageConsumer(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create consumer should fail if consumer already exists
-	_, err = consumerManager.Create(ctx, "consumer1", "ticket1")
+	req := providerClient.NewOnboardConsumerRequest().
+		SetConsumerName("consumer1").
+		SetOnboardingTicket("ticket1")
+	_, err = consumerManager.Create(ctx, req)
 	assert.Error(t, err)
 
 	// Create consumer should fail if ticket is already used
-	_, err = consumerManager.Create(ctx, "consumer3", "ticket1")
+	req = providerClient.NewOnboardConsumerRequest().
+		SetConsumerName("consumer3").
+		SetOnboardingTicket("ticket1")
+	_, err = consumerManager.Create(ctx, req)
 	assert.Error(t, err)
 
 	// Create consumer successfully. (Can't validate the UID because fake client does not add UID)
 	assert.Equal(t, 1, len(consumerManager.nameByTicket))
-	_, err = consumerManager.Create(ctx, "consumer2", "ticket2")
+	req = providerClient.NewOnboardConsumerRequest().
+		SetConsumerName("consumer2").
+		SetOnboardingTicket("ticket2")
+	_, err = consumerManager.Create(ctx, req)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(consumerManager.nameByTicket))
 	assert.Equal(t, "consumer1", consumerManager.nameByTicket["ticket1"])
 	assert.Equal(t, "consumer2", consumerManager.nameByTicket["ticket2"])
+
+	version := "4.15.1"
+	name := "consumer3"
+	req = providerClient.NewOnboardConsumerRequest().
+		SetConsumerName("consumer3").
+		SetOnboardingTicket("ticket3").
+		SetClientOperatorVersion(version)
+	_, err = consumerManager.Create(ctx, req)
+	assert.NoError(t, err)
+	consumerObject, err := consumerManager.GetByName(ctx, name)
+	assert.NoError(t, err)
+	assert.Equal(t, consumerObject.Status.Client.OperatorVersion, version)
 }
 
 func TestDeleteStorageConsumer(t *testing.T) {
