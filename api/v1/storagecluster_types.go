@@ -213,7 +213,7 @@ type ManageCephNonResilientPools struct {
 	Enable bool `json:"enable,omitempty"`
 	// Count is the number of devices in this set
 	// +kubebuilder:validation:Minimum=1
-	// +kubeBuilder:default=1
+	// +kubebuilder:default=1
 	Count int `json:"count,omitempty"`
 	// ResourceRequirements (requests/limits) for the devices
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
