@@ -747,6 +747,7 @@ spec:
                       ceph non-resilient pools
                     properties:
                       count:
+                        default: 1
                         description: Count is the number of devices in this set
                         minimum: 1
                         type: integer
