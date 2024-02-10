@@ -7,9 +7,12 @@ import (
 )
 
 var (
-	// osdPvcLabelSelector is the common key in prepare and OSD pod. Used
+	// osdLabelSelector is the key in OSD pod. Used
 	// as a label selector for topology spread constraints.
-	osdPvcLabelSelector = "ceph.rook.io/pvc"
+	osdLabelSelector = "rook-ceph-osd"
+	// osdPrepareLabelSelector is the key in OSD prepare pod. Used
+	// as a label selector for topology spread constraints.
+	osdPrepareLabelSelector = "rook-ceph-osd-prepare"
 	// appLabelSelectorKey is common value for 'Key' field in 'LabelSelectorRequirement'
 	appLabelSelectorKey = "app"
 	// DefaultNodeAffinity is the NodeAffinity to be used when labelSelector is nil
@@ -60,7 +63,7 @@ var (
 				getOcsToleration(),
 			},
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1),
+				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector}),
 			},
 		},
 
@@ -69,7 +72,7 @@ var (
 				getOcsToleration(),
 			},
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1),
+				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector, osdPrepareLabelSelector}),
 			},
 		},
 
@@ -131,7 +134,7 @@ var (
 
 // getTopologySpreadConstraintsSpec populates values required for topology spread constraints.
 // TopologyKey gets updated in newStorageClassDeviceSets after determining it from determineFailureDomain.
-func getTopologySpreadConstraintsSpec(maxSkew int32) corev1.TopologySpreadConstraint {
+func getTopologySpreadConstraintsSpec(maxSkew int32, valueLabels []string) corev1.TopologySpreadConstraint {
 	topologySpreadConstraints := corev1.TopologySpreadConstraint{
 		MaxSkew:           maxSkew,
 		TopologyKey:       corev1.LabelHostname,
@@ -139,8 +142,9 @@ func getTopologySpreadConstraintsSpec(maxSkew int32) corev1.TopologySpreadConstr
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				{
-					Key:      osdPvcLabelSelector,
-					Operator: metav1.LabelSelectorOpExists,
+					Key:      appLabelSelectorKey,
+					Operator: metav1.LabelSelectorOpIn,
+					Values:   valueLabels,
 				},
 			},
 		},
