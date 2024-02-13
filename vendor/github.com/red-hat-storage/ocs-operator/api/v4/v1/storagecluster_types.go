@@ -407,6 +407,9 @@ type ExternalPGSpec struct {
 	// AllowSelfSignedCerts will allow the Postgres server to use self signed certificates to authenticate
 	// +optional
 	AllowSelfSignedCerts bool `json:"allowSelfSignedCerts,omitempty"`
+	// EnableTLS will allow the postgres server to connect via TLS/SSL
+	// +optional
+	EnableTLS bool `json:"enableTls,omitempty"`
 	// TLSSecret stores the secret name which contains the client side certificates if enabled
 	// +optional
 	TLSSecretName string `json:"tlsSecretName,omitempty"`

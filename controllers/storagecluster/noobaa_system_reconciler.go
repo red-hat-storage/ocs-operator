@@ -201,11 +201,16 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		if sc.Spec.MultiCloudGateway.ExternalPgConfig != nil && sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName != "" {
 			nb.Spec.ExternalPgSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.PGSecretName, Namespace: sc.Namespace}
 			nb.Spec.ExternalPgSSLUnauthorized = sc.Spec.MultiCloudGateway.ExternalPgConfig.AllowSelfSignedCerts
-			if sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName != "" {
-				nb.Spec.ExternalPgSSLRequired = true
+			nb.Spec.ExternalPgSSLRequired = sc.Spec.MultiCloudGateway.ExternalPgConfig.EnableTLS
+			if sc.Spec.MultiCloudGateway.ExternalPgConfig.EnableTLS && sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName != "" {
 				nb.Spec.ExternalPgSSLSecret = &corev1.SecretReference{Name: sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName, Namespace: sc.Namespace}
 			}
+
+			if !sc.Spec.MultiCloudGateway.ExternalPgConfig.EnableTLS && sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName != "" {
+				return fmt.Errorf("Failed to create Noobaa system: tlsSecretName is a non-nil value while enableTls is disabled. Please set spec.multiCloudGateway.externalPgConfig.enableTls to true and retry again. enableTls: %v and tlsSecretName: %v", sc.Spec.MultiCloudGateway.ExternalPgConfig.EnableTLS, sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName)
+			}
 		}
+
 	}
 
 	// Add KMS details to Noobaa spec, only if
