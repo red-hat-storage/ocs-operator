@@ -466,10 +466,7 @@ func marshallObject(obj interface{}, writer io.Writer, modifyUnstructuredFunc fu
 		return err
 	}
 
-	// fix double quoted strings by removing unneeded single quotes...
 	s := string(yamlBytes)
-	s = strings.Replace(s, " '\"", " \"", -1)
-	s = strings.Replace(s, "\"'\n", "\"\n", -1)
 
 	yamlBytes = []byte(s)
 
