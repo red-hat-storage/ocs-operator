@@ -746,6 +746,7 @@ spec:
                       ceph non-resilient pools
                     properties:
                       count:
+                        default: 1
                         description: Count is the number of devices in this set
                         minimum: 1
                         type: integer
@@ -1790,6 +1791,10 @@ spec:
                       allowSelfSignedCerts:
                         description: AllowSelfSignedCerts will allow the Postgres
                           server to use self signed certificates to authenticate
+                        type: boolean
+                      enableTls:
+                        description: EnableTLS will allow the postgres server to connect
+                          via TLS/SSL
                         type: boolean
                       pgSecretName:
                         description: PGSecret stores the secret name which contains

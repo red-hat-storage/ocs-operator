@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,12 +35,13 @@ import (
 )
 
 const (
-	pgAutoscaleMode    = "pg_autoscale_mode"
-	pgNum              = "pg_num"
-	pgpNum             = "pgp_num"
-	namespaceName      = "test-ns"
-	deviceClass        = "ssd"
-	storageProfileKind = "StorageProfile"
+	pgAutoscaleMode        = "pg_autoscale_mode"
+	pgNum                  = "pg_num"
+	pgpNum                 = "pgp_num"
+	namespaceName          = "test-ns"
+	deviceClass            = "ssd"
+	storageProfileKind     = "StorageProfile"
+	storageClassRequestUID = "storageClassRequestUUID"
 )
 
 var fakeStorageProfile = &v1.StorageProfile{
@@ -161,7 +163,11 @@ func createFakeReconciler(t *testing.T) StorageClassRequestReconciler {
 	fakeReconciler.Scheme = createFakeScheme(t)
 	fakeReconciler.log = log.Log.WithName("controller_storagecluster_test")
 	fakeReconciler.OperatorNamespace = namespaceName
-	fakeReconciler.StorageClassRequest = &v1alpha1.StorageClassRequest{}
+	fakeReconciler.StorageClassRequest = &v1alpha1.StorageClassRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			UID: storageClassRequestUID,
+		},
+	}
 	fakeReconciler.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
 
 	fakeReconciler.storageConsumer = fakeStorageConsumer
@@ -240,7 +246,18 @@ func TestProfileReconcile(t *testing.T) {
 		c.createObjects = append(c.createObjects, fakeStorageProfile)
 
 		r.Cache = &informertest.FakeInformers{Scheme: r.Scheme}
-		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...).WithStatusSubresource(fakeStorageClassRequest)
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(r.Scheme).
+			WithRuntimeObjects(c.createObjects...).
+			WithStatusSubresource(fakeStorageClassRequest).
+			WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
+				refs := obj.GetOwnerReferences()
+				owners := []string{}
+				for i := range refs {
+					owners = append(owners, string(refs[i].UID))
+				}
+				return owners
+			})
 		r.Client = fakeClient.Build()
 
 		req := reconcile.Request{}
@@ -402,6 +419,11 @@ func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-subvolgroup",
 						Namespace: namespaceName,
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								UID: storageClassRequestUID,
+							},
+						},
 					},
 					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
 				},
@@ -441,17 +463,25 @@ func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
 			r.storageCluster.Spec.DefaultStorageProfile = rejectedStorageProfile.Name
 		}
 
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 		r.StorageClassRequest.Spec.StorageProfile = c.storageProfile.Name
 
 		c.createObjects = append(c.createObjects, c.cephFs)
 		c.createObjects = append(c.createObjects, c.storageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(r.Scheme).
+			WithRuntimeObjects(c.createObjects...).
+			WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
+				refs := obj.GetOwnerReferences()
+				owners := []string{}
+				for i := range refs {
+					owners = append(owners, string(refs[i].UID))
+				}
+				return owners
+			})
 
 		r.Client = fakeClient.Build()
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 
 		_, err = r.reconcilePhases()
 		if c.failureExpected {
@@ -644,7 +674,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 			label: "No CephFilesystemSubVolumeGroup exists",
 		},
 		{
-			label:             "Request status already has valid CephResource",
+			label:             "CephFilesystemSubVolumeGroup already has valid ownerReference",
 			expectedGroupName: "test-subvolgroup",
 			cephResources: []*v1alpha1.CephResourcesSpec{
 				{
@@ -655,20 +685,15 @@ func TestCephFsSubVolGroup(t *testing.T) {
 			createObjects: []runtime.Object{
 				&rookCephv1.CephFilesystemSubVolumeGroup{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-blockpool",
+						Name:      "test-subvolgroup",
 						Namespace: "test-ns",
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								UID: storageClassRequestUID,
+							},
+						},
 					},
 					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
-				},
-			},
-		},
-		{
-			label:             "Request status has CephResource that doesn't exist",
-			expectedGroupName: "test-subvolgroup",
-			cephResources: []*v1alpha1.CephResourcesSpec{
-				{
-					Name: "test-subvolgroup",
-					Kind: "CephFilesystemSubVolumeGroup",
 				},
 			},
 		},
@@ -680,17 +705,24 @@ func TestCephFsSubVolGroup(t *testing.T) {
 		fmt.Println(caseLabel)
 
 		r := createFakeReconciler(t)
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 		r.StorageClassRequest.Spec.StorageProfile = fakeStorageProfile.Name
 
 		c.createObjects = append(c.createObjects, fakeCephFs)
 		c.createObjects = append(c.createObjects, fakeStorageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
-
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(r.Scheme).
+			WithRuntimeObjects(c.createObjects...).
+			WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
+				refs := obj.GetOwnerReferences()
+				owners := []string{}
+				for i := range refs {
+					owners = append(owners, string(refs[i].UID))
+				}
+				return owners
+			})
 		r.Client = fakeClient.Build()
-		r.StorageClassRequest.Status.CephResources = c.cephResources
 
 		_, err = r.reconcilePhases()
 		assert.NoError(t, err, caseLabel)
@@ -715,8 +747,18 @@ func TestCephFsSubVolGroup(t *testing.T) {
 	r := createFakeReconciler(t)
 	r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 	r.StorageClassRequest.Spec.StorageProfile = fakeStorageProfile.Name
-	fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme)
-	r.Client = fakeClient.WithRuntimeObjects(fakeStorageProfile, fakeStorageConsumer).Build()
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(r.Scheme).
+		WithRuntimeObjects(fakeStorageProfile, fakeStorageConsumer).
+		WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
+			refs := obj.GetOwnerReferences()
+			owners := []string{}
+			for i := range refs {
+				owners = append(owners, string(refs[i].UID))
+			}
+			return owners
+		})
+	r.Client = fakeClient.Build()
 
 	_, err = r.reconcilePhases()
 	assert.Error(t, err, caseLabel)

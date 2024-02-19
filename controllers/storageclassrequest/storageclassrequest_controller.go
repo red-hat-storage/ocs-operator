@@ -15,6 +15,8 @@ package storageclassrequest
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -42,6 +44,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+const ownerUIDIndexName = "ownerUID"
 
 // StorageClassRequestReconciler reconciles a StorageClassRequest object
 // nolint:revive
@@ -135,6 +139,23 @@ func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request r
 }
 
 func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	if err := mgr.GetCache().IndexField(
+		context.TODO(),
+		&rookCephv1.CephFilesystemSubVolumeGroup{},
+		ownerUIDIndexName,
+		func(obj client.Object) []string {
+			refs := obj.GetOwnerReferences()
+			owners := []string{}
+			for i := range refs {
+				owners = append(owners, string(refs[i].UID))
+			}
+			return owners
+		},
+	); err != nil {
+		return fmt.Errorf("unable to set up FieldIndexer for owner reference UIDs: %v", err)
+	}
+
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
 			annotations := obj.GetAnnotations()
@@ -239,14 +260,27 @@ func (r *StorageClassRequestReconciler) initPhase(storageProfile *v1.StorageProf
 	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
 		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
-		for _, res := range r.StorageClassRequest.Status.CephResources {
-			if res.Kind == "CephFilesystemSubVolumeGroup" {
-				r.cephFilesystemSubVolumeGroup.Name = res.Name
-				break
-			}
+
+		cephFilesystemSubVolumeGroupList := &rookCephv1.CephFilesystemSubVolumeGroupList{}
+		err := r.Client.List(
+			r.ctx,
+			cephFilesystemSubVolumeGroupList,
+			client.InNamespace(r.OperatorNamespace),
+			client.MatchingFields{ownerUIDIndexName: string(r.StorageClassRequest.UID)})
+		if err != nil {
+			return err
 		}
-		if r.cephFilesystemSubVolumeGroup.Name == "" {
-			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s-%s", r.storageConsumer.Name, generateUUID())
+
+		svgItemsLen := len(cephFilesystemSubVolumeGroupList.Items)
+		if svgItemsLen == 0 {
+			md5Sum := md5.Sum([]byte(r.StorageClassRequest.Name))
+			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(md5Sum[:16]))
+		} else if svgItemsLen == 1 {
+			r.cephFilesystemSubVolumeGroup.Name = cephFilesystemSubVolumeGroupList.Items[0].GetName()
+			r.log.V(1).Info(fmt.Sprintf("CephFilesystemSubVolumeGroup found: %s", r.cephFilesystemSubVolumeGroup.Name))
+		} else {
+			return fmt.Errorf(
+				"invalid number of CephFilesystemSubVolumeGroups owned by StorageClassRequest %q: expecting 0-1, found %d", r.StorageClassRequest.Name, svgItemsLen)
 		}
 	}
 

@@ -213,7 +213,7 @@ type ManageCephNonResilientPools struct {
 	Enable bool `json:"enable,omitempty"`
 	// Count is the number of devices in this set
 	// +kubebuilder:validation:Minimum=1
-	// +kubeBuilder:default=1
+	// +kubebuilder:default=1
 	Count int `json:"count,omitempty"`
 	// ResourceRequirements (requests/limits) for the devices
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -407,6 +407,9 @@ type ExternalPGSpec struct {
 	// AllowSelfSignedCerts will allow the Postgres server to use self signed certificates to authenticate
 	// +optional
 	AllowSelfSignedCerts bool `json:"allowSelfSignedCerts,omitempty"`
+	// EnableTLS will allow the postgres server to connect via TLS/SSL
+	// +optional
+	EnableTLS bool `json:"enableTls,omitempty"`
 	// TLSSecret stores the secret name which contains the client side certificates if enabled
 	// +optional
 	TLSSecretName string `json:"tlsSecretName,omitempty"`
