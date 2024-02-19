@@ -11,6 +11,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -147,14 +148,17 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	nb.Spec.CoreResources = &coreResources
 	nb.Spec.DBResources = &dbResources
-	if !r.IsNoobaaStandalone {
-		placement := getPlacement(sc, "noobaa-core")
-		nb.Spec.Tolerations = placement.Tolerations
-		nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
-	} else {
-		placement := getPlacement(sc, "noobaa-standalone")
-		nb.Spec.Tolerations = placement.Tolerations
+
+	component := "noobaa-standalone"
+	// fallback to 'noobaa-core' if either the cluster is not standalone or if "noobaa-standalone" placement is not found
+	_, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]
+	if !r.IsNoobaaStandalone || !ok {
+		component = "noobaa-core"
 	}
+	placement := getPlacement(sc, component)
+
+	nb.Spec.Tolerations = placement.Tolerations
+	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
 	nb.Spec.DBVolumeResources = &dBVolumeResources
 	nb.Spec.Image = &r.images.NooBaaCore
 	nb.Spec.DBImage = &r.images.NooBaaDB
