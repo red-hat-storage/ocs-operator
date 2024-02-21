@@ -55,10 +55,14 @@ spec:
             description: StorageClusterSpec defines the desired state of StorageCluster
             properties:
               allowRemoteStorageConsumers:
+                default: false
                 description: AllowRemoteStorageConsumers Indicates that the OCS cluster
                   should deploy the needed components to enable connections from remote
                   consumers.
                 type: boolean
+                x-kubernetes-validations:
+                - message: AllowRemoteStorageConsumers is immutable
+                  rule: self == oldSelf
               arbiter:
                 description: ArbiterSpec specifies the storage cluster options related
                   to arbiter. If Arbiter is enabled, ArbiterLocation in the NodeTopologies
