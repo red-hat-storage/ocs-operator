@@ -202,10 +202,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				return reconcile.Result{}, err
 			}
 		}
-
-		isEnabled, rotationSchedule := util.GetKeyRotationSpec(sc)
-		cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
-		cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 	}
 
 	// Set StorageCluster instance as the owner and controller
@@ -558,6 +554,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 	}
+
+	isEnabled, rotationSchedule := util.GetKeyRotationSpec(sc)
+	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
+	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
+
 	return cephCluster, nil
 }
 
