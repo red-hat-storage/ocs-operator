@@ -73,8 +73,8 @@ var (
 				corev1.ResourceMemory: resource.MustParse("1Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("0.5"),
-				corev1.ResourceMemory: resource.MustParse("1Gi"),
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
 		"mon": {
@@ -126,8 +126,8 @@ var (
 				corev1.ResourceMemory: resource.MustParse("1.5Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
-				corev1.ResourceMemory: resource.MustParse("1.5Gi"),
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("3Gi"),
 			},
 		},
 		"mon": {
@@ -175,12 +175,12 @@ var (
 	PerformanceDaemonResources = map[string]corev1.ResourceRequirements{
 		"mgr": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("1.5"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
-				corev1.ResourceMemory: resource.MustParse("2Gi"),
+				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 		},
 		"mon": {
