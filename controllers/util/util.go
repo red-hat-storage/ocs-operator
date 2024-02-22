@@ -29,13 +29,17 @@ func DetectDuplicateInStringSlice(slice []string) bool {
 
 func GetKeyRotationSpec(sc *ocsv1.StorageCluster) (bool, string) {
 	schedule := sc.Spec.Encryption.KeyRotation.Schedule
-	if (sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide) && !sc.Spec.Encryption.KeyManagementService.Enable {
-		if schedule == "" {
-			// default schedule
-			schedule = "@weekly"
-		}
-		// use key-rotation by default if cluster-wide encryption is opted without KMS
-		return true, schedule
+	if schedule == "" {
+		// default schedule
+		schedule = "@weekly"
 	}
-	return sc.Spec.Encryption.KeyRotation.Enable, schedule
+
+	if sc.Spec.Encryption.KeyRotation.Enable == nil {
+		if (sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide) && !sc.Spec.Encryption.KeyManagementService.Enable {
+			// use key-rotation by default if cluster-wide encryption is opted without KMS & "enable" spec is missing
+			return true, schedule
+		}
+		return false, schedule
+	}
+	return *sc.Spec.Encryption.KeyRotation.Enable, schedule
 }
