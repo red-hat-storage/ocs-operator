@@ -44,6 +44,7 @@ const (
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
 	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
+	StorageProfileLabel           = "ocs.openshift.io/storageprofile"
 	StorageProfileSpecLabel       = "ocs.openshift.io/storageprofile-spec"
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
