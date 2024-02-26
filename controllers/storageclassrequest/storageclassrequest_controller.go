@@ -26,6 +26,7 @@ import (
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,8 +45,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-const ownerUIDIndexName = "ownerUID"
 
 // StorageClassRequestReconciler reconciles a StorageClassRequest object
 // nolint:revive
@@ -143,17 +142,10 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 	if err := mgr.GetCache().IndexField(
 		context.TODO(),
 		&rookCephv1.CephFilesystemSubVolumeGroup{},
-		ownerUIDIndexName,
-		func(obj client.Object) []string {
-			refs := obj.GetOwnerReferences()
-			owners := []string{}
-			for i := range refs {
-				owners = append(owners, string(refs[i].UID))
-			}
-			return owners
-		},
+		util.OwnerUIDIndexName,
+		util.OwnersIndexFieldFunc,
 	); err != nil {
-		return fmt.Errorf("unable to set up FieldIndexer for owner reference UIDs: %v", err)
+		return fmt.Errorf("unable to set up FieldIndexer on CephFilesystemSubVolumeGroups for owner reference UIDs: %v", err)
 	}
 
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
@@ -266,7 +258,7 @@ func (r *StorageClassRequestReconciler) initPhase(storageProfile *v1.StorageProf
 			r.ctx,
 			cephFilesystemSubVolumeGroupList,
 			client.InNamespace(r.OperatorNamespace),
-			client.MatchingFields{ownerUIDIndexName: string(r.StorageClassRequest.UID)})
+			client.MatchingFields{util.OwnerUIDIndexName: string(r.StorageClassRequest.UID)})
 		if err != nil {
 			return err
 		}

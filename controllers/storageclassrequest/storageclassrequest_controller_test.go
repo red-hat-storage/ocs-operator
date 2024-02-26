@@ -22,12 +22,12 @@ import (
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -176,6 +176,12 @@ func createFakeReconciler(t *testing.T) StorageClassRequestReconciler {
 	return fakeReconciler
 }
 
+func newFakeClientBuilder(scheme *runtime.Scheme) *fake.ClientBuilder {
+	return fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, util.OwnerUIDIndexName, util.OwnersIndexFieldFunc)
+}
+
 func TestProfileReconcile(t *testing.T) {
 	var err error
 	var caseCounter int
@@ -246,18 +252,9 @@ func TestProfileReconcile(t *testing.T) {
 		c.createObjects = append(c.createObjects, fakeStorageProfile)
 
 		r.Cache = &informertest.FakeInformers{Scheme: r.Scheme}
-		fakeClient := fake.NewClientBuilder().
-			WithScheme(r.Scheme).
+		fakeClient := newFakeClientBuilder(r.Scheme).
 			WithRuntimeObjects(c.createObjects...).
-			WithStatusSubresource(fakeStorageClassRequest).
-			WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
-				refs := obj.GetOwnerReferences()
-				owners := []string{}
-				for i := range refs {
-					owners = append(owners, string(refs[i].UID))
-				}
-				return owners
-			})
+			WithStatusSubresource(fakeStorageClassRequest)
 		r.Client = fakeClient.Build()
 
 		req := reconcile.Request{}
@@ -363,7 +360,7 @@ func TestStorageProfileCephBlockPool(t *testing.T) {
 		c.createObjects = append(c.createObjects, c.storageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
 
-		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
+		fakeClient := newFakeClientBuilder(r.Scheme).WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
 
 		_, err = r.reconcilePhases()
@@ -469,18 +466,8 @@ func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
 		c.createObjects = append(c.createObjects, c.cephFs)
 		c.createObjects = append(c.createObjects, c.storageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		fakeClient := fake.NewClientBuilder().
-			WithScheme(r.Scheme).
-			WithRuntimeObjects(c.createObjects...).
-			WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
-				refs := obj.GetOwnerReferences()
-				owners := []string{}
-				for i := range refs {
-					owners = append(owners, string(refs[i].UID))
-				}
-				return owners
-			})
-
+		fakeClient := newFakeClientBuilder(r.Scheme).
+			WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
 
 		_, err = r.reconcilePhases()
@@ -620,7 +607,7 @@ func TestCephBlockPool(t *testing.T) {
 
 		c.createObjects = append(c.createObjects, fakeStorageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme).WithRuntimeObjects(c.createObjects...)
+		fakeClient := newFakeClientBuilder(r.Scheme).WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
 
 		_, err = r.reconcilePhases()
@@ -653,7 +640,7 @@ func TestCephBlockPool(t *testing.T) {
 	r := createFakeReconciler(t)
 	r.StorageClassRequest.Spec.Type = "blockpool"
 	r.StorageClassRequest.Spec.StorageProfile = badStorageProfile.Name
-	fakeClient := fake.NewClientBuilder().WithScheme(r.Scheme)
+	fakeClient := newFakeClientBuilder(r.Scheme)
 	r.Client = fakeClient.WithRuntimeObjects(badStorageProfile, fakeStorageConsumer).Build()
 
 	_, err = r.reconcilePhases()
@@ -711,17 +698,8 @@ func TestCephFsSubVolGroup(t *testing.T) {
 		c.createObjects = append(c.createObjects, fakeCephFs)
 		c.createObjects = append(c.createObjects, fakeStorageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		fakeClient := fake.NewClientBuilder().
-			WithScheme(r.Scheme).
-			WithRuntimeObjects(c.createObjects...).
-			WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
-				refs := obj.GetOwnerReferences()
-				owners := []string{}
-				for i := range refs {
-					owners = append(owners, string(refs[i].UID))
-				}
-				return owners
-			})
+		fakeClient := newFakeClientBuilder(r.Scheme).
+			WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
 
 		_, err = r.reconcilePhases()
@@ -747,17 +725,8 @@ func TestCephFsSubVolGroup(t *testing.T) {
 	r := createFakeReconciler(t)
 	r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 	r.StorageClassRequest.Spec.StorageProfile = fakeStorageProfile.Name
-	fakeClient := fake.NewClientBuilder().
-		WithScheme(r.Scheme).
-		WithRuntimeObjects(fakeStorageProfile, fakeStorageConsumer).
-		WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, ownerUIDIndexName, func(obj client.Object) []string {
-			refs := obj.GetOwnerReferences()
-			owners := []string{}
-			for i := range refs {
-				owners = append(owners, string(refs[i].UID))
-			}
-			return owners
-		})
+	fakeClient := newFakeClientBuilder(r.Scheme).
+		WithRuntimeObjects(fakeStorageProfile, fakeStorageConsumer)
 	r.Client = fakeClient.Build()
 
 	_, err = r.reconcilePhases()
@@ -773,7 +742,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 	r = createFakeReconciler(t)
 	r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 	r.StorageClassRequest.Spec.StorageProfile = badStorageProfile.Name
-	fakeClient = fake.NewClientBuilder().WithScheme(r.Scheme)
+	fakeClient = newFakeClientBuilder(r.Scheme)
 	r.Client = fakeClient.WithRuntimeObjects(badStorageProfile, fakeStorageConsumer, fakeCephFs).Build()
 
 	_, err = r.reconcilePhases()
