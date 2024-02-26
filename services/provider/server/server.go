@@ -60,6 +60,8 @@ type OCSProviderServer struct {
 	client                client.Client
 	consumerManager       *ocsConsumerManager
 	storageRequestManager *storageRequestManager
+	cephBlockPoolManager  *cephBlockPoolManager
+	cephRBDMirrorManager  *cephRBDMirrorManager
 	namespace             string
 }
 
@@ -79,10 +81,23 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
 	}
 
+	cephBlockPoolManager, err := newCephBlockPoolManager(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new CephBlockPool instance. %v", err)
+	}
+
+	cephRBDMirrorManager, err := newCephRBDMirrorManager(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new CephRBDMirror instance. %v", err)
+
+	}
+
 	return &OCSProviderServer{
 		client:                client,
 		consumerManager:       consumerManager,
 		storageRequestManager: storageRequestManager,
+		cephBlockPoolManager:  cephBlockPoolManager,
+		cephRBDMirrorManager:  cephRBDMirrorManager,
 		namespace:             namespace,
 	}, nil
 }
@@ -721,4 +736,35 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
 	}
 	return subscription.Spec.Channel, nil
+}
+
+// PeerBlockPool RPC call to send the bootstrap secret for the pool
+func (s *OCSProviderServer) PeerBlockPool(ctx context.Context, req *pb.PeerBlockPoolRequest) (*pb.PeerBlockPoolResponse, error) {
+
+	cephBlockPool, err := s.cephBlockPoolManager.GetBlockPoolByName(ctx, string(req.Pool))
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "Failed to find CephBlockPool resource %s: %v", req.Pool, err)
+	}
+
+	if err := s.cephRBDMirrorManager.Create(ctx); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create RBDMirror instance: %v", err)
+	}
+
+	// enable mirroring on blockPool in the req
+	if err := s.cephBlockPoolManager.EnableBlockPoolMirroring(ctx, cephBlockPool); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to enable mirroring for CephBlockPool resource %s: %v", req.Pool, err)
+	}
+
+	// create and set secret ref on the blockPool
+	if err := s.cephBlockPoolManager.SetBootstrapSecretRef(
+		ctx,
+		cephBlockPool,
+		req.SecretName,
+		map[string][]byte{
+			"pool":  req.Pool,
+			"token": req.Token,
+		}); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to set bootstrap secret ref for CephBlockPool resource %s: %v", req.Pool, err)
+	}
+	return &pb.PeerBlockPoolResponse{}, nil
 }
