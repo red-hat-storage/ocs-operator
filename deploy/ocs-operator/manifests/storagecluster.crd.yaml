@@ -1788,6 +1788,7 @@ spec:
                 description: Mirroring specifies data mirroring configuration for
                   the storage cluster. This configuration will only be applied to
                   resources managed by the operator.
+                nullable: true
                 properties:
                   enabled:
                     description: If true, data mirroring is enabled for the StorageCluster.
