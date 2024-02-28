@@ -161,4 +161,7 @@ message ReportStatusRequest{
     string clientOperatorVersion = 3;
 }
 
-message ReportStatusResponse{}
+message ReportStatusResponse{
+    // Contains subscription channel of provider operator for client operator to match
+    string desiredClientOperatorChannel = 1;
+}
