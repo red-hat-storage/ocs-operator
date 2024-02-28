@@ -61,6 +61,17 @@ metadata:
         },
         {
           "apiVersion": "ocs.openshift.io/v1",
+          "kind": "StorageClusterPeer",
+          "metadata": {
+            "labels": null,
+            "name": "storageclusterpeer-sample"
+          },
+          "spec": {
+            "ocsApiServerUri": "10.0.0.0:31659"
+          }
+        },
+        {
+          "apiVersion": "ocs.openshift.io/v1",
           "kind": "StorageProfile",
           "metadata": {
             "name": "medium"
@@ -95,6 +106,11 @@ spec:
       displayName: OCS Initialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
+      version: v1
+    - description: StorageClusterPeer is the Schema for the storageclusterpeers API
+      displayName: Storage Cluster Peer
+      kind: StorageClusterPeer
+      name: storageclusterpeers.ocs.openshift.io
       version: v1
     - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
         and all the storage and compute resources required.
@@ -380,6 +396,32 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclusterpeers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclusterpeers/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclusterpeers/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - ocs.openshift.io
           resources:
