@@ -243,6 +243,14 @@ spec:
         - apiGroups:
           - ceph.rook.io
           resources:
+          - cephblockpools
+          verbs:
+          - create
+          - list
+          - update
+        - apiGroups:
+          - ceph.rook.io
+          resources:
           - cephclients
           verbs:
           - create
@@ -346,6 +354,12 @@ spec:
           verbs:
           - delete
           - list
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          verbs:
+          - get
         - apiGroups:
           - k8s.cni.cncf.io
           resources:
