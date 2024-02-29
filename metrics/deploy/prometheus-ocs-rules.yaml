@@ -282,10 +282,8 @@ spec:
     rules:
     - alert: CephMonLowNumber
       annotations:
-        description: The number of node failure zones available (5) allow to increase
-          the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
-        message: The current number of Ceph monitors can be increased in order to
-          improve cluster resilience.
+        description: The number of failure zones available allow to increase the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
+        message: The current number of Ceph monitors can be increased in order to improve cluster resilience.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonLowNumber.md
         severity_level: info
         storage_type: ceph
