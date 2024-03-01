@@ -32,23 +32,21 @@ function dump_rook_csv() {
 	rook_csv_template="rook-ceph.clusterserviceversion.yaml"
 	rook_crds_dir=$rook_template_dir/ceph
 	rook_crds_outdir="$OUTDIR_CRDS/rook"
+	tmp_container="rook-$(date +%S%N)"
+	
 	rm -rf $ROOK_CSV
-	rm -rf $rook_crds_outdir
 	mkdir -p $rook_crds_outdir
+	# The actual folder will be created by the cp below but we don't want the folder to exist
+	rm -rf $rook_crds_outdir
 
-	crd_list=$(mktemp)
-	echo "Dumping rook csv using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat $ROOK_IMAGE $rook_template_dir/$rook_csv_template"
-	$IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat "$ROOK_IMAGE" $rook_template_dir/$rook_csv_template > $ROOK_CSV
-	echo "Listing rook crds using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=ls $ROOK_IMAGE -1 $rook_crds_dir/"
-	$IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=ls "$ROOK_IMAGE" -1 $rook_crds_dir/ > "$crd_list"
-	# shellcheck disable=SC2013
-	for i in $(cat "$crd_list"); do
-	        # shellcheck disable=SC2059
-		crd_file=$(printf ${rook_crds_dir}/"$i" | tr -d '[:space:]')
-		echo "Dumping rook crd $crd_file using command: $IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat $ROOK_IMAGE $crd_file"
-		($IMAGE_RUN_CMD --platform=linux/amd64 --entrypoint=cat "$ROOK_IMAGE" "$crd_file") > $rook_crds_outdir/"$(basename "$crd_file")"
-	done;
-	rm -f "$crd_list"
+	echo "Creating rook image to play with using command: $IMAGE_BUILD_CMD create --name=$tmp_container $ROOK_IMAGE"
+	$IMAGE_BUILD_CMD create --name="$tmp_container" "$ROOK_IMAGE"
+	echo "Dumping rook csv using command: $IMAGE_BUILD_CMD cp $tmp_container:$rook_template_dir/$rook_csv_template $ROOK_CSV"
+	$IMAGE_BUILD_CMD cp "$tmp_container":$rook_template_dir/$rook_csv_template $ROOK_CSV
+	echo "Dumping rook crds using command: $IMAGE_BUILD_CMD cp $tmp_container:$rook_crds_dir $rook_crds_outdir"
+	$IMAGE_BUILD_CMD cp "$tmp_container":$rook_crds_dir $rook_crds_outdir
+	echo "Cleaning up rook container with command: $IMAGE_BUILD_CMD rm $tmp_container"
+	$IMAGE_BUILD_CMD rm "$tmp_container"
 }
 
 # ==== DUMP OCS YAMLS ====
