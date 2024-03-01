@@ -23,6 +23,9 @@ import (
 // once is a pointer to the sync.Once type
 var once sync.Once
 
+// performCSIAddonsPodRestart a bool type to check if the csi-Addons pod should be restarted
+var performCSIAddonsPodRestart bool
+
 // NamespaceReconciler reconciles the namespaces starting with openshift-*
 // nolint:revive
 type NamespaceReconciler struct {
@@ -78,7 +81,7 @@ func (r *NamespaceReconciler) Reconcile(ctx context.Context, request reconcile.R
 	}
 
 	// Restart the csi-addons controller pod if any namespace was annotated
-	if updated {
+	if performCSIAddonsPodRestart && updated {
 		err = r.restartCSIAddonsPod()
 	}
 
@@ -192,9 +195,11 @@ func (r *NamespaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	nameSpacePredicate := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
+			performCSIAddonsPodRestart = false
 			return predicateFunc(e.Object)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
+			performCSIAddonsPodRestart = true
 			return predicateFunc(e.ObjectNew)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
