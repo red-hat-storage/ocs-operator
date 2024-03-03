@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"os"
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -30,22 +29,19 @@ const (
 func main() {
 	cl, err := newClient()
 	if err != nil {
-		klog.Errorf("failed to create clientset: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to create client: %v", err)
 	}
 
 	ctx := context.Background()
 	operatorNamespace, err := util.GetOperatorNamespace()
 	if err != nil {
-		klog.Errorf("unable to get operator namespace: %v", err)
-		os.Exit(1)
+		klog.Exitf("unable to get operator namespace: %v", err)
 	}
 
 	// Generate RSA key.
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		klog.Errorf("unable to generate private: %v", err)
-		os.Exit(1)
+		klog.Exitf("unable to generate private key: %v", err)
 	}
 
 	publicKey := &privateKey.PublicKey
@@ -69,8 +65,7 @@ func main() {
 	privateSecret.Namespace = operatorNamespace
 	err = cl.Delete(ctx, privateSecret)
 	if err != nil && !kerrors.IsNotFound(err) {
-		klog.Errorf("failed to delete private secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to delete private secret: %v", err)
 	}
 
 	// Delete public key secret
@@ -79,13 +74,12 @@ func main() {
 	publicSecret.Namespace = operatorNamespace
 	err = cl.Delete(ctx, publicSecret)
 	if err != nil && !kerrors.IsNotFound(err) {
-		klog.Errorf("failed to delete public secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to delete public secret: %v", err)
 	}
 
 	err = controllerutil.SetOwnerReference(storageCluster, privateSecret, cl.Scheme())
 	if err != nil {
-		klog.Exitf("failed to set owner reference for privateSecret : %v", err)
+		klog.Exitf("failed to set owner reference for private secret: %v", err)
 	}
 
 	privateSecret.StringData = map[string]string{
@@ -94,14 +88,12 @@ func main() {
 
 	err = cl.Create(ctx, privateSecret, &client.CreateOptions{})
 	if err != nil {
-		klog.Errorf("failed to create private secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to create private secret: %v", err)
 	}
 
 	err = controllerutil.SetOwnerReference(storageCluster, publicSecret, cl.Scheme())
 	if err != nil {
-		klog.Errorf("failed to create public secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to set owner reference for public secret: %v", err)
 	}
 	publicSecret.StringData = map[string]string{
 		"key": publicPem,
@@ -109,8 +101,7 @@ func main() {
 
 	err = cl.Create(ctx, publicSecret, &client.CreateOptions{})
 	if err != nil {
-		klog.Errorf("failed to create public secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to create public secret: %v", err)
 	}
 
 }
