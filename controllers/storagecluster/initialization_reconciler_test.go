@@ -189,7 +189,7 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 
 		os.Setenv(providerAPIServerImage, "fake-image")
 		os.Setenv(util.WatchNamespaceEnvVar, "")
-		os.Setenv(onboardingSecretGeneratorImage, "fake-image")
+		os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
 
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},

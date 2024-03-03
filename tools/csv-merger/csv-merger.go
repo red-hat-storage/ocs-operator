@@ -160,7 +160,7 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 				Value: *ocsContainerImage,
 			},
 			{
-				Name:  "ONBOARDING_SECRET_GENERATOR_IMAGE",
+				Name:  "ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE",
 				Value: *ocsContainerImage,
 			},
 			{
