@@ -12,6 +12,7 @@ echo "Run '${IMAGE_BUILD_CMD} push ${BUNDLE_FULL_IMAGE_NAME}'"
 echo
 ${OPM} render --output=yaml "${BUNDLE_FULL_IMAGE_NAME}" > catalog/ocs-bundle.yaml
 ${OPM} render --output=yaml ${NOOBAA_BUNDLE_FULL_IMAGE_NAME} > catalog/noobaa-bundle.yaml
+${OPM} render --output=yaml ${ROOK_BUNDLE_FULL_IMAGE_NAME} > catalog/rook-ceph-bundle.yaml
 ${OPM} validate catalog
 ${OPM} generate dockerfile catalog
 

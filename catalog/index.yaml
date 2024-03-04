@@ -11,6 +11,17 @@ entries:
 
 ---
 defaultChannel: alpha
+name: rook-ceph-operator
+schema: olm.package
+---
+schema: olm.channel
+package: rook-ceph-operator
+name: alpha
+entries:
+  - name: rook-ceph-operator.v4.15.0
+
+---
+defaultChannel: alpha
 name: noobaa-operator
 schema: olm.package
 ---
