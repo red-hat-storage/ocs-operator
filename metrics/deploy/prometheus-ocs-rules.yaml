@@ -358,7 +358,7 @@ spec:
     rules:
     - alert: CephMonLowNumber
       annotations:
-        description: The number of node failure zones available (5) allow to increase the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
+        description: The number of failure zones available allow to increase the number of Ceph monitors from 3 to 5 in order to improve cluster resilience.
         message: The current number of Ceph monitors can be increased in order to improve cluster resilience.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMonLowNumber.md
         severity_level: info
@@ -397,8 +397,7 @@ spec:
       annotations:
         description: |-
           Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage.
-          Please consider increasing the number of active metadata servers,
-          it can be done by increasing the number of activeMetadataServers parameter in the StorageCluster CR.
+          Please consider increasing the CPU request for the {{ $labels.pod }} pod as described in the runbook.
         message: Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHigh.md
         severity_level: warning

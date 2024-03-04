@@ -546,7 +546,6 @@ spec:
                     description: KeyRotation defines options for Key Rotation.
                     properties:
                       enable:
-                        default: false
                         description: Enable represents whether the key rotation is
                           enabled.
                         type: boolean

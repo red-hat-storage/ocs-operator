@@ -459,8 +459,7 @@ type EncryptionSpec struct {
 type KeyRotationSpec struct {
 	// Enable represents whether the key rotation is enabled.
 	// +optional
-	// +kubebuilder:default=false
-	Enable bool `json:"enable,omitempty"`
+	Enable *bool `json:"enable,omitempty"`
 	// Schedule represents the cron schedule for key rotation.
 	// +optional
 	// +kubebuilder:default="@weekly"

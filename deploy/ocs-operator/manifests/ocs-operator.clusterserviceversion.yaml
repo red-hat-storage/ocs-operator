@@ -3093,7 +3093,7 @@ spec:
                   value: docker.io/centos/postgresql-12-centos8
                 - name: PROVIDER_API_SERVER_IMAGE
                   value: quay.io/ocs-dev/ocs-operator:latest
-                - name: ONBOARDING_SECRET_GENERATOR_IMAGE
+                - name: ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE
                   value: quay.io/ocs-dev/ocs-operator:latest
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
