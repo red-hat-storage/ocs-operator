@@ -704,7 +704,13 @@ func createDummyKMSConfigMap(kmsProvider, kmsAddr string, kmsAuthMethod string) 
 		cm.Data["IBM_KP_SECRET_NAME"] = "my-kms-key"
 		cm.Data["IBM_KP_BASE_URL"] = "my-base-url"
 		cm.Data["IBM_KP_TOKEN_URL"] = "my-token-url"
+	case AzureKSMProvider:
+		cm.Data["AZURE_CLIENT_ID"] = "azure-client-id"
+		cm.Data["AZURE_TENANT_ID"] = "azure-tenant-id"
+		cm.Data["AZURE_VAULT_URL"] = kmsAddr
+		cm.Data["AZURE_CERT_SECRET_NAME"] = "cert-secret"
 	}
+
 	return cm
 }
 
@@ -736,6 +742,8 @@ func TestKMSConfigChanges(t *testing.T) {
 		{testLabel: "case 7", kmsProvider: VaultKMSProvider,
 			enabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
 		{testLabel: "case 8", kmsProvider: ThalesKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:5671"},
+		{testLabel: "case 9", kmsProvider: AzureKSMProvider,
 			clusterWideEncryption: true, kmsAddress: "http://localhost:5671"},
 	}
 	for _, kmsArgs := range validKMSArgs {
