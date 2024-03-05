@@ -5,6 +5,7 @@ import (
 
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,4 +41,20 @@ func (c *cephRBDMirrorManager) Create(ctx context.Context) error {
 
 	// if any other err/nil return it
 	return err
+}
+
+func (c *cephRBDMirrorManager) Delete(ctx context.Context) error {
+	cephRBDMirrorObj := &rookCephv1.CephRBDMirror{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rBDMirrorName,
+			Namespace: c.namespace,
+		},
+	}
+	err := c.client.Delete(ctx, cephRBDMirrorObj)
+	// there might be a case where the RBDMirror was deleted but request failed after this and there was a retry,
+	// if error is IsNotFound, that means it is safe to proceed as we have deleted the RBDMirror instance
+	if err != nil && !kerrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
