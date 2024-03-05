@@ -41,6 +41,9 @@ service OCSProvider {
   // PeerBlockPool RPC call to send the bootstrap secret for the pool
   rpc PeerBlockPool(PeerBlockPoolRequest)
   returns (PeerBlockPoolResponse){}
+  // RevokeBlockPoolPeering RPC call to delete the bootstrap secret to stop peering
+  rpc RevokeBlockPoolPeering(RevokeBlockPoolPeeringRequest)
+      returns (RevokeBlockPoolPeeringResponse){}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -186,3 +189,12 @@ message PeerBlockPoolRequest{
 }
 
 message PeerBlockPoolResponse{}
+
+message RevokeBlockPoolPeeringRequest{
+  // secretName is the name of the bootstrap secret
+  string secretName = 1;
+  // pool base64 encoded name of the block pool
+  bytes pool = 2;
+}
+
+message RevokeBlockPoolPeeringResponse{}
