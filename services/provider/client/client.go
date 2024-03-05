@@ -224,3 +224,19 @@ func (cc *OCSProviderClient) PeerBlockPool(ctx context.Context, secretName strin
 
 	return cc.Client.PeerBlockPool(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) RevokeBlockPoolPeering(ctx context.Context, secretName string, pool []byte) (*pb.RevokeBlockPoolPeeringResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.RevokeBlockPoolPeeringRequest{
+		SecretName: secretName,
+		Pool:       pool,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.RevokeBlockPoolPeering(apiCtx, req)
+}
