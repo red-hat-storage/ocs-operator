@@ -768,3 +768,41 @@ func (s *OCSProviderServer) PeerBlockPool(ctx context.Context, req *pb.PeerBlock
 	}
 	return &pb.PeerBlockPoolResponse{}, nil
 }
+
+// RevokeBlockPoolPeering RPC call to delete the bootstrap secret to stop peering
+func (s *OCSProviderServer) RevokeBlockPoolPeering(ctx context.Context, req *pb.RevokeBlockPoolPeeringRequest) (*pb.RevokeBlockPoolPeeringResponse, error) {
+
+	klog.Infof("RevokeBlockPoolPeering request received for CephBlockPool %s and bootstrap secret %s", req.Pool, req.SecretName)
+
+	cephBlockPool, err := s.cephBlockPoolManager.GetBlockPoolByName(ctx, string(req.Pool))
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "Failed to find CephBlockPool resource %s: %v", req.Pool, err)
+	}
+
+	// delete secret and unset ref on the blockPool
+	err = s.cephBlockPoolManager.UnSetAndDeleteBootstrapSecret(ctx, req.SecretName, cephBlockPool)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to unset bootstrap secret ref for CephBlockPool resource %s: %v", req.Pool, err)
+	}
+
+	// disable mirroring on blockPool in the req
+	err = s.cephBlockPoolManager.DisableBlockPoolMirroring(ctx, cephBlockPool)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to disable mirroring for CephBlockPool resource %s: %v", req.Pool, err)
+	}
+
+	isRBDMirrorRequired, err := s.cephBlockPoolManager.IsRBDMirrorRequired(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get if rbd mirror is required: %v,", err)
+	}
+
+	if !isRBDMirrorRequired {
+		klog.Infof("No bootstrap secret found for any block pools, removing the rbd mirror instance")
+		err := s.cephRBDMirrorManager.Delete(ctx)
+		if err != nil {
+			klog.Errorf("Failed to delete CephRBDMirror instance: %v", err)
+			return nil, status.Errorf(codes.Internal, "Failed to delete CephRBDMirror instance: %v", err)
+		}
+	}
+	return &pb.RevokeBlockPoolPeeringResponse{}, nil
+}
