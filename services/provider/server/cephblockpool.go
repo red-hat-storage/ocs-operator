@@ -70,6 +70,50 @@ func (c *cephBlockPoolManager) SetBootstrapSecretRef(ctx context.Context, cephBl
 	return nil
 }
 
+func (c *cephBlockPoolManager) UnSetBootstrapSecretRef(ctx context.Context, secretName string, cephBlockPool *rookCephv1.CephBlockPool) error {
+
+	// remove the secret ref
+	index := slices.IndexFunc(cephBlockPool.Spec.Mirroring.Peers.SecretNames, func(s string) bool {
+		return s == secretName
+	})
+	if index >= 0 {
+		cephBlockPool.Spec.Mirroring.Peers.SecretNames = append(
+			cephBlockPool.Spec.Mirroring.Peers.SecretNames[:index],
+			cephBlockPool.Spec.Mirroring.Peers.SecretNames[index+1:]...)
+	}
+
+	err := c.client.Update(ctx, cephBlockPool)
+	if err != nil {
+		return fmt.Errorf("failed to unset bootstrap secret ref on CephBlockPool resource with name %q: %v", cephBlockPool.Name, err)
+	}
+
+	// delete secret
+	bootstrapSecret := &corev1.Secret{}
+	bootstrapSecret.Name = secretName
+	bootstrapSecret.Namespace = c.namespace
+	err = c.client.Delete(ctx, bootstrapSecret)
+	if err != nil {
+		return fmt.Errorf("failed to delete the bootstrap secret %q: %v", secretName, err)
+	}
+	return nil
+}
+
+func (c *cephBlockPoolManager) DisableBlockPoolMirroring(ctx context.Context, cephBlockPool *rookCephv1.CephBlockPool) error {
+
+	// disable only if no bootstrap secret has been set
+	if cephBlockPool.Spec.Mirroring.Peers == nil || len(cephBlockPool.Spec.Mirroring.Peers.SecretNames) == 0 {
+		cephBlockPool.Spec.Mirroring.Enabled = false
+		cephBlockPool.Spec.Mirroring.Mode = ""
+	}
+
+	err := c.client.Update(ctx, cephBlockPool)
+	if err != nil {
+		return fmt.Errorf("failed to disable mirroring on CephBlockPool resource with name %q: %v", cephBlockPool.Name, err)
+	}
+
+	return nil
+}
+
 func (c *cephBlockPoolManager) GetBlockPoolByName(ctx context.Context, blockPoolName string) (*rookCephv1.CephBlockPool, error) {
 	blockPool := &rookCephv1.CephBlockPool{}
 	blockPool.Name = blockPoolName
@@ -82,4 +126,21 @@ func (c *cephBlockPoolManager) GetBlockPoolByName(ctx context.Context, blockPool
 		return nil, fmt.Errorf("failed to get CephBlockPool resource with name %q: %v", blockPoolName, err)
 	}
 	return blockPool, nil
+}
+
+// IsRBDMirrorRequired checks if we require RBDMirror to be deployed or not
+func (c *cephBlockPoolManager) IsRBDMirrorRequired(ctx context.Context) (bool, error) {
+	cephBlockPoolList := &rookCephv1.CephBlockPoolList{}
+	err := c.client.List(ctx, cephBlockPoolList, client.InNamespace(c.namespace))
+	if err != nil {
+		return true, err
+	}
+
+	// if we find a bootstrap secret in any of the blockPools, we require RBDMirror to be deployed
+	for _, cephBlockPool := range cephBlockPoolList.Items {
+		if cephBlockPool.Spec.Mirroring.Peers != nil && len(cephBlockPool.Spec.Mirroring.Peers.SecretNames) > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }

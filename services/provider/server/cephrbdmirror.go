@@ -5,6 +5,7 @@ import (
 
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,4 +41,14 @@ func (c *cephRBDMirrorManager) Create(ctx context.Context) error {
 
 	// if any other err/nil return it
 	return err
+}
+
+func (c *cephRBDMirrorManager) Delete(ctx context.Context) error {
+	cephRBDMirrorObj := &rookCephv1.CephRBDMirror{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rBDMirrorName,
+			Namespace: c.namespace,
+		},
+	}
+	return c.client.Delete(ctx, cephRBDMirrorObj)
 }

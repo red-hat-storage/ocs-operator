@@ -18,6 +18,7 @@ rules:
     - get
     - create
     - update
+    - delete
 - apiGroups:
     - ceph.rook.io
   resources:
@@ -38,6 +39,7 @@ rules:
     - cephblockpools
   verbs:
     - get
+    - list
     - update
 - apiGroups:
   - ocs.openshift.io
@@ -88,3 +90,4 @@ rules:
   verbs:
     - get
     - create
+    - delete
