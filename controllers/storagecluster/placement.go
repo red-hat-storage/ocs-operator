@@ -38,6 +38,12 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		return placement
 	}
 
+	// if provider-server placements are found in the storagecluster spec append the default ocs tolerations to it
+	if ok && component == defaults.APIServerKey {
+		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
+		return placement
+	}
+
 	// If no placement is specified for the given component and the
 	// StorageCluster has no label selector, set the default node
 	// affinity.
