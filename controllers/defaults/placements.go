@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	APIServerKey = "api-server"
+	APIServerKey       = "api-server"
+	MetricsExporterKey = "metrics-exporter"
 
 	// osdLabelSelector is the key in OSD pod. Used
 	// as a label selector for topology spread constraints.
@@ -130,6 +131,12 @@ var (
 		},
 
 		APIServerKey: {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+		},
+
+		MetricsExporterKey: {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
