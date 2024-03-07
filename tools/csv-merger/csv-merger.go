@@ -980,6 +980,14 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 								Name:  "TLS_ENABLED",
 								Value: os.Getenv("TLS_ENABLED"),
 							},
+							{
+								Name: "POD_NAMESPACE",
+								ValueFrom: &corev1.EnvVarSource{
+									FieldRef: &corev1.ObjectFieldSelector{
+										FieldPath: "metadata.namespace",
+									},
+								},
+							},
 						},
 					},
 					{
