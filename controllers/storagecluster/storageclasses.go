@@ -528,3 +528,44 @@ func getTopologyConstrainedPools(initData *ocsv1.StorageCluster) string {
 	}
 	return string(topologyConstrainedPoolsStr)
 }
+
+// getTopologyConstrainedPoolsExternalMode constructs the topologyConstrainedPools string for external mode from the data map
+func getTopologyConstrainedPoolsExternalMode(data map[string]string) (string, error) {
+	type topologySegment struct {
+		DomainLabel string `json:"domainLabel"`
+		DomainValue string `json:"value"`
+	}
+	// TopologyConstrainedPool stores the pool name and a list of its associated topology domain values.
+	type topologyConstrainedPool struct {
+		PoolName       string            `json:"poolName"`
+		DomainSegments []topologySegment `json:"domainSegments"`
+	}
+	var topologyConstrainedPools []topologyConstrainedPool
+
+	domainLabel := data["topologyFailureDomainLabel"]
+	domainValues := strings.Split(data["topologyFailureDomainValues"], ",")
+	poolNames := strings.Split(data["topologyPools"], ",")
+
+	// Check if the number of pool names and domain values are equal
+	if len(poolNames) != len(domainValues) {
+		return "", fmt.Errorf("number of pool names and domain values are not equal")
+	}
+
+	for i, poolName := range poolNames {
+		topologyConstrainedPools = append(topologyConstrainedPools, topologyConstrainedPool{
+			PoolName: poolName,
+			DomainSegments: []topologySegment{
+				{
+					DomainLabel: domainLabel,
+					DomainValue: domainValues[i],
+				},
+			},
+		})
+	}
+	// returning as string as parameters are of type map[string]string
+	topologyConstrainedPoolsStr, err := json.MarshalIndent(topologyConstrainedPools, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(topologyConstrainedPoolsStr), nil
+}
