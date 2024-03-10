@@ -117,16 +117,16 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
 		}
 
-		stoageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
+		storageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)
 		}
 
-		if stoageConsumer.Spec.Enable {
+		if storageConsumer.Spec.Enable {
 			err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", req.ConsumerName)
 			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
 		}
-		storageConsumerUUID = string(stoageConsumer.UID)
+		storageConsumerUUID = string(storageConsumer.UID)
 	}
 
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
