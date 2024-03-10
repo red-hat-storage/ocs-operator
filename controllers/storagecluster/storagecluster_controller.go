@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -161,7 +162,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			oldObj := e.ObjectOld.(*ocsv1alpha1.StorageConsumer)
 			newObj := e.ObjectNew.(*ocsv1alpha1.StorageConsumer)
-			return oldObj.Status.Client.OperatorVersion != newObj.Status.Client.OperatorVersion
+			return reflect.DeepEqual(oldObj.Status.Client, newObj.Status.Client)
 		},
 	}
 

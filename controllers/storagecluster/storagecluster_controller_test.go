@@ -3,6 +3,8 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	version2 "github.com/operator-framework/api/pkg/lib/version"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"net"
 	"os"
 	"regexp"
@@ -69,6 +71,13 @@ var mockStorageCluster = &api.StorageCluster{
 			CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 		},
 		Finalizers: []string{storageClusterFinalizer},
+		OwnerReferences: []metav1.OwnerReference{{
+			APIVersion: "v1",
+			Kind:       "StorageSystem",
+			Name:       "storage-test",
+			UID:        "asd2f",
+		},
+		},
 	},
 	Spec: api.StorageClusterSpec{
 		Monitoring: &api.MonitoringSpec{
@@ -96,9 +105,18 @@ var mockStorageClusterWithArbiter = &api.StorageCluster{
 }
 
 var mockCephCluster = &rookCephv1.CephCluster{
+	TypeMeta: metav1.TypeMeta{
+		Kind: "CephCluster",
+	},
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      generateNameForCephCluster(mockStorageCluster.DeepCopy()),
 		Namespace: mockStorageCluster.Namespace,
+	},
+	Status: rookCephv1.ClusterStatus{
+		CephStorage: &rookCephv1.CephStorage{
+			DeviceClasses: []cephv1.DeviceClasses{{Name: DeviceTypeSSD}},
+			OSD:           rookCephv1.OSDStatus{StoreType: map[string]int{"bluestore-rdr": 1}},
+		},
 	},
 }
 
@@ -802,6 +820,8 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 	mockNodeList.DeepCopyInto(nodeList)
 	infra := &configv1.Infrastructure{}
 	mockInfrastructure.DeepCopyInto(infra)
+	cc := &rookCephv1.CephCluster{}
+	mockCephCluster.DeepCopyInto(cc)
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "storage-test",
@@ -814,13 +834,14 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, infra)
+	reconciler := createFakeStorageClusterReconciler(t, cr, cc, nodeList, infra)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
+	testSkipPrometheusRules = true
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
 	cc := &rookCephv1.CephCluster{}
@@ -858,8 +879,9 @@ func TestStorageDeviceSets(t *testing.T) {
 			"type": "gp2-csi",
 		},
 	}
-
-	reconciler := createFakeStorageClusterReconciler(t, storageClassEBS)
+	cc := &rookCephv1.CephCluster{}
+	mockCephCluster.DeepCopyInto(cc)
+	reconciler := createFakeStorageClusterReconciler(t, storageClassEBS, cc)
 
 	testcases := []struct {
 		label          string
@@ -1023,7 +1045,9 @@ func TestStorageClusterFinalizer(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), noobaaMock.DeepCopy(), nodeList, infra, networkConfig)
+	cc := &rookCephv1.CephCluster{}
+	mockCephCluster.DeepCopyInto(cc)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), cc, noobaaMock.DeepCopy(), nodeList, infra, networkConfig)
 
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
@@ -1122,7 +1146,23 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 			Phase: cephv1.ConditionType(util.PhaseReady),
 		},
 	}
-	obj = append(obj, cbp, cfs)
+	verOdf, _ := semver.Make(getSemVer(version.Version, 1, true))
+	csv := &operatorsv1alpha1.ClusterServiceVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("odf-operator-%s", sc.Name),
+			Namespace: namespace,
+		},
+		Spec: operatorsv1alpha1.ClusterServiceVersionSpec{
+			Version: version2.OperatorVersion{Version: verOdf},
+		},
+	}
+	rookCephMonSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mon", Namespace: namespace},
+		Data: map[string][]byte{
+			"fsid": []byte("b88c2d78-9de9-4227-9313-a63f62f78743"),
+		},
+	}
+	obj = append(obj, cbp, cfs, rookCephMonSecret, csv)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	clusters, err := util.GetClusters(context.TODO(), client)
@@ -1219,6 +1259,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 		assert.Fail(t, "failed to add ocsclientv1a1 scheme")
 	}
 
+	err = operatorsv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "unable to add operatorsv1alpha1 to scheme")
+	}
+
 	return scheme
 }
 
@@ -1277,7 +1322,12 @@ func TestStorageClusterOnMultus(t *testing.T) {
 				},
 			}
 		}
-		reconciler := createFakeInitializationStorageClusterReconciler(t)
+
+		cc := &rookCephv1.CephCluster{}
+		mockCephCluster.DeepCopyInto(cc)
+		cc.ObjectMeta.Name = generateNameForCephCluster(c.cr)
+
+		reconciler := createFakeInitializationStorageClusterReconciler(t, cc)
 		_ = reconciler.Client.Create(context.TODO(), c.cr)
 		result, err := reconciler.Reconcile(context.TODO(), request)
 		if c.testCase != "default" {

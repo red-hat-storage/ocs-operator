@@ -409,7 +409,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsSnapshotClass{},
 				&ocsJobTemplates{},
 				&ocsCephRbdMirrors{},
-				&ocsClusterClaim{},
+				&odfInfoConfig{},
 			}
 		} else {
 			// noobaa-only ensure functions
@@ -427,7 +427,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsCephCluster{},
 			&ocsSnapshotClass{},
 			&ocsNoobaaSystem{},
-			&ocsClusterClaim{},
+			&odfInfoConfig{},
 		}
 	}
 
