@@ -43,3 +43,14 @@ func GetKeyRotationSpec(sc *ocsv1.StorageCluster) (bool, string) {
 	}
 	return *sc.Spec.Encryption.KeyRotation.Enable, schedule
 }
+
+// Find returns the first entry matching the function "f" or else return nil
+func Find[T any](list []T, f func(item *T) bool) *T {
+	for idx := range list {
+		ele := &list[idx]
+		if f(ele) {
+			return ele
+		}
+	}
+	return nil
+}
