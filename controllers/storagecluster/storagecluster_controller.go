@@ -133,7 +133,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 			// Get the StorageCluster objects
 			scList := &ocsv1.StorageClusterList{}
-			err := r.List(r.ctx, scList, &client.ListOptions{Namespace: obj.GetNamespace()})
+			err := r.Client.List(context.TODO(), scList, &client.ListOptions{Namespace: obj.GetNamespace()})
 			if err != nil {
 				r.Log.Error(err, "Unable to list StorageCluster objects")
 				return []reconcile.Request{}
