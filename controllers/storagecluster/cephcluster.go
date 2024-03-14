@@ -185,6 +185,8 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				sc.Status.KMSServerConnection.KMSServerConnectionError = ""
 				if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
 					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["VAULT_ADDR"]
+				} else if kmsConfigMap.Data["KMS_PROVIDER"] == AzureKSMProvider {
+					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["AZURE_VAULT_URL"]
 				}
 				if err = reachKMSProvider(kmsConfigMap); err != nil {
 					sc.Status.KMSServerConnection.KMSServerConnectionError = err.Error()
