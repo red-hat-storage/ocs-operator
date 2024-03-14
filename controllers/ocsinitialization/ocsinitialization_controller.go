@@ -273,6 +273,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
+		util.DisableHolderKey:            "true", // disable holder pods for all greenfield clusters
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{

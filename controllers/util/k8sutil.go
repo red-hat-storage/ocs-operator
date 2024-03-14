@@ -37,6 +37,7 @@ const (
 	EnableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
 	TopologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
 	EnableNFSKey                = "ROOK_CSI_ENABLE_NFS"
+	DisableHolderKey            = "CSI_REMOVE_HOLDER_PODS"
 )
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
