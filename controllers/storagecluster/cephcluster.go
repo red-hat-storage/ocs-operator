@@ -505,7 +505,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 	// If the `monPVCTemplate` is provided, the mons will provisioned on the
 	// provided `monPVCTemplate`.
 	if monPVCTemplate != nil {
-		cephCluster.Spec.Mon.VolumeClaimTemplate = monPVCTemplate
+		cephCluster.Spec.Mon.VolumeClaimTemplate = &rookCephv1.VolumeClaimTemplate{
+			ObjectMeta: monPVCTemplate.ObjectMeta,
+			Spec:       monPVCTemplate.Spec,
+		}
 		// If the `monDataDirHostPath` is provided without the `monPVCTemplate`,
 		// the mons will be provisioned on the provided `monDataDirHostPath`.
 	} else if len(monDataDirHostPath) > 0 {
@@ -514,10 +517,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 		// be provisioned using the PVC template of first StorageDeviceSets if present.
 	} else if len(sc.Spec.StorageDeviceSets) > 0 {
 		ds := sc.Spec.StorageDeviceSets[0]
-		cephCluster.Spec.Mon.VolumeClaimTemplate = &corev1.PersistentVolumeClaim{
+		cephCluster.Spec.Mon.VolumeClaimTemplate = &rookCephv1.VolumeClaimTemplate{
 			Spec: corev1.PersistentVolumeClaimSpec{
 				StorageClassName: ds.DataPVCTemplate.Spec.StorageClassName,
-				Resources: corev1.ResourceRequirements{
+				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: resource.MustParse("50Gi"),
 					},
@@ -877,26 +880,35 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			ds.DataPVCTemplate.Annotations = annotations
 
 			set := rookCephv1.StorageClassDeviceSet{
-				Name:                 fmt.Sprintf("%s-%d", ds.Name, i),
-				Count:                count,
-				Resources:            resources,
-				Placement:            placement,
-				PreparePlacement:     &preparePlacement,
-				Config:               ds.Config.ToMap(),
-				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{ds.DataPVCTemplate},
-				Portable:             portable,
-				TuneSlowDeviceClass:  ds.Config.TuneSlowDeviceClass,
-				TuneFastDeviceClass:  ds.Config.TuneFastDeviceClass,
-				Encrypted:            sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide,
+				Name:             fmt.Sprintf("%s-%d", ds.Name, i),
+				Count:            count,
+				Resources:        resources,
+				Placement:        placement,
+				PreparePlacement: &preparePlacement,
+				Config:           ds.Config.ToMap(),
+				VolumeClaimTemplates: []rookCephv1.VolumeClaimTemplate{{
+					ObjectMeta: ds.DataPVCTemplate.ObjectMeta,
+					Spec:       ds.DataPVCTemplate.Spec,
+				}},
+				Portable:            portable,
+				TuneSlowDeviceClass: ds.Config.TuneSlowDeviceClass,
+				TuneFastDeviceClass: ds.Config.TuneFastDeviceClass,
+				Encrypted:           sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide,
 			}
 
 			if ds.MetadataPVCTemplate != nil {
 				ds.MetadataPVCTemplate.ObjectMeta.Name = metadataPVCName
-				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, *ds.MetadataPVCTemplate)
+				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, rookCephv1.VolumeClaimTemplate{
+					ObjectMeta: ds.MetadataPVCTemplate.ObjectMeta,
+					Spec:       ds.MetadataPVCTemplate.Spec,
+				})
 			}
 			if ds.WalPVCTemplate != nil {
 				ds.WalPVCTemplate.ObjectMeta.Name = walPVCName
-				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, *ds.WalPVCTemplate)
+				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, rookCephv1.VolumeClaimTemplate{
+					ObjectMeta: ds.WalPVCTemplate.ObjectMeta,
+					Spec:       ds.WalPVCTemplate.Spec,
+				})
 			}
 
 			storageClassDeviceSets = append(storageClassDeviceSets, set)
@@ -920,10 +932,16 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 				"crushDeviceClass": failureDomainValue,
 			}
 			if !reflect.DeepEqual(sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate, corev1.PersistentVolumeClaim{}) {
-				ds.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate}
+				ds.VolumeClaimTemplates = []rookCephv1.VolumeClaimTemplate{{
+					ObjectMeta: sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate.ObjectMeta,
+					Spec:       sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate.Spec,
+				}}
 			} else {
 				// If not defined use the spec for volumeclaimtemplate from existing devicesets
-				ds.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{sc.Spec.StorageDeviceSets[0].DataPVCTemplate}
+				ds.VolumeClaimTemplates = []rookCephv1.VolumeClaimTemplate{{
+					ObjectMeta: sc.Spec.StorageDeviceSets[0].DataPVCTemplate.ObjectMeta,
+					Spec:       sc.Spec.StorageDeviceSets[0].DataPVCTemplate.Spec,
+				}}
 			}
 			ds.VolumeClaimTemplates[0].Annotations = annotations
 			ds.Portable = sc.Status.FailureDomain != "host"
@@ -1066,7 +1084,10 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 		Arbiter: true,
 	}
 	if sc.Spec.Arbiter.ArbiterMonPVCTemplate != nil {
-		arbiterZoneSpec.VolumeClaimTemplate = sc.Spec.Arbiter.ArbiterMonPVCTemplate
+		arbiterZoneSpec.VolumeClaimTemplate = &rookCephv1.VolumeClaimTemplate{
+			ObjectMeta: sc.Spec.Arbiter.ArbiterMonPVCTemplate.ObjectMeta,
+			Spec:       sc.Spec.Arbiter.ArbiterMonPVCTemplate.Spec,
+		}
 	}
 	stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, arbiterZoneSpec)
 

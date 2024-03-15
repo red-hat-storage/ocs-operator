@@ -130,7 +130,7 @@ var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
 	},
 	Spec: corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-		Resources: corev1.ResourceRequirements{
+		Resources: corev1.VolumeResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceStorage: resource.MustParse("1Ti"),
 			},
@@ -143,7 +143,7 @@ var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
 var mockMetaDataPVCTemplate = &corev1.PersistentVolumeClaim{
 	Spec: corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-		Resources: corev1.ResourceRequirements{
+		Resources: corev1.VolumeResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceStorage: resource.MustParse("1Ti"),
 			},
@@ -156,7 +156,7 @@ var mockMetaDataPVCTemplate = &corev1.PersistentVolumeClaim{
 var mockWalPVCTemplate = &corev1.PersistentVolumeClaim{
 	Spec: corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-		Resources: corev1.ResourceRequirements{
+		Resources: corev1.VolumeResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceStorage: resource.MustParse("1Ti"),
 			},
