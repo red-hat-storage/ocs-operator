@@ -38,6 +38,8 @@ spec:
               dataPool:
                 nullable: true
                 properties:
+                  application:
+                    type: string
                   compressionMode:
                     enum:
                     - none
@@ -164,6 +166,8 @@ spec:
               metadataPool:
                 nullable: true
                 properties:
+                  application:
+                    type: string
                   compressionMode:
                     enum:
                     - none
@@ -290,6 +294,25 @@ spec:
               preservePoolsOnDelete:
                 default: true
                 type: boolean
+              sharedPools:
+                nullable: true
+                properties:
+                  dataPoolName:
+                    type: string
+                    x-kubernetes-validations:
+                    - message: object store shared data pool is immutable
+                      rule: self == oldSelf
+                  metadataPoolName:
+                    type: string
+                    x-kubernetes-validations:
+                    - message: object store shared metadata pool is immutable
+                      rule: self == oldSelf
+                  preserveRadosNamespaceDataOnDelete:
+                    type: boolean
+                required:
+                - dataPoolName
+                - metadataPoolName
+                type: object
               zoneGroup:
                 type: string
             required:

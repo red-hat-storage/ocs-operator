@@ -28,8 +28,14 @@ spec:
             properties:
               blockPoolName:
                 type: string
+                x-kubernetes-validations:
+                - message: blockPoolName is immutable
+                  rule: self == oldSelf
               name:
                 type: string
+                x-kubernetes-validations:
+                - message: name is immutable
+                  rule: self == oldSelf
             required:
             - blockPoolName
             type: object

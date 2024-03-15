@@ -32,8 +32,14 @@ spec:
             properties:
               filesystemName:
                 type: string
+                x-kubernetes-validations:
+                - message: filesystemName is immutable
+                  rule: self == oldSelf
               name:
                 type: string
+                x-kubernetes-validations:
+                - message: name is immutable
+                  rule: self == oldSelf
               pinning:
                 properties:
                   distributed:

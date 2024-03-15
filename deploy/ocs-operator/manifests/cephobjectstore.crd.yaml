@@ -37,6 +37,8 @@ spec:
               dataPool:
                 nullable: true
                 properties:
+                  application:
+                    type: string
                   compressionMode:
                     enum:
                     - none
@@ -331,6 +333,16 @@ spec:
                                           type: object
                                       type: object
                                       x-kubernetes-map-type: atomic
+                                    matchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    mismatchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -399,6 +411,16 @@ spec:
                                       type: object
                                   type: object
                                   x-kubernetes-map-type: atomic
+                                matchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:
@@ -465,6 +487,16 @@ spec:
                                           type: object
                                       type: object
                                       x-kubernetes-map-type: atomic
+                                    matchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    mismatchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -533,6 +565,16 @@ spec:
                                       type: object
                                   type: object
                                   x-kubernetes-map-type: atomic
+                                matchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:
@@ -865,9 +907,18 @@ spec:
                         type: object
                     type: object
                 type: object
+              hosting:
+                properties:
+                  dnsNames:
+                    items:
+                      type: string
+                    type: array
+                type: object
               metadataPool:
                 nullable: true
                 properties:
+                  application:
+                    type: string
                   compressionMode:
                     enum:
                     - none
@@ -1029,6 +1080,25 @@ spec:
                       tokenSecretName:
                         type: string
                     type: object
+                type: object
+              sharedPools:
+                nullable: true
+                properties:
+                  dataPoolName:
+                    type: string
+                    x-kubernetes-validations:
+                    - message: object store shared data pool is immutable
+                      rule: self == oldSelf
+                  metadataPoolName:
+                    type: string
+                    x-kubernetes-validations:
+                    - message: object store shared metadata pool is immutable
+                      rule: self == oldSelf
+                  preserveRadosNamespaceDataOnDelete:
+                    type: boolean
+                required:
+                - dataPoolName
+                - metadataPoolName
                 type: object
               zone:
                 nullable: true
