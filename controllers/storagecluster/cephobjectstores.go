@@ -259,6 +259,10 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 						TokenSecretName:   KMSTokenSecretName,
 					},
 				},
+				ServerSideEncryptionS3: cephv1.KeyManagementServiceSpec{
+					ConnectionDetails: rgwConnDetails,
+					TokenSecretName:   KMSTokenSecretName,
+				},
 			}
 		}
 	}
