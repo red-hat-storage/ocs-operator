@@ -3,6 +3,7 @@ package storagecluster
 import (
 	// The embed package is required for the prometheus rule files
 	_ "embed"
+	"time"
 
 	"bytes"
 	"context"
@@ -454,7 +455,8 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 				SSL:     sc.Spec.ManagedResources.CephDashboard.SSL,
 			},
 			Monitoring: rookCephv1.MonitoringSpec{
-				Enabled: true,
+				Enabled:  true,
+				Interval: &metav1.Duration{Duration: 30 * time.Second},
 			},
 			Storage: rookCephv1.StorageScopeSpec{
 				StorageClassDeviceSets:       newStorageClassDeviceSets(sc, serverVersion),
