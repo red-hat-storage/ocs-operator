@@ -7,6 +7,11 @@ import (
 )
 
 var (
+	APIServerKey       = "api-server"
+	MetricsExporterKey = "metrics-exporter"
+	CsiPluginKey       = "csi-plugin"
+	CsiProvisionerKey  = "csi-provisioner"
+
 	// osdLabelSelector is the key in OSD pod. Used
 	// as a label selector for topology spread constraints.
 	osdLabelSelector = "rook-ceph-osd"
@@ -122,6 +127,30 @@ var (
 		},
 
 		"rbd-mirror": {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+		},
+
+		APIServerKey: {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+		},
+
+		MetricsExporterKey: {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+		},
+
+		CsiPluginKey: {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+		},
+
+		CsiProvisionerKey: {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
