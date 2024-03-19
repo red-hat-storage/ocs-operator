@@ -598,7 +598,20 @@ type MonSpec struct {
 	// VolumeClaimTemplate is the PVC definition
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	VolumeClaimTemplate *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	VolumeClaimTemplate *VolumeClaimTemplate `json:"volumeClaimTemplate,omitempty"`
+}
+
+// VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.
+type VolumeClaimTemplate struct {
+	// Standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// spec defines the desired characteristics of a volume requested by a pod author.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
+	// +optional
+	Spec v1.PersistentVolumeClaimSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 }
 
 // StretchClusterSpec represents the specification of a stretched Ceph Cluster
@@ -626,7 +639,7 @@ type MonZoneSpec struct {
 	// VolumeClaimTemplate is the PVC template
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	VolumeClaimTemplate *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	VolumeClaimTemplate *VolumeClaimTemplate `json:"volumeClaimTemplate,omitempty"`
 }
 
 // MgrSpec represents options to configure a ceph mgr
@@ -757,6 +770,10 @@ type PoolSpec struct {
 	// +optional
 	// +nullable
 	Quotas QuotaSpec `json:"quotas,omitempty"`
+
+	// The application name to set on the pool. Only expected to be set for rgw pools.
+	// +optional
+	Application string `json:"application"`
 }
 
 // NamedBlockPoolSpec allows a block pool to be created with a non-default name.
@@ -764,7 +781,7 @@ type PoolSpec struct {
 // allowed pool names that can be specified.
 type NamedBlockPoolSpec struct {
 	// The desired name of the pool if different from the CephBlockPool CR name.
-	// +kubebuilder:validation:Enum=device_health_metrics;.nfs;.mgr
+	// +kubebuilder:validation:Enum=.rgw.root;.nfs;.mgr
 	// +optional
 	Name string `json:"name,omitempty"`
 	// The core pool configuration
@@ -1141,7 +1158,7 @@ type FilesystemSpec struct {
 type MetadataServerSpec struct {
 	// The number of metadata servers that are active. The remaining servers in the cluster will be in standby mode.
 	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=10
+	// +kubebuilder:validation:Maximum=50
 	ActiveCount int32 `json:"activeCount"`
 
 	// Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
@@ -1167,7 +1184,7 @@ type MetadataServerSpec struct {
 	// +optional
 	Labels Labels `json:"labels,omitempty"`
 
-	// The resource requirements for the rgw pods
+	// The resource requirements for the mds pods
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
@@ -1414,6 +1431,11 @@ type ObjectStoreSpec struct {
 	// +nullable
 	DataPool PoolSpec `json:"dataPool,omitempty"`
 
+	// The pool information when configuring RADOS namespaces in existing pools.
+	// +optional
+	// +nullable
+	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
+
 	// Preserve pools on object store deletion
 	// +optional
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete,omitempty"`
@@ -1446,6 +1468,25 @@ type ObjectStoreSpec struct {
 	// is being used to create buckets. The default is empty.
 	// +optional
 	AllowUsersInNamespaces []string `json:"allowUsersInNamespaces,omitempty"`
+
+	// Hosting settings for the object store
+	// +optional
+	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
+}
+
+// ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.
+type ObjectSharedPoolsSpec struct {
+	// The metadata pool used for creating RADOS namespaces in the object store
+	// +kubebuilder:validation:XValidation:message="object store shared metadata pool is immutable",rule="self == oldSelf"
+	MetadataPoolName string `json:"metadataPoolName"`
+
+	// The data pool used for creating RADOS namespaces in the object store
+	// +kubebuilder:validation:XValidation:message="object store shared data pool is immutable",rule="self == oldSelf"
+	DataPoolName string `json:"dataPoolName"`
+
+	// Whether the RADOS namespaces should be preserved on deletion of the object store
+	// +optional
+	PreserveRadosNamespaceDataOnDelete bool `json:"preserveRadosNamespaceDataOnDelete"`
 }
 
 // ObjectHealthCheckSpec represents the health check of an object store
@@ -1602,6 +1643,18 @@ type ObjectEndpoints struct {
 	// +optional
 	// +nullable
 	Secure []string `json:"secure"`
+}
+
+// ObjectStoreHostingSpec represents the hosting settings for the object store
+type ObjectStoreHostingSpec struct {
+	// A list of DNS names in which bucket can be accessed via virtual host path. These names need to valid according RFC-1123.
+	// Each domain requires wildcard support like ingress loadbalancer.
+	// Do not include the wildcard itself in the list of hostnames (e.g. use "mystore.example.com" instead of "*.mystore.example.com").
+	// Add all hostnames including user-created Kubernetes Service endpoints to the list.
+	// CephObjectStore Service Endpoints and CephObjectZone customEndpoints are automatically added to the list.
+	// The feature is supported only for Ceph v18 and later versions.
+	// +optional
+	DNSNames []string `json:"dnsNames,omitempty"`
 }
 
 // +genclient
@@ -1848,6 +1901,11 @@ type ObjectZoneSpec struct {
 	// The data pool settings
 	// +nullable
 	DataPool PoolSpec `json:"dataPool"`
+
+	// The pool information when configuring RADOS namespaces in existing pools.
+	// +optional
+	// +nullable
+	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
 
 	// If this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service
 	// endpoint created by Rook, you must set this to the externally reachable endpoint(s). You may
@@ -2316,8 +2374,10 @@ type SSSDSidecarAdditionalFile struct {
 
 // NetworkSpec for Ceph includes backward compatibility code
 // +kubebuilder:validation:XValidation:message="at least one network selector must be specified when using multus",rule="!has(self.provider) || (self.provider != 'multus' || (self.provider == 'multus' && size(self.selectors) > 0))"
+// +kubebuilder:validation:XValidation:message=`the legacy hostNetwork setting can only be set if the network.provider is set to the empty string`,rule=`!has(self.hostNetwork) || self.hostNetwork == false || !has(self.provider) || self.provider == ""`
 type NetworkSpec struct {
-	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus".
+	// If the Provider is updated from being empty to "host" on a running cluster, then the operator will automatically fail over all the mons to apply the "host" network settings.
 	// +kubebuilder:validation:XValidation:message="network provider must be disabled (reverted to empty string) before a new provider is enabled",rule="self == '' || self == oldSelf"
 	// +nullable
 	// +optional
@@ -2363,7 +2423,9 @@ type NetworkSpec struct {
 	// +optional
 	Connections *ConnectionsSpec `json:"connections,omitempty"`
 
-	// HostNetwork to enable host network
+	// HostNetwork to enable host network.
+	// If host networking is enabled or disabled on a running cluster, then the operator will automatically fail over all the mons to
+	// apply the new network settings.
 	// +optional
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 
@@ -2806,7 +2868,7 @@ type Selection struct {
 	Devices []Device `json:"devices,omitempty"`
 	// PersistentVolumeClaims to use as storage
 	// +optional
-	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+	VolumeClaimTemplates []VolumeClaimTemplate `json:"volumeClaimTemplates,omitempty"`
 }
 
 // PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD
@@ -2875,7 +2937,7 @@ type StorageClassDeviceSet struct {
 	// +optional
 	Config map[string]string `json:"config,omitempty"`
 	// VolumeClaimTemplates is a list of PVC templates for the underlying storage devices
-	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
+	VolumeClaimTemplates []VolumeClaimTemplate `json:"volumeClaimTemplates"`
 	// Portable represents OSD portability across the hosts
 	// +optional
 	Portable bool `json:"portable,omitempty"`

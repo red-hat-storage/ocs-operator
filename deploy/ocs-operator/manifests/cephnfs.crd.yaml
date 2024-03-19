@@ -109,6 +109,43 @@ spec:
                                   sources:
                                     items:
                                       properties:
+                                        clusterTrustBundle:
+                                          properties:
+                                            labelSelector:
+                                              properties:
+                                                matchExpressions:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      operator:
+                                                        type: string
+                                                      values:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                    required:
+                                                    - key
+                                                    - operator
+                                                    type: object
+                                                  type: array
+                                                matchLabels:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                            name:
+                                              type: string
+                                            optional:
+                                              type: boolean
+                                            path:
+                                              type: string
+                                            signerName:
+                                              type: string
+                                          required:
+                                          - path
+                                          type: object
                                         configMap:
                                           properties:
                                             items:
@@ -307,6 +344,43 @@ spec:
                                   sources:
                                     items:
                                       properties:
+                                        clusterTrustBundle:
+                                          properties:
+                                            labelSelector:
+                                              properties:
+                                                matchExpressions:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      operator:
+                                                        type: string
+                                                      values:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                    required:
+                                                    - key
+                                                    - operator
+                                                    type: object
+                                                  type: array
+                                                matchLabels:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                            name:
+                                              type: string
+                                            optional:
+                                              type: boolean
+                                            path:
+                                              type: string
+                                            signerName:
+                                              type: string
+                                          required:
+                                          - path
+                                          type: object
                                         configMap:
                                           properties:
                                             items:
@@ -517,6 +591,43 @@ spec:
                                         sources:
                                           items:
                                             properties:
+                                              clusterTrustBundle:
+                                                properties:
+                                                  labelSelector:
+                                                    properties:
+                                                      matchExpressions:
+                                                        items:
+                                                          properties:
+                                                            key:
+                                                              type: string
+                                                            operator:
+                                                              type: string
+                                                            values:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                          required:
+                                                          - key
+                                                          - operator
+                                                          type: object
+                                                        type: array
+                                                      matchLabels:
+                                                        additionalProperties:
+                                                          type: string
+                                                        type: object
+                                                    type: object
+                                                    x-kubernetes-map-type: atomic
+                                                  name:
+                                                    type: string
+                                                  optional:
+                                                    type: boolean
+                                                  path:
+                                                    type: string
+                                                  signerName:
+                                                    type: string
+                                                required:
+                                                - path
+                                                type: object
                                               configMap:
                                                 properties:
                                                   items:
@@ -755,6 +866,43 @@ spec:
                                       sources:
                                         items:
                                           properties:
+                                            clusterTrustBundle:
+                                              properties:
+                                                labelSelector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                                name:
+                                                  type: string
+                                                optional:
+                                                  type: boolean
+                                                path:
+                                                  type: string
+                                                signerName:
+                                                  type: string
+                                              required:
+                                              - path
+                                              type: object
                                             configMap:
                                               properties:
                                                 items:
@@ -1121,6 +1269,16 @@ spec:
                                           type: object
                                       type: object
                                       x-kubernetes-map-type: atomic
+                                    matchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    mismatchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -1189,6 +1347,16 @@ spec:
                                       type: object
                                   type: object
                                   x-kubernetes-map-type: atomic
+                                matchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:
@@ -1255,6 +1423,16 @@ spec:
                                           type: object
                                       type: object
                                       x-kubernetes-map-type: atomic
+                                    matchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    mismatchLabelKeys:
+                                      items:
+                                        type: string
+                                      type: array
+                                      x-kubernetes-list-type: atomic
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -1323,6 +1501,16 @@ spec:
                                       type: object
                                   type: object
                                   x-kubernetes-map-type: atomic
+                                matchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                mismatchLabelKeys:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:

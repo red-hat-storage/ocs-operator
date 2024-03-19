@@ -51,7 +51,7 @@ func GetRandomPVC(storageClass string, quantity string) *k8sv1.PersistentVolumeC
 			StorageClassName: &storageClass,
 			AccessModes:      []k8sv1.PersistentVolumeAccessMode{k8sv1.ReadWriteOnce},
 
-			Resources: k8sv1.ResourceRequirements{
+			Resources: k8sv1.VolumeResourceRequirements{
 				Requests: k8sv1.ResourceList{
 					"storage": storageQuantity,
 				},

@@ -27,7 +27,7 @@ var mockStorageDeviceSets = []api.StorageDeviceSet{
 		DataPVCTemplate: corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
 				StorageClassName: &mockStorageClassName,
-				Resources: corev1.ResourceRequirements{
+				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: mockQuantity1T,
 					},

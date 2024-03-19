@@ -683,7 +683,8 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *ap
 					},
 				},
 				Spec: corev1.PodSpec{
-					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
+					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
+					ServiceAccountName: "rook-ceph-default",
 					Containers: []corev1.Container{
 						{
 							Name:    name,

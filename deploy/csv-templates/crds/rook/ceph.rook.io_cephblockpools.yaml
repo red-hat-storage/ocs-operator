@@ -30,6 +30,8 @@ spec:
             type: object
           spec:
             properties:
+              application:
+                type: string
               compressionMode:
                 enum:
                 - none
@@ -91,7 +93,7 @@ spec:
                 type: object
               name:
                 enum:
-                - device_health_metrics
+                - .rgw.root
                 - .nfs
                 - .mgr
                 type: string
