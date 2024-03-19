@@ -345,9 +345,23 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 			Name:      util.OcsOperatorConfigName,
 			Namespace: initialData.Namespace,
 		},
-		Data: ocsOperatorConfigData,
 	}
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, ocsOperatorConfig, func() error {
+
+		// If the configmap is being created for the first time, set the entry for
+		// CSI_REMOVE_HOLDER_PODS to "true". This configuration is applied for new clusters
+		// starting from ODF version 4.16 onwards. For old or upgraded clusters,
+		// it's initially set to "false", allowing users time to manually migrate from holder pods.
+		// In ODF version 4.17, we will universally set it to "true" for all users.
+
+		if ocsOperatorConfig.CreationTimestamp.IsZero() {
+			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = "true"
+		} else if ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey] == "" {
+			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = "false"
+		} else if ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey] != "" {
+			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey]
+		}
+
 		if !reflect.DeepEqual(ocsOperatorConfig.Data, ocsOperatorConfigData) {
 			r.Log.Info("Updating ocs-operator-config configmap")
 			ocsOperatorConfig.Data = ocsOperatorConfigData
