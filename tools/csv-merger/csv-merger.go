@@ -30,7 +30,6 @@ var (
 	csvVersion         = flag.String("csv-version", "", "the unified CSV version")
 	replacesCsvVersion = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
 	skipRange          = flag.String("skip-range", "", "the CSV version skip range")
-	rookCSVStr         = flag.String("rook-csv-filepath", "", "path to rook csv yaml file")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
 	timestamp          = flag.String("timestamp", "false", "bool value to enable/disable timestamp changes in CSV")
 
@@ -48,7 +47,6 @@ var (
 	ocsMetricsExporterImage  = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
 	uxBackendOauthImage      = flag.String("ux-backend-oauth-image", "", "ux backend oauth container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
-	rookCsiAddonsImage       = flag.String("rook-csiaddons-image", "", "csi-addons container image")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -79,10 +77,8 @@ var (
 )
 
 type templateData struct {
-	RookOperatorImage      string
-	RookOperatorCsvVersion string
-	OcsOperatorCsvVersion  string
-	OcsOperatorImage       string
+	OcsOperatorCsvVersion string
+	OcsOperatorImage      string
 }
 
 func copyFile(src string, dst string) {
@@ -106,10 +102,8 @@ func copyFile(src string, dst string) {
 
 func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	data := templateData{
-		RookOperatorImage:      *rookContainerImage,
-		RookOperatorCsvVersion: *csvVersion,
-		OcsOperatorCsvVersion:  *csvVersion,
-		OcsOperatorImage:       *ocsContainerImage,
+		OcsOperatorCsvVersion: *csvVersion,
+		OcsOperatorImage:      *ocsContainerImage,
 	}
 
 	writer := strings.Builder{}
@@ -175,240 +169,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 		// append to env var list.
 		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env = append(templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env, vars...)
 
-	} else if strings.Contains(csv.Name, "rook") || strings.Contains(csv.Name, "ceph") {
-		vars := []corev1.EnvVar{
-			{
-				Name: "ROOK_CURRENT_NAMESPACE_ONLY",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "ocs-operator-config",
-						},
-						Key: "ROOK_CURRENT_NAMESPACE_ONLY",
-					},
-				},
-			},
-			{
-				Name:  "ROOK_ALLOW_MULTIPLE_FILESYSTEMS",
-				Value: "false",
-			},
-			{
-				Name:  "ROOK_LOG_LEVEL",
-				Value: "INFO",
-			},
-			{
-				Name:  "ROOK_CEPH_STATUS_CHECK_INTERVAL",
-				Value: "60s",
-			},
-			{
-				Name:  "ROOK_MON_HEALTHCHECK_INTERVAL",
-				Value: "45s",
-			},
-			{
-				Name:  "ROOK_MON_OUT_TIMEOUT",
-				Value: "600s",
-			},
-			{
-				Name:  "ROOK_DISCOVER_DEVICES_INTERVAL",
-				Value: "60m",
-			},
-			{
-				Name:  "ROOK_HOSTPATH_REQUIRES_PRIVILEGED",
-				Value: "true",
-			},
-			{
-				Name:  "ROOK_ENABLE_SELINUX_RELABELING",
-				Value: "true",
-			},
-			{
-				Name:  "ROOK_ENABLE_FSGROUP",
-				Value: "true",
-			},
-			{
-				Name:  "ROOK_ENABLE_FLEX_DRIVER",
-				Value: "false",
-			},
-			{
-				Name:  "ROOK_ENABLE_DISCOVERY_DAEMON",
-				Value: "false",
-			},
-			{
-				Name:  "ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET",
-				Value: "false",
-			},
-			{
-				Name:  "ROOK_DISABLE_DEVICE_HOTPLUG",
-				Value: "true",
-			},
-			{
-				Name:  "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION",
-				Value: "true",
-			},
-			{
-				Name:  "ROOK_DISABLE_ADMISSION_CONTROLLER",
-				Value: "true",
-			},
-			{
-				Name:  "ROOK_CSIADDONS_IMAGE",
-				Value: *rookCsiAddonsImage,
-			},
-			{
-				Name:  "CSI_ENABLE_METADATA",
-				Value: "false",
-			},
-			{
-				Name:  "CSI_PLUGIN_PRIORITY_CLASSNAME",
-				Value: "system-node-critical",
-			},
-			{
-				Name:  "CSI_PROVISIONER_PRIORITY_CLASSNAME",
-				Value: "system-cluster-critical",
-			},
-			{
-				Name: "CSI_CLUSTER_NAME",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "ocs-operator-config",
-						},
-						Key: "CSI_CLUSTER_NAME",
-					},
-				},
-			},
-			{
-				Name:  "CSI_DRIVER_NAME_PREFIX",
-				Value: "openshift-storage",
-			},
-			{
-				Name: "CSI_ENABLE_TOPOLOGY",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "ocs-operator-config",
-						},
-						Key: "CSI_ENABLE_TOPOLOGY",
-					},
-				},
-			},
-			{
-				Name: "CSI_TOPOLOGY_DOMAIN_LABELS",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "ocs-operator-config",
-						},
-						Key: "CSI_TOPOLOGY_DOMAIN_LABELS",
-					},
-				},
-			},
-			{
-				Name: "ROOK_CSI_ENABLE_NFS",
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "ocs-operator-config",
-						},
-						Key: "ROOK_CSI_ENABLE_NFS",
-					},
-				},
-			},
-			{
-				Name: "CSI_PROVISIONER_TOLERATIONS",
-				Value: `
-- key: node.ocs.openshift.io/storage
-  operator: Equal
-  value: "true"
-  effect: NoSchedule`,
-			},
-			{
-				Name: "CSI_PLUGIN_TOLERATIONS",
-				Value: `
-- key: node.ocs.openshift.io/storage
-  operator: Equal
-  value: "true"
-  effect: NoSchedule`,
-			},
-			{
-				Name:  "CSI_LOG_LEVEL",
-				Value: "5",
-			},
-			{
-				Name:  "CSI_SIDECAR_LOG_LEVEL",
-				Value: "1",
-			},
-			{
-				Name:  "CSI_ENABLE_CSIADDONS",
-				Value: "true",
-			},
-			{
-				Name: "NODE_NAME",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "spec.nodeName",
-					},
-				},
-			},
-			{
-				Name: "POD_NAME",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
-					},
-				},
-			},
-			{
-				Name: "POD_NAMESPACE",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "metadata.namespace",
-					},
-				},
-			},
-			{
-				Name:  "ROOK_OBC_WATCH_OPERATOR_NAMESPACE",
-				Value: "true",
-			},
-		}
-
-		if *rookCsiCephImage != "" {
-			vars = append(vars, corev1.EnvVar{
-				Name:  "ROOK_CSI_CEPH_IMAGE",
-				Value: *rookCsiCephImage,
-			})
-		}
-		if *rookCsiRegistrarImage != "" {
-			vars = append(vars, corev1.EnvVar{
-				Name:  "ROOK_CSI_REGISTRAR_IMAGE",
-				Value: *rookCsiRegistrarImage,
-			})
-		}
-		if *rookCsiResizerImage != "" {
-			vars = append(vars, corev1.EnvVar{
-				Name:  "ROOK_CSI_RESIZER_IMAGE",
-				Value: *rookCsiResizerImage,
-			})
-		}
-		if *rookCsiProvisionerImage != "" {
-			vars = append(vars, corev1.EnvVar{
-				Name:  "ROOK_CSI_PROVISIONER_IMAGE",
-				Value: *rookCsiProvisionerImage,
-			})
-		}
-		if *rookCsiSnapshotterImage != "" {
-			vars = append(vars, corev1.EnvVar{
-				Name:  "ROOK_CSI_SNAPSHOTTER_IMAGE",
-				Value: *rookCsiSnapshotterImage,
-			})
-		}
-		if *rookCsiAttacherImage != "" {
-			vars = append(vars, corev1.EnvVar{
-				Name:  "ROOK_CSI_ATTACHER_IMAGE",
-				Value: *rookCsiAttacherImage,
-			})
-		}
-
-		// override the rook env var list.
-		templateStrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env = vars
 	}
 
 	return csv
@@ -494,38 +254,12 @@ func contains(slice []string, s string) bool {
 
 func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	ocsCSV := unmarshalCSV(*ocsCSVStr)
-	rookCSV := unmarshalCSV(*rookCSVStr)
-
-	mergeCsvs := []*csvv1.ClusterServiceVersion{
-		rookCSV,
-	}
 
 	ocsCSV.Spec.CustomResourceDefinitions.Required = nil
 
 	ocsCSV.Annotations["operators.operatorframework.io/internal-objects"] = ""
 
 	templateStrategySpec := &ocsCSV.Spec.InstallStrategy.StrategySpec
-
-	// Merge CSVs into Unified CSV
-	for _, csv := range mergeCsvs {
-		strategySpec := csv.Spec.InstallStrategy.StrategySpec
-
-		deploymentspecs := strategySpec.DeploymentSpecs
-		clusterPermissions := strategySpec.ClusterPermissions
-		permissions := strategySpec.Permissions
-
-		templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, deploymentspecs...)
-		templateStrategySpec.ClusterPermissions = append(templateStrategySpec.ClusterPermissions, clusterPermissions...)
-		templateStrategySpec.Permissions = append(templateStrategySpec.Permissions, permissions...)
-
-		for _, definition := range csv.Spec.CustomResourceDefinitions.Owned {
-			// do not add vr and vrc to csv, this will be owned by csi-addons now.
-			if !(definition.Name == "volumereplications.replication.storage.openshift.io" ||
-				definition.Name == "volumereplicationclasses.replication.storage.openshift.io") {
-				ocsCSV.Spec.CustomResourceDefinitions.Owned = append(ocsCSV.Spec.CustomResourceDefinitions.Owned, definition)
-			}
-		}
-	}
 
 	// whitelisting APIs
 	for index, definition := range ocsCSV.Spec.CustomResourceDefinitions.Owned {
@@ -599,8 +333,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	// Used by UI to validate user uploaded metadata
 	// Metadata is used to connect to an external cluster
 	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}`
-	// Injecting the RHCS exporter script present in Rook CSV
-	ocsCSV.Annotations["external.features.ocs.openshift.io/export-script"] = rookCSV.GetAnnotations()["externalClusterScript"]
 	if *timestamp == "true" {
 		loc, err := time.LoadLocation("UTC")
 		if err != nil {
@@ -768,12 +500,6 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 
 	relatedImages := []interface{}{}
 
-	if *rookContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-container",
-			"image": *rookContainerImage,
-		})
-	}
 	if *rookCsiCephImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "rook-csi",
@@ -810,18 +536,6 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 			"image": *rookCsiAttacherImage,
 		})
 	}
-	if *cephContainerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "ceph-container",
-			"image": *cephContainerImage,
-		})
-	}
-	if *rookCsiAddonsImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "csiaddons-sidecar",
-			"image": *rookCsiAddonsImage,
-		})
-	}
 	if *ocsMustGatherImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "ocs-must-gather",
@@ -845,7 +559,7 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 
 func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 	var crdFiles []string
-	crdDirs := []string{"ocs", "rook"}
+	crdDirs := []string{"ocs"}
 
 	for _, dir := range crdDirs {
 		crdDir := filepath.Join(*inputCrdsDir, dir)
@@ -1059,8 +773,6 @@ func main() {
 
 	if *csvVersion == "" {
 		log.Fatal("--csv-version is required")
-	} else if *rookCSVStr == "" {
-		log.Fatal("--rook-csv-filepath is required")
 	} else if *ocsCSVStr == "" {
 		log.Fatal("--ocs-csv-filepath is required")
 	} else if *rookContainerImage == "" {
