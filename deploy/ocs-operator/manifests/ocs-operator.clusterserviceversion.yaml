@@ -3306,7 +3306,7 @@ spec:
                 - -openshift-service-account=ux-backend-server
                 - -openshift-delegate-urls={"/":{"group":"ocs.openshift.io","resource":"storageclusters","namespace":"openshift-storage","verb":"create"}}
                 - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-                image: quay.io/openshift/origin-oauth-proxy:latest
+                image: quay.io/openshift/origin-oauth-proxy:4.15.0
                 imagePullPolicy: IfNotPresent
                 name: oauth-proxy
                 ports:
@@ -3656,6 +3656,6 @@ spec:
     name: ocs-must-gather
   - image: quay.io/ocs-dev/ocs-metrics-exporter:latest
     name: ocs-metrics-exporter
-  - image: quay.io/openshift/origin-oauth-proxy:latest
+  - image: quay.io/openshift/origin-oauth-proxy:4.15.0
     name: ux-backend-oauth-image
   version: 4.15.0
