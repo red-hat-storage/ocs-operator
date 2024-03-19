@@ -14,11 +14,9 @@ limitations under the License.
 package storageclassrequest
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"testing"
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -29,11 +27,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -164,186 +159,6 @@ func newFakeClientBuilder(scheme *runtime.Scheme) *fake.ClientBuilder {
 		WithScheme(scheme).
 		WithIndex(&rookCephv1.CephBlockPoolRadosNamespace{}, util.OwnerUIDIndexName, util.OwnersIndexFieldFunc).
 		WithIndex(&rookCephv1.CephFilesystemSubVolumeGroup{}, util.OwnerUIDIndexName, util.OwnersIndexFieldFunc)
-}
-
-func TestProfileReconcile(t *testing.T) {
-	var err error
-	var caseCounter int
-
-	var primaryTestCases = []struct {
-		label           string
-		scrType         string
-		profileName     string
-		failureExpected bool
-		createObjects   []runtime.Object
-	}{
-		{
-			label:       "Reconcile sharedfilesystem StorageClassRequest",
-			scrType:     "sharedfilesystem",
-			profileName: fakeStorageProfile.Name,
-		},
-		{
-			label:   "Reconcile sharedfilesystem StorageClassRequest with default StorageProfile",
-			scrType: "sharedfilesystem",
-		},
-		{
-			label:           "Reconcile sharedfilesystem StorageClassRequest with invalid StorageProfile",
-			scrType:         "sharedfilesystem",
-			profileName:     "nope",
-			failureExpected: true,
-		},
-	}
-
-	for _, c := range primaryTestCases {
-		caseCounter++
-		caseLabel := fmt.Sprintf("Case %d: %s", caseCounter, c.label)
-		fmt.Println(caseLabel)
-
-		r := createFakeReconciler(t)
-
-		fakeStorageClassRequest := &v1alpha1.StorageClassRequest{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-scr",
-				Namespace: "test-ns",
-			},
-			Spec: v1alpha1.StorageClassRequestSpec{
-				Type:           c.scrType,
-				StorageProfile: c.profileName,
-			},
-		}
-		err = controllerutil.SetOwnerReference(fakeStorageConsumer, fakeStorageClassRequest, r.Scheme)
-		assert.NoError(t, err, caseLabel)
-
-		c.createObjects = append(c.createObjects, fakeCephFs)
-		c.createObjects = append(c.createObjects, fakeStorageClassRequest)
-		c.createObjects = append(c.createObjects, fakeStorageCluster)
-		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		c.createObjects = append(c.createObjects, fakeStorageProfile)
-
-		r.Cache = &informertest.FakeInformers{Scheme: r.Scheme}
-		fakeClient := newFakeClientBuilder(r.Scheme).
-			WithRuntimeObjects(c.createObjects...).
-			WithStatusSubresource(fakeStorageClassRequest)
-		r.Client = fakeClient.Build()
-
-		req := reconcile.Request{}
-		req.Name = fakeStorageClassRequest.Name
-		req.Namespace = fakeStorageClassRequest.Namespace
-		_, err = r.Reconcile(context.TODO(), req)
-		if c.failureExpected {
-			assert.Error(t, err, caseLabel)
-			continue
-		}
-		assert.NoError(t, err, caseLabel)
-	}
-
-	caseCounter++
-	caseLabel := fmt.Sprintf("Case %d: No StorageClassRequest exists", caseCounter)
-	fmt.Println(caseLabel)
-
-	r := createFakeReconciler(t)
-	r.Cache = &informertest.FakeInformers{Scheme: r.Scheme}
-	r.Client = fake.NewClientBuilder().WithScheme(r.Scheme).Build()
-
-	req := reconcile.Request{}
-	req.Name = "nope"
-	req.Namespace = r.OperatorNamespace
-	_, err = r.Reconcile(context.TODO(), req)
-	assert.NoError(t, err, caseLabel)
-}
-
-func TestStorageProfileCephFsSubVolGroup(t *testing.T) {
-	var err error
-	var caseCounter int
-
-	var primaryTestCases = []struct {
-		label             string
-		expectedGroupName string
-		failureExpected   bool
-		createObjects     []runtime.Object
-		cephResources     []*v1alpha1.CephResourcesSpec
-		storageProfile    *v1.StorageProfile
-		cephFs            *rookCephv1.CephFilesystem
-	}{
-		{
-			label:             "valid profile",
-			expectedGroupName: "test-subvolgroup",
-			storageProfile:    fakeStorageProfile,
-			cephFs:            fakeCephFs,
-			failureExpected:   false,
-			cephResources: []*v1alpha1.CephResourcesSpec{
-				{
-					Name: "test-subvolgroup",
-					Kind: "CephFilesystemSubVolumeGroup",
-				},
-			},
-			createObjects: []runtime.Object{
-				&rookCephv1.CephFilesystemSubVolumeGroup{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-subvolgroup",
-						Namespace: namespaceName,
-						OwnerReferences: []metav1.OwnerReference{
-							{
-								UID: storageClassRequestUID,
-							},
-						},
-					},
-					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
-				},
-			},
-		},
-		{
-			label:             "rejected profile",
-			expectedGroupName: "test-subvolgroup",
-			storageProfile:    rejectedStorageProfile,
-			cephFs:            fakeCephFs,
-			failureExpected:   true,
-			cephResources: []*v1alpha1.CephResourcesSpec{
-				{
-					Name: "test-subvolgroup",
-					Kind: "CephFilesystemSubVolumeGroup",
-				},
-			},
-			createObjects: []runtime.Object{
-				&rookCephv1.CephFilesystemSubVolumeGroup{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-subvolgroup",
-						Namespace: namespaceName,
-					},
-					Status: &rookCephv1.CephFilesystemSubVolumeGroupStatus{},
-				},
-			},
-		},
-	}
-
-	for _, c := range primaryTestCases {
-		caseCounter++
-		caseLabel := fmt.Sprintf("Case %d: %s", caseCounter, c.label)
-		fmt.Println(caseLabel)
-
-		r := createFakeReconciler(t)
-		if strings.Contains(c.label, "rejected") {
-			r.storageCluster.Spec.DefaultStorageProfile = rejectedStorageProfile.Name
-		}
-
-		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
-		r.StorageClassRequest.Spec.StorageProfile = c.storageProfile.Name
-
-		c.createObjects = append(c.createObjects, c.cephFs)
-		c.createObjects = append(c.createObjects, c.storageProfile)
-		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		fakeClient := newFakeClientBuilder(r.Scheme).
-			WithRuntimeObjects(c.createObjects...)
-		r.Client = fakeClient.Build()
-
-		_, err = r.reconcilePhases()
-		if c.failureExpected {
-			assert.Error(t, err, caseLabel)
-			continue
-		}
-		assert.NoError(t, err, caseLabel)
-		assert.Equal(t, c.expectedGroupName, r.cephFilesystemSubVolumeGroup.Name, caseLabel)
-	}
 }
 
 func TestCephBlockPool(t *testing.T) {
@@ -619,10 +434,8 @@ func TestCephFsSubVolGroup(t *testing.T) {
 
 		r := createFakeReconciler(t)
 		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
-		r.StorageClassRequest.Spec.StorageProfile = fakeStorageProfile.Name
 
 		c.createObjects = append(c.createObjects, fakeCephFs)
-		c.createObjects = append(c.createObjects, fakeStorageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
 		fakeClient := newFakeClientBuilder(r.Scheme).
 			WithRuntimeObjects(c.createObjects...)
@@ -650,26 +463,9 @@ func TestCephFsSubVolGroup(t *testing.T) {
 
 	r := createFakeReconciler(t)
 	r.StorageClassRequest.Spec.Type = "sharedfilesystem"
-	r.StorageClassRequest.Spec.StorageProfile = fakeStorageProfile.Name
 	fakeClient := newFakeClientBuilder(r.Scheme).
-		WithRuntimeObjects(fakeStorageProfile, fakeStorageConsumer)
+		WithRuntimeObjects(fakeStorageConsumer)
 	r.Client = fakeClient.Build()
-
-	_, err = r.reconcilePhases()
-	assert.Error(t, err, caseLabel)
-
-	caseCounter++
-	caseLabel = fmt.Sprintf("Case %d: StorageProfile has invalid DeviceClass", caseCounter)
-	fmt.Println(caseLabel)
-
-	badStorageProfile := fakeStorageProfile.DeepCopy()
-	badStorageProfile.Spec.DeviceClass = "nope"
-
-	r = createFakeReconciler(t)
-	r.StorageClassRequest.Spec.Type = "sharedfilesystem"
-	r.StorageClassRequest.Spec.StorageProfile = badStorageProfile.Name
-	fakeClient = newFakeClientBuilder(r.Scheme)
-	r.Client = fakeClient.WithRuntimeObjects(badStorageProfile, fakeStorageConsumer, fakeCephFs).Build()
 
 	_, err = r.reconcilePhases()
 	assert.Error(t, err, caseLabel)
