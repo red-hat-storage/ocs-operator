@@ -21,7 +21,6 @@ import (
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -32,46 +31,10 @@ import (
 )
 
 const (
-	pgAutoscaleMode        = "pg_autoscale_mode"
-	pgNum                  = "pg_num"
-	pgpNum                 = "pgp_num"
 	namespaceName          = "test-ns"
 	deviceClass            = "ssd"
-	storageProfileKind     = "StorageProfile"
 	storageClassRequestUID = "storageClassRequestUUID"
 )
-
-var fakeStorageProfile = &v1.StorageProfile{
-	TypeMeta: metav1.TypeMeta{Kind: storageProfileKind},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "medium",
-		Namespace: namespaceName,
-	},
-	Spec: v1.StorageProfileSpec{
-		DeviceClass: deviceClass,
-	},
-}
-
-// A rejected StorageProfile is one that is invalid due to having a blank device class field and is set to
-// Rejected in its phase.
-var rejectedStorageProfile = &v1.StorageProfile{
-	TypeMeta: metav1.TypeMeta{Kind: storageProfileKind},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "rejected",
-		Namespace: namespaceName,
-	},
-	Spec: v1.StorageProfileSpec{
-		DeviceClass: "",
-		BlockPoolConfiguration: v1.BlockPoolConfigurationSpec{
-			Parameters: map[string]string{
-				pgAutoscaleMode: "on",
-				pgNum:           "128",
-				pgpNum:          "128",
-			},
-		},
-	},
-	Status: v1.StorageProfileStatus{Phase: ""},
-}
 
 var fakeStorageCluster = &v1.StorageCluster{
 	ObjectMeta: metav1.ObjectMeta{
@@ -79,7 +42,6 @@ var fakeStorageCluster = &v1.StorageCluster{
 		Namespace: namespaceName,
 	},
 	Spec: v1.StorageClusterSpec{
-		DefaultStorageProfile: fakeStorageProfile.Name,
 		StorageDeviceSets: []v1.StorageDeviceSet{
 			{
 				DeviceClass: deviceClass,
@@ -178,24 +140,18 @@ func TestCephBlockPool(t *testing.T) {
 		},
 		{
 			label:            "Valid CephBlockPool and RadosNamespace exist",
-			expectedPoolName: "medium",
+			expectedPoolName: "test-storagecluster-cephblockpool",
 			createObjects: []runtime.Object{
 				&rookCephv1.CephBlockPool{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium",
+						Name:      "test-storagecluster-cephblockpool",
 						Namespace: "test-ns",
-						Labels: map[string]string{
-							controllers.StorageProfileSpecLabel: fakeStorageProfile.GetSpecHash(),
-						},
 					},
 				},
 				&rookCephv1.CephBlockPool{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium2",
+						Name:      "test-storagecluster-cephblockpool2",
 						Namespace: "test-ns",
-						Labels: map[string]string{
-							controllers.StorageProfileSpecLabel: "0123456789",
-						},
 					},
 				},
 				&rookCephv1.CephBlockPoolRadosNamespace{
@@ -209,31 +165,25 @@ func TestCephBlockPool(t *testing.T) {
 						},
 					},
 					Spec: rookCephv1.CephBlockPoolRadosNamespaceSpec{
-						BlockPoolName: "medium",
+						BlockPoolName: "test-storagecluster-cephblockpool",
 					},
 				},
 			},
 		},
 		{
 			label:            "Valid RadosNamespace only exists for different profile",
-			expectedPoolName: "medium",
+			expectedPoolName: "test-storagecluster-cephblockpool",
 			createObjects: []runtime.Object{
 				&rookCephv1.CephBlockPool{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium",
+						Name:      "test-storagecluster-cephblockpool",
 						Namespace: "test-ns",
-						Labels: map[string]string{
-							controllers.StorageProfileSpecLabel: "0123456789",
-						},
 					},
 				},
 				&rookCephv1.CephBlockPool{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium2",
+						Name:      "test-storagecluster-cephblockpool2",
 						Namespace: "test-ns",
-						Labels: map[string]string{
-							controllers.StorageProfileSpecLabel: "0123456789",
-						},
 					},
 				},
 				&rookCephv1.CephBlockPoolRadosNamespace{
@@ -247,7 +197,7 @@ func TestCephBlockPool(t *testing.T) {
 						},
 					},
 					Spec: rookCephv1.CephBlockPoolRadosNamespaceSpec{
-						BlockPoolName: "medium2",
+						BlockPoolName: "test-storagecluster-cephblockpool2",
 					},
 				},
 			},
@@ -255,20 +205,17 @@ func TestCephBlockPool(t *testing.T) {
 		{
 			label:            "More than one valid RadosNamespace exists",
 			failureExpected:  true,
-			expectedPoolName: "medium",
+			expectedPoolName: "test-storagecluster-cephblockpool",
 			createObjects: []runtime.Object{
 				&rookCephv1.CephBlockPool{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium",
+						Name:      "test-storagecluster-cephblockpool",
 						Namespace: "test-ns",
-						Labels: map[string]string{
-							controllers.StorageProfileSpecLabel: fakeStorageProfile.GetSpecHash(),
-						},
 					},
 				},
 				&rookCephv1.CephBlockPoolRadosNamespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium-rns",
+						Name:      "test-storagecluster-cephblockpool-rns",
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -277,12 +224,12 @@ func TestCephBlockPool(t *testing.T) {
 						},
 					},
 					Spec: rookCephv1.CephBlockPoolRadosNamespaceSpec{
-						BlockPoolName: "medium",
+						BlockPoolName: "test-storagecluster-cephblockpool",
 					},
 				},
 				&rookCephv1.CephBlockPoolRadosNamespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium-rns2",
+						Name:      "test-storagecluster-cephblockpool-rns2",
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -291,28 +238,28 @@ func TestCephBlockPool(t *testing.T) {
 						},
 					},
 					Spec: rookCephv1.CephBlockPoolRadosNamespaceSpec{
-						BlockPoolName: "medium",
+						BlockPoolName: "test-storagecluster-cephblockpool",
 					},
 				},
 			},
 		},
 		{
 			label:            "Request status has existing RadosNamespace and inextant CephBlockPool",
-			expectedPoolName: "medium",
+			expectedPoolName: "test-storagecluster-cephblockpool",
 			cephResources: []*v1alpha1.CephResourcesSpec{
 				{
-					Name: "medium",
+					Name: "test-storagecluster-cephblockpool",
 					Kind: "CephBlockPool",
 				},
 				{
-					Name: "medium-rns",
+					Name: "test-storagecluster-cephblockpool-rns",
 					Kind: "CephBlockPoolRadosNamespace",
 				},
 			},
 			createObjects: []runtime.Object{
 				&rookCephv1.CephBlockPoolRadosNamespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "medium-rns",
+						Name:      "test-storagecluster-cephblockpool-rns",
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -321,7 +268,7 @@ func TestCephBlockPool(t *testing.T) {
 						},
 					},
 					Spec: rookCephv1.CephBlockPoolRadosNamespaceSpec{
-						BlockPoolName: "medium",
+						BlockPoolName: "test-storagecluster-cephblockpool",
 					},
 				},
 			},
@@ -336,9 +283,7 @@ func TestCephBlockPool(t *testing.T) {
 		r := createFakeReconciler(t)
 		r.StorageClassRequest.Status.CephResources = c.cephResources
 		r.StorageClassRequest.Spec.Type = "blockpool"
-		r.StorageClassRequest.Spec.StorageProfile = fakeStorageProfile.Name
 
-		c.createObjects = append(c.createObjects, fakeStorageProfile)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
 		fakeClient := newFakeClientBuilder(r.Scheme).WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
