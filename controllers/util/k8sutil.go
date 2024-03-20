@@ -8,7 +8,9 @@ import (
 
 	"github.com/go-logr/logr"
 	configv1 "github.com/openshift/api/config/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -110,6 +112,16 @@ func GetPodsWithLabels(ctx context.Context, kubeClient client.Client, namespace 
 	return podList, nil
 }
 
+// GetStorageClassWithName returns the storage class object by name
+func GetStorageClassWithName(ctx context.Context, kubeClient client.Client, name string) *storagev1.StorageClass {
+	sc := &storagev1.StorageClass{}
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: name}, sc)
+	if err != nil {
+		return nil
+	}
+	return sc
+}
+
 // getCountOfRunningPods gives the count of pods in running state in a given pod list
 func GetCountOfRunningPods(podList *corev1.PodList) int {
 	count := 0
@@ -128,4 +140,11 @@ func OwnersIndexFieldFunc(obj client.Object) []string {
 		owners = append(owners, string(refs[i].UID))
 	}
 	return owners
+}
+
+func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
+		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
+	}
+	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
 }

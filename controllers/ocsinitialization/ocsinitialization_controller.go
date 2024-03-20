@@ -14,6 +14,7 @@ import (
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -208,6 +209,23 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			),
 		).
+		// Watcher for storageClass required to update values related to replica-1
+		// in ocs-operator-config configmap, if storageClass changes
+		Watches(
+			&storagev1.StorageClass{},
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					// Only reconcile if the storageClass has topologyConstrainedPools set
+					sc := obj.(*storagev1.StorageClass)
+					if sc.Parameters["topologyConstrainedPools"] != "" {
+						return []reconcile.Request{{
+							NamespacedName: InitNamespacedName(),
+						}}
+					}
+					return []reconcile.Request{}
+				},
+			),
+		).
 		// Watcher for rook-ceph-operator-config cm
 		Watches(
 			&corev1.ConfigMap{
@@ -391,22 +409,39 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 
 func (r *OCSInitializationReconciler) getEnableTopologyKeyValue() string {
 
-	// return true even if one of the storagecluster has enabled it
 	for _, sc := range r.clusters.GetStorageClusters() {
-		if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+		if !sc.Spec.ExternalStorage.Enable && sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+			// In internal mode return true even if one of the storageCluster has enabled it via the CR
 			return "true"
+		} else if sc.Spec.ExternalStorage.Enable {
+			// In external mode, check if the non-resilient storageClass exists
+			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
+			if storageClass != nil {
+				return "true"
+			}
 		}
 	}
 
 	return "false"
 }
 
+// In case of multiple storageClusters when replica-1 is enabled for both an internal and an external cluster, different failure domain keys can lead to complications.
+// To prevent this, when gathering information for the external cluster, ensure that the failure domain is specified to match that of the internal cluster (sc.Status.FailureDomain).
 func (r *OCSInitializationReconciler) getTopologyDomainLabelsKeyValue() string {
 
-	// return value from the internal storagecluster as failureDomain is set only in internal cluster
 	for _, sc := range r.clusters.GetStorageClusters() {
-		if !sc.Spec.ExternalStorage.Enable && sc.Status.FailureDomainKey != "" {
+		if !sc.Spec.ExternalStorage.Enable && sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+			// In internal mode return the failure domain key directly from the storageCluster
 			return sc.Status.FailureDomainKey
+		} else if sc.Spec.ExternalStorage.Enable {
+			// In external mode, check if the non-resilient storageClass exists
+			// determine the failure domain key from the storageClass parameter
+			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
+			if storageClass != nil {
+				return getFailureDomainKeyFromStorageClassParameter(storageClass)
+			}
 		}
 	}
 
@@ -423,6 +458,19 @@ func (r *OCSInitializationReconciler) getEnableNFSKeyValue() string {
 	}
 
 	return "false"
+}
+
+func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) string {
+	failuredomain := sc.Parameters["topologyFailureDomainLabel"]
+	if failuredomain == "zone" {
+		return "topology.kubernetes.io/zone"
+	} else if failuredomain == "rack" {
+		return "topology.rook.io/rack"
+	} else if failuredomain == "hostname" || failuredomain == "host" {
+		return "kubernetes.io/hostname"
+	} else {
+		return ""
+	}
 }
 
 func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
