@@ -36,6 +36,9 @@ const (
 	TopologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
 	EnableNFSKey                = "ROOK_CSI_ENABLE_NFS"
 	CsiRemoveHolderPodsKey      = "CSI_REMOVE_HOLDER_PODS"
+
+	// This is the name for the OwnerUID FieldIndex
+	OwnerUIDIndexName = "ownerUID"
 )
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
@@ -116,4 +119,13 @@ func GetCountOfRunningPods(podList *corev1.PodList) int {
 		}
 	}
 	return count
+}
+
+func OwnersIndexFieldFunc(obj client.Object) []string {
+	refs := obj.GetOwnerReferences()
+	owners := []string{}
+	for i := range refs {
+		owners = append(owners, string(refs[i].UID))
+	}
+	return owners
 }

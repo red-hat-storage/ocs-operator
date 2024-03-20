@@ -549,6 +549,10 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 		}
 	}
 	var extR []*pb.ExternalResource
+
+	var storageClassName string
+	storageClassData := map[string]string{}
+
 	for _, cephRes := range storageClassRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
@@ -579,6 +583,24 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 			})
 
 		case "CephBlockPool":
+			storageClassName = "ceph-rbd"
+			storageClassData["clusterID"] = s.namespace
+
+			// Check if the StorageClassRequest has an associated RADOS Namespace
+			for _, rnsRes := range storageClassRequest.Status.CephResources {
+				if rnsRes.Kind == "CephBlockPoolRadosNamespace" {
+					rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+					err = s.client.Get(ctx, types.NamespacedName{Name: rnsRes.Name, Namespace: s.namespace}, rns)
+					if err != nil {
+						return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", rnsRes.Name, err)
+					}
+					storageClassData["clusterID"] = rns.Status.Info["clusterID"]
+					storageClassData["radosnamespace"] = rns.Name
+					cephRes.CephClients = rnsRes.CephClients
+					break
+				}
+			}
+
 			nodeCephClientSecret, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
@@ -588,30 +610,24 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			rbdStorageClass := map[string]string{
-				"clusterID":                 s.namespace,
-				"pool":                      cephRes.Name,
-				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
-				"csi.storage.k8s.io/fstype": "ext4",
-				"imageFormat":               "2",
-				"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-				"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-				"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
-			}
+
+			storageClassData["pool"] = cephRes.Name
+			storageClassData["imageFeatures"] = "layering,deep-flatten,exclusive-lock,object-map,fast-diff"
+			storageClassData["csi.storage.k8s.io/fstype"] = "ext4"
+			storageClassData["imageFormat"] = "2"
+			storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerCephClientSecret
+			storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeCephClientSecret
+			storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerCephClientSecret
 			if storageClassRequest.Spec.EncryptionMethod != "" {
-				rbdStorageClass["encrypted"] = "true"
-				rbdStorageClass["encryptionKMSID"] = storageClassRequest.Spec.EncryptionMethod
+				storageClassData["encrypted"] = "true"
+				storageClassData["encryptionKMSID"] = storageClassRequest.Spec.EncryptionMethod
 			}
-			extR = append(extR, &pb.ExternalResource{
-				Name: "ceph-rbd",
-				Kind: "StorageClass",
-				Data: mustMarshal(rbdStorageClass)})
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
 				Data: mustMarshal(map[string]string{
-					"clusterID": s.namespace,
+					"clusterID": storageClassData["clusterID"],
 					"csi.storage.k8s.io/snapshotter-secret-name": provisionerCephClientSecret,
 				})})
 
@@ -632,18 +648,14 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
-			extR = append(extR, &pb.ExternalResource{
-				Name: "cephfs",
-				Kind: "StorageClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID":          getSubVolumeGroupClusterID(subVolumeGroup),
-					"subvolumegroupname": subVolumeGroup.Name,
-					"fsName":             subVolumeGroup.Spec.FilesystemName,
-					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
-					"pool": subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel],
-				})})
+			storageClassName = "cephfs"
+			storageClassData["clusterID"] = getSubVolumeGroupClusterID(subVolumeGroup)
+			storageClassData["subvolumegroupname"] = subVolumeGroup.Name
+			storageClassData["fsName"] = subVolumeGroup.Spec.FilesystemName
+			storageClassData["pool"] = subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel]
+			storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerCephClientSecret
+			storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeCephClientSecret
+			storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerCephClientSecret
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: cephRes.Name,
@@ -661,6 +673,16 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				})})
 		}
 	}
+
+	if storageClassName == "" {
+		return nil, status.Error(codes.Internal, "No StorageClass was defined")
+	}
+	extR = append(extR, &pb.ExternalResource{
+		Name: storageClassName,
+		Kind: "StorageClass",
+		Data: mustMarshal(storageClassData),
+	})
+
 	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClassClaimName, req.StorageConsumerUUID)
 	return &pb.StorageClassClaimConfigResponse{ExternalResource: extR}, nil
 
