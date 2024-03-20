@@ -187,3 +187,7 @@ install-noobaa: operator-sdk
 install-ocs: operator-sdk
 	@echo "Installing ocs operator"
 	hack/install-ocs.sh
+
+install-rook: operator-sdk
+	@echo "Installing rook-ceph operator"
+	hack/install-rook.sh

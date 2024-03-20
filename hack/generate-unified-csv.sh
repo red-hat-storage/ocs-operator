@@ -47,7 +47,6 @@ $CSV_MERGER \
 	--csv-version="$CSV_VERSION" \
 	--replaces-csv-version="$REPLACES_CSV_VERSION" \
 	--skip-range="$SKIP_RANGE" \
-	--rook-csv-filepath=$ROOK_CSV \
 	--ocs-csv-filepath=$OCS_CSV \
 	--rook-image="$ROOK_IMAGE" \
 	--ceph-image="$CEPH_IMAGE" \
@@ -67,4 +66,3 @@ $CSV_MERGER \
 	--manifests-directory=$BUNDLEMANIFESTS_DIR \
 	--olm-bundle-directory="$OCS_FINAL_DIR" \
 	--timestamp="$TIMESTAMP" \
-	--rook-csiaddons-image="$ROOK_CSIADDONS_IMAGE"
