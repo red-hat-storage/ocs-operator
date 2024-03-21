@@ -582,24 +582,10 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				}),
 			})
 
-		case "CephBlockPool":
+		case "CephBlockPoolRadosNamespace":
 			storageClassName = "ceph-rbd"
 			storageClassData["clusterID"] = s.namespace
-
-			// Check if the StorageClassRequest has an associated RADOS Namespace
-			for _, rnsRes := range storageClassRequest.Status.CephResources {
-				if rnsRes.Kind == "CephBlockPoolRadosNamespace" {
-					rns := &rookCephv1.CephBlockPoolRadosNamespace{}
-					err = s.client.Get(ctx, types.NamespacedName{Name: rnsRes.Name, Namespace: s.namespace}, rns)
-					if err != nil {
-						return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", rnsRes.Name, err)
-					}
-					storageClassData["clusterID"] = rns.Status.Info["clusterID"]
-					storageClassData["radosnamespace"] = rns.Name
-					cephRes.CephClients = rnsRes.CephClients
-					break
-				}
-			}
+			storageClassData["radosnamespace"] = cephRes.Name
 
 			nodeCephClientSecret, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
 			if err != nil {
@@ -611,7 +597,13 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
-			storageClassData["pool"] = cephRes.Name
+			rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+			err = s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, rns)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", cephRes.Name, err)
+			}
+
+			storageClassData["pool"] = rns.Spec.BlockPoolName
 			storageClassData["imageFeatures"] = "layering,deep-flatten,exclusive-lock,object-map,fast-diff"
 			storageClassData["csi.storage.k8s.io/fstype"] = "ext4"
 			storageClassData["imageFormat"] = "2"
