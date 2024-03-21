@@ -1,0 +1,51 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-metrics-sm-prometheus-k8s
+rules:
+  - verbs:
+      - get
+    apiGroups:
+      - ''
+    resources:
+      - nodes/metrics
+  - verbs:
+      - get
+    nonResourceURLs:
+      - /metrics
+  - verbs:
+      - create
+    apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+  - verbs:
+      - create
+    apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+  - verbs:
+      - get
+    apiGroups:
+      - ''
+    resources:
+      - namespaces
+  - verbs:
+      - use
+    apiGroups:
+      - security.openshift.io
+    resources:
+      - securitycontextconstraints
+    resourceNames:
+      - nonroot
+  - verbs:
+      - list
+      - watch
+      - get
+    apiGroups:
+      - ''
+    resources:
+      - pods
+      - endpoints
+      - services
