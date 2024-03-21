@@ -574,7 +574,10 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				keyProp = "adminKey"
 			}
 			extR = append(extR, &pb.ExternalResource{
-				Name: clientSecretName,
+				// a common suffix '.csi' is being added to distinguish secrets that are created
+				// by ocs-client-operator vs rook-operator when both these operators are deployed in same namespace
+				// TODO: need to transform existing secrets during migration manually
+				Name: clientSecretName + ".csi",
 				Kind: "Secret",
 				Data: mustMarshal(map[string]string{
 					idProp:  cephRes.Name,

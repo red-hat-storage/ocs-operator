@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -841,6 +842,10 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
+		} else if extResource.Kind == "Secret" {
+			var found bool
+			name, found = strings.CutSuffix(name, ".csi")
+			assert.True(t, found)
 		}
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
@@ -849,7 +854,12 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		assert.Equal(t, extResource.Name, mockResoruce.Name)
+		if extResource.Kind == "Secret" {
+			name, _ := strings.CutSuffix(name, ".csi")
+			assert.Equal(t, name, mockResoruce.Name)
+		} else {
+			assert.Equal(t, extResource.Name, mockResoruce.Name)
+		}
 	}
 
 	// get the storage class request config for share filesystem
@@ -868,6 +878,10 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
+		} else if extResource.Kind == "Secret" {
+			var found bool
+			name, found = strings.CutSuffix(name, ".csi")
+			assert.True(t, found)
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
@@ -876,7 +890,12 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		assert.Equal(t, extResource.Name, mockResoruce.Name)
+		if extResource.Kind == "Secret" {
+			name, _ := strings.CutSuffix(name, ".csi")
+			assert.Equal(t, name, mockResoruce.Name)
+		} else {
+			assert.Equal(t, extResource.Name, mockResoruce.Name)
+		}
 	}
 
 	// When ceph resources is empty
