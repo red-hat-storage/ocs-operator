@@ -88,13 +88,6 @@ func generateNameForCephBlockPoolVirtualizationSC(initData *ocsv1.StorageCluster
 	return fmt.Sprintf("%s-ceph-rbd-virtualization", initData.Name)
 }
 
-func generateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
-	if initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
-		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
-	}
-	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
-}
-
 func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.Encryption.StorageClassName != "" {
 		return initData.Spec.Encryption.StorageClassName

@@ -339,7 +339,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: generateNameForNonResilientCephBlockPoolSC(initData),
+				Name: util.GenerateNameForNonResilientCephBlockPoolSC(initData),
 				Annotations: map[string]string{
 					"description": "Ceph Non Resilient Pools : Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 				},
