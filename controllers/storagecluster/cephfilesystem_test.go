@@ -191,3 +191,228 @@ func TestGetActiveMetadataServers(t *testing.T) {
 	}
 
 }
+
+func TestCephFileSystemDataPools(t *testing.T) {
+	mocksc := &api.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(mocksc)
+	mocksc.Status.FailureDomain = "zone"
+	defaultPoolSpec := generateDefaultPoolSpec(mocksc)
+	var cases = []struct {
+		label             string
+		sc                *api.StorageCluster
+		expectedDataPools []cephv1.NamedPoolSpec
+	}{
+		{
+			label: "Neither DataPoolSpec nor AdditionalDataPools is set",
+			sc:    &api.StorageCluster{},
+			expectedDataPools: []cephv1.NamedPoolSpec{
+				{
+					PoolSpec: defaultPoolSpec,
+				},
+			},
+		},
+		{
+			label: "DataPoolSpec is set & AdditionalDataPools is not set",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephFilesystems: api.ManageCephFilesystems{
+							DataPoolSpec: cephv1.PoolSpec{
+								DeviceClass: "gold",
+								Replicated: cephv1.ReplicatedSpec{
+									Size:            2,
+									TargetSizeRatio: 0.8,
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedDataPools: []cephv1.NamedPoolSpec{
+				{
+					PoolSpec: cephv1.PoolSpec{
+						DeviceClass: "gold",
+						Replicated: cephv1.ReplicatedSpec{
+							Size:                     2,
+							TargetSizeRatio:          0.8,
+							ReplicasPerFailureDomain: defaultPoolSpec.Replicated.ReplicasPerFailureDomain,
+						},
+						FailureDomain: defaultPoolSpec.FailureDomain,
+					},
+				},
+			},
+		},
+		{
+			label: "DataPoolSpec is not set & One item is set on AdditionalDataPools",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephFilesystems: api.ManageCephFilesystems{
+							AdditionalDataPools: []cephv1.NamedPoolSpec{
+								{
+									Name: "test-1",
+									PoolSpec: cephv1.PoolSpec{
+										Replicated: cephv1.ReplicatedSpec{
+											Size:            2,
+											TargetSizeRatio: 0.3,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedDataPools: []cephv1.NamedPoolSpec{
+				{
+					PoolSpec: defaultPoolSpec,
+				},
+				{
+					Name: "test-1",
+					PoolSpec: cephv1.PoolSpec{
+						DeviceClass: defaultPoolSpec.DeviceClass,
+						Replicated: cephv1.ReplicatedSpec{
+							Size:                     2,
+							TargetSizeRatio:          0.3,
+							ReplicasPerFailureDomain: defaultPoolSpec.Replicated.ReplicasPerFailureDomain,
+						},
+						FailureDomain: defaultPoolSpec.FailureDomain,
+					},
+				},
+			},
+		},
+		{
+			label: "DataPoolSpec is not set & multiple AdditionalDataPools are set",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephFilesystems: api.ManageCephFilesystems{
+							AdditionalDataPools: []cephv1.NamedPoolSpec{
+								{
+									Name: "test-1",
+									PoolSpec: cephv1.PoolSpec{
+										DeviceClass: "gold",
+									},
+								},
+								{
+									Name: "test-2",
+									PoolSpec: cephv1.PoolSpec{
+										DeviceClass: "silver",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedDataPools: []cephv1.NamedPoolSpec{
+				{
+					PoolSpec: defaultPoolSpec,
+				},
+				{
+					Name: "test-1",
+					PoolSpec: cephv1.PoolSpec{
+						DeviceClass:   "gold",
+						Replicated:    defaultPoolSpec.Replicated,
+						FailureDomain: defaultPoolSpec.FailureDomain,
+					},
+				},
+				{
+					Name: "test-2",
+					PoolSpec: cephv1.PoolSpec{
+						DeviceClass:   "silver",
+						Replicated:    defaultPoolSpec.Replicated,
+						FailureDomain: defaultPoolSpec.FailureDomain,
+					},
+				},
+			},
+		},
+		{
+			label: "DataPoolSpec is set & multiple AdditionalDataPools are set",
+			sc: &api.StorageCluster{
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephFilesystems: api.ManageCephFilesystems{
+							DataPoolSpec: cephv1.PoolSpec{
+								DeviceClass: "gold",
+								Replicated: cephv1.ReplicatedSpec{
+									TargetSizeRatio: 0.1,
+								},
+							},
+							AdditionalDataPools: []cephv1.NamedPoolSpec{
+								{
+									Name: "test-1",
+									PoolSpec: cephv1.PoolSpec{
+										DeviceClass: "silver",
+										Replicated: cephv1.ReplicatedSpec{
+											Size:            2,
+											TargetSizeRatio: 0.25,
+										},
+									},
+								},
+								{
+									Name: "test-2",
+									PoolSpec: cephv1.PoolSpec{
+										DeviceClass: "bronze",
+										Replicated: cephv1.ReplicatedSpec{
+											Size:            2,
+											TargetSizeRatio: 0.25,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedDataPools: []cephv1.NamedPoolSpec{
+				{
+					PoolSpec: cephv1.PoolSpec{
+						DeviceClass: "gold",
+						Replicated: cephv1.ReplicatedSpec{
+							Size:                     defaultPoolSpec.Replicated.Size,
+							TargetSizeRatio:          0.1,
+							ReplicasPerFailureDomain: defaultPoolSpec.Replicated.ReplicasPerFailureDomain,
+						},
+						FailureDomain: defaultPoolSpec.FailureDomain,
+					},
+				},
+				{
+					Name: "test-1",
+					PoolSpec: cephv1.PoolSpec{
+						DeviceClass: "silver",
+						Replicated: cephv1.ReplicatedSpec{
+							Size:                     2,
+							TargetSizeRatio:          0.25,
+							ReplicasPerFailureDomain: defaultPoolSpec.Replicated.ReplicasPerFailureDomain,
+						},
+						FailureDomain: defaultPoolSpec.FailureDomain,
+					},
+				},
+				{
+					Name: "test-2",
+					PoolSpec: cephv1.PoolSpec{
+						DeviceClass: "bronze",
+						Replicated: cephv1.ReplicatedSpec{
+							Size:                     2,
+							TargetSizeRatio:          0.25,
+							ReplicasPerFailureDomain: defaultPoolSpec.Replicated.ReplicasPerFailureDomain,
+						},
+						FailureDomain: defaultPoolSpec.FailureDomain,
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
+		var objects []client.Object
+		t, reconciler, _, _ := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
+		c.sc.Status.FailureDomain = "zone"
+		filesystem, err := reconciler.newCephFilesystemInstances(c.sc)
+		assert.NoError(t, err)
+		actualDataPools := filesystem[0].Spec.DataPools
+		assert.Equal(t, c.expectedDataPools, actualDataPools)
+	}
+}
