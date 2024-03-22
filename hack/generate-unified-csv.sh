@@ -19,12 +19,6 @@ function help_txt() {
 	echo "    CSV_VERSION:          (required) The ocs-operator csv version that will be generated"
 	echo "    REPLACES_CSV_VERSION       (optional) The ocs-operator csv version this new csv will be updating"
 	echo "    SKIP_RANGE                 (optional) The skip range value set for this csv"
-	echo "    ROOK_CSI_CEPH_IMAGE        (optional) Sets custom image env var on the rook deployment spec"
-	echo "    ROOK_CSI_REGISTRAR_IMAGE   (optional) Sets custom image env var on the rook deployment spec"
-	echo "    ROOK_CSI_RESIZER_IMAGE     (optional) Sets custom image env var on the rook deployment spec"
-	echo "    ROOK_CSI_PROVISIONER_IMAGE (optional) Sets custom image env var on the rook deployment spec"
-	echo "    ROOK_CSI_SNAPSHOTTER_IMAGE (optional) Sets custom image env var on the rook deployment spec"
-	echo "    ROOK_CSI_ATTACHER_IMAGE    (optional) Sets custom image env var on the rook deployment spec"
 	echo ""
 	echo "Example usage:"
 	echo "    ROOK_IMAGE=<image> CSV_VERSION=<version> $0"
@@ -50,12 +44,6 @@ $CSV_MERGER \
 	--ocs-csv-filepath=$OCS_CSV \
 	--rook-image="$ROOK_IMAGE" \
 	--ceph-image="$CEPH_IMAGE" \
-	--rook-csi-ceph-image="$ROOK_CSI_CEPH_IMAGE" \
-	--rook-csi-registrar-image="$ROOK_CSI_REGISTRAR_IMAGE" \
-	--rook-csi-resizer-image="$ROOK_CSI_RESIZER_IMAGE" \
-	--rook-csi-provisioner-image="$ROOK_CSI_PROVISIONER_IMAGE" \
-	--rook-csi-snapshotter-image="$ROOK_CSI_SNAPSHOTTER_IMAGE" \
-	--rook-csi-attacher-image="$ROOK_CSI_ATTACHER_IMAGE" \
 	--noobaa-core-image="$NOOBAA_CORE_IMAGE" \
 	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
 	--ocs-image="$OCS_IMAGE" \
