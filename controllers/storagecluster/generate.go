@@ -109,7 +109,7 @@ func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType S
 }
 
 func generateNameForSnapshotClassDriver(snapshotType SnapshotterType) string {
-	return fmt.Sprintf("%s.%s.csi.ceph.com", csiDriverNamePrefix, snapshotType)
+	return fmt.Sprintf("%s.%s.csi.ceph.com", storageclassDriverNamePrefix, snapshotType)
 }
 
 func generateNameForSnapshotClassSecret(instance *ocsv1.StorageCluster, snapshotType SnapshotterType) string {

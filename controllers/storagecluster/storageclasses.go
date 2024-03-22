@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -27,14 +26,15 @@ const (
 	storageClassSkippedError      = "some StorageClasses were skipped while waiting for pre-requisites to be met"
 	defaultStorageClassAnnotation = "storageclass.kubernetes.io/is-default-class"
 
-	//csi driver name prefix
-	csiDriverNamePrefix = "openshift-storage"
+	//storage class driver name prefix
+	storageclassDriverNamePrefix = "openshift-storage"
 )
 
 var (
-	rbdDriverName    = csiDriverNamePrefix + ".rbd.csi.ceph.com"
-	cephFSDriverName = csiDriverNamePrefix + ".cephfs.csi.ceph.com"
-	nfsDriverName    = csiDriverNamePrefix + ".nfs.csi.ceph.com"
+	rbdDriverName    = storageclassDriverNamePrefix + ".rbd.csi.ceph.com"
+	cephFSDriverName = storageclassDriverNamePrefix + ".cephfs.csi.ceph.com"
+	nfsDriverName    = storageclassDriverNamePrefix + ".nfs.csi.ceph.com"
+	obcDriverName    = storageclassDriverNamePrefix + ".ceph.rook.io/bucket"
 )
 
 // StorageClassConfiguration provides configuration options for a StorageClass.
@@ -426,7 +426,7 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 					"description": "Provides Object Bucket Claims (OBCs)",
 				},
 			},
-			Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", os.Getenv(util.OperatorNamespaceEnvVar)),
+			Provisioner:   obcDriverName,
 			ReclaimPolicy: &reclaimPolicy,
 			Parameters: map[string]string{
 				"objectStoreNamespace": initData.Namespace,
