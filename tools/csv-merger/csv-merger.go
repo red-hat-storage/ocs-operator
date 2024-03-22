@@ -500,6 +500,18 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 
 	relatedImages := []interface{}{}
 
+	if *rookContainerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "rook-container",
+			"image": *rookContainerImage,
+		})
+	}
+	if *cephContainerImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "ceph-container",
+			"image": *cephContainerImage,
+		})
+	}
 	if *rookCsiCephImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "rook-csi",
