@@ -35,12 +35,6 @@ var (
 
 	rookContainerImage       = flag.String("rook-image", "", "rook operator container image")
 	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
-	rookCsiCephImage         = flag.String("rook-csi-ceph-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiRegistrarImage    = flag.String("rook-csi-registrar-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiResizerImage      = flag.String("rook-csi-resizer-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiProvisionerImage  = flag.String("rook-csi-provisioner-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiSnapshotterImage  = flag.String("rook-csi-snapshotter-image", "", "optional - defaults version supported by rook will be started if this is not set.")
-	rookCsiAttacherImage     = flag.String("rook-csi-attacher-image", "", "optional - defaults version supported by rook will be started if this is not set.")
 	noobaaCoreContainerImage = flag.String("noobaa-core-image", "", "noobaa core container image")
 	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
@@ -500,40 +494,16 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 
 	relatedImages := []interface{}{}
 
-	if *rookCsiCephImage != "" {
+	if *rookContainerImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-csi",
-			"image": *rookCsiCephImage,
+			"name":  "rook-container",
+			"image": *rookContainerImage,
 		})
 	}
-	if *rookCsiRegistrarImage != "" {
+	if *cephContainerImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-csi-registrar",
-			"image": *rookCsiRegistrarImage,
-		})
-	}
-	if *rookCsiResizerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-csi-resizer",
-			"image": *rookCsiResizerImage,
-		})
-	}
-	if *rookCsiProvisionerImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-csi-provisioner",
-			"image": *rookCsiProvisionerImage,
-		})
-	}
-	if *rookCsiSnapshotterImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-csi-snapshotter",
-			"image": *rookCsiSnapshotterImage,
-		})
-	}
-	if *rookCsiAttacherImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "rook-csi-attacher",
-			"image": *rookCsiAttacherImage,
+			"name":  "ceph-container",
+			"image": *cephContainerImage,
 		})
 	}
 	if *ocsMustGatherImage != "" {

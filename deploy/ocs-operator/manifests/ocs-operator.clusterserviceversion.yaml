@@ -726,6 +726,10 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
+  - image: quay.io/ocs-dev/rook-ceph:latest-downstream
+    name: rook-container
+  - image: quay.io/ceph/ceph:v18.2.0
+    name: ceph-container
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
   - image: quay.io/ocs-dev/ocs-metrics-exporter:latest
