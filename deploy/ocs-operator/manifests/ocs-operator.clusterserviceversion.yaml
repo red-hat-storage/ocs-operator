@@ -610,6 +610,9 @@ spec:
                   capabilities:
                     drop:
                     - all
+                volumeMounts:
+                - mountPath: /etc/private-key
+                  name: onboarding-private-key
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: ocs-operator
@@ -619,6 +622,11 @@ spec:
                 key: node.ocs.openshift.io/storage
                 operator: Equal
                 value: "true"
+              volumes:
+              - name: onboarding-private-key
+                secret:
+                  optional: true
+                  secretName: onboarding-private-key
       - name: ux-backend-server
         spec:
           replicas: 1
