@@ -11,7 +11,7 @@ ARG GOARCH=amd64
 ARG LDFLAGS
 
 RUN GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o ocs-operator main.go
-RUN GOOS="$GOOS" GOARCH="$GOARCH" go build -tags netgo,osusergo -o provider-api services/provider/main.go
+RUN GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o provider-api services/provider/main.go
 RUN GOOS="$GOOS" GOARCH="$GOARCH" go build -tags netgo,osusergo -o onboarding-validation-keys-gen onboarding-validation-keys-generator/main.go
 RUN GOOS="$GOOS" GOARCH="$GOARCH" go build -tags netgo,osusergo -o ux-backend-server services/ux-backend/main.go
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -378,6 +379,17 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = "false"
 		} else if ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey] != "" {
 			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey]
+		}
+
+		allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
+			return sc.Spec.AllowRemoteStorageConsumers
+		})
+		if allowConsumers {
+			ocsOperatorConfigData[util.CsiEnableCephFSKey] = "false"
+			ocsOperatorConfigData[util.CsiEnableRBDKey] = "false"
+		} else {
+			ocsOperatorConfigData[util.CsiEnableCephFSKey] = "true"
+			ocsOperatorConfigData[util.CsiEnableRBDKey] = "true"
 		}
 
 		if !reflect.DeepEqual(ocsOperatorConfig.Data, ocsOperatorConfigData) {

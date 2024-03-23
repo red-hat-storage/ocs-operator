@@ -28,6 +28,7 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.26.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.70.0
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.70.0
+	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240216124345-1b9b7fb23b8d
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/rook/rook/pkg/apis v0.0.0-20240313140758-c409a6ae468b
 	github.com/stretchr/testify v1.9.0

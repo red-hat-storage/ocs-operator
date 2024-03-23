@@ -17,6 +17,7 @@ import (
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -1211,6 +1212,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = ocsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add ocsv1alpha1 scheme")
+	}
+
+	err = ocsclientv1a1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add ocsclientv1a1 scheme")
 	}
 
 	return scheme
