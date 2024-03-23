@@ -57,6 +57,7 @@ bin
 catalog/ocs-bundle.yaml
 catalog/noobaa-bundle.yaml
 catalog/rook-ceph-bundle.yaml
+catalog/ocs-client-bundle.yaml
 
 tools/csv-merger/csv-merger
 tools/csv-checksum/csv-checksum
