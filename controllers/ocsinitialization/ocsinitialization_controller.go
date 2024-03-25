@@ -356,6 +356,8 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
+		util.CsiEnableCephFSKey:          "true",
+		util.CsiEnableRBDKey:             "true",
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{
