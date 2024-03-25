@@ -27,6 +27,8 @@ data:
   CSI_TOPOLOGY_DOMAIN_LABELS: "test"
   ROOK_CSI_ENABLE_NFS: "false"
   CSI_REMOVE_HOLDER_PODS: "true"
+  ROOK_CSI_ENABLE_CEPHFS: "true"
+  ROOK_CSI_ENABLE_RBD: "true"
 EOF
 
 "$OPERATOR_SDK" run bundle "$ROOK_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
