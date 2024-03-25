@@ -194,6 +194,17 @@ spec:
           - ceph.rook.io
           resources:
           - cephblockpoolradosnamespaces
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephblockpoolradosnamespaces
           - cephblockpools
           - cephclusters
           - cephfilesystems
@@ -203,17 +214,6 @@ spec:
           - cephrbdmirrors
           verbs:
           - '*'
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephblockpools
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
         - apiGroups:
           - ceph.rook.io
           resources:

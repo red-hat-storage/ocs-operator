@@ -15,6 +15,7 @@ rules:
   - ceph.rook.io
   resources:
   - cephfilesystemsubvolumegroups
+  - cephblockpoolradosnamespaces
   verbs:
   - get
   - list
