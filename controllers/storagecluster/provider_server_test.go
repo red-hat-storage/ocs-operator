@@ -85,6 +85,12 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(secret), secret))
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
+		}
+		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(cm), cm))
+		assert.Equal(t, "true", cm.Data[deployCSIKey])
 	})
 
 	t.Run("Ensure that Deployment,Service,Secret is created when AllowRemoteStorageConsumers and ProviderAPIServerServiceType set to loadBalancer", func(t *testing.T) {
@@ -148,6 +154,12 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(secret), secret))
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
+		}
+		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(cm), cm))
+		assert.Equal(t, "true", cm.Data[deployCSIKey])
 	})
 
 	t.Run("Ensure that Deployment,Service,Secret is created when AllowRemoteStorageConsumers and ProviderAPIServerServiceType set to ClusterIP", func(t *testing.T) {
@@ -206,6 +218,12 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(secret), secret))
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
+		}
+		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(cm), cm))
+		assert.Equal(t, "true", cm.Data[deployCSIKey])
 	})
 
 	t.Run("Ensure that Service is not created when AllowRemoteStorageConsumers is enabled and ProviderAPIServerServiceType is set to any other value than NodePort, ClusterIP or LoadBalancer", func(t *testing.T) {
@@ -302,6 +320,10 @@ func createSetupForOcsProviderTest(t *testing.T, allowRemoteStorageConsumers boo
 		},
 	}
 
+	clientConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
+	}
+
 	scheme := createFakeScheme(t)
 
 	frecorder := record.NewFakeRecorder(1024)
@@ -309,7 +331,7 @@ func createSetupForOcsProviderTest(t *testing.T, allowRemoteStorageConsumers boo
 
 	r := &StorageClusterReconciler{
 		recorder: reporter,
-		Client:   fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node).Build(),
+		Client:   fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap).Build(),
 		Scheme:   scheme,
 		Log:      logf.Log.WithName("controller_storagecluster_test"),
 	}

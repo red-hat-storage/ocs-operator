@@ -46,6 +46,15 @@ spec:
           capabilities:
               drop:
                 - all
+        volumeMounts:
+        - mountPath: /etc/private-key
+          name: onboarding-private-key
       terminationGracePeriodSeconds: 10
       securityContext:
         runAsNonRoot: true
+      volumes:
+      - name: onboarding-private-key
+        secret:
+          # this is marked as optional as the secret gets created only in provider mode
+          optional: true
+          secretName: onboarding-private-key

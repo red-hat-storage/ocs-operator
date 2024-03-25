@@ -571,10 +571,18 @@ spec:
                   capabilities:
                     drop:
                     - all
+                volumeMounts:
+                - mountPath: /etc/private-key
+                  name: onboarding-private-key
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: ocs-operator
               terminationGracePeriodSeconds: 10
+              volumes:
+              - name: onboarding-private-key
+                secret:
+                  optional: true
+                  secretName: onboarding-private-key
     strategy: deployment
   installModes:
   - supported: true
