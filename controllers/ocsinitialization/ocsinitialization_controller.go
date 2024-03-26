@@ -458,13 +458,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
 			return sc.Spec.AllowRemoteStorageConsumers
 		})
-		if allowConsumers {
-			ocsOperatorConfigData[util.CsiEnableCephFSKey] = "false"
-			ocsOperatorConfigData[util.CsiEnableRBDKey] = "false"
-		} else {
-			ocsOperatorConfigData[util.CsiEnableCephFSKey] = "true"
-			ocsOperatorConfigData[util.CsiEnableRBDKey] = "true"
-		}
+		ocsOperatorConfigData[util.DisableCSIDriverKey] = strconv.FormatBool(allowConsumers)
 
 		if !reflect.DeepEqual(ocsOperatorConfig.Data, ocsOperatorConfigData) {
 			r.Log.Info("Updating ocs-operator-config configmap")
