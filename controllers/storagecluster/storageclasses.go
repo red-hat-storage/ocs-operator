@@ -109,7 +109,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		sc := scc.storageClass
 
 		switch {
-		case (strings.Contains(sc.Name, "-ceph-rbd") || strings.Contains(sc.Provisioner, rbdDriverName)) && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-ceph-rbd") || (strings.Contains(sc.Provisioner, rbdDriverName)) && !strings.Contains(sc.Name, "-ceph-non-resilient-rbd")) && !scc.isClusterExternal:
 			// wait for CephBlockPool to be ready
 			cephBlockPool := cephv1.CephBlockPool{}
 			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: namespace}
@@ -351,7 +351,6 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID":                 initData.Namespace,
-				"pool":                      generateNameForCephBlockPool(initData),
 				"topologyConstrainedPools":  getTopologyConstrainedPools(initData),
 				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 				"csi.storage.k8s.io/fstype": "ext4",
