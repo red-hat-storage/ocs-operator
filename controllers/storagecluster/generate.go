@@ -2,9 +2,11 @@ package storagecluster
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
@@ -115,8 +117,8 @@ func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType S
 	return fmt.Sprintf("%s-%splugin-snapclass", initData.Name, snapshotType)
 }
 
-func generateNameForSnapshotClassDriver(initData *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
-	return fmt.Sprintf("%s.%s.csi.ceph.com", initData.Namespace, snapshotType)
+func generateNameForSnapshotClassDriver(snapshotType SnapshotterType) string {
+	return fmt.Sprintf("%s.%s.csi.ceph.com", os.Getenv(util.OperatorNamespaceEnvVar), snapshotType)
 }
 
 func generateNameForSnapshotClassSecret(instance *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
