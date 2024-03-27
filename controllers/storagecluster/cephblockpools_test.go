@@ -55,7 +55,7 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 			label:                "test-injecting-peer-token-to-cephblockpool",
 			createRuntimeObjects: false,
 			spec: &api.StorageClusterSpec{
-				Mirroring: api.MirroringSpec{
+				Mirroring: &api.MirroringSpec{
 					Enabled:         true,
 					PeerSecretNames: []string{testPeerSecretName},
 				},
@@ -65,7 +65,7 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 			label:                "test-injecting-empty-peer-token-to-cephblockpool",
 			createRuntimeObjects: false,
 			spec: &api.StorageClusterSpec{
-				Mirroring: api.MirroringSpec{
+				Mirroring: &api.MirroringSpec{
 					Enabled:         true,
 					PeerSecretNames: []string{},
 				},
@@ -75,7 +75,7 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 			label:                "test-injecting-invalid-peer-token-cephblockpool",
 			createRuntimeObjects: false,
 			spec: &api.StorageClusterSpec{
-				Mirroring: api.MirroringSpec{
+				Mirroring: &api.MirroringSpec{
 					Enabled:         true,
 					PeerSecretNames: []string{"wrong-secret-name"},
 				},
