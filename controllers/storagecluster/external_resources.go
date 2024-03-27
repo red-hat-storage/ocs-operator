@@ -391,21 +391,22 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				}
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
-				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
-					r.Log.Error(err, "RGW endpoint is not reachable.", "RGWEndpoint", rgwEndpoint)
-					return err
-				}
-				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint)
-				if err != nil {
-					return err
-				}
-				// rgw-endpoint is no longer needed in the 'd.Data' dictionary,
-				// and can be deleted
-				// created an issue in rook to add `CephObjectStore` type directly in the JSON output
-				// https://github.com/rook/rook/issues/6165
-				delete(d.Data, externalCephRgwEndpointKey)
+				rgwErr := checkEndpointReachable(rgwEndpoint, 5*time.Second)
+				if rgwErr != nil {
+					r.Log.Error(err, "RGW endpoint is not reachable. Will skip creating objectstore and RGW Storage Class", "RGWEndpoint", rgwEndpoint)
+				} else {
+					extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint)
+					if err != nil {
+						return err
+					}
+					// rgw-endpoint is no longer needed in the 'd.Data' dictionary,
+					// and can be deleted
+					// created an issue in rook to add `CephObjectStore` type directly in the JSON output
+					// https://github.com/rook/rook/issues/6165
+					delete(d.Data, externalCephRgwEndpointKey)
 
-				scc = newCephOBCStorageClassConfiguration(instance)
+					scc = newCephOBCStorageClassConfiguration(instance)
+				}
 			}
 			// now sc is pointing to appropriate StorageClass,
 			// whose parameters have to be updated
