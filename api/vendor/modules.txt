@@ -39,14 +39,12 @@ github.com/go-openapi/jsonreference/internal
 # github.com/go-openapi/swag v0.22.10
 ## explicit; go 1.19
 github.com/go-openapi/swag
-# github.com/go-test/deep v1.1.0
-## explicit; go 1.16
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
-# github.com/golang/protobuf v1.5.3
-## explicit; go 1.9
+# github.com/golang/protobuf v1.5.4
+## explicit; go 1.17
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
@@ -103,7 +101,7 @@ github.com/hashicorp/hcl/hcl/token
 github.com/hashicorp/hcl/json/parser
 github.com/hashicorp/hcl/json/scanner
 github.com/hashicorp/hcl/json/token
-# github.com/hashicorp/vault/api v1.12.0
+# github.com/hashicorp/vault/api v1.12.2
 ## explicit; go 1.19
 github.com/hashicorp/vault/api
 # github.com/hashicorp/vault/api/auth/approle v0.6.0
@@ -153,10 +151,10 @@ github.com/modern-go/reflect2
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/noobaa/noobaa-operator/v5 v5.0.0-20240108121934-9e0f7508e835
-## explicit; go 1.20
+# github.com/noobaa/noobaa-operator/v5 v5.0.0-20240319123706-4ee28d614c7c
+## explicit; go 1.21
 github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1
-# github.com/openshift/api v0.0.0-20240301093301-ce10821dc999
+# github.com/openshift/api v0.0.0-20240323003854-2252c7adfb79
 ## explicit; go 1.21
 github.com/openshift/api/quota/v1
 github.com/openshift/api/security/v1
@@ -166,7 +164,7 @@ github.com/openshift/custom-resource-status/conditions/v1
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/rook/rook/pkg/apis v0.0.0-20240313140758-c409a6ae468b
+# github.com/rook/rook/pkg/apis v0.0.0-20240327231646-b6b89a012a95
 ## explicit; go 1.21
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -258,7 +256,7 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# k8s.io/api v0.29.2
+# k8s.io/api v0.29.3
 ## explicit; go 1.21
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1alpha1
@@ -312,7 +310,7 @@ k8s.io/api/scheduling/v1beta1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apimachinery v0.29.2
+# k8s.io/apimachinery v0.29.3
 ## explicit; go 1.21
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -354,7 +352,7 @@ k8s.io/apimachinery/pkg/util/yaml
 k8s.io/apimachinery/pkg/version
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/client-go v0.29.2
+# k8s.io/client-go v0.29.3
 ## explicit; go 1.21
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1

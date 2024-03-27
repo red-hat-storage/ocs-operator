@@ -211,6 +211,14 @@ type ManageCephBlockPools struct {
 // ManageCephNonResilientPools defines how to reconcile ceph non-resilient pools
 type ManageCephNonResilientPools struct {
 	Enable bool `json:"enable,omitempty"`
+	// Count is the number of devices in this set
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1
+	Count int `json:"count,omitempty"`
+	// ResourceRequirements (requests/limits) for the devices
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	// VolumeClaimTemplates is a PVC template for the underlying storage devices
+	VolumeClaimTemplate corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph non-resilient pools
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
@@ -229,6 +237,10 @@ type ManageCephFilesystems struct {
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName string `json:"storageClassName,omitempty"`
+	// DataPoolSpec specifies the pool specification for the default cephfs data pool
+	DataPoolSpec rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
+	// AdditionalDataPools specifies list of additional named cephfs data pools
+	AdditionalDataPools []rookCephv1.NamedPoolSpec `json:"additionalDataPools,omitempty"`
 }
 
 // ManageCephObjectStores defines how to reconcile CephObjectStores
@@ -241,7 +253,8 @@ type ManageCephObjectStores struct {
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-	StorageClassName string `json:"storageClassName,omitempty"`
+	StorageClassName string   `json:"storageClassName,omitempty"`
+	VirtualHostnames []string `json:"virtualHostnames,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
@@ -258,6 +271,8 @@ type ManageCephToolbox struct {
 type ManageCephRBDMirror struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
 }
 
@@ -397,6 +412,9 @@ type ExternalPGSpec struct {
 	// AllowSelfSignedCerts will allow the Postgres server to use self signed certificates to authenticate
 	// +optional
 	AllowSelfSignedCerts bool `json:"allowSelfSignedCerts,omitempty"`
+	// EnableTLS will allow the postgres server to connect via TLS/SSL
+	// +optional
+	EnableTLS bool `json:"enableTls,omitempty"`
 	// TLSSecret stores the secret name which contains the client side certificates if enabled
 	// +optional
 	TLSSecretName string `json:"tlsSecretName,omitempty"`
@@ -437,6 +455,20 @@ type EncryptionSpec struct {
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName     string                   `json:"storageClassName,omitempty"`
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+	// KeyRotation defines options for Key Rotation.
+	// +optional
+	KeyRotation KeyRotationSpec `json:"keyRotation,omitempty"`
+}
+
+// KeyRotationSpec represents the settings for Key Rotation.
+type KeyRotationSpec struct {
+	// Enable represents whether the key rotation is enabled.
+	// +optional
+	Enable *bool `json:"enable,omitempty"`
+	// Schedule represents the cron schedule for key rotation.
+	// +optional
+	// +kubebuilder:default="@weekly"
+	Schedule string `json:"schedule,omitempty"`
 }
 
 type MirroringSpec struct {
@@ -514,6 +546,9 @@ type StorageClusterStatus struct {
 
 	// KMSServerConnection holds the connection state to the KMS server.
 	KMSServerConnection KMSServerConnectionStatus `json:"kmsServerConnection,omitempty"`
+
+	// CurrentMonCount holds the value of ceph mons configured in ceph cluster.
+	CurrentMonCount int `json:"currentMonCount,omitempty"`
 }
 
 // ImagesStatus maps every component image name it's reconciliation status information
@@ -653,7 +688,8 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *ap
 					},
 				},
 				Spec: corev1.PodSpec{
-					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
+					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
+					ServiceAccountName: "rook-ceph-default",
 					Containers: []corev1.Container{
 						{
 							Name:    name,
