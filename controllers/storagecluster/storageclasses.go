@@ -327,7 +327,7 @@ func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.Sto
 	// remove the default storageClass annotation as it's not meant for the virtualization storageClass
 	delete(meta.Annotations, defaultStorageClassAnnotation)
 	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
-	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
+	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce;krbd:osd_request_timeout"
 	return virtualizationStorageClassConfig
 }
 
