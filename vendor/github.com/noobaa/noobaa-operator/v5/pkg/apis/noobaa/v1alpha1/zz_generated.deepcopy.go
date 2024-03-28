@@ -983,6 +983,11 @@ func (in *NooBaaAccountSpec) DeepCopyInto(out *NooBaaAccountSpec) {
 		*out = new(AccountNsfsConfig)
 		**out = **in
 	}
+	if in.ForceMd5Etag != nil {
+		in, out := &in.ForceMd5Etag, &out.ForceMd5Etag
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -1077,6 +1082,11 @@ func (in *NooBaaSpec) DeepCopyInto(out *NooBaaSpec) {
 	}
 	if in.CoreResources != nil {
 		in, out := &in.CoreResources, &out.CoreResources
+		*out = new(corev1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.LogResources != nil {
+		in, out := &in.LogResources, &out.LogResources
 		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
@@ -1394,6 +1404,7 @@ func (in *ServicesStatus) DeepCopyInto(out *ServicesStatus) {
 	in.ServiceMgmt.DeepCopyInto(&out.ServiceMgmt)
 	in.ServiceS3.DeepCopyInto(&out.ServiceS3)
 	in.ServiceSts.DeepCopyInto(&out.ServiceSts)
+	in.ServiceSyslog.DeepCopyInto(&out.ServiceSyslog)
 	return
 }
 

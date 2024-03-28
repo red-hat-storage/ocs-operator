@@ -18,7 +18,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/templates"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

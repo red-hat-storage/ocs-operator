@@ -2,7 +2,6 @@ package install
 
 import (
 	"fmt"
-	"hash/fnv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -10,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/pointer"
 
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -146,7 +144,7 @@ func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1
 	for k, v := range dep.Spec.Template.GetAnnotations() {
 		annotations[k] = v
 	}
-	for k, v := range i.templateAnnotations {
+	for k, v := range i.templateAnnotations { // templateAnnotations comes from CSV.Annotations
 		annotations[k] = v
 	}
 	dep.Spec.Template.SetAnnotations(annotations)
@@ -161,6 +159,7 @@ func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1
 	ownerutil.AddNonBlockingOwner(dep, i.owner)
 	ownerutil.AddOwnerLabelsForKind(dep, i.owner, v1alpha1.ClusterServiceVersionKind)
 
+	// Any admin-provided config (Subscription.Spec.Config) gets injected here.
 	if applyErr := i.initializers.Apply(dep); applyErr != nil {
 		err = applyErr
 		return
@@ -181,7 +180,10 @@ func (i *StrategyDeploymentInstaller) deploymentForSpec(name string, spec appsv1
 	// to 2 ReplicaSets per deployment it manages, saving memory.
 	dep.Spec.RevisionHistoryLimit = pointer.Int32(1)
 
-	hash = HashDeploymentSpec(dep.Spec)
+	hash, err = hashutil.DeepHashObject(&dep.Spec)
+	if err != nil {
+		return nil, "", err
+	}
 	dep.Labels[DeploymentSpecHashLabelKey] = hash
 
 	deployment = dep
@@ -326,12 +328,4 @@ func (i *StrategyDeploymentInstaller) cleanupOrphanedDeployments(deploymentSpecs
 	}
 
 	return nil
-}
-
-// HashDeploymentSpec calculates a hash given a copy of the deployment spec from a CSV, stripping any
-// operatorgroup annotations.
-func HashDeploymentSpec(spec appsv1.DeploymentSpec) string {
-	hasher := fnv.New32a()
-	hashutil.DeepHashObject(hasher, &spec)
-	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
 }
