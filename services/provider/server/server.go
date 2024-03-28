@@ -393,6 +393,10 @@ func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name s
 	return cephClient.Status.Info["secretName"], cephClient.Annotations[controllers.StorageCephUserTypeAnnotation], nil
 }
 
+func storageClaimCephCsiSecretName(secretType, suffix string) string {
+	return fmt.Sprintf("ceph-client-%s-%s", secretType, suffix)
+}
+
 func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rsa.PublicKey, error) {
 	pubKeySecret := &corev1.Secret{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: onboardingTicketKeySecret, Namespace: s.namespace}, pubKeySecret)
@@ -553,13 +557,22 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 	var storageClassName string
 	storageClassData := map[string]string{}
 
+	storageClassRequestHash := getStorageClassRequestHash(req.StorageConsumerUUID, req.StorageClassClaimName)
+	nodeSecretName := storageClaimCephCsiSecretName("node", storageClassRequestHash)
+	provisionerSecretName := storageClaimCephCsiSecretName("provisioner", storageClassRequestHash)
+
+	storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerSecretName
+	storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeSecretName
+	storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerSecretName
+
 	for _, cephRes := range storageClassRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
-			clientSecretName, _, err := s.getCephClientInformation(ctx, cephRes.Name)
+			clientSecretName, clientUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
+			extSecretName := storageClaimCephCsiSecretName(clientUserType, storageClassRequestHash)
 
 			cephUserSecret := &v1.Secret{}
 			err = s.client.Get(ctx, types.NamespacedName{Name: clientSecretName, Namespace: s.namespace}, cephUserSecret)
@@ -574,10 +587,8 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				keyProp = "adminKey"
 			}
 			extR = append(extR, &pb.ExternalResource{
-				// a common suffix '.csi' is being added to distinguish secrets that are created
-				// by ocs-client-operator vs rook-operator when both these operators are deployed in same namespace
 				// TODO: need to transform existing secrets during migration manually
-				Name: clientSecretName + ".csi",
+				Name: extSecretName,
 				Kind: "Secret",
 				Data: mustMarshal(map[string]string{
 					idProp:  cephRes.Name,
@@ -590,16 +601,6 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 			storageClassData["clusterID"] = s.namespace
 			storageClassData["radosnamespace"] = cephRes.Name
 
-			nodeCephClientSecret, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-
-			provisionerCephClientSecret, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-
 			rns := &rookCephv1.CephBlockPoolRadosNamespace{}
 			err = s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, rns)
 			if err != nil {
@@ -610,9 +611,6 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 			storageClassData["imageFeatures"] = "layering,deep-flatten,exclusive-lock,object-map,fast-diff"
 			storageClassData["csi.storage.k8s.io/fstype"] = "ext4"
 			storageClassData["imageFormat"] = "2"
-			storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerCephClientSecret
-			storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeCephClientSecret
-			storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerCephClientSecret
 			if storageClassRequest.Spec.EncryptionMethod != "" {
 				storageClassData["encrypted"] = "true"
 				storageClassData["encryptionKMSID"] = storageClassRequest.Spec.EncryptionMethod
@@ -623,7 +621,7 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				Kind: "VolumeSnapshotClass",
 				Data: mustMarshal(map[string]string{
 					"clusterID": storageClassData["clusterID"],
-					"csi.storage.k8s.io/snapshotter-secret-name": provisionerCephClientSecret,
+					"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
 				})})
 
 		case "CephFilesystemSubVolumeGroup":
@@ -633,24 +631,11 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				return nil, status.Errorf(codes.Internal, "failed to get %s cephFilesystemSubVolumeGroup. %v", cephRes.Name, err)
 			}
 
-			nodeCephClientSecret, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-
-			provisionerCephClientSecret, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["provisioner"])
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-
 			storageClassName = "cephfs"
 			storageClassData["clusterID"] = getSubVolumeGroupClusterID(subVolumeGroup)
 			storageClassData["subvolumegroupname"] = subVolumeGroup.Name
 			storageClassData["fsName"] = subVolumeGroup.Spec.FilesystemName
 			storageClassData["pool"] = subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel]
-			storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerCephClientSecret
-			storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeCephClientSecret
-			storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerCephClientSecret
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: cephRes.Name,
@@ -664,7 +649,7 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				Kind: "VolumeSnapshotClass",
 				Data: mustMarshal(map[string]string{
 					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
-					"csi.storage.k8s.io/snapshotter-secret-name": provisionerCephClientSecret,
+					"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
 				})})
 		}
 	}
