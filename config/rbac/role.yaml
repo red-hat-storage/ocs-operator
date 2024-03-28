@@ -63,6 +63,14 @@ rules:
 - apiGroups:
   - ceph.rook.io
   resources:
+  - cephblockpools
+  verbs:
+  - create
+  - list
+  - update
+- apiGroups:
+  - ceph.rook.io
+  resources:
   - cephclients
   verbs:
   - create
@@ -167,6 +175,12 @@ rules:
   - delete
   - list
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
   - k8s.cni.cncf.io
   resources:
   - network-attachment-definitions
@@ -254,6 +268,32 @@ rules:
   - ocs.openshift.io
   resources:
   - storageclassrequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageclusterpeers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageclusterpeers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageclusterpeers/status
   verbs:
   - get
   - patch

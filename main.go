@@ -43,6 +43,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclassrequest"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -217,6 +218,16 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageClassRequest")
 		os.Exit(1)
 	}
+
+	if err = (&storageclusterpeer.StorageClusterPeerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Log:    ctrl.Log.WithName("controllers").WithName("StorageClusterPeer"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageClusterPeer")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	// Create OCSInitialization CR if it's not present
