@@ -194,7 +194,7 @@ spec:
         severity_level: warning
         storage_type: RGW
       expr: |
-        (ocs_objectbucketclaim_info * on (namespace, objectbucket, managedBy) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) > 0.80
+        (ocs_objectbucketclaim_info * on (namespace, objectbucket, managedBy) group_left() (ocs_objectbucket_used_bytes/ocs_objectbucket_max_bytes)) > 0.80 < 1
       for: 10s
       labels:
         severity: warning
@@ -211,7 +211,7 @@ spec:
         severity_level: warning
         storage_type: RGW
       expr: |
-        (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) > 0.80
+        (ocs_objectbucketclaim_info * on (namespace, managedBy, objectbucket) group_left() (ocs_objectbucket_objects_total/ocs_objectbucket_max_objects)) > 0.80 < 1
       for: 10s
       labels:
         severity: warning
@@ -387,6 +387,7 @@ spec:
         description: CPU usage for osd on pod {{ $labels.pod }} has exceeded 80%.
           Consider creating more OSDs to increase performance
         message: High CPU usage detected in OSD container on pod {{ $labels.pod}}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OSDCPULoadHigh.md
         severity_level: warning
       expr: |
         pod:container_cpu_usage:sum{pod=~"rook-ceph-osd-.*"} / on(pod) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-osd-.*"} > 0.80

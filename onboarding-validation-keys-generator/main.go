@@ -4,19 +4,19 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
-	"fmt"
-	"os"
 
+	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	runtime "sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -27,24 +27,21 @@ const (
 )
 
 func main() {
-	clientset, err := newClient()
+	cl, err := newClient()
 	if err != nil {
-		klog.Errorf("failed to create clientset: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to create client: %v", err)
 	}
 
 	ctx := context.Background()
 	operatorNamespace, err := util.GetOperatorNamespace()
 	if err != nil {
-		klog.Errorf("unable to get operator namespace: %v", err)
-		os.Exit(1)
+		klog.Exitf("unable to get operator namespace: %v", err)
 	}
 
 	// Generate RSA key.
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		klog.Errorf("unable to generate private: %v", err)
-		os.Exit(1)
+		klog.Exitf("unable to generate private key: %v", err)
 	}
 
 	publicKey := &privateKey.PublicKey
@@ -52,95 +49,82 @@ func main() {
 	privatePem := convertRsaPrivateKeyAsPemStr(privateKey)
 	publicPem := convertRsaPublicKeyAsPemStr(publicKey)
 
+	storageCluster := &v1.StorageCluster{}
+	err = cl.Get(ctx, types.NamespacedName{Name: storageClusterName, Namespace: operatorNamespace}, storageCluster)
+	if err != nil {
+		klog.Exitf("failed to get storage cluster: %v", err)
+	}
+
 	// In situations where there is a risk of one secret being updated and potentially
 	// failing to update another, it is recommended not to rely solely on clientset update mechanisms.
 	// Instead, a safer approach is to delete both secrets and then recreate them simultaneously
 	// to ensure consistency and accuracy of all secrets. By this way it will be easier to diagnose the
 	// issues if one or two secrets do not exist instead of trying to understand if they match
-	err = clientset.CoreV1().
-		Secrets(operatorNamespace).
-		Delete(ctx, onboardingValidationPrivateKeySecretName, metav1.DeleteOptions{})
+	privateSecret := &corev1.Secret{}
+	privateSecret.Name = onboardingValidationPrivateKeySecretName
+	privateSecret.Namespace = operatorNamespace
+	err = cl.Delete(ctx, privateSecret)
 	if err != nil && !kerrors.IsNotFound(err) {
-		klog.Errorf("failed to delete private secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to delete private secret: %v", err)
 	}
 
 	// Delete public key secret
-	err = clientset.CoreV1().
-		Secrets(operatorNamespace).
-		Delete(ctx, onboardingValidationPublicKeySecretName, metav1.DeleteOptions{})
+	publicSecret := &corev1.Secret{}
+	publicSecret.Name = onboardingValidationPublicKeySecretName
+	publicSecret.Namespace = operatorNamespace
+	err = cl.Delete(ctx, publicSecret)
 	if err != nil && !kerrors.IsNotFound(err) {
-		klog.Errorf("failed to delete public secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to delete public secret: %v", err)
 	}
 
-	storageClusterMetadata, err := getStorageClusterMetadata(ctx, operatorNamespace, clientset)
+	err = controllerutil.SetOwnerReference(storageCluster, privateSecret, cl.Scheme())
 	if err != nil {
-		klog.Errorf("failed to get storage cluster metadata: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to set owner reference for private secret: %v", err)
 	}
 
-	privateSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      onboardingValidationPrivateKeySecretName,
-			Namespace: operatorNamespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					UID:        storageClusterMetadata.UID,
-					APIVersion: storageClusterMetadata.APIVersion,
-					Kind:       storageClusterMetadata.Kind,
-					Name:       storageClusterMetadata.Name,
-				},
-			}},
-		StringData: map[string]string{
-			"key": privatePem,
-		},
+	privateSecret.StringData = map[string]string{
+		"key": privatePem,
 	}
 
-	_, err = clientset.CoreV1().
-		Secrets(operatorNamespace).
-		Create(ctx, privateSecret, metav1.CreateOptions{})
-
+	err = cl.Create(ctx, privateSecret, &client.CreateOptions{})
 	if err != nil {
-		klog.Errorf("failed to create private secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to create private secret: %v", err)
 	}
 
-	publicSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      onboardingValidationPublicKeySecretName,
-			Namespace: operatorNamespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					UID:        storageClusterMetadata.UID,
-					APIVersion: storageClusterMetadata.APIVersion,
-					Kind:       storageClusterMetadata.Kind,
-					Name:       storageClusterMetadata.Name,
-				},
-			}},
-		StringData: map[string]string{
-			"key": publicPem,
-		},
-	}
-
-	_, err = clientset.CoreV1().
-		Secrets(operatorNamespace).
-		Create(ctx, publicSecret, metav1.CreateOptions{})
+	err = controllerutil.SetOwnerReference(storageCluster, publicSecret, cl.Scheme())
 	if err != nil {
-		klog.Errorf("failed to create public secret: %v", err)
-		os.Exit(1)
+		klog.Exitf("failed to set owner reference for public secret: %v", err)
+	}
+	publicSecret.StringData = map[string]string{
+		"key": publicPem,
+	}
+
+	err = cl.Create(ctx, publicSecret, &client.CreateOptions{})
+	if err != nil {
+		klog.Exitf("failed to create public secret: %v", err)
 	}
 
 }
 
-func newClient() (*kubernetes.Clientset, error) {
-	config := runtime.GetConfigOrDie()
-	clientset, err := kubernetes.NewForConfig(config)
+func newClient() (client.Client, error) {
+	klog.Info("Setting up k8s client")
+	scheme := runtime.NewScheme()
+	if err := v1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, err
 	}
 
-	return clientset, nil
+	return k8sClient, nil
 }
 
 func convertRsaPrivateKeyAsPemStr(privateKey *rsa.PrivateKey) string {
@@ -153,23 +137,4 @@ func convertRsaPublicKeyAsPemStr(publicKey *rsa.PublicKey) string {
 	publicKeyBytes := x509.MarshalPKCS1PublicKey(publicKey)
 	publicKeyPem := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicKeyBytes})
 	return string(publicKeyPem)
-}
-
-func getStorageClusterMetadata(ctx context.Context, operatorNamespace string, clientset *kubernetes.Clientset) (*metav1.PartialObjectMetadata, error) {
-	var storageClusterMetadata metav1.PartialObjectMetadata
-	storageClusterGVKPath := fmt.Sprintf(
-		"/apis/ocs.openshift.io/v1/namespaces/%s/storageclusters/%s",
-		operatorNamespace,
-		storageClusterName,
-	)
-	storageClusterMetadataJSON, err := clientset.RESTClient().Get().AbsPath(storageClusterGVKPath).Do(ctx).Raw()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get storage cluster metadata: %v", err)
-	}
-
-	if err = json.Unmarshal(storageClusterMetadataJSON, &storageClusterMetadata); err != nil {
-		return nil, fmt.Errorf("failed to parse storage cluster metadata response: %v", err)
-	}
-
-	return &storageClusterMetadata, nil
 }

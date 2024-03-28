@@ -35,6 +35,8 @@ const (
 	IbmKeyProtectKMSProvider = "ibmkeyprotect"
 	// ThalesKMSProvider a constant to represent Thales (using KMIP) KMS provider
 	ThalesKMSProvider = "kmip"
+	// AzureKSMProvider represents the Azure Key vault.
+	AzureKSMProvider = "azure-kv"
 )
 
 var (

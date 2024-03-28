@@ -237,6 +237,10 @@ type ManageCephFilesystems struct {
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName string `json:"storageClassName,omitempty"`
+	// DataPoolSpec specifies the pool specification for the default cephfs data pool
+	DataPoolSpec rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
+	// AdditionalDataPools specifies list of additional named cephfs data pools
+	AdditionalDataPools []rookCephv1.NamedPoolSpec `json:"additionalDataPools,omitempty"`
 }
 
 // ManageCephObjectStores defines how to reconcile CephObjectStores
@@ -249,7 +253,8 @@ type ManageCephObjectStores struct {
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-	StorageClassName string `json:"storageClassName,omitempty"`
+	StorageClassName string   `json:"storageClassName,omitempty"`
+	VirtualHostnames []string `json:"virtualHostnames,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
@@ -683,7 +688,8 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *ap
 					},
 				},
 				Spec: corev1.PodSpec{
-					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
+					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
+					ServiceAccountName: "rook-ceph-default",
 					Containers: []corev1.Container{
 						{
 							Name:    name,

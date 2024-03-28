@@ -17,4 +17,3 @@ fi
 "$OPERATOR_SDK" run bundle "$BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 
 oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment ocs-operator
-oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment rook-ceph-operator

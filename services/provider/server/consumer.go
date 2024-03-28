@@ -215,6 +215,8 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.LastHeartbeat = metav1.Now()
 	consumerObj.Status.Client.PlatformVersion = status.GetPlatformVersion()
 	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
+	consumerObj.Status.Client.ClusterID = status.GetClusterID()
+	consumerObj.Status.Client.NamespacedName = status.GetNamespacedName()
 
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
 		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)

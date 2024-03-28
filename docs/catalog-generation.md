@@ -38,12 +38,6 @@ $ export CSV_VERSION=0.0.2
 $ export REPLACES_CSV_VERSION=0.0.1
 $ export ROOK_IMAGE=<add rook image url here>
 $ export OCS_IMAGE=<add ocs operator image url here>
-$ export ROOK_CSI_CEPH_IMAGE=<add image here>
-$ export ROOK_CSI_REGISTRAR_IMAGE=<add image here>
-$ export ROOK_CSI_RESIZER_IMAGE=<add image here>
-$ export ROOK_CSI_PROVISIONER_IMAGE=<add image here>
-$ export ROOK_CSI_SNAPSHOTTER_IMAGE=<add image here>
-$ export ROOK_CSI_ATTACHER_IMAGE=<add image here>
 
 $ make gen-release-csv
 ```

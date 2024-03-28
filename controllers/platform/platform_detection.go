@@ -35,6 +35,9 @@ var (
 type platform struct {
 	isOpenShift bool
 	platform    configv1.PlatformType
+	// isROSAHCP flag is temporary and  needs to be rethought
+	// open issue: https://github.com/red-hat-storage/ocs-operator/issues/2521
+	isROSAHCP bool
 }
 
 // SetFakePlatformInstanceForTesting can be used to fake a Platform while testing.
@@ -43,6 +46,7 @@ func SetFakePlatformInstanceForTesting(isOpenShift bool, platformType configv1.P
 	platformInstance = &platform{
 		isOpenShift: isOpenShift,
 		platform:    platformType,
+		isROSAHCP:   false,
 	}
 }
 
@@ -88,10 +92,20 @@ func Detect() {
 				}
 			}
 		}
-
 		if platformInstance.isOpenShift {
-			if infrastructure, err := configv1client(cfg).Infrastructures().Get(context.TODO(), "cluster", metav1.GetOptions{}); err != nil {
-				platformInstance.platform = infrastructure.Status.PlatformStatus.Type
+			var infrastructure *configv1.Infrastructure
+			if infrastructure, err = configv1client(cfg).Infrastructures().Get(context.TODO(), "cluster", metav1.GetOptions{}); err != nil {
+				log.Fatal(err)
+			}
+			platformInstance.platform = infrastructure.Status.PlatformStatus.Type
+			if platformInstance.platform == configv1.AWSPlatformType {
+				if infrastructure.Status.ControlPlaneTopology == configv1.ExternalTopologyMode {
+					for _, resourceTags := range infrastructure.Status.PlatformStatus.AWS.ResourceTags {
+						if resourceTags.Key == "red-hat-clustertype" && resourceTags.Value == "rosa" {
+							platformInstance.isROSAHCP = true
+						}
+					}
+				}
 			}
 		}
 	})
@@ -159,4 +173,11 @@ func SkipObjectStore(p configv1.PlatformType) bool {
 		}
 	}
 	return false
+}
+
+func IsPlatformROSAHCP() (bool, error) {
+	if platformInstance == nil {
+		return false, ErrorPlatformNotDetected
+	}
+	return platformInstance.isROSAHCP, nil
 }

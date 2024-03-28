@@ -10,6 +10,9 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboardingtokens"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/rotatekeys"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 type serverConfig struct {
@@ -51,6 +54,20 @@ func loadAndValidateServerConfig() (*serverConfig, error) {
 	return &config, nil
 }
 
+func newKubeClient() (client.Client, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	newClient, err := client.New(cfg, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	return newClient, nil
+}
+
 func main() {
 
 	klog.Info("Starting ux backend server")
@@ -61,8 +78,18 @@ func main() {
 		klog.Info("shutting down!")
 		os.Exit(-1)
 	}
+
+	cl, err := newKubeClient()
+	if err != nil {
+		klog.Errorf("failed to create kubernetes api client: %v", err)
+		klog.Exit("shutting down!")
+	}
+
 	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
 		onboardingtokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+	})
+	http.HandleFunc("/rotate-keys", func(w http.ResponseWriter, r *http.Request) {
+		rotatekeys.HandleMessage(w, r, cl)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)

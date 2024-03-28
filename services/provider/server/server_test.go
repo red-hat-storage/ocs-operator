@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -494,6 +495,7 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 				Data: map[string]string{
 					"clusterID":                 serverNamespace,
 					"pool":                      "cephblockpool",
+					"radosnamespace":            "cephradosnamespace",
 					"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 					"csi.storage.k8s.io/fstype": "ext4",
 					"imageFormat":               "2",
@@ -585,8 +587,8 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 			Status: ocsv1alpha1.StorageClassRequestStatus{
 				CephResources: []*ocsv1alpha1.CephResourcesSpec{
 					{
-						Name: "cephblockpool",
-						Kind: "CephBlockPool",
+						Name: "cephradosnamespace",
+						Kind: "CephBlockPoolRadosNamespace",
 						CephClients: map[string]string{
 							"node":        "995e66248ad3e8642de868f461cdd827",
 							"provisioner": "3de200d5c23524a4612bde1fdbeb717e",
@@ -825,6 +827,17 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	}
 	assert.NoError(t, client.Create(ctx, subVolGroup))
 
+	radosNamespace := &rookCephv1.CephBlockPoolRadosNamespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cephradosnamespace",
+			Namespace: server.namespace,
+		},
+		Spec: rookCephv1.CephBlockPoolRadosNamespaceSpec{
+			BlockPoolName: "cephblockpool",
+		},
+	}
+	assert.NoError(t, client.Create(ctx, radosNamespace))
+
 	// get the storage class request config for block pool
 	req := pb.StorageClassClaimConfigRequest{
 		StorageConsumerUUID:   string(consumerResource.UID),
@@ -841,6 +854,10 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
+		} else if extResource.Kind == "Secret" {
+			var found bool
+			name, found = strings.CutSuffix(name, ".csi")
+			assert.True(t, found)
 		}
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
@@ -849,7 +866,12 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		assert.Equal(t, extResource.Name, mockResoruce.Name)
+		if extResource.Kind == "Secret" {
+			name, _ := strings.CutSuffix(name, ".csi")
+			assert.Equal(t, name, mockResoruce.Name)
+		} else {
+			assert.Equal(t, extResource.Name, mockResoruce.Name)
+		}
 	}
 
 	// get the storage class request config for share filesystem
@@ -868,6 +890,10 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
+		} else if extResource.Kind == "Secret" {
+			var found bool
+			name, found = strings.CutSuffix(name, ".csi")
+			assert.True(t, found)
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
@@ -876,7 +902,12 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		assert.Equal(t, extResource.Name, mockResoruce.Name)
+		if extResource.Kind == "Secret" {
+			name, _ := strings.CutSuffix(name, ".csi")
+			assert.Equal(t, name, mockResoruce.Name)
+		} else {
+			assert.Equal(t, extResource.Name, mockResoruce.Name)
+		}
 	}
 
 	// When ceph resources is empty

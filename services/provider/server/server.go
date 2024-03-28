@@ -20,10 +20,12 @@ import (
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -115,16 +117,16 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
 		}
 
-		stoageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
+		storageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)
 		}
 
-		if stoageConsumer.Spec.Enable {
+		if storageConsumer.Spec.Enable {
 			err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", req.ConsumerName)
 			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
 		}
-		storageConsumerUUID = string(stoageConsumer.UID)
+		storageConsumerUUID = string(storageConsumer.UID)
 	}
 
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
@@ -226,6 +228,10 @@ func newClient() (client.Client, error) {
 	err = rookCephv1.AddToScheme(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add rookCephv1 to scheme. %v", err)
+	}
+	err = opv1a1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add operatorsv1alpha1 to scheme. %v", err)
 	}
 
 	config, err := config.GetConfig()
@@ -543,6 +549,10 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 		}
 	}
 	var extR []*pb.ExternalResource
+
+	var storageClassName string
+	storageClassData := map[string]string{}
+
 	for _, cephRes := range storageClassRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
@@ -564,7 +574,10 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				keyProp = "adminKey"
 			}
 			extR = append(extR, &pb.ExternalResource{
-				Name: clientSecretName,
+				// a common suffix '.csi' is being added to distinguish secrets that are created
+				// by ocs-client-operator vs rook-operator when both these operators are deployed in same namespace
+				// TODO: need to transform existing secrets during migration manually
+				Name: clientSecretName + ".csi",
 				Kind: "Secret",
 				Data: mustMarshal(map[string]string{
 					idProp:  cephRes.Name,
@@ -572,7 +585,11 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				}),
 			})
 
-		case "CephBlockPool":
+		case "CephBlockPoolRadosNamespace":
+			storageClassName = "ceph-rbd"
+			storageClassData["clusterID"] = s.namespace
+			storageClassData["radosnamespace"] = cephRes.Name
+
 			nodeCephClientSecret, _, err := s.getCephClientInformation(ctx, cephRes.CephClients["node"])
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
@@ -582,30 +599,30 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			rbdStorageClass := map[string]string{
-				"clusterID":                 s.namespace,
-				"pool":                      cephRes.Name,
-				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
-				"csi.storage.k8s.io/fstype": "ext4",
-				"imageFormat":               "2",
-				"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-				"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-				"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
+
+			rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+			err = s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, rns)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", cephRes.Name, err)
 			}
+
+			storageClassData["pool"] = rns.Spec.BlockPoolName
+			storageClassData["imageFeatures"] = "layering,deep-flatten,exclusive-lock,object-map,fast-diff"
+			storageClassData["csi.storage.k8s.io/fstype"] = "ext4"
+			storageClassData["imageFormat"] = "2"
+			storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerCephClientSecret
+			storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeCephClientSecret
+			storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerCephClientSecret
 			if storageClassRequest.Spec.EncryptionMethod != "" {
-				rbdStorageClass["encrypted"] = "true"
-				rbdStorageClass["encryptionKMSID"] = storageClassRequest.Spec.EncryptionMethod
+				storageClassData["encrypted"] = "true"
+				storageClassData["encryptionKMSID"] = storageClassRequest.Spec.EncryptionMethod
 			}
-			extR = append(extR, &pb.ExternalResource{
-				Name: "ceph-rbd",
-				Kind: "StorageClass",
-				Data: mustMarshal(rbdStorageClass)})
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
 				Data: mustMarshal(map[string]string{
-					"clusterID": s.namespace,
+					"clusterID": storageClassData["clusterID"],
 					"csi.storage.k8s.io/snapshotter-secret-name": provisionerCephClientSecret,
 				})})
 
@@ -626,18 +643,14 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 
-			extR = append(extR, &pb.ExternalResource{
-				Name: "cephfs",
-				Kind: "StorageClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID":          getSubVolumeGroupClusterID(subVolumeGroup),
-					"subvolumegroupname": subVolumeGroup.Name,
-					"fsName":             subVolumeGroup.Spec.FilesystemName,
-					"csi.storage.k8s.io/provisioner-secret-name":       provisionerCephClientSecret,
-					"csi.storage.k8s.io/node-stage-secret-name":        nodeCephClientSecret,
-					"csi.storage.k8s.io/controller-expand-secret-name": provisionerCephClientSecret,
-					"pool": subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel],
-				})})
+			storageClassName = "cephfs"
+			storageClassData["clusterID"] = getSubVolumeGroupClusterID(subVolumeGroup)
+			storageClassData["subvolumegroupname"] = subVolumeGroup.Name
+			storageClassData["fsName"] = subVolumeGroup.Spec.FilesystemName
+			storageClassData["pool"] = subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel]
+			storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerCephClientSecret
+			storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeCephClientSecret
+			storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerCephClientSecret
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: cephRes.Name,
@@ -655,6 +668,16 @@ func (s *OCSProviderServer) GetStorageClassClaimConfig(ctx context.Context, req 
 				})})
 		}
 	}
+
+	if storageClassName == "" {
+		return nil, status.Error(codes.Internal, "No StorageClass was defined")
+	}
+	extR = append(extR, &pb.ExternalResource{
+		Name: storageClassName,
+		Kind: "StorageClass",
+		Data: mustMarshal(storageClassData),
+	})
+
 	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClassClaimName, req.StorageConsumerUUID)
 	return &pb.StorageClassClaimConfigResponse{ExternalResource: extR}, nil
 
@@ -688,5 +711,25 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 	}
 
-	return &pb.ReportStatusResponse{}, nil
+	channelName, err := s.getOCSSubscriptionChannel(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+	}
+
+	return &pb.ReportStatusResponse{DesiredClientOperatorChannel: channelName}, nil
+}
+
+func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
+	subscriptionList := &opv1a1.SubscriptionList{}
+	err := s.client.List(ctx, subscriptionList, client.InNamespace(s.namespace))
+	if err != nil {
+		return "", err
+	}
+	subscription := util.Find(subscriptionList.Items, func(sub *opv1a1.Subscription) bool {
+		return sub.Spec.Package == "ocs-operator"
+	})
+	if subscription == nil {
+		return "", fmt.Errorf("unable to find ocs-operator subscription")
+	}
+	return subscription.Spec.Channel, nil
 }

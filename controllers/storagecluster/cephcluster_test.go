@@ -283,10 +283,11 @@ func TestNewCephClusterMonData(t *testing.T) {
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
 
 		if c.monPVCTemplate != nil {
-			assert.DeepEqual(t, actual.Spec.Mon.VolumeClaimTemplate, c.sc.Spec.MonPVCTemplate)
+			assert.DeepEqual(t, actual.Spec.Mon.VolumeClaimTemplate.ObjectMeta, c.sc.Spec.MonPVCTemplate.ObjectMeta)
+			assert.DeepEqual(t, actual.Spec.Mon.VolumeClaimTemplate.Spec, c.sc.Spec.MonPVCTemplate.Spec)
 		} else {
 			if c.monDataPath != "" {
-				var emptyPVCSpec *corev1.PersistentVolumeClaim
+				var emptyPVCSpec *rookCephv1.VolumeClaimTemplate
 				assert.DeepEqual(t, emptyPVCSpec, actual.Spec.Mon.VolumeClaimTemplate)
 			} else {
 				pvcSpec := actual.Spec.Mon.VolumeClaimTemplate.Spec
@@ -581,7 +582,8 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count/3, scds.Count)
 			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
-			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate.ObjectMeta, scds.VolumeClaimTemplates[0].ObjectMeta)
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
 
@@ -647,7 +649,8 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count/3, scds.Count)
 			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
-			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate.ObjectMeta, scds.VolumeClaimTemplates[0].ObjectMeta)
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
 			if scds.Portable && c.topologyKey == "rack" {
@@ -704,7 +707,13 @@ func createDummyKMSConfigMap(kmsProvider, kmsAddr string, kmsAuthMethod string) 
 		cm.Data["IBM_KP_SECRET_NAME"] = "my-kms-key"
 		cm.Data["IBM_KP_BASE_URL"] = "my-base-url"
 		cm.Data["IBM_KP_TOKEN_URL"] = "my-token-url"
+	case AzureKSMProvider:
+		cm.Data["AZURE_CLIENT_ID"] = "azure-client-id"
+		cm.Data["AZURE_TENANT_ID"] = "azure-tenant-id"
+		cm.Data["AZURE_VAULT_URL"] = kmsAddr
+		cm.Data["AZURE_CERT_SECRET_NAME"] = "cert-secret"
 	}
+
 	return cm
 }
 
@@ -736,6 +745,8 @@ func TestKMSConfigChanges(t *testing.T) {
 		{testLabel: "case 7", kmsProvider: VaultKMSProvider,
 			enabled: true, kmsAddress: "http://localhost:5678", authMethod: VaultSAAuthMethod},
 		{testLabel: "case 8", kmsProvider: ThalesKMSProvider,
+			clusterWideEncryption: true, kmsAddress: "http://localhost:5671"},
+		{testLabel: "case 9", kmsProvider: AzureKSMProvider,
 			clusterWideEncryption: true, kmsAddress: "http://localhost:5671"},
 	}
 	for _, kmsArgs := range validKMSArgs {
@@ -880,7 +891,8 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count, scds.Count)
 			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
-			assert.DeepEqual(t, deviceSet.DataPVCTemplate, scds.VolumeClaimTemplates[0])
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate.ObjectMeta, scds.VolumeClaimTemplates[0].ObjectMeta)
+			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
 			assert.DeepEqual(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)

@@ -88,7 +88,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					StorageClassName: &storageClassName,
 					AccessModes:      []k8sv1.PersistentVolumeAccessMode{k8sv1.ReadWriteOnce},
 
-					Resources: k8sv1.ResourceRequirements{
+					Resources: k8sv1.VolumeResourceRequirements{
 						Requests: k8sv1.ResourceList{
 							"storage": monQuantity,
 						},
@@ -155,7 +155,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 							AccessModes:      []k8sv1.PersistentVolumeAccessMode{k8sv1.ReadWriteOnce},
 							VolumeMode:       &blockVolumeMode,
 
-							Resources: k8sv1.ResourceRequirements{
+							Resources: k8sv1.VolumeResourceRequirements{
 								Requests: k8sv1.ResourceList{
 									"storage": dataQuantity,
 								},

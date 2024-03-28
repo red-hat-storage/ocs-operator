@@ -209,7 +209,11 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
 
-		addedRuntimeObjects := []runtime.Object{node, service, deployment, secret}
+		clientConfigMap := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
+		}
+
+		addedRuntimeObjects := []runtime.Object{node, service, deployment, secret, clientConfigMap}
 		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, addedRuntimeObjects...)
 
 	}

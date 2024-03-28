@@ -30,6 +30,7 @@ const (
 	cephFsStorageClassName                = "cephfs"
 	cephRbdStorageClassName               = "ceph-rbd"
 	cephRbdRadosNamespaceStorageClassName = "ceph-rbd-rados-namespace"
+	cephRbdTopologyStorageClassName       = "ceph-rbd-topology"
 	cephRgwStorageClassName               = "ceph-rgw"
 	externalCephRgwEndpointKey            = "endpoint"
 	cephRgwTLSSecretKey                   = "ceph-rgw-tls-cert"
@@ -371,6 +372,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 
 		case "StorageClass":
 			var scc StorageClassConfiguration
+			var err error
 			if d.Name == cephFsStorageClassName {
 				scc = newCephFilesystemStorageClassConfiguration(instance)
 				enableRookCSICephFS = true
@@ -380,6 +382,13 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				scc = newCephBlockPoolStorageClassConfiguration(instance)
 				// update the storageclass name to rados storagesclass name
 				scc.storageClass.Name = fmt.Sprintf("%s-%s", instance.Name, d.Name)
+			} else if d.Name == cephRbdTopologyStorageClassName {
+				scc = newNonResilientCephBlockPoolStorageClassConfiguration(instance)
+				scc.storageClass.Parameters["topologyConstrainedPools"], err = getTopologyConstrainedPoolsExternalMode(d.Data)
+				if err != nil {
+					r.Log.Error(err, "Failed to get topologyConstrainedPools from external mode secret.", "StorageClass", klog.KRef(instance.Namespace, d.Name))
+					return err
+				}
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
 				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {

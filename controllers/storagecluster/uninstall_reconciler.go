@@ -293,16 +293,9 @@ func (r *StorageClusterReconciler) verifyNoStorageConsumerExist(instance *ocsv1.
 // deleteResources is the function where the storageClusterFinalizer is handled
 // Every function that is called within this function should be idempotent
 func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (reconcile.Result, error) {
-	// we do not check if it is a provider before checking storageConsumers CR because of corner case
-	// where user can mark instance.Spec.AllowRemoteStorageConsumers as false and mark CR for deletion immediately.
-	// Which will trigger a deletion without having instance.Spec.AllowRemoteStorageConsumers as true.
-	err := r.verifyNoStorageConsumerExist(sc)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
 
 	cephCluster := &cephv1.CephCluster{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	if err != nil && !errors.IsNotFound(err) {
 		return reconcile.Result{}, err
 	}
@@ -326,8 +319,9 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 
 	objs := []resourceManager{
 		&ocsExternalResources{},
-		&ocsProviderServer{},
 		&ocsNoobaaSystem{},
+		&storageClient{},
+		&ocsProviderServer{},
 		&ocsCephRGWRoutes{},
 		&ocsCephObjectStoreUsers{},
 		&ocsCephObjectStores{},
