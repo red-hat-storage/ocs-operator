@@ -2,6 +2,11 @@ package storagecluster
 
 import (
 	"context"
+	"fmt"
+	"github.com/blang/semver/v4"
+	version2 "github.com/operator-framework/api/pkg/lib/version"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	version3 "github.com/red-hat-storage/ocs-operator/v4/version"
 	"os"
 	"testing"
 
@@ -350,6 +355,23 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 			Phase: cephv1.ConditionType(util.PhaseReady),
 		},
 	}
+	verOdf, _ := semver.Make(getSemVer(version3.Version, 1, true))
+	csv := &operatorsv1alpha1.ClusterServiceVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("odf-operator-%s", sc.Name),
+			Namespace: sc.Namespace,
+		},
+		Spec: operatorsv1alpha1.ClusterServiceVersionSpec{
+			Version: version2.OperatorVersion{Version: verOdf},
+		},
+	}
+
+	rookCephMonSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mon", Namespace: sc.Namespace},
+		Data: map[string][]byte{
+			"fsid": []byte("b88c2d78-9de9-4227-9313-a63f62f78743"),
+		},
+	}
 
 	statusSubresourceObjs := []client.Object{sc}
 	var runtimeObjects []runtime.Object
@@ -364,7 +386,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		}
 	}
 
-	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig)
+	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig, rookCephMonSecret, csv)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjects...).WithStatusSubresource(statusSubresourceObjs...).Build()
 
 	return StorageClusterReconciler{
