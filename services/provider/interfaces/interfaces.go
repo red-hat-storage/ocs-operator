@@ -8,11 +8,13 @@ type StorageClientStatus interface {
 	GetOperatorVersion() string
 	GetClusterID() string
 	GetNamespacedName() string
+	GetClusterName() string
 
 	SetPlatformVersion(string) StorageClientStatus
 	SetOperatorVersion(string) StorageClientStatus
 	SetClusterID(string) StorageClientStatus
 	SetNamespacedName(string) StorageClientStatus
+	SetClusterName(string) StorageClientStatus
 }
 
 type StorageClientOnboarding interface {
