@@ -57,8 +57,8 @@ var mockExtR = map[string]*externalResource{
 			"MonitoringPort":     "9283",
 		},
 	},
-	"rook-ceph-client-995e66248ad3e8642de868f461cdd827": {
-		Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+	"ceph-client-healthchecker": {
+		Name: "ceph-client-healthchecker",
 		Kind: "Secret",
 		Data: map[string]string{
 			"userID":  "995e66248ad3e8642de868f461cdd827",
@@ -191,13 +191,13 @@ func TestGetExternalResources(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+				"secretName": "ceph-client-healthchecker",
 			},
 		},
 	}
 
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827", Namespace: server.namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: "ceph-client-healthchecker", Namespace: server.namespace},
 		Data: map[string][]byte{
 			"995e66248ad3e8642de868f461cdd827": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
 		},
@@ -243,9 +243,10 @@ func TestGetExternalResources(t *testing.T) {
 	for _, i := range consumerResource.Status.CephResources {
 		if i.Kind == "CephClient" {
 			cephClient, secret := createCephClientAndSecret(i.Name, server)
+			secret.Name = "ceph-client-healthchecker"
 			cephClient.Status = &rookCephv1.CephClientStatus{
 				Info: map[string]string{
-					"secretName": fmt.Sprintf("rook-ceph-client-%s", i.Name),
+					"secretName": secret.Name,
 				},
 			}
 			assert.NoError(t, client.Delete(ctx, secret)) // deleting all the secrets which were created in previous test
