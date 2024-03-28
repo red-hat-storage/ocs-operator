@@ -35,6 +35,11 @@ func (r *ReportStatusRequest) SetNamespacedName(namespacedName string) ifaces.St
 	return r
 }
 
+func (r *ReportStatusRequest) SetClusterName(clusterName string) ifaces.StorageClientStatus {
+	r.ClusterName = clusterName
+	return r
+}
+
 // ensure OnboardConsumerRequest satisfies StorageClientOnboarding interface
 var _ ifaces.StorageClientOnboarding = &OnboardConsumerRequest{}
 

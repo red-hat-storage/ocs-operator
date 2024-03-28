@@ -163,6 +163,8 @@ message ReportStatusRequest{
     string clusterID = 4;
     // NamespacedName is the name and namespace of the StorageClient
     string NamespacedName = 5;
+    // clusterName is the name of the openshift cluster
+    string clusterName = 6;
 }
 
 message ReportStatusResponse{
