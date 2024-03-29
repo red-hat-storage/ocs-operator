@@ -648,7 +648,7 @@ func (r *StorageClassRequestReconciler) list(obj client.ObjectList, listOptions 
 
 func (r *StorageClassRequestReconciler) own(resource metav1.Object) error {
 	// Ensure StorageClassRequest ownership on a resource
-	return controllerutil.SetOwnerReference(r.StorageClassRequest, resource, r.Scheme)
+	return controllerutil.SetControllerReference(r.StorageClassRequest, resource, r.Scheme)
 }
 
 func (r *StorageClassRequestReconciler) getNamespacedName() string {
