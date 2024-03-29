@@ -29,6 +29,7 @@ const marketplaceNamespace = "openshift-marketplace"
 
 type clusterObjects struct {
 	namespaces     []k8sv1.Namespace
+	configmaps     []k8sv1.ConfigMap
 	operatorGroups []operatorv1.OperatorGroup
 	catalogSources []operatorv1alpha1.CatalogSource
 	subscriptions  []operatorv1alpha1.Subscription
@@ -39,6 +40,12 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 	for _, namespace := range co.namespaces {
 		err := t.CreateNamespace(namespace.Name)
 		if err != nil {
+			return err
+		}
+	}
+
+	for _, cm := range co.configmaps {
+		if err := t.Client.Create(context.TODO(), &cm); err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -110,6 +117,22 @@ func (t *DeployManager) generateClusterObjects(ocsCatalogImage string, subscript
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   InstallNamespace,
 			Labels: label,
+		},
+	})
+
+	// Configmaps
+	co.configmaps = append(co.configmaps, k8sv1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-client-operator-config",
+			Namespace: InstallNamespace,
+		},
+		Data: map[string]string{
+			// lifted from hack/install-ocs-client.sh
+			"DEPLOY_CSI": "false",
 		},
 	})
 
@@ -262,6 +285,13 @@ func (t *DeployManager) DumpYAML(ocsCatalogImage string, subscriptionChannel str
 
 	for _, namespace := range co.namespaces {
 		err := marshallObject(namespace, &writer)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, cm := range co.configmaps {
+		err := marshallObject(cm, &writer)
 		if err != nil {
 			panic(err)
 		}
