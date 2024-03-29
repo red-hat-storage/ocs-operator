@@ -7,6 +7,14 @@ metadata:
   name: openshift-storage
 spec: {}
 ---
+apiVersion: v1
+data:
+  DEPLOY_CSI: "false"
+kind: ConfigMap
+metadata:
+  name: ocs-client-operator-config
+  namespace: openshift-storage
+---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
