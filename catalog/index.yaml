@@ -18,7 +18,7 @@ schema: olm.channel
 package: ocs-client-operator
 name: alpha
 entries:
-  - name: ocs-client-operator.v4.15.0
+  - name: ocs-client-operator.v4.16.0
 
 ---
 defaultChannel: alpha
