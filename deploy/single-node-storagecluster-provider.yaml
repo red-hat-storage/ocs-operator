@@ -1,0 +1,124 @@
+---
+# NB: this storagecluster spec doesn't provide you the ability to onboard
+# external clients as they require "hostNetwork: true", however setting that
+# makes mon to come up on three nodes which is obviously not possible in sno.
+# No testing is performed with "hostNetwork: true" and mon set to 1 and if
+# that works, external clients can be onboarded (after opening required ports).
+apiVersion: ocs.openshift.io/v1
+kind: StorageCluster
+metadata:
+  name: ocs-storagecluster-prov
+  namespace: openshift-storage
+spec:
+  flexibleScaling: true
+  allowRemoteStorageConsumers: true
+  providerAPIServerServiceType: ClusterIP
+  monPVCTemplate:
+    spec:
+      # change the base storageclassname if required
+      storageClassName: gp3-csi
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 3Gi
+  storageDeviceSets:
+    - config: {}
+      name: test
+      dataPVCTemplate:
+        metadata: {}
+        spec:
+          # change the base storageclassname if required
+          storageClassName: gp3-csi
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 3
+          volumeMode: Block
+      count: 3
+      placement: {}
+      replica: 1
+      deviceClass: ssd
+      resources:
+        requests:
+          cpu: 125m
+          memory: 128Mi
+  encryption:
+    kms: {}
+  mirroring: {}
+  multiCloudGateway:
+    # uncomment below line if you are not interested in MCG
+    # reconcileStrategy: ignore
+    disableLoadBalancerService: true
+  managedResources:
+    cephBlockPools:
+      disableSnapshotClass: true
+      disableStorageClass: true
+    cephFilesystems:
+      disableSnapshotClass: true
+      disableStorageClass: true
+    cephObjectStores:
+      hostNetwork: false
+    cephCluster: {}
+    cephConfig: {}
+    cephDashboard: {}
+    cephObjectStoreUsers: {}
+  arbiter: {}
+  nodeTopologies: {}
+  externalStorage: {}
+  placement:
+    mon: {}
+    mds: {}
+    mgr: {}
+    rbd-mirror: {}
+    rgw: {}
+    nfs: {}
+    noobaa-core: {}
+    noobaa-standalone: {}
+    osd: {}
+    osd-prepare: {}
+  resources:
+    mon:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    mds:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    mgr:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    mgr-sidecar:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    nfs:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    noobaa-core:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    noobaa-db:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    noobaa-db-vol:
+      requests:
+        storage: 10Gi
+    noobaa-endpoint:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    rbd-mirror:
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    rgw:
+      requests:
+        cpu: 125m
+        memory: 128Mi
