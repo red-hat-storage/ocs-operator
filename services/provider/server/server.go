@@ -43,11 +43,11 @@ import (
 )
 
 const (
-	TicketAnnotation             = "ocs.openshift.io/provider-onboarding-ticket"
-	ProviderCertsMountPoint      = "/mnt/cert"
-	onboardingTicketKeySecret    = "onboarding-ticket-key"
-	storageClassRequestNameLabel = "ocs.openshift.io/storageclassrequest-name"
-	notAvailable                 = "N/A"
+	TicketAnnotation           = "ocs.openshift.io/provider-onboarding-ticket"
+	ProviderCertsMountPoint    = "/mnt/cert"
+	onboardingTicketKeySecret  = "onboarding-ticket-key"
+	storageClassClaimNameLabel = "ocs.openshift.io/storageclassclaim-name"
+	notAvailable               = "N/A"
 )
 
 const (
