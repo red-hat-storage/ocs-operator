@@ -17,7 +17,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -175,14 +174,8 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&ocsclientv1a1.StorageClient{}).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
-		Watches(
-			&extv1.CustomResourceDefinition{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "virtualmachines.kubevirt.io",
-				},
-			},
-			enqueueStorageClusterRequest,
-		).
+		// Using builder.OnlyMetadata as we are only interested in the presence and not getting this resource anywhere
+		Watches(&extv1.CustomResourceDefinition{}, enqueueStorageClusterRequest, builder.OnlyMetadata).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(ocsClientOperatorVersionPredicate))
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		builder.Owns(&nbv1.NooBaa{})

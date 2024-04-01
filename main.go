@@ -52,6 +52,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -155,7 +156,15 @@ func main() {
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "ab76f4c9.openshift.io",
 		LeaderElectionNamespace: operatorNamespace,
-		Cache:                   cache.Options{DefaultNamespaces: defaultNamespaces},
+		Cache: cache.Options{
+			DefaultNamespaces: defaultNamespaces,
+			ByObject: map[apiclient.Object]cache.ByObject{
+				&extv1.CustomResourceDefinition{}: {
+					// cache only virtualmachine crd
+					Field: fields.SelectorFromSet(fields.Set{"metadata.name": "virtualmachines.kubevirt.io"}),
+				},
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
