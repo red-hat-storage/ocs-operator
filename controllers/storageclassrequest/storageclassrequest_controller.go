@@ -45,6 +45,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	RookCephResourceForceDeleteAnnotation = "rook.io/force-deletion"
+)
+
 // StorageClassRequestReconciler reconciles a StorageClassRequest object
 // nolint:revive
 type StorageClassRequestReconciler struct {
@@ -79,7 +83,6 @@ func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request r
 	if ok := r.Cache.WaitForCacheSync(ctx); !ok {
 		return reconcile.Result{}, fmt.Errorf("cache sync failed")
 	}
-
 	r.log = ctrllog.FromContext(ctx, "StorageClassRequest", request)
 	r.ctx = ctrllog.IntoContext(ctx, r.log)
 	r.log.Info("Reconciling StorageClassRequest.")
@@ -118,8 +121,10 @@ func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request r
 
 	result, reconcileError = r.reconcilePhases()
 
-	// Apply status changes to the StorageClassRequest
-	statusError := r.Client.Status().Update(r.ctx, r.StorageClassRequest)
+	controllerutil.AddFinalizer(r.StorageClassRequest, v1alpha1.StorageClassRequestFinalizer)
+
+	// Apply status changes and finalizer to the StorageClassRequest
+	statusError := r.Client.Update(r.ctx, r.StorageClassRequest)
 	if statusError != nil {
 		r.log.Info("Failed to update StorageClassRequest status.")
 	}
@@ -174,7 +179,7 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.StorageClassRequest{}, builder.WithPredicates(
-			predicate.GenerationChangedPredicate{},
+			predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{}),
 		)).
 		Owns(&rookCephv1.CephBlockPoolRadosNamespace{}).
 		Watches(&rookCephv1.CephFilesystemSubVolumeGroup{}, enqueueForOwner).
@@ -333,6 +338,8 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 		}
 
 	} else {
+		controllerutil.RemoveFinalizer(r.StorageClassRequest, v1alpha1.StorageClassRequestFinalizer)
+		r.log.Info("finalizer removed successfully")
 		r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestDeleting
 	}
 	return reconcile.Result{}, nil
@@ -351,6 +358,12 @@ func (r *StorageClassRequestReconciler) reconcileRadosNamespace() error {
 		blockPoolName := r.StorageClassRequest.Spec.StorageProfile
 		if blockPoolName == "" {
 			blockPoolName = fmt.Sprintf("%s-cephblockpool", r.storageCluster.Name)
+		}
+		if r.StorageClassRequest.Annotations[controllers.StorageRequestForceDeleteAnnotation] == "true" {
+			if r.cephRadosNamespace.Annotations == nil {
+				r.cephRadosNamespace.Annotations = make(map[string]string)
+			}
+			r.cephRadosNamespace.Annotations[RookCephResourceForceDeleteAnnotation] = "true"
 		}
 		r.cephRadosNamespace.Spec = rookCephv1.CephBlockPoolRadosNamespaceSpec{
 			BlockPoolName: blockPoolName,
@@ -428,6 +441,13 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup() 
 
 		r.cephFilesystemSubVolumeGroup.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
 			FilesystemName: cephFilesystem.Name,
+		}
+
+		if r.StorageClassRequest.Annotations[controllers.StorageRequestForceDeleteAnnotation] == "true" {
+			if r.cephFilesystemSubVolumeGroup.Annotations == nil {
+				r.cephFilesystemSubVolumeGroup.Annotations = make(map[string]string)
+			}
+			r.cephFilesystemSubVolumeGroup.Annotations[RookCephResourceForceDeleteAnnotation] = "true"
 		}
 		return nil
 	})

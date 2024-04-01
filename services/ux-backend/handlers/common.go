@@ -5,7 +5,8 @@ import (
 )
 
 const (
-	ContentTypeTextPlain = "text/plain"
+	ContentTypeTextPlain                  = "text/plain"
+	RookCephResourceForceDeleteAnnotation = "ocs.openshift.io.storageconsumer/force-deletion"
 )
 
 var namespace string

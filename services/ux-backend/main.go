@@ -7,8 +7,11 @@ import (
 	"os"
 	"strconv"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/cleanupconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboardingtokens"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/rotatekeys"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,12 +58,16 @@ func loadAndValidateServerConfig() (*serverConfig, error) {
 }
 
 func newKubeClient() (client.Client, error) {
+	scheme := runtime.NewScheme()
+	if err := ocsv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	newClient, err := client.New(cfg, client.Options{})
+	newClient, err := client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +97,9 @@ func main() {
 	})
 	http.HandleFunc("/rotate-keys", func(w http.ResponseWriter, r *http.Request) {
 		rotatekeys.HandleMessage(w, r, cl)
+	})
+	http.HandleFunc("/cleanup-consumer", func(w http.ResponseWriter, r *http.Request) {
+		cleanupconsumer.HandleMessage(w, r, cl)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)

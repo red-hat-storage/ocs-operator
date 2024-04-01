@@ -41,12 +41,14 @@ import (
 )
 
 const (
-	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
-	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
-	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
-	StorageProfileLabel           = "ocs.openshift.io/storageprofile"
-	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
-	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
+	StorageConsumerAnnotation            = "ocs.openshift.io.storageconsumer"
+	StorageRequestAnnotation             = "ocs.openshift.io.storagerequest"
+	StorageCephUserTypeAnnotation        = "ocs.openshift.io.cephusertype"
+	StorageProfileLabel                  = "ocs.openshift.io/storageprofile"
+	ConsumerUUIDLabel                    = "ocs.openshift.io/storageconsumer-uuid"
+	StorageConsumerNameLabel             = "ocs.openshift.io/storageconsumer-name"
+	StorageRequestForceDeleteAnnotation  = "ocs.openshift.io.storagerequest/force-deletion"
+	StorageConsumerForceDeleteAnnotation = "ocs.openshift.io.storageconsumer/force-deletion"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -145,6 +147,12 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 			return reconcile.Result{}, err
 		}
 
+		if r.storageConsumer.Annotations[StorageConsumerForceDeleteAnnotation] == "true" {
+			if err := r.reconcileStorageRequest(); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
 		cephResourcesReady := true
 		for _, cephResource := range r.storageConsumer.Status.CephResources {
 			if cephResource.Phase != "Ready" {
@@ -205,6 +213,34 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 	return nil
 }
 
+func (r *StorageConsumerReconciler) reconcileStorageRequest() error {
+	storageClassRequests := &ocsv1alpha1.StorageClassRequestList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(r.storageConsumer.Namespace),
+		client.MatchingLabels{ConsumerUUIDLabel: string(r.storageConsumer.UID)},
+	}
+	var err error
+	if err = r.Client.List(r.ctx, storageClassRequests, listOpts...); err != nil || len(storageClassRequests.Items) == 0 {
+		return err
+	}
+
+	for _, scr := range storageClassRequests.Items {
+		if scr.Annotations == nil {
+			scr.Annotations = make(map[string]string)
+		}
+		scr.Annotations[StorageRequestForceDeleteAnnotation] = "true"
+
+		err = r.Client.Update(r.ctx, &scr)
+
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+
+}
+
 func (r *StorageConsumerReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
 	cephResourceSpec := ocsv1alpha1.CephResourcesSpec{
 		Name:        name,
@@ -247,7 +283,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(
-			predicate.GenerationChangedPredicate{},
+			predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{}),
 		)).
 		Owns(&rookCephv1.CephClient{}).
 		// Watch non-owned resources cephBlockPool
