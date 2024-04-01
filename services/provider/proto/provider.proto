@@ -161,8 +161,11 @@ message ReportStatusRequest{
     string clientOperatorVersion = 3;
     // clusterID is the id of the openshift cluster
     string clusterID = 4;
+    // clusterName is the name of the openshift cluster
+    string clusterName = 5;
     // NamespacedName is the name and namespace of the StorageClient
-    string NamespacedName = 5;
+    string NamespacedName = 6;
+
 }
 
 message ReportStatusResponse{

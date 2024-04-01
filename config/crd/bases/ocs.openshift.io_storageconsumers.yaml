@@ -72,6 +72,9 @@ spec:
                   clusterId:
                     description: ClusterID is the id of the openshift cluster
                     type: string
+                  clusterName:
+                    description: ClusterName is the name of the openshift cluster
+                    type: string
                   namespacedName:
                     description: NamespacedName is the name and namespace of the StorageClient
                     type: string
@@ -83,6 +86,7 @@ spec:
                     type: string
                 required:
                 - clusterId
+                - clusterName
                 - namespacedName
                 - operatorVersion
                 - platformVersion
