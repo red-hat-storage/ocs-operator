@@ -32,9 +32,9 @@ func newStorageClassRequestManager(cl client.Client, namespace string) (*storage
 	}, nil
 }
 
-// getStorageClassRequestName generates a hash for a StorageClassRequest based
+// getStorageClassRequestHash generates a hash for a StorageClassRequest based
 // on the MD5 hash of the StorageClassClaim name and storageConsumer UUID.
-func getStorageClassRequestName(consumerUUID, storageClassClaimName string) string {
+func getStorageClassRequestHash(consumerUUID, storageClassClaimName string) string {
 	var s struct {
 		StorageConsumerUUID string `json:"storageConsumerUUID"`
 
@@ -51,8 +51,13 @@ func getStorageClassRequestName(consumerUUID, storageClassClaimName string) stri
 		klog.Errorf("failed to marshal a name for a storage class request based on %v. %v", s, err)
 		panic("failed to marshal storage class request name")
 	}
-	name := md5.Sum([]byte(requestName))
-	return fmt.Sprintf("storageclassrequest-%s", hex.EncodeToString(name[:16]))
+	hash := md5.Sum([]byte(requestName))
+	return hex.EncodeToString(hash[:16])
+}
+
+// getStorageClassRequestName generates a name for a StorageClassRequest resource.
+func getStorageClassRequestName(consumerUUID, storageClassClaimName string) string {
+	return fmt.Sprintf("storageclassrequest-%s", getStorageClassRequestHash(consumerUUID, storageClassClaimName))
 }
 
 // Create creates a new StorageClassRequest resource and returns the StorageClassRequest ID.
