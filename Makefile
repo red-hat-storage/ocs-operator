@@ -134,7 +134,7 @@ generate: controller-gen
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	@echo Updating generated manifests
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:generateEmbeddedObjectMeta=true paths=./api/... webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=true paths=./api/... webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 verify-deps: deps-update
 	@echo "Verifying dependency files"
@@ -187,3 +187,11 @@ install-noobaa: operator-sdk
 install-ocs: operator-sdk
 	@echo "Installing ocs operator"
 	hack/install-ocs.sh
+
+install-ocs-client: operator-sdk
+	@echo "Installing ocs-client operator"
+	hack/install-ocs-client.sh
+
+install-rook: operator-sdk
+	@echo "Installing rook-ceph operator"
+	hack/install-rook.sh

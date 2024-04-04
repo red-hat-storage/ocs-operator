@@ -84,7 +84,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
-  name: ocs-operator.v4.15.0
+  name: ocs-operator.v4.16.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -194,6 +194,17 @@ spec:
           - ceph.rook.io
           resources:
           - cephblockpoolradosnamespaces
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephblockpoolradosnamespaces
           - cephblockpools
           - cephclusters
           - cephfilesystems
@@ -203,17 +214,6 @@ spec:
           - cephrbdmirrors
           verbs:
           - '*'
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephblockpools
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
         - apiGroups:
           - ceph.rook.io
           resources:
@@ -331,6 +331,19 @@ spec:
         - apiGroups:
           - monitoring.coreos.com
           resources:
+          - alertmanagers
+          - prometheuses
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
           - prometheusrules
           - servicemonitors
           verbs:
@@ -338,6 +351,18 @@ spec:
           - delete
           - get
           - list
+          - update
+          - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
           - update
           - watch
         - apiGroups:
@@ -420,8 +445,11 @@ spec:
           resources:
           - clusterserviceversions
           verbs:
+          - delete
           - get
           - list
+          - patch
+          - update
           - watch
         - apiGroups:
           - operators.coreos.com
@@ -571,10 +599,18 @@ spec:
                   capabilities:
                     drop:
                     - all
+                volumeMounts:
+                - mountPath: /etc/private-key
+                  name: onboarding-private-key
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: ocs-operator
               terminationGracePeriodSeconds: 10
+              volumes:
+              - name: onboarding-private-key
+                secret:
+                  optional: true
+                  secretName: onboarding-private-key
     strategy: deployment
   installModes:
   - supported: true
@@ -602,4 +638,4 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Red Hat
-  version: 4.15.0
+  version: 4.16.0

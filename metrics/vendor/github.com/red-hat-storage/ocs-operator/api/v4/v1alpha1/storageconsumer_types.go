@@ -72,6 +72,10 @@ type ClientStatus struct {
 	PlatformVersion string `json:"platformVersion"`
 	// StorageClient Operator Version
 	OperatorVersion string `json:"operatorVersion"`
+	// ClusterID is the id of the openshift cluster
+	ClusterID string `json:"clusterId"`
+	// NamespacedName is the name and namespace of the StorageClient
+	NamespacedName string `json:"namespacedName"`
 }
 
 //+kubebuilder:object:root=true

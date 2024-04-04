@@ -21,11 +21,11 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,8 +45,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const ownerUIDIndexName = "ownerUID"
-
 // StorageClassRequestReconciler reconciles a StorageClassRequest object
 // nolint:revive
 type StorageClassRequestReconciler struct {
@@ -60,7 +58,7 @@ type StorageClassRequestReconciler struct {
 	storageConsumer              *v1alpha1.StorageConsumer
 	storageCluster               *v1.StorageCluster
 	StorageClassRequest          *v1alpha1.StorageClassRequest
-	cephBlockPool                *rookCephv1.CephBlockPool
+	cephRadosNamespace           *rookCephv1.CephBlockPoolRadosNamespace
 	cephFilesystemSubVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup
 	cephClientProvisioner        *rookCephv1.CephClient
 	cephClientNode               *rookCephv1.CephClient
@@ -71,7 +69,7 @@ type StorageClassRequestReconciler struct {
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassrequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;delete
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpools,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters,verbs=get;watch;list
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;list;watch;create;delete
@@ -142,18 +140,20 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 
 	if err := mgr.GetCache().IndexField(
 		context.TODO(),
-		&rookCephv1.CephFilesystemSubVolumeGroup{},
-		ownerUIDIndexName,
-		func(obj client.Object) []string {
-			refs := obj.GetOwnerReferences()
-			owners := []string{}
-			for i := range refs {
-				owners = append(owners, string(refs[i].UID))
-			}
-			return owners
-		},
+		&rookCephv1.CephBlockPoolRadosNamespace{},
+		util.OwnerUIDIndexName,
+		util.OwnersIndexFieldFunc,
 	); err != nil {
-		return fmt.Errorf("unable to set up FieldIndexer for owner reference UIDs: %v", err)
+		return fmt.Errorf("unable to set up FieldIndexer on CephBlockPoolRadosNamespaces for owner reference UIDs: %v", err)
+	}
+
+	if err := mgr.GetCache().IndexField(
+		context.TODO(),
+		&rookCephv1.CephFilesystemSubVolumeGroup{},
+		util.OwnerUIDIndexName,
+		util.OwnersIndexFieldFunc,
+	); err != nil {
+		return fmt.Errorf("unable to set up FieldIndexer on CephFilesystemSubVolumeGroups for owner reference UIDs: %v", err)
 	}
 
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
@@ -171,11 +171,12 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 			return []reconcile.Request{}
 		})
 	enqueueForOwner := handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1alpha1.StorageClassRequest{})
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.StorageClassRequest{}, builder.WithPredicates(
 			predicate.GenerationChangedPredicate{},
 		)).
-		Watches(&rookCephv1.CephBlockPool{}, enqueueForOwner).
+		Owns(&rookCephv1.CephBlockPoolRadosNamespace{}).
 		Watches(&rookCephv1.CephFilesystemSubVolumeGroup{}, enqueueForOwner).
 		Watches(&rookCephv1.CephClient{}, enqueueForOwner).
 		Watches(&storagev1.StorageClass{}, enqueueStorageConsumerRequest).
@@ -183,7 +184,7 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 		Complete(r)
 }
 
-func (r *StorageClassRequestReconciler) initPhase(storageProfile *v1.StorageProfile) error {
+func (r *StorageClassRequestReconciler) initPhase() error {
 	gvk, err := apiutil.GVKForObject(&v1alpha1.StorageConsumer{}, r.Client.Scheme())
 	if err != nil {
 		return fmt.Errorf("failed to get gvk for consumer  %w", err)
@@ -206,67 +207,46 @@ func (r *StorageClassRequestReconciler) initPhase(storageProfile *v1.StorageProf
 		return err
 	}
 
-	profileName := r.StorageClassRequest.Spec.StorageProfile
-	if profileName == "" {
-		profileName = r.storageCluster.Spec.DefaultStorageProfile
-	}
-
-	// Fetch StorageProfile by name in the StorageCluster's namespace
-	storageProfile.Name = profileName
-	storageProfile.Namespace = r.storageCluster.Namespace
-
-	if err := r.get(storageProfile); err != nil {
-		return fmt.Errorf("no storage profile CR found for storage profile %s", profileName)
-	}
-
 	// check request status already contains the name of the resource. if not, add it.
 	if r.StorageClassRequest.Spec.Type == "blockpool" {
-		r.cephBlockPool = &rookCephv1.CephBlockPool{}
-		r.cephBlockPool.Namespace = r.OperatorNamespace
-		for _, res := range r.StorageClassRequest.Status.CephResources {
-			if res.Kind == "CephBlockPool" {
-				r.cephBlockPool.Name = res.Name
-				break
-			}
+		// initialize in-memory structs
+		r.cephRadosNamespace = &rookCephv1.CephBlockPoolRadosNamespace{}
+		r.cephRadosNamespace.Namespace = r.OperatorNamespace
+
+		// check if a CephBlockPoolRadosNamespace resource exists for the desired storageconsumer and storageprofile.
+		cephRadosNamespaceList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
+		err := r.list(
+			cephRadosNamespaceList,
+			client.InNamespace(r.OperatorNamespace),
+			client.MatchingFields{util.OwnerUIDIndexName: string(r.StorageClassRequest.UID)})
+		if err != nil {
+			return err
 		}
 
-		// check if a cephblockpool resource exists for the desired storageconsumer and storageprofile.
-		if r.cephBlockPool.Name == "" {
-			cephBlockPoolList := &rookCephv1.CephBlockPoolList{}
-			listOptions := &client.MatchingLabels{
-				controllers.StorageConsumerNameLabel: r.storageConsumer.Name,
-				controllers.StorageProfileSpecLabel:  storageProfile.GetSpecHash(),
-			}
-			if err := r.list(cephBlockPoolList, client.InNamespace(r.OperatorNamespace), listOptions); err != nil {
-				return err
-			}
-
-			// if we found no CephBlockPools, generate a new name
-			// if we found only one CephBlockPool with our query, we're good
-			// if we found more than one CephBlockPool, we can't determine which one to select, so error out
-			cbpItemsLen := len(cephBlockPoolList.Items)
-			if cbpItemsLen == 0 {
-				cbpNewName := fmt.Sprintf("cephblockpool-%s-%s", r.storageConsumer.Name, generateUUID())
-				r.log.V(1).Info("no valid CephBlockPool found, creating new one", "CephBlockPool", cbpNewName)
-				r.cephBlockPool.Name = cbpNewName
-			} else if cbpItemsLen == 1 {
-				r.cephBlockPool.Name = cephBlockPoolList.Items[0].GetName()
-				r.log.V(1).Info("valid CephBlockPool found", "CephBlockPool", r.cephBlockPool.Name)
-			} else {
-				return fmt.Errorf("invalid number of CephBlockPools for storage consumer %q and storage profile %q: found %d, expecting 0 or 1", r.storageConsumer.Name, storageProfile.Name, cbpItemsLen)
-			}
+		// if we found no CephBlockPoolRadosNamespaces, generate a new name
+		// if we found only one CephBlockPoolRadosNamespace with our query, we're good
+		// if we found more than one CephBlockPoolRadosNamespace, we can't determine which one to select, so error out
+		rnsItemsLen := len(cephRadosNamespaceList.Items)
+		if rnsItemsLen == 0 {
+			md5Sum := md5.Sum([]byte(r.StorageClassRequest.Name))
+			rnsName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(md5Sum[:16]))
+			r.log.V(1).Info("no valid CephBlockPoolRadosNamespace found, creating new one", "CephBlockPoolRadosNamespace", rnsName)
+			r.cephRadosNamespace.Name = rnsName
+		} else if rnsItemsLen == 1 {
+			r.cephRadosNamespace = &cephRadosNamespaceList.Items[0]
+			r.log.V(1).Info("valid CephBlockPoolRadosNamespace found", "CephBlockPoolRadosNamespace", r.cephRadosNamespace.Name)
+		} else {
+			return fmt.Errorf("invalid number of CephBlockPoolRadosNamespaces for storage consumer %q: found %d, expecting 0 or 1", r.storageConsumer.Name, rnsItemsLen)
 		}
-
 	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
 		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
 
 		cephFilesystemSubVolumeGroupList := &rookCephv1.CephFilesystemSubVolumeGroupList{}
-		err := r.Client.List(
-			r.ctx,
+		err := r.list(
 			cephFilesystemSubVolumeGroupList,
 			client.InNamespace(r.OperatorNamespace),
-			client.MatchingFields{ownerUIDIndexName: string(r.StorageClassRequest.UID)})
+			client.MatchingFields{util.OwnerUIDIndexName: string(r.StorageClassRequest.UID)})
 		if err != nil {
 			return err
 		}
@@ -306,9 +286,7 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 
 	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestInitializing
 
-	storageProfile := v1.StorageProfile{}
-
-	if err := r.initPhase(&storageProfile); err != nil {
+	if err := r.initPhase(); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -325,7 +303,7 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 				return reconcile.Result{}, err
 			}
 
-			if err := r.reconcileCephBlockPool(&storageProfile); err != nil {
+			if err := r.reconcileRadosNamespace(); err != nil {
 				return reconcile.Result{}, err
 			}
 
@@ -338,7 +316,7 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 				return reconcile.Result{}, err
 			}
 
-			if err := r.reconcileCephFilesystemSubVolumeGroup(&storageProfile); err != nil {
+			if err := r.reconcileCephFilesystemSubVolumeGroup(); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -360,43 +338,22 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileCephBlockPool(storageProfile *v1.StorageProfile) error {
-
-	failureDomain := r.storageCluster.Status.FailureDomain
-
-	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephBlockPool, func() error {
-		if err := r.own(r.cephBlockPool); err != nil {
+func (r *StorageClassRequestReconciler) reconcileRadosNamespace() error {
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephRadosNamespace, func() error {
+		if err := r.own(r.cephRadosNamespace); err != nil {
 			return err
 		}
-		deviceClass := storageProfile.Spec.DeviceClass
-		deviceSetList := r.storageCluster.Spec.StorageDeviceSets
-		var deviceSet *v1.StorageDeviceSet
-		for i := range deviceSetList {
-			ds := &deviceSetList[i]
-			// get the required deviceSetName of the profile
-			if deviceClass == ds.DeviceClass {
-				deviceSet = ds
-				break
-			}
+
+		addLabel(r.cephRadosNamespace, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
+
+		// For RADOS namespaces, the "profile" is equivalent to the
+		// name of the desired block pool for the namespace.
+		blockPoolName := r.StorageClassRequest.Spec.StorageProfile
+		if blockPoolName == "" {
+			blockPoolName = fmt.Sprintf("%s-cephblockpool", r.storageCluster.Name)
 		}
-
-		if deviceSet == nil {
-			return fmt.Errorf("could not find device set with device class %q in storagecluster", deviceClass)
-		}
-
-		addLabel(r.cephBlockPool, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
-		addLabel(r.cephBlockPool, controllers.StorageProfileSpecLabel, storageProfile.GetSpecHash())
-
-		r.cephBlockPool.Spec = rookCephv1.NamedBlockPoolSpec{
-			PoolSpec: rookCephv1.PoolSpec{
-				FailureDomain: failureDomain,
-				DeviceClass:   deviceClass,
-				Replicated: rookCephv1.ReplicatedSpec{
-					Size:                     3,
-					ReplicasPerFailureDomain: 1,
-				},
-				Parameters: storageProfile.Spec.BlockPoolConfiguration.Parameters,
-			},
+		r.cephRadosNamespace.Spec = rookCephv1.CephBlockPoolRadosNamespaceSpec{
+			BlockPoolName: blockPoolName,
 		}
 		return nil
 	})
@@ -404,9 +361,9 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool(storageProfile *v
 	if err != nil {
 		r.log.Error(
 			err,
-			"Failed to update CephBlockPool.",
-			"CephBlockPool",
-			klog.KRef(r.cephBlockPool.Namespace, r.cephBlockPool.Name),
+			"Failed to update CephBlockPoolRadosNamespace.",
+			"CephBlockPoolRadosNamespace",
+			klog.KRef(r.cephRadosNamespace.Namespace, r.cephRadosNamespace.Name),
 		)
 		return err
 	}
@@ -416,16 +373,16 @@ func (r *StorageClassRequestReconciler) reconcileCephBlockPool(storageProfile *v
 		"node":        r.cephClientNode.Name,
 	}
 	phase := ""
-	if r.cephBlockPool.Status != nil {
-		phase = string(r.cephBlockPool.Status.Phase)
+	if r.cephRadosNamespace.Status != nil {
+		phase = string(r.cephRadosNamespace.Status.Phase)
 	}
 
-	r.setCephResourceStatus(r.cephBlockPool.Name, "CephBlockPool", phase, cephClients)
+	r.setCephResourceStatus(r.cephRadosNamespace.Name, "CephBlockPoolRadosNamespace", phase, cephClients)
 
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup(storageProfile *v1.StorageProfile) error {
+func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup() error {
 
 	cephFilesystem := rookCephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
@@ -441,10 +398,12 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup(st
 		if err := r.own(r.cephFilesystemSubVolumeGroup); err != nil {
 			return err
 		}
-		deviceClass := storageProfile.Spec.DeviceClass
+
+		// For subvolume groups, the "profile" is equivalent to the
+		// name of the desired data pool ("" by default).
 		var dataPool *rookCephv1.NamedPoolSpec
 		for i := range cephFilesystem.Spec.DataPools {
-			if cephFilesystem.Spec.DataPools[i].DeviceClass == deviceClass {
+			if cephFilesystem.Spec.DataPools[i].Name == r.StorageClassRequest.Spec.StorageProfile {
 				dataPool = &cephFilesystem.Spec.DataPools[i]
 				break
 			}
@@ -454,11 +413,18 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup(st
 		}
 
 		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
-		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageProfileSpecLabel, storageProfile.GetSpecHash())
 		// This label is required to set the dataPool on the CephFS
 		// storageclass so that each PVC created from CephFS storageclass can
 		// use correct dataPool backed by deviceclass.
-		addLabel(r.cephFilesystemSubVolumeGroup, v1alpha1.CephFileSystemDataPoolLabel, fmt.Sprintf("%s-%s", cephFilesystem.Name, dataPool.Name))
+		var dataPoolValue string
+		if dataPool.Name != "" {
+			dataPoolValue = fmt.Sprintf("%s-%s", cephFilesystem.Name, dataPool.Name)
+		} else {
+			// https: //github.com/rook/rook/blob/b3b6775cf9b3ffdd88cd5a3f342ac4883a6a42ac/pkg/operator/ceph/file/filesystem.go#L296
+			// the name is auto generated by rook as <cephfsname>-data<%d> where `%d` is the index which is `0` for default pool
+			dataPoolValue = fmt.Sprintf("%s-data0", cephFilesystem.Name)
+		}
+		addLabel(r.cephFilesystemSubVolumeGroup, v1alpha1.CephFileSystemDataPoolLabel, dataPoolValue)
 
 		r.cephFilesystemSubVolumeGroup.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
 			FilesystemName: cephFilesystem.Name,
@@ -499,9 +465,9 @@ func (r *StorageClassRequestReconciler) reconcileCephClientRBDProvisioner() erro
 		addStorageRelatedAnnotations(r.cephClientProvisioner, r.getNamespacedName(), "rbd", "provisioner")
 		r.cephClientProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
-				"mon": "profile rbd",
+				"mon": "profile rbd, allow command 'osd blocklist'",
 				"mgr": "allow rw",
-				"osd": fmt.Sprintf("profile rbd pool=%s", r.cephBlockPool.Name),
+				"osd": fmt.Sprintf("profile rbd pool=%s namespace=%s", r.cephRadosNamespace.Spec.BlockPoolName, r.cephRadosNamespace.Name),
 			},
 		}
 		return nil
@@ -537,7 +503,7 @@ func (r *StorageClassRequestReconciler) reconcileCephClientRBDNode() error {
 			Caps: map[string]string{
 				"mon": "profile rbd",
 				"mgr": "allow rw",
-				"osd": fmt.Sprintf("profile rbd pool=%s", r.cephBlockPool.Name),
+				"osd": fmt.Sprintf("profile rbd pool=%s namespace=%s", r.cephRadosNamespace.Spec.BlockPoolName, r.cephRadosNamespace.Name),
 			},
 		}
 
@@ -574,7 +540,7 @@ func (r *StorageClassRequestReconciler) reconcileCephClientCephFSProvisioner() e
 		addStorageRelatedAnnotations(r.cephClientProvisioner, r.getNamespacedName(), "cephfs", "provisioner")
 		r.cephClientProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
-				"mon": "allow r",
+				"mon": "allow r, allow command 'osd blocklist'",
 				"mgr": "allow rw",
 				"mds": fmt.Sprintf("allow rw path=/volumes/%s", r.cephFilesystemSubVolumeGroup.Name),
 				"osd": "allow rw tag cephfs metadata=*",
@@ -682,7 +648,7 @@ func (r *StorageClassRequestReconciler) list(obj client.ObjectList, listOptions 
 
 func (r *StorageClassRequestReconciler) own(resource metav1.Object) error {
 	// Ensure StorageClassRequest ownership on a resource
-	return controllerutil.SetOwnerReference(r.StorageClassRequest, resource, r.Scheme)
+	return controllerutil.SetControllerReference(r.StorageClassRequest, resource, r.Scheme)
 }
 
 func (r *StorageClassRequestReconciler) getNamespacedName() string {
@@ -697,10 +663,4 @@ func addLabel(obj metav1.Object, key string, value string) {
 		obj.SetLabels(labels)
 	}
 	labels[key] = value
-}
-
-// generateUUID generates a random UUID string and return first 8 characters.
-func generateUUID() string {
-	newUUID := uuid.New().String()
-	return newUUID[:8]
 }

@@ -69,6 +69,15 @@ spec:
               client:
                 description: Information of storage client received from consumer
                 properties:
+                  clusterId:
+                    description: ClusterID is the id of the openshift cluster
+                    type: string
+                  clusterName:
+                    description: ClusterName is the name of the openshift cluster
+                    type: string
+                  namespacedName:
+                    description: NamespacedName is the name and namespace of the StorageClient
+                    type: string
                   operatorVersion:
                     description: StorageClient Operator Version
                     type: string
@@ -76,6 +85,9 @@ spec:
                     description: StorageClient Platform Version
                     type: string
                 required:
+                - clusterId
+                - clusterName
+                - namespacedName
                 - operatorVersion
                 - platformVersion
                 type: object

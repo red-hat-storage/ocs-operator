@@ -195,6 +195,17 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
+              rookCephOperatorConfig:
+                properties:
+                  csiPluginTolerationsModified:
+                    description: CsiPluginTolerationsModified indicates if CsiPluginTolerations
+                      are added to the configmap via controller
+                    type: boolean
+                  csiProvisionerTolerationsModified:
+                    description: CsiProvisionerTolerationsModified indicates if CsiProvisionerTolerations
+                      are added to the configmap via controller
+                    type: boolean
+                type: object
               rookCephOperatorConfigCreated:
                 type: boolean
               sCCsCreated:

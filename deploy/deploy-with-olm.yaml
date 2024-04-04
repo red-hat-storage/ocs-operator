@@ -7,6 +7,14 @@ metadata:
   name: openshift-storage
 spec: {}
 ---
+apiVersion: v1
+data:
+  DEPLOY_CSI: "false"
+kind: ConfigMap
+metadata:
+  name: ocs-client-operator-config
+  namespace: openshift-storage
+---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
@@ -38,6 +46,28 @@ metadata:
 spec:
   channel: alpha
   name: ocs-operator
+  source: ocs-catalogsource
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ocs-client-subscription
+  namespace: openshift-storage
+spec:
+  channel: alpha
+  name: ocs-client-operator
+  source: ocs-catalogsource
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rook-subscription
+  namespace: openshift-storage
+spec:
+  channel: alpha
+  name: rook-ceph-operator
   source: ocs-catalogsource
   sourceNamespace: openshift-marketplace
 ---

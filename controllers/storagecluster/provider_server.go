@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"sort"
@@ -22,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
 )
@@ -37,6 +39,9 @@ const (
 	ocsProviderServiceNodePort = int32(31659)
 
 	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
+
+	ocsClientConfigMapName = "ocs-client-operator-config"
+	deployCSIKey           = "DEPLOY_CSI"
 )
 
 type ocsProviderServer struct{}
@@ -45,9 +50,6 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 
 	if !instance.Spec.AllowRemoteStorageConsumers {
 		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
-		if err := r.verifyNoStorageConsumerExist(instance); err != nil {
-			return reconcile.Result{}, err
-		}
 		return o.ensureDeleted(r, instance)
 	}
 
@@ -75,6 +77,10 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		return res, nil
 	}
 
+	if err := o.updateClientConfigMap(r, instance.Namespace); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -87,6 +93,10 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	// Which means we do not need to call ensureDeleted while reconciling unless we are uninstalling
 
 	// NOTE: Do not add the check
+
+	if err := r.verifyNoStorageConsumerExist(instance); err != nil {
+		return reconcile.Result{}, err
+	}
 
 	var finalErr error
 
@@ -379,6 +389,7 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 							},
 						},
 					},
+					Tolerations:        getPlacement(instance, defaults.APIServerKey).Tolerations,
 					ServiceAccountName: ocsProviderServerName,
 				},
 			},
@@ -505,4 +516,30 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 
 	r.Log.Info("Job is running as desired")
 	return reconcile.Result{}, nil
+}
+
+func (o *ocsProviderServer) updateClientConfigMap(r *StorageClusterReconciler, namespace string) error {
+	clientConfig := &corev1.ConfigMap{}
+	clientConfig.Name = ocsClientConfigMapName
+	clientConfig.Namespace = namespace
+
+	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(clientConfig), clientConfig); err != nil {
+		r.Log.Error(err, "failed to get ocs client configmap")
+		return err
+	}
+
+	existingData := maps.Clone(clientConfig.Data)
+	if clientConfig.Data == nil {
+		clientConfig.Data = map[string]string{}
+	}
+	clientConfig.Data[deployCSIKey] = "true"
+
+	if !maps.Equal(clientConfig.Data, existingData) {
+		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
+			r.Log.Error(err, "failed to update ocs client configmap for enabling CSI")
+			return err
+		}
+	}
+
+	return nil
 }

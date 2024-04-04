@@ -88,13 +88,6 @@ func generateNameForCephBlockPoolVirtualizationSC(initData *ocsv1.StorageCluster
 	return fmt.Sprintf("%s-ceph-rbd-virtualization", initData.Name)
 }
 
-func generateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
-	if initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
-		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
-	}
-	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
-}
-
 func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.Encryption.StorageClassName != "" {
 		return initData.Spec.Encryption.StorageClassName
@@ -116,7 +109,7 @@ func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType S
 }
 
 func generateNameForSnapshotClassDriver(snapshotType SnapshotterType) string {
-	return fmt.Sprintf("%s.%s.csi.ceph.com", csiDriverNamePrefix, snapshotType)
+	return fmt.Sprintf("%s.%s.csi.ceph.com", storageclassDriverNamePrefix, snapshotType)
 }
 
 func generateNameForSnapshotClassSecret(instance *ocsv1.StorageCluster, snapshotType SnapshotterType) string {

@@ -159,6 +159,16 @@ message ReportStatusRequest{
     string storageConsumerUUID = 1;
     string clientPlatformVersion = 2;
     string clientOperatorVersion = 3;
+    // clusterID is the id of the openshift cluster
+    string clusterID = 4;
+    // clusterName is the name of the openshift cluster
+    string clusterName = 5;
+    // NamespacedName is the name and namespace of the StorageClient
+    string NamespacedName = 6;
+
 }
 
-message ReportStatusResponse{}
+message ReportStatusResponse{
+    // Contains subscription channel of provider operator for client operator to match
+    string desiredClientOperatorChannel = 1;
+}

@@ -4,23 +4,36 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/templates"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -28,8 +41,10 @@ import (
 var operatorNamespace string
 
 const (
-	wrongNamespacedName     = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
-	random30CharacterString = "KP7TThmSTZegSGmHuPKLnSaaAHSG3RSgqw6akBj0oVk"
+	wrongNamespacedName              = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
+	random30CharacterString          = "KP7TThmSTZegSGmHuPKLnSaaAHSG3RSgqw6akBj0oVk"
+	PrometheusOperatorDeploymentName = "prometheus-operator"
+	PrometheusOperatorCSVNamePrefix  = "odf-prometheus-operator"
 )
 
 // InitNamespacedName returns a NamespacedName for the singleton instance that
@@ -56,6 +71,9 @@ type OCSInitializationReconciler struct {
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;update
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=get;create;update
+// +kubebuilder:rbac:groups="monitoring.coreos.com",resources={alertmanagers,prometheuses},verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;list;watch;update;patch;create;delete
+// +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch;delete;update;patch
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
 // and what is in the OCSInitialization.Spec
@@ -174,6 +192,47 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		r.Log.Error(err, "Failed to ensure uxbackend service")
 		return reconcile.Result{}, err
 	}
+	if isROSAHCP, err := platform.IsPlatformROSAHCP(); err != nil {
+		r.Log.Error(err, "Failed to determine if ROSA HCP cluster")
+		return reconcile.Result{}, err
+	} else if isROSAHCP {
+		r.Log.Info("Setting up monitoring resources for ROSA HCP platform")
+		err = r.reconcilePrometheusOperatorCSV(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure prometheus operator deployment")
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcilePrometheusKubeRBACConfigMap(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure kubeRBACConfig config map")
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcilePrometheusService(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure prometheus service")
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcilePrometheus(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure prometheus instance")
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcileAlertManager(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure alertmanager instance")
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcileK8sMetricsServiceMonitor(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure k8sMetricsService Monitor")
+			return reconcile.Result{}, err
+		}
+	}
 
 	reason := ocsv1.ReconcileCompleted
 	message := ocsv1.ReconcileCompletedMessage
@@ -188,11 +247,19 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 // SetupWithManager sets up a controller with a manager
 func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	operatorNamespace = r.OperatorNamespace
-
+	prometheusPredicate := predicate.NewPredicateFuncs(
+		func(client client.Object) bool {
+			return strings.HasPrefix(client.GetName(), PrometheusOperatorCSVNamePrefix)
+		},
+	)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
+		Owns(&promv1.Prometheus{}).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&promv1.Alertmanager{}).
+		Owns(&promv1.ServiceMonitor{}).
 		// Watcher for storagecluster required to update
 		// ocs-operator-config configmap if storagecluster spec changes
 		Watches(
@@ -202,6 +269,23 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return []reconcile.Request{{
 						NamespacedName: InitNamespacedName(),
 					}}
+				},
+			),
+		).
+		// Watcher for storageClass required to update values related to replica-1
+		// in ocs-operator-config configmap, if storageClass changes
+		Watches(
+			&storagev1.StorageClass{},
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					// Only reconcile if the storageClass has topologyConstrainedPools set
+					sc := obj.(*storagev1.StorageClass)
+					if sc.Parameters["topologyConstrainedPools"] != "" {
+						return []reconcile.Request{{
+							NamespacedName: InitNamespacedName(),
+						}}
+					}
+					return []reconcile.Request{}
 				},
 			),
 		).
@@ -237,11 +321,24 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			),
 		).
+		// Watcher for prometheus operator csv
+		Watches(
+			&opv1a1.ClusterServiceVersion{},
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					return []reconcile.Request{{
+						NamespacedName: InitNamespacedName(),
+					}}
+				},
+			),
+			builder.WithPredicates(prometheusPredicate),
+		).
 		Complete(r)
 }
 
 // ensureRookCephOperatorConfigExists ensures that the rook-ceph-operator-config cm exists
-// This configmap is purely reserved for any user overrides to be applied.
+// This configmap is semi-reserved for any user overrides to be applied 4.16 onwards.
+// Earlier it used to be purely reserved for user overrides.
 // We don't reconcile it if it exists as it can reset any values the user has set
 // The configmap is watched by the rook operator and values set here have higher precedence
 // than the default values set in the rook operator pod env vars.
@@ -252,12 +349,73 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 			Namespace: initialData.Namespace,
 		},
 	}
-	err := r.Client.Create(r.ctx, rookCephOperatorConfig)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		r.Log.Error(err, fmt.Sprintf("Failed to create %s configmap", util.RookCephOperatorConfigName))
+
+	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rookCephOperatorConfig, func() error {
+
+		if rookCephOperatorConfig.Data == nil {
+			rookCephOperatorConfig.Data = make(map[string]string)
+		}
+
+		csiPluginDefaults := defaults.DaemonPlacements[defaults.CsiPluginKey]
+		csiPluginTolerations := r.getCsiTolerations(defaults.CsiPluginKey)
+		if err := updateTolerationsConfigFunc(rookCephOperatorConfig,
+			csiPluginTolerations, csiPluginDefaults.Tolerations, "CSI_PLUGIN_TOLERATIONS",
+			&initialData.Status.RookCephOperatorConfig.CsiPluginTolerationsModified); err != nil {
+			return err
+		}
+
+		csiProvisionerDefaults := defaults.DaemonPlacements[defaults.CsiProvisionerKey]
+		csiProvisionerTolerations := r.getCsiTolerations(defaults.CsiProvisionerKey)
+		if err := updateTolerationsConfigFunc(rookCephOperatorConfig,
+			csiProvisionerTolerations, csiProvisionerDefaults.Tolerations, "CSI_PROVISIONER_TOLERATIONS",
+			&initialData.Status.RookCephOperatorConfig.CsiProvisionerTolerationsModified); err != nil {
+			return err // nolint:revive
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update rook-ceph-operator-config configmap")
 		return err
 	}
+	r.Log.Info("Successfully created/updated rook-ceph-operator-config configmap", "OperationResult", opResult)
+
 	return nil
+}
+
+func updateTolerationsConfigFunc(rookCephOperatorConfig *corev1.ConfigMap,
+	tolerations, defaults []corev1.Toleration, configMapKey string, modifiedFlag *bool) error {
+
+	if tolerations != nil {
+		updatedTolerations := append(tolerations, defaults...)
+		tolerationsYAML, err := yaml.Marshal(updatedTolerations)
+		if err != nil {
+			return err
+		}
+		rookCephOperatorConfig.Data[configMapKey] = string(tolerationsYAML)
+		*modifiedFlag = true
+	} else if tolerations == nil && *modifiedFlag {
+		delete(rookCephOperatorConfig.Data, configMapKey)
+		*modifiedFlag = false
+	}
+
+	return nil
+}
+
+func (r *OCSInitializationReconciler) getCsiTolerations(csiTolerationKey string) []corev1.Toleration {
+
+	var tolerations []corev1.Toleration
+
+	clusters := r.clusters.GetStorageClusters()
+
+	for i := range clusters {
+		if val, ok := clusters[i].Spec.Placement[rookCephv1.KeyType(csiTolerationKey)]; ok {
+			tolerations = append(tolerations, val.Tolerations...)
+		}
+	}
+
+	return tolerations
 }
 
 // ensureOcsOperatorConfigExists ensures that the ocs-operator-config exists & if not create/update it with required values
@@ -280,9 +438,28 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 			Name:      util.OcsOperatorConfigName,
 			Namespace: initialData.Namespace,
 		},
-		Data: ocsOperatorConfigData,
 	}
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, ocsOperatorConfig, func() error {
+
+		// If the configmap is being created for the first time, set the entry for
+		// CSI_REMOVE_HOLDER_PODS to "true". This configuration is applied for new clusters
+		// starting from ODF version 4.16 onwards. For old or upgraded clusters,
+		// it's initially set to "false", allowing users time to manually migrate from holder pods.
+		// In ODF version 4.17, we will universally set it to "true" for all users.
+
+		if ocsOperatorConfig.CreationTimestamp.IsZero() {
+			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = "true"
+		} else if ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey] == "" {
+			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = "false"
+		} else if ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey] != "" {
+			ocsOperatorConfigData[util.CsiRemoveHolderPodsKey] = ocsOperatorConfig.Data[util.CsiRemoveHolderPodsKey]
+		}
+
+		allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
+			return sc.Spec.AllowRemoteStorageConsumers
+		})
+		ocsOperatorConfigData[util.DisableCSIDriverKey] = strconv.FormatBool(allowConsumers)
+
 		if !reflect.DeepEqual(ocsOperatorConfig.Data, ocsOperatorConfigData) {
 			r.Log.Info("Updating ocs-operator-config configmap")
 			ocsOperatorConfig.Data = ocsOperatorConfigData
@@ -312,22 +489,39 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 
 func (r *OCSInitializationReconciler) getEnableTopologyKeyValue() string {
 
-	// return true even if one of the storagecluster has enabled it
 	for _, sc := range r.clusters.GetStorageClusters() {
-		if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+		if !sc.Spec.ExternalStorage.Enable && sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+			// In internal mode return true even if one of the storageCluster has enabled it via the CR
 			return "true"
+		} else if sc.Spec.ExternalStorage.Enable {
+			// In external mode, check if the non-resilient storageClass exists
+			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
+			if storageClass != nil {
+				return "true"
+			}
 		}
 	}
 
 	return "false"
 }
 
+// In case of multiple storageClusters when replica-1 is enabled for both an internal and an external cluster, different failure domain keys can lead to complications.
+// To prevent this, when gathering information for the external cluster, ensure that the failure domain is specified to match that of the internal cluster (sc.Status.FailureDomain).
 func (r *OCSInitializationReconciler) getTopologyDomainLabelsKeyValue() string {
 
-	// return value from the internal storagecluster as failureDomain is set only in internal cluster
 	for _, sc := range r.clusters.GetStorageClusters() {
-		if !sc.Spec.ExternalStorage.Enable && sc.Status.FailureDomainKey != "" {
+		if !sc.Spec.ExternalStorage.Enable && sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+			// In internal mode return the failure domain key directly from the storageCluster
 			return sc.Status.FailureDomainKey
+		} else if sc.Spec.ExternalStorage.Enable {
+			// In external mode, check if the non-resilient storageClass exists
+			// determine the failure domain key from the storageClass parameter
+			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
+			if storageClass != nil {
+				return getFailureDomainKeyFromStorageClassParameter(storageClass)
+			}
 		}
 	}
 
@@ -344,6 +538,19 @@ func (r *OCSInitializationReconciler) getEnableNFSKeyValue() string {
 	}
 
 	return "false"
+}
+
+func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) string {
+	failuredomain := sc.Parameters["topologyFailureDomainLabel"]
+	if failuredomain == "zone" {
+		return "topology.kubernetes.io/zone"
+	} else if failuredomain == "rack" {
+		return "topology.rook.io/rack"
+	} else if failuredomain == "hostname" || failuredomain == "host" {
+		return "kubernetes.io/hostname"
+	} else {
+		return ""
+	}
 }
 
 func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
@@ -421,5 +628,171 @@ func (r *OCSInitializationReconciler) reconcileUXBackendService(initialData *ocs
 	}
 	r.Log.Info("Service creation succeeded", "Name", service.Name)
 
+	return nil
+}
+
+func (r *OCSInitializationReconciler) reconcilePrometheusKubeRBACConfigMap(initialData *ocsv1.OCSInitialization) error {
+	prometheusKubeRBACConfigMap := &corev1.ConfigMap{}
+	prometheusKubeRBACConfigMap.Name = templates.PrometheusKubeRBACProxyConfigMapName
+	prometheusKubeRBACConfigMap.Namespace = initialData.Namespace
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, prometheusKubeRBACConfigMap, func() error {
+		if err := ctrl.SetControllerReference(initialData, prometheusKubeRBACConfigMap, r.Scheme); err != nil {
+			return err
+		}
+		prometheusKubeRBACConfigMap.Data = templates.KubeRBACProxyConfigMap.Data
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update prometheus kube-rbac-proxy config map")
+		return err
+	}
+	r.Log.Info("Prometheus kube-rbac-proxy config map creation succeeded", "Name", prometheusKubeRBACConfigMap.Name)
+	return nil
+}
+
+func (r *OCSInitializationReconciler) reconcilePrometheusService(initialData *ocsv1.OCSInitialization) error {
+	prometheusService := &corev1.Service{}
+	prometheusService.Name = "prometheus"
+	prometheusService.Namespace = initialData.Namespace
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, prometheusService, func() error {
+		if err := ctrl.SetControllerReference(initialData, prometheusService, r.Scheme); err != nil {
+			return err
+		}
+		util.AddAnnotation(
+			prometheusService,
+			"service.beta.openshift.io/serving-cert-secret-name",
+			"prometheus-serving-cert-secret",
+		)
+		util.AddLabel(prometheusService, "prometheus", "odf-prometheus")
+		prometheusService.Spec.Selector = map[string]string{
+			"app.kubernetes.io/name": prometheusService.Name,
+		}
+		prometheusService.Spec.Ports = []corev1.ServicePort{
+			{
+				Name:       "https",
+				Protocol:   corev1.ProtocolTCP,
+				Port:       int32(templates.KubeRBACProxyPortNumber),
+				TargetPort: intstr.FromString("https"),
+			},
+		}
+		return nil
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update prometheus service")
+		return err
+	}
+	r.Log.Info("Service creation succeeded", "Name", prometheusService.Name)
+	return nil
+}
+
+func (r *OCSInitializationReconciler) reconcilePrometheus(initialData *ocsv1.OCSInitialization) error {
+	prometheus := &promv1.Prometheus{}
+	prometheus.Name = "odf-prometheus"
+	prometheus.Namespace = initialData.Namespace
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, prometheus, func() error {
+		if err := ctrl.SetControllerReference(initialData, prometheus, r.Scheme); err != nil {
+			return err
+		}
+		templates.PrometheusSpecTemplate.DeepCopyInto(&prometheus.Spec)
+		alertManagerEndpoint := util.Find(
+			prometheus.Spec.Alerting.Alertmanagers,
+			func(candidate *promv1.AlertmanagerEndpoints) bool {
+				return candidate.Name == templates.AlertManagerEndpointName
+			},
+		)
+		if alertManagerEndpoint == nil {
+			return fmt.Errorf("unable to find AlertManagerEndpoint")
+		}
+		alertManagerEndpoint.Namespace = initialData.Namespace
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update prometheus instance")
+		return err
+	}
+	r.Log.Info("Prometheus instance creation succeeded", "Name", prometheus.Name)
+
+	return nil
+}
+
+func (r *OCSInitializationReconciler) reconcileAlertManager(initialData *ocsv1.OCSInitialization) error {
+	alertManager := &promv1.Alertmanager{}
+	alertManager.Name = "odf-alertmanager"
+	alertManager.Namespace = initialData.Namespace
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, alertManager, func() error {
+		if err := ctrl.SetControllerReference(initialData, alertManager, r.Scheme); err != nil {
+			return err
+		}
+		util.AddAnnotation(alertManager, "prometheus", "odf-prometheus")
+		templates.AlertmanagerSpecTemplate.DeepCopyInto(&alertManager.Spec)
+		return nil
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update alertManager instance")
+		return err
+	}
+	r.Log.Info("AlertManager instance creation succeeded", "Name", alertManager.Name)
+	return nil
+}
+
+func (r *OCSInitializationReconciler) reconcileK8sMetricsServiceMonitor(initialData *ocsv1.OCSInitialization) error {
+	k8sMetricsServiceMonitor := &promv1.ServiceMonitor{}
+	k8sMetricsServiceMonitor.Name = "k8s-metrics-service-monitor"
+	k8sMetricsServiceMonitor.Namespace = initialData.Namespace
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, k8sMetricsServiceMonitor, func() error {
+		if err := ctrl.SetControllerReference(initialData, k8sMetricsServiceMonitor, r.Scheme); err != nil {
+			return err
+		}
+		util.AddLabel(k8sMetricsServiceMonitor, "app", "odf-prometheus")
+		templates.K8sMetricsServiceMonitorSpecTemplate.DeepCopyInto(&k8sMetricsServiceMonitor.Spec)
+		return nil
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update K8s Metrics Service Monitor")
+		return err
+	}
+	r.Log.Info("K8s Metrics Service Monitor creation succeeded", "Name", k8sMetricsServiceMonitor.Name)
+	return nil
+
+}
+
+func (r *OCSInitializationReconciler) reconcilePrometheusOperatorCSV(initialData *ocsv1.OCSInitialization) error {
+	csvList := &opv1a1.ClusterServiceVersionList{}
+	if err := r.Client.List(r.ctx, csvList, client.InNamespace(initialData.Namespace)); err != nil {
+		return fmt.Errorf("failed to list csvs in namespace %s,%v", initialData.Namespace, err)
+	}
+	csv := util.Find(
+		csvList.Items,
+		func(csv *opv1a1.ClusterServiceVersion) bool {
+			return strings.HasPrefix(csv.Name, PrometheusOperatorCSVNamePrefix)
+		},
+	)
+	if csv == nil {
+		return fmt.Errorf("prometheus csv does not exist in namespace :%s", initialData.Namespace)
+	}
+	deploymentSpec := util.Find(
+		csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs,
+		func(deploymentSpec *opv1a1.StrategyDeploymentSpec) bool {
+			return deploymentSpec.Name == PrometheusOperatorDeploymentName
+		},
+	)
+	if deploymentSpec == nil {
+		return fmt.Errorf("unable to find prometheus operator deployment spec")
+	}
+	currentDeploymentSpec := deploymentSpec.DeepCopy()
+	deploymentSpec.Spec.Replicas = ptr.To(int32(1))
+	if !reflect.DeepEqual(currentDeploymentSpec, deploymentSpec) {
+		if err := r.Client.Update(r.ctx, csv); err != nil {
+			r.Log.Error(err, "Failed to update Prometheus csv")
+			return err
+		}
+	}
 	return nil
 }

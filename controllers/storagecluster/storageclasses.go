@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -27,14 +26,15 @@ const (
 	storageClassSkippedError      = "some StorageClasses were skipped while waiting for pre-requisites to be met"
 	defaultStorageClassAnnotation = "storageclass.kubernetes.io/is-default-class"
 
-	//csi driver name prefix
-	csiDriverNamePrefix = "openshift-storage"
+	//storage class driver name prefix
+	storageclassDriverNamePrefix = "openshift-storage"
 )
 
 var (
-	rbdDriverName    = csiDriverNamePrefix + ".rbd.csi.ceph.com"
-	cephFSDriverName = csiDriverNamePrefix + ".cephfs.csi.ceph.com"
-	nfsDriverName    = csiDriverNamePrefix + ".nfs.csi.ceph.com"
+	rbdDriverName    = storageclassDriverNamePrefix + ".rbd.csi.ceph.com"
+	cephFSDriverName = storageclassDriverNamePrefix + ".cephfs.csi.ceph.com"
+	nfsDriverName    = storageclassDriverNamePrefix + ".nfs.csi.ceph.com"
+	obcDriverName    = storageclassDriverNamePrefix + ".ceph.rook.io/bucket"
 )
 
 // StorageClassConfiguration provides configuration options for a StorageClass.
@@ -109,7 +109,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		sc := scc.storageClass
 
 		switch {
-		case (strings.Contains(sc.Name, "-ceph-rbd") || strings.Contains(sc.Provisioner, rbdDriverName)) && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-ceph-rbd") || (strings.Contains(sc.Provisioner, rbdDriverName)) && !strings.Contains(sc.Name, "-ceph-non-resilient-rbd")) && !scc.isClusterExternal:
 			// wait for CephBlockPool to be ready
 			cephBlockPool := cephv1.CephBlockPool{}
 			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: namespace}
@@ -339,7 +339,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: generateNameForNonResilientCephBlockPoolSC(initData),
+				Name: util.GenerateNameForNonResilientCephBlockPoolSC(initData),
 				Annotations: map[string]string{
 					"description": "Ceph Non Resilient Pools : Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 				},
@@ -351,7 +351,6 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID":                 initData.Namespace,
-				"pool":                      generateNameForCephBlockPool(initData),
 				"topologyConstrainedPools":  getTopologyConstrainedPools(initData),
 				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 				"csi.storage.k8s.io/fstype": "ext4",
@@ -426,7 +425,7 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 					"description": "Provides Object Bucket Claims (OBCs)",
 				},
 			},
-			Provisioner:   fmt.Sprintf("%s.ceph.rook.io/bucket", os.Getenv(util.OperatorNamespaceEnvVar)),
+			Provisioner:   obcDriverName,
 			ReclaimPolicy: &reclaimPolicy,
 			Parameters: map[string]string{
 				"objectStoreNamespace": initData.Namespace,
@@ -527,4 +526,45 @@ func getTopologyConstrainedPools(initData *ocsv1.StorageCluster) string {
 		return ""
 	}
 	return string(topologyConstrainedPoolsStr)
+}
+
+// getTopologyConstrainedPoolsExternalMode constructs the topologyConstrainedPools string for external mode from the data map
+func getTopologyConstrainedPoolsExternalMode(data map[string]string) (string, error) {
+	type topologySegment struct {
+		DomainLabel string `json:"domainLabel"`
+		DomainValue string `json:"value"`
+	}
+	// TopologyConstrainedPool stores the pool name and a list of its associated topology domain values.
+	type topologyConstrainedPool struct {
+		PoolName       string            `json:"poolName"`
+		DomainSegments []topologySegment `json:"domainSegments"`
+	}
+	var topologyConstrainedPools []topologyConstrainedPool
+
+	domainLabel := data["topologyFailureDomainLabel"]
+	domainValues := strings.Split(data["topologyFailureDomainValues"], ",")
+	poolNames := strings.Split(data["topologyPools"], ",")
+
+	// Check if the number of pool names and domain values are equal
+	if len(poolNames) != len(domainValues) {
+		return "", fmt.Errorf("number of pool names and domain values are not equal")
+	}
+
+	for i, poolName := range poolNames {
+		topologyConstrainedPools = append(topologyConstrainedPools, topologyConstrainedPool{
+			PoolName: poolName,
+			DomainSegments: []topologySegment{
+				{
+					DomainLabel: domainLabel,
+					DomainValue: domainValues[i],
+				},
+			},
+		})
+	}
+	// returning as string as parameters are of type map[string]string
+	topologyConstrainedPoolsStr, err := json.MarshalIndent(topologyConstrainedPools, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(topologyConstrainedPoolsStr), nil
 }

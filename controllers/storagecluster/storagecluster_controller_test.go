@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/blang/semver/v4"
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
@@ -17,6 +17,7 @@ import (
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -130,7 +131,7 @@ var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
 	},
 	Spec: corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-		Resources: corev1.ResourceRequirements{
+		Resources: corev1.VolumeResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceStorage: resource.MustParse("1Ti"),
 			},
@@ -143,7 +144,7 @@ var mockDataPVCTemplate = corev1.PersistentVolumeClaim{
 var mockMetaDataPVCTemplate = &corev1.PersistentVolumeClaim{
 	Spec: corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-		Resources: corev1.ResourceRequirements{
+		Resources: corev1.VolumeResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceStorage: resource.MustParse("1Ti"),
 			},
@@ -156,7 +157,7 @@ var mockMetaDataPVCTemplate = &corev1.PersistentVolumeClaim{
 var mockWalPVCTemplate = &corev1.PersistentVolumeClaim{
 	Spec: corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-		Resources: corev1.ResourceRequirements{
+		Resources: corev1.VolumeResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceStorage: resource.MustParse("1Ti"),
 			},
@@ -1211,6 +1212,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = ocsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add ocsv1alpha1 scheme")
+	}
+
+	err = ocsclientv1a1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add ocsclientv1a1 scheme")
 	}
 
 	return scheme

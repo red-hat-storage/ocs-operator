@@ -2,6 +2,7 @@ package util
 
 import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func RemoveDuplicatesFromStringSlice(slice []string) []string {
@@ -42,4 +43,41 @@ func GetKeyRotationSpec(sc *ocsv1.StorageCluster) (bool, string) {
 		return false, schedule
 	}
 	return *sc.Spec.Encryption.KeyRotation.Enable, schedule
+}
+
+// Find returns the first entry matching the function "f" or else return nil
+func Find[T any](list []T, f func(item *T) bool) *T {
+	for idx := range list {
+		ele := &list[idx]
+		if f(ele) {
+			return ele
+		}
+	}
+	return nil
+}
+
+func AddAnnotation(obj metav1.Object, key string, value string) bool {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+		obj.SetAnnotations(annotations)
+	}
+	if oldValue, exist := annotations[key]; !exist || oldValue != value {
+		annotations[key] = value
+		return true
+	}
+	return false
+}
+
+func AddLabel(obj metav1.Object, key string, value string) bool {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+		obj.SetLabels(labels)
+	}
+	if oldValue, exist := labels[key]; !exist || oldValue != value {
+		labels[key] = value
+		return true
+	}
+	return false
 }

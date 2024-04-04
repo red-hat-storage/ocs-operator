@@ -25,6 +25,21 @@ func (r *ReportStatusRequest) SetOperatorVersion(version string) ifaces.StorageC
 	return r
 }
 
+func (r *ReportStatusRequest) SetClusterID(clusterID string) ifaces.StorageClientStatus {
+	r.ClusterID = clusterID
+	return r
+}
+
+func (r *ReportStatusRequest) SetNamespacedName(namespacedName string) ifaces.StorageClientStatus {
+	r.NamespacedName = namespacedName
+	return r
+}
+
+func (r *ReportStatusRequest) SetClusterName(clusterName string) ifaces.StorageClientStatus {
+	r.ClusterName = clusterName
+	return r
+}
+
 // ensure OnboardConsumerRequest satisfies StorageClientOnboarding interface
 var _ ifaces.StorageClientOnboarding = &OnboardConsumerRequest{}
 

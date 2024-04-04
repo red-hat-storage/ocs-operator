@@ -15,6 +15,7 @@ rules:
   - ceph.rook.io
   resources:
   - cephfilesystemsubvolumegroups
+  - cephblockpoolradosnamespaces
   verbs:
   - get
   - list
@@ -53,3 +54,10 @@ rules:
   - list
   - create
   - delete
+- apiGroups:
+  - operators.coreos.com
+  resources:
+  - subscriptions
+  verbs:
+  - get
+  - list
