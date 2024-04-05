@@ -45,7 +45,8 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
               drop:
-                - all
+              - all
+          readOnlyRootFilesystem: true
       terminationGracePeriodSeconds: 10
       securityContext:
         runAsNonRoot: true
