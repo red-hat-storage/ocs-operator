@@ -689,6 +689,9 @@ spec:
                 ports:
                 - containerPort: 8080
                 resources: {}
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
                 volumeMounts:
                 - mountPath: /etc/private-key
                   name: onboarding-private-key
