@@ -203,7 +203,9 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		}
 
 		if len(initData.Spec.ManagedResources.CephObjectStores.VirtualHostnames) > 0 {
-			obj.Spec.Hosting.DNSNames = initData.Spec.ManagedResources.CephObjectStores.VirtualHostnames
+			obj.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+				DNSNames: initData.Spec.ManagedResources.CephObjectStores.VirtualHostnames,
+			}
 			route := &routev1.Route{}
 			err := r.Client.Get(context.TODO(), types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}, route)
 			if err != nil {
