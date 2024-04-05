@@ -650,6 +650,10 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 								ContainerPort: 8080,
 							},
 						},
+						SecurityContext: &corev1.SecurityContext{
+							AllowPrivilegeEscalation: ptr.To(false),
+							ReadOnlyRootFilesystem:   ptr.To(true),
+						},
 						Env: []corev1.EnvVar{
 							{
 								Name:  "ONBOARDING_TOKEN_LIFETIME",
