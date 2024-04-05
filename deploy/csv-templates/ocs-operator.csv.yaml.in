@@ -569,6 +569,7 @@ spec:
                   capabilities:
                     drop:
                     - all
+                  readOnlyRootFilesystem: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: ocs-operator
