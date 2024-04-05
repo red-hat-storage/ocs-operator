@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -337,7 +338,8 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							{ContainerPort: 8081},
 						},
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot: truePtr,
+							RunAsNonRoot:           truePtr,
+							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "ceph-config",
