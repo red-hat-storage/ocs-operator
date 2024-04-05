@@ -638,6 +638,7 @@ spec:
                   capabilities:
                     drop:
                     - all
+                  readOnlyRootFilesystem: true
                 volumeMounts:
                 - mountPath: /etc/private-key
                   name: onboarding-private-key
