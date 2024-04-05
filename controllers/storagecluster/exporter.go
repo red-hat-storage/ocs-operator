@@ -333,7 +333,8 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							{ContainerPort: 8081},
 						},
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot: ptr.To(true),
+							RunAsNonRoot:           ptr.To(true),
+							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "ceph-config",
