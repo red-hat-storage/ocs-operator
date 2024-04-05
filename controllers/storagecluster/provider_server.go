@@ -360,6 +360,10 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 									ContainerPort: ocsProviderServicePort,
 								},
 							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsNonRoot:           ptr.To(true),
+								ReadOnlyRootFilesystem: ptr.To(true),
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "cert-secret",
