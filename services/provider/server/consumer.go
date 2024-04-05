@@ -216,7 +216,7 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.Client.PlatformVersion = status.GetPlatformVersion()
 	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
 	consumerObj.Status.Client.ClusterID = status.GetClusterID()
-	consumerObj.Status.Client.NamespacedName = status.GetNamespacedName()
+	consumerObj.Status.Client.Name = status.GetClientName()
 	consumerObj.Status.Client.ClusterName = status.GetClusterName()
 
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
