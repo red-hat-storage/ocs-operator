@@ -129,7 +129,7 @@ const (
 func (cc *OCSProviderClient) FulfillStorageClaim(
 	ctx context.Context,
 	consumerUUID string,
-	storageClassClaimName string,
+	storageClaimName string,
 	storageType StorageType,
 	storageProfile string,
 	encryptionMethod string,
@@ -146,7 +146,7 @@ func (cc *OCSProviderClient) FulfillStorageClaim(
 
 	req := &pb.FulfillStorageClaimRequest{
 		StorageConsumerUUID: consumerUUID,
-		StorageClaimName:    storageClassClaimName,
+		StorageClaimName:    storageClaimName,
 		EncryptionMethod:    encryptionMethod,
 		StorageType:         st,
 		StorageProfile:      storageProfile,
@@ -158,14 +158,14 @@ func (cc *OCSProviderClient) FulfillStorageClaim(
 	return cc.Client.FulfillStorageClaim(apiCtx, req)
 }
 
-func (cc *OCSProviderClient) RevokeStorageClaim(ctx context.Context, consumerUUID, storageClassClaimName string) (*pb.RevokeStorageClaimResponse, error) {
+func (cc *OCSProviderClient) RevokeStorageClaim(ctx context.Context, consumerUUID, storageClaimName string) (*pb.RevokeStorageClaimResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
 
 	req := &pb.RevokeStorageClaimRequest{
 		StorageConsumerUUID: consumerUUID,
-		StorageClaimName:    storageClassClaimName,
+		StorageClaimName:    storageClaimName,
 	}
 
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
@@ -174,14 +174,14 @@ func (cc *OCSProviderClient) RevokeStorageClaim(ctx context.Context, consumerUUI
 	return cc.Client.RevokeStorageClaim(apiCtx, req)
 }
 
-func (cc *OCSProviderClient) GetStorageClaimConfig(ctx context.Context, consumerUUID, storageClassClaimName string) (*pb.StorageClaimConfigResponse, error) {
+func (cc *OCSProviderClient) GetStorageClaimConfig(ctx context.Context, consumerUUID, storageClaimName string) (*pb.StorageClaimConfigResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
 		return nil, fmt.Errorf("provider client is closed")
 	}
 
 	req := &pb.StorageClaimConfigRequest{
 		StorageConsumerUUID: consumerUUID,
-		StorageClaimName:    storageClassClaimName,
+		StorageClaimName:    storageClaimName,
 	}
 
 	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
