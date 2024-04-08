@@ -473,7 +473,7 @@ func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
 	return nil
 }
 
-// FulfillStorageClaim RPC call to create the StorageclassClaim CR on
+// FulfillStorageClaim RPC call to create the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
 	// Get storage consumer resource using UUID
@@ -507,7 +507,7 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 	return &pb.FulfillStorageClaimResponse{}, nil
 }
 
-// RevokeStorageClaim RPC call to delete the StorageclassClaim CR on
+// RevokeStorageClaim RPC call to delete the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
 	err := s.storageClassRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClaimName)
@@ -520,7 +520,7 @@ func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.Revo
 	return &pb.RevokeStorageClaimResponse{}, nil
 }
 
-// GetStorageClaim RPC call to get the ceph resources for the StorageclassClaim.
+// GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
 	storageClassRequest, err := s.storageClassRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
