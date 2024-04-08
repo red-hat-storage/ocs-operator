@@ -27,15 +27,15 @@ type OCSProviderClient interface {
 	OffboardConsumer(ctx context.Context, in *OffboardConsumerRequest, opts ...grpc.CallOption) (*OffboardConsumerResponse, error)
 	// AcknowledgeOnboarding RPC call acknowledge the onboarding
 	AcknowledgeOnboarding(ctx context.Context, in *AcknowledgeOnboardingRequest, opts ...grpc.CallOption) (*AcknowledgeOnboardingResponse, error)
-	// FulfillStorageClassClaim RPC call to create the StorageclassClaim CR on
+	// FulfillStorageClaim RPC call to create the StorageClaim CR on
 	// provider cluster.
-	FulfillStorageClassClaim(ctx context.Context, in *FulfillStorageClassClaimRequest, opts ...grpc.CallOption) (*FulfillStorageClassClaimResponse, error)
-	// RevokeStorageClassClaim RPC call to delete the StorageclassClaim CR
+	FulfillStorageClaim(ctx context.Context, in *FulfillStorageClaimRequest, opts ...grpc.CallOption) (*FulfillStorageClaimResponse, error)
+	// RevokeStorageClaim RPC call to delete the StorageClaim CR
 	// on provider cluster.
-	RevokeStorageClassClaim(ctx context.Context, in *RevokeStorageClassClaimRequest, opts ...grpc.CallOption) (*RevokeStorageClassClaimResponse, error)
-	// GetStorageClassClaimConfig RPC call to generate the json config for claim
+	RevokeStorageClaim(ctx context.Context, in *RevokeStorageClaimRequest, opts ...grpc.CallOption) (*RevokeStorageClaimResponse, error)
+	// GetStorageClaimConfig RPC call to generate the json config for claim
 	// specific resources.
-	GetStorageClassClaimConfig(ctx context.Context, in *StorageClassClaimConfigRequest, opts ...grpc.CallOption) (*StorageClassClaimConfigResponse, error)
+	GetStorageClaimConfig(ctx context.Context, in *StorageClaimConfigRequest, opts ...grpc.CallOption) (*StorageClaimConfigResponse, error)
 	ReportStatus(ctx context.Context, in *ReportStatusRequest, opts ...grpc.CallOption) (*ReportStatusResponse, error)
 }
 
@@ -83,27 +83,27 @@ func (c *oCSProviderClient) AcknowledgeOnboarding(ctx context.Context, in *Ackno
 	return out, nil
 }
 
-func (c *oCSProviderClient) FulfillStorageClassClaim(ctx context.Context, in *FulfillStorageClassClaimRequest, opts ...grpc.CallOption) (*FulfillStorageClassClaimResponse, error) {
-	out := new(FulfillStorageClassClaimResponse)
-	err := c.cc.Invoke(ctx, "/provider.OCSProvider/FulfillStorageClassClaim", in, out, opts...)
+func (c *oCSProviderClient) FulfillStorageClaim(ctx context.Context, in *FulfillStorageClaimRequest, opts ...grpc.CallOption) (*FulfillStorageClaimResponse, error) {
+	out := new(FulfillStorageClaimResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/FulfillStorageClaim", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *oCSProviderClient) RevokeStorageClassClaim(ctx context.Context, in *RevokeStorageClassClaimRequest, opts ...grpc.CallOption) (*RevokeStorageClassClaimResponse, error) {
-	out := new(RevokeStorageClassClaimResponse)
-	err := c.cc.Invoke(ctx, "/provider.OCSProvider/RevokeStorageClassClaim", in, out, opts...)
+func (c *oCSProviderClient) RevokeStorageClaim(ctx context.Context, in *RevokeStorageClaimRequest, opts ...grpc.CallOption) (*RevokeStorageClaimResponse, error) {
+	out := new(RevokeStorageClaimResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/RevokeStorageClaim", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *oCSProviderClient) GetStorageClassClaimConfig(ctx context.Context, in *StorageClassClaimConfigRequest, opts ...grpc.CallOption) (*StorageClassClaimConfigResponse, error) {
-	out := new(StorageClassClaimConfigResponse)
-	err := c.cc.Invoke(ctx, "/provider.OCSProvider/GetStorageClassClaimConfig", in, out, opts...)
+func (c *oCSProviderClient) GetStorageClaimConfig(ctx context.Context, in *StorageClaimConfigRequest, opts ...grpc.CallOption) (*StorageClaimConfigResponse, error) {
+	out := new(StorageClaimConfigResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/GetStorageClaimConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,15 +132,15 @@ type OCSProviderServer interface {
 	OffboardConsumer(context.Context, *OffboardConsumerRequest) (*OffboardConsumerResponse, error)
 	// AcknowledgeOnboarding RPC call acknowledge the onboarding
 	AcknowledgeOnboarding(context.Context, *AcknowledgeOnboardingRequest) (*AcknowledgeOnboardingResponse, error)
-	// FulfillStorageClassClaim RPC call to create the StorageclassClaim CR on
+	// FulfillStorageClaim RPC call to create the StorageClaim CR on
 	// provider cluster.
-	FulfillStorageClassClaim(context.Context, *FulfillStorageClassClaimRequest) (*FulfillStorageClassClaimResponse, error)
-	// RevokeStorageClassClaim RPC call to delete the StorageclassClaim CR
+	FulfillStorageClaim(context.Context, *FulfillStorageClaimRequest) (*FulfillStorageClaimResponse, error)
+	// RevokeStorageClaim RPC call to delete the StorageClaim CR
 	// on provider cluster.
-	RevokeStorageClassClaim(context.Context, *RevokeStorageClassClaimRequest) (*RevokeStorageClassClaimResponse, error)
-	// GetStorageClassClaimConfig RPC call to generate the json config for claim
+	RevokeStorageClaim(context.Context, *RevokeStorageClaimRequest) (*RevokeStorageClaimResponse, error)
+	// GetStorageClaimConfig RPC call to generate the json config for claim
 	// specific resources.
-	GetStorageClassClaimConfig(context.Context, *StorageClassClaimConfigRequest) (*StorageClassClaimConfigResponse, error)
+	GetStorageClaimConfig(context.Context, *StorageClaimConfigRequest) (*StorageClaimConfigResponse, error)
 	ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
@@ -161,14 +161,14 @@ func (UnimplementedOCSProviderServer) OffboardConsumer(context.Context, *Offboar
 func (UnimplementedOCSProviderServer) AcknowledgeOnboarding(context.Context, *AcknowledgeOnboardingRequest) (*AcknowledgeOnboardingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AcknowledgeOnboarding not implemented")
 }
-func (UnimplementedOCSProviderServer) FulfillStorageClassClaim(context.Context, *FulfillStorageClassClaimRequest) (*FulfillStorageClassClaimResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method FulfillStorageClassClaim not implemented")
+func (UnimplementedOCSProviderServer) FulfillStorageClaim(context.Context, *FulfillStorageClaimRequest) (*FulfillStorageClaimResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FulfillStorageClaim not implemented")
 }
-func (UnimplementedOCSProviderServer) RevokeStorageClassClaim(context.Context, *RevokeStorageClassClaimRequest) (*RevokeStorageClassClaimResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RevokeStorageClassClaim not implemented")
+func (UnimplementedOCSProviderServer) RevokeStorageClaim(context.Context, *RevokeStorageClaimRequest) (*RevokeStorageClaimResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeStorageClaim not implemented")
 }
-func (UnimplementedOCSProviderServer) GetStorageClassClaimConfig(context.Context, *StorageClassClaimConfigRequest) (*StorageClassClaimConfigResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetStorageClassClaimConfig not implemented")
+func (UnimplementedOCSProviderServer) GetStorageClaimConfig(context.Context, *StorageClaimConfigRequest) (*StorageClaimConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStorageClaimConfig not implemented")
 }
 func (UnimplementedOCSProviderServer) ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReportStatus not implemented")
@@ -258,56 +258,56 @@ func _OCSProvider_AcknowledgeOnboarding_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _OCSProvider_FulfillStorageClassClaim_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FulfillStorageClassClaimRequest)
+func _OCSProvider_FulfillStorageClaim_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FulfillStorageClaimRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(OCSProviderServer).FulfillStorageClassClaim(ctx, in)
+		return srv.(OCSProviderServer).FulfillStorageClaim(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/provider.OCSProvider/FulfillStorageClassClaim",
+		FullMethod: "/provider.OCSProvider/FulfillStorageClaim",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OCSProviderServer).FulfillStorageClassClaim(ctx, req.(*FulfillStorageClassClaimRequest))
+		return srv.(OCSProviderServer).FulfillStorageClaim(ctx, req.(*FulfillStorageClaimRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _OCSProvider_RevokeStorageClassClaim_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RevokeStorageClassClaimRequest)
+func _OCSProvider_RevokeStorageClaim_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeStorageClaimRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(OCSProviderServer).RevokeStorageClassClaim(ctx, in)
+		return srv.(OCSProviderServer).RevokeStorageClaim(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/provider.OCSProvider/RevokeStorageClassClaim",
+		FullMethod: "/provider.OCSProvider/RevokeStorageClaim",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OCSProviderServer).RevokeStorageClassClaim(ctx, req.(*RevokeStorageClassClaimRequest))
+		return srv.(OCSProviderServer).RevokeStorageClaim(ctx, req.(*RevokeStorageClaimRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _OCSProvider_GetStorageClassClaimConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StorageClassClaimConfigRequest)
+func _OCSProvider_GetStorageClaimConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorageClaimConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(OCSProviderServer).GetStorageClassClaimConfig(ctx, in)
+		return srv.(OCSProviderServer).GetStorageClaimConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/provider.OCSProvider/GetStorageClassClaimConfig",
+		FullMethod: "/provider.OCSProvider/GetStorageClaimConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OCSProviderServer).GetStorageClassClaimConfig(ctx, req.(*StorageClassClaimConfigRequest))
+		return srv.(OCSProviderServer).GetStorageClaimConfig(ctx, req.(*StorageClaimConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -354,16 +354,16 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _OCSProvider_AcknowledgeOnboarding_Handler,
 		},
 		{
-			MethodName: "FulfillStorageClassClaim",
-			Handler:    _OCSProvider_FulfillStorageClassClaim_Handler,
+			MethodName: "FulfillStorageClaim",
+			Handler:    _OCSProvider_FulfillStorageClaim_Handler,
 		},
 		{
-			MethodName: "RevokeStorageClassClaim",
-			Handler:    _OCSProvider_RevokeStorageClassClaim_Handler,
+			MethodName: "RevokeStorageClaim",
+			Handler:    _OCSProvider_RevokeStorageClaim_Handler,
 		},
 		{
-			MethodName: "GetStorageClassClaimConfig",
-			Handler:    _OCSProvider_GetStorageClassClaimConfig_Handler,
+			MethodName: "GetStorageClaimConfig",
+			Handler:    _OCSProvider_GetStorageClaimConfig_Handler,
 		},
 		{
 			MethodName: "ReportStatus",
