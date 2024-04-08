@@ -23,18 +23,18 @@ service OCSProvider {
   rpc AcknowledgeOnboarding(AcknowledgeOnboardingRequest)
   returns (AcknowledgeOnboardingResponse){}
 
-  // FulfillStorageClassClaim RPC call to create the StorageclassClaim CR on
+  // FulfillStorageClaim RPC call to create the StorageClaim CR on
   // provider cluster.
-  rpc FulfillStorageClassClaim(FulfillStorageClassClaimRequest)
-  returns (FulfillStorageClassClaimResponse){}
-  // RevokeStorageClassClaim RPC call to delete the StorageclassClaim CR
+  rpc FulfillStorageClaim(FulfillStorageClaimRequest)
+  returns (FulfillStorageClaimResponse){}
+  // RevokeStorageClaim RPC call to delete the StorageClaim CR
   // on provider cluster.
-  rpc RevokeStorageClassClaim(RevokeStorageClassClaimRequest)
-  returns (RevokeStorageClassClaimResponse){}
-  // GetStorageClassClaimConfig RPC call to generate the json config for claim
+  rpc RevokeStorageClaim(RevokeStorageClaimRequest)
+  returns (RevokeStorageClaimResponse){}
+  // GetStorageClaimConfig RPC call to generate the json config for claim
   // specific resources.
-  rpc GetStorageClassClaimConfig(StorageClassClaimConfigRequest)
-  returns (StorageClassClaimConfigResponse){}
+  rpc GetStorageClaimConfig(StorageClaimConfigRequest)
+  returns (StorageClaimConfigResponse){}
 
   rpc ReportStatus(ReportStatusRequest)
   returns (ReportStatusResponse){}
@@ -104,53 +104,53 @@ message AcknowledgeOnboardingResponse{
 
 }
 
-// FulfillStorageClassClaimRequest holds the information required to
-// create the StorageclassClaim CR on provider cluster.
-message FulfillStorageClassClaimRequest{
-    // name of the storageclassclaim on the consumer cluster.
-    string storageClassClaimName = 1;
+// FulfillStorageClaimRequest holds the information required to
+// create the StorageClaim CR on provider cluster.
+message FulfillStorageClaimRequest{
+    // name of the storageClaim on the consumer cluster.
+    string storageClaimName = 1;
     // K8s UID (UUID) of the consumer cluster.
     string storageConsumerUUID = 2;
-    // encryption method of the storageclassclaim.
+    // encryption method of the storageClaim.
     string encryptionMethod = 3;
-    // StorageType of the storageclassClaim
+    // StorageType of the storageClaim
     enum StorageType {
-      SHAREDFILESYSTEM = 0;
-      BLOCKPOOL = 1;
+      SHAREDFILE = 0;
+      BLOCK = 1;
     }
     StorageType storageType = 4;
-    // storageProfile of the storageclassclaim.
+    // storageProfile of the storageClaim.
     string storageProfile = 5;
 }
 
-// FulfillStorageClassClaimResponse holds the response for the FulfillStorageClassClaim API request.
-message FulfillStorageClassClaimResponse{
+// FulfillStorageClaimResponse holds the response for the FulfillStorageClaim API request.
+message FulfillStorageClaimResponse{
 }
 
-// RevokeStorageClassClaimRequest holds the information required to delete the
-// StorageclassClaim CR on provider cluster.
-message RevokeStorageClassClaimRequest{
-    // name of the storageclassclaim on the consumer cluster.
-    string storageClassClaimName = 1;
+// RevokeStorageClaimRequest holds the information required to delete the
+// StorageClaim CR on provider cluster.
+message RevokeStorageClaimRequest{
+    // name of the storageClaim on the consumer cluster.
+    string storageClaimName = 1;
     // K8s UID (UUID) of the consumer cluster.
     string storageConsumerUUID = 2;
 }
 
-// RevokeStorageClassClaimResponse holds the response for the RevokeStorageClassClaim API request.
-message RevokeStorageClassClaimResponse{
+// RevokeStorageClaimResponse holds the response for the RevokeStorageClaim API request.
+message RevokeStorageClaimResponse{
 }
 
-// StorageClassClaimConfigRequest holds the information required to generate the
-// json config for StorageClassClaim specific resources.
-message StorageClassClaimConfigRequest{
-    // name of the storageclassclaim on the consumer cluster.
-    string storageClassClaimName = 1;
+// StorageClaimConfigRequest holds the information required to generate the
+// json config for StorageClaim specific resources.
+message StorageClaimConfigRequest{
+    // name of the storageClaim on the consumer cluster.
+    string storageClaimName = 1;
     // K8s UID (UUID) of the consumer cluster.
     string storageConsumerUUID = 2;
 }
 
-// StorageClassClaimConfigResponse holds the response for the StorageClassClaimConfig API request.
-message StorageClassClaimConfigResponse{
+// StorageClaimConfigResponse holds the response for the StorageClaimConfig API request.
+message StorageClaimConfigResponse{
     // ExternalResource holds the configuration data of external storage cluster
     repeated ExternalResource externalResource = 1;
 }
