@@ -91,7 +91,7 @@ UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_
 CSI_ADDONS_CATALOG_FULL_IMAGE_NAME="quay.io/ocs-dev/csi-addons-catalog:v0.7.0"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-a79f241"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20231217"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-9e5499216"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-f8e5f814c"
 
 OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-false}"

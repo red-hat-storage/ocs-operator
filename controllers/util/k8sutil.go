@@ -37,7 +37,7 @@ const (
 	EnableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
 	TopologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
 	EnableNFSKey                = "ROOK_CSI_ENABLE_NFS"
-	CsiRemoveHolderPodsKey      = "CSI_REMOVE_HOLDER_PODS"
+	CsiDisableHolderPodsKey     = "CSI_DISABLE_HOLDER_PODS"
 	DisableCSIDriverKey         = "ROOK_CSI_DISABLE_DRIVER"
 
 	// This is the name for the OwnerUID FieldIndex
