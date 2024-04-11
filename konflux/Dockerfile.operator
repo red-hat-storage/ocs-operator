@@ -19,7 +19,7 @@ RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/
 
 # Build stage 2
 
-FROM registry.redhat.io/ubi9/ubi-minimal:9.2
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 
 # Update the image to get the latest CVE updates
 RUN microdnf update -y && \
