@@ -25,6 +25,7 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 RUN microdnf update -y && \
     microdnf clean all
 
+ENV REMOTE_SOURCE_DIR=/src
 ENV OPBIN=/usr/local/bin/ocs-operator
 ENV PRBIN=/usr/local/bin/provider-api
 ENV PROMRULES=/ocs-prometheus-rules/
