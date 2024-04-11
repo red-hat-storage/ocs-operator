@@ -1,8 +1,6 @@
 # Build stage 1
 
-FROM registry.access.redhat.com/ubi9/go-toolset:1.20 as builder
-
-USER 0
+FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.21 as builder
 
 ENV GOFLAGS=''
 ENV GOMODCACHE=$GOCACHE/pkg/mod
