@@ -1,13 +1,13 @@
 # Build stage 1
 
-FROM registry-proxy.engineering.redhat.com/rh-osbs/openshift-golang-builder:rhel_9_golang_1.21 as builder
+FROM registry.access.redhat.com/ubi9/go-toolset:1.20 as builder
 
 ENV GOFLAGS=''
 ENV GOMODCACHE=$GOCACHE/pkg/mod
 
-COPY $REMOTE_SOURCE $REMOTE_SOURCE_DIR
+COPY . /src
 
-WORKDIR $REMOTE_SOURCE_DIR/app/metrics
+WORKDIR /src
 
 RUN go version | tee /go.version
 RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o ../bin/metrics-exporter ${REMOTE_SOURCE_DIR}/app/metrics/main.go

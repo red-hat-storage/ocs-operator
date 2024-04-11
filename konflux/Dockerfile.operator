@@ -1,19 +1,20 @@
 # Build stage 1
 
-FROM registry-proxy.engineering.redhat.com/rh-osbs/openshift-golang-builder:rhel_9_golang_1.21 as builder
+FROM registry.access.redhat.com/ubi9/go-toolset:1.20 as builder
 
 ENV GOFLAGS=''
 ENV GOMODCACHE=$GOCACHE/pkg/mod
+ENV REMOTE_SOURCE_DIR=/src
 
-COPY $REMOTE_SOURCE $REMOTE_SOURCE_DIR
+COPY . $REMOTE_SOURCE_DIR
 
-WORKDIR $REMOTE_SOURCE_DIR/app
+WORKDIR $REMOTE_SOURCE_DIR
 
 RUN go version | tee /go.version
-RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o bin/ocs-operator ${REMOTE_SOURCE_DIR}/app/main.go
-RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o bin/provider-api ${REMOTE_SOURCE_DIR}/app/services/provider/main.go
-RUN GOOS=linux go build -a -o bin/onboarding-validation-keys-gen ${REMOTE_SOURCE_DIR}/app/onboarding-validation-keys-generator/main.go
-RUN GOOS=linux go build -a -o bin/ux-backend-server ${REMOTE_SOURCE_DIR}/app/services/ux-backend/main.go
+RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o bin/ocs-operator ${REMOTE_SOURCE_DIR}/main.go
+RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o bin/provider-api ${REMOTE_SOURCE_DIR}/services/provider/main.go
+RUN GOOS=linux go build -a -o bin/onboarding-validation-keys-gen ${REMOTE_SOURCE_DIR}/onboarding-validation-keys-generator/main.go
+RUN GOOS=linux go build -a -o bin/ux-backend-server ${REMOTE_SOURCE_DIR}/services/ux-backend/main.go
 
 # Build stage 2
 
@@ -29,11 +30,11 @@ ENV PROMRULES=/ocs-prometheus-rules/
 ENV UXBIN=/usr/local/bin/ux-backend-server
 ENV SECGEN=/usr/local/bin/onboarding-validation-keys-gen
 
-COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/ocs-operator "$OPBIN"
-COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/provider-api "$PRBIN"
-COPY --from=builder $REMOTE_SOURCE_DIR/app/metrics/deploy/*rules*.yaml "$PROMRULES"
-COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/ux-backend-server "$UXBIN"
-COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/onboarding-validation-keys-gen "$SECGEN"
+COPY --from=builder $REMOTE_SOURCE_DIR/bin/ocs-operator "$OPBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/bin/provider-api "$PRBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/metrics/deploy/*rules*.yaml "$PROMRULES"
+COPY --from=builder $REMOTE_SOURCE_DIR/bin/ux-backend-server "$UXBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/bin/onboarding-validation-keys-gen "$SECGEN"
 COPY --from=builder /go.version /go.version
 
 LABEL maintainer="Boris Ranto <branto@redhat.com>"
