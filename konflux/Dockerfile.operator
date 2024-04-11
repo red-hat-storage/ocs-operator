@@ -29,8 +29,6 @@ ENV REMOTE_SOURCE_DIR=/src
 ENV OPBIN=/usr/local/bin/ocs-operator
 ENV PRBIN=/usr/local/bin/provider-api
 ENV PROMRULES=/ocs-prometheus-rules/
-ENV UXBIN=/usr/local/bin/ux-backend-server
-ENV SECGEN=/usr/local/bin/onboarding-validation-keys-gen
 
 COPY --from=builder $REMOTE_SOURCE_DIR/bin/ocs-operator "$OPBIN"
 COPY --from=builder $REMOTE_SOURCE_DIR/bin/provider-api "$PRBIN"
@@ -50,7 +48,7 @@ LABEL odf.tags="v4.15"
 
 RUN echo "OpenShift Container Storage Operator 4.15 (Container)" > /etc/redhat-storage-release
 
-RUN chmod +x "$OPBIN" "$PRBIN" "$UXBIN" "$SECGEN"
+RUN chmod +x "$OPBIN" "$PRBIN"
 
 USER operator
 
