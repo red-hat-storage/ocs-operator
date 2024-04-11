@@ -1,0 +1,57 @@
+# Build stage 1
+
+FROM registry-proxy.engineering.redhat.com/rh-osbs/openshift-golang-builder:rhel_9_golang_1.21 as builder
+
+ENV GOFLAGS=''
+ENV GOMODCACHE=$GOCACHE/pkg/mod
+
+COPY $REMOTE_SOURCE $REMOTE_SOURCE_DIR
+
+WORKDIR $REMOTE_SOURCE_DIR/app
+
+RUN go version | tee /go.version
+RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o bin/ocs-operator ${REMOTE_SOURCE_DIR}/app/main.go
+RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o bin/provider-api ${REMOTE_SOURCE_DIR}/app/services/provider/main.go
+RUN GOOS=linux go build -a -o bin/onboarding-validation-keys-gen ${REMOTE_SOURCE_DIR}/app/onboarding-validation-keys-generator/main.go
+RUN GOOS=linux go build -a -o bin/ux-backend-server ${REMOTE_SOURCE_DIR}/app/services/ux-backend/main.go
+
+# Build stage 2
+
+FROM registry.redhat.io/ubi9/ubi-minimal:9.2
+
+# Update the image to get the latest CVE updates
+RUN microdnf update -y && \
+    microdnf clean all
+
+ENV OPBIN=/usr/local/bin/ocs-operator
+ENV PRBIN=/usr/local/bin/provider-api
+ENV PROMRULES=/ocs-prometheus-rules/
+ENV UXBIN=/usr/local/bin/ux-backend-server
+ENV SECGEN=/usr/local/bin/onboarding-validation-keys-gen
+
+COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/ocs-operator "$OPBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/provider-api "$PRBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/app/metrics/deploy/*rules*.yaml "$PROMRULES"
+COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/ux-backend-server "$UXBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/onboarding-validation-keys-gen "$SECGEN"
+COPY --from=builder /go.version /go.version
+
+LABEL maintainer="Boris Ranto <branto@redhat.com>"
+LABEL com.redhat.component="ocs-operator-container"
+LABEL name="odf4/ocs-rhel9-operator"
+LABEL version="v4.16.0"
+LABEL description="OpenShift Container Storage Operator container"
+LABEL summary="Provides the latest OCS Operator package for OpenShift Data Foundation."
+LABEL io.k8s.display-name="OCS Operator based on RHEL 9"
+LABEL io.k8s.description="OCS Operator container based on Red Hat Enterprise Linux 9 Image"
+LABEL io.openshift.tags="odf"
+LABEL odf.tags="v4.16"
+LABEL upstream-vcs-ref="1e28d79d402082485c027d2c176940c24d3dbcfe"
+
+RUN echo "OpenShift Container Storage Operator 4.16 (Container)" > /etc/redhat-storage-release
+
+RUN chmod +x "$OPBIN" "$PRBIN" "$UXBIN" "$SECGEN"
+
+USER operator
+
+ENTRYPOINT ["/usr/local/bin/ocs-operator"]
