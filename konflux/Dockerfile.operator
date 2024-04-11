@@ -1,0 +1,56 @@
+# Build stage 1
+
+FROM registry.access.redhat.com/ubi9/go-toolset:1.20 as builder
+
+USER 0
+
+ENV GOFLAGS=''
+ENV GOMODCACHE=$GOCACHE/pkg/mod
+ENV REMOTE_SOURCE_DIR=/src
+
+COPY . $REMOTE_SOURCE_DIR
+
+WORKDIR $REMOTE_SOURCE_DIR
+
+RUN go version | tee /go.version
+RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.15.0" -o bin/ocs-operator ${REMOTE_SOURCE_DIR}/main.go
+RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.15.0" -o bin/provider-api ${REMOTE_SOURCE_DIR}/services/provider/main.go
+
+
+# Build stage 2
+
+FROM registry.redhat.io/ubi9/ubi-minimal:9.2
+
+# Update the image to get the latest CVE updates
+RUN microdnf update -y && \
+    microdnf clean all
+
+ENV OPBIN=/usr/local/bin/ocs-operator
+ENV PRBIN=/usr/local/bin/provider-api
+ENV PROMRULES=/ocs-prometheus-rules/
+ENV UXBIN=/usr/local/bin/ux-backend-server
+ENV SECGEN=/usr/local/bin/onboarding-validation-keys-gen
+
+COPY --from=builder $REMOTE_SOURCE_DIR/bin/ocs-operator "$OPBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/bin/provider-api "$PRBIN"
+COPY --from=builder $REMOTE_SOURCE_DIR/metrics/deploy/*rules*.yaml "$PROMRULES"
+COPY --from=builder /go.version /go.version
+
+LABEL maintainer="Boris Ranto <branto@redhat.com>"
+LABEL com.redhat.component="ocs-operator-container"
+LABEL name="odf4/ocs-rhel9-operator"
+LABEL version="v4.15.0"
+LABEL description="OpenShift Container Storage Operator container"
+LABEL summary="Provides the latest OCS Operator package for OpenShift Data Foundation."
+LABEL io.k8s.display-name="OCS Operator based on RHEL 9"
+LABEL io.k8s.description="OCS Operator container based on Red Hat Enterprise Linux 9 Image"
+LABEL io.openshift.tags="odf"
+LABEL odf.tags="v4.15"
+
+RUN echo "OpenShift Container Storage Operator 4.15 (Container)" > /etc/redhat-storage-release
+
+RUN chmod +x "$OPBIN" "$PRBIN" "$UXBIN" "$SECGEN"
+
+USER operator
+
+ENTRYPOINT ["/usr/local/bin/ocs-operator"]

@@ -1,0 +1,47 @@
+# Build stage 1
+
+FROM registry.access.redhat.com/ubi9/go-toolset:1.20 as builder
+
+ENV GOFLAGS=''
+ENV GOMODCACHE=$GOCACHE/pkg/mod
+
+COPY . /src
+
+WORKDIR /src
+
+RUN go version | tee /go.version
+RUN GOOS=linux go build -a -ldflags "-X github.com/red-hat-storage/ocs-operator/v4/version.Version=4.16.0" -o ../bin/metrics-exporter ${REMOTE_SOURCE_DIR}/app/metrics/main.go
+
+# Build stage 2
+
+FROM registry-proxy.engineering.redhat.com/rh-osbs/rhceph:7-239
+
+# Update the image to get the latest CVE updates
+RUN microdnf update --disablerepo 'rhceph-*' -y && \
+    microdnf clean all
+
+ENV MEBIN=/usr/local/bin/metrics-exporter
+
+COPY --from=builder $REMOTE_SOURCE_DIR/app/bin/metrics-exporter "$MEBIN"
+COPY --from=builder /go.version /go.version
+
+
+LABEL maintainer="Boris Ranto <branto@redhat.com>"
+LABEL com.redhat.component="ocs-metrics-exporter-container"
+LABEL name="odf4/ocs-metrics-exporter-rhel9"
+LABEL version="v4.16.0"
+LABEL description="OpenShift Container Storage Metrics Exporter"
+LABEL summary="Provides the latest OCS Metrics Exporter package for OpenShift Data Foundation."
+LABEL io.k8s.display-name="OCS Metrics Exporter based on RHEL 9"
+LABEL io.k8s.description="OCS Metrics Exporter container based on Red Hat Enterprise Linux 9 Image"
+LABEL io.openshift.tags="odf"
+LABEL odf.tags="v4.16"
+LABEL upstream-vcs-ref="1e28d79d402082485c027d2c176940c24d3dbcfe"
+
+RUN echo "OpenShift Container Storage Metrics Exporter 4.16 (Container)" > /etc/redhat-storage-release
+
+RUN chmod +x "$MEBIN"
+
+USER operator
+
+ENTRYPOINT ["/usr/local/bin/metrics-exporter"]
