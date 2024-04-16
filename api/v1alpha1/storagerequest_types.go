@@ -22,42 +22,42 @@ import (
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// StorageClassRequestSpec defines the desired state of StorageClassRequest
-type StorageClassRequestSpec struct {
+// StorageRequestSpec defines the desired state of StorageRequest
+type StorageRequestSpec struct {
 	//+kubebuilder:validation:Enum=blockpool;sharedfilesystem
 	Type             string `json:"type"`
 	EncryptionMethod string `json:"encryptionMethod,omitempty"`
 	StorageProfile   string `json:"storageProfile,omitempty"`
 }
 
-type StorageClassRequestState string
+type StorageRequestState string
 
 const (
-	// StorageClassRequestInitializing represents Initializing state of StorageClassRequest
-	StorageClassRequestInitializing StorageClassRequestState = "Initializing"
-	// StorageClassRequestValidating represents Validating state of StorageClassRequest
-	StorageClassRequestValidating StorageClassRequestState = "Validating"
-	// StorageClassRequestFailed represents Failed state of StorageClassRequest
-	StorageClassRequestFailed StorageClassRequestState = "Failed"
-	// StorageClassRequestCreating represents Configuring state of StorageClassRequest
-	StorageClassRequestCreating StorageClassRequestState = "Creating"
-	// StorageClassRequestConfiguring represents Configuring state of StorageClassRequest
-	StorageClassRequestConfiguring StorageClassRequestState = "Configuring"
-	// StorageClassRequestReady represents Ready state of StorageClassRequest
-	StorageClassRequestReady StorageClassRequestState = "Ready"
-	// StorageClassRequestDeleting represents Deleting state of StorageClassRequest
-	StorageClassRequestDeleting StorageClassRequestState = "Deleting"
+	// StorageRequestInitializing represents Initializing state of StorageRequest
+	StorageRequestInitializing StorageRequestState = "Initializing"
+	// StorageRequestValidating represents Validating state of StorageRequest
+	StorageRequestValidating StorageRequestState = "Validating"
+	// StorageRequestFailed represents Failed state of StorageRequest
+	StorageRequestFailed StorageRequestState = "Failed"
+	// StorageRequestCreating represents Configuring state of StorageRequest
+	StorageRequestCreating StorageRequestState = "Creating"
+	// StorageRequestConfiguring represents Configuring state of StorageRequest
+	StorageRequestConfiguring StorageRequestState = "Configuring"
+	// StorageRequestReady represents Ready state of StorageRequest
+	StorageRequestReady StorageRequestState = "Ready"
+	// StorageRequestDeleting represents Deleting state of StorageRequest
+	StorageRequestDeleting StorageRequestState = "Deleting"
 )
 
 const (
-	StorageClassRequestFinalizer  = "StorageClassRequest.ocs.openshift.io"
-	StorageClassRequestAnnotation = "ocs.openshift.io.storageclassrequest"
-	CephFileSystemDataPoolLabel   = "cephfilesystem.datapool.name"
+	StorageRequestFinalizer     = "StorageRequest.ocs.openshift.io"
+	StorageRequestAnnotation    = "ocs.openshift.io.storagerequest"
+	CephFileSystemDataPoolLabel = "cephfilesystem.datapool.name"
 )
 
-// StorageClassRequestStatus defines the observed state of StorageClassRequest
-type StorageClassRequestStatus struct {
-	Phase StorageClassRequestState `json:"phase,omitempty"`
+// StorageRequestStatus defines the observed state of StorageRequest
+type StorageRequestStatus struct {
+	Phase StorageRequestState `json:"phase,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 }
@@ -67,20 +67,20 @@ type StorageClassRequestStatus struct {
 // +kubebuilder:printcolumn:name="StorageType",type="string",JSONPath=".spec.type"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
 
-// StorageClassRequest is the Schema for the StorageClassRequests API
-type StorageClassRequest struct {
+// StorageRequest is the Schema for the StorageRequests API
+type StorageRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   StorageClassRequestSpec   `json:"spec"`
-	Status StorageClassRequestStatus `json:"status,omitempty"`
+	Spec   StorageRequestSpec   `json:"spec"`
+	Status StorageRequestStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// StorageClassRequestList contains a list of StorageClassRequest
-type StorageClassRequestList struct {
+// StorageRequestList contains a list of StorageRequest
+type StorageRequestList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []StorageClassRequest `json:"items"`
+	Items           []StorageRequest `json:"items"`
 }
