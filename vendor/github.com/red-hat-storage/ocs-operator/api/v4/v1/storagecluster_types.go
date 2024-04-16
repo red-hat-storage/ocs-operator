@@ -115,7 +115,7 @@ type StorageClusterSpec struct {
 	// storageDeviceSets section of the CR.
 	BackingStorageClasses []BackingStorageClass `json:"backingStorageClasses,omitempty"`
 	// DefaultStorageProfile is the default storage profile to use for
-	// the storageclassrequest as StorageProfile is optional.
+	// the storagerequest as StorageProfile is optional.
 	DefaultStorageProfile string `json:"defaultStorageProfile,omitempty"`
 }
 
