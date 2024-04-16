@@ -84,6 +84,10 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 						PoolSpec: cephv1.PoolSpec{
 							DeviceClass:   failureDomainValue,
 							FailureDomain: getFailureDomain(initData),
+							Parameters: map[string]string{
+								"pg_num":  "16",
+								"pgp_num": "16",
+							},
 							Replicated: cephv1.ReplicatedSpec{
 								Size:                   1,
 								RequireSafeReplicaSize: false,
