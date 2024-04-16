@@ -76,8 +76,8 @@ type ClientStatus struct {
 	ClusterID string `json:"clusterId"`
 	// ClusterName is the name of the openshift cluster
 	ClusterName string `json:"clusterName"`
-	// NamespacedName is the name and namespace of the StorageClient
-	NamespacedName string `json:"namespacedName"`
+	// Name is the name of connected storageclient
+	Name string `json:"name"`
 }
 
 //+kubebuilder:object:root=true

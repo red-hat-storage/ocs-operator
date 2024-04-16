@@ -74,8 +74,8 @@ spec:
                   clusterName:
                     description: ClusterName is the name of the openshift cluster
                     type: string
-                  namespacedName:
-                    description: NamespacedName is the name and namespace of the StorageClient
+                  name:
+                    description: Name is the name of connected storageclient
                     type: string
                   operatorVersion:
                     description: StorageClient Operator Version
@@ -86,7 +86,7 @@ spec:
                 required:
                 - clusterId
                 - clusterName
-                - namespacedName
+                - name
                 - operatorVersion
                 - platformVersion
                 type: object
