@@ -5,7 +5,7 @@ resources:
 - bases/ocs.openshift.io_ocsinitializations.yaml
 - bases/ocs.openshift.io_storageclusters.yaml
 - bases/ocs.openshift.io_storageconsumers.yaml
-- bases/ocs.openshift.io_storageclassrequests.yaml
+- bases/ocs.openshift.io_storagerequests.yaml
 - bases/ocs.openshift.io_storageprofiles.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
@@ -15,7 +15,7 @@ resources:
 #- patches/webhook_in_ocsinitializations.yaml
 #- patches/webhook_in_storageclusters.yaml
 #- patches/webhook_in_storageconsumers.yaml
-#- patches/webhook_in_storageclassrequestss.yaml
+#- patches/webhook_in_storagerequests.yaml
 #- patches/webhook_in_storageprofiles.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
@@ -24,7 +24,7 @@ resources:
 #- patches/cainjection_in_ocsinitializations.yaml
 #- patches/cainjection_in_storageclusters.yaml
 #- patches/cainjection_in_storageconsumers.yaml
-#- patches/cainjection_in_storageclassrequests.yaml
+#- patches/cainjection_in_storagerequests.yaml
 #- patches/cainjection_in_storageprofiles.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
