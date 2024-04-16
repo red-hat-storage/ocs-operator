@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storageclassrequest
+package storagerequest
 
 import (
 	"crypto/md5"
@@ -31,9 +31,9 @@ import (
 )
 
 const (
-	namespaceName          = "test-ns"
-	deviceClass            = "ssd"
-	storageClassRequestUID = "storageClassRequestUUID"
+	namespaceName     = "test-ns"
+	deviceClass       = "ssd"
+	storageRequestUID = "storageRequestUUID"
 )
 
 var fakeStorageCluster = &v1.StorageCluster{
@@ -97,16 +97,16 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
-func createFakeReconciler(t *testing.T) StorageClassRequestReconciler {
-	var fakeReconciler StorageClassRequestReconciler
+func createFakeReconciler(t *testing.T) StorageRequestReconciler {
+	var fakeReconciler StorageRequestReconciler
 
 	fakeReconciler.Scheme = createFakeScheme(t)
 	fakeReconciler.log = log.Log.WithName("controller_storagecluster_test")
 	fakeReconciler.OperatorNamespace = namespaceName
-	fakeReconciler.StorageClassRequest = &v1alpha1.StorageClassRequest{
+	fakeReconciler.StorageRequest = &v1alpha1.StorageRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-scr",
-			UID:  storageClassRequestUID,
+			UID:  storageRequestUID,
 		},
 	}
 	fakeReconciler.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
@@ -157,12 +157,12 @@ func TestCephBlockPool(t *testing.T) {
 				},
 				&rookCephv1.CephBlockPoolRadosNamespace{
 					ObjectMeta: metav1.ObjectMeta{
-						// the hash here corresponds to the storageclassrequest name "test-scr"
+						// the hash here corresponds to the storagerequest name "test-scr"
 						Name:      "cephradosnamespace-14e1f808c9ef5a75b375b11fe8011f6e",
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
-								UID: storageClassRequestUID,
+								UID: storageRequestUID,
 							},
 						},
 					},
@@ -221,7 +221,7 @@ func TestCephBlockPool(t *testing.T) {
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
-								UID: storageClassRequestUID,
+								UID: storageRequestUID,
 							},
 						},
 					},
@@ -235,7 +235,7 @@ func TestCephBlockPool(t *testing.T) {
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
-								UID: storageClassRequestUID,
+								UID: storageRequestUID,
 							},
 						},
 					},
@@ -265,7 +265,7 @@ func TestCephBlockPool(t *testing.T) {
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
-								UID: storageClassRequestUID,
+								UID: storageRequestUID,
 							},
 						},
 					},
@@ -283,11 +283,11 @@ func TestCephBlockPool(t *testing.T) {
 		fmt.Println(caseLabel)
 
 		r := createFakeReconciler(t)
-		r.StorageClassRequest.Status.CephResources = c.cephResources
-		r.StorageClassRequest.Spec.Type = "blockpool"
+		r.StorageRequest.Status.CephResources = c.cephResources
+		r.StorageRequest.Spec.Type = "blockpool"
 
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		c.createObjects = append(c.createObjects, r.StorageClassRequest)
+		c.createObjects = append(c.createObjects, r.StorageRequest)
 		fakeClient := newFakeClientBuilder(r.Scheme).WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
 
@@ -313,7 +313,7 @@ func TestCephBlockPool(t *testing.T) {
 		// The generated CephBlockPoolRadosNamespace name is expected
 		// to be deterministic, so hard-coding the name generation in
 		// the test to guard against unintentional changes.
-		md5Sum := md5.Sum([]byte(r.StorageClassRequest.Name))
+		md5Sum := md5.Sum([]byte(r.StorageRequest.Name))
 		expectedRadosNamespaceName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(md5Sum[:16]))
 		for _, cephRes := range c.cephResources {
 			if cephRes.Kind == "CephBlockPoolRadosNamespace" {
@@ -365,7 +365,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
-								UID: storageClassRequestUID,
+								UID: storageRequestUID,
 							},
 						},
 					},
@@ -381,11 +381,11 @@ func TestCephFsSubVolGroup(t *testing.T) {
 		fmt.Println(caseLabel)
 
 		r := createFakeReconciler(t)
-		r.StorageClassRequest.Spec.Type = "sharedfilesystem"
+		r.StorageRequest.Spec.Type = "sharedfilesystem"
 
 		c.createObjects = append(c.createObjects, fakeCephFs)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
-		c.createObjects = append(c.createObjects, r.StorageClassRequest)
+		c.createObjects = append(c.createObjects, r.StorageRequest)
 		fakeClient := newFakeClientBuilder(r.Scheme).
 			WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
@@ -411,9 +411,9 @@ func TestCephFsSubVolGroup(t *testing.T) {
 	fmt.Println(caseLabel)
 
 	r := createFakeReconciler(t)
-	r.StorageClassRequest.Spec.Type = "sharedfilesystem"
+	r.StorageRequest.Spec.Type = "sharedfilesystem"
 	fakeClient := newFakeClientBuilder(r.Scheme).
-		WithRuntimeObjects(fakeStorageConsumer, r.StorageClassRequest)
+		WithRuntimeObjects(fakeStorageConsumer, r.StorageRequest)
 	r.Client = fakeClient.Build()
 
 	_, err = r.reconcilePhases()

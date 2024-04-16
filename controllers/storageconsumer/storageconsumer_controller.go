@@ -64,7 +64,7 @@ type StorageConsumerReconciler struct {
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassrequests,verbs=get;list;
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
