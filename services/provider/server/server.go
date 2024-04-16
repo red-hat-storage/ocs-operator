@@ -43,11 +43,11 @@ import (
 )
 
 const (
-	TicketAnnotation             = "ocs.openshift.io/provider-onboarding-ticket"
-	ProviderCertsMountPoint      = "/mnt/cert"
-	onboardingTicketKeySecret    = "onboarding-ticket-key"
-	storageClassRequestNameLabel = "ocs.openshift.io/storageclassrequest-name"
-	notAvailable                 = "N/A"
+	TicketAnnotation          = "ocs.openshift.io/provider-onboarding-ticket"
+	ProviderCertsMountPoint   = "/mnt/cert"
+	onboardingTicketKeySecret = "onboarding-ticket-key"
+	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
+	notAvailable              = "N/A"
 )
 
 const (
@@ -57,10 +57,10 @@ const (
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
-	client                     client.Client
-	consumerManager            *ocsConsumerManager
-	storageClassRequestManager *storageClassRequestManager
-	namespace                  string
+	client                client.Client
+	consumerManager       *ocsConsumerManager
+	storageRequestManager *storageRequestManager
+	namespace             string
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
@@ -74,16 +74,16 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageClassRequestManager, err := newStorageClassRequestManager(client, namespace)
+	storageRequestManager, err := newStorageRequestManager(client, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new StorageClassRequest instance. %v", err)
+		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
 	}
 
 	return &OCSProviderServer{
-		client:                     client,
-		consumerManager:            consumerManager,
-		storageClassRequestManager: storageClassRequestManager,
-		namespace:                  namespace,
+		client:                client,
+		consumerManager:       consumerManager,
+		storageRequestManager: storageRequestManager,
+		namespace:             namespace,
 	}, nil
 }
 
@@ -494,7 +494,7 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown storage type, %s", storageType)
 	}
 
-	err = s.storageClassRequestManager.Create(ctx, consumerObj, req.StorageClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
+	err = s.storageRequestManager.Create(ctx, consumerObj, req.StorageClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to fulfill storage class claim for %q. %v", req.StorageConsumerUUID, err)
 		klog.Error(errMsg)
@@ -510,7 +510,7 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 // RevokeStorageClaim RPC call to delete the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
-	err := s.storageClassRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClaimName)
+	err := s.storageRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to revoke storage class claim %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
 		klog.Error(errMsg)
@@ -522,7 +522,7 @@ func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.Revo
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
-	storageClassRequest, err := s.storageClassRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClaimName)
+	storageRequest, err := s.storageRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to get storage class claim config %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
 		if kerrors.IsNotFound(err) {
@@ -532,15 +532,15 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	}
 
 	// Verify Status.Phase
-	msg := fmt.Sprintf("storage class claim %q for %q is in %q phase", req.StorageClaimName, req.StorageConsumerUUID, storageClassRequest.Status.Phase)
+	msg := fmt.Sprintf("storage claim %q for %q is in %q phase", req.StorageClaimName, req.StorageConsumerUUID, storageRequest.Status.Phase)
 	klog.Info(msg)
-	if storageClassRequest.Status.Phase != ocsv1alpha1.StorageClassRequestReady {
-		switch storageClassRequest.Status.Phase {
-		case ocsv1alpha1.StorageClassRequestFailed:
+	if storageRequest.Status.Phase != ocsv1alpha1.StorageRequestReady {
+		switch storageRequest.Status.Phase {
+		case ocsv1alpha1.StorageRequestFailed:
 			return nil, status.Error(codes.Internal, msg)
-		case ocsv1alpha1.StorageClassRequestInitializing:
+		case ocsv1alpha1.StorageRequestInitializing:
 			return nil, status.Error(codes.Unavailable, msg)
-		case ocsv1alpha1.StorageClassRequestCreating:
+		case ocsv1alpha1.StorageRequestCreating:
 			return nil, status.Error(codes.Unavailable, msg)
 		case "":
 			return nil, status.Errorf(codes.Unavailable, "status is not set for storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
@@ -553,7 +553,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	var storageClassName string
 	storageClassData := map[string]string{}
 
-	for _, cephRes := range storageClassRequest.Status.CephResources {
+	for _, cephRes := range storageRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
 			clientSecretName, _, err := s.getCephClientInformation(ctx, cephRes.Name)
@@ -569,7 +569,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 
 			idProp := "userID"
 			keyProp := "userKey"
-			if storageClassRequest.Spec.Type == "sharedfilesystem" {
+			if storageRequest.Spec.Type == "sharedfilesystem" {
 				idProp = "adminID"
 				keyProp = "adminKey"
 			}
@@ -613,9 +613,9 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 			storageClassData["csi.storage.k8s.io/provisioner-secret-name"] = provisionerCephClientSecret
 			storageClassData["csi.storage.k8s.io/node-stage-secret-name"] = nodeCephClientSecret
 			storageClassData["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerCephClientSecret
-			if storageClassRequest.Spec.EncryptionMethod != "" {
+			if storageRequest.Spec.EncryptionMethod != "" {
 				storageClassData["encrypted"] = "true"
-				storageClassData["encryptionKMSID"] = storageClassRequest.Spec.EncryptionMethod
+				storageClassData["encryptionKMSID"] = storageRequest.Spec.EncryptionMethod
 			}
 
 			extR = append(extR, &pb.ExternalResource{
