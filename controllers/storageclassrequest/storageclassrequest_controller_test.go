@@ -105,7 +105,8 @@ func createFakeReconciler(t *testing.T) StorageClassRequestReconciler {
 	fakeReconciler.OperatorNamespace = namespaceName
 	fakeReconciler.StorageClassRequest = &v1alpha1.StorageClassRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			UID: storageClassRequestUID,
+			Name: "test-scr",
+			UID:  storageClassRequestUID,
 		},
 	}
 	fakeReconciler.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
@@ -156,7 +157,8 @@ func TestCephBlockPool(t *testing.T) {
 				},
 				&rookCephv1.CephBlockPoolRadosNamespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cephradosnamespace-d41d8cd98f00b204e9800998ecf8427e",
+						// the hash here corresponds to the storageclassrequest name "test-scr"
+						Name:      "cephradosnamespace-14e1f808c9ef5a75b375b11fe8011f6e",
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -285,6 +287,7 @@ func TestCephBlockPool(t *testing.T) {
 		r.StorageClassRequest.Spec.Type = "blockpool"
 
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
+		c.createObjects = append(c.createObjects, r.StorageClassRequest)
 		fakeClient := newFakeClientBuilder(r.Scheme).WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
 
@@ -382,6 +385,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 
 		c.createObjects = append(c.createObjects, fakeCephFs)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
+		c.createObjects = append(c.createObjects, r.StorageClassRequest)
 		fakeClient := newFakeClientBuilder(r.Scheme).
 			WithRuntimeObjects(c.createObjects...)
 		r.Client = fakeClient.Build()
@@ -409,7 +413,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 	r := createFakeReconciler(t)
 	r.StorageClassRequest.Spec.Type = "sharedfilesystem"
 	fakeClient := newFakeClientBuilder(r.Scheme).
-		WithRuntimeObjects(fakeStorageConsumer)
+		WithRuntimeObjects(fakeStorageConsumer, r.StorageClassRequest)
 	r.Client = fakeClient.Build()
 
 	_, err = r.reconcilePhases()
