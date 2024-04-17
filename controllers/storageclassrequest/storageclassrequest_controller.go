@@ -45,6 +45,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	storageClassRequestFinalizer = "ocs.openshift.io.storageclassrequest"
+	forceDeletionAnnotationKey   = "ceph.rook.io/force-deletion"
+)
+
 // StorageClassRequestReconciler reconciles a StorageClassRequest object
 // nolint:revive
 type StorageClassRequestReconciler struct {
@@ -293,6 +298,11 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestCreating
 
 	if r.StorageClassRequest.GetDeletionTimestamp().IsZero() {
+		if controllerutil.AddFinalizer(r.StorageClassRequest, storageClassRequestFinalizer) {
+			if err := r.update(r.StorageClassRequest); err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to add finalizer: %v", err)
+			}
+		}
 		if r.StorageClassRequest.Spec.Type == "blockpool" {
 
 			if err := r.reconcileCephClientRBDProvisioner(); err != nil {
@@ -334,6 +344,9 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 
 	} else {
 		r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestDeleting
+		if err := r.deletionPhase(); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 	return reconcile.Result{}, nil
 }
@@ -625,6 +638,33 @@ func (r *StorageClassRequestReconciler) setCephResourceStatus(name string, kind 
 	cephResourceSpec.Phase = phase
 }
 
+func (r *StorageClassRequestReconciler) deletionPhase() error {
+	if r.StorageClassRequest.Spec.Type == "blockpool" {
+		if err := r.get(r.cephRadosNamespace); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to get CephRadosNamespace: %v", err)
+		} else if err == nil && util.AddAnnotation(r.cephRadosNamespace, forceDeletionAnnotationKey, "true") {
+			if err := r.update(r.cephRadosNamespace); err != nil {
+				return fmt.Errorf("failed to annotate CephRadosNamespace: %v", err)
+			}
+		}
+	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
+		if err := r.get(r.cephFilesystemSubVolumeGroup); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to get CephFileSystemSubVolumeGroup: %v", err)
+		} else if err == nil && util.AddAnnotation(r.cephFilesystemSubVolumeGroup, forceDeletionAnnotationKey, "true") {
+			if err := r.update(r.cephFilesystemSubVolumeGroup); err != nil {
+				return fmt.Errorf("failed to annotate CephFileSystemSubVolumeGroup: %v", err)
+			}
+		}
+	}
+
+	if controllerutil.RemoveFinalizer(r.StorageClassRequest, storageClassRequestFinalizer) {
+		if err := r.update(r.StorageClassRequest); err != nil {
+			return fmt.Errorf("failed to remove finalizer: %v", err)
+		}
+	}
+	return nil
+}
+
 func addStorageRelatedAnnotations(obj client.Object, storageClassRequestNamespacedName, storageRequest, cephUserType string) {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
@@ -644,6 +684,10 @@ func (r *StorageClassRequestReconciler) get(obj client.Object) error {
 
 func (r *StorageClassRequestReconciler) list(obj client.ObjectList, listOptions ...client.ListOption) error {
 	return r.Client.List(r.ctx, obj, listOptions...)
+}
+
+func (r *StorageClassRequestReconciler) update(obj client.Object, opts ...client.UpdateOption) error {
+	return r.Update(r.ctx, obj, opts...)
 }
 
 func (r *StorageClassRequestReconciler) own(resource metav1.Object) error {
