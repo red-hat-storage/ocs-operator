@@ -407,38 +407,38 @@ func TestOCSProviderServerStorageClassRequest(t *testing.T) {
 		namespace:                  serverNamespace,
 	}
 
-	req := &pb.FulfillStorageClassClaimRequest{
-		StorageClassClaimName: "claim-name",
-		StorageConsumerUUID:   "consumer-uuid",
-		EncryptionMethod:      "vault",
-		StorageType:           pb.FulfillStorageClassClaimRequest_BLOCKPOOL,
+	req := &pb.FulfillStorageClaimRequest{
+		StorageClaimName:    "claim-name",
+		StorageConsumerUUID: "consumer-uuid",
+		EncryptionMethod:    "vault",
+		StorageType:         pb.FulfillStorageClaimRequest_BLOCK,
 	}
 
 	// test when consumer not found
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	_, err = server.FulfillStorageClaim(ctx, req)
 	assert.Error(t, err)
 
 	// test when consumer is found
 	req.StorageConsumerUUID = string(consumerResource.UID)
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	_, err = server.FulfillStorageClaim(ctx, req)
 	assert.NoError(t, err)
 
 	// try to create again with different input
-	req.StorageType = pb.FulfillStorageClassClaimRequest_SHAREDFILESYSTEM
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	req.StorageType = pb.FulfillStorageClaimRequest_SHAREDFILE
+	_, err = server.FulfillStorageClaim(ctx, req)
 	errCode, _ := status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.AlreadyExists)
 
 	// test when storage class request is under deletion
-	req.StorageClassClaimName = claimNameUnderDeletion
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	req.StorageClaimName = claimNameUnderDeletion
+	_, err = server.FulfillStorageClaim(ctx, req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.AlreadyExists)
 }
 
-func TestOCSProviderServerRevokeStorageClassClaim(t *testing.T) {
+func TestOCSProviderServerRevokeStorageClaim(t *testing.T) {
 	claimName := "claim-name"
 	claimResource := &ocsv1alpha1.StorageClassRequest{
 		ObjectMeta: metav1.ObjectMeta{
@@ -473,20 +473,20 @@ func TestOCSProviderServerRevokeStorageClassClaim(t *testing.T) {
 		namespace:                  serverNamespace,
 	}
 
-	req := &pb.RevokeStorageClassClaimRequest{
-		StorageClassClaimName: "claim-name",
-		StorageConsumerUUID:   string(consumerResource.UID),
+	req := &pb.RevokeStorageClaimRequest{
+		StorageClaimName:    "claim-name",
+		StorageConsumerUUID: string(consumerResource.UID),
 	}
 
-	_, err = server.RevokeStorageClassClaim(ctx, req)
+	_, err = server.RevokeStorageClaim(ctx, req)
 	assert.NoError(t, err)
 
 	// try to delete already deleted resource
-	_, err = server.RevokeStorageClassClaim(ctx, req)
+	_, err = server.RevokeStorageClaim(ctx, req)
 	assert.NoError(t, err)
 }
 
-func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
+func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	var (
 		mockBlockPoolClaimExtR = map[string]*externalResource{
 			"ceph-rbd-storageclass": {
@@ -839,11 +839,11 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	assert.NoError(t, client.Create(ctx, radosNamespace))
 
 	// get the storage class request config for block pool
-	req := pb.StorageClassClaimConfigRequest{
-		StorageConsumerUUID:   string(consumerResource.UID),
-		StorageClassClaimName: blockPoolClaimName,
+	req := pb.StorageClaimConfigRequest{
+		StorageConsumerUUID: string(consumerResource.UID),
+		StorageClaimName:    blockPoolClaimName,
 	}
-	storageConRes, err := server.GetStorageClassClaimConfig(ctx, &req)
+	storageConRes, err := server.GetStorageClaimConfig(ctx, &req)
 	assert.NoError(t, err)
 	assert.NotNil(t, storageConRes)
 
@@ -875,11 +875,11 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	}
 
 	// get the storage class request config for share filesystem
-	req = pb.StorageClassClaimConfigRequest{
-		StorageConsumerUUID:   string(consumerResource.UID),
-		StorageClassClaimName: shareFilesystemClaimName,
+	req = pb.StorageClaimConfigRequest{
+		StorageConsumerUUID: string(consumerResource.UID),
+		StorageClaimName:    shareFilesystemClaimName,
 	}
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	assert.NoError(t, err)
 	assert.NotNil(t, storageConRes)
 
@@ -923,31 +923,31 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		}
 	}
 
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ := status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Internal)
 	assert.Nil(t, storageConRes)
 
 	// when claim in in Initializing phase
-	req.StorageClassClaimName = claimInitializing
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	req.StorageClaimName = claimInitializing
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Unavailable)
 	assert.Nil(t, storageConRes)
 
 	// when claim in in Creating phase
-	req.StorageClassClaimName = claimCreating
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	req.StorageClaimName = claimCreating
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Unavailable)
 	assert.Nil(t, storageConRes)
 
 	// when claim in in Failed phase
-	req.StorageClassClaimName = claimFailed
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	req.StorageClaimName = claimFailed
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Internal)
