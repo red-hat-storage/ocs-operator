@@ -30,10 +30,6 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
-		if err := controllerutil.SetControllerReference(storagecluster, storageClient, r.Scheme); err != nil {
-			r.Log.Error(err, "failed to set controller reference on", "StorageClient", storageClient.Name)
-			return err
-		}
 		if storageClient.Status.ConsumerID == "" {
 			token, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath)
 			if err != nil {
