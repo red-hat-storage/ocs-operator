@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -499,9 +498,9 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 					"csi.storage.k8s.io/fstype": "ext4",
 					"imageFormat":               "2",
-					"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
-					"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
-					"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
+					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
 			"ceph-rbd-volumesnapshotclass": {
@@ -509,19 +508,19 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
 					"clusterID": serverNamespace,
-					"csi.storage.k8s.io/snapshotter-secret-name": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
-			"rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e": {
-				Name: "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
+				Name: "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"userID":  "3de200d5c23524a4612bde1fdbeb717e",
 					"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 				},
 			},
-			"rook-ceph-client-995e66248ad3e8642de868f461cdd827": {
-				Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+			"ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c": {
+				Name: "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"userID":  "995e66248ad3e8642de868f461cdd827",
@@ -539,9 +538,9 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"fsName":             "myfs",
 					"subvolumegroupname": "cephFilesystemSubVolumeGroup",
 					"pool":               "",
-					"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
-					"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
-					"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
+					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
 			},
 			"cephfs-volumesnapshotclass": {
@@ -549,19 +548,19 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
 					"clusterID": "8d26c7378c1b0ec9c2455d1c3601c4cd",
-					"csi.storage.k8s.io/snapshotter-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
 			},
-			"rook-ceph-client-4ffcb503ff8044c8699dac415f82d604": {
-				Name: "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+			"ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c": {
+				Name: "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"adminID":  "4ffcb503ff8044c8699dac415f82d604",
 					"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 				},
 			},
-			"rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa": {
-				Name: "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
+			"ceph-client-node-0e8555e6556f70d23a61675af44e880c": {
+				Name: "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"adminID":  "1b042fcc8812fe4203689eec38fdfbfa",
@@ -708,14 +707,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+				"secretName": "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 			},
 		},
 	}
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+			Name:      "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -738,14 +737,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+				"secretName": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+			Name:      "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -768,14 +767,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
+				"secretName": "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
+			Name:      "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -798,14 +797,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+				"secretName": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+			Name:      "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -854,10 +853,6 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
-		} else if extResource.Kind == "Secret" {
-			var found bool
-			name, found = strings.CutSuffix(name, ".csi")
-			assert.True(t, found)
 		}
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
@@ -866,12 +861,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		if extResource.Kind == "Secret" {
-			name, _ := strings.CutSuffix(name, ".csi")
-			assert.Equal(t, name, mockResoruce.Name)
-		} else {
-			assert.Equal(t, extResource.Name, mockResoruce.Name)
-		}
+		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
 
 	// get the storage class request config for share filesystem
@@ -890,10 +880,6 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
-		} else if extResource.Kind == "Secret" {
-			var found bool
-			name, found = strings.CutSuffix(name, ".csi")
-			assert.True(t, found)
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
@@ -902,24 +888,24 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		if extResource.Kind == "Secret" {
-			name, _ := strings.CutSuffix(name, ".csi")
-			assert.Equal(t, name, mockResoruce.Name)
-		} else {
-			assert.Equal(t, extResource.Name, mockResoruce.Name)
-		}
+		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
 
 	// When ceph resources is empty
+	scrNameHash := getStorageRequestHash(string(consumerResource.UID), shareFilesystemClaimName)
 	for _, i := range sharedFilesystemClaimResource.Status.CephResources {
-		if i.Kind == "CephClient" {
-			cephClient, secret := createCephClientAndSecret(i.Name, server)
-			cephClient.Status = &rookCephv1.CephClientStatus{
-				Info: map[string]string{
-					"secretName": fmt.Sprintf("rook-ceph-client-%s", i.Name),
-				},
+		if i.Kind == "CephFilesystemSubVolumeGroup" {
+			for cephClientUserType, cephClientName := range i.CephClients {
+				cephClient, secret := createCephClientAndSecret(cephClientName, server)
+				secret.Name = storageClaimCephCsiSecretName(cephClientUserType, scrNameHash)
+				cephClient.Status = &rookCephv1.CephClientStatus{
+					Info: map[string]string{
+						"secretName": secret.Name,
+					},
+				}
+				assert.NoError(t, client.Delete(ctx, secret))
 			}
-			assert.NoError(t, client.Delete(ctx, secret))
+			break
 		}
 	}
 

@@ -22,7 +22,7 @@ func Test_getStorageRequestsName(t *testing.T) {
 				consumerUUID:       "consumer-uuid",
 				storageRequestName: "storage-class-request-name",
 			},
-			want: "storagerequest-fe41c72dae7cc263c394330a94f9081e",
+			want: "storagerequest-b0e8b1cae6add3a6b331f955874302ce",
 		},
 	}
 

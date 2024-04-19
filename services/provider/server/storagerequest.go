@@ -32,37 +32,42 @@ func newStorageRequestManager(cl client.Client, namespace string) (*storageReque
 	}, nil
 }
 
-// getStorageRequestName generates a name for a StorageRequest resource.
-func getStorageRequestName(consumerUUID, storageRequestName string) string {
-	var s struct {
+// getStorageRequestHash generates a hash for a StorageRequest based
+// on the MD5 hash of the StorageClaim name and storageConsumer UUID.
+func getStorageRequestHash(consumerUUID, storageClaimName string) string {
+	s := struct {
 		StorageConsumerUUID string `json:"storageConsumerUUID"`
-		StorageRequestName  string `json:"storageRequestName"`
+		StorageClaimName    string `json:"storageClaimName"`
+	}{
+		consumerUUID,
+		storageClaimName,
 	}
-	s.StorageConsumerUUID = consumerUUID
-	s.StorageRequestName = storageRequestName
 
 	requestName, err := json.Marshal(s)
 	if err != nil {
 		klog.Errorf("failed to marshal a name for a storage class request based on %v. %v", s, err)
 		panic("failed to marshal storage class request name")
 	}
-	name := md5.Sum([]byte(requestName))
-	// The name of the StorageRequest is the MD5 hash of the JSON
-	// representation of the StorageRequest name and storageConsumer UUID.
-	return fmt.Sprintf("storagerequest-%s", hex.EncodeToString(name[:16]))
+	md5Sum := md5.Sum(requestName)
+	return hex.EncodeToString(md5Sum[:16])
+}
+
+// getStorageRequestName generates a name for a StorageRequest resource.
+func getStorageRequestName(consumerUUID, storageClaimName string) string {
+	return fmt.Sprintf("storagerequest-%s", getStorageRequestHash(consumerUUID, storageClaimName))
 }
 
 // Create creates a new StorageRequest resource and returns the StorageRequest ID.
 func (s *storageRequestManager) Create(
 	ctx context.Context,
 	consumer *ocsv1alpha1.StorageConsumer,
-	storageRequestName,
+	storageClaimName,
 	requestType,
 	encryptionMethod,
 	storageProfile string,
 ) error {
 	consumerUUID := string(consumer.GetUID())
-	generatedRequestName := getStorageRequestName(consumerUUID, storageRequestName)
+	generatedRequestName := getStorageRequestName(consumerUUID, storageClaimName)
 
 	storageRequestObj := &ocsv1alpha1.StorageRequest{
 		ObjectMeta: metav1.ObjectMeta{
@@ -70,7 +75,7 @@ func (s *storageRequestManager) Create(
 			Namespace: s.namespace,
 			Labels: map[string]string{
 				controllers.ConsumerUUIDLabel: consumerUUID,
-				storageRequestNameLabel:       storageRequestName,
+				storageRequestNameLabel:       storageClaimName,
 			},
 		},
 		Spec: ocsv1alpha1.StorageRequestSpec{
@@ -101,35 +106,35 @@ func (s *storageRequestManager) Create(
 	err = s.client.Create(ctx, storageRequestObj)
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create a StorageRequest named %q for consumer %q and request %q. %w", generatedRequestName, consumerUUID, storageRequestName, err)
+			return fmt.Errorf("failed to create a StorageRequest named %q for consumer %q and request %q. %w", generatedRequestName, consumerUUID, storageClaimName, err)
 		}
 		newStorageRequestObj := &ocsv1alpha1.StorageRequest{}
 		getErr := s.client.Get(ctx, client.ObjectKey{Name: generatedRequestName, Namespace: s.namespace}, newStorageRequestObj)
 		if getErr != nil {
-			klog.Errorf("failed to get a StorageRequest named %q for consumer %q and request %q. %v", generatedRequestName, consumerUUID, storageRequestName, getErr)
+			klog.Errorf("failed to get a StorageRequest named %q for consumer %q and request %q. %v", generatedRequestName, consumerUUID, storageClaimName, getErr)
 			return err
 		}
 		// check if the StorageRequest is getting deleted.
 		if newStorageRequestObj.DeletionTimestamp != nil {
-			klog.Warningf("StorageRequest named %q for consumer %q and request %q is already created but is getting deleted", generatedRequestName, consumerUUID, storageRequestName)
+			klog.Warningf("StorageRequest named %q for consumer %q and request %q is already created but is getting deleted", generatedRequestName, consumerUUID, storageClaimName)
 			return err
 		}
 		// check if the input is different
 		if !reflect.DeepEqual(storageRequestObj.Spec, newStorageRequestObj.Spec) {
-			klog.Errorf("StorageRequest named %q for consumer %q and request %q is already exists with different spec (%v) but requested spec (%v)", generatedRequestName, consumerUUID, storageRequestName, storageRequestObj.Spec, newStorageRequestObj.Spec)
+			klog.Errorf("StorageRequest named %q for consumer %q and request %q is already exists with different spec (%v) but requested spec (%v)", generatedRequestName, consumerUUID, storageClaimName, storageRequestObj.Spec, newStorageRequestObj.Spec)
 			return err
 		}
 	}
 
-	klog.Infof("successfully created a StorageRequest resource %q for consumer %q and request %q", generatedRequestName, consumerUUID, storageRequestName)
+	klog.Infof("successfully created a StorageRequest resource %q for consumer %q and request %q", generatedRequestName, consumerUUID, storageClaimName)
 
 	return nil
 }
 
-// Delete deletes the storagerequest resource using storageRequestName
+// Delete deletes the storagerequest resource using storageClaimName
 // and consumerUUID.
-func (s *storageRequestManager) Delete(ctx context.Context, consumerUUID, storageRequestName string) error {
-	generatedRequestName := getStorageRequestName(consumerUUID, storageRequestName)
+func (s *storageRequestManager) Delete(ctx context.Context, consumerUUID, storageClaimName string) error {
+	generatedRequestName := getStorageRequestName(consumerUUID, storageClaimName)
 	storageRequestObj := &ocsv1alpha1.StorageRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generatedRequestName,
@@ -143,25 +148,24 @@ func (s *storageRequestManager) Delete(ctx context.Context, consumerUUID, storag
 	}
 	if err := s.client.Delete(ctx, storageRequestObj, &deleteOption); err != nil {
 		if kerrors.IsNotFound(err) {
-			klog.Warningf("StorageRequest %q not found for consumer %q and request %q", generatedRequestName, consumerUUID, storageRequestName)
+			klog.Warningf("StorageRequest %q not found for consumer %q and request %q", generatedRequestName, consumerUUID, storageClaimName)
 			return nil
 		}
-		return fmt.Errorf("failed to delete StorageRequest %q for consumer %q and request %q. %v", generatedRequestName, consumerUUID, storageRequestName, err)
+		return fmt.Errorf("failed to delete StorageRequest %q for consumer %q and request %q. %v", generatedRequestName, consumerUUID, storageClaimName, err)
 	}
 
-	klog.Infof("successfully deleted StorageRequest %q for consumer %q and request %q", generatedRequestName, consumerUUID, storageRequestName)
+	klog.Infof("successfully deleted StorageRequest %q for consumer %q and request %q", generatedRequestName, consumerUUID, storageClaimName)
 
 	return nil
 }
 
-// Get returns the StorageRequest resource using storageRequestName
-// and consumerUUID.
-func (s *storageRequestManager) Get(ctx context.Context, consumerUUID, storageRequestName string) (*ocsv1alpha1.StorageRequest, error) {
-	generatedRequestName := getStorageRequestName(consumerUUID, storageRequestName)
+// Get returns the StorageRequest resource using storageClaimName and consumerUUID.
+func (s *storageRequestManager) Get(ctx context.Context, consumerUUID, storageClaimName string) (*ocsv1alpha1.StorageRequest, error) {
+	generatedRequestName := getStorageRequestName(consumerUUID, storageClaimName)
 	storageRequestObj := &ocsv1alpha1.StorageRequest{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: generatedRequestName, Namespace: s.namespace}, storageRequestObj)
 	if err != nil {
-		klog.Errorf("failed to get a StorageRequest named %q for consumer %q and request %q. %v", generatedRequestName, consumerUUID, storageRequestName, err)
+		klog.Errorf("failed to get a StorageRequest named %q for consumer %q and request %q. %v", generatedRequestName, consumerUUID, storageClaimName, err)
 		return nil, err
 	}
 
