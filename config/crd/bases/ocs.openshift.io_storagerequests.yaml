@@ -48,8 +48,8 @@ spec:
                 type: string
               type:
                 enum:
-                - blockpool
-                - sharedfilesystem
+                - block
+                - sharedfile
                 type: string
             required:
             - type
