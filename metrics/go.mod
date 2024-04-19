@@ -2,6 +2,8 @@ module github.com/red-hat-storage/ocs-operator/metrics/v4
 
 go 1.21
 
+replace github.com/red-hat-storage/ocs-operator/api/v4 => ../api
+
 replace github.com/red-hat-storage/ocs-operator/v4 => ../
 
 replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook

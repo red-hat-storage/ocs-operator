@@ -447,7 +447,7 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 		newCephBlockPoolStorageClassConfiguration(initData),
 	}
 
-	// when allowing consumers, creation of storage classes should only be done via storageclassrequests
+	// when allowing consumers, creation of storage classes should only be done via storagerequests
 	if !initData.Spec.AllowRemoteStorageConsumers {
 		// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
 		kvcrd := &extv1.CustomResourceDefinition{}
