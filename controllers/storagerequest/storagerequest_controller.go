@@ -213,7 +213,7 @@ func (r *StorageRequestReconciler) initPhase() error {
 	}
 
 	// check request status already contains the name of the resource. if not, add it.
-	if r.StorageRequest.Spec.Type == "blockpool" {
+	if r.StorageRequest.Spec.Type == "block" {
 		// initialize in-memory structs
 		r.cephRadosNamespace = &rookCephv1.CephBlockPoolRadosNamespace{}
 		r.cephRadosNamespace.Namespace = r.OperatorNamespace
@@ -243,7 +243,7 @@ func (r *StorageRequestReconciler) initPhase() error {
 		} else {
 			return fmt.Errorf("invalid number of CephBlockPoolRadosNamespaces for storage consumer %q: found %d, expecting 0 or 1", r.storageConsumer.Name, rnsItemsLen)
 		}
-	} else if r.StorageRequest.Spec.Type == "sharedfilesystem" {
+	} else if r.StorageRequest.Spec.Type == "sharedfile" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
 		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
 
@@ -303,7 +303,7 @@ func (r *StorageRequestReconciler) reconcilePhases() (reconcile.Result, error) {
 				return reconcile.Result{}, fmt.Errorf("failed to add finalizer: %v", err)
 			}
 		}
-		if r.StorageRequest.Spec.Type == "blockpool" {
+		if r.StorageRequest.Spec.Type == "block" {
 
 			if err := r.reconcileCephClientRBDProvisioner(); err != nil {
 				return reconcile.Result{}, err
@@ -317,7 +317,7 @@ func (r *StorageRequestReconciler) reconcilePhases() (reconcile.Result, error) {
 				return reconcile.Result{}, err
 			}
 
-		} else if r.StorageRequest.Spec.Type == "sharedfilesystem" {
+		} else if r.StorageRequest.Spec.Type == "sharedfile" {
 			if err := r.reconcileCephClientCephFSProvisioner(); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -639,7 +639,7 @@ func (r *StorageRequestReconciler) setCephResourceStatus(name string, kind strin
 }
 
 func (r *StorageRequestReconciler) deletionPhase() error {
-	if r.StorageRequest.Spec.Type == "blockpool" {
+	if r.StorageRequest.Spec.Type == "block" {
 		if err := r.get(r.cephRadosNamespace); err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to get CephRadosNamespace: %v", err)
 		} else if err == nil && util.AddAnnotation(r.cephRadosNamespace, forceDeletionAnnotationKey, "true") {
@@ -647,7 +647,7 @@ func (r *StorageRequestReconciler) deletionPhase() error {
 				return fmt.Errorf("failed to annotate CephRadosNamespace: %v", err)
 			}
 		}
-	} else if r.StorageRequest.Spec.Type == "sharedfilesystem" {
+	} else if r.StorageRequest.Spec.Type == "sharedfile" {
 		if err := r.get(r.cephFilesystemSubVolumeGroup); err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to get CephFileSystemSubVolumeGroup: %v", err)
 		} else if err == nil && util.AddAnnotation(r.cephFilesystemSubVolumeGroup, forceDeletionAnnotationKey, "true") {

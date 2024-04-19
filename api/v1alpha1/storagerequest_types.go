@@ -24,7 +24,7 @@ import (
 
 // StorageRequestSpec defines the desired state of StorageRequest
 type StorageRequestSpec struct {
-	//+kubebuilder:validation:Enum=blockpool;sharedfilesystem
+	//+kubebuilder:validation:Enum=block;sharedfile
 	Type             string `json:"type"`
 	EncryptionMethod string `json:"encryptionMethod,omitempty"`
 	StorageProfile   string `json:"storageProfile,omitempty"`
