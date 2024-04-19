@@ -14,11 +14,3 @@ rules:
   verbs:
     - get
     - list
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  resourceNames:
-  - onboarding-ticket-key
-  verbs:
-  - delete
