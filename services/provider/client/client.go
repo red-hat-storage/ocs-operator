@@ -123,7 +123,7 @@ type StorageType uint
 
 const (
 	StorageTypeBlock StorageType = iota
-	StorageTypeSharedfile
+	StorageTypeSharedFile
 )
 
 func (cc *OCSProviderClient) FulfillStorageClaim(
@@ -138,7 +138,7 @@ func (cc *OCSProviderClient) FulfillStorageClaim(
 		return nil, fmt.Errorf("provider client is closed")
 	}
 	var st pb.FulfillStorageClaimRequest_StorageType
-	if storageType == StorageTypeSharedfile {
+	if storageType == StorageTypeSharedFile {
 		st = pb.FulfillStorageClaimRequest_SHAREDFILE
 	} else if storageType == StorageTypeBlock {
 		st = pb.FulfillStorageClaimRequest_BLOCK
