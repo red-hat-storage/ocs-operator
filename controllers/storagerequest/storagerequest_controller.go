@@ -47,7 +47,7 @@ import (
 
 const (
 	storageRequestFinalizer    = "ocs.openshift.io.storagerequest"
-	forceDeletionAnnotationKey = "ceph.rook.io/force-deletion"
+	forceDeletionAnnotationKey = "rook.io/force-deletion"
 )
 
 // StorageRequestReconciler reconciles a StorageRequest object
