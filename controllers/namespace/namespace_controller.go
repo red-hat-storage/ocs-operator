@@ -133,6 +133,11 @@ func (r *NamespaceReconciler) annotateNamespaces(opNs []corev1.Namespace) (bool,
 
 // shouldSkipAnnotation checks if we should skip adding new annotations to the namespace
 func shouldSkipAnnotation(ns corev1.Namespace) bool {
+	// skip annotating ARO created namespaces from reclaimspace operation.
+	if ns.Name == "openshift-azure-logging" || ns.Name == "openshift-azure" {
+		return true
+	}
+	
 	if !ns.GetDeletionTimestamp().IsZero() || ns.Annotations["skipReclaimspaceSchedule"] == "true" ||
 		ns.Annotations["reclaimspace.csiaddons.openshift.io/schedule"] != "" {
 		return true

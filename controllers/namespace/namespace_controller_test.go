@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -53,28 +54,41 @@ func TestReconcilerImplementsInterface(t *testing.T) {
 
 func TestNamespaceAnnotated(t *testing.T) {
 	ctx := context.TODO()
+	storageTestNS := "openshift-storage-test"
+	storageNS := "openshift-storage"
+	aroLoggingNS := "openshift-azure-logging"
+	arnNS := "openshift-azure"
+
 	reconciler := getReconciler(t)
-	opNS := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "openshift-storage-test",
-		},
-	}
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "openshift-storage-test",
-			Namespace: "",
-		},
+
+	namespace := []string{storageNS, storageTestNS, aroLoggingNS, arnNS}
+	for _, name := range namespace {
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+		}
+		request := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name: name,
+			},
+		}
+		err := reconciler.Create(ctx, ns)
+		assert.NoError(t, err, "failed to create namespace")
+		_, err = reconciler.Reconcile(ctx, request)
+		assert.NoError(t, err, "failed to reconcile")
 	}
 
-	err := reconciler.Create(ctx, opNS)
-	assert.NoError(t, err, "failed to create namespace")
-	_, err = reconciler.Reconcile(ctx, request)
-	assert.NoError(t, err, "failed to reconcile")
 	nsList := &corev1.NamespaceList{}
-	err = reconciler.Client.List(ctx, nsList)
+	err := reconciler.Client.List(ctx, nsList)
 	assert.NoError(t, err, "failed to list namespaces")
 	for _, testNs := range nsList.Items {
-		assert.Equal(t, testNs.Name, "openshift-storage-test")
-		assert.Equal(t, testNs.Annotations["reclaimspace.csiaddons.openshift.io/schedule"], "@weekly")
+		if strings.Contains(testNs.Name, storageNS) || strings.Contains(testNs.Name, storageTestNS) {
+			assert.Contains(t, testNs.Annotations["reclaimspace.csiaddons.openshift.io/schedule"], "@weekly")
+		}
+		// Ensure that no annotation set on these namespaces
+		if strings.Contains(testNs.Name, arnNS) || strings.Contains(testNs.Name, aroLoggingNS) {
+			assert.NotContains(t, testNs.Annotations, "reclaimspace.csiaddons.openshift.io/schedule")
+		}
 	}
 }
