@@ -173,7 +173,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&ocsclientv1a1.StorageClient{}).
+		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
 		Watches(
 			&extv1.CustomResourceDefinition{

@@ -21,12 +21,6 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
-    - description: StorageClassRequest is the Schema for the StorageClassRequests
-        API
-      displayName: Storage Class Request
-      kind: StorageClassRequest
-      name: storageclassrequests.ocs.openshift.io
-      version: v1alpha1
     - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
         and all the storage and compute resources required.
       displayName: Storage Cluster
@@ -50,6 +44,11 @@ spec:
       kind: StorageProfile
       name: storageprofiles.ocs.openshift.io
       version: v1
+    - description: StorageRequest is the Schema for the StorageRequests API
+      displayName: Storage Request
+      kind: StorageRequest
+      name: storagerequests.ocs.openshift.io
+      version: v1alpha1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
 

@@ -7,9 +7,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -30,13 +28,8 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	}
 
 	storageClient := &ocsclientv1a1.StorageClient{}
-	storageClient.Name = storagecluster.Name + "-client"
-	storageClient.Namespace = r.OperatorNamespace
-	_, err := cutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
-		if err := controllerutil.SetControllerReference(storagecluster, storageClient, r.Scheme); err != nil {
-			r.Log.Error(err, "failed to set controller reference on", "StorageClient", client.ObjectKeyFromObject(storageClient))
-			return err
-		}
+	storageClient.Name = storagecluster.Name
+	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
 			token, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath)
 			if err != nil {
@@ -59,8 +52,7 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 
 func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster) (reconcile.Result, error) {
 	storageClient := &ocsclientv1a1.StorageClient{}
-	storageClient.Name = storagecluster.Name + "-client"
-	storageClient.Namespace = r.OperatorNamespace
+	storageClient.Name = storagecluster.Name
 	if err := r.Delete(r.ctx, storageClient); err != nil && !kerrors.IsNotFound(err) {
 		r.Log.Error(err, "Failed to initiate deletion of local StorageClient CR")
 		return reconcile.Result{}, err

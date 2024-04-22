@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storageclassrequest
+package storagerequest
 
 import (
 	"context"
@@ -45,9 +45,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// StorageClassRequestReconciler reconciles a StorageClassRequest object
+const (
+	storageRequestFinalizer    = "ocs.openshift.io.storagerequest"
+	forceDeletionAnnotationKey = "rook.io/force-deletion"
+)
+
+// StorageRequestReconciler reconciles a StorageRequest object
 // nolint:revive
-type StorageClassRequestReconciler struct {
+type StorageRequestReconciler struct {
 	client.Client
 	cache.Cache
 	Scheme            *runtime.Scheme
@@ -57,7 +62,7 @@ type StorageClassRequestReconciler struct {
 	ctx                          context.Context
 	storageConsumer              *v1alpha1.StorageConsumer
 	storageCluster               *v1.StorageCluster
-	StorageClassRequest          *v1alpha1.StorageClassRequest
+	StorageRequest               *v1alpha1.StorageRequest
 	cephRadosNamespace           *rookCephv1.CephBlockPoolRadosNamespace
 	cephFilesystemSubVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup
 	cephClientProvisioner        *rookCephv1.CephClient
@@ -65,8 +70,8 @@ type StorageClassRequestReconciler struct {
 	cephResourcesByName          map[string]*v1alpha1.CephResourcesSpec
 }
 
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassrequests,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclassrequests/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;delete
@@ -75,30 +80,30 @@ type StorageClassRequestReconciler struct {
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch
 
-func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+func (r *StorageRequestReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	if ok := r.Cache.WaitForCacheSync(ctx); !ok {
 		return reconcile.Result{}, fmt.Errorf("cache sync failed")
 	}
 
-	r.log = ctrllog.FromContext(ctx, "StorageClassRequest", request)
+	r.log = ctrllog.FromContext(ctx, "StorageRequest", request)
 	r.ctx = ctrllog.IntoContext(ctx, r.log)
-	r.log.Info("Reconciling StorageClassRequest.")
+	r.log.Info("Reconciling StorageRequest.")
 
-	// Fetch the StorageClassRequest instance
-	r.StorageClassRequest = &v1alpha1.StorageClassRequest{}
-	r.StorageClassRequest.Name = request.Name
-	r.StorageClassRequest.Namespace = request.Namespace
+	// Fetch the StorageRequest instance
+	r.StorageRequest = &v1alpha1.StorageRequest{}
+	r.StorageRequest.Name = request.Name
+	r.StorageRequest.Namespace = request.Namespace
 
-	if err := r.get(r.StorageClassRequest); err != nil {
+	if err := r.get(r.StorageRequest); err != nil {
 		if errors.IsNotFound(err) {
-			r.log.Info("StorageClassRequest resource not found. Ignoring since object must be deleted.")
+			r.log.Info("StorageRequest resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, nil
 		}
-		r.log.Error(err, "Failed to get StorageClassRequest.")
+		r.log.Error(err, "Failed to get StorageRequest.")
 		return reconcile.Result{}, err
 	}
 
-	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestInitializing
+	r.StorageRequest.Status.Phase = v1alpha1.StorageRequestInitializing
 
 	storageClusterList := &v1.StorageClusterList{}
 	if err := r.list(storageClusterList, client.InNamespace(r.OperatorNamespace)); err != nil {
@@ -118,10 +123,10 @@ func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request r
 
 	result, reconcileError = r.reconcilePhases()
 
-	// Apply status changes to the StorageClassRequest
-	statusError := r.Client.Status().Update(r.ctx, r.StorageClassRequest)
+	// Apply status changes to the StorageRequest
+	statusError := r.Client.Status().Update(r.ctx, r.StorageRequest)
 	if statusError != nil {
-		r.log.Info("Failed to update StorageClassRequest status.")
+		r.log.Info("Failed to update StorageRequest status.")
 	}
 
 	// Reconcile errors have higher priority than status update errors
@@ -136,7 +141,7 @@ func (r *StorageClassRequestReconciler) Reconcile(ctx context.Context, request r
 	return result, nil
 }
 
-func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *StorageRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetCache().IndexField(
 		context.TODO(),
@@ -159,7 +164,7 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
 			annotations := obj.GetAnnotations()
-			if annotation, found := annotations[v1alpha1.StorageClassRequestAnnotation]; found {
+			if annotation, found := annotations[v1alpha1.StorageRequestAnnotation]; found {
 				parts := strings.Split(annotation, "/")
 				return []reconcile.Request{{
 					NamespacedName: types.NamespacedName{
@@ -170,10 +175,10 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 			}
 			return []reconcile.Request{}
 		})
-	enqueueForOwner := handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1alpha1.StorageClassRequest{})
+	enqueueForOwner := handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1alpha1.StorageRequest{})
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.StorageClassRequest{}, builder.WithPredicates(
+		For(&v1alpha1.StorageRequest{}, builder.WithPredicates(
 			predicate.GenerationChangedPredicate{},
 		)).
 		Owns(&rookCephv1.CephBlockPoolRadosNamespace{}).
@@ -184,13 +189,13 @@ func (r *StorageClassRequestReconciler) SetupWithManager(mgr ctrl.Manager) error
 		Complete(r)
 }
 
-func (r *StorageClassRequestReconciler) initPhase() error {
+func (r *StorageRequestReconciler) initPhase() error {
 	gvk, err := apiutil.GVKForObject(&v1alpha1.StorageConsumer{}, r.Client.Scheme())
 	if err != nil {
 		return fmt.Errorf("failed to get gvk for consumer  %w", err)
 	}
-	// reading storageConsumer Name from StorageClassRequest ownerReferences
-	ownerRefs := r.StorageClassRequest.GetOwnerReferences()
+	// reading storageConsumer Name from StorageRequest ownerReferences
+	ownerRefs := r.StorageRequest.GetOwnerReferences()
 	for i := range ownerRefs {
 		if ownerRefs[i].Kind == gvk.Kind {
 			r.storageConsumer = &v1alpha1.StorageConsumer{}
@@ -208,7 +213,7 @@ func (r *StorageClassRequestReconciler) initPhase() error {
 	}
 
 	// check request status already contains the name of the resource. if not, add it.
-	if r.StorageClassRequest.Spec.Type == "blockpool" {
+	if r.StorageRequest.Spec.Type == "block" {
 		// initialize in-memory structs
 		r.cephRadosNamespace = &rookCephv1.CephBlockPoolRadosNamespace{}
 		r.cephRadosNamespace.Namespace = r.OperatorNamespace
@@ -218,7 +223,7 @@ func (r *StorageClassRequestReconciler) initPhase() error {
 		err := r.list(
 			cephRadosNamespaceList,
 			client.InNamespace(r.OperatorNamespace),
-			client.MatchingFields{util.OwnerUIDIndexName: string(r.StorageClassRequest.UID)})
+			client.MatchingFields{util.OwnerUIDIndexName: string(r.StorageRequest.UID)})
 		if err != nil {
 			return err
 		}
@@ -228,7 +233,7 @@ func (r *StorageClassRequestReconciler) initPhase() error {
 		// if we found more than one CephBlockPoolRadosNamespace, we can't determine which one to select, so error out
 		rnsItemsLen := len(cephRadosNamespaceList.Items)
 		if rnsItemsLen == 0 {
-			md5Sum := md5.Sum([]byte(r.StorageClassRequest.Name))
+			md5Sum := md5.Sum([]byte(r.StorageRequest.Name))
 			rnsName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(md5Sum[:16]))
 			r.log.V(1).Info("no valid CephBlockPoolRadosNamespace found, creating new one", "CephBlockPoolRadosNamespace", rnsName)
 			r.cephRadosNamespace.Name = rnsName
@@ -238,7 +243,7 @@ func (r *StorageClassRequestReconciler) initPhase() error {
 		} else {
 			return fmt.Errorf("invalid number of CephBlockPoolRadosNamespaces for storage consumer %q: found %d, expecting 0 or 1", r.storageConsumer.Name, rnsItemsLen)
 		}
-	} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
+	} else if r.StorageRequest.Spec.Type == "sharedfile" {
 		r.cephFilesystemSubVolumeGroup = &rookCephv1.CephFilesystemSubVolumeGroup{}
 		r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
 
@@ -246,54 +251,59 @@ func (r *StorageClassRequestReconciler) initPhase() error {
 		err := r.list(
 			cephFilesystemSubVolumeGroupList,
 			client.InNamespace(r.OperatorNamespace),
-			client.MatchingFields{util.OwnerUIDIndexName: string(r.StorageClassRequest.UID)})
+			client.MatchingFields{util.OwnerUIDIndexName: string(r.StorageRequest.UID)})
 		if err != nil {
 			return err
 		}
 
 		svgItemsLen := len(cephFilesystemSubVolumeGroupList.Items)
 		if svgItemsLen == 0 {
-			md5Sum := md5.Sum([]byte(r.StorageClassRequest.Name))
+			md5Sum := md5.Sum([]byte(r.StorageRequest.Name))
 			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(md5Sum[:16]))
 		} else if svgItemsLen == 1 {
 			r.cephFilesystemSubVolumeGroup.Name = cephFilesystemSubVolumeGroupList.Items[0].GetName()
 			r.log.V(1).Info(fmt.Sprintf("CephFilesystemSubVolumeGroup found: %s", r.cephFilesystemSubVolumeGroup.Name))
 		} else {
 			return fmt.Errorf(
-				"invalid number of CephFilesystemSubVolumeGroups owned by StorageClassRequest %q: expecting 0-1, found %d", r.StorageClassRequest.Name, svgItemsLen)
+				"invalid number of CephFilesystemSubVolumeGroups owned by StorageRequest %q: expecting 0-1, found %d", r.StorageRequest.Name, svgItemsLen)
 		}
 	}
 
 	r.cephClientProvisioner = &rookCephv1.CephClient{}
-	r.cephClientProvisioner.Name = controllers.GenerateHashForCephClient(r.StorageClassRequest.Name, "provisioner")
+	r.cephClientProvisioner.Name = controllers.GenerateHashForCephClient(r.StorageRequest.Name, "provisioner")
 	r.cephClientProvisioner.Namespace = r.OperatorNamespace
 
 	r.cephClientNode = &rookCephv1.CephClient{}
-	r.cephClientNode.Name = controllers.GenerateHashForCephClient(r.StorageClassRequest.Name, "node")
+	r.cephClientNode.Name = controllers.GenerateHashForCephClient(r.StorageRequest.Name, "node")
 	r.cephClientNode.Namespace = r.OperatorNamespace
 
 	r.cephResourcesByName = map[string]*v1alpha1.CephResourcesSpec{}
 
-	for _, cephResourceSpec := range r.StorageClassRequest.Status.CephResources {
+	for _, cephResourceSpec := range r.StorageRequest.Status.CephResources {
 		r.cephResourcesByName[cephResourceSpec.Name] = cephResourceSpec
 	}
 
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, error) {
-	r.log.Info("Running StorageClassRequest controller in Converged/Provider Mode")
+func (r *StorageRequestReconciler) reconcilePhases() (reconcile.Result, error) {
+	r.log.Info("Running StorageRequest controller in Converged/Provider Mode")
 
-	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestInitializing
+	r.StorageRequest.Status.Phase = v1alpha1.StorageRequestInitializing
 
 	if err := r.initPhase(); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestCreating
+	r.StorageRequest.Status.Phase = v1alpha1.StorageRequestCreating
 
-	if r.StorageClassRequest.GetDeletionTimestamp().IsZero() {
-		if r.StorageClassRequest.Spec.Type == "blockpool" {
+	if r.StorageRequest.GetDeletionTimestamp().IsZero() {
+		if controllerutil.AddFinalizer(r.StorageRequest, storageRequestFinalizer) {
+			if err := r.update(r.StorageRequest); err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to add finalizer: %v", err)
+			}
+		}
+		if r.StorageRequest.Spec.Type == "block" {
 
 			if err := r.reconcileCephClientRBDProvisioner(); err != nil {
 				return reconcile.Result{}, err
@@ -307,7 +317,7 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 				return reconcile.Result{}, err
 			}
 
-		} else if r.StorageClassRequest.Spec.Type == "sharedfilesystem" {
+		} else if r.StorageRequest.Spec.Type == "sharedfile" {
 			if err := r.reconcileCephClientCephFSProvisioner(); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -321,7 +331,7 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 			}
 		}
 		cephResourcesReady := true
-		for _, cephResource := range r.StorageClassRequest.Status.CephResources {
+		for _, cephResource := range r.StorageRequest.Status.CephResources {
 			if cephResource.Phase != "Ready" {
 				cephResourcesReady = false
 				break
@@ -329,16 +339,19 @@ func (r *StorageClassRequestReconciler) reconcilePhases() (reconcile.Result, err
 		}
 
 		if cephResourcesReady {
-			r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestReady
+			r.StorageRequest.Status.Phase = v1alpha1.StorageRequestReady
 		}
 
 	} else {
-		r.StorageClassRequest.Status.Phase = v1alpha1.StorageClassRequestDeleting
+		r.StorageRequest.Status.Phase = v1alpha1.StorageRequestDeleting
+		if err := r.deletionPhase(); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileRadosNamespace() error {
+func (r *StorageRequestReconciler) reconcileRadosNamespace() error {
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephRadosNamespace, func() error {
 		if err := r.own(r.cephRadosNamespace); err != nil {
 			return err
@@ -348,7 +361,7 @@ func (r *StorageClassRequestReconciler) reconcileRadosNamespace() error {
 
 		// For RADOS namespaces, the "profile" is equivalent to the
 		// name of the desired block pool for the namespace.
-		blockPoolName := r.StorageClassRequest.Spec.StorageProfile
+		blockPoolName := r.StorageRequest.Spec.StorageProfile
 		if blockPoolName == "" {
 			blockPoolName = fmt.Sprintf("%s-cephblockpool", r.storageCluster.Name)
 		}
@@ -382,7 +395,7 @@ func (r *StorageClassRequestReconciler) reconcileRadosNamespace() error {
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup() error {
+func (r *StorageRequestReconciler) reconcileCephFilesystemSubVolumeGroup() error {
 
 	cephFilesystem := rookCephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
@@ -403,13 +416,13 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup() 
 		// name of the desired data pool ("" by default).
 		var dataPool *rookCephv1.NamedPoolSpec
 		for i := range cephFilesystem.Spec.DataPools {
-			if cephFilesystem.Spec.DataPools[i].Name == r.StorageClassRequest.Spec.StorageProfile {
+			if cephFilesystem.Spec.DataPools[i].Name == r.StorageRequest.Spec.StorageProfile {
 				dataPool = &cephFilesystem.Spec.DataPools[i]
 				break
 			}
 		}
 		if dataPool == nil {
-			return fmt.Errorf("no CephFileSystem found in the cluster for storage profile %s", r.StorageClassRequest.Spec.StorageProfile)
+			return fmt.Errorf("no CephFileSystem found in the cluster for storage profile %s", r.StorageRequest.Spec.StorageProfile)
 		}
 
 		addLabel(r.cephFilesystemSubVolumeGroup, controllers.StorageConsumerNameLabel, r.storageConsumer.Name)
@@ -456,7 +469,7 @@ func (r *StorageClassRequestReconciler) reconcileCephFilesystemSubVolumeGroup() 
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileCephClientRBDProvisioner() error {
+func (r *StorageRequestReconciler) reconcileCephClientRBDProvisioner() error {
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientProvisioner, func() error {
 		if err := r.own(r.cephClientProvisioner); err != nil {
 			return err
@@ -492,7 +505,7 @@ func (r *StorageClassRequestReconciler) reconcileCephClientRBDProvisioner() erro
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileCephClientRBDNode() error {
+func (r *StorageRequestReconciler) reconcileCephClientRBDNode() error {
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientNode, func() error {
 		if err := r.own(r.cephClientNode); err != nil {
 			return err
@@ -530,7 +543,7 @@ func (r *StorageClassRequestReconciler) reconcileCephClientRBDNode() error {
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileCephClientCephFSProvisioner() error {
+func (r *StorageRequestReconciler) reconcileCephClientCephFSProvisioner() error {
 
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientProvisioner, func() error {
 		if err := r.own(r.cephClientProvisioner); err != nil {
@@ -569,7 +582,7 @@ func (r *StorageClassRequestReconciler) reconcileCephClientCephFSProvisioner() e
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) reconcileCephClientCephFSNode() error {
+func (r *StorageRequestReconciler) reconcileCephClientCephFSNode() error {
 
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientNode, func() error {
 		if err := r.own(r.cephClientNode); err != nil {
@@ -608,7 +621,7 @@ func (r *StorageClassRequestReconciler) reconcileCephClientCephFSNode() error {
 	return nil
 }
 
-func (r *StorageClassRequestReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
+func (r *StorageRequestReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
 
 	cephResourceSpec := r.cephResourcesByName[name]
 
@@ -618,41 +631,72 @@ func (r *StorageClassRequestReconciler) setCephResourceStatus(name string, kind 
 			Kind:        kind,
 			CephClients: cephClients,
 		}
-		r.StorageClassRequest.Status.CephResources = append(r.StorageClassRequest.Status.CephResources, cephResourceSpec)
+		r.StorageRequest.Status.CephResources = append(r.StorageRequest.Status.CephResources, cephResourceSpec)
 		r.cephResourcesByName[name] = cephResourceSpec
 	}
 
 	cephResourceSpec.Phase = phase
 }
 
-func addStorageRelatedAnnotations(obj client.Object, storageClassRequestNamespacedName, storageRequest, cephUserType string) {
+func (r *StorageRequestReconciler) deletionPhase() error {
+	if r.StorageRequest.Spec.Type == "block" {
+		if err := r.get(r.cephRadosNamespace); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to get CephRadosNamespace: %v", err)
+		} else if err == nil && util.AddAnnotation(r.cephRadosNamespace, forceDeletionAnnotationKey, "true") {
+			if err := r.update(r.cephRadosNamespace); err != nil {
+				return fmt.Errorf("failed to annotate CephRadosNamespace: %v", err)
+			}
+		}
+	} else if r.StorageRequest.Spec.Type == "sharedfile" {
+		if err := r.get(r.cephFilesystemSubVolumeGroup); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to get CephFileSystemSubVolumeGroup: %v", err)
+		} else if err == nil && util.AddAnnotation(r.cephFilesystemSubVolumeGroup, forceDeletionAnnotationKey, "true") {
+			if err := r.update(r.cephFilesystemSubVolumeGroup); err != nil {
+				return fmt.Errorf("failed to annotate CephFileSystemSubVolumeGroup: %v", err)
+			}
+		}
+	}
+
+	if controllerutil.RemoveFinalizer(r.StorageRequest, storageRequestFinalizer) {
+		if err := r.update(r.StorageRequest); err != nil {
+			return fmt.Errorf("failed to remove finalizer: %v", err)
+		}
+	}
+	return nil
+}
+
+func addStorageRelatedAnnotations(obj client.Object, storageRequestNamespacedName, storageRequest, cephUserType string) {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
 		obj.SetAnnotations(annotations)
 	}
 
-	annotations[v1alpha1.StorageClassRequestAnnotation] = storageClassRequestNamespacedName
+	annotations[v1alpha1.StorageRequestAnnotation] = storageRequestNamespacedName
 	annotations[controllers.StorageRequestAnnotation] = storageRequest
 	annotations[controllers.StorageCephUserTypeAnnotation] = cephUserType
 }
 
-func (r *StorageClassRequestReconciler) get(obj client.Object) error {
+func (r *StorageRequestReconciler) get(obj client.Object) error {
 	key := client.ObjectKeyFromObject(obj)
 	return r.Client.Get(r.ctx, key, obj)
 }
 
-func (r *StorageClassRequestReconciler) list(obj client.ObjectList, listOptions ...client.ListOption) error {
+func (r *StorageRequestReconciler) list(obj client.ObjectList, listOptions ...client.ListOption) error {
 	return r.Client.List(r.ctx, obj, listOptions...)
 }
 
-func (r *StorageClassRequestReconciler) own(resource metav1.Object) error {
-	// Ensure StorageClassRequest ownership on a resource
-	return controllerutil.SetControllerReference(r.StorageClassRequest, resource, r.Scheme)
+func (r *StorageRequestReconciler) update(obj client.Object, opts ...client.UpdateOption) error {
+	return r.Update(r.ctx, obj, opts...)
 }
 
-func (r *StorageClassRequestReconciler) getNamespacedName() string {
-	return fmt.Sprintf("%s/%s", r.StorageClassRequest.Namespace, r.StorageClassRequest.Name)
+func (r *StorageRequestReconciler) own(resource metav1.Object) error {
+	// Ensure StorageRequest ownership on a resource
+	return controllerutil.SetControllerReference(r.StorageRequest, resource, r.Scheme)
+}
+
+func (r *StorageRequestReconciler) getNamespacedName() string {
+	return fmt.Sprintf("%s/%s", r.StorageRequest.Namespace, r.StorageRequest.Name)
 }
 
 // addLabel add a label to a resource metadata

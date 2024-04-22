@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -372,14 +371,14 @@ func createCephClientAndSecret(name string, server *OCSProviderServer) (*rookCep
 	return cephClient, secret
 }
 
-func TestOCSProviderServerStorageClassRequest(t *testing.T) {
+func TestOCSProviderServerStorageRequest(t *testing.T) {
 	claimNameUnderDeletion := "claim-under-deletion"
-	claimResourceUnderDeletion := &ocsv1alpha1.StorageClassRequest{
+	claimResourceUnderDeletion := &ocsv1alpha1.StorageRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getStorageClassRequestName(string(consumerResource.UID), claimNameUnderDeletion),
+			Name:      getStorageRequestName(string(consumerResource.UID), claimNameUnderDeletion),
 			Namespace: serverNamespace,
 		},
-		Spec: ocsv1alpha1.StorageClassRequestSpec{
+		Spec: ocsv1alpha1.StorageRequestSpec{
 			Type:             "block",
 			EncryptionMethod: "vault",
 		},
@@ -397,55 +396,55 @@ func TestOCSProviderServerStorageClassRequest(t *testing.T) {
 	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
 	assert.NoError(t, err)
 
-	storageClassRequestManager, err := newStorageClassRequestManager(client, serverNamespace)
+	storageRequestManager, err := newStorageRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{
-		client:                     client,
-		consumerManager:            consumerManager,
-		storageClassRequestManager: storageClassRequestManager,
-		namespace:                  serverNamespace,
+		client:                client,
+		consumerManager:       consumerManager,
+		storageRequestManager: storageRequestManager,
+		namespace:             serverNamespace,
 	}
 
-	req := &pb.FulfillStorageClassClaimRequest{
-		StorageClassClaimName: "claim-name",
-		StorageConsumerUUID:   "consumer-uuid",
-		EncryptionMethod:      "vault",
-		StorageType:           pb.FulfillStorageClassClaimRequest_BLOCKPOOL,
+	req := &pb.FulfillStorageClaimRequest{
+		StorageClaimName:    "claim-name",
+		StorageConsumerUUID: "consumer-uuid",
+		EncryptionMethod:    "vault",
+		StorageType:         pb.FulfillStorageClaimRequest_BLOCK,
 	}
 
 	// test when consumer not found
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	_, err = server.FulfillStorageClaim(ctx, req)
 	assert.Error(t, err)
 
 	// test when consumer is found
 	req.StorageConsumerUUID = string(consumerResource.UID)
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	_, err = server.FulfillStorageClaim(ctx, req)
 	assert.NoError(t, err)
 
 	// try to create again with different input
-	req.StorageType = pb.FulfillStorageClassClaimRequest_SHAREDFILESYSTEM
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	req.StorageType = pb.FulfillStorageClaimRequest_SHAREDFILE
+	_, err = server.FulfillStorageClaim(ctx, req)
 	errCode, _ := status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.AlreadyExists)
 
 	// test when storage class request is under deletion
-	req.StorageClassClaimName = claimNameUnderDeletion
-	_, err = server.FulfillStorageClassClaim(ctx, req)
+	req.StorageClaimName = claimNameUnderDeletion
+	_, err = server.FulfillStorageClaim(ctx, req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.AlreadyExists)
 }
 
-func TestOCSProviderServerRevokeStorageClassClaim(t *testing.T) {
+func TestOCSProviderServerRevokeStorageClaim(t *testing.T) {
 	claimName := "claim-name"
-	claimResource := &ocsv1alpha1.StorageClassRequest{
+	claimResource := &ocsv1alpha1.StorageRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getStorageClassRequestName(string(consumerResource.UID), claimName),
+			Name:      getStorageRequestName(string(consumerResource.UID), claimName),
 			Namespace: serverNamespace,
 		},
-		Spec: ocsv1alpha1.StorageClassRequestSpec{
+		Spec: ocsv1alpha1.StorageRequestSpec{
 			Type:             "block",
 			EncryptionMethod: "vault",
 		},
@@ -463,30 +462,30 @@ func TestOCSProviderServerRevokeStorageClassClaim(t *testing.T) {
 	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
 	assert.NoError(t, err)
 
-	storageRequestManager, err := newStorageClassRequestManager(client, serverNamespace)
+	storageRequestManager, err := newStorageRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{
-		client:                     client,
-		consumerManager:            consumerManager,
-		storageClassRequestManager: storageRequestManager,
-		namespace:                  serverNamespace,
+		client:                client,
+		consumerManager:       consumerManager,
+		storageRequestManager: storageRequestManager,
+		namespace:             serverNamespace,
 	}
 
-	req := &pb.RevokeStorageClassClaimRequest{
-		StorageClassClaimName: "claim-name",
-		StorageConsumerUUID:   string(consumerResource.UID),
+	req := &pb.RevokeStorageClaimRequest{
+		StorageClaimName:    "claim-name",
+		StorageConsumerUUID: string(consumerResource.UID),
 	}
 
-	_, err = server.RevokeStorageClassClaim(ctx, req)
+	_, err = server.RevokeStorageClaim(ctx, req)
 	assert.NoError(t, err)
 
 	// try to delete already deleted resource
-	_, err = server.RevokeStorageClassClaim(ctx, req)
+	_, err = server.RevokeStorageClaim(ctx, req)
 	assert.NoError(t, err)
 }
 
-func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
+func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	var (
 		mockBlockPoolClaimExtR = map[string]*externalResource{
 			"ceph-rbd-storageclass": {
@@ -499,9 +498,9 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 					"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 					"csi.storage.k8s.io/fstype": "ext4",
 					"imageFormat":               "2",
-					"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
-					"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
-					"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
+					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
 			"ceph-rbd-volumesnapshotclass": {
@@ -509,19 +508,19 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
 					"clusterID": serverNamespace,
-					"csi.storage.k8s.io/snapshotter-secret-name": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
-			"rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e": {
-				Name: "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
+				Name: "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"userID":  "3de200d5c23524a4612bde1fdbeb717e",
 					"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 				},
 			},
-			"rook-ceph-client-995e66248ad3e8642de868f461cdd827": {
-				Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+			"ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c": {
+				Name: "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"userID":  "995e66248ad3e8642de868f461cdd827",
@@ -539,9 +538,9 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 					"fsName":             "myfs",
 					"subvolumegroupname": "cephFilesystemSubVolumeGroup",
 					"pool":               "",
-					"csi.storage.k8s.io/provisioner-secret-name":       "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
-					"csi.storage.k8s.io/node-stage-secret-name":        "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
-					"csi.storage.k8s.io/controller-expand-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
+					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
 			},
 			"cephfs-volumesnapshotclass": {
@@ -549,19 +548,19 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
 					"clusterID": "8d26c7378c1b0ec9c2455d1c3601c4cd",
-					"csi.storage.k8s.io/snapshotter-secret-name": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
 			},
-			"rook-ceph-client-4ffcb503ff8044c8699dac415f82d604": {
-				Name: "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+			"ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c": {
+				Name: "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"adminID":  "4ffcb503ff8044c8699dac415f82d604",
 					"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 				},
 			},
-			"rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa": {
-				Name: "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
+			"ceph-client-node-0e8555e6556f70d23a61675af44e880c": {
+				Name: "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 				Kind: "Secret",
 				Data: map[string]string{
 					"adminID":  "1b042fcc8812fe4203689eec38fdfbfa",
@@ -579,12 +578,12 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		}
 
 		blockPoolClaimName     = "block-pool-claim"
-		blockPoolClaimResource = &ocsv1alpha1.StorageClassRequest{
+		blockPoolClaimResource = &ocsv1alpha1.StorageRequest{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      getStorageClassRequestName(string(consumerResource.UID), blockPoolClaimName),
+				Name:      getStorageRequestName(string(consumerResource.UID), blockPoolClaimName),
 				Namespace: serverNamespace,
 			},
-			Status: ocsv1alpha1.StorageClassRequestStatus{
+			Status: ocsv1alpha1.StorageRequestStatus{
 				CephResources: []*ocsv1alpha1.CephResourcesSpec{
 					{
 						Name: "cephradosnamespace",
@@ -603,20 +602,20 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 						Kind: "CephClient",
 					},
 				},
-				Phase: ocsv1alpha1.StorageClassRequestReady,
+				Phase: ocsv1alpha1.StorageRequestReady,
 			},
 		}
 
 		shareFilesystemClaimName      = "shared-filesystem-claim"
-		sharedFilesystemClaimResource = &ocsv1alpha1.StorageClassRequest{
+		sharedFilesystemClaimResource = &ocsv1alpha1.StorageRequest{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      getStorageClassRequestName(string(consumerResource.UID), shareFilesystemClaimName),
+				Name:      getStorageRequestName(string(consumerResource.UID), shareFilesystemClaimName),
 				Namespace: serverNamespace,
 			},
-			Spec: ocsv1alpha1.StorageClassRequestSpec{
-				Type: "sharedfilesystem",
+			Spec: ocsv1alpha1.StorageRequestSpec{
+				Type: "sharedfile",
 			},
-			Status: ocsv1alpha1.StorageClassRequestStatus{
+			Status: ocsv1alpha1.StorageRequestStatus{
 				CephResources: []*ocsv1alpha1.CephResourcesSpec{
 					{
 						Name: "cephFilesystemSubVolumeGroup",
@@ -635,37 +634,37 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 						Kind: "CephClient",
 					},
 				},
-				Phase: ocsv1alpha1.StorageClassRequestReady,
+				Phase: ocsv1alpha1.StorageRequestReady,
 			},
 		}
 		claimInitializing         = "claim-initializing"
 		claimCreating             = "claim-creating"
 		claimFailed               = "claim-failed"
-		claimResourceInitializing = &ocsv1alpha1.StorageClassRequest{
+		claimResourceInitializing = &ocsv1alpha1.StorageRequest{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      getStorageClassRequestName(string(consumerResource.UID), claimInitializing),
+				Name:      getStorageRequestName(string(consumerResource.UID), claimInitializing),
 				Namespace: serverNamespace,
 			},
-			Status: ocsv1alpha1.StorageClassRequestStatus{
-				Phase: ocsv1alpha1.StorageClassRequestInitializing,
+			Status: ocsv1alpha1.StorageRequestStatus{
+				Phase: ocsv1alpha1.StorageRequestInitializing,
 			},
 		}
-		claimResourceCreating = &ocsv1alpha1.StorageClassRequest{
+		claimResourceCreating = &ocsv1alpha1.StorageRequest{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      getStorageClassRequestName(string(consumerResource.UID), claimCreating),
+				Name:      getStorageRequestName(string(consumerResource.UID), claimCreating),
 				Namespace: serverNamespace,
 			},
-			Status: ocsv1alpha1.StorageClassRequestStatus{
-				Phase: ocsv1alpha1.StorageClassRequestCreating,
+			Status: ocsv1alpha1.StorageRequestStatus{
+				Phase: ocsv1alpha1.StorageRequestCreating,
 			},
 		}
-		claimResourceFailed = &ocsv1alpha1.StorageClassRequest{
+		claimResourceFailed = &ocsv1alpha1.StorageRequest{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      getStorageClassRequestName(string(consumerResource.UID), claimFailed),
+				Name:      getStorageRequestName(string(consumerResource.UID), claimFailed),
 				Namespace: serverNamespace,
 			},
-			Status: ocsv1alpha1.StorageClassRequestStatus{
-				Phase: ocsv1alpha1.StorageClassRequestFailed,
+			Status: ocsv1alpha1.StorageRequestStatus{
+				Phase: ocsv1alpha1.StorageRequestFailed,
 			},
 		}
 	)
@@ -686,14 +685,14 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	consumerManager, err := newConsumerManager(ctx, client, serverNamespace)
 	assert.NoError(t, err)
 
-	storageClassRequestManager, err := newStorageClassRequestManager(client, serverNamespace)
+	storageRequestManager, err := newStorageRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
 	server := &OCSProviderServer{
-		client:                     client,
-		consumerManager:            consumerManager,
-		storageClassRequestManager: storageClassRequestManager,
-		namespace:                  serverNamespace,
+		client:                client,
+		consumerManager:       consumerManager,
+		storageRequestManager: storageRequestManager,
+		namespace:             serverNamespace,
 	}
 
 	cephClient := &rookCephv1.CephClient{
@@ -708,14 +707,14 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+				"secretName": "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 			},
 		},
 	}
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
+			Name:      "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -738,14 +737,14 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+				"secretName": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-3de200d5c23524a4612bde1fdbeb717e",
+			Name:      "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -768,14 +767,14 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
+				"secretName": "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-1b042fcc8812fe4203689eec38fdfbfa",
+			Name:      "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -798,14 +797,14 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+				"secretName": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-client-4ffcb503ff8044c8699dac415f82d604",
+			Name:      "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -839,11 +838,11 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 	assert.NoError(t, client.Create(ctx, radosNamespace))
 
 	// get the storage class request config for block pool
-	req := pb.StorageClassClaimConfigRequest{
-		StorageConsumerUUID:   string(consumerResource.UID),
-		StorageClassClaimName: blockPoolClaimName,
+	req := pb.StorageClaimConfigRequest{
+		StorageConsumerUUID: string(consumerResource.UID),
+		StorageClaimName:    blockPoolClaimName,
 	}
-	storageConRes, err := server.GetStorageClassClaimConfig(ctx, &req)
+	storageConRes, err := server.GetStorageClaimConfig(ctx, &req)
 	assert.NoError(t, err)
 	assert.NotNil(t, storageConRes)
 
@@ -854,10 +853,6 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
-		} else if extResource.Kind == "Secret" {
-			var found bool
-			name, found = strings.CutSuffix(name, ".csi")
-			assert.True(t, found)
 		}
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
@@ -866,20 +861,15 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		if extResource.Kind == "Secret" {
-			name, _ := strings.CutSuffix(name, ".csi")
-			assert.Equal(t, name, mockResoruce.Name)
-		} else {
-			assert.Equal(t, extResource.Name, mockResoruce.Name)
-		}
+		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
 
 	// get the storage class request config for share filesystem
-	req = pb.StorageClassClaimConfigRequest{
-		StorageConsumerUUID:   string(consumerResource.UID),
-		StorageClassClaimName: shareFilesystemClaimName,
+	req = pb.StorageClaimConfigRequest{
+		StorageConsumerUUID: string(consumerResource.UID),
+		StorageClaimName:    shareFilesystemClaimName,
 	}
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	assert.NoError(t, err)
 	assert.NotNil(t, storageConRes)
 
@@ -890,10 +880,6 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
-		} else if extResource.Kind == "Secret" {
-			var found bool
-			name, found = strings.CutSuffix(name, ".csi")
-			assert.True(t, found)
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
@@ -902,52 +888,52 @@ func TestOCSProviderServerGetStorageClassClaimConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		if extResource.Kind == "Secret" {
-			name, _ := strings.CutSuffix(name, ".csi")
-			assert.Equal(t, name, mockResoruce.Name)
-		} else {
-			assert.Equal(t, extResource.Name, mockResoruce.Name)
-		}
+		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
 
 	// When ceph resources is empty
+	scrNameHash := getStorageRequestHash(string(consumerResource.UID), shareFilesystemClaimName)
 	for _, i := range sharedFilesystemClaimResource.Status.CephResources {
-		if i.Kind == "CephClient" {
-			cephClient, secret := createCephClientAndSecret(i.Name, server)
-			cephClient.Status = &rookCephv1.CephClientStatus{
-				Info: map[string]string{
-					"secretName": fmt.Sprintf("rook-ceph-client-%s", i.Name),
-				},
+		if i.Kind == "CephFilesystemSubVolumeGroup" {
+			for cephClientUserType, cephClientName := range i.CephClients {
+				cephClient, secret := createCephClientAndSecret(cephClientName, server)
+				secret.Name = storageClaimCephCsiSecretName(cephClientUserType, scrNameHash)
+				cephClient.Status = &rookCephv1.CephClientStatus{
+					Info: map[string]string{
+						"secretName": secret.Name,
+					},
+				}
+				assert.NoError(t, client.Delete(ctx, secret))
 			}
-			assert.NoError(t, client.Delete(ctx, secret))
+			break
 		}
 	}
 
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ := status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Internal)
 	assert.Nil(t, storageConRes)
 
 	// when claim in in Initializing phase
-	req.StorageClassClaimName = claimInitializing
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	req.StorageClaimName = claimInitializing
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Unavailable)
 	assert.Nil(t, storageConRes)
 
 	// when claim in in Creating phase
-	req.StorageClassClaimName = claimCreating
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	req.StorageClaimName = claimCreating
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Unavailable)
 	assert.Nil(t, storageConRes)
 
 	// when claim in in Failed phase
-	req.StorageClassClaimName = claimFailed
-	storageConRes, err = server.GetStorageClassClaimConfig(ctx, &req)
+	req.StorageClaimName = claimFailed
+	storageConRes, err = server.GetStorageClaimConfig(ctx, &req)
 	errCode, _ = status.FromError(err)
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Internal)
