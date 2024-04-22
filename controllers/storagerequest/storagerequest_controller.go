@@ -15,8 +15,6 @@ package storagerequest
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -233,8 +231,7 @@ func (r *StorageRequestReconciler) initPhase() error {
 		// if we found more than one CephBlockPoolRadosNamespace, we can't determine which one to select, so error out
 		rnsItemsLen := len(cephRadosNamespaceList.Items)
 		if rnsItemsLen == 0 {
-			md5Sum := md5.Sum([]byte(r.StorageRequest.Name))
-			rnsName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(md5Sum[:16]))
+			rnsName := fmt.Sprintf("cephradosnamespace-%s", getStorageRequestHashFromName(r.StorageRequest.Name))
 			r.log.V(1).Info("no valid CephBlockPoolRadosNamespace found, creating new one", "CephBlockPoolRadosNamespace", rnsName)
 			r.cephRadosNamespace.Name = rnsName
 		} else if rnsItemsLen == 1 {
@@ -258,8 +255,7 @@ func (r *StorageRequestReconciler) initPhase() error {
 
 		svgItemsLen := len(cephFilesystemSubVolumeGroupList.Items)
 		if svgItemsLen == 0 {
-			md5Sum := md5.Sum([]byte(r.StorageRequest.Name))
-			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(md5Sum[:16]))
+			r.cephFilesystemSubVolumeGroup.Name = fmt.Sprintf("cephfilesystemsubvolumegroup-%s", r.StorageRequest.Name)
 		} else if svgItemsLen == 1 {
 			r.cephFilesystemSubVolumeGroup.Name = cephFilesystemSubVolumeGroupList.Items[0].GetName()
 			r.log.V(1).Info(fmt.Sprintf("CephFilesystemSubVolumeGroup found: %s", r.cephFilesystemSubVolumeGroup.Name))
@@ -707,4 +703,12 @@ func addLabel(obj metav1.Object, key string, value string) {
 		obj.SetLabels(labels)
 	}
 	labels[key] = value
+}
+
+func getStorageRequestHashFromName(name string) string {
+	hash, found := strings.CutPrefix(name, "storagerequest-")
+	if !found {
+		panic(fmt.Sprintf("failed to extract the hash suffix from storagerequest name: %v", name))
+	}
+	return hash
 }

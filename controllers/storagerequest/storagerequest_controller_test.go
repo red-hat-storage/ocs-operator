@@ -14,8 +14,6 @@ limitations under the License.
 package storagerequest
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -105,7 +103,7 @@ func createFakeReconciler(t *testing.T) StorageRequestReconciler {
 	fakeReconciler.OperatorNamespace = namespaceName
 	fakeReconciler.StorageRequest = &v1alpha1.StorageRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-scr",
+			Name: "storagerequest-hash",
 			UID:  storageRequestUID,
 		},
 	}
@@ -157,8 +155,8 @@ func TestCephBlockPool(t *testing.T) {
 				},
 				&rookCephv1.CephBlockPoolRadosNamespace{
 					ObjectMeta: metav1.ObjectMeta{
-						// the hash here corresponds to the storagerequest name "test-scr"
-						Name:      "cephradosnamespace-14e1f808c9ef5a75b375b11fe8011f6e",
+						// the suffix ("hash") here corresponds to the name of storagerequest: "storagerequest-hash"
+						Name:      "cephradosnamespace-hash",
 						Namespace: "test-ns",
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -310,11 +308,7 @@ func TestCephBlockPool(t *testing.T) {
 
 		assert.Equal(t, c.expectedPoolName, r.cephRadosNamespace.Spec.BlockPoolName, caseLabel)
 
-		// The generated CephBlockPoolRadosNamespace name is expected
-		// to be deterministic, so hard-coding the name generation in
-		// the test to guard against unintentional changes.
-		md5Sum := md5.Sum([]byte(r.StorageRequest.Name))
-		expectedRadosNamespaceName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(md5Sum[:16]))
+		expectedRadosNamespaceName := fmt.Sprintf("cephradosnamespace-%s", getStorageRequestHashFromName(r.StorageRequest.Name))
 		for _, cephRes := range c.cephResources {
 			if cephRes.Kind == "CephBlockPoolRadosNamespace" {
 				expectedRadosNamespaceName = cephRes.Name
