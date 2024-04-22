@@ -614,7 +614,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Namespace: serverNamespace,
 			},
 			Spec: ocsv1alpha1.StorageRequestSpec{
-				Type: "sharedfilesystem",
+				Type: "sharedfile",
 			},
 			Status: ocsv1alpha1.StorageRequestStatus{
 				CephResources: []*ocsv1alpha1.CephResourcesSpec{

@@ -15,11 +15,6 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: StorageRequest is the Schema for the StorageRequests API
-      displayName: Storage Request
-      kind: StorageRequest
-      name: storagerequests.ocs.openshift.io
-      version: v1alpha1
     - description: OCSInitialization represents the initial data to be created when
         the operator is installed.
       displayName: OCS Initialization
@@ -49,6 +44,11 @@ spec:
       kind: StorageProfile
       name: storageprofiles.ocs.openshift.io
       version: v1
+    - description: StorageRequest is the Schema for the StorageRequests API
+      displayName: Storage Request
+      kind: StorageRequest
+      name: storagerequests.ocs.openshift.io
+      version: v1alpha1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
 

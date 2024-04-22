@@ -487,9 +487,9 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 	var storageType string
 	switch req.StorageType {
 	case pb.FulfillStorageClaimRequest_BLOCK:
-		storageType = "blockpool"
+		storageType = "block"
 	case pb.FulfillStorageClaimRequest_SHAREDFILE:
-		storageType = "sharedfilesystem"
+		storageType = "sharedfile"
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown storage type, %s", storageType)
 	}
@@ -569,7 +569,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 
 			idProp := "userID"
 			keyProp := "userKey"
-			if storageRequest.Spec.Type == "sharedfilesystem" {
+			if storageRequest.Spec.Type == "sharedfile" {
 				idProp = "adminID"
 				keyProp = "adminKey"
 			}

@@ -284,7 +284,7 @@ func TestCephBlockPool(t *testing.T) {
 
 		r := createFakeReconciler(t)
 		r.StorageRequest.Status.CephResources = c.cephResources
-		r.StorageRequest.Spec.Type = "blockpool"
+		r.StorageRequest.Spec.Type = "block"
 
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
 		c.createObjects = append(c.createObjects, r.StorageRequest)
@@ -381,7 +381,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 		fmt.Println(caseLabel)
 
 		r := createFakeReconciler(t)
-		r.StorageRequest.Spec.Type = "sharedfilesystem"
+		r.StorageRequest.Spec.Type = "sharedfile"
 
 		c.createObjects = append(c.createObjects, fakeCephFs)
 		c.createObjects = append(c.createObjects, fakeStorageConsumer)
@@ -411,7 +411,7 @@ func TestCephFsSubVolGroup(t *testing.T) {
 	fmt.Println(caseLabel)
 
 	r := createFakeReconciler(t)
-	r.StorageRequest.Spec.Type = "sharedfilesystem"
+	r.StorageRequest.Spec.Type = "sharedfile"
 	fakeClient := newFakeClientBuilder(r.Scheme).
 		WithRuntimeObjects(fakeStorageConsumer, r.StorageRequest)
 	r.Client = fakeClient.Build()
