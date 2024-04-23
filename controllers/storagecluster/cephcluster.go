@@ -490,6 +490,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 					KernelMountOptions: getCephFSKernelMountOptions(sc),
 				},
 			},
+			WaitTimeoutForHealthyOSDInMinutes: getWaitTimeoutForHealthOSD(sc),
 		},
 	}
 
@@ -1356,4 +1357,12 @@ func getOsdCount(sc *ocsv1.StorageCluster, serverVersion *version.Info) int {
 		osdCount += ds.Count
 	}
 	return osdCount
+}
+
+func getWaitTimeoutForHealthOSD(sc *ocsv1.StorageCluster) time.Duration {
+	if sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes != 0 {
+		return sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes
+	}
+
+	return defaults.DefaultWaitTimeoutForHealthyOSD
 }
