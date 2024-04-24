@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
@@ -195,12 +194,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 					return reconcile.Result{}, err
 				}
 			}
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.serverVersion, kmsConfigMap, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, kmsConfigMap, r.Log)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 		} else {
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, r.serverVersion, nil, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, nil, r.Log)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
@@ -409,7 +408,7 @@ func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *version.Info, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -459,7 +458,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 				Interval: &metav1.Duration{Duration: 30 * time.Second},
 			},
 			Storage: rookCephv1.StorageScopeSpec{
-				StorageClassDeviceSets:       newStorageClassDeviceSets(sc, serverVersion),
+				StorageClassDeviceSets:       newStorageClassDeviceSets(sc),
 				Store:                        osdStore,
 				FlappingRestartIntervalHours: 24,
 			},
@@ -749,15 +748,11 @@ func getMonCount(sc *ocsv1.StorageCluster) int {
 }
 
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
-func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.Info) []rookCephv1.StorageClassDeviceSet {
+func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
 	topologyMap := sc.Status.NodeTopologies
 
 	var storageClassDeviceSets []rookCephv1.StorageClassDeviceSet
-
-	// For kube server version 1.19 and above, topology spread constraints are used for OSD placements.
-	// For kube server version below 1.19, NodeAffinity and PodAntiAffinity are used for OSD placements.
-	supportTSC := serverVersion.Major >= defaults.KubeMajorTopologySpreadConstraints && serverVersion.Minor >= defaults.KubeMinorTopologySpreadConstraints
 
 	for _, ds := range storageDeviceSets {
 		resources := ds.Resources
@@ -770,13 +765,8 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 		topologyKey := ds.TopologyKey
 		topologyKeyValues := []string{}
 
-		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil
-		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil
-
-		if supportTSC {
-			noPlacement = noPlacement && ds.Placement.TopologySpreadConstraints == nil
-			noPreparePlacement = noPreparePlacement && ds.PreparePlacement.TopologySpreadConstraints == nil
-		}
+		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil && ds.Placement.TopologySpreadConstraints == nil
+		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil && ds.PreparePlacement.TopologySpreadConstraints == nil
 
 		if noPlacement {
 			if topologyKey == "" {
@@ -798,47 +788,29 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			preparePlacement := rookCephv1.Placement{}
 
 			if noPlacement {
-				if supportTSC {
-					in := getPlacement(sc, "osd-tsc")
-					(&in).DeepCopyInto(&placement)
+				in := getPlacement(sc, "osd")
+				(&in).DeepCopyInto(&placement)
 
+				if noPreparePlacement {
+					in := getPlacement(sc, "osd-prepare")
+					(&in).DeepCopyInto(&preparePlacement)
+				}
+
+				if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
+					// Hard constraints are set in OSD placement for portable volumes with rack failure domain
+					// domain as there is no node affinity in PVs. This restricts the movement of OSDs
+					// between failure domain.
+					if portable && !strings.Contains(topologyKey, "zone") {
+						addStrictFailureDomainTSC(&placement, topologyKey)
+					}
+					// If topologyKey is not host, append additional topology spread constraint to the
+					// default preparePlacement. This serves even distribution at the host level
+					// within a failure domain (zone/rack).
 					if noPreparePlacement {
-						in := getPlacement(sc, "osd-prepare-tsc")
-						(&in).DeepCopyInto(&preparePlacement)
-					}
-
-					if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
-						// Hard constraints are set in OSD placement for portable volumes with rack failure domain
-						// domain as there is no node affinity in PVs. This restricts the movement of OSDs
-						// between failure domain.
-						if portable && !strings.Contains(topologyKey, "zone") {
-							addStrictFailureDomainTSC(&placement, topologyKey)
-						}
-						// If topologyKey is not host, append additional topology spread constraint to the
-						// default preparePlacement. This serves even distribution at the host level
-						// within a failure domain (zone/rack).
-						if noPreparePlacement {
-							if topologyKey != corev1.LabelHostname {
-								addStrictFailureDomainTSC(&preparePlacement, topologyKey)
-							} else {
-								preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
-							}
-						}
-					}
-				} else {
-					in := getPlacement(sc, "osd")
-					(&in).DeepCopyInto(&placement)
-
-					if noPreparePlacement {
-						in := getPlacement(sc, "osd-prepare")
-						(&in).DeepCopyInto(&preparePlacement)
-					}
-
-					if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
-						topologyIndex := i % len(topologyKeyValues)
-						setTopologyForAffinity(&placement, topologyKeyValues[topologyIndex], topologyKey)
-						if noPreparePlacement {
-							setTopologyForAffinity(&preparePlacement, topologyKeyValues[topologyIndex], topologyKey)
+						if topologyKey != corev1.LabelHostname {
+							addStrictFailureDomainTSC(&preparePlacement, topologyKey)
+						} else {
+							preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
 						}
 					}
 				}
@@ -1349,8 +1321,8 @@ func isBluestore(store rookCephv1.OSDStore) bool {
 	return false
 }
 
-func getOsdCount(sc *ocsv1.StorageCluster, serverVersion *version.Info) int {
-	storageClassDeviceSets := newStorageClassDeviceSets(sc, serverVersion)
+func getOsdCount(sc *ocsv1.StorageCluster) int {
+	storageClassDeviceSets := newStorageClassDeviceSets(sc)
 	osdCount := 0
 	for _, ds := range storageClassDeviceSets {
 		osdCount += ds.Count

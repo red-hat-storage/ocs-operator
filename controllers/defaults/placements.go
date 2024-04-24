@@ -45,34 +45,12 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					getWeightedPodAffinityTerm(100, "rook-ceph-osd"),
-				},
-			},
-		},
-
-		"osd-prepare": {
-			Tolerations: []corev1.Toleration{
-				getOcsToleration(),
-			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					getWeightedPodAffinityTerm(100, "rook-ceph-osd-prepare"),
-				},
-			},
-		},
-
-		"osd-tsc": {
-			Tolerations: []corev1.Toleration{
-				getOcsToleration(),
-			},
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector}),
 			},
 		},
 
-		"osd-prepare-tsc": {
+		"osd-prepare": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
