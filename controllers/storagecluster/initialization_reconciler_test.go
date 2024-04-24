@@ -20,7 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -370,7 +369,6 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 	return StorageClusterReconciler{
 		Client:            client,
 		Scheme:            scheme,
-		serverVersion:     &version.Info{},
 		OperatorCondition: newStubOperatorCondition(),
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 	}

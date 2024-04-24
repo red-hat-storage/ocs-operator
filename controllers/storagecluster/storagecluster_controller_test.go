@@ -38,7 +38,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	k8sVersion "k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -1139,7 +1138,6 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		Client:            client,
 		Scheme:            scheme,
 		OperatorCondition: newStubOperatorCondition(),
-		serverVersion:     &k8sVersion.Info{},
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 		clusters:          clusters,
 		OperatorNamespace: operatorNamespace,
@@ -1294,9 +1292,8 @@ func TestStorageClusterOnMultus(t *testing.T) {
 }
 
 func assertCephClusterNetwork(t assert.TestingT, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
-	serverVersion := &k8sVersion.Info{}
 	request.Name = "ocsinit-cephcluster"
-	cephCluster, err := newCephCluster(cr, "", serverVersion, nil, log)
+	cephCluster, err := newCephCluster(cr, "", nil, log)
 	assert.NoError(t, err)
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
