@@ -44,7 +44,9 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 
 	tolerations = append(tolerations, getPlacement(sc, "toolbox").Tolerations...)
 
-	toolsDeployment := sc.NewToolsDeployment(tolerations)
+	nodeAffinity := getPlacement(sc, "toolbox").NodeAffinity
+
+	toolsDeployment := sc.NewToolsDeployment(tolerations, nodeAffinity)
 	foundToolsDeployment := &appsv1.Deployment{}
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
 
