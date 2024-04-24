@@ -669,7 +669,7 @@ type OverprovisionControlSpec struct {
 	Selector         quotav1.ClusterResourceQuotaSelector `json:"selector,omitempty"`
 }
 
-func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *appsv1.Deployment {
+func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration, nodeAffinity *corev1.NodeAffinity) *appsv1.Deployment {
 
 	var replicaOne int32 = 1
 
@@ -742,6 +742,9 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration) *ap
 						},
 					},
 					Tolerations: tolerations,
+					Affinity: &corev1.Affinity{
+						NodeAffinity: nodeAffinity,
+					},
 					Volumes: []corev1.Volume{
 						{Name: "ceph-config", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 						{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
