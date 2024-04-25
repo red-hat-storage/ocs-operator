@@ -13,13 +13,11 @@ import (
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -167,7 +165,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 		ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) == ReconcileStrategyStandalone
 
 	var err error
-	r.clusters, err = util.GetClusters(ctx, r.Client)
+	r.clusters, err = statusutil.GetClusters(ctx, r.Client)
 	if err != nil {
 		r.Log.Error(err, "Failed to get clusters")
 		return reconcile.Result{}, err
@@ -656,7 +654,7 @@ func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 	return nil
 }
 
-func (r *StorageClusterReconciler) SetOperatorConditions(message string, reason string, isUpgradeable v1.ConditionStatus, prevError error) error {
+func (r *StorageClusterReconciler) SetOperatorConditions(message string, reason string, isUpgradeable metav1.ConditionStatus, prevError error) error {
 	prevError = client.IgnoreNotFound(prevError)
 	operatorConditionErr := r.OperatorCondition.Set(context.TODO(), isUpgradeable, conditions.Option(conditions.WithMessage(message)), conditions.Option(conditions.WithReason(reason)))
 	if operatorConditionErr != nil {

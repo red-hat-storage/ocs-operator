@@ -3,7 +3,6 @@ package storagecluster
 import (
 	"testing"
 
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -161,7 +160,7 @@ func getOcsToleration() corev1.Toleration {
 func TestGetPlacement(t *testing.T) {
 	cases := []struct {
 		label              string
-		storageCluster     *api.StorageCluster
+		storageCluster     *ocsv1.StorageCluster
 		placements         rookCephv1.PlacementSpec
 		labelSelector      *metav1.LabelSelector
 		expectedPlacements rookCephv1.PlacementSpec
