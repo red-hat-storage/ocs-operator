@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8sVersion "k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -121,10 +120,9 @@ func createFakeStorageClusterWithQuotaReconciler(t *testing.T, obj ...runtime.Ob
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	return &StorageClusterReconciler{
-		Client:        client,
-		Scheme:        scheme,
-		serverVersion: &k8sVersion.Info{},
-		Log:           logf.Log.WithName("storagequota_test"),
+		Client: client,
+		Scheme: scheme,
+		Log:    logf.Log.WithName("storagequota_test"),
 	}
 }
 

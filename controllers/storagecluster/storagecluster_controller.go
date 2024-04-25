@@ -20,12 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -62,20 +59,6 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 	return nil
 }
 
-func (r *StorageClusterReconciler) initializeServerVersion() error {
-	clientset, err := kubernetes.NewForConfig(config.GetConfigOrDie())
-	if err != nil {
-		r.Log.Error(err, "Failed creation of clientset for determining serverversion.")
-		return err
-	}
-	r.serverVersion, err = clientset.Discovery().ServerVersion()
-	if err != nil {
-		r.Log.Error(err, "Failed getting the serverversion.")
-		return err
-	}
-	return nil
-}
-
 // ImageMap holds mapping information between component image name and the image url
 type ImageMap struct {
 	Ceph               string
@@ -91,7 +74,6 @@ type StorageClusterReconciler struct {
 	ctx                       context.Context
 	Log                       logr.Logger
 	Scheme                    *runtime.Scheme
-	serverVersion             *version.Info
 	conditions                []conditionsv1.Condition
 	phase                     string
 	nodeCount                 int
@@ -107,10 +89,6 @@ type StorageClusterReconciler struct {
 // SetupWithManager sets up a controller with manager
 func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := r.initializeImageVars(); err != nil {
-		return err
-	}
-
-	if err := r.initializeServerVersion(); err != nil {
 		return err
 	}
 

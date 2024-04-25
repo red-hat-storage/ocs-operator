@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/clientcmd"
 	clusterclientv1alpha1 "open-cluster-management.io/api/client/cluster/clientset/versioned"
 	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
@@ -107,7 +106,7 @@ func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance 
 	// Set isDROptmized to "false" in case of external clusters as we currently don't have to way to determine
 	// if external cluster OSDs are using bluestore-rdr
 	if !instance.Spec.ExternalStorage.Enable {
-		isDROptimized, err = creator.getIsDROptimized(r.serverVersion)
+		isDROptimized, err = creator.getIsDROptimized()
 		if err != nil {
 			r.Log.Error(err, "failed to get cephcluster status. retrying again")
 			return reconcile.Result{}, err
@@ -208,7 +207,7 @@ func (c *ClusterClaimCreator) getCephFsid() (string, error) {
 	return "", fmt.Errorf("failed to fetch ceph fsid from %q secret", RookCephMonSecretName)
 }
 
-func (c *ClusterClaimCreator) getIsDROptimized(serverVersion *version.Info) (string, error) {
+func (c *ClusterClaimCreator) getIsDROptimized() (string, error) {
 	var cephCluster rookCephv1.CephCluster
 	err := c.Client.Get(c.Context, types.NamespacedName{Name: generateNameForCephClusterFromString(c.StorageCluster.Name), Namespace: c.StorageCluster.Namespace}, &cephCluster)
 	if err != nil {
@@ -221,7 +220,7 @@ func (c *ClusterClaimCreator) getIsDROptimized(serverVersion *version.Info) (str
 	if !ok {
 		return "false", nil
 	}
-	total := getOsdCount(c.StorageCluster, serverVersion)
+	total := getOsdCount(c.StorageCluster)
 	if bluestorerdr < total {
 		return "false", nil
 	}
