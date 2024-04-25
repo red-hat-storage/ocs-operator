@@ -9,7 +9,6 @@ import (
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/openshift/api/config/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -53,7 +52,7 @@ func TestReconcileUninstallAnnotations(t *testing.T) {
 }
 
 func assertStorageClusterUninstallAnnotation(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	CleanupPolicy CleanupPolicyType, UninstallMode UninstallModeType, ShouldSCUpdate bool) {
 
 	wasSCUpdated, err := reconciler.reconcileUninstallAnnotations(sc)
@@ -105,7 +104,7 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 }
 
 func assertCephClusterCleanupPolicy(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	CleanupPolicyConfirmation cephv1.CleanupConfirmationProperty, AllowUninstallWithVolumes bool) {
 
 	var err error
@@ -144,7 +143,7 @@ func TestDeleteStorageClasses(t *testing.T) {
 }
 
 func assertTestDeleteStorageClasses(t *testing.T, reconciler StorageClusterReconciler,
-	sc *api.StorageCluster, storageClassExists bool) {
+	sc *ocsv1.StorageCluster, storageClassExists bool) {
 
 	var obj ocsStorageClass
 	if !storageClassExists {
@@ -193,10 +192,9 @@ func TestDeleteSnapshotClasses(t *testing.T) {
 	}
 }
 
-// This function is not used, yet. It will be used in the future.
-// nolint:unused
+//lint:ignore U1000 will be used in future
 func assertTestDeleteSnapshotClasses(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, SnapshotClassExists bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, SnapshotClassExists bool) {
 
 	var obj ocsSnapshotClass
 
@@ -248,7 +246,7 @@ func TestDeleteNodeAffinityKeyFromNodes(t *testing.T) {
 }
 
 func assertTestDeleteNodeAffinityKeyFromNodes(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, createUserDefinedKey bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, createUserDefinedKey bool) {
 
 	if createUserDefinedKey {
 		addFakeNodeAffinityKeyOnNodesAndSC(t, reconciler, sc)
@@ -281,7 +279,7 @@ func assertTestDeleteNodeAffinityKeyFromNodes(
 	}
 }
 
-func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster) {
+func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster) {
 	// create user defined key and val and apply it on SC
 	fakeKey, fakeVal := "fakeKey", "fakeVal"
 	sc.Spec.LabelSelector = metav1.AddLabelToSelector(&metav1.LabelSelector{}, fakeKey, fakeVal)
@@ -334,7 +332,7 @@ func TestDeleteNodeTaint(t *testing.T) {
 }
 
 func assertTestDeleteNodeTaint(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, createDefaultNodeTaint bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, createDefaultNodeTaint bool) {
 
 	if createDefaultNodeTaint {
 		addDefaultNodeTaintOnNodes(t, reconciler, sc)
@@ -356,7 +354,7 @@ func assertTestDeleteNodeTaint(
 	}
 }
 
-func addDefaultNodeTaintOnNodes(t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster) {
+func addDefaultNodeTaintOnNodes(t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster) {
 
 	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
@@ -404,7 +402,7 @@ func TestDeleteCephCluster(t *testing.T) {
 }
 
 func assertTestDeleteCephCluster(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, cephClusterExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, cephClusterExist bool) {
 
 	var obj ocsCephCluster
 
@@ -456,7 +454,7 @@ func TestDeleteCephFilesystems(t *testing.T) {
 }
 
 func assertTestDeleteCephFilesystems(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, cephFilesystemsExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, cephFilesystemsExist bool) {
 
 	var obj ocsCephFilesystems
 
@@ -514,10 +512,9 @@ func TestDeleteCephBlockPools(t *testing.T) {
 	}
 }
 
-// This function is not used, yet. It will be used in the future.
-// nolint:unused
+//lint:ignore U1000 will be used in future
 func assertTestDeleteCephBlockPools(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, cephBlockPoolsExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, cephBlockPoolsExist bool) {
 
 	var obj ocsCephBlockPools
 
@@ -610,7 +607,7 @@ func TestDeleteCephObjectStoreUsers(t *testing.T) {
 }
 
 func assertTestDeleteCephObjectStoreUsers(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, CephObjectStoreUsersExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, CephObjectStoreUsersExist bool) {
 
 	var obj ocsCephObjectStoreUsers
 
@@ -710,7 +707,7 @@ func TestDeleteCephObjectStores(t *testing.T) {
 }
 
 func assertTestDeleteCephObjectStores(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster, CephObjectStoreExist bool) {
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, CephObjectStoreExist bool) {
 
 	var obj ocsCephObjectStores
 
@@ -791,7 +788,7 @@ func TestSetNoobaaUninstallMode(t *testing.T) {
 }
 
 func assertTestSetNoobaaUninstallMode(
-	t *testing.T, reconciler StorageClusterReconciler, sc *api.StorageCluster,
+	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	UninstallMode UninstallModeType, NoobaaUninstallMode nbv1.CleanupConfirmationProperty) {
 
 	_, err := reconciler.reconcileUninstallAnnotations(sc)

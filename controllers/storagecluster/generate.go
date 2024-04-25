@@ -147,6 +147,7 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 
 	crs.Size = getCephPoolReplicatedSize(initData)
 	crs.ReplicasPerFailureDomain = uint(getReplicasPerFailureDomain(initData))
+	//lint:ignore ST1017 required to compare it directly
 	if "data" == poolType {
 		crs.TargetSizeRatio = .49
 	}

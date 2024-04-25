@@ -22,10 +22,8 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1103,33 +1101,33 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	scheme := createFakeScheme(t)
 	name := mockStorageClusterRequest.NamespacedName.Name
 	namespace := mockStorageClusterRequest.NamespacedName.Namespace
-	cfs := &cephv1.CephFilesystem{
+	cfs := &rookCephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-cephfilesystem", name),
 			Namespace: namespace,
 		},
-		Status: &cephv1.CephFilesystemStatus{
-			Phase: cephv1.ConditionType(util.PhaseReady),
+		Status: &rookCephv1.CephFilesystemStatus{
+			Phase: rookCephv1.ConditionType(statusutil.PhaseReady),
 		},
 	}
-	cbp := &cephv1.CephBlockPool{
+	cbp := &rookCephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-cephblockpool", name),
 			Namespace: namespace,
 		},
-		Status: &cephv1.CephBlockPoolStatus{
-			Phase: cephv1.ConditionType(util.PhaseReady),
+		Status: &rookCephv1.CephBlockPoolStatus{
+			Phase: rookCephv1.ConditionType(statusutil.PhaseReady),
 		},
 	}
 	obj = append(obj, cbp, cfs)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
-	clusters, err := util.GetClusters(context.TODO(), client)
+	clusters, err := statusutil.GetClusters(context.TODO(), client)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get clusters %s", err.Error()))
 	}
 
-	operatorNamespace, err := util.GetOperatorNamespace()
+	operatorNamespace, err := statusutil.GetOperatorNamespace()
 	if err != nil {
 		operatorNamespace = "openshift-storage"
 	}

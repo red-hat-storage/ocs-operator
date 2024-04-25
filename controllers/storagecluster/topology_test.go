@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 )
@@ -45,18 +44,18 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 	testcases := []struct {
 		label                   string
 		nodeList                *corev1.NodeList
-		storageCluster          *api.StorageCluster
+		storageCluster          *ocsv1.StorageCluster
 		failureDomain           string
-		expectedNodeTopologyMap *api.NodeTopologyMap
+		expectedNodeTopologyMap *ocsv1.NodeTopologyMap
 		expectedNodeCount       int
 	}{
 		{
 			label:          "Case 1", // failure domain is rack
 			nodeList:       &corev1.NodeList{},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			failureDomain:  "rack",
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -79,10 +78,10 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 		{
 			label:          "Case 2", // failure domain is not set and sufficient zones available
 			nodeList:       &corev1.NodeList{},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			failureDomain:  "",
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -133,10 +132,10 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 					},
 				},
 			},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			failureDomain:  "",
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -192,10 +191,10 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 					},
 				},
 			},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			failureDomain:  "",
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -257,10 +256,10 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 					},
 				},
 			},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			failureDomain:  "",
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					corev1.LabelZoneFailureDomainStable: []string{
 						"zone1",
 						"zone2",
@@ -315,10 +314,10 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 					},
 				},
 			},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			failureDomain:  "zone",
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					labelZoneFailureDomainWithoutBeta: []string{
 						"zone1",
 						"zone2",
@@ -376,10 +375,10 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 					},
 				},
 			},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			failureDomain:  "zone",
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					corev1.LabelZoneFailureDomainStable: []string{
 						"zone1",
 						"zone2",
@@ -410,7 +409,7 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 		err = reconciler.Client.Status().Update(context.TODO(), tc.storageCluster)
 		assert.NoError(t, err)
 
-		actual := &api.StorageCluster{}
+		actual := &ocsv1.StorageCluster{}
 		err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
@@ -426,17 +425,17 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 	testcases := []struct {
 		label                   string
 		nodeList                *corev1.NodeList
-		storageCluster          *api.StorageCluster
+		storageCluster          *ocsv1.StorageCluster
 		zoneCount               int
-		expectedNodeTopologyMap *api.NodeTopologyMap
+		expectedNodeTopologyMap *ocsv1.NodeTopologyMap
 	}{
 		{
 			label:          "Case 1", // three nodes spread across a single zone
 			nodeList:       &corev1.NodeList{},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			zoneCount:      1,
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 					},
@@ -456,10 +455,10 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 		{
 			label:          "Case 2", // three nodes spread across two zones
 			nodeList:       &corev1.NodeList{},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			zoneCount:      2,
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -480,10 +479,10 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 		{
 			label:          "Case 3", // three nodes spread across three zones
 			nodeList:       &corev1.NodeList{},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			zoneCount:      3,
-			expectedNodeTopologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			expectedNodeTopologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -516,7 +515,7 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 		err = reconciler.Client.Status().Update(context.TODO(), tc.storageCluster)
 		assert.NoError(t, err)
 
-		actual := &api.StorageCluster{}
+		actual := &ocsv1.StorageCluster{}
 		err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
@@ -528,21 +527,21 @@ func TestReconcileNodeTopologyMapFailure(t *testing.T) {
 	testcases := []struct {
 		label          string
 		nodeList       *corev1.NodeList
-		storageCluster *api.StorageCluster
+		storageCluster *ocsv1.StorageCluster
 		nodesAvailable bool
 		repilcaCount   int
 	}{
 		{
 			label:          "Case 1", // deviceSet replica count (4) greater than eligible nodes (3)
 			nodeList:       &corev1.NodeList{},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			nodesAvailable: true,
 			repilcaCount:   4,
 		},
 		{
 			label:          "Case 2", // No eligible nodes found
 			nodeList:       &corev1.NodeList{},
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			nodesAvailable: false,
 			repilcaCount:   3,
 		},
@@ -564,14 +563,14 @@ func TestReconcileNodeTopologyMapFailure(t *testing.T) {
 func TestFailureDomain(t *testing.T) {
 	testcases := []struct {
 		label                 string
-		storageCluster        *api.StorageCluster
-		NodeTopologyMap       *api.NodeTopologyMap
+		storageCluster        *ocsv1.StorageCluster
+		NodeTopologyMap       *ocsv1.NodeTopologyMap
 		expectedFailureDomain string
 	}{
 		{
 			label: "Case 1", // storagecluster has predefined failure domain of `zone`
-			storageCluster: &api.StorageCluster{
-				Status: api.StorageClusterStatus{
+			storageCluster: &ocsv1.StorageCluster{
+				Status: ocsv1.StorageClusterStatus{
 					FailureDomain:  "zone",
 					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
@@ -580,8 +579,8 @@ func TestFailureDomain(t *testing.T) {
 		},
 		{
 			label: "Case 2", // storagecluster has predefined failure domain of `rack`
-			storageCluster: &api.StorageCluster{
-				Status: api.StorageClusterStatus{
+			storageCluster: &ocsv1.StorageCluster{
+				Status: ocsv1.StorageClusterStatus{
 					FailureDomain:  "rack",
 					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
@@ -590,10 +589,10 @@ func TestFailureDomain(t *testing.T) {
 		},
 		{
 			label: "Case 3", // storagecluster with three or more zone topology labels
-			storageCluster: &api.StorageCluster{
-				Status: api.StorageClusterStatus{
-					NodeTopologies: &api.NodeTopologyMap{
-						Labels: map[string]api.TopologyLabelValues{
+			storageCluster: &ocsv1.StorageCluster{
+				Status: ocsv1.StorageClusterStatus{
+					NodeTopologies: &ocsv1.NodeTopologyMap{
+						Labels: map[string]ocsv1.TopologyLabelValues{
 							zoneTopologyLabel: []string{
 								"zone1",
 								"zone2",
@@ -607,10 +606,10 @@ func TestFailureDomain(t *testing.T) {
 		},
 		{
 			label: "Case 4", // storagecluster with less than three zone topology labels
-			storageCluster: &api.StorageCluster{
-				Status: api.StorageClusterStatus{
-					NodeTopologies: &api.NodeTopologyMap{
-						Labels: map[string]api.TopologyLabelValues{
+			storageCluster: &ocsv1.StorageCluster{
+				Status: ocsv1.StorageClusterStatus{
+					NodeTopologies: &ocsv1.NodeTopologyMap{
+						Labels: map[string]ocsv1.TopologyLabelValues{
 							zoneTopologyLabel: []string{
 								"zone1",
 								"zone2",
@@ -623,8 +622,8 @@ func TestFailureDomain(t *testing.T) {
 		},
 		{
 			label: "Case 5", // storagecluster has predefined failure domain of `host`
-			storageCluster: &api.StorageCluster{
-				Status: api.StorageClusterStatus{
+			storageCluster: &ocsv1.StorageCluster{
+				Status: ocsv1.StorageClusterStatus{
 					FailureDomain:  "host",
 					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
@@ -633,11 +632,11 @@ func TestFailureDomain(t *testing.T) {
 		},
 		{
 			label: "Case 6", // storagecluster with FlexibleScaling enabled
-			storageCluster: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					FlexibleScaling: true,
 				},
-				Status: api.StorageClusterStatus{
+				Status: ocsv1.StorageClusterStatus{
 					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
@@ -645,11 +644,11 @@ func TestFailureDomain(t *testing.T) {
 		},
 		{
 			label: "Case 7", // storagecluster has predefined failure domain of `zone` and newer labels have been added to the nodes
-			storageCluster: &api.StorageCluster{
-				Status: api.StorageClusterStatus{
+			storageCluster: &ocsv1.StorageCluster{
+				Status: ocsv1.StorageClusterStatus{
 					FailureDomain: "zone",
-					NodeTopologies: &api.NodeTopologyMap{
-						Labels: map[string]api.TopologyLabelValues{
+					NodeTopologies: &ocsv1.NodeTopologyMap{
+						Labels: map[string]ocsv1.TopologyLabelValues{
 							corev1.LabelZoneFailureDomainStable: []string{
 								"zone1",
 								"zone2",
@@ -673,14 +672,14 @@ func TestFailureDomain(t *testing.T) {
 func TestStorageClusterEligibleNodes(t *testing.T) {
 	testcases := []struct {
 		label             string
-		storageCluster    *api.StorageCluster
+		storageCluster    *ocsv1.StorageCluster
 		nodeList          *corev1.NodeList
 		labelSelectors    *metav1.LabelSelector
 		expectedNodeCount int
 	}{
 		{
 			label:          "Case 1", // One eligible node with `WorkerAffinityKey` matching storageCluster labelselector
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			nodeList: &corev1.NodeList{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "NodeList",
@@ -701,7 +700,7 @@ func TestStorageClusterEligibleNodes(t *testing.T) {
 		},
 		{
 			label:          "Case 2", // One out of two nodes match default NodeAffinityKey
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			nodeList: &corev1.NodeList{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "NodeList",
@@ -716,7 +715,7 @@ func TestStorageClusterEligibleNodes(t *testing.T) {
 		},
 		{
 			label:          "Case 3", // No eligible nodes matching default NodeAffinityKey
-			storageCluster: &api.StorageCluster{},
+			storageCluster: &ocsv1.StorageCluster{},
 			nodeList: &corev1.NodeList{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "NodeList",
@@ -776,11 +775,11 @@ func TestEnsureNodeRack(t *testing.T) {
 				},
 			},
 			minRacks: 3,
-			nodeRacks: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{},
+			nodeRacks: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{},
 			},
-			topologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			topologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -821,8 +820,8 @@ func TestEnsureNodeRack(t *testing.T) {
 				},
 			},
 			minRacks: 3,
-			nodeRacks: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			nodeRacks: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					rack0: []string{
 						"Node1",
 					},
@@ -831,8 +830,8 @@ func TestEnsureNodeRack(t *testing.T) {
 					},
 				},
 			},
-			topologyMap: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			topologyMap: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -874,8 +873,8 @@ func TestDeterminePlacementRack(t *testing.T) {
 			nodeList: &corev1.NodeList{},
 			node:     corev1.Node{},
 			minRacks: 3,
-			nodeRacks: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{},
+			nodeRacks: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{},
 			},
 			expectedRack: "rack0",
 		},
@@ -884,8 +883,8 @@ func TestDeterminePlacementRack(t *testing.T) {
 			nodeList: &corev1.NodeList{},
 			node:     corev1.Node{},
 			minRacks: 3,
-			nodeRacks: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			nodeRacks: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					rack0: []string{
 						"node1",
 						"node2",
@@ -900,8 +899,8 @@ func TestDeterminePlacementRack(t *testing.T) {
 			nodeList: &corev1.NodeList{},
 			node:     corev1.Node{},
 			minRacks: 3,
-			nodeRacks: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			nodeRacks: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					rack0: []string{
 						"node1",
 						"node2",
@@ -969,8 +968,8 @@ func TestDeterminePlacementRack(t *testing.T) {
 				},
 			},
 			minRacks: 3,
-			nodeRacks: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+			nodeRacks: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					rack0: []string{
 						"Node1",
 					},

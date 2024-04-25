@@ -369,6 +369,7 @@ func nodesHaveIdenticalValuesForKeys(nodes *corev1.NodeList, keys []string) bool
 // should be all within this function.
 func filterDuplicateLabels(sc *ocsv1.StorageCluster, nodes *corev1.NodeList, topologyMap *ocsv1.NodeTopologyMap) {
 
+	//lint:ignore ST1017 required to compare it directly
 	if "" == getFailureDomain(sc) {
 		//This is the first time we are determining the failure domain
 

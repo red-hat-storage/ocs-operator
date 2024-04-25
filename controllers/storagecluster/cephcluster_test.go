@@ -10,15 +10,11 @@ import (
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
-	v1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -46,7 +42,7 @@ func TestEnsureCephCluster(t *testing.T) {
 	cases := []struct {
 		label            string
 		shouldCreate     bool
-		cephClusterState cephv1.ClusterState
+		cephClusterState rookCephv1.ClusterState
 		reconcilerPhase  string
 	}{
 		{
@@ -60,23 +56,23 @@ func TestEnsureCephCluster(t *testing.T) {
 		},
 		{
 			label:            "Reconcile creating CephCluster",
-			cephClusterState: cephv1.ClusterStateCreating,
+			cephClusterState: rookCephv1.ClusterStateCreating,
 		},
 		{
 			label:            "Reconcile updating CephCluster",
-			cephClusterState: cephv1.ClusterStateUpdating,
+			cephClusterState: rookCephv1.ClusterStateUpdating,
 		},
 		{
 			label:            "Reconcile degraded CephCluster",
-			cephClusterState: cephv1.ClusterStateError,
+			cephClusterState: rookCephv1.ClusterStateError,
 		},
 		{
 			label:            "CephCluster reconciled successfully",
-			cephClusterState: cephv1.ClusterStateCreated,
+			cephClusterState: rookCephv1.ClusterStateCreated,
 		},
 		{
 			label:            "Update expanding CephCluster",
-			cephClusterState: cephv1.ClusterStateUpdating,
+			cephClusterState: rookCephv1.ClusterStateUpdating,
 			reconcilerPhase:  ocsutil.PhaseClusterExpanding,
 		},
 	}
@@ -86,9 +82,9 @@ func TestEnsureCephCluster(t *testing.T) {
 		k++
 		t.Logf("Case %d: %s\n", i+1, c.label)
 
-		sc := &api.StorageCluster{}
+		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
-		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
@@ -108,7 +104,7 @@ func TestEnsureCephCluster(t *testing.T) {
 			createErr := reconciler.Client.Create(context.TODO(), fakeStorageClass)
 			assert.NilError(t, createErr)
 
-			sc.Spec.StorageDeviceSets = []api.StorageDeviceSet{
+			sc.Spec.StorageDeviceSets = []ocsv1.StorageDeviceSet{
 				{
 					Name:        "mock-sds",
 					Count:       3,
@@ -129,7 +125,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		_, err = obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
-		actual := &cephv1.CephCluster{}
+		actual := &rookCephv1.CephCluster{}
 		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
 		assert.NilError(t, err)
 		assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
@@ -153,11 +149,11 @@ func TestEnsureCephCluster(t *testing.T) {
 	}
 	{
 		t.Logf("Case %d: %s\n", k, "Unreachable KMS error handling")
-		sc := &api.StorageCluster{}
+		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Spec.Encryption.Enable = true
 		sc.Spec.Encryption.KeyManagementService.Enable = true
-		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 		KMSConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      KMSConfigMapName,
@@ -182,15 +178,15 @@ func TestCephClusterMonTimeout(t *testing.T) {
 	// cases for testing
 	cases := []struct {
 		label    string
-		platform v1.PlatformType
+		platform configv1.PlatformType
 	}{
 		{
 			label:    "case 1", // when the platform is not identified
-			platform: v1.NonePlatformType,
+			platform: configv1.NonePlatformType,
 		},
 		{
 			label:    "case 2", // when platform is IBMCloudPlatformType
-			platform: v1.IBMCloudPlatformType,
+			platform: configv1.IBMCloudPlatformType,
 		},
 	}
 
@@ -198,9 +194,9 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		t.Logf("Case: %s\n", c.label)
 		platform.SetFakePlatformInstanceForTesting(true, c.platform)
 
-		sc := &api.StorageCluster{}
+		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
-		sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 
 		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster.DeepCopy(), networkConfig)
 		var obj ocsCephCluster
@@ -211,7 +207,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		assert.NilError(t, err)
 		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
 		assert.NilError(t, err)
-		if c.platform == v1.IBMCloudPlatformType {
+		if c.platform == configv1.IBMCloudPlatformType {
 			assert.Equal(t, "15m", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
 		} else {
 			assert.Equal(t, "", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
@@ -223,14 +219,14 @@ func TestCephClusterMonTimeout(t *testing.T) {
 
 func TestNewCephClusterMonData(t *testing.T) {
 	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
-	sc := &api.StorageCluster{}
+	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	topologyMap := &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{},
+	topologyMap := &ocsv1.NodeTopologyMap{
+		Labels: map[string]ocsv1.TopologyLabelValues{},
 	}
 	cases := []struct {
 		label               string
-		sc                  *api.StorageCluster
+		sc                  *ocsv1.StorageCluster
 		monPVCTemplate      *corev1.PersistentVolumeClaim
 		monDataPath         string
 		expectedMonDataPath string
@@ -272,7 +268,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Status.NodeTopologies = topologyMap
 		c.sc.Spec.MonPVCTemplate = c.monPVCTemplate
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
-		c.sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+		c.sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 
 		actual, err := newCephCluster(c.sc, "", nil, log)
 		assert.NilError(t, err)
@@ -299,17 +295,17 @@ func TestNewCephClusterMonData(t *testing.T) {
 func TestGenerateMgrSpec(t *testing.T) {
 	cases := []struct {
 		label        string
-		sc           *api.StorageCluster
+		sc           *ocsv1.StorageCluster
 		isSingleNode bool
-		expectedMgr  cephv1.MgrSpec
+		expectedMgr  rookCephv1.MgrSpec
 	}{
 		{
 			label: "Default case",
-			sc:    &api.StorageCluster{},
-			expectedMgr: cephv1.MgrSpec{
+			sc:    &ocsv1.StorageCluster{},
+			expectedMgr: rookCephv1.MgrSpec{
 				Count:                defaults.DefaultMgrCount,
 				AllowMultiplePerNode: false,
-				Modules: []cephv1.Module{
+				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
 				},
@@ -317,19 +313,19 @@ func TestGenerateMgrSpec(t *testing.T) {
 		},
 		{
 			label: "MgrCount is set to 1 on the storageCluster CR Spec",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
-					ManagedResources: api.ManagedResourcesSpec{
-						CephCluster: api.ManageCephCluster{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
 							MgrCount: 1,
 						},
 					},
 				},
 			},
-			expectedMgr: cephv1.MgrSpec{
+			expectedMgr: rookCephv1.MgrSpec{
 				Count:                1,
 				AllowMultiplePerNode: false,
-				Modules: []cephv1.Module{
+				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
 				},
@@ -337,22 +333,22 @@ func TestGenerateMgrSpec(t *testing.T) {
 		},
 		{
 			label: "MgrCount is set to 1 on the storageCluster CR Spec & it's arbiter mode",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
-					Arbiter: api.ArbiterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Arbiter: ocsv1.ArbiterSpec{
 						Enable: true,
 					},
-					ManagedResources: api.ManagedResourcesSpec{
-						CephCluster: api.ManageCephCluster{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
 							MgrCount: 1,
 						},
 					},
 				},
 			},
-			expectedMgr: cephv1.MgrSpec{
+			expectedMgr: rookCephv1.MgrSpec{
 				Count:                2,
 				AllowMultiplePerNode: false,
-				Modules: []cephv1.Module{
+				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
 				},
@@ -360,12 +356,12 @@ func TestGenerateMgrSpec(t *testing.T) {
 		},
 		{
 			label:        "Single node deployment",
-			sc:           &api.StorageCluster{},
+			sc:           &ocsv1.StorageCluster{},
 			isSingleNode: true,
-			expectedMgr: cephv1.MgrSpec{
+			expectedMgr: rookCephv1.MgrSpec{
 				Count:                1,
 				AllowMultiplePerNode: true,
-				Modules: []cephv1.Module{
+				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
 				},
@@ -375,25 +371,25 @@ func TestGenerateMgrSpec(t *testing.T) {
 
 	for _, c := range cases {
 		t.Logf("Case: %s\n", c.label)
-		t.Setenv(util.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
+		t.Setenv(ocsutil.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
 		actual := generateMgrSpec(c.sc)
 		assert.DeepEqual(t, c.expectedMgr, actual)
 	}
 }
 
 func TestGenerateMonSpec(t *testing.T) {
-	arbiterSc := &api.StorageCluster{
-		Spec: api.StorageClusterSpec{
-			Arbiter: api.ArbiterSpec{
+	arbiterSc := &ocsv1.StorageCluster{
+		Spec: ocsv1.StorageClusterSpec{
+			Arbiter: ocsv1.ArbiterSpec{
 				Enable: true,
 			},
-			NodeTopologies: &api.NodeTopologyMap{
+			NodeTopologies: &ocsv1.NodeTopologyMap{
 				ArbiterLocation: "zone3",
 			},
 		},
-		Status: api.StorageClusterStatus{
-			NodeTopologies: &api.NodeTopologyMap{
-				Labels: map[string]api.TopologyLabelValues{
+		Status: ocsv1.StorageClusterStatus{
+			NodeTopologies: &ocsv1.NodeTopologyMap{
+				Labels: map[string]ocsv1.TopologyLabelValues{
 					zoneTopologyLabel: []string{
 						"zone1",
 						"zone2",
@@ -409,30 +405,30 @@ func TestGenerateMonSpec(t *testing.T) {
 
 	cases := []struct {
 		label        string
-		sc           *api.StorageCluster
+		sc           *ocsv1.StorageCluster
 		isSingleNode bool
-		expectedMon  cephv1.MonSpec
+		expectedMon  rookCephv1.MonSpec
 	}{
 		{
 			label: "Default case",
-			sc:    &api.StorageCluster{},
-			expectedMon: cephv1.MonSpec{
+			sc:    &ocsv1.StorageCluster{},
+			expectedMon: rookCephv1.MonSpec{
 				Count:                defaults.DefaultMonCount,
 				AllowMultiplePerNode: false,
 			},
 		},
 		{
 			label: "MonCount is set to 5 on the storageCluster CR Spec",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
-					ManagedResources: api.ManagedResourcesSpec{
-						CephCluster: api.ManageCephCluster{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
 							MonCount: 5,
 						},
 					},
 				},
 			},
-			expectedMon: cephv1.MonSpec{
+			expectedMon: rookCephv1.MonSpec{
 				Count:                5,
 				AllowMultiplePerNode: false,
 			},
@@ -440,7 +436,7 @@ func TestGenerateMonSpec(t *testing.T) {
 		{
 			label: "Arbiter Mode",
 			sc:    arbiterSc,
-			expectedMon: cephv1.MonSpec{
+			expectedMon: rookCephv1.MonSpec{
 				Count:                defaults.ArbiterModeMonCount,
 				AllowMultiplePerNode: false,
 				StretchCluster:       generateStretchClusterSpec(arbiterSc),
@@ -448,10 +444,10 @@ func TestGenerateMonSpec(t *testing.T) {
 		},
 		{
 			label: "Arbiter Mode with MonCount set to 3 on the storageCluster CR Spec",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
-					ManagedResources: api.ManagedResourcesSpec{
-						CephCluster: api.ManageCephCluster{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
 							MonCount: 3,
 						},
 					},
@@ -460,7 +456,7 @@ func TestGenerateMonSpec(t *testing.T) {
 				},
 				Status: arbiterSc.Status,
 			},
-			expectedMon: cephv1.MonSpec{
+			expectedMon: rookCephv1.MonSpec{
 				Count:                5,
 				AllowMultiplePerNode: false,
 				StretchCluster:       generateStretchClusterSpec(arbiterSc),
@@ -468,9 +464,9 @@ func TestGenerateMonSpec(t *testing.T) {
 		},
 		{
 			label:        "Single node deployment",
-			sc:           &api.StorageCluster{},
+			sc:           &ocsv1.StorageCluster{},
 			isSingleNode: true,
-			expectedMon: cephv1.MonSpec{
+			expectedMon: rookCephv1.MonSpec{
 				Count:                3,
 				AllowMultiplePerNode: true,
 			},
@@ -479,7 +475,7 @@ func TestGenerateMonSpec(t *testing.T) {
 
 	for _, c := range cases {
 		t.Logf("Case: %s\n", c.label)
-		t.Setenv(util.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
+		t.Setenv(ocsutil.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
 		actual := generateMonSpec(c.sc)
 		assert.DeepEqual(t, c.expectedMon, actual)
 	}
@@ -487,10 +483,10 @@ func TestGenerateMonSpec(t *testing.T) {
 }
 
 func TestStorageClassDeviceSetCreation(t *testing.T) {
-	sc1 := &api.StorageCluster{}
+	sc1 := &ocsv1.StorageCluster{}
 	sc1.Spec.StorageDeviceSets = mockDeviceSets
-	sc1.Status.NodeTopologies = &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
+	sc1.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
+		Labels: map[string]ocsv1.TopologyLabelValues{
 			zoneTopologyLabel: []string{
 				"zone1",
 				"zone2",
@@ -498,11 +494,11 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		},
 	}
 
-	sc2 := &api.StorageCluster{}
+	sc2 := &ocsv1.StorageCluster{}
 	sc2.Spec.Encryption.ClusterWide = false
 	sc2.Spec.StorageDeviceSets = mockDeviceSets
-	sc2.Status.NodeTopologies = &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
+	sc2.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
+		Labels: map[string]ocsv1.TopologyLabelValues{
 			zoneTopologyLabel: []string{
 				"zone1",
 				"zone2",
@@ -511,11 +507,11 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		},
 	}
 
-	sc3 := &api.StorageCluster{}
+	sc3 := &ocsv1.StorageCluster{}
 	sc3.Spec.Encryption.ClusterWide = true
 	sc3.Spec.StorageDeviceSets = mockDeviceSets
-	sc3.Status.NodeTopologies = &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
+	sc3.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
+		Labels: map[string]ocsv1.TopologyLabelValues{
 			zoneTopologyLabel: []string{
 				"zone1",
 				"zone2",
@@ -524,10 +520,10 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		},
 	}
 
-	sc4 := &api.StorageCluster{}
+	sc4 := &ocsv1.StorageCluster{}
 	sc4.Spec.StorageDeviceSets = mockDeviceSets
-	sc4.Status.NodeTopologies = &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
+	sc4.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
+		Labels: map[string]ocsv1.TopologyLabelValues{
 			defaults.RackTopologyKey: []string{
 				"rack1",
 				"rack2",
@@ -542,7 +538,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 	cases := []struct {
 		label                string
-		sc                   *api.StorageCluster
+		sc                   *ocsv1.StorageCluster
 		topologyKey          string
 		lenOfMatchExpression int
 	}{
@@ -736,7 +732,7 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 		return
 	}
 	// following part of the tests are only for valid tests
-	cephCluster := &cephv1.CephCluster{}
+	cephCluster := &rookCephv1.CephCluster{}
 	err = reconciler.Client.Get(ctxTodo,
 		types.NamespacedName{Name: generateNameForCephCluster(cr)},
 		cephCluster)
@@ -759,14 +755,14 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 
 func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 
-	sc1 := &api.StorageCluster{}
+	sc1 := &ocsv1.StorageCluster{}
 	sc1.Spec.Arbiter.Enable = true
-	sc1.Spec.NodeTopologies = &api.NodeTopologyMap{
+	sc1.Spec.NodeTopologies = &ocsv1.NodeTopologyMap{
 		ArbiterLocation: "zone3",
 	}
 	sc1.Spec.StorageDeviceSets = getMockDeviceSets("mock", 1, 4, true)
-	sc1.Status.NodeTopologies = &api.NodeTopologyMap{
-		Labels: map[string]api.TopologyLabelValues{
+	sc1.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
+		Labels: map[string]ocsv1.TopologyLabelValues{
 			zoneTopologyLabel: []string{
 				"zone1",
 				"zone2",
@@ -778,14 +774,14 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 	sc1.Status.FailureDomainKey = zoneTopologyLabel
 	sc1.Status.FailureDomainValues = []string{"zone1", "zone2"}
 
-	sc2 := &api.StorageCluster{}
+	sc2 := &ocsv1.StorageCluster{}
 	sc2.Spec.Arbiter.Enable = true
-	sc2.Spec.NodeTopologies = &api.NodeTopologyMap{
+	sc2.Spec.NodeTopologies = &ocsv1.NodeTopologyMap{
 		ArbiterLocation: "zone3",
 	}
 	sc2.Spec.StorageDeviceSets = getMockDeviceSets("mock", 1, 6, true)
-	sc2.Status.NodeTopologies = &api.NodeTopologyMap{
-		Labels:          map[string]api.TopologyLabelValues{zoneTopologyLabel: []string{"zone1", "zone2"}},
+	sc2.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
+		Labels:          map[string]ocsv1.TopologyLabelValues{zoneTopologyLabel: []string{"zone1", "zone2"}},
 		ArbiterLocation: "zone3",
 	}
 	sc2.Status.FailureDomain = "zone"
@@ -794,7 +790,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 
 	cases := []struct {
 		label       string
-		sc          *api.StorageCluster
+		sc          *ocsv1.StorageCluster
 		topologyKey string
 	}{
 		{
@@ -837,13 +833,13 @@ func TestNewCephDaemonResources(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		sc       *api.StorageCluster
+		sc       *ocsv1.StorageCluster
 		expected map[string]corev1.ResourceRequirements
 	}{
 		{
 			name: "No ResourceRequirements are set & No ResourceProfile is set",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{},
 				},
 			},
@@ -854,8 +850,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "No ResourceRequirements are set & ResourceProfile is `lean`",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources:       map[string]corev1.ResourceRequirements{},
 					ResourceProfile: "lean",
 				},
@@ -867,8 +863,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "No ResourceRequirements are set & ResourceProfile is `balanced`",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources:       map[string]corev1.ResourceRequirements{},
 					ResourceProfile: "balanced",
 				},
@@ -880,8 +876,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "No ResourceRequirements are set & ResourceProfile is `performance`",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources:       map[string]corev1.ResourceRequirements{},
 					ResourceProfile: "performance",
 				},
@@ -893,8 +889,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "Some ResourceRequirements are passed & ResourceProfile is not set",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{
 						"mon": {
 							Requests: corev1.ResourceList{
@@ -925,8 +921,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "Some ResourceRequirements are passed & ResourceProfile is also set",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{
 						"mgr": {
 							Requests: corev1.ResourceList{
@@ -958,8 +954,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "Some new custom ResourceRequirements are passed & ResourceProfile is not set",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{
 						"crashcollector": {
 							Requests: corev1.ResourceList{
@@ -991,8 +987,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 		},
 		{
 			name: "Some new custom ResourceRequirements are passed & ResourceProfile is also set",
-			sc: &api.StorageCluster{
-				Spec: api.StorageClusterSpec{
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
 					Resources: map[string]corev1.ResourceRequirements{
 						"crashcollector": {
 							Requests: corev1.ResourceList{
@@ -1075,16 +1071,16 @@ func TestGetNetworkSpec(t *testing.T) {
 	testTable := []struct {
 		desc     string
 		scSpec   ocsv1.StorageClusterSpec
-		expected cephv1.NetworkSpec
+		expected rookCephv1.NetworkSpec
 	}{
 		{
 			desc: "hostNetwork specified as true, network unspecified",
 			scSpec: ocsv1.StorageClusterSpec{
 				HostNetwork: true,
 			},
-			expected: cephv1.NetworkSpec{
+			expected: rookCephv1.NetworkSpec{
 				HostNetwork: true,
-				Connections: &cephv1.ConnectionsSpec{
+				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
@@ -1094,9 +1090,9 @@ func TestGetNetworkSpec(t *testing.T) {
 			scSpec: ocsv1.StorageClusterSpec{
 				HostNetwork: false,
 			},
-			expected: cephv1.NetworkSpec{
+			expected: rookCephv1.NetworkSpec{
 				HostNetwork: false,
-				Connections: &cephv1.ConnectionsSpec{
+				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
@@ -1105,15 +1101,15 @@ func TestGetNetworkSpec(t *testing.T) {
 			desc: "hostNetwork specified as true, network specified without hostnetwork",
 			scSpec: ocsv1.StorageClusterSpec{
 				HostNetwork: true,
-				Network: &cephv1.NetworkSpec{
+				Network: &rookCephv1.NetworkSpec{
 					HostNetwork: false, // same as default
-					IPFamily:    cephv1.IPv6,
+					IPFamily:    rookCephv1.IPv6,
 				},
 			},
-			expected: cephv1.NetworkSpec{
+			expected: rookCephv1.NetworkSpec{
 				HostNetwork: true,
-				IPFamily:    cephv1.IPv6,
-				Connections: &cephv1.ConnectionsSpec{
+				IPFamily:    rookCephv1.IPv6,
+				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
@@ -1122,17 +1118,17 @@ func TestGetNetworkSpec(t *testing.T) {
 			desc: "hostNetwork specified as false, network specified with hostnetwork",
 			scSpec: ocsv1.StorageClusterSpec{
 				HostNetwork: false,
-				Network: &cephv1.NetworkSpec{
+				Network: &rookCephv1.NetworkSpec{
 					HostNetwork: true,
-					IPFamily:    cephv1.IPv6,
+					IPFamily:    rookCephv1.IPv6,
 					DualStack:   true,
 				},
 			},
-			expected: cephv1.NetworkSpec{
+			expected: rookCephv1.NetworkSpec{
 				HostNetwork: true,
-				IPFamily:    cephv1.IPv6,
+				IPFamily:    rookCephv1.IPv6,
 				DualStack:   true,
-				Connections: &cephv1.ConnectionsSpec{
+				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
@@ -1141,15 +1137,15 @@ func TestGetNetworkSpec(t *testing.T) {
 			desc: "hostNetwork specified as false, network specified without hostnetwork",
 			scSpec: ocsv1.StorageClusterSpec{
 				HostNetwork: false,
-				Network: &cephv1.NetworkSpec{
+				Network: &rookCephv1.NetworkSpec{
 					HostNetwork: false,
-					IPFamily:    cephv1.IPv4,
+					IPFamily:    rookCephv1.IPv4,
 				},
 			},
-			expected: cephv1.NetworkSpec{
+			expected: rookCephv1.NetworkSpec{
 				HostNetwork: false,
-				IPFamily:    cephv1.IPv4,
-				Connections: &cephv1.ConnectionsSpec{
+				IPFamily:    rookCephv1.IPv4,
+				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
@@ -1157,8 +1153,8 @@ func TestGetNetworkSpec(t *testing.T) {
 		{
 			desc:   "hostNetwork unspecified, network unspecified",
 			scSpec: ocsv1.StorageClusterSpec{},
-			expected: cephv1.NetworkSpec{
-				Connections: &cephv1.ConnectionsSpec{
+			expected: rookCephv1.NetworkSpec{
+				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
@@ -1166,15 +1162,15 @@ func TestGetNetworkSpec(t *testing.T) {
 		{
 			desc: "hostNetwork unspecified, network specified",
 			scSpec: ocsv1.StorageClusterSpec{
-				Network: &cephv1.NetworkSpec{
+				Network: &rookCephv1.NetworkSpec{
 					HostNetwork: true,
-					IPFamily:    cephv1.IPv4,
+					IPFamily:    rookCephv1.IPv4,
 				},
 			},
-			expected: cephv1.NetworkSpec{
+			expected: rookCephv1.NetworkSpec{
 				HostNetwork: true,
-				IPFamily:    cephv1.IPv4,
-				Connections: &cephv1.ConnectionsSpec{
+				IPFamily:    rookCephv1.IPv4,
+				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
@@ -1250,12 +1246,12 @@ func TestGetCephClusterMonitoringLabels(t *testing.T) {
 }
 
 func TestLogCollector(t *testing.T) {
-	sc := &api.StorageCluster{}
+	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	maxLogSize, err := resource.ParseQuantity("500Mi")
 	assert.NilError(t, err)
 
-	defaultLogCollector := cephv1.LogCollectorSpec{
+	defaultLogCollector := rookCephv1.LogCollectorSpec{
 		Enabled:     true,
 		Periodicity: "daily",
 		MaxLogSize:  &maxLogSize,
@@ -1268,7 +1264,7 @@ func TestLogCollector(t *testing.T) {
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
 
 	// when disabled in storageCluster
-	sc.Spec.LogCollector = &cephv1.LogCollectorSpec{}
+	sc.Spec.LogCollector = &rookCephv1.LogCollectorSpec{}
 	actual, err = newCephCluster(sc, "", nil, log)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
@@ -1286,36 +1282,36 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 	testTable := []struct {
 		desc   string
 		scSpec ocsv1.StorageClusterSpec
-		ccSpec cephv1.ClusterSpec
+		ccSpec rookCephv1.ClusterSpec
 	}{
 		{
 			desc: "No Network Connections Spec is defined in StorageCluster",
 			scSpec: ocsv1.StorageClusterSpec{
-				Network: &cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{},
+				Network: &rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{},
 				},
 			},
-			ccSpec: cephv1.ClusterSpec{
-				Network: cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{},
+			ccSpec: rookCephv1.ClusterSpec{
+				Network: rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{},
 				},
 			},
 		},
 		{
 			desc: "Encryption Enabled is true",
 			scSpec: ocsv1.StorageClusterSpec{
-				Network: &cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Encryption: &cephv1.EncryptionSpec{
+				Network: &rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: true,
 						},
 					},
 				},
 			},
-			ccSpec: cephv1.ClusterSpec{
-				Network: cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Encryption: &cephv1.EncryptionSpec{
+			ccSpec: rookCephv1.ClusterSpec{
+				Network: rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: true,
 						},
 					},
@@ -1325,18 +1321,18 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		{
 			desc: "Compression is enabled",
 			scSpec: ocsv1.StorageClusterSpec{
-				Network: &cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Compression: &cephv1.CompressionSpec{
+				Network: &rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Compression: &rookCephv1.CompressionSpec{
 							Enabled: true,
 						},
 					},
 				},
 			},
-			ccSpec: cephv1.ClusterSpec{
-				Network: cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Compression: &cephv1.CompressionSpec{
+			ccSpec: rookCephv1.ClusterSpec{
+				Network: rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Compression: &rookCephv1.CompressionSpec{
 							Enabled: true,
 						},
 					},
@@ -1346,24 +1342,24 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		{
 			desc: "Encryption Enabled is true, Compression Enabled is true",
 			scSpec: ocsv1.StorageClusterSpec{
-				Network: &cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Encryption: &cephv1.EncryptionSpec{
+				Network: &rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: true,
 						},
-						Compression: &cephv1.CompressionSpec{
+						Compression: &rookCephv1.CompressionSpec{
 							Enabled: true,
 						},
 					},
 				},
 			},
-			ccSpec: cephv1.ClusterSpec{
-				Network: cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Encryption: &cephv1.EncryptionSpec{
+			ccSpec: rookCephv1.ClusterSpec{
+				Network: rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: true,
 						},
-						Compression: &cephv1.CompressionSpec{
+						Compression: &rookCephv1.CompressionSpec{
 							Enabled: true,
 						},
 					},
@@ -1373,24 +1369,24 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		{
 			desc: "Encryption Enabled is false, Compression Enabled is false",
 			scSpec: ocsv1.StorageClusterSpec{
-				Network: &cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Encryption: &cephv1.EncryptionSpec{
+				Network: &rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: false,
 						},
-						Compression: &cephv1.CompressionSpec{
+						Compression: &rookCephv1.CompressionSpec{
 							Enabled: false,
 						},
 					},
 				},
 			},
-			ccSpec: cephv1.ClusterSpec{
-				Network: cephv1.NetworkSpec{
-					Connections: &cephv1.ConnectionsSpec{
-						Encryption: &cephv1.EncryptionSpec{
+			ccSpec: rookCephv1.ClusterSpec{
+				Network: rookCephv1.NetworkSpec{
+					Connections: &rookCephv1.ConnectionsSpec{
+						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: false,
 						},
-						Compression: &cephv1.CompressionSpec{
+						Compression: &rookCephv1.CompressionSpec{
 							Enabled: false,
 						},
 					},
@@ -1487,7 +1483,7 @@ func TestGetIPFamilyConfig(t *testing.T) {
 }
 
 func TestCephClusterStoreType(t *testing.T) {
-	sc := &api.StorageCluster{}
+	sc := &ocsv1.StorageCluster{}
 
 	t.Run("ensure no bluestore optimization", func(t *testing.T) {
 		actual, err := newCephCluster(sc, "", nil, log)
@@ -1514,9 +1510,9 @@ func TestCephClusterStoreType(t *testing.T) {
 }
 
 func TestEnsureRDROptmizations(t *testing.T) {
-	sc := &api.StorageCluster{}
+	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 	sc.Annotations[DisasterRecoveryTargetAnnotation] = "true"
 	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
@@ -1524,7 +1520,7 @@ func TestEnsureRDROptmizations(t *testing.T) {
 	var obj ocsCephCluster
 	_, err := obj.ensureCreated(&reconciler, sc)
 	assert.NilError(t, err)
-	actual := &cephv1.CephCluster{}
+	actual := &rookCephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
@@ -1534,23 +1530,23 @@ func TestEnsureRDROptmizations(t *testing.T) {
 	delete(sc.Annotations, DisasterRecoveryTargetAnnotation)
 	_, err = obj.ensureCreated(&reconciler, sc)
 	assert.NilError(t, err)
-	actual = &cephv1.CephCluster{}
+	actual = &rookCephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
 }
 
 func TestEnsureRDRMigration(t *testing.T) {
-	sc := &api.StorageCluster{}
+	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-	sc.Status.Images.Ceph = &api.ComponentImageStatus{}
+	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 	// Ensure bluestore store type if RDR optimization annotation is not added
 	var obj ocsCephCluster
 	_, err := obj.ensureCreated(&reconciler, sc)
 	assert.NilError(t, err)
-	actual := &cephv1.CephCluster{}
+	actual := &rookCephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
 	assert.NilError(t, err)
 	assert.Equal(t, "", actual.Spec.Storage.Store.Type)
@@ -1561,7 +1557,7 @@ func TestEnsureRDRMigration(t *testing.T) {
 	sc.Annotations[DisasterRecoveryTargetAnnotation] = "true"
 	_, err = obj.ensureCreated(&reconciler, sc)
 	assert.NilError(t, err)
-	actual = &cephv1.CephCluster{}
+	actual = &rookCephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)

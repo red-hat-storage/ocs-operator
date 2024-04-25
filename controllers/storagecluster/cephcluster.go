@@ -14,14 +14,12 @@ import (
 
 	"github.com/go-logr/logr"
 	configv1 "github.com/openshift/api/config/v1"
-	v1 "github.com/openshift/api/config/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -217,7 +215,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, err
 	}
 
-	if platform == v1.IBMCloudPlatformType {
+	if platform == configv1.IBMCloudPlatformType {
 		r.Log.Info("Increasing Mon failover timeout to 15m.", "Platform", platform)
 		cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
 	}
@@ -562,7 +560,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 	}
 
-	isEnabled, rotationSchedule := util.GetKeyRotationSpec(sc)
+	isEnabled, rotationSchedule := statusutil.GetKeyRotationSpec(sc)
 	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
 	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 

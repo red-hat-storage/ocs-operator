@@ -10,7 +10,6 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	v1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -27,7 +26,7 @@ type backingStorageClasses struct{}
 // ensureCreated ensures that backing storageclasses are created for the StorageCluster
 func (obj *backingStorageClasses) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	existingBackingStorageClasses := &v1.StorageClassList{}
+	existingBackingStorageClasses := &storagev1.StorageClassList{}
 	err := r.Client.List(
 		r.ctx,
 		existingBackingStorageClasses,
@@ -39,7 +38,7 @@ func (obj *backingStorageClasses) ensureCreated(r *StorageClusterReconciler, sc 
 		return reconcile.Result{}, err
 	}
 
-	existingStorageClassesByName := map[string]*v1.StorageClass{}
+	existingStorageClassesByName := map[string]*storagev1.StorageClass{}
 	for i := range existingBackingStorageClasses.Items {
 		storageClass := &existingBackingStorageClasses.Items[i]
 		existingStorageClassesByName[storageClass.Name] = storageClass
@@ -84,7 +83,7 @@ func createOrUpdateBackingStorageclass(r *StorageClusterReconciler, bsc *ocsv1.B
 
 	pvReclaimPolicy := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
-	volumeBindingMode := v1.VolumeBindingWaitForFirstConsumer
+	volumeBindingMode := storagev1.VolumeBindingWaitForFirstConsumer
 
 	desiredStorageClass := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -137,7 +136,7 @@ func createOrUpdateBackingStorageclass(r *StorageClusterReconciler, bsc *ocsv1.B
 
 // ensureDeleted deletes the backing storageclasses
 func (obj *backingStorageClasses) ensureDeleted(r *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
-	existingBackingStorageClasses := &v1.StorageClassList{}
+	existingBackingStorageClasses := &storagev1.StorageClassList{}
 	err := r.Client.List(
 		r.ctx,
 		existingBackingStorageClasses,
