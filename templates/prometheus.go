@@ -10,12 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-var serviceMonitorSelector = metav1.LabelSelector{
-	MatchLabels: map[string]string{
-		"app": "odf-prometheus",
-	},
-}
-
 var ruleSelector = metav1.LabelSelector{
 	MatchLabels: map[string]string{
 		"prometheus": "rook-prometheus",
@@ -31,7 +25,7 @@ var (
 var PrometheusSpecTemplate = promv1.PrometheusSpec{
 	CommonPrometheusFields: promv1.CommonPrometheusFields{
 		ServiceAccountName:     "prometheus-k8s",
-		ServiceMonitorSelector: &serviceMonitorSelector,
+		ServiceMonitorSelector: &metav1.LabelSelector{},
 		ListenLocal:            true,
 		Resources:              defaults.MonitoringResources["prometheus"],
 		Containers: []corev1.Container{{
