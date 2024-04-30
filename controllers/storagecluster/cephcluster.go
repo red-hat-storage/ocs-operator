@@ -3,6 +3,7 @@ package storagecluster
 import (
 	// The embed package is required for the prometheus rule files
 	_ "embed"
+	"time"
 
 	"bytes"
 	"context"
@@ -424,6 +425,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 			Labels: rookCephv1.LabelsSpec{
 				rookCephv1.KeyMonitoring: getCephClusterMonitoringLabels(*sc),
 			},
+			WaitTimeoutForHealthyOSDInMinutes: getWaitTimeoutForHealthOSD(sc),
 		},
 	}
 
@@ -1197,4 +1199,12 @@ func getMonitoringClient() (*monitoringclient.Clientset, error) {
 		return nil, fmt.Errorf("failed to get monitoring client bar. %v", err)
 	}
 	return client, nil
+}
+
+func getWaitTimeoutForHealthOSD(sc *ocsv1.StorageCluster) time.Duration {
+	if sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes != 0 {
+		return sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes
+	}
+
+	return defaults.DefaultWaitTimeoutForHealthyOSD
 }
