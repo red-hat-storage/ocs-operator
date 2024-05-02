@@ -147,10 +147,6 @@ rules:
   - namespaces
   verbs:
   - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -159,13 +155,6 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - delete
-  - list
 - apiGroups:
   - k8s.cni.cncf.io
   resources:
