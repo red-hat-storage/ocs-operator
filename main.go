@@ -38,7 +38,6 @@ import (
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/namespace"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/ocsinitialization"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
@@ -165,15 +164,6 @@ func main() {
 	condition, err := storagecluster.NewUpgradeable(mgr.GetClient())
 	if err != nil {
 		setupLog.Error(err, "Unable to get OperatorCondition")
-		os.Exit(1)
-	}
-
-	if err = (&namespace.NamespaceReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Namespace"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
 	}
 
