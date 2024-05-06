@@ -2064,10 +2064,6 @@ spec:
           - namespaces
           verbs:
           - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - ""
           resources:
@@ -2076,13 +2072,6 @@ spec:
           - get
           - list
           - watch
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - delete
-          - list
         - apiGroups:
           - k8s.cni.cncf.io
           resources:
