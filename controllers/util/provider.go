@@ -13,20 +13,19 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 )
 
 // GenerateOnboardingToken generates a token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
-func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string) (string, error) {
+func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath, quota string) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
 
 	payload, err := json.Marshal(services.OnboardingTicket{
-		ID:             uuid.New().String(),
 		ExpirationDate: tokenExpirationDate,
+		Quota:          quota,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal the payload: %v", err)
@@ -66,6 +65,7 @@ func readAndDecodePrivateKey(privateKeyPath string) (*rsa.PrivateKey, error) {
 	}
 
 	Block, _ := pem.Decode(pemString)
+
 	privateKey, err := x509.ParsePKCS1PrivateKey(Block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse private key: %v", err)

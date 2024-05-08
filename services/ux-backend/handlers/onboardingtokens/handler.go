@@ -16,14 +16,15 @@ const (
 func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
 	switch r.Method {
 	case "POST":
-		handlePost(w, tokenLifetimeInHours)
+		quota := r.URL.Query().Get("quota")
+		handlePost(w, tokenLifetimeInHours, quota)
 	default:
 		handleUnsupportedMethod(w, r)
 	}
 }
 
-func handlePost(w http.ResponseWriter, tokenLifetimeInHours int) {
-	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath); err != nil {
+func handlePost(w http.ResponseWriter, tokenLifetimeInHours int, quota string) {
+	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, quota); err != nil {
 		klog.Errorf("failed to get onboardig token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
