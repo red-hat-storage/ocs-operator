@@ -129,12 +129,12 @@ ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-gene
 # Generate code
 generate: controller-gen
 	@echo Updating generated code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="{.,./api/...,./pkg/...,./controllers/...}"
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	@echo Updating generated manifests
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=true paths=./api/... webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=true webhook paths="{.,./api/...,./pkg/...,./controllers/...}" output:crd:artifacts:config=config/crd/bases
 
 verify-deps: deps-update
 	@echo "Verifying dependency files"
