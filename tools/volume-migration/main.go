@@ -1,3 +1,7 @@
+// +kubebuilder:skip
+// +kubebuilder:validation:Optional
+// +optional
+//
 //nolint:typecheck
 package main
 
