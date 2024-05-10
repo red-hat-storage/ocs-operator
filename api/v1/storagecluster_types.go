@@ -280,8 +280,7 @@ type ManageCephToolbox struct {
 type ManageCephRBDMirror struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 	// +kubebuilder:default=1
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=1
+	// +kubebuilder:validation:Minimum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
 }
 
