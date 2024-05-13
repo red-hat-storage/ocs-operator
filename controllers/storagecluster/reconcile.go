@@ -849,9 +849,15 @@ func validateCustomStorageClassNames(sc *ocsv1.StorageCluster) error {
 	}
 	if sc.Spec.Encryption.StorageClass && sc.Spec.Encryption.KeyManagementService.Enable && sc.Spec.Encryption.StorageClassName != "" {
 		if _, ok := scMap[sc.Spec.Encryption.StorageClassName]; ok {
-			duplicateNames = append(duplicateNames, "Encryption")
+			duplicateNames = append(duplicateNames, "RBD-Encryption")
 		}
 		scMap[sc.Spec.Encryption.StorageClassName] = true
+	}
+	if sc.Spec.Encryption.CephFS.StorageClass && sc.Spec.Encryption.KeyManagementService.Enable && sc.Spec.Encryption.CephFS.StorageClassName != "" {
+		if _, ok := scMap[sc.Spec.Encryption.CephFS.StorageClassName]; ok {
+			duplicateNames = append(duplicateNames, "CephFS-Encryption")
+		}
+		scMap[sc.Spec.Encryption.CephFS.StorageClassName] = true
 	}
 
 	if len(duplicateNames) > 0 {

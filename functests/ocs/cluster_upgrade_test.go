@@ -78,7 +78,8 @@ func ClusterUpgradeTest() {
 					"CephFilesystems":       "custom-cephfs-sc",
 					"CephNonResilientPools": "custom-ceph-non-resilient-rbd-sc",
 					"NFS":                   "custom-ceph-nfs-sc",
-					"Encryption":            "custom-ceph-rbd-encrypted-sc",
+					"EncryptedRBD":          "custom-ceph-rbd-encrypted-sc",
+					"EncryptedCephFS":       "custom-cephfs-encrypted-sc",
 				}
 				err = deployManager.AddCustomStorageClassName(customSCName)
 				gomega.Expect(err).To(gomega.BeNil())
@@ -102,7 +103,8 @@ func ClusterUpgradeTest() {
 					"CephFilesystems":       "custom-cephfs-new-sc",
 					"CephNonResilientPools": "custom-ceph-non-resilient-rbd-new-sc",
 					"NFS":                   "custom-ceph-nfs-new-sc",
-					"Encryption":            "custom-ceph-rbd-encrypted-new-sc",
+					"EncryptionRBD":         "custom-ceph-rbd-encrypted-new-sc",
+					"EncryptionCephFS":      "custom-cephfs-encrypted-sc",
 				}
 				err = deployManager.AddCustomStorageClassName(customSCNameNew)
 				gomega.Expect(err).To(gomega.BeNil())

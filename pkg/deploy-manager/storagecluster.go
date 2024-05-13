@@ -473,9 +473,11 @@ func (t *DeployManager) AddCustomStorageClassName(customSCNames map[string]strin
 	}
 
 	if sc.Spec.Encryption.StorageClass && sc.Spec.Encryption.KeyManagementService.Enable {
-		sc.Spec.Encryption = ocsv1.EncryptionSpec{
-			StorageClassName: customSCNames["Encryption"],
-		}
+		sc.Spec.Encryption.StorageClassName = customSCNames["EncryptedRBD"]
+	}
+
+	if sc.Spec.Encryption.CephFS.StorageClass && sc.Spec.Encryption.KeyManagementService.Enable {
+		sc.Spec.Encryption.CephFS.StorageClassName = customSCNames["EncryptedCephFS"]
 	}
 
 	err = t.Client.Update(context.TODO(), sc)
@@ -509,6 +511,9 @@ func (t *DeployManager) VerifyStorageClassesExist(oldSC map[string]bool) (bool, 
 	}
 	if sc.Spec.Encryption.StorageClassName != "" {
 		expectedSC[sc.Spec.Encryption.StorageClassName] = true
+	}
+	if sc.Spec.Encryption.CephFS.StorageClassName != "" {
+		expectedSC[sc.Spec.Encryption.CephFS.StorageClassName] = true
 	}
 
 	for name := range expectedSC {

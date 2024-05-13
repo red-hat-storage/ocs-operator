@@ -95,6 +95,13 @@ func generateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) str
 	return fmt.Sprintf("%s-ceph-rbd-encrypted", initData.Name)
 }
 
+func generateNameForEncryptedCephFileSystemSC(initData *ocsv1.StorageCluster) string {
+	if initData.Spec.Encryption.CephFS.StorageClassName != "" {
+		return initData.Spec.Encryption.CephFS.StorageClassName
+	}
+	return fmt.Sprintf("%s-cephfs-encrypted", initData.Name)
+}
+
 func generateNameForCephNetworkFilesystemSC(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.NFS.StorageClassName != "" {
 		return initData.Spec.NFS.StorageClassName
