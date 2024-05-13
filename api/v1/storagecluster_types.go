@@ -456,16 +456,31 @@ type EncryptionSpec struct {
 	Enable bool `json:"enable,omitempty"`
 	// +optional
 	ClusterWide bool `json:"clusterWide,omitempty"`
+	// Configure the RBD encrypted storage class
 	// +optional
 	StorageClass bool `json:"storageClass,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph encrypted block pools
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-	StorageClassName     string                   `json:"storageClassName,omitempty"`
+	StorageClassName string `json:"storageClassName,omitempty"`
+	// Configure the CephFS encrypted storage class
+	// +optional
+	CephFS               StorageClassSpec         `json:"cephFS,omitempty"`
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
 	// KeyRotation defines options for Key Rotation.
 	// +optional
 	KeyRotation KeyRotationSpec `json:"keyRotation,omitempty"`
+}
+
+type StorageClassSpec struct {
+	// Create storage class
+	// +optional
+	StorageClass bool `json:"storageClass,omitempty"`
+	// StorageClassName specifies the name of the storage class
+	// +optional
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 // KeyRotationSpec represents the settings for Key Rotation.

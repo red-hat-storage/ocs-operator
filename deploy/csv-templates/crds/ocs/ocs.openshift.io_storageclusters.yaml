@@ -567,6 +567,19 @@ spec:
                 description: EncryptionSpec defines if encryption should be enabled
                   for the Storage Cluster It is optional and defaults to false.
                 properties:
+                  cephFS:
+                    description: Configure the CephFS encrypted storage class
+                    properties:
+                      storageClass:
+                        description: Create storage class
+                        type: boolean
+                      storageClassName:
+                        description: StorageClassName specifies the name of the storage
+                          class
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
+                    type: object
                   clusterWide:
                     type: boolean
                   enable:
@@ -595,6 +608,7 @@ spec:
                         type: boolean
                     type: object
                   storageClass:
+                    description: Configure the RBD encrypted storage class
                     type: boolean
                   storageClassName:
                     description: StorageClassName specifies the name of the storage
