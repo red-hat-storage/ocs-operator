@@ -284,6 +284,7 @@ func (obj *ocsExternalResources) ensureDeleted(_ *StorageClusterReconciler, _ *o
 func (r *StorageClusterReconciler) createExternalStorageClusterResources(instance *ocsv1.StorageCluster) error {
 
 	var err error
+	var rgwEndpoint string
 
 	ownerRef := metav1.OwnerReference{
 		UID:        instance.UID,
@@ -390,23 +391,25 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 					return err
 				}
 			} else if d.Name == cephRgwStorageClassName {
-				rgwEndpoint := d.Data[externalCephRgwEndpointKey]
-				if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
-					r.Log.Error(err, "RGW endpoint is not reachable.", "RGWEndpoint", rgwEndpoint)
-					return err
-				}
-				extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint)
-				if err != nil {
-					return err
-				}
+				rgwEndpoint = d.Data[externalCephRgwEndpointKey]
 				// rgw-endpoint is no longer needed in the 'd.Data' dictionary,
 				// and can be deleted
 				// created an issue in rook to add `CephObjectStore` type directly in the JSON output
 				// https://github.com/rook/rook/issues/6165
 				delete(d.Data, externalCephRgwEndpointKey)
 
+				// do not create the rgw storageclass if the endpoint is not reachable
+				err := checkEndpointReachable(rgwEndpoint, 5*time.Second)
+				if err != nil {
+					continue
+				}
 				scc = newCephOBCStorageClassConfiguration(instance)
 			}
+
+			if scc.storageClass == nil {
+				continue
+			}
+
 			// now sc is pointing to appropriate StorageClass,
 			// whose parameters have to be updated
 			for k, v := range d.Data {
@@ -426,9 +429,21 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		r.Log.Error(err, "Failed to set RookEnableCephFSCSIKey to EnableRookCSICephFS.", "RookEnableCephFSCSIKey", rookEnableCephFSCSIKey, "EnableRookCSICephFS", enableRookCSICephFS)
 		return err
 	}
-	if extCephObjectStores != nil {
-		if err = r.createCephObjectStores(extCephObjectStores, instance); err != nil {
+
+	if rgwEndpoint != "" {
+		if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
+			r.Log.Error(err, "RGW endpoint is not reachable.", "RGWEndpoint", rgwEndpoint)
 			return err
+		}
+
+		extCephObjectStores, err = r.newExternalCephObjectStoreInstances(instance, rgwEndpoint)
+		if err != nil {
+			return err
+		}
+		if extCephObjectStores != nil {
+			if err = r.createCephObjectStores(extCephObjectStores, instance); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
