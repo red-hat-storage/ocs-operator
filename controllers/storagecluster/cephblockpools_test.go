@@ -81,6 +81,13 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 				},
 			},
 		},
+		{
+			label:                "test-mirroring-is-not-set",
+			createRuntimeObjects: false,
+			spec: &api.StorageClusterSpec{
+				Mirroring: nil,
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -96,6 +103,8 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 		assert.NoError(t, err)
 		if c.label == "test-injecting-peer-token-to-cephblockpool" {
 			assertCephBlockPools(t, reconciler, cr, request, true, true)
+		} else if c.label == "test-mirroring-is-not-set" {
+			assertCephBlockPools(t, reconciler, cr, request, false, true)
 		} else {
 			assertCephBlockPools(t, reconciler, cr, request, true, false)
 		}
