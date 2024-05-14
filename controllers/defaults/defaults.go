@@ -47,7 +47,8 @@ var (
 	// ArbiterModeDeviceSetReplica is the default number of Rook-Ceph
 	// StorageClassDeviceSets per StorageCluster StorageDeviceSet when arbiter is enabled
 	// This is equal to the default number of failure domains for OSDs when arbiter is enabled
-	ArbiterModeDeviceSetReplica = 2
+	ArbiterModeDeviceSetReplica      = 2
+	EdgeReplica2ModeDeviceSetReplica = 2
 	// ReplicasPerFailureDomain is the default replica count in the failure domain
 	// This maps to the ReplicasPerFailureDomain in the CephReplicatedSpec when creating the CephBlockPools
 	ReplicasPerFailureDomain = 1

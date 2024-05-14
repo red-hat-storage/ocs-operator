@@ -384,7 +384,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	r.phase = ""
 	var objs []resourceManager
 	if !instance.Spec.ExternalStorage.Enable {
-		if !r.IsNoobaaStandalone {
+		if !r.IsNoobaaStandalone && !edgeReplica2Enabled(instance) {
 			// list of default ensure functions
 			// preserve list order
 			objs = []resourceManager{
@@ -409,10 +409,22 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephRbdMirrors{},
 				&ocsClusterClaim{},
 			}
-		} else {
+		} else if r.IsNoobaaStandalone {
 			// noobaa-only ensure functions
 			objs = []resourceManager{
 				&ocsNoobaaSystem{},
+			}
+		} else if edgeReplica2Enabled(instance) {
+			// only edge-replica-2 ensure functions
+			objs = []resourceManager{
+				&ocsTopologyMap{},
+				&ocsCephConfig{},
+				&ocsCephCluster{},
+				&ocsCephBlockPools{},
+				&ocsCephFilesystems{},
+				&ocsStorageClass{},
+				&ocsSnapshotClass{},
+				&ocsJobTemplates{},
 			}
 		}
 

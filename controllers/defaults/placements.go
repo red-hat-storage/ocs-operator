@@ -18,6 +18,9 @@ var (
 	// osdPrepareLabelSelector is the key in OSD prepare pod. Used
 	// as a label selector for topology spread constraints.
 	osdPrepareLabelSelector = "rook-ceph-osd-prepare"
+	// monLabelSelector is the key in MON pod. Used
+	// as a label selector for topology spread constraints.
+	monLabelSelector        = "rook-ceph-mon"
 	// appLabelSelectorKey is common value for 'Key' field in 'LabelSelectorRequirement'
 	appLabelSelectorKey = "app"
 	// DefaultNodeAffinity is the NodeAffinity to be used when labelSelector is nil
@@ -34,10 +37,8 @@ var (
 		},
 
 		"mon": {
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					getPodAffinityTerm("rook-ceph-mon"),
-				},
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				getTopologySpreadConstraintsSpec(1, []string{monLabelSelector}),
 			},
 		},
 

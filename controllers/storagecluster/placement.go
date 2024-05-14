@@ -22,11 +22,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		(&in).DeepCopyInto(&placement)
 	}
 
-	// ignore default PodAntiAffinity mon placement when arbiter is enabled
-	if component == "mon" && arbiterEnabled(sc) {
-		placement.PodAntiAffinity = &corev1.PodAntiAffinity{}
-	}
-
 	if component == "arbiter" {
 		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
 			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
@@ -35,6 +30,15 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 				Effect:   corev1.TaintEffectNoSchedule,
 			})
 		}
+		return placement
+	}
+
+	if component == "mon" && edgeReplica2Enabled(sc) {
+		placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
+			Key:      "node-role.kubernetes.io/master",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		})
 		return placement
 	}
 
@@ -73,7 +77,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 
 	topologyKey := getFailureDomain(sc)
 	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-	if component == "mon" || component == "mds" || component == "rgw" {
+	if component == "mds" || component == "rgw" {
 		if placement.PodAntiAffinity != nil {
 			if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
 				for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {

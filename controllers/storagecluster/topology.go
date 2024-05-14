@@ -101,7 +101,7 @@ func setFailureDomain(sc *ocsv1.StorageCluster) {
 	topologyMap := sc.Status.NodeTopologies
 	for label, labelValues := range topologyMap.Labels {
 		if strings.Contains(label, "zone") {
-			if (len(labelValues) >= 2 && arbiterEnabled(sc)) || (len(labelValues) >= 3) {
+			if (len(labelValues) >= 2 && (arbiterEnabled(sc)) || edgeReplica2Enabled(sc)) || (len(labelValues) >= 3) {
 				failureDomain = "zone"
 			}
 		}

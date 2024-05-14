@@ -95,6 +95,10 @@ func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 	return sc.Spec.Arbiter.Enable
 }
 
+func edgeReplica2Enabled(sc *ocsv1.StorageCluster) bool {
+	return sc.Spec.Edge.EnableReplica2
+}
+
 // ensureCreated ensures that a CephCluster resource exists with its Spec in
 // the desired state.
 func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
@@ -666,6 +670,9 @@ func getMinDeviceSetReplica(sc *ocsv1.StorageCluster) int {
 	if arbiterEnabled(sc) {
 		return defaults.ArbiterModeDeviceSetReplica
 	}
+	if edgeReplica2Enabled(sc) {
+		return defaults.EdgeReplica2ModeDeviceSetReplica
+	}
 	if statusutil.IsSingleNodeDeployment() {
 		return 1
 	}
@@ -684,6 +691,9 @@ func getReplicasPerFailureDomain(sc *ocsv1.StorageCluster) int {
 func getCephPoolReplicatedSize(sc *ocsv1.StorageCluster) uint {
 	if arbiterEnabled(sc) {
 		return uint(4)
+	}
+	if edgeReplica2Enabled(sc) {
+		return uint(2)
 	}
 	return uint(3)
 }
