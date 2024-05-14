@@ -431,6 +431,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
+		util.CsiDisableHolderPodsKey:     "true",
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{
@@ -440,20 +441,6 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		},
 	}
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, ocsOperatorConfig, func() error {
-
-		// If the configmap is being created for the first time, set the entry for
-		// CSI_DISABLE_HOLDER_PODS to "true". This configuration is applied for new clusters
-		// starting from ODF version 4.16 onwards. For old or upgraded clusters,
-		// it's initially set to "false", allowing users time to manually migrate from holder pods.
-		// In ODF version 4.17, we will universally set it to "true" for all users.
-
-		if ocsOperatorConfig.CreationTimestamp.IsZero() {
-			ocsOperatorConfigData[util.CsiDisableHolderPodsKey] = "true"
-		} else if ocsOperatorConfig.Data[util.CsiDisableHolderPodsKey] == "" {
-			ocsOperatorConfigData[util.CsiDisableHolderPodsKey] = "false"
-		} else if ocsOperatorConfig.Data[util.CsiDisableHolderPodsKey] != "" {
-			ocsOperatorConfigData[util.CsiDisableHolderPodsKey] = ocsOperatorConfig.Data[util.CsiDisableHolderPodsKey]
-		}
 
 		allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
 			return sc.Spec.AllowRemoteStorageConsumers
