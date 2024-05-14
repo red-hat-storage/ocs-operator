@@ -425,6 +425,10 @@ func (r *OCSInitializationReconciler) getCsiTolerations(csiTolerationKey string)
 // The needed keys from the configmap are passed to rook-ceph operator pod as env variables.
 // When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
 func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
+	allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
+		return sc.Spec.AllowRemoteStorageConsumers
+	})
+
 	ocsOperatorConfigData := map[string]string{
 		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
 		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!(len(r.clusters.GetStorageClusters()) > 1)),
@@ -432,6 +436,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
 		util.CsiDisableHolderPodsKey:     "true",
+		util.DisableCSIDriverKey:         strconv.FormatBool(allowConsumers),
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{
@@ -441,11 +446,6 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		},
 	}
 	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, ocsOperatorConfig, func() error {
-
-		allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
-			return sc.Spec.AllowRemoteStorageConsumers
-		})
-		ocsOperatorConfigData[util.DisableCSIDriverKey] = strconv.FormatBool(allowConsumers)
 
 		if !reflect.DeepEqual(ocsOperatorConfig.Data, ocsOperatorConfigData) {
 			r.Log.Info("Updating ocs-operator-config configmap")
