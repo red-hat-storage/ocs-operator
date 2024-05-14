@@ -53,6 +53,7 @@ type StorageClusterSpec struct {
 	// +kubebuilder:validation:Enum=lean;Lean;balanced;Balanced;performance;Performance
 	ResourceProfile    string                        `json:"resourceProfile,omitempty"`
 	Encryption         EncryptionSpec                `json:"encryption,omitempty"`
+	Edge               EdgeSpec                      `json:"edge,omitempty"`
 	StorageDeviceSets  []StorageDeviceSet            `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate     *corev1.PersistentVolumeClaim `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                        `json:"monDataDirHostPath,omitempty"`
@@ -446,6 +447,11 @@ type MonitoringSpec struct {
 	// Labels to add to monitoring resources created by operator.
 	// These labels are used as LabelSelector for Prometheus
 	Labels map[string]string `json:"labels,omitempty"`
+}
+
+type EdgeSpec struct {
+	// Enable specifies whether to enable Edge.
+	EnableReplica2 bool `json:"enableReplica2,omitempty"`
 }
 
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster

@@ -558,6 +558,12 @@ spec:
                 description: DefaultStorageProfile is the default storage profile
                   to use for the storagerequest as StorageProfile is optional.
                 type: string
+              edge:
+                properties:
+                  enableReplica2:
+                    description: Enable specifies whether to enable Edge.
+                    type: boolean
+                type: object
               enableCephTools:
                 description: EnableCephTools toggles on whether or not the ceph tools
                   pod should be deployed. Defaults to false
