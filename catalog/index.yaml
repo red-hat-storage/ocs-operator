@@ -7,7 +7,7 @@ schema: olm.channel
 package: ocs-operator
 name: alpha
 entries:
-  - name: ocs-operator.v4.16.0
+  - name: ocs-operator.v4.17.0
 
 ---
 defaultChannel: alpha
