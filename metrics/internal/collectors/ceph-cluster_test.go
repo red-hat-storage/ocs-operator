@@ -217,5 +217,82 @@ func TestCollectMirrorinDaemonCount(t *testing.T) {
 			}
 		}
 	}
-
 }
+
+func TestCollectLegacyOSDCount(t *testing.T) {
+	mockOpts.StopCh = make(chan struct{})
+	defer close(mockOpts.StopCh)
+
+	mockCollector := getMockCephClusterCollector(t, mockOpts)
+	mockCollector.AllowedNamespaces = append(mockCollector.AllowedNamespaces, "namespace1", "namespace2")
+
+	tests := []struct {
+		name     string
+		clusters []*cephv1.CephCluster
+		expected map[string]float64
+	}{
+		{
+			name:     "No CephClusters provided",
+			clusters: []*cephv1.CephCluster{},
+			expected: map[string]float64{},
+		},
+		{
+			name: "CephClusters with OSD counts",
+			clusters: []*cephv1.CephCluster{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "cluster1", Namespace: "namespace1"},
+					Spec:       cephv1.ClusterSpec{},
+					Status:     cephv1.ClusterStatus{CephStorage: &cephv1.CephStorage{DeprecatedOSDs: map[string][]int{"reason1": {1, 2, 3}}}},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "cluster2", Namespace: "namespace2"},
+					Status: cephv1.ClusterStatus{
+						CephStorage: &cephv1.CephStorage{
+							DeprecatedOSDs: map[string][]int{"reason2": {4, 5}},
+						},
+					},
+				},
+			},
+			expected: map[string]float64{
+				"cluster1": 3,
+				"cluster2": 2,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ch := make(chan prometheus.Metric)
+			go func() {
+				mockCollector.collectLegacyOSDCount(test.clusters, ch)
+				close(ch)
+			}()
+
+			for metric := range ch {
+				assert.Contains(t, metric.Desc().String(), "osd_count")
+				dtoMetric := &dto.Metric{}
+				err := metric.Write(dtoMetric)
+				assert.NoError(t, err)
+
+				var cephClusterName, namespace string
+				var value float64
+				for _, label := range dtoMetric.GetLabel() {
+					switch *label.Name {
+					case "ceph_cluster":
+						cephClusterName = *label.Value
+					case "namespace":
+						namespace = *label.Value
+					}
+				}
+				value = *dtoMetric.GetGauge().Value
+
+				expected, found := test.expected[cephClusterName]
+				assert.True(t, found, "Unexpected CephCluster name")
+				assert.Equal(t, expected, value, "Incorrect OSD count")
+
+				assert.Contains(t, mockCollector.AllowedNamespaces, namespace, "Unexpected namespace")
+			}
+		})
+	}
+}
+
