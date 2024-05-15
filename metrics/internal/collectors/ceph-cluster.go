@@ -15,7 +15,7 @@ import (
 const (
 	// component within the project/exporter
 	mirrorDaemonSubsystem = "mirror_daemon"
-	lvmOSD                = "lvm_osd"
+	lvmOSD                = "lvm_osds"
 )
 
 var _ prometheus.Collector = &CephClusterCollector{}
@@ -129,19 +129,13 @@ func (c *CephClusterCollector) collectLegacyOSDCount(cephClusters []*cephv1.Ceph
 	for _, cephCluster := range cephClusters {
 		cephStorage := cephCluster.Status.CephStorage
 		legacyOSDCount := 0
+		reason := "LVM-based OSDs on a PVC are deprecated, see documentation on replacing OSDs"
 		if cephStorage != nil && cephStorage.DeprecatedOSDs != nil {
-			for _, count := range cephStorage.DeprecatedOSDs {
-				legacyOSDCount += len(count)
-			}
+			legacyOSDCount += len(cephStorage.DeprecatedOSDs[reason])
 			ch <- prometheus.MustNewConstMetric(c.LegacyOSD,
 				prometheus.GaugeValue, float64(legacyOSDCount),
 				cephCluster.Name,
 				cephCluster.Namespace)
-			continue
 		}
-		ch <- prometheus.MustNewConstMetric(c.LegacyOSD,
-			prometheus.GaugeValue, float64(legacyOSDCount),
-			cephCluster.Name,
-			cephCluster.Namespace)
 	}
 }
