@@ -1,5 +1,0 @@
-dependencies:
-- type: olm.package
-  value:
-    packageName: rook-ceph-operator
-    version: ">=4.15.0 <=4.16.0"
