@@ -12,7 +12,7 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -27,15 +27,15 @@ jobs:
       matrix:
         go: ["1.21"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: golangci/golangci-lint-action@v3
+      - uses: golangci/golangci-lint-action@v6
         with:
           version: v1.54.2
           args: "--out-format=colored-line-number --timeout=6m ./..."
@@ -48,11 +48,11 @@ jobs:
       matrix:
         go: ["1.21"]
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -68,11 +68,11 @@ jobs:
       matrix:
         go: ["1.21"]
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -95,11 +95,11 @@ jobs:
     name: verify code spellings
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: codespell-project/actions-codespell@master
+      - uses: codespell-project/actions-codespell@v2
         with:
           check_filenames: true
           check_hidden: true
@@ -109,11 +109,11 @@ jobs:
   commitlint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - uses: wagoid/commitlint-github-action@v5
+    - uses: wagoid/commitlint-github-action@v6
       with:
         configFile: './.github/workflows/conf/commitlintrc.json'
         helpURL: |
