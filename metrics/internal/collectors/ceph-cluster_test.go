@@ -225,7 +225,7 @@ func TestCollectLegacyOSDCount(t *testing.T) {
 
 	mockCollector := getMockCephClusterCollector(t, mockOpts)
 	mockCollector.AllowedNamespaces = append(mockCollector.AllowedNamespaces, "namespace1", "namespace2")
-
+	reason := "LVM-based OSDs on a PVC are deprecated, see documentation on replacing OSDs"
 	tests := []struct {
 		name     string
 		clusters []*cephv1.CephCluster
@@ -242,13 +242,20 @@ func TestCollectLegacyOSDCount(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "cluster1", Namespace: "namespace1"},
 					Spec:       cephv1.ClusterSpec{},
-					Status:     cephv1.ClusterStatus{CephStorage: &cephv1.CephStorage{DeprecatedOSDs: map[string][]int{"reason1": {1, 2, 3}}}},
+					Status: cephv1.ClusterStatus{
+						CephStorage: &cephv1.CephStorage{
+							DeprecatedOSDs: map[string][]int{
+								reason: {1, 2, 3},
+							},
+						},
+					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "cluster2", Namespace: "namespace2"},
 					Status: cephv1.ClusterStatus{
 						CephStorage: &cephv1.CephStorage{
-							DeprecatedOSDs: map[string][]int{"reason2": {4, 5}},
+							DeprecatedOSDs: map[string][]int{
+								reason: {4, 5}},
 						},
 					},
 				},
@@ -256,6 +263,37 @@ func TestCollectLegacyOSDCount(t *testing.T) {
 			expected: map[string]float64{
 				"cluster1": 3,
 				"cluster2": 2,
+			},
+		},
+		{
+			name: "CephClusters with OSD counts, with multiple reasons",
+			clusters: []*cephv1.CephCluster{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "cluster1", Namespace: "namespace1"},
+					Spec:       cephv1.ClusterSpec{},
+					Status: cephv1.ClusterStatus{
+						CephStorage: &cephv1.CephStorage{
+							DeprecatedOSDs: map[string][]int{
+								reason: {1, 2, 3, 4, 5},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "cluster2", Namespace: "namespace2"},
+					Status: cephv1.ClusterStatus{
+						CephStorage: &cephv1.CephStorage{
+							DeprecatedOSDs: map[string][]int{
+								reason:         {5},
+								"dummy_reason": {1, 2, 3},
+							},
+						},
+					},
+				},
+			},
+			expected: map[string]float64{
+				"cluster1": 5,
+				"cluster2": 1,
 			},
 		},
 	}
@@ -269,7 +307,7 @@ func TestCollectLegacyOSDCount(t *testing.T) {
 			}()
 
 			for metric := range ch {
-				assert.Contains(t, metric.Desc().String(), "osd_count")
+				assert.Contains(t, metric.Desc().String(), "lvm_osds_count")
 				dtoMetric := &dto.Metric{}
 				err := metric.Write(dtoMetric)
 				assert.NoError(t, err)
@@ -295,4 +333,3 @@ func TestCollectLegacyOSDCount(t *testing.T) {
 		})
 	}
 }
-
