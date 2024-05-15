@@ -300,8 +300,8 @@ github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
-# github.com/rook/rook/pkg/apis v0.0.0-20240327231646-b6b89a012a95
-## explicit; go 1.21
+# github.com/rook/rook/pkg/apis v0.0.0-20240514205425-8b1ad005989c
+## explicit; go 1.20
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 # github.com/ryanuber/go-glob v1.0.0
@@ -333,7 +333,7 @@ go.uber.org/zap/zapcore
 # golang.org/x/crypto v0.21.0
 ## explicit; go 1.18
 golang.org/x/crypto/pbkdf2
-# golang.org/x/net v0.22.0
+# golang.org/x/net v0.23.0
 ## explicit; go 1.18
 golang.org/x/net/context
 golang.org/x/net/html
