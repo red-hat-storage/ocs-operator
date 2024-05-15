@@ -15,6 +15,7 @@ import (
 const (
 	// component within the project/exporter
 	mirrorDaemonSubsystem = "mirror_daemon"
+	lvmOSD                = "lvm_osd"
 )
 
 var _ prometheus.Collector = &CephClusterCollector{}
@@ -22,6 +23,7 @@ var _ prometheus.Collector = &CephClusterCollector{}
 // CephClusterCollector is a custom collector for CephCluster Custom Resource
 type CephClusterCollector struct {
 	MirrorDaemonCount *prometheus.Desc
+	LegacyOSD         *prometheus.Desc
 	Informer          cache.SharedIndexInformer
 	AllowedNamespaces []string
 }
@@ -40,6 +42,12 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 		MirrorDaemonCount: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, mirrorDaemonSubsystem, "count"),
 			`Mirror Daemon Count.`,
+			[]string{"ceph_cluster", "namespace"},
+			nil,
+		),
+		LegacyOSD: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, lvmOSD, "count"),
+			`Number of OSDs on LVM`,
 			[]string{"ceph_cluster", "namespace"},
 			nil,
 		),
@@ -71,6 +79,7 @@ func (c *CephClusterCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if len(cephClusterListers) > 0 {
 		c.collectMirrorinDaemonCount(cephClusterListers, ch)
+		c.collectLegacyOSDCount(cephClusterListers, ch)
 	}
 }
 
@@ -111,6 +120,27 @@ func (c *CephClusterCollector) collectMirrorinDaemonCount(cephClusters []*cephv1
 		}
 		ch <- prometheus.MustNewConstMetric(c.MirrorDaemonCount,
 			prometheus.GaugeValue, 0,
+			cephCluster.Name,
+			cephCluster.Namespace)
+	}
+}
+
+func (c *CephClusterCollector) collectLegacyOSDCount(cephClusters []*cephv1.CephCluster, ch chan<- prometheus.Metric) {
+	for _, cephCluster := range cephClusters {
+		cephStorage := cephCluster.Status.CephStorage
+		legacyOSDCount := 0
+		if cephStorage != nil && cephStorage.DeprecatedOSDs != nil {
+			for _, count := range cephStorage.DeprecatedOSDs {
+				legacyOSDCount += len(count)
+			}
+			ch <- prometheus.MustNewConstMetric(c.LegacyOSD,
+				prometheus.GaugeValue, float64(legacyOSDCount),
+				cephCluster.Name,
+				cephCluster.Namespace)
+			continue
+		}
+		ch <- prometheus.MustNewConstMetric(c.LegacyOSD,
+			prometheus.GaugeValue, float64(legacyOSDCount),
 			cephCluster.Name,
 			cephCluster.Namespace)
 	}
