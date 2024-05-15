@@ -37,11 +37,6 @@ func GetMgrAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyMgr)
 }
 
-// GetDashboardAnnotations returns the Annotations for the Dashboard service
-func GetDashboardAnnotations(a AnnotationsSpec) Annotations {
-	return mergeAllAnnotationsWithKey(a, KeyDashboard)
-}
-
 // GetMonAnnotations returns the Annotations for the MON service
 func GetMonAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyMon)
