@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -107,6 +108,17 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	storageConsumerStatusPredicate := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			oldObj := e.ObjectOld.(*ocsv1alpha1.StorageConsumer)
+			newObj := e.ObjectNew.(*ocsv1alpha1.StorageConsumer)
+			return !reflect.DeepEqual(oldObj.Status.Client, newObj.Status.Client)
+		},
+	}
+
 	enqueueStorageClusterRequest := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
 			// Get the StorageCluster objects
@@ -132,24 +144,13 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
-	ocsClientOperatorVersionPredicate := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectOld == nil || e.ObjectNew == nil {
-				return false
-			}
-			oldObj := e.ObjectOld.(*ocsv1alpha1.StorageConsumer)
-			newObj := e.ObjectNew.(*ocsv1alpha1.StorageConsumer)
-			return oldObj.Status.Client.OperatorVersion != newObj.Status.Client.OperatorVersion
-		},
-	}
-
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}).
 		Owns(&corev1.PersistentVolumeClaim{}, builder.WithPredicates(pvcPredicate)).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&corev1.ConfigMap{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&corev1.ConfigMap{}, builder.MatchEveryOwner, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
@@ -161,7 +162,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			enqueueStorageClusterRequest,
 		).
-		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(ocsClientOperatorVersionPredicate))
+		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate))
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		builder.Owns(&nbv1.NooBaa{})
 	}
