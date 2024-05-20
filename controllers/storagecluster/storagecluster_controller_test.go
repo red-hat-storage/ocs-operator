@@ -3,13 +3,14 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-	opverion "github.com/operator-framework/api/pkg/lib/version"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 	"net"
 	"os"
 	"regexp"
 	"testing"
+
+	opverion "github.com/operator-framework/api/pkg/lib/version"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
@@ -1128,7 +1129,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 			Phase: rookCephv1.ConditionType(statusutil.PhaseReady),
 		},
 	}
-	verOcs, err := semver.Make(getSemVer(ocsversion.Version, 1, true))
+	verOcs, err := semver.Make(ocsversion.Version)
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse version: %v", err))
 	}

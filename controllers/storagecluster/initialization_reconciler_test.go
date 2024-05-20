@@ -3,12 +3,13 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/blang/semver/v4"
 	oprverion "github.com/operator-framework/api/pkg/lib/version"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
-	"os"
-	"testing"
 
 	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -355,7 +356,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 			Phase: cephv1.ConditionType(util.PhaseReady),
 		},
 	}
-	verOcs, err := semver.Make(getSemVer(ocsversion.Version, 1, true))
+	verOcs, err := semver.Make(ocsversion.Version)
 	if err != nil {
 		panic(err)
 	}

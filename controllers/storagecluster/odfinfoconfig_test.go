@@ -1,13 +1,15 @@
 package storagecluster
 
 import (
+	"os"
+	"testing"
+
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 	"k8s.io/apimachinery/pkg/types"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
-	"testing"
 
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"gotest.tools/v3/assert"
@@ -38,7 +40,7 @@ func TestOdfInfoConfig(t *testing.T) {
 				Kind:       "StorageSystem",
 				APIVersion: "v1",
 			},
-			ocsVersion:                   "3.16.0",
+			ocsVersion:                   ocsversion.Version,
 			deploymentType:               odfDeploymentTypeInternal,
 			storageClusterNamespacedName: types.NamespacedName{Name: "storage-test", Namespace: namespace},
 			cephClusterFSID:              cephFSID,
@@ -52,7 +54,7 @@ func TestOdfInfoConfig(t *testing.T) {
 				Kind:       "StorageSystem",
 				APIVersion: "v1",
 			},
-			ocsVersion:                   "3.16.0",
+			ocsVersion:                   ocsversion.Version,
 			deploymentType:               odfDeploymentTypeInternal,
 			storageClusterNamespacedName: types.NamespacedName{Name: "storage-test", Namespace: namespace},
 			cephClusterFSID:              cephFSID,
