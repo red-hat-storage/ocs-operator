@@ -153,6 +153,8 @@ message StorageClaimConfigRequest{
 message StorageClaimConfigResponse{
     // ExternalResource holds the configuration data of external storage cluster
     repeated ExternalResource externalResource = 1;
+    // MetaData contains additional info regarding the external cluster resources
+    bytes MetaData = 2;
 }
 
 message ReportStatusRequest{

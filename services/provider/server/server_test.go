@@ -837,6 +837,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	}
 	assert.NoError(t, client.Create(ctx, radosNamespace))
 
+	blockpool := &rookCephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cephblockpool",
+			Namespace: server.namespace,
+		},
+	}
+	assert.NoError(t, client.Create(ctx, blockpool))
+
 	// get the storage class request config for block pool
 	req := pb.StorageClaimConfigRequest{
 		StorageConsumerUUID: string(consumerResource.UID),
