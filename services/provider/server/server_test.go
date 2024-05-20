@@ -584,6 +584,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
+					"clusterID": serverNamespace,
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
@@ -591,6 +592,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "ceph-rbd",
 				Kind: "VolumeGroupSnapshotClass",
 				Data: map[string]string{
+					"clusterID": serverNamespace,
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
@@ -926,6 +928,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 	}
 	assert.NoError(t, client.Create(ctx, radosNamespace))
+
+	blockpool := &rookCephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cephblockpool",
+			Namespace: server.namespace,
+		},
+	}
+	assert.NoError(t, client.Create(ctx, blockpool))
 
 	// get the storage class request config for block pool
 	req := pb.StorageClaimConfigRequest{
