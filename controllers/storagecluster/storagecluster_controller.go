@@ -7,7 +7,11 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
+	volumesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	routev1 "github.com/openshift/api/route/v1"
+	templatev1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
@@ -17,6 +21,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -144,14 +149,81 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
-	builder := ctrl.NewControllerManagedBy(mgr).
+	noobaaIgnoreTimeUpdatePredicate := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			oldObj := e.ObjectOld.(*nbv1.NooBaa)
+			newObj := e.ObjectNew.(*nbv1.NooBaa)
+
+			ignorePaths := func(path cmp.Path) bool {
+				switch path.String() {
+				case "ObjectMeta.ManagedFields",
+					"ObjectMeta.ResourceVersion",
+					"Status.Conditions.LastHeartbeatTime",
+					"Status.Conditions.LastTransitionTime":
+					return true
+				}
+				return false
+			}
+			diff := cmp.Diff(
+				oldObj, newObj,
+				cmp.FilterPath(ignorePaths, cmp.Ignore()),
+			)
+
+			return diff != ""
+		},
+	}
+
+	cephClusterIgnoreTimeUpdatePredicate := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			oldObj := e.ObjectOld.(*cephv1.CephCluster)
+			newObj := e.ObjectNew.(*cephv1.CephCluster)
+
+			ignorePaths := func(path cmp.Path) bool {
+				switch path.String() {
+				case "ObjectMeta.ManagedFields",
+					"ObjectMeta.ResourceVersion",
+					"Status.CephStatus.LastChecked",
+					"Status.CephStatus.Capacity.LastUpdated",
+					"Status.Conditions.LastHeartbeatTime",
+					"Status.Conditions.LastTransitionTime":
+					return true
+				}
+				return false
+			}
+			diff := cmp.Diff(
+				oldObj, newObj,
+				cmp.FilterPath(ignorePaths, cmp.Ignore()),
+			)
+
+			return diff != ""
+		},
+	}
+
+	build := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
-		Owns(&cephv1.CephCluster{}).
+		Owns(&cephv1.CephCluster{}, builder.WithPredicates(cephClusterIgnoreTimeUpdatePredicate)).
+		Owns(&cephv1.CephBlockPool{}).
+		Owns(&cephv1.CephFilesystem{}).
+		Owns(&cephv1.CephFilesystemSubVolumeGroup{}).
+		Owns(&cephv1.CephNFS{}).
+		Owns(&cephv1.CephObjectStore{}).
+		Owns(&cephv1.CephObjectStoreUser{}).
+		Owns(&cephv1.CephRBDMirror{}).
 		Owns(&corev1.PersistentVolumeClaim{}, builder.WithPredicates(pvcPredicate)).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ConfigMap{}, builder.MatchEveryOwner, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&routev1.Route{}).
+		Owns(&templatev1.Template{}).
+		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
+		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
 		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
 		Watches(
@@ -163,9 +235,10 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			enqueueStorageClusterRequest,
 		).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate))
+
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
-		builder.Owns(&nbv1.NooBaa{})
+		build.Owns(&nbv1.NooBaa{}, builder.WithPredicates(noobaaIgnoreTimeUpdatePredicate))
 	}
 
-	return builder.Complete(r)
+	return build.Complete(r)
 }
