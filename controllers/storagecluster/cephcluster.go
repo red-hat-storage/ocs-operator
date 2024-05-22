@@ -470,9 +470,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				rookCephv1.KeyMon: systemNodeCritical,
 				rookCephv1.KeyOSD: systemNodeCritical,
 			},
-			Resources: newCephDaemonResources(sc),
-			// if resource profile change is in progress, then set this flag to false
-			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
+			Resources:    newCephDaemonResources(sc),
 			LogCollector: logCollector,
 			Labels: rookCephv1.LabelsSpec{
 				rookCephv1.KeyMgr:          rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
@@ -487,8 +485,23 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 					KernelMountOptions: getCephFSKernelMountOptions(sc),
 				},
 			},
-			WaitTimeoutForHealthyOSDInMinutes: getWaitTimeoutForHealthOSD(sc),
+			SkipUpgradeChecks:            sc.Spec.ManagedResources.CephCluster.SkipUpgradeChecks,
+			UpgradeOSDRequiresHealthyPGs: sc.Spec.ManagedResources.CephCluster.UpgradeOSDRequiresHealthyPGs,
+			// if resource profile change is in progress, then set this flag to false
+			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
 		},
+	}
+
+	if sc.Spec.ManagedResources.CephCluster.ContinueUpgradeAfterChecksEvenIfNotHealthy != nil {
+		cephCluster.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy = *sc.Spec.ManagedResources.CephCluster.ContinueUpgradeAfterChecksEvenIfNotHealthy
+	}
+
+	if sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes != 0 {
+		cephCluster.Spec.WaitTimeoutForHealthyOSDInMinutes = sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes
+	}
+
+	if sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout != 0 {
+		cephCluster.Spec.DisruptionManagement.OSDMaintenanceTimeout = sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout
 	}
 
 	if sc.Spec.LogCollector != nil {
@@ -1327,12 +1340,4 @@ func getOsdCount(sc *ocsv1.StorageCluster) int {
 		osdCount += ds.Count
 	}
 	return osdCount
-}
-
-func getWaitTimeoutForHealthOSD(sc *ocsv1.StorageCluster) time.Duration {
-	if sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes != 0 {
-		return sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes
-	}
-
-	return defaults.DefaultWaitTimeoutForHealthyOSD
 }
