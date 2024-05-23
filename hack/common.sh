@@ -13,7 +13,7 @@ GO_LINT_IMG_TAG="${GO_LINT_IMG_TAG:-v1.49.0}"
 GO_LINT_IMG="${GO_LINT_IMG:-${GO_LINT_IMG_LOCATION}:${GO_LINT_IMG_TAG}}"
 
 # Current DEV version of the CSV
-DEFAULT_CSV_VERSION="4.16.0"
+DEFAULT_CSV_VERSION="4.17.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
 LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
@@ -49,7 +49,7 @@ OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 # We are using rook dowsntream image now, i.e, red-hat-storage/rook code
 # and we should continue to use dowsntream image only due to few
 # downstream only changes present in rook downstream fork.
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:latest-downstream"
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-75180f4f3"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20240108"
 LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v18.2.0"
@@ -91,7 +91,7 @@ UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_
 CSI_ADDONS_CATALOG_FULL_IMAGE_NAME="quay.io/ocs-dev/csi-addons-catalog:v0.8.0"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:release-4.16-7c5526d"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20231217"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-f8e5f814c"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-75180f4f3"
 
 OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-false}"

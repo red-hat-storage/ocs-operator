@@ -70,7 +70,7 @@ metadata:
     features.ocs.openshift.io/enabled: '["kms", "arbiter", "flexible-scaling", "multus",
       "pool-management", "namespace-store", "mcg-standalone", "taint-nodes", "vault-sa-kms",
       "hpcs-kms"]'
-    olm.skipRange: '>=0.0.1 <4.16.0'
+    olm.skipRange: '>=0.0.1 <4.17.0'
     operatorframework.io/initialization-resource: "\n    {\n        \"apiVersion\":
       \"ocs.openshift.io/v1\",\n        \"kind\": \"StorageCluster\",\n        \"metadata\":
       {\n            \"name\": \"example-storagecluster\",\n            \"namespace\":
@@ -103,7 +103,7 @@ metadata:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.ppc64le: supported
     operatorframework.io/arch.s390x: supported
-  name: ocs-operator.v4.16.0
+  name: ocs-operator.v4.17.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -249,17 +249,6 @@ spec:
           - ceph.rook.io
           resources:
           - cephfilesystemsubvolumegroups
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
-        - apiGroups:
-          - cluster.open-cluster-management.io
-          resources:
-          - clusterclaims
           verbs:
           - create
           - delete
@@ -596,7 +585,7 @@ spec:
                 - name: OCS_METRICS_EXPORTER_IMAGE
                   value: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 - name: ROOK_CEPH_IMAGE
-                  value: quay.io/ocs-dev/rook-ceph:latest-downstream
+                  value: quay.io/ocs-dev/rook-ceph:vmaster-75180f4f3
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v18.2.0
                 - name: NOOBAA_CORE_IMAGE
@@ -753,7 +742,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: quay.io/ocs-dev/rook-ceph:latest-downstream
+  - image: quay.io/ocs-dev/rook-ceph:vmaster-75180f4f3
     name: rook-container
   - image: quay.io/ceph/ceph:v18.2.0
     name: ceph-container
@@ -763,4 +752,4 @@ spec:
     name: ocs-metrics-exporter
   - image: quay.io/openshift/origin-oauth-proxy:4.16.0
     name: ux-backend-oauth-image
-  version: 4.16.0
+  version: 4.17.0

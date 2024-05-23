@@ -1,3 +1,6 @@
+# github.com/Masterminds/semver/v3 v3.2.1
+## explicit; go 1.18
+github.com/Masterminds/semver/v3
 # github.com/RHsyseng/operator-utils v1.4.13
 ## explicit; go 1.19
 github.com/RHsyseng/operator-utils/pkg/validation
@@ -19,8 +22,8 @@ github.com/ceph/ceph-csi/api/deploy/ocp
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/containernetworking/cni v1.1.2
-## explicit; go 1.14
+# github.com/containernetworking/cni v1.2.0-rc1
+## explicit; go 1.18
 github.com/containernetworking/cni/libcni
 github.com/containernetworking/cni/pkg/invoke
 github.com/containernetworking/cni/pkg/types
@@ -34,7 +37,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/emicklei/go-restful/v3 v3.11.3
+# github.com/emicklei/go-restful/v3 v3.12.0
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
@@ -51,12 +54,12 @@ github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
 ## explicit
 github.com/ghodss/yaml
-# github.com/go-jose/go-jose/v3 v3.0.3
-## explicit; go 1.12
-github.com/go-jose/go-jose/v3
-github.com/go-jose/go-jose/v3/cipher
-github.com/go-jose/go-jose/v3/json
-github.com/go-jose/go-jose/v3/jwt
+# github.com/go-jose/go-jose/v4 v4.0.1
+## explicit; go 1.21
+github.com/go-jose/go-jose/v4
+github.com/go-jose/go-jose/v4/cipher
+github.com/go-jose/go-jose/v4/json
+github.com/go-jose/go-jose/v4/jwt
 # github.com/go-logr/logr v1.4.1
 ## explicit; go 1.18
 github.com/go-logr/logr
@@ -72,11 +75,11 @@ github.com/go-openapi/analysis/internal
 # github.com/go-openapi/errors v0.20.1
 ## explicit; go 1.14
 github.com/go-openapi/errors
-# github.com/go-openapi/jsonpointer v0.20.3
-## explicit; go 1.19
+# github.com/go-openapi/jsonpointer v0.21.0
+## explicit; go 1.20
 github.com/go-openapi/jsonpointer
-# github.com/go-openapi/jsonreference v0.20.5
-## explicit; go 1.19
+# github.com/go-openapi/jsonreference v0.21.0
+## explicit; go 1.20
 github.com/go-openapi/jsonreference
 github.com/go-openapi/jsonreference/internal
 # github.com/go-openapi/loads v0.20.2
@@ -91,8 +94,8 @@ github.com/go-openapi/spec
 # github.com/go-openapi/strfmt v0.20.1
 ## explicit; go 1.13
 github.com/go-openapi/strfmt
-# github.com/go-openapi/swag v0.22.10
-## explicit; go 1.19
+# github.com/go-openapi/swag v0.23.0
+## explicit; go 1.20
 github.com/go-openapi/swag
 # github.com/go-openapi/validate v0.20.2
 ## explicit; go 1.14
@@ -176,8 +179,8 @@ github.com/hashicorp/hcl/hcl/token
 github.com/hashicorp/hcl/json/parser
 github.com/hashicorp/hcl/json/scanner
 github.com/hashicorp/hcl/json/token
-# github.com/hashicorp/vault/api v1.12.2
-## explicit; go 1.19
+# github.com/hashicorp/vault/api v1.13.0
+## explicit; go 1.21
 github.com/hashicorp/vault/api
 # github.com/hashicorp/vault/api/auth/approle v0.6.0
 ## explicit; go 1.16
@@ -194,7 +197,7 @@ github.com/josharian/intern
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.6.0
+# github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
 ## explicit; go 1.21
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1
@@ -389,7 +392,7 @@ github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 ## explicit; go 1.21
 github.com/red-hat-storage/ocs-operator/api/v4/v1
 github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
-# github.com/rook/rook/pkg/apis v0.0.0-20240327231646-b6b89a012a95
+# github.com/rook/rook/pkg/apis v0.0.0-20240513003450-39f88521f0fd
 ## explicit; go 1.21
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -436,7 +439,7 @@ golang.org/x/crypto/pbkdf2
 # golang.org/x/exp v0.0.0-20231127185646-65229373498e
 ## explicit; go 1.20
 golang.org/x/exp/maps
-# golang.org/x/net v0.22.0
+# golang.org/x/net v0.23.0
 ## explicit; go 1.18
 golang.org/x/net/context
 golang.org/x/net/html
@@ -914,7 +917,7 @@ k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/scheme
 k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1
 k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1beta1
 k8s.io/kube-aggregator/pkg/client/listers/apiregistration/v1
-# k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340
+# k8s.io/kube-openapi v0.0.0-20240322212309-b815d8309940
 ## explicit; go 1.20
 k8s.io/kube-openapi/pkg/cached
 k8s.io/kube-openapi/pkg/common
@@ -937,18 +940,6 @@ k8s.io/utils/pointer
 k8s.io/utils/ptr
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
-# open-cluster-management.io/api v0.13.0
-## explicit; go 1.21
-open-cluster-management.io/api/client/cluster/clientset/versioned
-open-cluster-management.io/api/client/cluster/clientset/versioned/scheme
-open-cluster-management.io/api/client/cluster/clientset/versioned/typed/cluster/v1
-open-cluster-management.io/api/client/cluster/clientset/versioned/typed/cluster/v1alpha1
-open-cluster-management.io/api/client/cluster/clientset/versioned/typed/cluster/v1beta1
-open-cluster-management.io/api/client/cluster/clientset/versioned/typed/cluster/v1beta2
-open-cluster-management.io/api/cluster/v1
-open-cluster-management.io/api/cluster/v1alpha1
-open-cluster-management.io/api/cluster/v1beta1
-open-cluster-management.io/api/cluster/v1beta2
 # sigs.k8s.io/container-object-storage-interface-api v0.1.0
 ## explicit; go 1.18
 sigs.k8s.io/container-object-storage-interface-api/apis

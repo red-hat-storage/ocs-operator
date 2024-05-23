@@ -185,6 +185,19 @@ type ManageCephCluster struct {
 	// This timeout won't be applied if `skipUpgradeChecks` is `true`.
 	// The default wait timeout is 10 minutes.
 	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
+	// Whether or not upgrade should continue even if a check fails
+	// This means Ceph's status could be degraded and we don't recommend upgrading but you might decide otherwise
+	// Use at your OWN risk
+	SkipUpgradeChecks bool `json:"skipUpgradeChecks,omitempty"`
+	// Whether or not continue if PGs are not clean during an upgrade
+	ContinueUpgradeAfterChecksEvenIfNotHealthy *bool `json:"continueUpgradeAfterChecksEvenIfNotHealthy,omitempty"`
+	// Whether or not requires PGs are clean before an OSD upgrade. If set to `true` OSD upgrade process won't start until PGs are healthy.
+	// This configuration will be ignored if `skipUpgradeChecks` is `true`.
+	UpgradeOSDRequiresHealthyPGs bool `json:"upgradeOSDRequiresHealthyPGs,omitempty"`
+	// A duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the
+	// default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true` in cephCluster CR.
+	// The default value is `30` minutes.
+	OsdMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration

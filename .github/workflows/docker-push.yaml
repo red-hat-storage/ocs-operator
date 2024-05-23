@@ -1,0 +1,53 @@
+name: image-publisher
+
+on:
+  workflow_dispatch:
+    inputs:
+      REGISTRY_NAMESPACE:
+        required: true
+        default: ocs-dev
+      IMAGE_TAG:
+        required: false
+        default: ""
+
+jobs:
+  docker-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - uses: docker/login-action@v3
+      with:
+        registry: quay.io
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+    - name: Build and push docker images
+      env:
+        REGISTRY_NAMESPACE: ${{ github.event.inputs.REGISTRY_NAMESPACE }}
+        IMAGE_TAG: ${{ github.event.inputs.IMAGE_TAG }}
+        IMAGE_TAG_SHA: ${{ github.ref_name }}-${{ github.sha }}
+        IMAGE_BUILD_CMD: docker
+      run: |
+        # Set IMAGE_TAG to a calculated <branch>-<sha> if not specified
+        export IMAGE_TAG=${IMAGE_TAG:-${IMAGE_TAG_SHA:0:-33}}
+
+        make gen-latest-csv
+
+        make ocs-operator
+        docker push quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG
+
+        make ocs-metrics-exporter
+        docker push quay.io/$REGISTRY_NAMESPACE/ocs-metrics-exporter:$IMAGE_TAG
+
+        make operator-bundle
+        docker push quay.io/$REGISTRY_NAMESPACE/ocs-operator-bundle:$IMAGE_TAG
+
+        make operator-catalog
+        docker push quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG

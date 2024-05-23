@@ -8,6 +8,10 @@ import (
 	"regexp"
 	"testing"
 
+	opverion "github.com/operator-framework/api/pkg/lib/version"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
+
 	"github.com/blang/semver/v4"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -23,7 +27,6 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	"github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -45,6 +48,7 @@ const (
 	zoneTopologyLabel   = "failure-domain.kubernetes.io/zone"
 	regionTopologyLabel = "failure-domain.kubernetes.io/region"
 	hostnameLabel       = "kubernetes.io/hostname"
+	cephFSID            = "b88c2d78-9de9-4227-9313-a63f62f78743"
 )
 
 var mockStorageClusterRequest = reconcile.Request{
@@ -66,6 +70,12 @@ var mockStorageCluster = &api.StorageCluster{
 			CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 		},
 		Finalizers: []string{storageClusterFinalizer},
+		OwnerReferences: []metav1.OwnerReference{{
+			APIVersion: "v1",
+			Kind:       "StorageSystem",
+			Name:       "storage-test",
+		},
+		},
 	},
 	Spec: api.StorageClusterSpec{
 		Monitoring: &api.MonitoringSpec{
@@ -377,7 +387,7 @@ func TestVersionCheck(t *testing.T) {
 					Namespace: "storage-test-ns",
 				},
 			},
-			expectedVersion: version.Version,
+			expectedVersion: ocsversion.Version,
 			errorExpected:   false,
 		},
 		{
@@ -388,10 +398,10 @@ func TestVersionCheck(t *testing.T) {
 					Namespace: "storage-test-ns",
 				},
 				Status: api.StorageClusterStatus{
-					Version: getSemVer(version.Version, 1, true),
+					Version: getSemVer(ocsversion.Version, 1, true),
 				},
 			},
-			expectedVersion: version.Version,
+			expectedVersion: ocsversion.Version,
 			errorExpected:   false,
 		},
 		{
@@ -402,10 +412,10 @@ func TestVersionCheck(t *testing.T) {
 					Namespace: "storage-test-ns",
 				},
 				Status: api.StorageClusterStatus{
-					Version: getSemVer(version.Version, 1, false),
+					Version: getSemVer(ocsversion.Version, 1, false),
 				},
 			},
-			expectedVersion: version.Version,
+			expectedVersion: ocsversion.Version,
 			errorExpected:   true,
 		},
 	}
@@ -818,6 +828,7 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
+	testSkipPrometheusRules = true
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
 	cc := &rookCephv1.CephCluster{}
@@ -855,7 +866,6 @@ func TestStorageDeviceSets(t *testing.T) {
 			"type": "gp2-csi",
 		},
 	}
-
 	reconciler := createFakeStorageClusterReconciler(t, storageClassEBS)
 
 	testcases := []struct {
@@ -1119,7 +1129,26 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 			Phase: rookCephv1.ConditionType(statusutil.PhaseReady),
 		},
 	}
-	obj = append(obj, cbp, cfs)
+	verOcs, err := semver.Make(ocsversion.Version)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse version: %v", err))
+	}
+	csv := &opv1a1.ClusterServiceVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("ocs-operator-%s", sc.Name),
+			Namespace: namespace,
+		},
+		Spec: opv1a1.ClusterServiceVersionSpec{
+			Version: opverion.OperatorVersion{Version: verOcs},
+		},
+	}
+	rookCephMonSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mon", Namespace: namespace},
+		Data: map[string][]byte{
+			"fsid": []byte(cephFSID),
+		},
+	}
+	obj = append(obj, cbp, cfs, rookCephMonSecret, csv)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	clusters, err := statusutil.GetClusters(context.TODO(), client)
@@ -1215,6 +1244,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 		assert.Fail(t, "failed to add ocsclientv1a1 scheme")
 	}
 
+	err = opv1a1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "unable to add opv1a1 to scheme")
+	}
+
 	return scheme
 }
 
@@ -1273,6 +1307,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 				},
 			}
 		}
+
 		reconciler := createFakeInitializationStorageClusterReconciler(t)
 		_ = reconciler.Client.Create(context.TODO(), c.cr)
 		result, err := reconciler.Reconcile(context.TODO(), request)

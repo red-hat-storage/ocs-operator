@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -1562,4 +1563,24 @@ func TestEnsureRDRMigration(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
 	assert.Equal(t, "yes-really-update-store", actual.Spec.Storage.Store.UpdateStore)
+}
+
+func TestEnsureUpgradeReliabilityParams(t *testing.T) {
+	sc := &ocsv1.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+	defaultContinueUpgradeAfterChecksEvenIfNotHealthyVal := true
+	sc.Spec.ManagedResources.CephCluster.ContinueUpgradeAfterChecksEvenIfNotHealthy = &defaultContinueUpgradeAfterChecksEvenIfNotHealthyVal
+	sc.Spec.ManagedResources.CephCluster.SkipUpgradeChecks = true
+	sc.Spec.ManagedResources.CephCluster.UpgradeOSDRequiresHealthyPGs = true
+	sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes = 20 * time.Minute
+	sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout = 45 * time.Minute
+
+	expected, err := newCephCluster(sc, "", nil, log)
+	assert.NilError(t, err)
+	assert.Equal(t, true, expected.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy)
+	assert.Equal(t, true, expected.Spec.SkipUpgradeChecks)
+	assert.Equal(t, true, expected.Spec.UpgradeOSDRequiresHealthyPGs)
+	assert.Equal(t, 20*time.Minute, expected.Spec.WaitTimeoutForHealthyOSDInMinutes)
+	assert.Equal(t, 45*time.Minute, expected.Spec.DisruptionManagement.OSDMaintenanceTimeout)
 }

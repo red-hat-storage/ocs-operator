@@ -80,6 +80,14 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DefaultStorageClusterName,
 			Namespace: InstallNamespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Name:       DefaultStorageClusterStorageSystemName,
+					Kind:       "StorageSystem",
+					APIVersion: "v1",
+					UID:        types.UID(DefaultStorageClusterStorageSystemName),
+				},
+			},
 		},
 		Spec: ocsv1.StorageClusterSpec{
 			ManageNodes: false,

@@ -84,7 +84,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
-  name: ocs-operator.v4.16.0
+  name: ocs-operator.v4.17.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -228,17 +228,6 @@ spec:
           - ceph.rook.io
           resources:
           - cephfilesystemsubvolumegroups
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
-        - apiGroups:
-          - cluster.open-cluster-management.io
-          resources:
-          - clusterclaims
           verbs:
           - create
           - delete
@@ -627,4 +616,4 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Red Hat
-  version: 4.16.0
+  version: 4.17.0

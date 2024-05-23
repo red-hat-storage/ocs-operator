@@ -2,8 +2,14 @@ package storagecluster
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
+
+	"github.com/blang/semver/v4"
+	oprverion "github.com/operator-framework/api/pkg/lib/version"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -39,7 +45,8 @@ func createStorageCluster(scName, failureDomainName string,
 				UninstallModeAnnotation: string(UninstallModeGraceful),
 				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 			},
-			Finalizers: []string{storageClusterFinalizer},
+			Finalizers:      []string{storageClusterFinalizer},
+			OwnerReferences: []metav1.OwnerReference{{Name: "storage-test", Kind: "StorageSystem", APIVersion: "v1"}},
 		},
 		Spec: api.StorageClusterSpec{
 			Monitoring: &api.MonitoringSpec{
@@ -349,6 +356,26 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 			Phase: cephv1.ConditionType(util.PhaseReady),
 		},
 	}
+	verOcs, err := semver.Make(ocsversion.Version)
+	if err != nil {
+		panic(err)
+	}
+	csv := &opv1a1.ClusterServiceVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("ocs-operator-%s", sc.Name),
+			Namespace: sc.Namespace,
+		},
+		Spec: opv1a1.ClusterServiceVersionSpec{
+			Version: oprverion.OperatorVersion{Version: verOcs},
+		},
+	}
+
+	rookCephMonSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mon", Namespace: sc.Namespace},
+		Data: map[string][]byte{
+			"fsid": []byte(cephFSID),
+		},
+	}
 
 	statusSubresourceObjs := []client.Object{sc}
 	var runtimeObjects []runtime.Object
@@ -363,7 +390,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		}
 	}
 
-	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig)
+	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig, rookCephMonSecret, csv)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjects...).WithStatusSubresource(statusSubresourceObjs...).Build()
 
 	return StorageClusterReconciler{
