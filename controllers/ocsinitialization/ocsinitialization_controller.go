@@ -253,7 +253,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1.OCSInitialization{}).
+		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
 		Owns(&promv1.Prometheus{}).
@@ -271,6 +271,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					}}
 				},
 			),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		// Watcher for storageClass required to update values related to replica-1
 		// in ocs-operator-config configmap, if storageClass changes
