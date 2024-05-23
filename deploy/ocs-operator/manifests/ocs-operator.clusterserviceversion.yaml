@@ -1469,7 +1469,7 @@ metadata:
       \   }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.19.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.25.4
     operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclassrequests.ocs.openshift.io","storageconsumers.ocs.openshift.io","cephclusters.ceph.rook.io","cephobjectstores.ceph.rook.io","cephobjectstoreusers.ceph.rook.io","cephnfses.ceph.rook.io","cephclients.ceph.rook.io","cephfilesystems.ceph.rook.io","cephfilesystemmirrors.ceph.rook.io","cephrbdmirrors.ceph.rook.io","cephobjectrealms.ceph.rook.io","cephobjectzonegroups.ceph.rook.io","cephobjectzones.ceph.rook.io","cephbucketnotifications.ceph.rook.io","cephbuckettopics.ceph.rook.io","cephfilesystemsubvolumegroups.ceph.rook.io","cephblockpoolradosnamespaces.ceph.rook.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
