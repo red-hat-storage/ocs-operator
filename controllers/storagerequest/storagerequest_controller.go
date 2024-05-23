@@ -208,10 +208,6 @@ func (r *StorageRequestReconciler) initPhase() error {
 		return fmt.Errorf("no storage consumer owner ref on the storage class request")
 	}
 
-	if err := r.get(r.storageConsumer); err != nil {
-		return err
-	}
-
 	// check request status already contains the name of the resource. if not, add it.
 	if r.StorageRequest.Spec.Type == "block" {
 		// initialize in-memory structs
@@ -303,6 +299,12 @@ func (r *StorageRequestReconciler) reconcilePhases() (reconcile.Result, error) {
 				return reconcile.Result{}, fmt.Errorf("failed to add finalizer: %v", err)
 			}
 		}
+
+		// we are loading the storageconsumer only to confirm it's presence
+		if err := r.get(r.storageConsumer); err != nil {
+			return reconcile.Result{}, err
+		}
+
 		if r.StorageRequest.Spec.Type == "block" {
 
 			if err := r.reconcileCephClientRBDProvisioner(); err != nil {
