@@ -18,6 +18,7 @@ package v1
 
 import (
 	"os"
+	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
@@ -169,6 +170,14 @@ type ManagedResourcesSpec struct {
 // ManageCephCluster defines how to reconcile the Ceph cluster definition
 type ManageCephCluster struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	// WaitTimeoutForHealthyOSDInMinutes defines the time the operator would wait before an OSD can be stopped for upgrade or restart.
+	// If `continueUpgradeAfterChecksEvenIfNotHealthy` is `false` and the timeout exceeds and OSD is not ok to stop, then the operator
+	// would skip upgrade for the current OSD and proceed with the next one.
+	// If `continueUpgradeAfterChecksEvenIfNotHealthy` is `true`, then operator would continue with the upgrade of an OSD even if its
+	// not ok to stop after the timeout.
+	// This timeout won't be applied if `skipUpgradeChecks` is `true`.
+	// The default wait timeout is 10 minutes.
+	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
