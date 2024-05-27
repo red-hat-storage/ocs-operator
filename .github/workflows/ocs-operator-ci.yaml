@@ -104,7 +104,7 @@ jobs:
           check_filenames: true
           check_hidden: true
           skip: vendor,go.sum,api/go.sum,go.work.sum
-          ignore_words_list: xdescribe,contails,shouldnot
+          ignore_words_list: xdescribe,contails,shouldnot,NotIn,notin
 
   commitlint:
     runs-on: ubuntu-latest
