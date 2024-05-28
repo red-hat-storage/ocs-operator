@@ -162,12 +162,6 @@ type ClusterSpec struct {
 	// +optional
 	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
 
-	// UpgradeOSDRequiresHealthyPGs defines if OSD upgrade requires PGs are clean. If set to `true` OSD upgrade process won't start until PGs are healthy.
-	// This configuration will be ignored if `skipUpgradeChecks` is `true`.
-	// Default is false.
-	// +optional
-	UpgradeOSDRequiresHealthyPGs bool `json:"upgradeOSDRequiresHealthyPGs,omitempty"`
-
 	// A spec for configuring disruption management.
 	// +nullable
 	// +optional
@@ -701,12 +695,6 @@ type CrashCollectorSpec struct {
 
 // CephBlockPool represents a Ceph Storage Pool
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.status.info.type`
-// +kubebuilder:printcolumn:name="FailureDomain",type=string,JSONPath=`.status.info.failureDomain`
-// +kubebuilder:printcolumn:name="Replication",type=integer,JSONPath=`.spec.replicated.size`,priority=1
-// +kubebuilder:printcolumn:name="EC-CodingChunks",type=integer,JSONPath=`.spec.erasureCoded.codingChunks`,priority=1
-// +kubebuilder:printcolumn:name="EC-DataChunks",type=integer,JSONPath=`.spec.erasureCoded.dataChunks`,priority=1
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -783,10 +771,6 @@ type PoolSpec struct {
 	// +optional
 	// +nullable
 	Quotas QuotaSpec `json:"quotas,omitempty"`
-
-	// The application name to set on the pool. Only expected to be set for rgw pools.
-	// +optional
-	Application string `json:"application"`
 }
 
 // NamedBlockPoolSpec allows a block pool to be created with a non-default name.
@@ -794,7 +778,7 @@ type PoolSpec struct {
 // allowed pool names that can be specified.
 type NamedBlockPoolSpec struct {
 	// The desired name of the pool if different from the CephBlockPool CR name.
-	// +kubebuilder:validation:Enum=.rgw.root;.nfs;.mgr
+	// +kubebuilder:validation:Enum=device_health_metrics;.nfs;.mgr
 	// +optional
 	Name string `json:"name,omitempty"`
 	// The core pool configuration
@@ -1197,7 +1181,7 @@ type MetadataServerSpec struct {
 	// +optional
 	Labels Labels `json:"labels,omitempty"`
 
-	// The resource requirements for the mds pods
+	// The resource requirements for the rgw pods
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
@@ -1414,9 +1398,6 @@ type PeerStatSpec struct {
 
 // CephObjectStore represents a Ceph Object Store Gateway
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Endpoint",type=string,JSONPath=`.status.info.endpoint`
-// +kubebuilder:printcolumn:name="SecureEndpoint",type=string,JSONPath=`.status.info.secureEndpoint`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1446,11 +1427,6 @@ type ObjectStoreSpec struct {
 	// +optional
 	// +nullable
 	DataPool PoolSpec `json:"dataPool,omitempty"`
-
-	// The pool information when configuring RADOS namespaces in existing pools.
-	// +optional
-	// +nullable
-	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
 
 	// Preserve pools on object store deletion
 	// +optional
@@ -1484,25 +1460,6 @@ type ObjectStoreSpec struct {
 	// is being used to create buckets. The default is empty.
 	// +optional
 	AllowUsersInNamespaces []string `json:"allowUsersInNamespaces,omitempty"`
-
-	// Hosting settings for the object store
-	// +optional
-	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
-}
-
-// ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.
-type ObjectSharedPoolsSpec struct {
-	// The metadata pool used for creating RADOS namespaces in the object store
-	// +kubebuilder:validation:XValidation:message="object store shared metadata pool is immutable",rule="self == oldSelf"
-	MetadataPoolName string `json:"metadataPoolName"`
-
-	// The data pool used for creating RADOS namespaces in the object store
-	// +kubebuilder:validation:XValidation:message="object store shared data pool is immutable",rule="self == oldSelf"
-	DataPoolName string `json:"dataPoolName"`
-
-	// Whether the RADOS namespaces should be preserved on deletion of the object store
-	// +optional
-	PreserveRadosNamespaceDataOnDelete bool `json:"preserveRadosNamespaceDataOnDelete"`
 }
 
 // ObjectHealthCheckSpec represents the health check of an object store
@@ -1620,7 +1577,7 @@ type GatewaySpec struct {
 // Kubernetes's v1.EndpointAddress.
 // +structType=atomic
 type EndpointAddress struct {
-	// The IP of this endpoint. As a legacy behavior, this supports being given a DNS-addressable hostname as well.
+	// The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.
 	// +optional
 	IP string `json:"ip" protobuf:"bytes,1,opt,name=ip"`
 
@@ -1661,18 +1618,6 @@ type ObjectEndpoints struct {
 	Secure []string `json:"secure"`
 }
 
-// ObjectStoreHostingSpec represents the hosting settings for the object store
-type ObjectStoreHostingSpec struct {
-	// A list of DNS names in which bucket can be accessed via virtual host path. These names need to valid according RFC-1123.
-	// Each domain requires wildcard support like ingress loadbalancer.
-	// Do not include the wildcard itself in the list of hostnames (e.g. use "mystore.example.com" instead of "*.mystore.example.com").
-	// Add all hostnames including user-created Kubernetes Service endpoints to the list.
-	// CephObjectStore Service Endpoints and CephObjectZone customEndpoints are automatically added to the list.
-	// The feature is supported only for Ceph v18 and later versions.
-	// +optional
-	DNSNames []string `json:"dnsNames,omitempty"`
-}
-
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1680,7 +1625,6 @@ type ObjectStoreHostingSpec struct {
 // CephObjectStoreUser represents a Ceph Object Store Gateway User
 // +kubebuilder:resource:shortName=rcou;objectuser
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1858,7 +1802,6 @@ type PullSpec struct {
 
 // CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectZoneGroup struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1889,7 +1832,6 @@ type ObjectZoneGroupSpec struct {
 
 // CephObjectZone represents a Ceph Object Store Gateway Zone
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectZone struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1921,11 +1863,6 @@ type ObjectZoneSpec struct {
 	// +nullable
 	DataPool PoolSpec `json:"dataPool"`
 
-	// The pool information when configuring RADOS namespaces in existing pools.
-	// +optional
-	// +nullable
-	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
-
 	// If this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service
 	// endpoint created by Rook, you must set this to the externally reachable endpoint(s). You may
 	// include the port in the definition. For example: "https://my-object-store.my-domain.net:443".
@@ -1952,7 +1889,6 @@ type ObjectZoneSpec struct {
 
 // CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephBucketTopic struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2589,7 +2525,6 @@ type DisruptionManagementSpec struct {
 
 // CephClient represents a Ceph Client
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephClient struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2677,7 +2612,6 @@ type SanitizeDisksSpec struct {
 
 // CephRBDMirror represents a Ceph RBD Mirror
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephRBDMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2749,7 +2683,6 @@ type MirroringPeerSpec struct {
 
 // CephFilesystemMirror is the Ceph Filesystem Mirror object definition
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephFilesystemMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2938,7 +2871,6 @@ type PriorityClassNamesSpec map[KeyType]string
 // +nullable
 type StorageClassDeviceSet struct {
 	// Name is a unique identifier for the set
-	// +kubebuilder:validation:MaxLength=40
 	Name string `json:"name"`
 	// Count is the number of devices in this set
 	// +kubebuilder:validation:Minimum=1
@@ -2985,10 +2917,6 @@ type StorageClassDeviceSet struct {
 
 // CephFilesystemSubVolumeGroup represents a Ceph Filesystem SubVolumeGroup
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Filesystem",type=string,JSONPath=`.spec.filesystemName`,description="Name of the CephFileSystem"
-// +kubebuilder:printcolumn:name="Quota",type=string,JSONPath=`.spec.quota`
-// +kubebuilder:printcolumn:name="Pinning",type=string,JSONPath=`.status.info.pinning`,priority=1
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephFilesystemSubVolumeGroup struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -3027,12 +2955,6 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// only one out of (export, distributed, random) can be set at a time
 	// +optional
 	Pinning CephFilesystemSubVolumeGroupSpecPinning `json:"pinning,omitempty"`
-	// Quota size of the Ceph Filesystem subvolume group.
-	// +optional
-	Quota *resource.Quantity `json:"quota,omitempty"`
-	// The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.
-	// +optional
-	DataPoolName string `json:"dataPoolName"`
 }
 
 // CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup
@@ -3070,10 +2992,8 @@ type CephFilesystemSubVolumeGroupStatus struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // CephBlockPoolRadosNamespace represents a Ceph BlockPool Rados Namespace
-// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="BlockPool",type=string,JSONPath=`.spec.blockPoolName`,description="Name of the Ceph BlockPool"
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephBlockPoolRadosNamespace struct {
 	metav1.TypeMeta   `json:",inline"`
