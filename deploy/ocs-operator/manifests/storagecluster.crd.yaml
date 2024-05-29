@@ -2277,6 +2277,10 @@ spec:
                     description: DbStorageClassName specifies the default storage
                       class for nooba-db pods
                     type: string
+                  denyHTTP:
+                    description: DenyHTTP (optional) if given will deny access to
+                      the NooBaa S3 service using HTTP (only HTTPS)
+                    type: boolean
                   disableLoadBalancerService:
                     description: DisableLoadBalancerService (optional) sets the service
                       type to ClusterIP instead of LoadBalancer
