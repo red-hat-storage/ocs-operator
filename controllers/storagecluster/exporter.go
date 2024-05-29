@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -365,14 +366,8 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 }
 
 func createMetricsExporterServiceAccount(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	currentServiceAccount := &corev1.ServiceAccount{
+	expectedServiceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      metricsExporterName,
-			Namespace: instance.Namespace,
-		},
-	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentServiceAccount, func() error {
-		currentServiceAccount.ObjectMeta = metav1.ObjectMeta{
 			Name:      metricsExporterName,
 			Namespace: instance.Namespace,
 			Labels: map[string]string{
@@ -386,9 +381,29 @@ func createMetricsExporterServiceAccount(ctx context.Context, r *StorageClusterR
 				Name:       instance.Name,
 				UID:        instance.UID,
 			}},
+		},
+	}
+
+	// We only care about the existence of this ServiceAccount and presence of correct Labels and OwnerReferences in it.
+	// We do not want to reset/remove Secret references or ImagePullSecret references set by the system controllers.
+	currentServiceAccount := &corev1.ServiceAccount{}
+	err := r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: metricsExporterName}, currentServiceAccount)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			err = r.Client.Create(ctx, expectedServiceAccount)
+			return err
 		}
+		return err
+	}
+	// If ServiceAccount exists and Labels and OwnerReferences are correct, we don't need to update anything.
+	if equality.Semantic.DeepEqual(expectedServiceAccount.ObjectMeta.Labels, currentServiceAccount.ObjectMeta.Labels) &&
+		equality.Semantic.DeepEqual(expectedServiceAccount.ObjectMeta.OwnerReferences, currentServiceAccount.ObjectMeta.OwnerReferences) {
 		return nil
-	})
+	}
+	// If ServiceAccount exists but Labels and/or OwnerReferences are incorrect, we need to update it.
+	currentServiceAccount.ObjectMeta.Labels = expectedServiceAccount.ObjectMeta.Labels
+	currentServiceAccount.ObjectMeta.OwnerReferences = expectedServiceAccount.ObjectMeta.OwnerReferences
+	err = r.Client.Update(ctx, currentServiceAccount)
 	return err
 }
 
