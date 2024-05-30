@@ -2,8 +2,6 @@
 // options of a StorageCluster
 package defaults
 
-import "time"
-
 const (
 	// NodeAffinityKey is the node label to determine which nodes belong
 	// to a storage cluster
@@ -50,7 +48,4 @@ var (
 	// ArbiterReplicasPerFailureDomain is the default replica count in the failure domain when arbiter is enabled
 	// This maps to the ReplicasPerFailureDomain in the CephReplicatedSpec when creating the CephBlockPools
 	ArbiterReplicasPerFailureDomain = 2
-	// DefaultWaitTimeoutForHealthyOSD is the default time for which the operator would wait before an OSD can be stopped
-	// for an upgrade or restart
-	DefaultWaitTimeoutForHealthyOSD = 10 * time.Minute
 )
