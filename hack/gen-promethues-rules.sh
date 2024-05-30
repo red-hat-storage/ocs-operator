@@ -5,7 +5,7 @@ BUILD_PATH="metrics/mixin/build"
 RULES_PATH="metrics/deploy"
 
 #Create intermediate yamls to test if alerts are compiling a
-echo "Creating Promethues Rules And Alerts"
+echo "Creating Prometheus Rules And Alerts"
 
 (cd $MIXIN_PATH && make prometheus_alert_rules.yaml prometheus_alert_rules_external.yaml)
 
