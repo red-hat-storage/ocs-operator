@@ -38,11 +38,11 @@ require (
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240327160100-bbe9d9d49462
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000
 	github.com/rook/rook v1.13.7
-	github.com/rook/rook/pkg/apis v0.0.0-20240327231646-b6b89a012a95
+	github.com/rook/rook/pkg/apis v0.0.0-20240514205425-8b1ad005989c
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/net v0.22.0
+	golang.org/x/net v0.23.0
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
 	k8s.io/client-go v0.29.3
