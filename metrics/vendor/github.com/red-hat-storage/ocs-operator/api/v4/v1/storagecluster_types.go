@@ -424,6 +424,10 @@ type MultiCloudGatewaySpec struct {
 	// Allows Noobaa to connect to an external Postgres server
 	// +optional
 	ExternalPgConfig *ExternalPGSpec `json:"externalPgConfig,omitempty"`
+
+	// DenyHTTP (optional) if given will deny access to the NooBaa S3 service using HTTP (only HTTPS)
+	// +optional
+	DenyHTTP bool `json:"denyHTTP,omitempty"`
 }
 
 type ExternalPGSpec struct {

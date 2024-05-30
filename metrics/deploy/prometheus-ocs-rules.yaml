@@ -407,3 +407,16 @@ spec:
       for: 6h
       labels:
         severity: warning
+    - alert: ODFClusterHasLegacyOSDs
+      annotations:
+        description: |-
+          Ceph Cluster {{ $labels.ceph_cluster }} has legacy OSDs in the namespace {{ $labels.namespace }}.
+          LVM-based OSDs on a PVC are deprecated, see documentation on replacing OSDs.
+        message: Ceph Cluster {{ $labels.ceph_cluster}} has legacy OSDs
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFClusterHasLegacyOSDs.md
+        severity_level: warning
+      expr: |
+        ocs_lvm_osd_count > 0
+      for: 1m
+      labels:
+        severity: warning
