@@ -9,7 +9,7 @@ The converged CSV is created by sourcing CSV manifests from each component-level
 
 ### Building the converged catalog
 
-Building the unifed CSV is broken into two steps which are supported by the `make source-manifests` and `make gen-release-csv` make targets.
+Building the unified CSV is broken into two steps which are supported by the `make source-manifests` and `make gen-release-csv` make targets.
 
 #### Source component manifests
 
