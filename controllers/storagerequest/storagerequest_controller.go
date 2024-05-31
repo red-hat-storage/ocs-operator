@@ -441,6 +441,7 @@ func (r *StorageRequestReconciler) reconcileCephFilesystemSubVolumeGroup() error
 
 		r.cephFilesystemSubVolumeGroup.Spec = rookCephv1.CephFilesystemSubVolumeGroupSpec{
 			FilesystemName: cephFilesystem.Name,
+			DataPoolName:   dataPoolValue,
 		}
 		return nil
 	})
