@@ -110,4 +110,4 @@ jobs:
           check_filenames: true
           check_hidden: true
           skip: vendor
-          ignore_words_list: xdescribe,contails,shouldnot
+          ignore_words_list: xdescribe,contails,shouldnot,NotIn,notin

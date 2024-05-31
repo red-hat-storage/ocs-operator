@@ -27,7 +27,7 @@ resources=()
 # resources+=(storageclusters)
 # resources+=(storagesystem)
 
-# collect OB/OBC resoureces
+# collect OB/OBC resources
 resources+=(objectbuckets)
 
 #collect openshift-dr-system namespaced resources
