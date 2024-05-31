@@ -165,7 +165,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		MaxCount:               2,
 		AdditionalVirtualHosts: []string{},
 
-		// TODO: After spec.resources["noobaa-endpoint"] is decleared obesolete this
+		// TODO: After spec.resources["noobaa-endpoint"] is declared obesolete this
 		// definition should hold a constant value. and should not be read from
 		// GetDaemonResources()
 		Resources: &endpointResources,
