@@ -183,19 +183,3 @@ export KUSTOMIZE
 install: operator-sdk
 	@echo "Installing operators"
 	hack/install-ocs-operator.sh
-
-install-noobaa: operator-sdk
-	@echo "Installing noobaa operator"
-	hack/install-noobaa.sh
-
-install-ocs: operator-sdk
-	@echo "Installing ocs operator"
-	hack/install-ocs.sh
-
-install-ocs-client: operator-sdk
-	@echo "Installing ocs-client operator"
-	hack/install-ocs-client.sh
-
-install-rook: operator-sdk
-	@echo "Installing rook-ceph operator"
-	hack/install-rook.sh
