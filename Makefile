@@ -180,6 +180,10 @@ else
 endif
 export KUSTOMIZE
 
+install: operator-sdk
+	@echo "Installing operators"
+	hack/install-ocs-operator.sh
+
 install-noobaa: operator-sdk
 	@echo "Installing noobaa operator"
 	hack/install-noobaa.sh
