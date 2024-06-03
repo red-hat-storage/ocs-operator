@@ -392,7 +392,7 @@ github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 ## explicit; go 1.21
 github.com/red-hat-storage/ocs-operator/api/v4/v1
 github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
-# github.com/rook/rook/pkg/apis v0.0.0-20240513003450-39f88521f0fd
+# github.com/rook/rook/pkg/apis v0.0.0-20240529164429-48b657099d3c
 ## explicit; go 1.21
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
