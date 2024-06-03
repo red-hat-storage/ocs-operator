@@ -725,10 +725,26 @@ spec:
                     description: ManageCephCluster defines how to reconcile the Ceph
                       cluster definition
                     properties:
+                      backfillFullRatio:
+                        description: BackfillFullRatio is the ratio at which the cluster
+                          is too full for backfill. Backfill will be disabled if above
+                          this threshold. Default is 0.90.
+                        maximum: 1
+                        minimum: 0
+                        nullable: true
+                        type: number
                       continueUpgradeAfterChecksEvenIfNotHealthy:
                         description: Whether or not continue if PGs are not clean
                           during an upgrade
                         type: boolean
+                      fullRatio:
+                        description: FullRatio is the ratio at which the cluster is
+                          considered full and ceph will stop accepting writes. Default
+                          is 0.95.
+                        maximum: 1
+                        minimum: 0
+                        nullable: true
+                        type: number
                       mgrCount:
                         enum:
                         - 1
@@ -739,6 +755,14 @@ spec:
                         - 3
                         - 5
                         type: integer
+                      nearFullRatio:
+                        description: NearFullRatio is the ratio at which the cluster
+                          is considered nearly full and will raise a ceph health warning.
+                          Default is 0.85.
+                        maximum: 1
+                        minimum: 0
+                        nullable: true
+                        type: number
                       osdMaintenanceTimeout:
                         description: A duration in minutes that determines how long
                           an entire failureDomain like `region/zone/host` will be
