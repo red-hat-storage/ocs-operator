@@ -29,7 +29,7 @@ schema: olm.channel
 package: rook-ceph-operator
 name: alpha
 entries:
-  - name: rook-ceph-operator.v4.16.0
+  - name: rook-ceph-operator.v4.17.0
 
 ---
 defaultChannel: alpha
