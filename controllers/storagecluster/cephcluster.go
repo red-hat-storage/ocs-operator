@@ -459,6 +459,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				StorageClassDeviceSets:       newStorageClassDeviceSets(sc),
 				Store:                        osdStore,
 				FlappingRestartIntervalHours: 24,
+				FullRatio:                    sc.Spec.ManagedResources.CephCluster.FullRatio,
+				NearFullRatio:                sc.Spec.ManagedResources.CephCluster.NearFullRatio,
+				BackfillFullRatio:            sc.Spec.ManagedResources.CephCluster.BackfillFullRatio,
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
