@@ -1,7 +1,7 @@
 # github.com/Masterminds/semver/v3 v3.2.1
 ## explicit; go 1.18
 github.com/Masterminds/semver/v3
-# github.com/aws/aws-sdk-go v1.50.9
+# github.com/aws/aws-sdk-go v1.51.7
 ## explicit; go 1.19
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/awserr
@@ -297,8 +297,8 @@ github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 # github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000 => ../
 ## explicit; go 1.21
 github.com/red-hat-storage/ocs-operator/v4/version
-# github.com/rook/rook v1.13.7
-## explicit; go 1.20
+# github.com/rook/rook v1.14.3
+## explicit; go 1.21
 github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
@@ -322,7 +322,7 @@ github.com/stretchr/testify/assert
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# go.uber.org/zap v1.26.0
+# go.uber.org/zap v1.27.0
 ## explicit; go 1.19
 go.uber.org/zap
 go.uber.org/zap/buffer

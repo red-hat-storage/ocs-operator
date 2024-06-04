@@ -2,6 +2,8 @@
 # with their default values.
 # options for analysis running
 run:
+  skip-dirs:
+    - tools/volume-migration
 
   # timeout for analysis, e.g. 30s, 5m, default is 1m
   timeout: 2m
