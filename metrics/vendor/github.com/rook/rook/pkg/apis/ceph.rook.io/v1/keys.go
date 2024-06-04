@@ -23,7 +23,6 @@ const (
 	KeyMon             KeyType = "mon"
 	KeyMonArbiter      KeyType = "arbiter"
 	KeyMgr             KeyType = "mgr"
-	KeyDashboard       KeyType = "dashboard"
 	KeyOSDPrepare      KeyType = "prepareosd"
 	KeyRotation        KeyType = "keyrotation"
 	KeyOSD             KeyType = "osd"
