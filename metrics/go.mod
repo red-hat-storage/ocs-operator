@@ -95,7 +95,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240319123706-4ee28d614c7c // indirect
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240418141646-fcc5240f5af6 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/openshift/api v0.0.0-20240323003854-2252c7adfb79 // indirect
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
