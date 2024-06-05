@@ -983,6 +983,11 @@ func (in *NooBaaAccountSpec) DeepCopyInto(out *NooBaaAccountSpec) {
 		*out = new(AccountNsfsConfig)
 		**out = **in
 	}
+	if in.ForceMd5Etag != nil {
+		in, out := &in.ForceMd5Etag, &out.ForceMd5Etag
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -1229,6 +1234,11 @@ func (in *NooBaaStatus) DeepCopyInto(out *NooBaaStatus) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.LastKeyRotateTime.DeepCopyInto(&out.LastKeyRotateTime)
+	if in.BeforeUpgradeDbImage != nil {
+		in, out := &in.BeforeUpgradeDbImage, &out.BeforeUpgradeDbImage
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
