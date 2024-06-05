@@ -85,9 +85,10 @@ type NooBaaSpec struct {
 	// +optional
 	DBConf *string `json:"dbConf,omitempty"`
 
-	// DBType (optional) overrides the default type image for the db container
+	// DBType (optional) overrides the default type image for the db container.
+	// The only possible value is postgres
 	// +optional
-	// +kubebuilder:validation:Enum=mongodb;postgres
+	// +kubebuilder:validation:Enum=postgres
 	DBType DBTypes `json:"dbType,omitempty"`
 
 	// CoreResources (optional) overrides the default resource requirements for the server container
@@ -108,7 +109,7 @@ type NooBaaSpec struct {
 	// and only if the storage class specifies `allowVolumeExpansion: true`,
 	// +immutable
 	// +optional
-	DBVolumeResources *corev1.ResourceRequirements `json:"dbVolumeResources,omitempty"`
+	DBVolumeResources *corev1.VolumeResourceRequirements `json:"dbVolumeResources,omitempty"`
 
 	// DBStorageClass (optional) overrides the default cluster StorageClass for the database volume.
 	// For the time being this field is immutable and can only be set on system creation.
@@ -117,10 +118,6 @@ type NooBaaSpec struct {
 	// +immutable
 	// +optional
 	DBStorageClass *string `json:"dbStorageClass,omitempty"`
-
-	// MongoDbURL (optional) overrides the default mongo db remote url
-	// +optional
-	MongoDbURL string `json:"mongoDbURL,omitempty"`
 
 	// ExternalPgSecret (optional) holds an optional secret with a url to an extrenal Postgres DB to be used
 	// +optional
@@ -528,8 +525,6 @@ type DBTypes string
 
 // These are the valid DB types:
 const (
-	// DBTypeMongo is mongodb
-	DBTypeMongo DBTypes = "mongodb"
 	// DBTypePostgres is postgres
 	DBTypePostgres DBTypes = "postgres"
 )

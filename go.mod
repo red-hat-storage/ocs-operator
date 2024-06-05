@@ -17,7 +17,7 @@ require (
 	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
 	github.com/kubernetes-csi/external-snapshotter/client/v7 v7.0.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240319123706-4ee28d614c7c
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240418141646-fcc5240f5af6
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
 	github.com/openshift/api v0.0.0-20240323003854-2252c7adfb79
