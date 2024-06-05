@@ -159,7 +159,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	nb.Spec.Tolerations = placement.Tolerations
 	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
-	nb.Spec.DBVolumeResources = &dBVolumeResources
+	nb.Spec.DBVolumeResources = &corev1.VolumeResourceRequirements{
+		Limits:   dBVolumeResources.Limits,
+		Requests: dBVolumeResources.Requests,
+	}
 	nb.Spec.Image = &r.images.NooBaaCore
 	nb.Spec.DBImage = &r.images.NooBaaDB
 	nb.Spec.DBType = nbv1.DBTypePostgres
