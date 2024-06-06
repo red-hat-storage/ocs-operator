@@ -37,6 +37,14 @@ type OCSProviderClient interface {
 	// specific resources.
 	GetStorageClaimConfig(ctx context.Context, in *StorageClaimConfigRequest, opts ...grpc.CallOption) (*StorageClaimConfigResponse, error)
 	ReportStatus(ctx context.Context, in *ReportStatusRequest, opts ...grpc.CallOption) (*ReportStatusResponse, error)
+	// OnboardStorageClusterPeer RPC call to onboard the StorageClusterPeer to the remote StorageCluster
+	OnboardStorageClusterPeer(ctx context.Context, in *OnboardStorageClusterPeerRequest, opts ...grpc.CallOption) (*OnboardStorageClusterPeerResponse, error)
+	// OffboardStorageClusterPeer RPC call to offboard the StorageClusterPeer from the remote StorageCluster
+	OffboardStorageClusterPeer(ctx context.Context, in *OffboardStorageClusterPeerRequest, opts ...grpc.CallOption) (*OffboardStorageClusterPeerResponse, error)
+	// AcknowledgeOnboardingStorageClusterPeer RPC call acknowledge the StorageClusterPeer Onboarding
+	AcknowledgeOnboardingStorageClusterPeer(ctx context.Context, in *AcknowledgeOnboardingStorageClusterPeerRequest, opts ...grpc.CallOption) (*AcknowledgeOnboardingStorageClusterPeerResponse, error)
+	// GetMirroringInfo RPC call to get the mirroring info for connecting block pools from local to remote StorageCluster
+	GetMirroringInfo(ctx context.Context, in *MirroringInfoRequest, opts ...grpc.CallOption) (*MirroringInfoResponse, error)
 }
 
 type oCSProviderClient struct {
@@ -119,6 +127,42 @@ func (c *oCSProviderClient) ReportStatus(ctx context.Context, in *ReportStatusRe
 	return out, nil
 }
 
+func (c *oCSProviderClient) OnboardStorageClusterPeer(ctx context.Context, in *OnboardStorageClusterPeerRequest, opts ...grpc.CallOption) (*OnboardStorageClusterPeerResponse, error) {
+	out := new(OnboardStorageClusterPeerResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/OnboardStorageClusterPeer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oCSProviderClient) OffboardStorageClusterPeer(ctx context.Context, in *OffboardStorageClusterPeerRequest, opts ...grpc.CallOption) (*OffboardStorageClusterPeerResponse, error) {
+	out := new(OffboardStorageClusterPeerResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/OffboardStorageClusterPeer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oCSProviderClient) AcknowledgeOnboardingStorageClusterPeer(ctx context.Context, in *AcknowledgeOnboardingStorageClusterPeerRequest, opts ...grpc.CallOption) (*AcknowledgeOnboardingStorageClusterPeerResponse, error) {
+	out := new(AcknowledgeOnboardingStorageClusterPeerResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/AcknowledgeOnboardingStorageClusterPeer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oCSProviderClient) GetMirroringInfo(ctx context.Context, in *MirroringInfoRequest, opts ...grpc.CallOption) (*MirroringInfoResponse, error) {
+	out := new(MirroringInfoResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/GetMirroringInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OCSProviderServer is the server API for OCSProvider service.
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
@@ -142,6 +186,14 @@ type OCSProviderServer interface {
 	// specific resources.
 	GetStorageClaimConfig(context.Context, *StorageClaimConfigRequest) (*StorageClaimConfigResponse, error)
 	ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error)
+	// OnboardStorageClusterPeer RPC call to onboard the StorageClusterPeer to the remote StorageCluster
+	OnboardStorageClusterPeer(context.Context, *OnboardStorageClusterPeerRequest) (*OnboardStorageClusterPeerResponse, error)
+	// OffboardStorageClusterPeer RPC call to offboard the StorageClusterPeer from the remote StorageCluster
+	OffboardStorageClusterPeer(context.Context, *OffboardStorageClusterPeerRequest) (*OffboardStorageClusterPeerResponse, error)
+	// AcknowledgeOnboardingStorageClusterPeer RPC call acknowledge the StorageClusterPeer Onboarding
+	AcknowledgeOnboardingStorageClusterPeer(context.Context, *AcknowledgeOnboardingStorageClusterPeerRequest) (*AcknowledgeOnboardingStorageClusterPeerResponse, error)
+	// GetMirroringInfo RPC call to get the mirroring info for connecting block pools from local to remote StorageCluster
+	GetMirroringInfo(context.Context, *MirroringInfoRequest) (*MirroringInfoResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
 
@@ -172,6 +224,18 @@ func (UnimplementedOCSProviderServer) GetStorageClaimConfig(context.Context, *St
 }
 func (UnimplementedOCSProviderServer) ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReportStatus not implemented")
+}
+func (UnimplementedOCSProviderServer) OnboardStorageClusterPeer(context.Context, *OnboardStorageClusterPeerRequest) (*OnboardStorageClusterPeerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OnboardStorageClusterPeer not implemented")
+}
+func (UnimplementedOCSProviderServer) OffboardStorageClusterPeer(context.Context, *OffboardStorageClusterPeerRequest) (*OffboardStorageClusterPeerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OffboardStorageClusterPeer not implemented")
+}
+func (UnimplementedOCSProviderServer) AcknowledgeOnboardingStorageClusterPeer(context.Context, *AcknowledgeOnboardingStorageClusterPeerRequest) (*AcknowledgeOnboardingStorageClusterPeerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AcknowledgeOnboardingStorageClusterPeer not implemented")
+}
+func (UnimplementedOCSProviderServer) GetMirroringInfo(context.Context, *MirroringInfoRequest) (*MirroringInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMirroringInfo not implemented")
 }
 func (UnimplementedOCSProviderServer) mustEmbedUnimplementedOCSProviderServer() {}
 
@@ -330,6 +394,78 @@ func _OCSProvider_ReportStatus_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OCSProvider_OnboardStorageClusterPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OnboardStorageClusterPeerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).OnboardStorageClusterPeer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/OnboardStorageClusterPeer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).OnboardStorageClusterPeer(ctx, req.(*OnboardStorageClusterPeerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OCSProvider_OffboardStorageClusterPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OffboardStorageClusterPeerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).OffboardStorageClusterPeer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/OffboardStorageClusterPeer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).OffboardStorageClusterPeer(ctx, req.(*OffboardStorageClusterPeerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OCSProvider_AcknowledgeOnboardingStorageClusterPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcknowledgeOnboardingStorageClusterPeerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).AcknowledgeOnboardingStorageClusterPeer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/AcknowledgeOnboardingStorageClusterPeer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).AcknowledgeOnboardingStorageClusterPeer(ctx, req.(*AcknowledgeOnboardingStorageClusterPeerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OCSProvider_GetMirroringInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MirroringInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).GetMirroringInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/GetMirroringInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).GetMirroringInfo(ctx, req.(*MirroringInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OCSProvider_ServiceDesc is the grpc.ServiceDesc for OCSProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -368,6 +504,22 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReportStatus",
 			Handler:    _OCSProvider_ReportStatus_Handler,
+		},
+		{
+			MethodName: "OnboardStorageClusterPeer",
+			Handler:    _OCSProvider_OnboardStorageClusterPeer_Handler,
+		},
+		{
+			MethodName: "OffboardStorageClusterPeer",
+			Handler:    _OCSProvider_OffboardStorageClusterPeer_Handler,
+		},
+		{
+			MethodName: "AcknowledgeOnboardingStorageClusterPeer",
+			Handler:    _OCSProvider_AcknowledgeOnboardingStorageClusterPeer_Handler,
+		},
+		{
+			MethodName: "GetMirroringInfo",
+			Handler:    _OCSProvider_GetMirroringInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
