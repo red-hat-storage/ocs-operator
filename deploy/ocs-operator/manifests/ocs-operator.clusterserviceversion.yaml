@@ -94,7 +94,7 @@ metadata:
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.25.4
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageconsumers.ocs.openshift.io","storageprofiles.ocs.openshift.io","storagerequests.ocs.openshift.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclusterpeers.ocs.openshift.io","storageconsumers.ocs.openshift.io","storageprofiles.ocs.openshift.io","storagerequests.ocs.openshift.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -116,6 +116,11 @@ spec:
       displayName: OCS Initialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
+      version: v1
+    - description: StorageClusterPeer is the Schema for the storageclusterpeers API
+      displayName: Storage Cluster Peer
+      kind: StorageClusterPeer
+      name: storageclusterpeers.ocs.openshift.io
       version: v1
     - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
         and all the storage and compute resources required.
@@ -390,6 +395,32 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclusterpeers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclusterpeers/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclusterpeers/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - ocs.openshift.io
           resources:
