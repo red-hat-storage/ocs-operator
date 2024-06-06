@@ -38,6 +38,23 @@ service OCSProvider {
 
   rpc ReportStatus(ReportStatusRequest)
   returns (ReportStatusResponse){}
+
+  // OnboardMirroringPeer RPC call to validate and onboard the provider to the this storage Provider Cluster
+  rpc OnboardMirroringPeer(OnboardMirroringPeerRequest)
+  returns (OnboardMirroringPeerResponse) {}
+
+  // OffboardMirroringPeer RPC call to offboard the MirroringPeer from the storage Provider Cluster
+  rpc OffboardMirroringPeer(OffboardMirroringPeerRequest)
+  returns (OffboardMirroringPeerResponse) {}
+
+  // AcknowledgeMirrorPeerOnboarding RPC call acknowledge the MirrorPeer Onboarding
+  rpc AcknowledgeMirrorPeerOnboarding(AcknowledgeMirrorPeerOnboardingRequest)
+  returns (AcknowledgeMirrorPeerOnboardingResponse){}
+
+  // GetMirroringInfo RPC call to get the mirroring info for connecting to storage provider cluster
+  rpc GetMirroringInfo(MirroringInfoRequest)
+  returns (MirroringInfoResponse) {}
+
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -172,3 +189,50 @@ message ReportStatusResponse{
     // Contains subscription channel of provider operator for client operator to match
     string desiredClientOperatorChannel = 1;
 }
+
+// OnboardMirroringPeerRequest holds the required information to validate and onboard Storage Provider cluster
+message OnboardMirroringPeerRequest{
+    // onboardingTicket authenticates the secondary provider cluster
+    string onboardingTicket = 1;
+    // storageClusterPeerName is the name of the storageClusterPeer representation on the provider
+    string storageClusterPeerName = 2;
+}
+
+// OnboardMirroringPeerResponse holds the response for OnboardMirroringPeer API request
+message OnboardMirroringPeerResponse{
+    // UUID is the K8s UID (UUID) of the MirroringPeer representation on the provider cluster
+    string UUID = 1;
+}
+
+// OffboardMirroringPeerRequest holds the required information offboard MirroringPeer on the Storage Provider cluster.
+message OffboardMirroringPeerRequest{
+    // UUID is the K8s UID (UUID) of the MirroringPeer representation on the provider cluster
+    string UUID = 1;
+}
+
+// OffboardMirroringPeerResponse holds the response for the OffboardMirroringPeer API request
+message OffboardMirroringPeerResponse{}
+
+// AcknowledgeMirrorPeerOnboardingRequest holds the information required to acknowledge the onboarding
+message AcknowledgeMirrorPeerOnboardingRequest{
+  // UUID is the K8s UID (UUID) of the MirroringPeer representation on the provider cluster
+  string UUID = 1;
+}
+
+// AcknowledgeMirrorPeerOnboardingResponse holds the response for the AcknowledgeMirrorPeerOnboarding API request
+message AcknowledgeMirrorPeerOnboardingResponse{}
+
+// MirroringInfoRequest holds the information required to get config for connecting block pools on storage provider cluster.
+message MirroringInfoRequest{
+    // UUID is the K8s UID (UUID) of the MirroringPeer representation on the provider cluster
+    string UUID = 1;
+    // BlockPoolNames is a list of BlockPools for mirroring
+    repeated string BlockPoolNames = 2;
+}
+
+// MirroringInfoResponse holds the response for the GetMirroringInfo API request
+message MirroringInfoResponse{
+  // ExternalResource holds the configuration data of external storage cluster
+  repeated ExternalResource externalResource = 1;
+}
+
