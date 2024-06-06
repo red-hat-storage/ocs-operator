@@ -1,0 +1,8 @@
+apiVersion: ocs.openshift.io/v1
+kind: StorageClusterPeer
+metadata:
+  name: storageclusterpeer-sample
+  namespace: openshift-storage
+spec:
+  apiEndpoint: 10.0.0.0:31659
+  onboardingTicket: onboarding-token
