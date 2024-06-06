@@ -28,6 +28,7 @@ import (
 )
 
 // StorageClusterPeerReconciler reconciles a StorageClusterPeer object
+// nolint:revive
 type StorageClusterPeerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -46,7 +47,7 @@ type StorageClusterPeerReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
-func (r *StorageClusterPeerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *StorageClusterPeerReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here

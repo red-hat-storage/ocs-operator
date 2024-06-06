@@ -219,6 +219,32 @@ rules:
 - apiGroups:
   - ocs.openshift.io
   resources:
+  - storageclusterpeers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageclusterpeers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageclusterpeers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ocs.openshift.io
+  resources:
   - storageclusters
   verbs:
   - get
