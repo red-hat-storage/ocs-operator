@@ -38,6 +38,11 @@ service OCSProvider {
 
   rpc ReportStatus(ReportStatusRequest)
   returns (ReportStatusResponse){}
+
+  // PeerStorageCluster RPC call to Peer the local Storage Cluster to the remote
+  rpc PeerStorageCluster(PeerStorageClusterRequest)
+  returns (PeerStorageClusterResponse) {}
+
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -181,4 +186,18 @@ message ReportStatusResponse{
     // Contains hash of desired config
     string desiredConfigHash = 2;
     
+}
+
+// PeerStorageClusterRequest holds the required information to Peer to remote StorageCluster
+message PeerStorageClusterRequest{
+    // onboardingToken authenticates the StorageCluster
+    string onboardingToken = 1;
+    // storageClusterUID is the k8s UID of the StorageCluster in the same namespace
+    string storageClusterUID = 2;
+}
+
+// PeerStorageClusterResponse holds the response for OnboardStorageClusterPeer API request
+message PeerStorageClusterResponse{
+    // storageClusterUID is the k8s UID of the remote StorageCluster
+    string storageClusterUID = 1;
 }
