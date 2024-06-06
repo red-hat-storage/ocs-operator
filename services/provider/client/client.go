@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
@@ -206,4 +207,67 @@ func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID stri
 	defer cancel()
 
 	return cc.Client.ReportStatus(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) OnboardStorageClusterPeer(ctx context.Context, onboardingTicket, storageClusterPeerUID string, remoteStorageCluster types.NamespacedName) (*pb.OnboardStorageClusterPeerResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.OnboardStorageClusterPeerRequest{
+		OnboardingTicket:      onboardingTicket,
+		StorageClusterPeerUID: storageClusterPeerUID,
+		RemoteStorageCluster:  remoteStorageCluster.String(),
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.OnboardStorageClusterPeer(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) OffboardStorageClusterPeer(ctx context.Context, storageClusterPeerUID string) (*pb.OffboardStorageClusterPeerResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.OffboardStorageClusterPeerRequest{
+		StorageClusterPeerUID: storageClusterPeerUID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.OffboardStorageClusterPeer(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) AcknowledgeOnboardingStorageClusterPeer(ctx context.Context, storageClusterPeerUID string) (*pb.AcknowledgeOnboardingStorageClusterPeerResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.AcknowledgeOnboardingStorageClusterPeerRequest{
+		StorageClusterPeerUID: storageClusterPeerUID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.AcknowledgeOnboardingStorageClusterPeer(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) GetMirroringInfo(ctx context.Context, storageClusterPeerUID string, blockPoolNames []string) (*pb.MirroringInfoResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.MirroringInfoRequest{
+		StorageClusterPeerUID: storageClusterPeerUID,
+		BlockPoolNames:        blockPoolNames,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetMirroringInfo(apiCtx, req)
 }
