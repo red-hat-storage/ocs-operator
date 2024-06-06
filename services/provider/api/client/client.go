@@ -211,3 +211,19 @@ func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID stri
 
 	return cc.Client.ReportStatus(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) PeerStorageCluster(ctx context.Context, onboardingToken, storageClusterUID string) (*pb.PeerStorageClusterResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.PeerStorageClusterRequest{
+		OnboardingToken:   onboardingToken,
+		StorageClusterUID: storageClusterUID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.PeerStorageCluster(apiCtx, req)
+}
