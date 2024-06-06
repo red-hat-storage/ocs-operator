@@ -207,3 +207,65 @@ func (cc *OCSProviderClient) ReportStatus(ctx context.Context, consumerUUID stri
 
 	return cc.Client.ReportStatus(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) OnboardMirroringPeer(ctx context.Context, onboardingTicket, storageClusterPeerName string) (*pb.OnboardMirroringPeerResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.OnboardMirroringPeerRequest{
+		OnboardingTicket:       onboardingTicket,
+		StorageClusterPeerName: storageClusterPeerName,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.OnboardMirroringPeer(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) OffboardMirroringPeer(ctx context.Context, uuid string) (*pb.OffboardMirroringPeerResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.OffboardMirroringPeerRequest{
+		UUID: uuid,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.OffboardMirroringPeer(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) AcknowledgeMirrorPeerOnboarding(ctx context.Context, uuid string) (*pb.AcknowledgeMirrorPeerOnboardingResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.AcknowledgeMirrorPeerOnboardingRequest{
+		UUID: uuid,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.AcknowledgeMirrorPeerOnboarding(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) GetMirroringInfo(ctx context.Context, uuid string, blockPoolNames []string) (*pb.MirroringInfoResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("OCS client is closed")
+	}
+
+	req := &pb.MirroringInfoRequest{
+		UUID:           uuid,
+		BlockPoolNames: blockPoolNames,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetMirroringInfo(apiCtx, req)
+}
