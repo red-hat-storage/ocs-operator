@@ -31,19 +31,19 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.72.0
 	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240325165741-300e2b620f51
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240327160100-bbe9d9d49462
-	github.com/rook/rook/pkg/apis v0.0.0-20240513003450-39f88521f0fd
+	github.com/rook/rook/pkg/apis v0.0.0-20240607162148-886c94854899
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/net v0.23.0
+	golang.org/x/net v0.25.0
 	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.1
-	k8s.io/api v0.29.3
+	k8s.io/api v0.29.5
 	k8s.io/apiextensions-apiserver v0.29.2
-	k8s.io/apimachinery v0.29.3
-	k8s.io/client-go v0.29.3
+	k8s.io/apimachinery v0.29.5
+	k8s.io/client-go v0.29.5
 	k8s.io/klog/v2 v2.120.1
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
 	sigs.k8s.io/controller-runtime v0.17.2
@@ -85,13 +85,13 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.5 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.6 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.8 // indirect
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.6 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-5 // indirect
-	github.com/hashicorp/vault/api v1.13.0 // indirect
+	github.com/hashicorp/vault/api v1.14.0 // indirect
 	github.com/hashicorp/vault/api/auth/approle v0.6.0 // indirect
 	github.com/hashicorp/vault/api/auth/kubernetes v0.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -118,12 +118,12 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	go.mongodb.org/mongo-driver v1.9.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/exp v0.0.0-20231127185646-65229373498e // indirect
 	golang.org/x/oauth2 v0.18.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/term v0.18.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/term v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.18.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
