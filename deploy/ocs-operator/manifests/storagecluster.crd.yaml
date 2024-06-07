@@ -8001,6 +8001,10 @@ spec:
                 description: CurrentMonCount holds the value of ceph mons configured
                   in ceph cluster.
                 type: integer
+              defaultCephDeviceClass:
+                description: DefaultCephDeviceClass holds the default ceph device
+                  class to be used for the pools
+                type: string
               externalSecretHash:
                 description: ExternalSecretHash holds the checksum value of external
                   secret data.
