@@ -269,6 +269,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, nil
 	}
 
+	// Set the default CephDeviceClass in the StorageCluster status(not needed for external clusters)
+	if !sc.Spec.ExternalStorage.Enable && found.Status.CephStorage != nil {
+		sc.Status.DefaultCephDeviceClass = determineDefaultCephDeviceClass(found.Status.CephStorage.DeviceClasses, sc.Spec.ManagedResources.CephNonResilientPools.Enable, sc.Status.FailureDomainValues)
+	}
+
 	// Record actual Ceph container image version before attempting update
 	sc.Status.Images.Ceph.ActualImage = found.Spec.CephVersion.Image
 
@@ -867,10 +872,6 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster, serverVersion *version.
 			annotations := map[string]string{
 				"crushDeviceClass": crushDeviceClass,
 			}
-			// if Non-Resilient Pools are enabled then change the existing osd crushDeviceClass to "replicated"
-			if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
-				annotations["crushDeviceClass"] = "replicated"
-			}
 			// Annotation crushInitialWeight is an optional, explicit weight to set upon OSD's init (as float, in TiB units).
 			// ROOK & Ceph do not want any (optional) Ti[B] suffix, so trim it here.
 			// If not set, Ceph will define OSD's weight based on its capacity.
@@ -1360,4 +1361,28 @@ func getOsdCount(sc *ocsv1.StorageCluster, serverVersion *version.Info) int {
 		osdCount += ds.Count
 	}
 	return osdCount
+}
+
+func determineDefaultCephDeviceClass(foundDeviceClasses []rookCephv1.DeviceClasses, isReplica1 bool, replica1DeviceClasses []string) string {
+	// If device classes are found in status
+	if len(foundDeviceClasses) != 0 {
+		// If replica-1 is not enabled return the first device class
+		if !isReplica1 {
+			return foundDeviceClasses[0].Name
+		}
+		// If replica-1 is enabled return the first one that is not a replica1 device class
+		if len(foundDeviceClasses) != 0 {
+			replica1DeviceClassMap := make(map[string]bool)
+			for _, deviceClass := range replica1DeviceClasses {
+				replica1DeviceClassMap[deviceClass] = true
+			}
+			for _, deviceClass := range foundDeviceClasses {
+				if found := replica1DeviceClassMap[deviceClass.Name]; !found {
+					return deviceClass.Name
+				}
+			}
+		}
+	}
+	// By default return "ssd"
+	return "ssd"
 }

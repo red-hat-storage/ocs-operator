@@ -1641,3 +1641,140 @@ func TestEnsureRDRMigration(t *testing.T) {
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
 	assert.Equal(t, "yes-really-update-store", actual.Spec.Storage.Store.UpdateStore)
 }
+
+func TestDetermineDefaultCephDeviceClass(t *testing.T) {
+	cases := []struct {
+		label                 string
+		foundDeviceClasses    []rookCephv1.DeviceClasses
+		isReplica1            bool
+		replica1DeviceClasses []string
+		expectedDeviceClass   string
+	}{
+		{
+			label:                 "Case 1: Replica 1 not enabled & no DeviceClass in status",
+			foundDeviceClasses:    []rookCephv1.DeviceClasses{},
+			isReplica1:            false,
+			replica1DeviceClasses: []string{},
+			expectedDeviceClass:   "ssd",
+		},
+		{
+			label: "Case 2: Replica 1 not enabled & 1 DeviceClass is in status",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "gold",
+				},
+			},
+			isReplica1:            false,
+			replica1DeviceClasses: []string{},
+			expectedDeviceClass:   "gold",
+		},
+		{
+			label: "Case 3: Replica 1 not enabled & more than 1 DeviceClass is in status",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "gold",
+				},
+				{
+					Name: "silver",
+				},
+			},
+			isReplica1:            false,
+			replica1DeviceClasses: []string{},
+			expectedDeviceClass:   "gold",
+		},
+		{
+			label:                 "Case 4: Replica 1 enabled & no DeviceClass in status",
+			foundDeviceClasses:    []rookCephv1.DeviceClasses{},
+			isReplica1:            true,
+			replica1DeviceClasses: []string{"zone1", "zone2", "zone3"},
+			expectedDeviceClass:   "ssd",
+		},
+		{
+			label: "Case 5:  Replica 1 enabled. Total less than n DeviceClass are in status, with only one non replica-1 DeviceClass",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "gold",
+				},
+			},
+			isReplica1:            true,
+			replica1DeviceClasses: []string{"zone1", "zone2", "zone3"},
+			expectedDeviceClass:   "gold",
+		},
+		{
+			label: "Case 6:  Replica 1 enabled. Total less than n DeviceClass are in status, with more than one non replica-1 DeviceClass",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "gold",
+				},
+				{
+					Name: "silver",
+				},
+			},
+			isReplica1:          true,
+			expectedDeviceClass: "gold",
+		},
+		{
+			label: "Case 7: Replica 1 enabled & only n replica-1 DeviceClass are in status without any non-replica-1 DeviceClass",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "zone1",
+				},
+				{
+					Name: "zone2",
+				},
+				{
+					Name: "zone3",
+				},
+			},
+			isReplica1:            true,
+			replica1DeviceClasses: []string{"zone1", "zone2", "zone3"},
+			expectedDeviceClass:   "ssd",
+		},
+		{
+			label: "Case 8: Replica 1 enabled & n+1 total DeviceClass are in status(n replica-1 DeviceClass, 1 non-replica-1 DeviceClass)",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "gold",
+				},
+				{
+					Name: "zone1",
+				},
+				{
+					Name: "zone2",
+				},
+				{
+					Name: "zone3",
+				},
+			},
+			isReplica1:          true,
+			expectedDeviceClass: "gold",
+		},
+		{
+			label: "Case 9: Replica 1 enabled & more than n+1 DeviceClass are in status",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "gold",
+				},
+				{
+					Name: "silver",
+				},
+				{
+					Name: "zone1",
+				},
+				{
+					Name: "zone2",
+				},
+				{
+					Name: "zone3",
+				},
+			},
+			expectedDeviceClass: "gold",
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Case: %s\n", c.label)
+		actual := determineDefaultCephDeviceClass(c.foundDeviceClasses, c.isReplica1, c.replica1DeviceClasses)
+		assert.Equal(t, c.expectedDeviceClass, actual)
+	}
+}

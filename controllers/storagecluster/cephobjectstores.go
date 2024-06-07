@@ -169,7 +169,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			Spec: cephv1.ObjectStoreSpec{
 				PreservePoolsOnDelete: false,
 				DataPool: cephv1.PoolSpec{
-					DeviceClass:   generateDeviceClass(initData),
+					DeviceClass:   initData.Status.DefaultCephDeviceClass,
 					FailureDomain: initData.Status.FailureDomain,
 					Replicated:    generateCephReplicatedSpec(initData, "data"),
 				},
