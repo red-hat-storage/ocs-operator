@@ -611,19 +611,24 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				rbdStorageClassData["encryptionKMSID"] = storageRequest.Spec.EncryptionMethod
 			}
 
-			extR = append(extR, &pb.ExternalResource{
-				Name: "ceph-rbd",
-				Kind: "StorageClass",
-				Data: mustMarshal(rbdStorageClassData),
-			})
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: "ceph-rbd",
-				Kind: "VolumeSnapshotClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID": rbdStorageClassData["clusterID"],
-					"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
-				})})
+			extR = append(extR,
+				&pb.ExternalResource{
+					Name: "ceph-rbd",
+					Kind: "StorageClass",
+					Data: mustMarshal(rbdStorageClassData),
+				},
+				&pb.ExternalResource{
+					Name: "ceph-rbd",
+					Kind: "VolumeSnapshotClass",
+					Data: mustMarshal(map[string]string{
+						"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
+					})},
+				&pb.ExternalResource{
+					Name: "ceph-rbd",
+					Kind: "VolumeGroupSnapshotClass",
+					Data: mustMarshal(map[string]string{
+						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
+					})})
 
 		case "CephFilesystemSubVolumeGroup":
 			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
@@ -644,26 +649,30 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
 			}
 
-			extR = append(extR, &pb.ExternalResource{
-				Name: "cephfs",
-				Kind: "StorageClass",
-				Data: mustMarshal(cephfsStorageClassData),
-			})
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: cephRes.Name,
-				Kind: cephRes.Kind,
-				Data: mustMarshal(map[string]string{
-					"filesystemName": subVolumeGroup.Spec.FilesystemName,
-				})})
-
-			extR = append(extR, &pb.ExternalResource{
-				Name: "cephfs",
-				Kind: "VolumeSnapshotClass",
-				Data: mustMarshal(map[string]string{
-					"clusterID": getSubVolumeGroupClusterID(subVolumeGroup),
-					"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
-				})})
+			extR = append(extR,
+				&pb.ExternalResource{
+					Name: "cephfs",
+					Kind: "StorageClass",
+					Data: mustMarshal(cephfsStorageClassData),
+				},
+				&pb.ExternalResource{
+					Name: cephRes.Name,
+					Kind: cephRes.Kind,
+					Data: mustMarshal(map[string]string{
+						"filesystemName": subVolumeGroup.Spec.FilesystemName,
+					})},
+				&pb.ExternalResource{
+					Name: "cephfs",
+					Kind: "VolumeSnapshotClass",
+					Data: mustMarshal(map[string]string{
+						"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
+					})},
+				&pb.ExternalResource{
+					Name: "cephfs",
+					Kind: "VolumeGroupSnapshotClass",
+					Data: mustMarshal(map[string]string{
+						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
+					})})
 		}
 	}
 
