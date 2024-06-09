@@ -507,8 +507,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
-					"clusterID": serverNamespace,
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+				},
+			},
+			"ceph-rbd-volumegroupsnapshotclass": {
+				Name: "ceph-rbd",
+				Kind: "VolumeGroupSnapshotClass",
+				Data: map[string]string{
+					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
 			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
@@ -547,8 +553,15 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "cephfs",
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
-					"clusterID": "8d26c7378c1b0ec9c2455d1c3601c4cd",
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+				},
+			},
+
+			"cephfs-volumegroupsnapshotclass": {
+				Name: "cephfs",
+				Kind: "VolumeGroupSnapshotClass",
+				Data: map[string]string{
+					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
 			},
 			"ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c": {
@@ -853,6 +866,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
+		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
+			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
 		}
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
@@ -880,6 +895,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-volumesnapshotclass", name)
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
+		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
+			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
