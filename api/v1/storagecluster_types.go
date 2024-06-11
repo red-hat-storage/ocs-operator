@@ -556,6 +556,9 @@ type StorageClusterStatus struct {
 	// Images holds the image reconcile status for all images reconciled by the operator
 	Images ImagesStatus `json:"images,omitempty"`
 
+	// DefaultCephDeviceClass holds the default ceph device class to be used for the pools
+	DefaultCephDeviceClass string `json:"defaultCephDeviceClass,omitempty"`
+
 	// KMSServerConnection holds the connection state to the KMS server.
 	KMSServerConnection KMSServerConnectionStatus `json:"kmsServerConnection,omitempty"`
 
