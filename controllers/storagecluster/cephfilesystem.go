@@ -279,7 +279,7 @@ func getActiveMetadataServers(sc *ocsv1.StorageCluster) int {
 // Define a function to generate default pool specifications
 func generateDefaultPoolSpec(sc *ocsv1.StorageCluster) cephv1.PoolSpec {
 	return cephv1.PoolSpec{
-		DeviceClass:   generateDeviceClass(sc),
+		DeviceClass:   sc.Status.DefaultCephDeviceClass,
 		Replicated:    generateCephReplicatedSpec(sc, "data"),
 		FailureDomain: sc.Status.FailureDomain,
 	}
