@@ -198,6 +198,21 @@ type ManageCephCluster struct {
 	// default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true` in cephCluster CR.
 	// The default value is `30` minutes.
 	OsdMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
+	// FullRatio is the ratio at which the cluster is considered full and ceph will stop accepting writes. Default is 0.95.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +nullable
+	FullRatio *float64 `json:"fullRatio,omitempty"`
+	// NearFullRatio is the ratio at which the cluster is considered nearly full and will raise a ceph health warning. Default is 0.85.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +nullable
+	NearFullRatio *float64 `json:"nearFullRatio,omitempty"`
+	// BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +nullable
+	BackfillFullRatio *float64 `json:"backfillFullRatio,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
