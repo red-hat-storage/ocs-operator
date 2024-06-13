@@ -25,6 +25,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 )
 
 var (
@@ -984,8 +985,9 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 					{
 						Name: "ocs-metrics-exporter",
 						SecurityContext: &corev1.SecurityContext{
-							Privileged:   &privileged,
-							RunAsNonRoot: &noRoot,
+							Privileged:             &privileged,
+							RunAsNonRoot:           &noRoot,
+							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
@@ -1092,6 +1094,10 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 								Value: os.Getenv("TLS_ENABLED"),
 							},
 						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
 					},
 					{
 						Name: "oauth-proxy",
@@ -1121,6 +1127,10 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 							{
 								ContainerPort: 8888,
 							},
+						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 					},
 				},
