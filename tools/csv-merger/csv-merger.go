@@ -1092,6 +1092,10 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 								Value: os.Getenv("TLS_ENABLED"),
 							},
 						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
 					},
 					{
 						Name: "oauth-proxy",
@@ -1121,6 +1125,10 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 							{
 								ContainerPort: 8888,
 							},
+						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 					},
 				},

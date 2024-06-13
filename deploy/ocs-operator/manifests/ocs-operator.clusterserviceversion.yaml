@@ -3346,6 +3346,9 @@ spec:
                 ports:
                 - containerPort: 8080
                 resources: {}
+                securityContext:
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
                 volumeMounts:
                 - mountPath: /etc/private-key
                   name: onboarding-private-key
@@ -3369,6 +3372,9 @@ spec:
                 ports:
                 - containerPort: 8888
                 resources: {}
+                securityContext:
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
                 volumeMounts:
                 - mountPath: /etc/proxy/secrets
                   name: ux-proxy-secret
