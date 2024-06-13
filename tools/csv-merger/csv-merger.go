@@ -25,6 +25,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 )
 
 var (
@@ -984,8 +985,9 @@ func getMetricsExporterDeployment() appsv1.DeploymentSpec {
 					{
 						Name: "ocs-metrics-exporter",
 						SecurityContext: &corev1.SecurityContext{
-							Privileged:   &privileged,
-							RunAsNonRoot: &noRoot,
+							Privileged:             &privileged,
+							RunAsNonRoot:           &noRoot,
+							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 						VolumeMounts: []corev1.VolumeMount{
 							{

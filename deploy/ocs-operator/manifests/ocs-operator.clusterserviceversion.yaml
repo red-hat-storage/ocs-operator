@@ -3302,6 +3302,7 @@ spec:
                 resources: {}
                 securityContext:
                   privileged: false
+                  readOnlyRootFilesystem: true
                   runAsNonRoot: true
                 volumeMounts:
                 - mountPath: /etc/ceph
