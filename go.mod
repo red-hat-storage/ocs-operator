@@ -17,7 +17,7 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.3.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20231213124549-5d7b0417716d
+	github.com/noobaa/noobaa-operator/v5 v5.15.3-0.20240512061236-cf7994a43852
 	github.com/oklog/run v1.1.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/ginkgo/v2 v2.13.2
