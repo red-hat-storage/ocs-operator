@@ -18,9 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -190,7 +192,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	operatorNamespace = r.OperatorNamespace
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1.OCSInitialization{}).
+		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
 		// Watcher for storagecluster required to update
@@ -204,6 +206,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					}}
 				},
 			),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		// Watcher for rook-ceph-operator-config cm
 		Watches(
