@@ -262,8 +262,7 @@ type ManageCephObjectStores struct {
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-	StorageClassName string   `json:"storageClassName,omitempty"`
-	VirtualHostnames []string `json:"virtualHostnames,omitempty"`
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers

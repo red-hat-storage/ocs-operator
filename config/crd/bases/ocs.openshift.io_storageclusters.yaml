@@ -1765,10 +1765,6 @@ spec:
                         maxLength: 253
                         pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
-                      virtualHostnames:
-                        items:
-                          type: string
-                        type: array
                     type: object
                   cephRBDMirror:
                     description: ManageCephRBDMirror defines how to reconcile Ceph
