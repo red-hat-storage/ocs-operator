@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	routev1 "github.com/openshift/api/route/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
@@ -200,30 +199,6 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		if err != nil {
 			r.Log.Error(err, "Failed to set ControllerReference for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
 			return nil, err
-		}
-
-		if len(initData.Spec.ManagedResources.CephObjectStores.VirtualHostnames) > 0 {
-			obj.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
-				DNSNames: initData.Spec.ManagedResources.CephObjectStores.VirtualHostnames,
-			}
-			route := &routev1.Route{}
-			err := r.Client.Get(context.TODO(), types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}, route)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					r.Log.Info("Ceph RGW Route not found.", "CephRGWRoute", klog.KRef(obj.Namespace, obj.Name))
-				}
-			} else {
-				obj.Spec.Hosting.DNSNames = append(obj.Spec.Hosting.DNSNames, route.Spec.Host)
-			}
-			secureRoute := &routev1.Route{}
-			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: obj.Name + "-secure", Namespace: obj.Namespace}, secureRoute)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					r.Log.Info("Ceph RGW Route not found.", "CephRGWRoute", klog.KRef(obj.Namespace, obj.Name+"-secure"))
-				}
-			} else {
-				obj.Spec.Hosting.DNSNames = append(obj.Spec.Hosting.DNSNames, secureRoute.Spec.Host)
-			}
 		}
 
 		if initData.Spec.ManagedResources.CephObjectStores.HostNetwork != nil {
