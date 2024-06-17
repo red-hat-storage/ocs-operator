@@ -506,45 +506,43 @@ func TestDeleteCephBlockPools(t *testing.T) {
 	}
 
 	for _, obj := range testList {
+
+		fmt.Println(obj.label)
 		_, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
 
-		assertTestDeleteCephFilesystems(t, reconciler, sc, obj.cephBlockPoolsExist)
+		assertTestDeleteCephBlockPools(t, reconciler, sc, obj.cephBlockPoolsExist)
 	}
 }
 
-//lint:ignore U1000 will be used in future
 func assertTestDeleteCephBlockPools(
 	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, cephBlockPoolsExist bool) {
 
 	var obj ocsCephBlockPools
 
-	if !cephBlockPoolsExist {
-		_, err := obj.ensureDeleted(&reconciler, sc)
-		assert.NoError(t, err)
-	}
-
-	cephBlockPools, err := reconciler.newCephBlockPoolInstances(sc)
-	assert.NoError(t, err)
+	cephBlockPools := []string{generateNameForCephBlockPool(sc)}
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
-			Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{
+			Name: cephBlockPool, Namespace: sc.Namespace}, foundCephBlockPool)
 
 		if cephBlockPoolsExist {
 			assert.NoError(t, err)
 		} else {
-			assert.True(t, errors.IsNotFound(err))
+			assert.False(t, errors.IsNotFound(err))
 		}
 	}
 
-	_, err = obj.ensureDeleted(&reconciler, sc)
+	deletionTime := metav1.Now()
+	sc.SetDeletionTimestamp(&deletionTime)
+
+	_, err := obj.ensureDeleted(&reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
 		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
-			Name: cephBlockPool.Name, Namespace: sc.Namespace}, foundCephBlockPool)
+			Name: cephBlockPool, Namespace: sc.Namespace}, foundCephBlockPool)
 		assert.True(t, errors.IsNotFound(err))
 	}
 }
