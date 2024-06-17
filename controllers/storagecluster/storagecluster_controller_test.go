@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"testing"
+	"time"
 
 	opverion "github.com/operator-framework/api/pkg/lib/version"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -1059,11 +1060,18 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	err = reconciler.Client.Delete(context.TODO(), noobaa)
 	assert.NoError(t, err)
 
-	result, err = reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
-	if err != nil {
-		assert.True(t, errors.IsNotFound(err), "error", err)
-	}
-	assert.Equal(t, reconcile.Result{}, result)
+	assert.Eventually(t, func() bool {
+		result, err = reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
+		if err != nil {
+			assert.True(t, errors.IsNotFound(err), "error", err)
+			return false
+		}
+		if result.IsZero() {
+			return true
+		}
+		return false
+	}, time.Minute, time.Second*2, "Timed out waiting for reconcile to complete")
+	assert.Equal(t, result, reconcile.Result{})
 
 	// Finalizer is removed
 	sc = &api.StorageCluster{}
