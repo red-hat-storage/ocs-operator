@@ -2,11 +2,11 @@ package storagecluster
 
 import (
 	"fmt"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	"github.com/red-hat-storage/ocs-operator/v4/services"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
