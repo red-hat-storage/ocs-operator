@@ -769,3 +769,19 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 	}
 	return subscription.Spec.Channel, nil
 }
+
+func (s *OCSProviderServer) OnboardStorageClusterPeer(_ context.Context, _ *pb.OnboardStorageClusterPeerRequest) (*pb.OnboardStorageClusterPeerResponse, error) {
+	return &pb.OnboardStorageClusterPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) OffboardStorageClusterPeer(_ context.Context, _ *pb.OffboardStorageClusterPeerRequest) (*pb.OffboardStorageClusterPeerResponse, error) {
+	return &pb.OffboardStorageClusterPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) AcknowledgeOnboardingStorageClusterPeer(_ context.Context, _ *pb.AcknowledgeOnboardingStorageClusterPeerRequest) (*pb.AcknowledgeOnboardingStorageClusterPeerResponse, error) {
+	return &pb.AcknowledgeOnboardingStorageClusterPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) GetMirroringInfo(_ context.Context, _ *pb.MirroringInfoRequest) (*pb.MirroringInfoResponse, error) {
+	return &pb.MirroringInfoResponse{}, nil
+}
