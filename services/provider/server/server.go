@@ -892,3 +892,7 @@ func extractMonitorIps(data string) ([]string, error) {
 	slices.Sort(ips)
 	return ips, nil
 }
+
+func (s *OCSProviderServer) PeerStorageCluster(_ context.Context, _ *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
+	return &pb.PeerStorageClusterResponse{}, nil
+}
