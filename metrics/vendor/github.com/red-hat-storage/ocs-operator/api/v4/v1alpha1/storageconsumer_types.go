@@ -40,6 +40,9 @@ const (
 type StorageConsumerSpec struct {
 	// Enable flag ignores a reconcile if set to false
 	Enable bool `json:"enable,omitempty"`
+	// StorageQuotaInGiB describes quota for the consumer
+	// +optional
+	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage
