@@ -3,7 +3,6 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-	"maps"
 	"math/rand"
 	"os"
 	"sort"
@@ -48,12 +47,7 @@ type ocsProviderServer struct{}
 
 func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if !instance.Spec.AllowRemoteStorageConsumers {
-		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
-		return o.ensureDeleted(r, instance)
-	}
-
-	r.Log.Info("Spec.AllowRemoteStorageConsumers is enabled. Creating Provider API resources")
+	r.Log.Info("Creating Provider API resources")
 
 	if err := o.createSecret(r, instance); err != nil {
 		return reconcile.Result{}, err
@@ -77,20 +71,10 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		return res, nil
 	}
 
-	if err := o.updateClientConfigMap(r, instance.Namespace); err != nil {
-		return reconcile.Result{}, err
-	}
-
 	return reconcile.Result{}, nil
 }
 
 func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-
-	// We do not check instance.Spec.AllowRemoteStorageConsumers because provider can disable this functionality
-	// and we need to delete the resources even the flag is not enabled (uninstall case).
-
-	// This func is directly called by the ensureCreated if the flag is disabled and deletes the resource
-	// Which means we do not need to call ensureDeleted while reconciling unless we are uninstalling
 
 	// NOTE: Do not add the check
 
@@ -520,30 +504,4 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 
 	r.Log.Info("Job is running as desired")
 	return reconcile.Result{}, nil
-}
-
-func (o *ocsProviderServer) updateClientConfigMap(r *StorageClusterReconciler, namespace string) error {
-	clientConfig := &corev1.ConfigMap{}
-	clientConfig.Name = ocsClientConfigMapName
-	clientConfig.Namespace = namespace
-
-	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(clientConfig), clientConfig); err != nil {
-		r.Log.Error(err, "failed to get ocs client configmap")
-		return err
-	}
-
-	existingData := maps.Clone(clientConfig.Data)
-	if clientConfig.Data == nil {
-		clientConfig.Data = map[string]string{}
-	}
-	clientConfig.Data[deployCSIKey] = "true"
-
-	if !maps.Equal(clientConfig.Data, existingData) {
-		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
-			r.Log.Error(err, "failed to update ocs client configmap for enabling CSI")
-			return err
-		}
-	}
-
-	return nil
 }
