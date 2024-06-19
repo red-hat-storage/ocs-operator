@@ -139,6 +139,7 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 		return reconcile.Result{}, err
 	}
 
+	fmt.Println(actualDeployment.Status.AvailableReplicas)
 	err = o.ensureDeploymentReplica(actualDeployment, desiredDeployment)
 	if err != nil {
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeNormal, "Waiting", "Waiting for Deployment to become ready "+desiredDeployment.Name)
