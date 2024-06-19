@@ -6,16 +6,26 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
   - secrets
   - services
   verbs:
   - get
 - apiGroups:
+    - ""
+  resources:
+    - configmaps
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+- apiGroups:
   - ceph.rook.io
   resources:
   - cephfilesystemsubvolumegroups
   - cephblockpoolradosnamespaces
+  - cephblockpools
   verbs:
   - get
   - list
