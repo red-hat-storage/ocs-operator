@@ -83,12 +83,6 @@ spec:
                   platformVersion:
                     description: StorageClient Platform Version
                     type: string
-                required:
-                - clusterId
-                - clusterName
-                - name
-                - operatorVersion
-                - platformVersion
                 type: object
               lastHeartbeat:
                 description: Timestamp of last heartbeat received from consumer

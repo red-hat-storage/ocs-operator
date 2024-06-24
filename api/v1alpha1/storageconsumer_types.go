@@ -69,15 +69,24 @@ type StorageConsumerStatus struct {
 // ClientStatus is the information pushed from connected storage client
 type ClientStatus struct {
 	// StorageClient Platform Version
-	PlatformVersion string `json:"platformVersion"`
+	// +optional
+	PlatformVersion string `json:"platformVersion,omitempty"`
+
 	// StorageClient Operator Version
-	OperatorVersion string `json:"operatorVersion"`
+	// +optional
+	OperatorVersion string `json:"operatorVersion,omitempty"`
+
 	// ClusterID is the id of the openshift cluster
-	ClusterID string `json:"clusterId"`
+	// +optional
+	ClusterID string `json:"clusterId,omitempty"`
+
 	// ClusterName is the name of the openshift cluster
-	ClusterName string `json:"clusterName"`
+	// +optional
+	ClusterName string `json:"clusterName,omitempty"`
+
 	// Name is the name of connected storageclient
-	Name string `json:"name"`
+	// +optional
+	Name string `json:"name,omitempty"`
 }
 
 //+kubebuilder:object:root=true
