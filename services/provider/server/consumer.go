@@ -54,7 +54,7 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 }
 
 // Create creates a new storageConsumer resource, updates the consumer cache and returns the storageConsumer UID
-func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageClientOnboarding) (string, error) {
+func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageClientOnboarding, storageQuotaInGiB int) (string, error) {
 	ticket := onboard.GetOnboardingTicket()
 	name := onboard.GetConsumerName()
 	c.mutex.RLock()
@@ -74,7 +74,8 @@ func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageC
 			},
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Enable: false,
+			Enable:            false,
+			StorageQuotaInGiB: storageQuotaInGiB,
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			Client: ocsv1alpha1.ClientStatus{

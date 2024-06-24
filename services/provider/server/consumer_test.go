@@ -106,14 +106,14 @@ func TestCreateStorageConsumer(t *testing.T) {
 	req := providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer1").
 		SetOnboardingTicket("ticket1")
-	_, err = consumerManager.Create(ctx, req)
+	_, err = consumerManager.Create(ctx, req, 0)
 	assert.Error(t, err)
 
 	// Create consumer should fail if ticket is already used
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer3").
 		SetOnboardingTicket("ticket1")
-	_, err = consumerManager.Create(ctx, req)
+	_, err = consumerManager.Create(ctx, req, 0)
 	assert.Error(t, err)
 
 	// Create consumer successfully. (Can't validate the UID because fake client does not add UID)
@@ -121,23 +121,28 @@ func TestCreateStorageConsumer(t *testing.T) {
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer2").
 		SetOnboardingTicket("ticket2")
-	_, err = consumerManager.Create(ctx, req)
+	_, err = consumerManager.Create(ctx, req, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(consumerManager.nameByTicket))
 	assert.Equal(t, "consumer1", consumerManager.nameByTicket["ticket1"])
 	assert.Equal(t, "consumer2", consumerManager.nameByTicket["ticket2"])
+	consumerObject, err := consumerManager.GetByName(ctx, "consumer1")
+	assert.NoError(t, err)
+	assert.Equal(t, consumerObject.Spec.StorageQuotaInGiB, 0)
 
 	version := "4.15.1"
 	name := "consumer3"
+	storageQuotaInGiB := 1024
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer3").
 		SetOnboardingTicket("ticket3").
 		SetClientOperatorVersion(version)
-	_, err = consumerManager.Create(ctx, req)
+	_, err = consumerManager.Create(ctx, req, 1024)
 	assert.NoError(t, err)
-	consumerObject, err := consumerManager.GetByName(ctx, name)
+	consumerObject, err = consumerManager.GetByName(ctx, name)
 	assert.NoError(t, err)
 	assert.Equal(t, consumerObject.Status.Client.OperatorVersion, version)
+	assert.Equal(t, consumerObject.Spec.StorageQuotaInGiB, storageQuotaInGiB)
 }
 
 func TestDeleteStorageConsumer(t *testing.T) {
