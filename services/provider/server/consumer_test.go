@@ -18,7 +18,11 @@ import (
 )
 
 const (
-	testNamespace = "test"
+	testNamespace                 = "test"
+	testOnboardingTicketNoQuota1  = "eyJpZCI6IjQ4Y2NkYTA3LWJhYTAtNDMwZC1iYTZkLTY5OGRkOTZmMmRmZiIsImV4cGlyYXRpb25EYXRlIjoiMTcxOTM4MTgyNCJ9.dummy"
+	testOnboardingTicketNoQuota2  = "eyJpZCI6IjQ4Y2NkYTA3LWJhYTAtNDMwZC1iYTZkLTY5OGRkOTZmMmRmZiIsImV4cGlyYXRpb25EYXRlIjoiMTcxOTM4MTgyNCJ9.dummy1"
+	testOnboardingTicketNoQuota3  = "eyJpZCI6IjQ4Y2NkYTA3LWJhYTAtNDMwZC1iYTZkLTY5OGRkOTZmMmRmZiIsImV4cGlyYXRpb25EYXRlIjoiMTcxOTM4MTgyNCJ9.dummy2"
+	testOnboardingTicketWithQuota = "eyJpZCI6IjBiNWMxZDk2LTEzMzMtNDkzZS1iOTFiLTBkZDAzNzBiYTllYSIsImV4cGlyYXRpb25EYXRlIjoiMTcxOTM4MTc4OSIsInN0b3JhZ2VRdW90YUluR2lCIjoxMDI0fQ==.dummy"
 )
 
 var (
@@ -27,7 +31,7 @@ var (
 			Name:      "consumer1",
 			Namespace: testNamespace,
 			Annotations: map[string]string{
-				TicketAnnotation: "ticket1",
+				TicketAnnotation: testOnboardingTicketNoQuota1,
 			},
 			UID: "uid1",
 		},
@@ -41,7 +45,7 @@ var (
 			Name:      "consumer2",
 			Namespace: testNamespace,
 			Annotations: map[string]string{
-				TicketAnnotation: "ticket2",
+				TicketAnnotation: testOnboardingTicketNoQuota2,
 			},
 			UID: "uid2",
 		},
@@ -86,8 +90,8 @@ func TestNewConsumerManager(t *testing.T) {
 	consumerManager, err = newConsumerManager(ctx, client, testNamespace)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(consumerManager.nameByTicket))
-	assert.Equal(t, "consumer1", consumerManager.nameByTicket["ticket1"])
-	assert.Equal(t, "consumer2", consumerManager.nameByTicket["ticket2"])
+	assert.Equal(t, "consumer1", consumerManager.nameByTicket[testOnboardingTicketNoQuota1])
+	assert.Equal(t, "consumer2", consumerManager.nameByTicket[testOnboardingTicketNoQuota2])
 	assert.Equal(t, 2, len(consumerManager.nameByUID))
 	assert.Equal(t, "consumer1", consumerManager.nameByUID["uid1"])
 	assert.Equal(t, "consumer2", consumerManager.nameByUID["uid2"])
@@ -105,14 +109,28 @@ func TestCreateStorageConsumer(t *testing.T) {
 	// Create consumer should fail if consumer already exists
 	req := providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer1").
-		SetOnboardingTicket("ticket1")
+		SetOnboardingTicket(testOnboardingTicketNoQuota1)
+	_, err = consumerManager.Create(ctx, req)
+	assert.Error(t, err)
+
+	// Create consumer should fail for invalid ticket
+	req = providerClient.NewOnboardConsumerRequest().
+		SetConsumerName("consumer1").
+		SetOnboardingTicket("testticket")
+	_, err = consumerManager.Create(ctx, req)
+	assert.Error(t, err)
+
+	// Create consumer should fail when unable to decode obboarding ticket
+	req = providerClient.NewOnboardConsumerRequest().
+		SetConsumerName("consumer1").
+		SetOnboardingTicket("testticket.abc")
 	_, err = consumerManager.Create(ctx, req)
 	assert.Error(t, err)
 
 	// Create consumer should fail if ticket is already used
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer3").
-		SetOnboardingTicket("ticket1")
+		SetOnboardingTicket(testOnboardingTicketNoQuota1)
 	_, err = consumerManager.Create(ctx, req)
 	assert.Error(t, err)
 
@@ -120,24 +138,35 @@ func TestCreateStorageConsumer(t *testing.T) {
 	assert.Equal(t, 1, len(consumerManager.nameByTicket))
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer2").
-		SetOnboardingTicket("ticket2")
+		SetOnboardingTicket(testOnboardingTicketNoQuota2)
 	_, err = consumerManager.Create(ctx, req)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(consumerManager.nameByTicket))
-	assert.Equal(t, "consumer1", consumerManager.nameByTicket["ticket1"])
-	assert.Equal(t, "consumer2", consumerManager.nameByTicket["ticket2"])
+	assert.Equal(t, "consumer1", consumerManager.nameByTicket[testOnboardingTicketNoQuota1])
+	assert.Equal(t, "consumer2", consumerManager.nameByTicket[testOnboardingTicketNoQuota2])
 
 	version := "4.15.1"
 	name := "consumer3"
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer3").
-		SetOnboardingTicket("ticket3").
+		SetOnboardingTicket(testOnboardingTicketNoQuota3).
 		SetClientOperatorVersion(version)
 	_, err = consumerManager.Create(ctx, req)
 	assert.NoError(t, err)
 	consumerObject, err := consumerManager.GetByName(ctx, name)
 	assert.NoError(t, err)
 	assert.Equal(t, consumerObject.Status.Client.OperatorVersion, version)
+
+	expectedStorageQuotaInGiB := 1024
+	name = "consumer4"
+	req = providerClient.NewOnboardConsumerRequest().
+		SetConsumerName(name).
+		SetOnboardingTicket(testOnboardingTicketWithQuota)
+	_, err = consumerManager.Create(ctx, req)
+	assert.NoError(t, err)
+	consumerObject, err = consumerManager.GetByName(ctx, name)
+	assert.NoError(t, err)
+	assert.Equal(t, consumerObject.Spec.StorageQuotaInGiB, expectedStorageQuotaInGiB)
 }
 
 func TestDeleteStorageConsumer(t *testing.T) {
