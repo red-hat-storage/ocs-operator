@@ -207,10 +207,10 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	return consumerObj, nil
 }
 
-func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string, status ifaces.StorageClientStatus) error {
+func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string, status ifaces.StorageClientStatus) (*ocsv1alpha1.StorageConsumer, error) {
 	consumerObj, err := c.Get(ctx, id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	consumerObj.Status.LastHeartbeat = metav1.Now()
@@ -221,8 +221,8 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.Client.ClusterName = status.GetClusterName()
 
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
-		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
+		return nil, fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
 	}
 	klog.Infof("successfully updated Status for StorageConsumer %v", consumerObj.Name)
-	return nil
+	return consumerObj, nil
 }

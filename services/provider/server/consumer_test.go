@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	providerClient "github.com/red-hat-storage/ocs-operator/v4/services/provider/client"
@@ -62,6 +63,9 @@ func newFakeClient(t *testing.T, obj ...client.Object) client.Client {
 
 	err = rookCephv1.AddToScheme(scheme)
 	assert.NoError(t, err, "failed to add rookCephv1 scheme")
+
+	err = opv1a1.AddToScheme(scheme)
+	assert.NoError(t, err, "failed to add opv1a1 scheme")
 
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -211,7 +215,7 @@ func TestUpdateConsumerStatus(t *testing.T) {
 	fields := providerClient.NewStorageClientStatus().
 		SetPlatformVersion("1.0.0").
 		SetOperatorVersion("1.0.0")
-	err = consumerManager.UpdateConsumerStatus(ctx, "uid1", fields)
+	_, err = consumerManager.UpdateConsumerStatus(ctx, "uid1", fields)
 	assert.NoError(t, err)
 
 	c1, err := consumerManager.Get(ctx, "uid1")

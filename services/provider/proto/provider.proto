@@ -169,6 +169,7 @@ message ReportStatusRequest{
 }
 
 message ReportStatusResponse{
-    // Contains subscription channel of provider operator for client operator to match
-    string desiredClientOperatorChannel = 1;
+    // Contains hash of desired state of client
+    string desiredClientConfigHash = 1;
+    
 }
