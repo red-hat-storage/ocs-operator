@@ -171,4 +171,6 @@ message ReportStatusRequest{
 message ReportStatusResponse{
     // Contains subscription channel of provider operator for client operator to match
     string desiredClientOperatorChannel = 1;
+    // StorageQuotaInGiB is quota available for the client
+	int32 storageQuotaInGiB = 2;
 }
