@@ -5,6 +5,18 @@ metadata:
   name: ocs-metrics-exporter
 rules:
 - apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
   - monitoring.coreos.com
   resources:
   - '*'
@@ -119,3 +131,10 @@ subjects:
   name: prometheus-k8s
   namespace: openshift-monitoring
 ---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ocs-metrics-reader
+rules:
+  - nonResourceURLs: ["/metrics","/metrics/rbd-mirror", "/healthz"]
+    verbs: ["get"]
