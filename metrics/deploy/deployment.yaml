@@ -65,6 +65,7 @@ spec:
         volumeMounts:
         - name: ceph-config
           mountPath: /etc/ceph
+          readOnly: true
       serviceAccountName: ocs-metrics-exporter
       volumes:
       - name: ceph-config

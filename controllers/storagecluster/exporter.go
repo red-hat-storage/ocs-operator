@@ -372,6 +372,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "ceph-config",
 							MountPath: "/etc/ceph",
+							ReadOnly:  true,
 						}},
 					},
 				},
