@@ -30,6 +30,18 @@ spec:
           requests:
             cpu: 50m
             memory: 50Mi
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 15
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 15
         image: quay.io/ocs-dev/ocs-operator
         name: ocs-metrics-exporter
         ports:
