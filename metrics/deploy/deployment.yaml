@@ -23,7 +23,14 @@ spec:
       securityContext:
         runAsNonRoot: true
       containers:
-      - image: quay.io/ocs-dev/ocs-operator
+      - resources:
+          limits:
+            cpu: 150m
+            memory: 150Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
+        image: quay.io/ocs-dev/ocs-operator
         name: ocs-metrics-exporter
         ports:
         - containerPort: 8080

@@ -64,6 +64,16 @@ var (
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
+		"ocs-metrics-exporter": {
+			Requests: corev1.ResourceList{
+				"memory": resource.MustParse("150Mi"),
+				"cpu":    resource.MustParse("150m"),
+			},
+			Limits: corev1.ResourceList{
+				"memory": resource.MustParse("50Mi"),
+				"cpu":    resource.MustParse("50m"),
+			},
+		},
 	}
 
 	LeanDaemonResources = map[string]corev1.ResourceRequirements{
