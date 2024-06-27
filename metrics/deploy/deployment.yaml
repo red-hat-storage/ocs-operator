@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/name: ocs-metrics-exporter
         app.kubernetes.io/version: 0.0.1
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
       - image: quay.io/ocs-dev/ocs-operator
         name: ocs-metrics-exporter
@@ -31,7 +33,16 @@ spec:
         args:
           - --namespaces=openshift-storage
         securityContext:
+          capabilities:
+            drop:
+              - ALL
+          runAsUser: 65532
+          runAsGroup: 65532
           runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: ceph-config
           mountPath: /etc/ceph

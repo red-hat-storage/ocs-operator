@@ -320,6 +320,9 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				},
 			},
 			Spec: corev1.PodSpec{
+				SecurityContext: &corev1.PodSecurityContext{
+					RunAsNonRoot: ptr.To(true),
+				},
 				Containers: []corev1.Container{
 					{
 						Args: []string{
@@ -334,8 +337,16 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							{ContainerPort: 8081},
 						},
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:           ptr.To(true),
-							ReadOnlyRootFilesystem: ptr.To(true),
+							Capabilities: &corev1.Capabilities{
+								Drop: []corev1.Capability{"ALL"},
+							},
+							RunAsNonRoot:             ptr.To(true),
+							ReadOnlyRootFilesystem:   ptr.To(true),
+							Privileged:               ptr.To(false),
+							AllowPrivilegeEscalation: ptr.To(false),
+							SeccompProfile: &corev1.SeccompProfile{
+								Type: corev1.SeccompProfileTypeRuntimeDefault,
+							},
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "ceph-config",
