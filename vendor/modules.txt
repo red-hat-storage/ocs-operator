@@ -273,10 +273,11 @@ github.com/modern-go/reflect2
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/noobaa/noobaa-operator/v5 v5.0.0-20230712090817-288892c02711
-## explicit; go 1.19
+# github.com/noobaa/noobaa-operator/v5 v5.14.6-0.20240618065641-12dd88705c8a
+## explicit; go 1.20
 github.com/noobaa/noobaa-operator/v5/pkg/apis
 github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1
+github.com/noobaa/noobaa-operator/v5/pkg/bundle
 # github.com/oklog/run v1.1.0
 ## explicit; go 1.13
 github.com/oklog/run
@@ -525,7 +526,7 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.56.2
@@ -634,7 +635,7 @@ gotest.tools/v3/internal/assert
 gotest.tools/v3/internal/difflib
 gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
-# k8s.io/api v0.28.2
+# k8s.io/api v0.28.3
 ## explicit; go 1.20
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
@@ -702,7 +703,7 @@ k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1
-# k8s.io/apimachinery v0.28.2
+# k8s.io/apimachinery v0.28.3
 ## explicit; go 1.20
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -921,8 +922,8 @@ k8s.io/klog/v2/internal/clock
 k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
-# k8s.io/kube-aggregator v0.26.1
-## explicit; go 1.19
+# k8s.io/kube-aggregator v0.27.1
+## explicit; go 1.20
 k8s.io/kube-aggregator/pkg/apis/apiregistration
 k8s.io/kube-aggregator/pkg/apis/apiregistration/v1
 k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1
@@ -968,6 +969,7 @@ open-cluster-management.io/api/cluster/v1beta1
 open-cluster-management.io/api/cluster/v1beta2
 # sigs.k8s.io/container-object-storage-interface-api v0.1.0
 ## explicit; go 1.18
+sigs.k8s.io/container-object-storage-interface-api/apis
 sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage
 sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage/v1alpha1
 # sigs.k8s.io/controller-runtime v0.15.2

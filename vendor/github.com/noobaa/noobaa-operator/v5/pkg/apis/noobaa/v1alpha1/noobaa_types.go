@@ -7,7 +7,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
-// Note 1: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+// Note 1: Run "make gen-api" to regenerate code after modifying this file
 // Note 2: Add custom validation using kubebuilder tags: https://book.kubebuilder.io/reference/generating-crd.html
 
 func init() {
@@ -478,6 +478,9 @@ const (
 
 	// DeleteOBCConfirmation represents the validation to destry obc
 	DeleteOBCConfirmation CleanupConfirmationProperty = "yes-really-destroy-obc"
+
+	// SkipTopologyConstraints is Annotation name for disabling default topology Constraints
+	SkipTopologyConstraints = "noobaa.io/skip_topology_spread_constraints"
 )
 
 // DBTypes is a string enum type for specify the types of DB that are supported.
