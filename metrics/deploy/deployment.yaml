@@ -50,7 +50,10 @@ spec:
         command:
         - /usr/local/bin/metrics-exporter
         args:
-          - --namespaces=openshift-storage
+          - '--namespaces'
+          - openshift-storage
+          - '--ceph-auth-namespace'
+          - openshift-storage
         securityContext:
           capabilities:
             drop:
