@@ -413,6 +413,18 @@ func newEncryptedCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageC
 	return encryptedStorageClassConfig
 }
 
+// newEncryptedCephFileSystemStorageClassConfiguration generates configuration options for an encrypted Ceph File System StorageClass.
+// when user has asked for PV encryption during deployment.
+func newEncryptedCephFileSystemStorageClassConfiguration(initData *ocsv1.StorageCluster, serviceName string) StorageClassConfiguration {
+	allowVolumeExpansion := true
+	encryptedStorageClassConfig := newCephFilesystemStorageClassConfiguration(initData)
+	encryptedStorageClassConfig.storageClass.ObjectMeta.Name = generateNameForEncryptedCephFileSystemSC(initData)
+	encryptedStorageClassConfig.storageClass.Parameters["encrypted"] = "true"
+	encryptedStorageClassConfig.storageClass.Parameters["encryptionKMSID"] = serviceName
+	encryptedStorageClassConfig.storageClass.AllowVolumeExpansion = &allowVolumeExpansion
+	return encryptedStorageClassConfig
+}
+
 // newCephOBCStorageClassConfiguration generates configuration options for a Ceph Object Store StorageClass.
 func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	reclaimPolicy := corev1.PersistentVolumeReclaimDelete
@@ -475,13 +487,22 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	if initData.Spec.ExternalStorage.Enable || !skip {
 		ret = append(ret, newCephOBCStorageClassConfiguration(initData))
 	}
-	// encrypted Ceph Block Pool storageclass will be returned only if
-	// storage-class encryption + kms is enabled and KMS ConfigMap is available
-	if initData.Spec.Encryption.StorageClass && initData.Spec.Encryption.KeyManagementService.Enable {
+
+	if initData.Spec.Encryption.KeyManagementService.Enable {
 		kmsConfig, err := getKMSConfigMap(KMSConfigMapName, initData, r.Client)
+
 		if err == nil && kmsConfig != nil {
 			serviceName := kmsConfig.Data["KMS_SERVICE_NAME"]
-			ret = append(ret, newEncryptedCephBlockPoolStorageClassConfiguration(initData, serviceName))
+			// encrypted Ceph Block Pool storageclass will be returned only if
+			// storage-class encryption + kms is enabled and KMS ConfigMap is available
+			if initData.Spec.Encryption.StorageClass {
+				ret = append(ret, newEncryptedCephBlockPoolStorageClassConfiguration(initData, serviceName))
+			}
+			// encrypted Ceph File System storageclass will be returned only if
+			// storage-class encryption + kms is enabled and KMS ConfigMap is available
+			if initData.Spec.Encryption.CephFS.StorageClass {
+				ret = append(ret, newEncryptedCephFileSystemStorageClassConfiguration(initData, serviceName))
+			}
 		} else {
 			r.Log.Error(err, "Error while getting ConfigMap.", "ConfigMap", klog.KRef(initData.Namespace, KMSConfigMapName))
 		}
