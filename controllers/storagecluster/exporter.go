@@ -25,8 +25,8 @@ const (
 	metricsExporterName     = "ocs-metrics-exporter"
 	prometheusRoleName      = "ocs-metrics-svc"
 	metricsExporterRoleName = metricsExporterName
-	portMetrics             = "metrics"
-	portExporter            = "exporter"
+	portMetricsMain         = "https-main"
+	portMetricsSelf         = "https-self"
 	metricsPath             = "/metrics"
 	rbdMirrorMetricsPath    = "/metrics/rbd-mirror"
 	scrapeInterval          = "1m"
@@ -86,6 +86,12 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 		return err
 	}
 
+	// create/update the secret needed for the exporter deployment
+	if err := createMetricsExporterSecret(ctx, r, instance); err != nil {
+		r.Log.Error(err, "failed to create secret for metrics exporter")
+		return err
+	}
+
 	// create the metrics exporter deployment
 	if err := deployMetricsExporter(ctx, r, instance); err != nil {
 		r.Log.Error(err, "failed to create ocs-metric-exporter deployment")
@@ -111,6 +117,9 @@ func getMetricsExporterService(instance *ocsv1.StorageCluster) *corev1.Service {
 			Name:      metricsExporterName,
 			Namespace: instance.Namespace,
 			Labels:    exporterLabels,
+			Annotations: map[string]string{
+				"service.beta.openshift.io/serving-cert-secret-name:": "ocs-metrics-exporter-tls",
+			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: instance.APIVersion,
@@ -124,24 +133,24 @@ func getMetricsExporterService(instance *ocsv1.StorageCluster) *corev1.Service {
 			Type: corev1.ServiceTypeClusterIP,
 			Ports: []corev1.ServicePort{
 				{
-					Name:     portMetrics,
-					Port:     int32(8080),
+					Name:     portMetricsMain,
+					Port:     int32(8443),
 					Protocol: corev1.ProtocolTCP,
 					TargetPort: intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: int32(8080),
-						StrVal: "8080",
+						IntVal: int32(8443),
+						StrVal: "8443",
 					},
 				},
 
 				{
-					Name:     portExporter,
-					Port:     int32(8081),
+					Name:     portMetricsSelf,
+					Port:     int32(9443),
 					Protocol: corev1.ProtocolTCP,
 					TargetPort: intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: int32(8081),
-						StrVal: "8081",
+						IntVal: int32(9443),
+						StrVal: "9443",
 					},
 				},
 			},
@@ -189,6 +198,8 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 		serviceMonitorLabels[key] = val
 	}
 
+	serverName := fmt.Sprintf("ocs-metrics-exporter.%s.svc", instance.GetNamespace())
+
 	// To add storagecluster CR name to the metrics as label: managedBy
 	relabelConfigs := []*monitoringv1.RelabelConfig{
 		{
@@ -218,21 +229,49 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 			},
 			Endpoints: []monitoringv1.Endpoint{
 				{
-					Port:           portMetrics,
-					Path:           metricsPath,
-					Interval:       scrapeInterval,
-					RelabelConfigs: relabelConfigs,
+					BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+					Interval:        scrapeInterval,
+					Port:            portMetricsMain,
+					Path:            metricsPath,
+					RelabelConfigs:  relabelConfigs,
+					Scheme:          "https",
+					TLSConfig: &monitoringv1.TLSConfig{
+						SafeTLSConfig: monitoringv1.SafeTLSConfig{
+							InsecureSkipVerify: false,
+							ServerName:         serverName,
+						},
+						CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
+					},
 				},
 				{
-					Port:           portMetrics,
-					Path:           rbdMirrorMetricsPath,
-					Interval:       scrapeInterval,
-					RelabelConfigs: relabelConfigs,
+					BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+					Interval:        scrapeInterval,
+					Port:            portMetricsMain,
+					Path:            rbdMirrorMetricsPath,
+					RelabelConfigs:  relabelConfigs,
+					Scheme:          "https",
+					TLSConfig: &monitoringv1.TLSConfig{
+						SafeTLSConfig: monitoringv1.SafeTLSConfig{
+							InsecureSkipVerify: false,
+							ServerName:         serverName,
+						},
+						CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
+					},
 				},
 				{
-					Port:     portExporter,
-					Path:     metricsPath,
-					Interval: scrapeInterval,
+					BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+					Interval:        scrapeInterval,
+					Port:            portMetricsSelf,
+					Path:            metricsPath,
+					RelabelConfigs:  relabelConfigs,
+					Scheme:          "https",
+					TLSConfig: &monitoringv1.TLSConfig{
+						SafeTLSConfig: monitoringv1.SafeTLSConfig{
+							InsecureSkipVerify: false,
+							ServerName:         serverName,
+						},
+						CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
+					},
 				},
 			},
 		},
@@ -320,7 +359,90 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				},
 			},
 			Spec: corev1.PodSpec{
+				SecurityContext: &corev1.PodSecurityContext{
+					RunAsNonRoot: ptr.To(true),
+				},
 				Containers: []corev1.Container{
+					{
+						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
+						Name:      "kube-rbac-proxy-main",
+						SecurityContext: &corev1.SecurityContext{
+							Capabilities: &corev1.Capabilities{
+								Drop: []corev1.Capability{"ALL"},
+							},
+							AllowPrivilegeEscalation: ptr.To(false),
+						},
+						Ports: []corev1.ContainerPort{
+							{
+								Name:          "https-main",
+								ContainerPort: 8443,
+								Protocol:      corev1.ProtocolTCP,
+							},
+						},
+						Image: r.images.KubeRBACProxy,
+						Args: []string{
+							"--secure-listen-address", "0.0.0.0:8443",
+							"--upstream", "http://127.0.0.1:8080/",
+							"--tls-cert-file", "/etc/tls/private/tls.crt",
+							"--tls-private-key-file", "/etc/tls/private/tls.key",
+							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+							"--config-file", "/etc/kube-rbac-policy/config.yaml",
+							"--logtostderr", "true",
+							"--v", "10",
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "ocs-metrics-exporter-tls",
+								MountPath: "/etc/tls/private",
+								ReadOnly:  true,
+							},
+							{
+								Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
+								MountPath: "/etc/kube-rbac-policy",
+								ReadOnly:  true,
+							},
+						},
+					},
+					{
+						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
+						Name:      "kube-rbac-proxy-self",
+						SecurityContext: &corev1.SecurityContext{
+							Capabilities: &corev1.Capabilities{
+								Drop: []corev1.Capability{"ALL"},
+							},
+							AllowPrivilegeEscalation: ptr.To(false),
+						},
+						Ports: []corev1.ContainerPort{
+							{
+								Name:          "https-self",
+								ContainerPort: 9443,
+								Protocol:      corev1.ProtocolTCP,
+							},
+						},
+						Image: r.images.KubeRBACProxy,
+						Args: []string{
+							"--secure-listen-address", "0.0.0.0:9443",
+							"--upstream", "http://127.0.0.1:8081/",
+							"--tls-cert-file", "/etc/tls/private/tls.crt",
+							"--tls-private-key-file", "/etc/tls/private/tls.key",
+							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+							"--config-file", "/etc/kube-rbac-policy/config.yaml",
+							"--logtostderr", "true",
+							"--v", "10",
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "ocs-metrics-exporter-tls",
+								MountPath: "/etc/tls/private",
+								ReadOnly:  true,
+							},
+							{
+								Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
+								MountPath: "/etc/kube-rbac-policy",
+								ReadOnly:  true,
+							},
+						},
+					},
 					{
 						Args: []string{
 							"--namespaces", instance.Namespace,
@@ -329,31 +451,75 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						Command: []string{"/usr/local/bin/metrics-exporter"},
 						Image:   r.images.OCSMetricsExporter,
 						Name:    metricsExporterName,
-						Ports: []corev1.ContainerPort{
-							{ContainerPort: 8080},
-							{ContainerPort: 8081},
+						LivenessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path:   "/healthz",
+									Port:   intstr.FromInt32(8080),
+									Scheme: corev1.URISchemeHTTP,
+								},
+							},
+							InitialDelaySeconds: 15,
 						},
+						ReadinessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path:   "/metrics",
+									Port:   intstr.FromInt32(8080),
+									Scheme: corev1.URISchemeHTTP,
+								},
+							},
+							InitialDelaySeconds: 15,
+						},
+						Resources: defaults.GetDaemonResources("ocs-metrics-exporter", instance.Spec.Resources),
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:           ptr.To(true),
-							ReadOnlyRootFilesystem: ptr.To(true),
+							Capabilities: &corev1.Capabilities{
+								Drop: []corev1.Capability{"ALL"},
+							},
+							RunAsNonRoot:             ptr.To(true),
+							ReadOnlyRootFilesystem:   ptr.To(true),
+							Privileged:               ptr.To(false),
+							AllowPrivilegeEscalation: ptr.To(false),
+							SeccompProfile: &corev1.SeccompProfile{
+								Type: corev1.SeccompProfileTypeRuntimeDefault,
+							},
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "ceph-config",
 							MountPath: "/etc/ceph",
+							ReadOnly:  true,
 						}},
 					},
 				},
 				ServiceAccountName: metricsExporterName,
-				Volumes: []corev1.Volume{{
-					Name: "ceph-config",
-					VolumeSource: corev1.VolumeSource{
-						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "ocs-metrics-exporter-ceph-conf",
+				Volumes: []corev1.Volume{
+					{
+						Name: "ceph-config",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "ocs-metrics-exporter-ceph-conf",
+								},
 							},
 						},
 					},
-				}},
+					{
+						Name: "ocs-metrics-exporter-tls",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "ocs-metrics-exporter-tls",
+							},
+						},
+					},
+					{
+						Name: "ocs-metrics-exporter-kube-rbac-proxy-config",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "ocs-metrics-exporter-kube-rbac-proxy-config",
+							},
+						},
+					},
+				},
 				Tolerations: getPlacement(instance, defaults.MetricsExporterKey).Tolerations,
 			},
 		}
@@ -483,6 +649,46 @@ auth_client_required = cephx
 	return err
 }
 
+func createMetricsExporterSecret(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	currentSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
+			Namespace: instance.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentSecret, func() error {
+		currentSecret.ObjectMeta = metav1.ObjectMeta{
+			Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
+		}
+		currentSecret.StringData = map[string]string{
+			"config.yaml": `
+"authorization":
+  "static":
+  - "path": "/metrics"
+	"resourceRequest": false
+	"user":
+		"name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
+	"verb": "get"
+  - "path": "/metrics/rbd-mirror"
+	"resourceRequest": false
+	"user":
+		"name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
+	"verb": "get"
+`,
+		}
+		return nil
+	})
+
+	return err
+}
+
 func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterReconciler) error {
 	currentClusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
@@ -500,6 +706,16 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 		}
 
 		currentClusterRole.Rules = []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"authentication.k8s.io"},
+				Resources: []string{"tokenreviews"},
+				Verbs:     []string{"create"},
+			},
+			{
+				APIGroups: []string{"authorization.k8s.io"},
+				Resources: []string{"subjectaccessreviews"},
+				Verbs:     []string{"create"},
+			},
 			{
 				APIGroups:     []string{""},
 				Resources:     []string{"configmaps"},
@@ -525,6 +741,35 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 				APIGroups: []string{"objectbucket.io"},
 				Resources: []string{"objectbuckets"},
 				Verbs:     []string{"get", "list"},
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	currentMetricsReaderClusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocs-metrics-reader",
+		},
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, currentMetricsReaderClusterRole, func() error {
+		currentClusterRole.ObjectMeta = metav1.ObjectMeta{
+			Name: "ocs-metrics-reader",
+			Labels: map[string]string{
+				componentLabel: exporterLabels[componentLabel],
+				nameLabel:      exporterLabels[nameLabel],
+				versionLabel:   version.Version,
+			},
+		}
+
+		currentClusterRole.Rules = []rbacv1.PolicyRule{
+			{
+				NonResourceURLs: []string{"/metrics", "/metrics/rbd-mirror", "/healthz"},
+				Verbs:           []string{"get"},
 			},
 		}
 

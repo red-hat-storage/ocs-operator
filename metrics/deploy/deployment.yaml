@@ -20,24 +20,129 @@ spec:
         app.kubernetes.io/name: ocs-metrics-exporter
         app.kubernetes.io/version: 0.0.1
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
-      - image: quay.io/ocs-dev/ocs-operator
-        name: ocs-metrics-exporter
+      - resources:
+          limits:
+            cpu: 10m
+            memory: 40Mi
+          requests:
+            cpu: 10m
+            memory: 40Mi
+        name: kube-rbac-proxy-main
+        securityContext:
+          capabilities:
+            drop:
+              - ALL
+          allowPrivilegeEscalation: false
         ports:
-        - containerPort: 8080
-        - containerPort: 8081
+          - name: https-main
+            containerPort: 8443
+            protocol: TCP
+        image: quay.io/brancz/kube-rbac-proxy:v0.17.1
+        args:
+          - '--secure-listen-address=0.0.0.0:8443'
+          - '--upstream=http://127.0.0.1:8080/'
+          - --tls-cert-file=/etc/tls/private/tls.crt
+          - --tls-private-key-file=/etc/tls/private/tls.key
+          - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+          - '--config-file=/etc/kube-rbac-policy/config.yaml'
+          - '--logtostderr=true'
+          - '--v=10'
+        volumeMounts:
+        - mountPath: /etc/tls/private
+          name: ocs-metrics-exporter-tls
+          readOnly: true
+        - name: ocs-metrics-exporter-kube-rbac-proxy-config
+          readOnly: true
+          mountPath: /etc/kube-rbac-policy
+      - resources:
+          limits:
+            cpu: 10m
+            memory: 40Mi
+          requests:
+            cpu: 10m
+            memory: 40Mi
+        name: kube-rbac-proxy-self
+        securityContext:
+          capabilities:
+            drop:
+              - ALL
+          allowPrivilegeEscalation: false
+        ports:
+          - name: https-self
+            containerPort: 9443
+            protocol: TCP
+        image: quay.io/brancz/kube-rbac-proxy:v0.17.1
+        args:
+          - '--secure-listen-address=0.0.0.0:9443'
+          - '--upstream=http://127.0.0.1:8081/'
+          - --tls-cert-file=/etc/tls/private/tls.crt
+          - --tls-private-key-file=/etc/tls/private/tls.key
+          - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+          - '--config-file=/etc/kube-rbac-policy/config.yaml'
+          - '--logtostderr=true'
+          - '--v=10'
+        volumeMounts:
+        - mountPath: /etc/tls/private
+          name: ocs-metrics-exporter-tls
+          readOnly: true
+        - name: ocs-metrics-exporter-kube-rbac-proxy-config
+          readOnly: true
+          mountPath: /etc/kube-rbac-policy
+      - resources:
+          limits:
+            cpu: 150m
+            memory: 150Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 15
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 15
+        image: quay.io/ocs-dev/ocs-operator
+        name: ocs-metrics-exporter
         command:
         - /usr/local/bin/metrics-exporter
         args:
-          - --namespaces=openshift-storage
+          - '--namespaces'
+          - openshift-storage
+          - '--ceph-auth-namespace'
+          - openshift-storage
         securityContext:
+          capabilities:
+            drop:
+              - ALL
+          runAsUser: 65532
+          runAsGroup: 65532
           runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: ceph-config
           mountPath: /etc/ceph
+          readOnly: true
       serviceAccountName: ocs-metrics-exporter
       volumes:
       - name: ceph-config
         configMap:
           name: ocs-metrics-exporter-ceph-conf
+      - name: ocs-metrics-exporter-tls
+        secret:
+          secretName: ocs-metrics-exporter-tls
+      - name: ocs-metrics-exporter-kube-rbac-proxy-config
+        secret:
+          secretName: ocs-metrics-exporter-kube-rbac-proxy-config
 
