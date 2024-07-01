@@ -555,6 +555,9 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	var extR []*pb.ExternalResource
 
 	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
+
+	var rbdStorageClassMetaData []byte
+
 	for _, cephRes := range storageRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
@@ -593,6 +596,14 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", cephRes.Name, err)
 			}
 
+			cbp := &rookCephv1.CephBlockPool{}
+			cbp.Name = rns.Spec.BlockPoolName
+			cbp.Namespace = s.namespace
+
+			if err = s.client.Get(ctx, client.ObjectKeyFromObject(cbp), cbp); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPool. %v", cephRes.Name, err)
+			}
+
 			provisionerSecretName := storageClaimCephCsiSecretName("provisioner", storageRequestHash)
 			nodeSecretName := storageClaimCephCsiSecretName("node", storageRequestHash)
 			rbdStorageClassData := map[string]string{
@@ -610,6 +621,10 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				rbdStorageClassData["encrypted"] = "true"
 				rbdStorageClassData["encryptionKMSID"] = storageRequest.Spec.EncryptionMethod
 			}
+
+			rbdStorageClassMetaData = mustMarshal(map[string]string{
+				"mirroring": fmt.Sprintf("%v", cbp.Spec.Mirroring.Enabled),
+			})
 
 			extR = append(extR, &pb.ExternalResource{
 				Name: "ceph-rbd",
@@ -634,11 +649,13 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 
 			provisionerSecretName := storageClaimCephCsiSecretName("provisioner", storageRequestHash)
 			nodeSecretName := storageClaimCephCsiSecretName("node", storageRequestHash)
+			svgPool := subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel]
+
 			cephfsStorageClassData := map[string]string{
 				"clusterID":          getSubVolumeGroupClusterID(subVolumeGroup),
 				"subvolumegroupname": subVolumeGroup.Name,
 				"fsName":             subVolumeGroup.Spec.FilesystemName,
-				"pool":               subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel],
+				"pool":               svgPool,
 				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
 				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
@@ -668,7 +685,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	}
 
 	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
-	return &pb.StorageClaimConfigResponse{ExternalResource: extR}, nil
+	return &pb.StorageClaimConfigResponse{ExternalResource: extR, MetaData: rbdStorageClassMetaData}, nil
 
 }
 
