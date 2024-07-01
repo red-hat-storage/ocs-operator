@@ -7,10 +7,24 @@ rules:
   - ""
   resources:
   - configmaps
-  - secrets
   - services
   verbs:
   - get
+- apiGroups:
+    - ""
+  resources:
+    - secrets
+  verbs:
+    - get
+    - create
+    - update
+    - delete
+- apiGroups:
+    - ceph.rook.io
+  resources:
+    - cephblockpools/finalizers
+  verbs:
+    - update
 - apiGroups:
   - ceph.rook.io
   resources:
@@ -19,6 +33,14 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+    - ceph.rook.io
+  resources:
+    - cephblockpools
+  verbs:
+    - get
+    - list
+    - update
 - apiGroups:
   - ocs.openshift.io
   resources:
@@ -61,3 +83,11 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+    - ceph.rook.io
+  resources:
+    - cephrbdmirrors
+  verbs:
+    - get
+    - create
+    - delete
