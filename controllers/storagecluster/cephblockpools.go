@@ -46,7 +46,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 	poolName := generateNameForCephBlockPool(initData)
 	poolNamespace := initData.Namespace
 
-	if initData.Spec.Mirroring.Enabled {
+	if initData.Spec.Mirroring != nil && initData.Spec.Mirroring.Enabled {
 		mirroringSpec.Enabled = true
 		mirroringSpec.Mode = "image"
 		mirroringPeerSpec := r.addPeerSecretsToCephBlockPool(initData, poolName, poolNamespace)
@@ -160,7 +160,14 @@ func (obj *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, instanc
 
 			r.Log.Info("Restoring original CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
 			existing.ObjectMeta.OwnerReferences = cephBlockPool.ObjectMeta.OwnerReferences
+
+			existingMirroringSpec := existing.Spec.Mirroring
 			existing.Spec = cephBlockPool.Spec
+
+			// If mirroring is not set on storageCluster instance, don't update it
+			if instance.Spec.Mirroring == nil {
+				existing.Spec.Mirroring = existingMirroringSpec
+			}
 			err = r.Client.Update(context.TODO(), &existing)
 			if err != nil {
 				r.Log.Error(err, "Failed to update CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
