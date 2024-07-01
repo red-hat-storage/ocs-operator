@@ -700,12 +700,18 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 	}
 
+	stroageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "Failed to get the storageConsumer to set storage quota: %v", err)
+	}
+
+	storageQuotaInGiB := stroageConsumer.Spec.StorageQuotaInGiB
 	channelName, err := s.getOCSSubscriptionChannel(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
-	return &pb.ReportStatusResponse{DesiredClientOperatorChannel: channelName}, nil
+	return &pb.ReportStatusResponse{DesiredClientOperatorChannel: channelName, StorageQuotaInGiB: int32(storageQuotaInGiB)}, nil
 }
 
 func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
