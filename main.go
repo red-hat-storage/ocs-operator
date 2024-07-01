@@ -38,12 +38,6 @@ import (
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/ocsinitialization"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
-	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagerequest"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -62,6 +56,14 @@ import (
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/ocsinitialization"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
+	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagerequest"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -203,6 +205,13 @@ func main() {
 		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageRequest")
+		os.Exit(1)
+	}
+	if err = (&storageclusterpeer.StorageClusterPeerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageClusterPeer")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

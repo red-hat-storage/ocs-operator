@@ -21,6 +21,11 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
+    - description: StorageClusterPeer is the Schema for the storageclusterpeers API
+      displayName: Storage Cluster Peer
+      kind: StorageClusterPeer
+      name: storageclusterpeers.ocs.openshift.io
+      version: v1
     - description: StorageCluster represents a cluster including Ceph Cluster, NooBaa
         and all the storage and compute resources required.
       displayName: Storage Cluster
