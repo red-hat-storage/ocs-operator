@@ -722,3 +722,19 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 	}
 	return subscription.Spec.Channel, nil
 }
+
+func (s *OCSProviderServer) OnboardMirroringPeer(_ context.Context, _ *pb.OnboardMirroringPeerRequest) (*pb.OnboardMirroringPeerResponse, error) {
+	return &pb.OnboardMirroringPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) OffboardMirroringPeer(_ context.Context, _ *pb.OffboardMirroringPeerRequest) (*pb.OffboardMirroringPeerResponse, error) {
+	return &pb.OffboardMirroringPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) AcknowledgeMirrorPeerOnboarding(_ context.Context, _ *pb.AcknowledgeMirrorPeerOnboardingRequest) (*pb.AcknowledgeMirrorPeerOnboardingResponse, error) {
+	return &pb.AcknowledgeMirrorPeerOnboardingResponse{}, nil
+}
+
+func (s *OCSProviderServer) GetMirroringInfo(_ context.Context, _ *pb.MirroringInfoRequest) (*pb.MirroringInfoResponse, error) {
+	return &pb.MirroringInfoResponse{}, nil
+}
