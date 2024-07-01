@@ -63,6 +63,13 @@ rules:
 - apiGroups:
   - ceph.rook.io
   resources:
+  - cephblockpools
+  verbs:
+  - list
+  - update
+- apiGroups:
+  - ceph.rook.io
+  resources:
   - cephclients
   verbs:
   - create
@@ -82,6 +89,19 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephrbdmirrors
+  verbs:
+  - create
+  - update
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - clusterversions
+  verbs:
+  - get
 - apiGroups:
   - config.openshift.io
   resources:
@@ -144,6 +164,14 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - update
 - apiGroups:
   - k8s.cni.cncf.io
   resources:
