@@ -3,8 +3,8 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,6 +75,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      builtinMgrPoolName,
 				Namespace: poolNamespace,
+				Labels:    map[string]string{util.CephBlockPoolForbidMirroringLabel: ""},
 			},
 			Spec: cephv1.NamedBlockPoolSpec{
 				Name: ".mgr",
@@ -125,6 +126,7 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      generateNameForCephNFSBlockPool(initData),
 					Namespace: initData.Namespace,
+					Labels:    map[string]string{util.CephBlockPoolForbidMirroringLabel: ""},
 				},
 				Spec: cephv1.NamedBlockPoolSpec{
 					Name: ".nfs",

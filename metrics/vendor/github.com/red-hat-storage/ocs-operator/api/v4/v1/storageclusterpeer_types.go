@@ -23,6 +23,22 @@ import (
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+type StorageClusterPeerRemoteState string
+
+const (
+	// StorageClusterPeerRemoteStateInitializing represents Initializing state of StorageClusterPeerState
+	StorageClusterPeerRemoteStateInitializing StorageClusterPeerRemoteState = "Initializing"
+	// StorageClusterPeerRemoteStateOnboarding represents Onboarding state of storageClusterPeer
+	StorageClusterPeerRemoteStateOnboarding StorageClusterPeerRemoteState = "Onboarding"
+	// StorageClusterPeerRemoteStateConnected represents Onboarding state of storageClusterPeer
+	StorageClusterPeerRemoteStateConnected StorageClusterPeerRemoteState = "Connected"
+	// StorageClusterPeerRemoteStateOffboarding represents Onboarding state of storageClusterPeer
+	StorageClusterPeerRemoteStateOffboarding StorageClusterPeerRemoteState = "Offboarding"
+	// StorageClusterPeerRemoteStateDeleting represents Deleting state of StorageClusterPeerState
+	StorageClusterPeerRemoteStateDeleting StorageClusterPeerRemoteState = "Deleting"
+)
+
 type NamespacedName struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
@@ -52,6 +68,10 @@ type BlockPoolMirroringSpec struct {
 	Selector metav1.LabelSelector `json:"selector"`
 }
 
+const (
+	StorageClusterPeerFinalizer = "storageclusterpeer.ocs.openshift.io"
+)
+
 // StorageClusterPeerSpec defines the desired state of StorageClusterPeer
 type StorageClusterPeerSpec struct {
 
@@ -68,6 +88,7 @@ type StorageClusterPeerSpec struct {
 
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer
 type StorageClusterPeerStatus struct {
+	RemoteState StorageClusterPeerRemoteState `json:"remoteState,omitempty"`
 }
 
 //+kubebuilder:object:root=true
