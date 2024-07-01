@@ -1,0 +1,7 @@
+apiVersion: ocs.openshift.io/v1
+kind: StorageClusterPeer
+metadata:
+  labels:
+  name: storageclusterpeer-sample
+spec:
+  ocsApiServerUri: 10.0.0.0:31659

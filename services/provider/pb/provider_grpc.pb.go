@@ -37,6 +37,10 @@ type OCSProviderClient interface {
 	// specific resources.
 	GetStorageClaimConfig(ctx context.Context, in *StorageClaimConfigRequest, opts ...grpc.CallOption) (*StorageClaimConfigResponse, error)
 	ReportStatus(ctx context.Context, in *ReportStatusRequest, opts ...grpc.CallOption) (*ReportStatusResponse, error)
+	// PeerBlockPool RPC call to send the bootstrap secret for the pool
+	PeerBlockPool(ctx context.Context, in *PeerBlockPoolRequest, opts ...grpc.CallOption) (*PeerBlockPoolResponse, error)
+	// RevokeBlockPoolPeering RPC call to delete the bootstrap secret to stop peering
+	RevokeBlockPoolPeering(ctx context.Context, in *RevokeBlockPoolPeeringRequest, opts ...grpc.CallOption) (*RevokeBlockPoolPeeringResponse, error)
 }
 
 type oCSProviderClient struct {
@@ -119,6 +123,24 @@ func (c *oCSProviderClient) ReportStatus(ctx context.Context, in *ReportStatusRe
 	return out, nil
 }
 
+func (c *oCSProviderClient) PeerBlockPool(ctx context.Context, in *PeerBlockPoolRequest, opts ...grpc.CallOption) (*PeerBlockPoolResponse, error) {
+	out := new(PeerBlockPoolResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/PeerBlockPool", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oCSProviderClient) RevokeBlockPoolPeering(ctx context.Context, in *RevokeBlockPoolPeeringRequest, opts ...grpc.CallOption) (*RevokeBlockPoolPeeringResponse, error) {
+	out := new(RevokeBlockPoolPeeringResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/RevokeBlockPoolPeering", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OCSProviderServer is the server API for OCSProvider service.
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
@@ -142,6 +164,10 @@ type OCSProviderServer interface {
 	// specific resources.
 	GetStorageClaimConfig(context.Context, *StorageClaimConfigRequest) (*StorageClaimConfigResponse, error)
 	ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error)
+	// PeerBlockPool RPC call to send the bootstrap secret for the pool
+	PeerBlockPool(context.Context, *PeerBlockPoolRequest) (*PeerBlockPoolResponse, error)
+	// RevokeBlockPoolPeering RPC call to delete the bootstrap secret to stop peering
+	RevokeBlockPoolPeering(context.Context, *RevokeBlockPoolPeeringRequest) (*RevokeBlockPoolPeeringResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
 
@@ -172,6 +198,12 @@ func (UnimplementedOCSProviderServer) GetStorageClaimConfig(context.Context, *St
 }
 func (UnimplementedOCSProviderServer) ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReportStatus not implemented")
+}
+func (UnimplementedOCSProviderServer) PeerBlockPool(context.Context, *PeerBlockPoolRequest) (*PeerBlockPoolResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PeerBlockPool not implemented")
+}
+func (UnimplementedOCSProviderServer) RevokeBlockPoolPeering(context.Context, *RevokeBlockPoolPeeringRequest) (*RevokeBlockPoolPeeringResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeBlockPoolPeering not implemented")
 }
 func (UnimplementedOCSProviderServer) mustEmbedUnimplementedOCSProviderServer() {}
 
@@ -330,6 +362,42 @@ func _OCSProvider_ReportStatus_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OCSProvider_PeerBlockPool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PeerBlockPoolRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).PeerBlockPool(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/PeerBlockPool",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).PeerBlockPool(ctx, req.(*PeerBlockPoolRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OCSProvider_RevokeBlockPoolPeering_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeBlockPoolPeeringRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).RevokeBlockPoolPeering(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/RevokeBlockPoolPeering",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).RevokeBlockPoolPeering(ctx, req.(*RevokeBlockPoolPeeringRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OCSProvider_ServiceDesc is the grpc.ServiceDesc for OCSProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -368,6 +436,14 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReportStatus",
 			Handler:    _OCSProvider_ReportStatus_Handler,
+		},
+		{
+			MethodName: "PeerBlockPool",
+			Handler:    _OCSProvider_PeerBlockPool_Handler,
+		},
+		{
+			MethodName: "RevokeBlockPoolPeering",
+			Handler:    _OCSProvider_RevokeBlockPoolPeering_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
