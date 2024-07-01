@@ -38,6 +38,9 @@ service OCSProvider {
 
   rpc ReportStatus(ReportStatusRequest)
   returns (ReportStatusResponse){}
+  // PeerBlockPool RPC call to send the bootstrap secret for the pool
+  rpc PeerBlockPool(PeerBlockPoolRequest)
+  returns (PeerBlockPoolResponse){}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -172,3 +175,14 @@ message ReportStatusResponse{
     // Contains subscription channel of provider operator for client operator to match
     string desiredClientOperatorChannel = 1;
 }
+
+message PeerBlockPoolRequest{
+  // secretName is the name of the bootstrap secret
+  string secretName = 1;
+  // pool base64 encoded name of the block pool
+  bytes pool = 2;
+  // token is secret information from bootstrap secret
+  bytes token = 3;
+}
+
+message PeerBlockPoolResponse{}

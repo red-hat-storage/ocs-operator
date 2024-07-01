@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"strconv"
 	"testing"
 
@@ -938,4 +939,103 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, errCode.Code(), codes.Internal)
 	assert.Nil(t, storageConRes)
+}
+
+func TestPeerBlockPool(t *testing.T) {
+
+	cephBlockPoolName := "ocs-storagecluster-cephblockpool"
+	bootstrapSecretName := "bootstrap-secret-UUID"
+
+	cephBlockPool := rookCephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cephBlockPoolName,
+			Namespace: serverNamespace,
+		},
+	}
+
+	cephRBDMirror := rookCephv1.CephRBDMirror{}
+
+	testCases := []struct {
+		label      string
+		objects    []crClient.Object
+		req        *pb.PeerBlockPoolRequest
+		errMessage string
+	}{
+		{
+			label:      "No CephBlockPool found - Empty Pool Name",
+			objects:    nil,
+			req:        &pb.PeerBlockPoolRequest{SecretName: "", Pool: nil, Token: nil},
+			errMessage: "Failed to find CephBlockPool",
+		},
+		{
+			label:      "No CephBlockPool found - BlockPool not present",
+			objects:    nil,
+			req:        &pb.PeerBlockPoolRequest{SecretName: "", Pool: []byte(cephBlockPoolName), Token: nil},
+			errMessage: "Failed to find CephBlockPool",
+		},
+		{
+			label:      "Invalid Secret Name",
+			objects:    []crClient.Object{&cephBlockPool},
+			req:        &pb.PeerBlockPoolRequest{SecretName: "", Pool: []byte(cephBlockPoolName), Token: nil},
+			errMessage: "failed to create/update the bootstrap secret",
+		},
+		{
+			label:      "Valid Cephblockpool",
+			objects:    []crClient.Object{&cephBlockPool},
+			req:        &pb.PeerBlockPoolRequest{SecretName: bootstrapSecretName, Pool: []byte(cephBlockPoolName), Token: nil},
+			errMessage: "",
+		},
+	}
+
+	ctx := context.TODO()
+
+	for i := 0; i < len(testCases); i++ {
+
+		// Create a fake client to mock API calls.
+		client := newFakeClient(t, testCases[i].objects...)
+
+		cephBlockPoolManager, err := newCephBlockPoolManager(client, serverNamespace)
+		assert.NoError(t, err)
+
+		cephRBDMirrorManager, err := newCephRBDMirrorManager(client, serverNamespace)
+		assert.NoError(t, err)
+
+		server := &OCSProviderServer{
+			client:               client,
+			cephBlockPoolManager: cephBlockPoolManager,
+			cephRBDMirrorManager: cephRBDMirrorManager,
+			namespace:            serverNamespace,
+		}
+
+		_, err = server.PeerBlockPool(ctx, testCases[i].req)
+		if testCases[i].errMessage != "" {
+			assert.ErrorContains(t, err, testCases[i].errMessage)
+		} else {
+			assert.NoError(t, err)
+
+			//validate that cephRBDMirror is created
+			err := client.Get(ctx, types.NamespacedName{Name: rBDMirrorName, Namespace: serverNamespace}, &cephRBDMirror)
+			assert.NoError(t, err)
+
+			//validate if the bootstrap secret is created
+			actualSecret := v1.Secret{}
+			err = client.Get(ctx, types.NamespacedName{Name: bootstrapSecretName, Namespace: serverNamespace}, &actualSecret)
+			assert.NoError(t, err)
+
+			//validate that mirroring is enabled with mirror mode as "image" on the block pool and the bootstrap secret is set
+			actualCephBlockPool := rookCephv1.CephBlockPool{}
+			err = client.Get(ctx, types.NamespacedName{Name: cephBlockPoolName, Namespace: serverNamespace}, &actualCephBlockPool)
+			assert.NoError(t, err)
+
+			assert.Equal(t, rookCephv1.MirroringSpec{
+				Enabled: true,
+				Mode:    "image",
+				Peers: &rookCephv1.MirroringPeerSpec{
+					SecretNames: []string{bootstrapSecretName},
+				}},
+				actualCephBlockPool.Spec.Mirroring)
+		}
+
+	}
+
 }
