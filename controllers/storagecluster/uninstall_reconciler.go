@@ -319,6 +319,7 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 
 	objs := []resourceManager{
 		&ocsExternalResources{},
+		&onboardingValidationKeysGeneratorJob{},
 		&ocsNoobaaSystem{},
 		&storageClient{},
 		&ocsProviderServer{},
