@@ -210,6 +210,7 @@ func main() {
 	if err = (&storageclusterpeer.StorageClusterPeerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Log:    ctrl.Log.WithName("controllers").WithName("StorageClusterPeer"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageClusterPeer")
 		os.Exit(1)

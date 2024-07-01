@@ -26,6 +26,21 @@ import (
 type StorageClusterPeerState string
 
 const (
+	// StorageClusterPeerInitializing represents Initializing state of StorageClusterPeerState
+	StorageClusterPeerInitializing StorageClusterPeerState = "Initializing"
+	// StorageClusterPeerOnboarding represents Onboarding state of storageClusterPeer
+	StorageClusterPeerOnboarding StorageClusterPeerState = "Onboarding"
+	// StorageClusterPeerConnected represents Onboarding state of storageClusterPeer
+	StorageClusterPeerConnected StorageClusterPeerState = "Connected"
+	// StorageClusterPeerOffboarding represents Onboarding state of storageClusterPeer
+	StorageClusterPeerOffboarding StorageClusterPeerState = "Offboarding"
+	// StorageClusterPeerFailed represents Failed state of StorageClusterPeerState
+	StorageClusterPeerFailed StorageClusterPeerState = "Failed"
+	// StorageClusterPeerDeleting represents Deleting state of StorageClusterPeerState
+	StorageClusterPeerDeleting StorageClusterPeerState = "Deleting"
+)
+
+const (
 	StorageClusterPeerFinalizer = "storageclusterpeer.ocs.openshift.io"
 )
 

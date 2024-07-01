@@ -42,6 +42,9 @@ const (
 
 	// This is the name for the OwnerUID FieldIndex
 	OwnerUIDIndexName = "ownerUID"
+
+	// CephBlockPoolBlackListAnnotation is used to disable cephBlockPool mirroring for RDR
+	CephBlockPoolBlackListAnnotation = "ocs.openshift.io/disable-mirroring"
 )
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
