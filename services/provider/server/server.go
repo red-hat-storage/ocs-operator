@@ -17,16 +17,16 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
+	nb "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -183,6 +183,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
 
 	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
+	// noobaa client resources here
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete storageConsumer resource with the provided UUID. %v", err)
 	}
@@ -367,6 +368,30 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		}),
 	})
 
+	// Fetch noobaa remote secret and append to extResources
+	noobaaOperatorSecret := &v1.Secret{}
+	noobaaOperatorSecretName := "noobaa-operator"
+	err = s.client.Get(ctx, types.NamespacedName{Name: noobaaOperatorSecretName, Namespace: s.namespace}, noobaaOperatorSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecretName, err)
+	}
+	// Fetch noobaa management address from deployed noobaa CR
+	providerNoobaa := &nb.NooBaa{}
+	providerNoobaaName := "noobaa"
+	err = s.client.Get(ctx, types.NamespacedName{Name: providerNoobaaName, Namespace: s.namespace}, providerNoobaa)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s cr. %v", providerNoobaaName, err)
+	}
+	//Todo : Make Fetching external DNS more robust
+	noobaaMgmtAddress := providerNoobaa.Status.Services.ServiceMgmt.ExternalDNS[0]
+	extR = append(extR, &pb.ExternalResource{
+		Name: "noobaa-join-secret",
+		Kind: "Secret",
+		Data: mustMarshal((map[string]string{
+			"auth-token":   string(noobaaOperatorSecret.Data["auth-token"]),
+			"mgmt-address": noobaaMgmtAddress,
+		})),
+	})
 	return extR, nil
 }
 

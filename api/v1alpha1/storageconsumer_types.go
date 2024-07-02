@@ -57,12 +57,19 @@ type CephResourcesSpec struct {
 	CephClients map[string]string `json:"cephClients,omitempty"`
 }
 
+type NoobaaResourcesSpec struct {
+	NoobaaManagementURL string `json:"noobaaMgmtURL,omitempty"`
+	NoobaaRemoteSecret  string `json:"noobaaRemoteSecret,omitempty"`
+}
+
 // StorageConsumerStatus defines the observed state of StorageConsumer
 type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
 	State StorageConsumerState `json:"state,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
+	// Noobaa Resources
+	NoobaaResources NoobaaResourcesSpec `json:"noobaaResources,omitempty"`
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
 	// Information of storage client received from consumer
