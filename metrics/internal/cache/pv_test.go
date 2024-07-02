@@ -1,7 +1,7 @@
 package cache
 
 import (
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	corev1 "k8s.io/api/core/v1"

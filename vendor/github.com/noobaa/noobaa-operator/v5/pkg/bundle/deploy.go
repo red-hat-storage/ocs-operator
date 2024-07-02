@@ -1290,7 +1290,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaaaccounts_yaml = "6470610896486eac5c4b2b7c82633d1af4220ff24c8ffe763736e8c6023538cc"
+const Sha256_deploy_crds_noobaa_io_noobaaaccounts_yaml = "3947b9cfde94b2eaba75717cd727e6bbe7e93ccb8c0a43b1398317004fc7ed6c"
 
 const File_deploy_crds_noobaa_io_noobaaaccounts_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -1358,6 +1358,8 @@ spec:
                   FS
                 nullable: true
                 properties:
+                  distinguished_name:
+                    type: string
                   gid:
                     type: integer
                   new_buckets_path:
@@ -1367,10 +1369,8 @@ spec:
                   uid:
                     type: integer
                 required:
-                - gid
                 - new_buckets_path
                 - nsfs_only
-                - uid
                 type: object
             required:
             - allow_bucket_creation
@@ -1483,7 +1483,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "0c697107c4b9d4781dfff92f8e29a95ed22d26c43b8208f39daea0a6674672df"
+const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "38de8fc346b263dea9de452132ebe8fa48339d21b68c9685cb3c6a916fac1429"
 
 const File_deploy_crds_noobaa_io_noobaas_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -2463,6 +2463,24 @@ spec:
                     description: Prometheus namespace that scrap metrics from noobaa
                     type: string
                 type: object
+              bucketLogging:
+                description: BucketLogging sets the configuration for bucket logging
+                properties:
+                  bucketLoggingPVC:
+                    description: |-
+                      BucketLoggingPVC (optional) specifies the name of the Persistent Volume Claim (PVC) to be used
+                      for guaranteed logging when the logging type is set to 'guaranteed'. The PVC must support
+                      ReadWriteMany (RWX) access mode to ensure reliable logging.
+                      For ODF: If not provided, the default CephFS storage class will be used to create the PVC.
+                    type: string
+                  loggingType:
+                    description: |-
+                      LoggingType specifies the type of logging for the bucket
+                      There are two types available: best-effort and guaranteed logging
+                      - best-effort(default) - less immune to failures but with better performance
+                      - guaranteed - much more reliable but need to provide a storage class that supports RWX PVs
+                    type: string
+                type: object
               cleanupPolicy:
                 description: CleanupPolicy (optional) Indicates user's policy for
                   deletion
@@ -3116,10 +3134,10 @@ spec:
                 type: object
               manualDefaultBackingStore:
                 description: |-
-                  ManualDefaultBackingStore (optional - default value is false) if true the default backingstore will
-                  not be reconciled by the operator and it should be manually handled by the user. It will allow the
-                  user to  delete DefaultBackingStore, user needs to delete associated buckets and update the admin
-                  account with new BackingStore in order to delete the DefaultBackingStore
+                  ManualDefaultBackingStore (optional - default value is false) if true the default backingstore/namespacestore
+                  will not be reconciled by the operator and it should be manually handled by the user. It will allow the
+                  user to  delete DefaultBackingStore/DefaultNamespaceStore, user needs to delete associated buckets and
+                  update the admin account with new BackingStore/NamespaceStore in order to delete the DefaultBackingStore/DefaultNamespaceStore
                 nullable: true
                 type: boolean
               pvPoolDefaultStorageClass:
@@ -3834,7 +3852,7 @@ data:
     shared_preload_libraries = 'pg_stat_statements'
 `
 
-const Sha256_deploy_internal_deployment_endpoint_yaml = "bcce4839c69c3353ba36fd94aea2c8d7cf46e570a0106467f8bd7430acea18b7"
+const Sha256_deploy_internal_deployment_endpoint_yaml = "846a11f2ff8035ee4beb2dff72339f4cd946b05827c76489a44e921be2c34f48"
 
 const File_deploy_internal_deployment_endpoint_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -3869,6 +3887,10 @@ spec:
         - name: s3-secret
           secret:
             secretName: noobaa-s3-serving-cert
+            optional: true
+        - name: sts-secret
+          secret:
+            secretName: noobaa-sts-serving-cert
             optional: true
         # This service account token can be used to provide identity outside the cluster.
         # For example, this token can be used with AssumeRoleWithWebIdentity to authenticate with AWS using IAM OIDC provider and STS.
@@ -3943,6 +3965,7 @@ spec:
             - name: LOCAL_N2N_AGENT
             - name: NOOBAA_ROOT_SECRET
             - name: NODE_EXTRA_CA_CERTS
+            - name: GUARANTEED_LOGS_PATH
             - name: CONTAINER_CPU_REQUEST
               valueFrom:
                 resourceFieldRef:
@@ -3973,6 +3996,9 @@ spec:
               readOnly: true
             - name: noobaa-server
               mountPath: /etc/noobaa-server
+              readOnly: true
+            - name: sts-secret
+              mountPath: /etc/sts-secret
               readOnly: true
             # used for aws sts endpoint type
             - name: bound-sa-token
@@ -4286,7 +4312,21 @@ metadata:
 data: {}
 `
 
-const Sha256_deploy_internal_pod_agent_yaml = "471be013b7cb20d0e00d6715edea3bf439e7a348f07661716326ca3356e648ee"
+const Sha256_deploy_internal_nsfs_pvc_cr_yaml = "6dd65ca7d324991b813f209ec6a8a6bcf6c2c9a9f45c519ad3fba51e25042f07"
+
+const File_deploy_internal_nsfs_pvc_cr_yaml = `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: noobaa-default-nsfs-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 30Gi
+`
+
+const Sha256_deploy_internal_pod_agent_yaml = "a02ebca336c7db9e4b84a13459e30664fd8fd2a8ea238e188685caea52a281fd"
 
 const File_deploy_internal_pod_agent_yaml = `apiVersion: v1
 kind: Pod
@@ -4325,6 +4365,11 @@ spec:
       securityContext:
         runAsNonRoot: true
         allowPrivilegeEscalation: false
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 0
+    fsGroup: 0
+    fsGroupChangePolicy: "OnRootMismatch"
   volumes:
     - name: tmp-logs-vol
       emptyDir: {}
@@ -4758,7 +4803,7 @@ spec:
 
 `
 
-const Sha256_deploy_internal_service_sts_yaml = "51e73a53da81ceaad02fb6380658dee5375b824183aba1a27c83251ce62bccb6"
+const Sha256_deploy_internal_service_sts_yaml = "79224e49aed0b4466014599fad98dce701cff56f819c9fe5accf71144fffb404"
 
 const File_deploy_internal_service_sts_yaml = `apiVersion: v1
 kind: Service
@@ -4766,6 +4811,9 @@ metadata:
   name: sts
   labels:
     app: noobaa
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: 'noobaa-sts-serving-cert'
+    service.alpha.openshift.io/serving-cert-secret-name: 'noobaa-sts-serving-cert'
 spec:
   type: LoadBalancer
   selector:
@@ -4852,7 +4900,7 @@ spec:
       noobaa-s3-svc: "true"
 `
 
-const Sha256_deploy_internal_statefulset_core_yaml = "9e5d53eeabce0afc9f3059802f579dc1b69e07c9b1954a8e9bdb9008ac3534d0"
+const Sha256_deploy_internal_statefulset_core_yaml = "0e7e90edc6c96f93cbdbdcc6aa6b64f05a98a88b181d94780d9a97fb2fcecd07"
 
 const File_deploy_internal_statefulset_core_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -4885,10 +4933,6 @@ spec:
           secret:
             secretName: noobaa-mgmt-serving-cert
             optional: true
-        - name: s3-secret
-          secret:
-            secretName: noobaa-s3-serving-cert
-            optional: true
         - name: noobaa-server
           secret:
             secretName: noobaa-server
@@ -4913,9 +4957,6 @@ spec:
               mountPath: /log
             - name: mgmt-secret
               mountPath: /etc/mgmt-secret
-              readOnly: true
-            - name: s3-secret
-              mountPath: /etc/s3-secret
               readOnly: true
             - name: noobaa-server
               mountPath: /etc/noobaa-server
@@ -4963,6 +5004,7 @@ spec:
             - name: POSTGRES_CONNECTION_STRING
             - name: POSTGRES_SSL_REQUIRED
             - name: POSTGRES_SSL_UNAUTHORIZED
+            - name: GUARANTEED_LOGS_PATH
             - name: DB_TYPE
               value: postgres
             - name: CONTAINER_PLATFORM
@@ -5036,7 +5078,7 @@ spec:
                   resource: limits.memory
 `
 
-const Sha256_deploy_internal_statefulset_postgres_db_yaml = "efd4562dd6ce535624a56426dc921c584c5a761c8c2540d4823f9e410fcd0347"
+const Sha256_deploy_internal_statefulset_postgres_db_yaml = "37a6c36928ba426ca04fd89e1eb2685e10d1a5f65c63ebb40c68a4f5c37645de"
 
 const File_deploy_internal_statefulset_postgres_db_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -5081,6 +5123,9 @@ spec:
                   key: password
                   name: noobaa-db
           imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
           ports:
             - containerPort: 5432
           resources:
@@ -5104,7 +5149,6 @@ spec:
         runAsGroup: 0
         fsGroup: 0
         fsGroupChangePolicy: "OnRootMismatch"
-        allowPrivilegeEscalation: false
   volumeClaimTemplates:
     - metadata:
         name: db

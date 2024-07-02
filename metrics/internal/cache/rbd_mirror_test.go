@@ -1,7 +1,7 @@
 package cache
 
 import (
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
