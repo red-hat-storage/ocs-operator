@@ -3,6 +3,7 @@ package templates
 import (
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 var params = map[string][]string{
@@ -32,17 +33,17 @@ var K8sMetricsServiceMonitorSpecTemplate = promv1.ServiceMonitorSpec{
 			ScrapeTimeout: "1m",
 			Interval:      "2m",
 			HonorLabels:   true,
-			MetricRelabelConfigs: []*promv1.RelabelConfig{
+			MetricRelabelConfigs: []promv1.RelabelConfig{
 				{
 					Action: "labeldrop",
 					Regex:  "prometheus_replica",
 				},
 			},
-			RelabelConfigs: []*promv1.RelabelConfig{
+			RelabelConfigs: []promv1.RelabelConfig{
 				{
 					Action:      "replace",
 					Regex:       "prometheus-k8s-.*",
-					Replacement: "",
+					Replacement: ptr.To(""),
 					SourceLabels: []promv1.LabelName{
 						"pod",
 					},
@@ -51,7 +52,7 @@ var K8sMetricsServiceMonitorSpecTemplate = promv1.ServiceMonitorSpec{
 			},
 			TLSConfig: &promv1.TLSConfig{
 				SafeTLSConfig: promv1.SafeTLSConfig{
-					InsecureSkipVerify: true,
+					InsecureSkipVerify: ptr.To(true),
 				},
 			},
 			Params:          params,
