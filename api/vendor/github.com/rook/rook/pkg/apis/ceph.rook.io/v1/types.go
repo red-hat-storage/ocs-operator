@@ -673,6 +673,14 @@ type Module struct {
 	// Enabled determines whether a module should be enabled or not
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+	// Settings to further configure the module
+	Settings ModuleSettings `json:"settings,omitempty"`
+}
+
+type ModuleSettings struct {
+	// BalancerMode sets the `balancer` module with different modes like `upmap`, `crush-compact` etc
+	// +kubebuilder:validation:Enum="";crush-compat;upmap;upmap-read
+	BalancerMode string `json:"balancerMode,omitempty"`
 }
 
 // ExternalSpec represents the options supported by an external cluster
@@ -746,6 +754,10 @@ type PoolSpec struct {
 	// +optional
 	// +nullable
 	DeviceClass string `json:"deviceClass,omitempty"`
+
+	// Allow rook operator to change the pool CRUSH tunables once the pool is created
+	// +optional
+	EnableCrushUpdates bool `json:"enableCrushUpdates,omitempty"`
 
 	// DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force"
 	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
@@ -2831,6 +2843,24 @@ type StorageScopeSpec struct {
 	// User needs to manually restart the OSD pod if they manage to fix the underlying OSD flapping issue before the restart interval.
 	// The sleep will be disabled if this interval is set to 0.
 	FlappingRestartIntervalHours int `json:"flappingRestartIntervalHours"`
+	// FullRatio is the ratio at which the cluster is considered full and ceph will stop accepting writes. Default is 0.95.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	FullRatio *float64 `json:"fullRatio,omitempty"`
+	// NearFullRatio is the ratio at which the cluster is considered nearly full and will raise a ceph health warning. Default is 0.85.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	NearFullRatio *float64 `json:"nearFullRatio,omitempty"`
+	// BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	BackfillFullRatio *float64 `json:"backfillFullRatio,omitempty"`
 }
 
 // OSDStore is the backend storage type used for creating the OSDs
@@ -2938,7 +2968,6 @@ type PriorityClassNamesSpec map[KeyType]string
 // +nullable
 type StorageClassDeviceSet struct {
 	// Name is a unique identifier for the set
-	// +kubebuilder:validation:MaxLength=40
 	Name string `json:"name"`
 	// Count is the number of devices in this set
 	// +kubebuilder:validation:Minimum=1
