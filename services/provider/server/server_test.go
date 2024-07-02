@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -56,49 +58,71 @@ var ocsSubscriptionSpec = &opv1a1.SubscriptionSpec{
 	Channel: "1.0",
 	Package: "ocs-operator",
 }
+var noobaaSpec = &nbv1.NooBaaSpec{
+	JoinSecret: &v1.SecretReference{
+		Name: "noobaa-remote-join-secret",
+	},
+}
+
+var joinSecret = &v1.Secret{
+	Data: map[string][]byte{
+		"auth_token": []byte("authToken"),
+		"mgmt_addr":  []byte("noobaaMgmtAddress"),
+	},
+}
 
 var mockExtR = map[string]*externalResource{
 	"rook-ceph-mon-endpoints": {
 		Name: "rook-ceph-mon-endpoints",
 		Kind: "ConfigMap",
-		Data: map[string]string{
+		Data: mustMarshal(map[string]string{
 			"data":     "a=10.99.45.27:6789",
 			"maxMonId": "0",
 			"mapping":  "{}",
-		},
+		}),
 	},
 	"rook-ceph-mon": {
 		Name: "rook-ceph-mon",
 		Kind: "Secret",
-		Data: map[string]string{
+		Data: mustMarshal(map[string]string{
 			"ceph-username": "client.995e66248ad3e8642de868f461cdd827",
 			"fsid":          "b88c2d78-9de9-4227-9313-a63f62f78743",
 			"mon-secret":    "mon-secret",
 			"ceph-secret":   "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
+		}),
 	},
 	"monitoring-endpoint": {
 		Name: "monitoring-endpoint",
 		Kind: "CephCluster",
-		Data: map[string]string{
+		Data: mustMarshal(map[string]string{
 			"MonitoringEndpoint": "10.105.164.231",
 			"MonitoringPort":     "9283",
-		},
+		}),
 	},
 	"rook-ceph-client-995e66248ad3e8642de868f461cdd827": {
 		Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
 		Kind: "Secret",
-		Data: map[string]string{
+		Data: mustMarshal(map[string]string{
 			"userID":  "995e66248ad3e8642de868f461cdd827",
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
+		}),
 	},
 	"QuotaForConsumer": {
 		Name: "QuotaForConsumer",
 		Kind: "ClusterResourceQuota",
-		Data: map[string]string{
+		Data: mustMarshal(map[string]string{
 			"QuotaForConsumer": fmt.Sprintf("%+v\n", clusterResourceQuotaSpec),
-		},
+		}),
+	},
+	"noobaa-remote-join-secret": {
+		Name: "noobaa-remote-join-secret",
+		Kind: "Secret",
+		Data: mustMarshal(joinSecret),
+	},
+	"noobaa-remote": {
+		Name: "noobaa-remote",
+		Kind: "Noobaa",
+		Data: mustMarshal(noobaaSpec),
 	},
 	"monitor-endpoints": {
 		Name: "monitor-endpoints",
@@ -264,8 +288,33 @@ func TestGetExternalResources(t *testing.T) {
 		},
 	}
 
+	noobaaRemoteJoinSecretConsumer := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-remote-join-secret-consumer", Namespace: server.namespace},
+		Data: map[string][]byte{
+			"auth_token": []byte("authToken"),
+		},
+	}
+
+	noobaaRemoteJoinSecretConsumer6 := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-remote-join-secret-consumer6", Namespace: server.namespace},
+		Data: map[string][]byte{
+			"auth_token": []byte("authToken"),
+		},
+	}
+
+	noobaaMgmtRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-mgmt", Namespace: server.namespace},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{Host: "noobaaMgmtAddress"}},
+		},
+	}
+
 	assert.NoError(t, client.Create(ctx, cephClient))
 	assert.NoError(t, client.Create(ctx, secret))
+
+	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer))
+	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer6))
+	assert.NoError(t, client.Create(ctx, noobaaMgmtRoute))
 
 	monCm, monSc := createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
@@ -290,9 +339,18 @@ func TestGetExternalResources(t *testing.T) {
 		mockResoruce, ok := mockExtR[extResource.Name]
 		assert.True(t, ok)
 
-		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
-		assert.Equal(t, string(extResource.Data), string(data))
+		if extResource.Kind == "Noobaa" {
+			var extNoobaaSpec, mockNoobaaSpec nbv1.NooBaaSpec
+			err = json.Unmarshal(extResource.Data, &extNoobaaSpec)
+			assert.NoError(t, err)
+			err = json.Unmarshal([]byte(mockResoruce.Data), &mockNoobaaSpec)
+			assert.NoError(t, err)
+
+			assert.Equal(t, mockNoobaaSpec.JoinSecret, extNoobaaSpec.JoinSecret)
+		} else {
+			assert.Equal(t, extResource.Data, mockResoruce.Data)
+		}
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
@@ -310,7 +368,6 @@ func TestGetExternalResources(t *testing.T) {
 		mockResoruce, ok := mockExtR[extResource.Name]
 		assert.True(t, ok)
 
-		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
 		if extResource.Kind == "ClusterResourceQuota" {
 			var clusterResourceQuotaSpec quotav1.ClusterResourceQuotaSpec
@@ -318,8 +375,16 @@ func TestGetExternalResources(t *testing.T) {
 			assert.NoError(t, err)
 			quantity, _ := resource.ParseQuantity("10240G")
 			assert.Equal(t, clusterResourceQuotaSpec.Quota.Hard["requests.storage"], quantity)
+		} else if extResource.Kind == "Noobaa" {
+			var extNoobaaSpec, mockNoobaaSpec nbv1.NooBaaSpec
+			err = json.Unmarshal(extResource.Data, &extNoobaaSpec)
+			assert.NoError(t, err)
+			err = json.Unmarshal([]byte(mockResoruce.Data), &mockNoobaaSpec)
+			assert.NoError(t, err)
+
+			assert.Equal(t, mockNoobaaSpec.JoinSecret, extNoobaaSpec.JoinSecret)
 		} else {
-			assert.Equal(t, string(extResource.Data), string(data))
+			assert.Equal(t, extResource.Data, mockResoruce.Data)
 		}
 
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
@@ -588,7 +653,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			"ceph-rbd-storageclass": {
 				Name: "ceph-rbd",
 				Kind: "StorageClass",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"clusterID":                 serverNamespace,
 					"pool":                      "cephblockpool",
 					"radosnamespace":            "cephradosnamespace",
@@ -598,37 +663,37 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-				},
+				}),
 			},
 			"ceph-rbd-volumesnapshotclass": {
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-				},
+				}),
 			},
 			"ceph-rbd-volumegroupsnapshotclass": {
 				Name: "ceph-rbd",
 				Kind: "VolumeGroupSnapshotClass",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-				},
+				}),
 			},
 			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
 				Name: "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				Kind: "Secret",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"userID":  "3de200d5c23524a4612bde1fdbeb717e",
 					"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-				},
+				}),
 			},
 			"ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c": {
 				Name: "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 				Kind: "Secret",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"userID":  "995e66248ad3e8642de868f461cdd827",
 					"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-				},
+				}),
 			},
 			"ceph-rbd-clientprofile": {
 				Name: "ceph-rbd",
@@ -645,7 +710,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			"cephfs-storageclass": {
 				Name: "cephfs",
 				Kind: "StorageClass",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"clusterID":          "8d26c7378c1b0ec9c2455d1c3601c4cd",
 					"fsName":             "myfs",
 					"subvolumegroupname": "cephFilesystemSubVolumeGroup",
@@ -653,46 +718,46 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
-				},
+				}),
 			},
 			"cephfs-volumesnapshotclass": {
 				Name: "cephfs",
 				Kind: "VolumeSnapshotClass",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
-				},
+				}),
 			},
 
 			"cephfs-volumegroupsnapshotclass": {
 				Name: "cephfs",
 				Kind: "VolumeGroupSnapshotClass",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
-				},
+				}),
 			},
 			"ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c": {
 				Name: "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				Kind: "Secret",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"adminID":  "4ffcb503ff8044c8699dac415f82d604",
 					"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-				},
+				}),
 			},
 			"ceph-client-node-0e8555e6556f70d23a61675af44e880c": {
 				Name: "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 				Kind: "Secret",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"adminID":  "1b042fcc8812fe4203689eec38fdfbfa",
 					"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-				},
+				}),
 			},
 
 			"cephFilesystemSubVolumeGroup": {
 				Name: "cephFilesystemSubVolumeGroup",
 				Kind: "CephFilesystemSubVolumeGroup",
-				Data: map[string]string{
+				Data: mustMarshal(map[string]string{
 					"filesystemName": "myfs",
-				},
+				}),
 			},
 
 			"cephfs-clientprofile": {
@@ -1004,9 +1069,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
 
-		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
-		assert.Equal(t, string(extResource.Data), string(data))
+		assert.Equal(t, extResource.Data, mockResoruce.Data)
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
@@ -1035,9 +1099,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
 
-		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
-		assert.Equal(t, string(extResource.Data), string(data))
+		assert.Equal(t, extResource.Data, mockResoruce.Data)
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
