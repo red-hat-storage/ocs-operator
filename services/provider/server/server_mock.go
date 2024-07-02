@@ -1,8 +1,6 @@
 package server
 
 import (
-	"encoding/json"
-
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/common"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 	"google.golang.org/grpc/codes"
@@ -24,7 +22,7 @@ func mockOnboardConsumer(mockError common.MockError) (*pb.OnboardConsumerRespons
 	}, nil
 }
 
-func mockGetStorageConfig(mockError common.MockError) (*pb.StorageConfigResponse, error) { //nolint:deadcode,unused
+func mockGetStorageConfig(mockError common.MockError) (*pb.StorageClientResponse, error) { //nolint:deadcode,unused
 	switch mockError {
 	case common.StorageConfigInternalError:
 		return nil, status.Errorf(codes.Internal, "mock error message")
@@ -34,21 +32,8 @@ func mockGetStorageConfig(mockError common.MockError) (*pb.StorageConfigResponse
 		return nil, status.Errorf(codes.Unavailable, "mock error message")
 	}
 
-	monSecretData, _ := json.Marshal(common.MockMonSecretData)
-	monConfigMapData, _ := json.Marshal(common.MockMonConfigMapData)
-	return &pb.StorageConfigResponse{
-		ExternalResource: []*pb.ExternalResource{
-			{
-				Name: "rook-ceph-mon",
-				Kind: "Secret",
-				Data: monSecretData,
-			},
-			{
-				Name: "rook-ceph-mon-endpoints",
-				Kind: "ConfigMap",
-				Data: monConfigMapData,
-			},
-		},
+	return &pb.StorageClientResponse{
+		StorageQuotaInGiBHash: "testHash",
 	}, nil
 }
 

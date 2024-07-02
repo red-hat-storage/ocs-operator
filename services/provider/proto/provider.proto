@@ -13,8 +13,8 @@ service OCSProvider {
   rpc OnboardConsumer (OnboardConsumerRequest)
   returns (OnboardConsumerResponse) {}
   // GetStorageConfig RPC call to generate the json config for connecting to storage provider cluster
-  rpc GetStorageConfig(StorageConfigRequest)
-  returns (StorageConfigResponse){}
+  rpc GetStorageClientConfig(StorageClientRequest)
+  returns (StorageClientResponse){}
   // OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
   rpc OffboardConsumer (OffboardConsumerRequest)
   returns (OffboardConsumerResponse) {}
@@ -58,8 +58,8 @@ message OnboardConsumerResponse{
 }
 
 
-// StorageConfigRequest holds the information required generate the json config for connecting to storage provider cluster
-message StorageConfigRequest{
+// StorageClientRequest holds the information required generate the json config for connecting to storage provider cluster
+message StorageClientRequest{
     // K8s UID (UUID) of the consumer cluster
     string storageConsumerUUID = 1;
 }
@@ -75,10 +75,10 @@ message ExternalResource {
     bytes Data = 3;
 }
 
-// StorageConfigResponse holds the response for the GetStorageConfig API request
-message StorageConfigResponse{
-     // ExternalResource holds the configuration data of external storage cluster
-     repeated ExternalResource externalResource = 1;
+// StorageConfigResponse holds the response for the GetStorageClientConfig API request
+message StorageClientResponse{
+     // StorageQuotaInGiBHash holds the hash of StorageQuotaInGiB
+     string StorageQuotaInGiBHash = 1;
 }
 
 
