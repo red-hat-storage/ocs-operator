@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto"
+	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -12,12 +13,11 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/blang/semver/v4"
-	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -48,11 +48,6 @@ const (
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
 	notAvailable              = "N/A"
-)
-
-const (
-	monConfigMap = "rook-ceph-mon-endpoints"
-	monSecret    = "rook-ceph-mon"
 )
 
 type OCSProviderServer struct {
@@ -146,7 +141,7 @@ func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.A
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
-func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
+func (s *OCSProviderServer) GetStorageClientConfig(ctx context.Context, req *pb.StorageClientRequest) (*pb.StorageClientResponse, error) {
 
 	// Get storage consumer resource using UUID
 	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
@@ -154,7 +149,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 		return nil, err
 	}
 
-	klog.Infof("Found storageConsumer for GetStorageConfig")
+	klog.Infof("Found storageConsumer for GetStorageClientConfig")
 
 	// Verify Status
 	switch consumerObj.Status.State {
@@ -168,12 +163,10 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	case ocsv1alpha1.StorageConsumerStateDeleting:
 		return nil, status.Errorf(codes.NotFound, "storageConsumer is already in deleting phase")
 	case ocsv1alpha1.StorageConsumerStateReady:
-		conString, err := s.getExternalResources(ctx, consumerObj)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
-		}
+		md5Sum := md5.Sum(make([]byte, consumerObj.Spec.StorageQuotaInGiB))
+
 		klog.Infof("successfully returned the config details to the consumer.")
-		return &pb.StorageConfigResponse{ExternalResource: conString}, nil
+		return &pb.StorageClientResponse{StorageQuotaInGiBHash: hex.EncodeToString(md5Sum[:16])}, nil
 	}
 
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
@@ -246,128 +239,6 @@ func newClient() (client.Client, error) {
 	}
 
 	return client, nil
-}
-func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
-	var extR []*pb.ExternalResource
-
-	// Configmap with mon endpoints
-	configmap := &v1.ConfigMap{}
-	err := s.client.Get(ctx, types.NamespacedName{Name: monConfigMap, Namespace: s.namespace}, configmap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
-	}
-
-	if configmap.Data["data"] == "" {
-		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
-	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: monConfigMap,
-		Kind: "ConfigMap",
-		Data: mustMarshal(map[string]string{
-			"data":     configmap.Data["data"], // IP Address of all mon's
-			"maxMonId": "0",
-			"mapping":  "{}",
-		})})
-
-	scMon := &v1.Secret{}
-	// Secret storing cluster mon.admin key, fsid and name
-	err = s.client.Get(ctx, types.NamespacedName{Name: monSecret, Namespace: s.namespace}, scMon)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s secret. %v", monSecret, err)
-	}
-
-	fsid := string(scMon.Data["fsid"])
-	if fsid == "" {
-		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
-	}
-
-	// Get mgr pod hostIP
-	podList := &corev1.PodList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(s.namespace),
-		client.MatchingLabels(map[string]string{"app": "rook-ceph-mgr"}),
-	}
-	err = s.client.List(ctx, podList, listOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pod with rook-ceph-mgr label. %v", err)
-	}
-	if len(podList.Items) == 0 {
-		return nil, fmt.Errorf("no pods available with rook-ceph-mgr label")
-	}
-
-	mgrPod := &podList.Items[0]
-	var port int32 = -1
-
-	for i := range mgrPod.Spec.Containers {
-		container := &mgrPod.Spec.Containers[i]
-		if container.Name == "mgr" {
-			for j := range container.Ports {
-				if container.Ports[j].Name == "http-metrics" {
-					port = container.Ports[j].ContainerPort
-				}
-			}
-		}
-	}
-
-	if port < 0 {
-		return nil, fmt.Errorf("mgr pod port is empty")
-	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: "monitoring-endpoint",
-		Kind: "CephCluster",
-		Data: mustMarshal(map[string]string{
-			"MonitoringEndpoint": mgrPod.Status.HostIP,
-			"MonitoringPort":     strconv.Itoa(int(port)),
-		})})
-
-	healthCheckerSecretName := ""
-	healthCheckerName := ""
-	for _, cephRes := range consumerResource.Status.CephResources {
-		if cephRes.Kind == "CephClient" {
-			clientSecretName, cephUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
-			if err != nil {
-				return nil, err
-			} else if cephUserType == "healthchecker" {
-				healthCheckerSecretName = clientSecretName
-				healthCheckerName = cephRes.Name
-				break
-			}
-		}
-	}
-
-	if healthCheckerSecretName == "" {
-		return nil, fmt.Errorf("no healthchecker secret found")
-	}
-
-	cephUserSecret := &v1.Secret{}
-	err = s.client.Get(ctx, types.NamespacedName{Name: healthCheckerSecretName, Namespace: s.namespace}, cephUserSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s secret. %v", healthCheckerSecretName, err)
-	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: healthCheckerSecretName,
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"userID":  healthCheckerName,
-			"userKey": string(cephUserSecret.Data[healthCheckerName]),
-		}),
-	})
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: monSecret,
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"fsid":          fsid,
-			"mon-secret":    "mon-secret",
-			"ceph-username": fmt.Sprintf("client.%s", healthCheckerName),
-			"ceph-secret":   string(cephUserSecret.Data[healthCheckerName]),
-		}),
-	})
-
-	return extR, nil
 }
 
 func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name string) (string, string, error) {
@@ -638,7 +509,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				"clusterID":          getSubVolumeGroupClusterID(subVolumeGroup),
 				"subvolumegroupname": subVolumeGroup.Name,
 				"fsName":             subVolumeGroup.Spec.FilesystemName,
-				"pool":               subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel],
+				"pool":               subVolumeGroup.GetLabels()[ocsv1alpha1.CephFileSystemDataPoolLabel],
 				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
 				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
