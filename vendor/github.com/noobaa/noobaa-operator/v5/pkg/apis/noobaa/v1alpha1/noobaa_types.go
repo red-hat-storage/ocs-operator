@@ -202,10 +202,10 @@ type NooBaaSpec struct {
 	// +optional
 	DefaultBackingStoreSpec *BackingStoreSpec `json:"defaultBackingStoreSpec,omitempty"`
 
-	// ManualDefaultBackingStore (optional - default value is false) if true the default backingstore will
-	// not be reconciled by the operator and it should be manually handled by the user. It will allow the
-	// user to  delete DefaultBackingStore, user needs to delete associated buckets and update the admin
-	// account with new BackingStore in order to delete the DefaultBackingStore
+	// ManualDefaultBackingStore (optional - default value is false) if true the default backingstore/namespacestore
+	// will not be reconciled by the operator and it should be manually handled by the user. It will allow the
+	// user to  delete DefaultBackingStore/DefaultNamespaceStore, user needs to delete associated buckets and
+	// update the admin account with new BackingStore/NamespaceStore in order to delete the DefaultBackingStore/DefaultNamespaceStore
 	// +nullable
 	// +optional
 	ManualDefaultBackingStore bool `json:"manualDefaultBackingStore,omitempty"`
@@ -223,6 +223,10 @@ type NooBaaSpec struct {
 	// DenyHTTP (optional) if given will deny access to the NooBaa S3 service using HTTP (only HTTPS)
 	// +optional
 	DenyHTTP bool `json:"denyHTTP,omitempty"`
+
+	// BucketLogging sets the configuration for bucket logging
+	// +optional
+	BucketLogging BucketLoggingSpec `json:"bucketLogging,omitempty"`
 }
 
 // AutoscalerSpec defines different actoscaling spec such as autoscaler type and prometheus namespace
@@ -235,6 +239,23 @@ type AutoscalerSpec struct {
 	// Prometheus namespace that scrap metrics from noobaa
 	// +optional
 	PrometheusNamespace string `json:"prometheusNamespace,omitempty"`
+}
+
+// BucketLoggingSpec defines the bucket logging configuration
+type BucketLoggingSpec struct {
+	// LoggingType specifies the type of logging for the bucket
+	// There are two types available: best-effort and guaranteed logging
+	// - best-effort(default) - less immune to failures but with better performance
+	// - guaranteed - much more reliable but need to provide a storage class that supports RWX PVs
+	// +optional
+	LoggingType BucketLoggingTypes `json:"loggingType,omitempty"`
+
+	// BucketLoggingPVC (optional) specifies the name of the Persistent Volume Claim (PVC) to be used
+	// for guaranteed logging when the logging type is set to 'guaranteed'. The PVC must support
+	// ReadWriteMany (RWX) access mode to ensure reliable logging.
+	// For ODF: If not provided, the default CephFS storage class will be used to create the PVC.
+	// +optional
+	BucketLoggingPVC *string `json:"bucketLoggingPVC,omitempty"`
 }
 
 // LoadBalancerSourceSubnetSpec defines the subnets that will be allowed to access the NooBaa services
@@ -538,4 +559,16 @@ const (
 	AutoscalerTypeKeda AutoscalerTypes = "keda"
 	// AutoscalerTypeHPAV2 is hpav2
 	AutoscalerTypeHPAV2 AutoscalerTypes = "hpav2"
+)
+
+// BucketLoggingTypes is a string enum type for specifying the types of bucketlogging supported.
+type BucketLoggingTypes string
+
+// These are the valid BucketLoggingTypes types:
+const (
+	// BucketLoggingTypeBestEffort is best-effort
+	BucketLoggingTypeBestEffort BucketLoggingTypes = "best-effort"
+
+	// BucketLoggingTypeGuaranteed is guaranteed
+	BucketLoggingTypeGuaranteed BucketLoggingTypes = "guaranteed"
 )

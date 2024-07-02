@@ -1,6 +1,6 @@
 module github.com/red-hat-storage/ocs-operator/v4
 
-go 1.21
+go 1.22.0
 
 replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 
@@ -9,44 +9,44 @@ replace github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
 require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi/api v0.0.0-20240322131550-063319f6e516
+	github.com/ceph/ceph-csi/api v0.0.0-20240701133233-1f192ac3dad8
 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
-	github.com/kubernetes-csi/external-snapshotter/client/v7 v7.0.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240418141646-fcc5240f5af6
-	github.com/onsi/ginkgo/v2 v2.17.1
-	github.com/onsi/gomega v1.32.0
-	github.com/openshift/api v0.0.0-20240323003854-2252c7adfb79
-	github.com/openshift/build-machinery-go v0.0.0-20231128094528-1e9b1b0595c8
-	github.com/openshift/client-go v0.0.0-20240325151210-66398bfc44e1
+	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.0.0
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240625102417-4d63b956e6e6
+	github.com/onsi/ginkgo/v2 v2.19.0
+	github.com/onsi/gomega v1.33.1
+	github.com/openshift/api v0.0.0-20240701145226-44d00ee80f5e
+	github.com/openshift/build-machinery-go v0.0.0-20240419090851-af9c868bcf52
+	github.com/openshift/client-go v0.0.0-20240528061634-b054aa794d87
 	github.com/openshift/custom-resource-status v1.1.2
-	github.com/operator-framework/api v0.22.0
-	github.com/operator-framework/operator-lib v0.12.1-0.20240112142536-8e41bd5ce489
-	github.com/operator-framework/operator-lifecycle-manager v0.27.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.72.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.72.0
+	github.com/operator-framework/api v0.26.0
+	github.com/operator-framework/operator-lib v0.14.0
+	github.com/operator-framework/operator-lifecycle-manager v0.28.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.75.0
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.75.0
 	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240325165741-300e2b620f51
-	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240327160100-bbe9d9d49462
-	github.com/rook/rook/pkg/apis v0.0.0-20240607162148-886c94854899
+	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240701091545-dfffbde82a9d
+	github.com/rook/rook/pkg/apis v0.0.0-20240701212738-8e25300ad55a
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/net v0.25.0
-	google.golang.org/grpc v1.62.1
-	google.golang.org/protobuf v1.33.0
+	golang.org/x/net v0.26.0
+	google.golang.org/grpc v1.63.2
+	google.golang.org/protobuf v1.34.2
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.1
-	k8s.io/api v0.29.5
-	k8s.io/apiextensions-apiserver v0.29.2
-	k8s.io/apimachinery v0.29.5
-	k8s.io/client-go v0.29.5
-	k8s.io/klog/v2 v2.120.1
-	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
-	sigs.k8s.io/controller-runtime v0.17.2
+	k8s.io/api v0.30.2
+	k8s.io/apiextensions-apiserver v0.30.2
+	k8s.io/apimachinery v0.30.2
+	k8s.io/client-go v0.30.2
+	k8s.io/klog/v2 v2.130.1
+	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0
+	sigs.k8s.io/controller-runtime v0.18.4
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -58,9 +58,9 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containernetworking/cni v1.2.0-rc1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/emicklei/go-restful/v3 v3.12.0 // indirect
+	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
-	github.com/evanphx/json-patch/v5 v5.8.0 // indirect
+	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
@@ -75,17 +75,17 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-openapi/validate v0.20.2 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
+	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/pprof v0.0.0-20230510103437-eeec1cb781c3 // indirect
+	github.com/google/pprof v0.0.0-20240424215950-a892ee059fd6 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.6 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.8 // indirect
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
@@ -97,9 +97,8 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1 // indirect
-	github.com/libopenstorage/secrets v0.0.0-20231011182615-5f4b25ceede1 // indirect
+	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -108,9 +107,9 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.18.0 // indirect
-	github.com/prometheus/client_model v0.5.0 // indirect
-	github.com/prometheus/common v0.45.0 // indirect
+	github.com/prometheus/client_golang v1.19.0 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
@@ -118,24 +117,22 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	go.mongodb.org/mongo-driver v1.9.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/exp v0.0.0-20231127185646-65229373498e // indirect
-	golang.org/x/oauth2 v0.18.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
+	golang.org/x/oauth2 v0.21.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.18.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiserver v0.29.2 // indirect
-	k8s.io/component-base v0.29.2 // indirect
+	k8s.io/apiserver v0.30.2 // indirect
 	k8s.io/klog v1.0.0 // indirect
-	k8s.io/kube-aggregator v0.28.5 // indirect
-	k8s.io/kube-openapi v0.0.0-20240322212309-b815d8309940 // indirect
+	k8s.io/kube-aggregator v0.29.3 // indirect
+	k8s.io/kube-openapi v0.0.0-20240620174524-b456828f718b // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
@@ -151,9 +148,6 @@ exclude (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 
-	// Noobaa operator is requiring this version of rook which is not compatible with the
-	// version of rook we are using. Because it uses 2 go.mods
-	github.com/rook/rook v1.12.3-0.20230823002913-59e66edf92f7
 	// Exclude pre-go-mod kubernetes tags, because they are older
 	// than v0.x releases but are picked when updating dependencies.
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible

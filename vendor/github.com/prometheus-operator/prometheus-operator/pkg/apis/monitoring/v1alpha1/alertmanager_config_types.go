@@ -18,6 +18,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
+	"regexp"
 	"strings"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -239,6 +241,9 @@ type PagerDutyConfig struct {
 	// HTTP client configuration.
 	// +optional
 	HTTPConfig *HTTPConfig `json:"httpConfig,omitempty"`
+	// Unique location of the affected system.
+	// +optional
+	Source *string `yaml:"source,omitempty" json:"source,omitempty"`
 }
 
 // PagerDutyImageConfig attaches images to an incident
@@ -561,9 +566,12 @@ type OpsGenieConfigResponder struct {
 	Username string `json:"username,omitempty"`
 	// Type of responder.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Enum=team;teams;user;escalation;schedule
 	Type string `json:"type"`
 }
+
+const opsgenieValidTypesRe = `^(team|teams|user|escalation|schedule)$`
+
+var opsgenieTypeMatcher = regexp.MustCompile(opsgenieValidTypesRe)
 
 // Validate ensures OpsGenieConfigResponder is valid.
 func (r *OpsGenieConfigResponder) Validate() error {
@@ -571,7 +579,18 @@ func (r *OpsGenieConfigResponder) Validate() error {
 		return errors.New("responder must have at least an ID, a Name or an Username defined")
 	}
 
-	return nil
+	if strings.Contains(r.Type, "{{") {
+		_, err := template.New("").Parse(r.Type)
+		if err != nil {
+			return fmt.Errorf("responder %v type is not a valid template: %w", r, err)
+		}
+		return nil
+	}
+
+	if opsgenieTypeMatcher.MatchString(strings.ToLower(r.Type)) {
+		return nil
+	}
+	return fmt.Errorf("opsGenieConfig responder %v type does not match valid options %s", r, opsgenieValidTypesRe)
 }
 
 // HTTPConfig defines a client HTTP configuration.
@@ -792,6 +811,9 @@ type PushoverConfig struct {
 	// A title for supplementary URL, otherwise just the URL is shown
 	// +optional
 	URLTitle string `json:"urlTitle,omitempty"`
+	// The time to live definition for the alert notification
+	// +optional
+	TTL *monitoringv1.Duration `json:"ttl,omitempty"`
 	// The name of a device to send the notification to
 	// +optional
 	Device *string `json:"device,omitempty"`
@@ -913,6 +935,10 @@ type MSTeamsConfig struct {
 	// Message title template.
 	// +optional
 	Title *string `json:"title,omitempty"`
+	// Message summary template.
+	// It requires Alertmanager >= 0.27.0.
+	// +optional
+	Summary *string `json:"summary,omitempty"`
 	// Message body template.
 	// +optional
 	Text *string `json:"text,omitempty"`
@@ -1096,7 +1122,7 @@ type DayOfMonthRange struct {
 
 // MonthRange is an inclusive range of months of the year beginning in January
 // Months can be specified by name (e.g 'January') by numerical month (e.g '1') or as an inclusive range (e.g 'January:March', '1:3', '1:March')
-// +kubebuilder:validation:Pattern=`^((?i)january|february|march|april|may|june|july|august|september|october|november|december|[1-12])(?:((:((?i)january|february|march|april|may|june|july|august|september|october|november|december|[1-12]))$)|$)`
+// +kubebuilder:validation:Pattern=`^((?i)january|february|march|april|may|june|july|august|september|october|november|december|1[0-2]|[1-9])(?:((:((?i)january|february|march|april|may|june|july|august|september|october|november|december|1[0-2]|[1-9]))$)|$)`
 type MonthRange string
 
 // YearRange is an inclusive range of years
