@@ -117,6 +117,10 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
 		}
 
+		if err == errTicketInvalidStorageQuota {
+			return nil, status.Errorf(codes.InvalidArgument, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
+		}
+
 		storageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)

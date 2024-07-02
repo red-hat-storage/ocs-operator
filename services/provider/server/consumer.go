@@ -2,11 +2,15 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +20,8 @@ import (
 )
 
 var (
-	errTicketAlreadyExists = errors.New("onboarding ticket already used by another storageConsumer")
+	errTicketAlreadyExists       = errors.New("onboarding ticket already used by another storageConsumer")
+	errTicketInvalidStorageQuota = errors.New("onboarding ticket has invalid quota")
 )
 
 type ocsConsumerManager struct {
@@ -83,7 +88,15 @@ func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageC
 		},
 	}
 
-	err := c.client.Create(ctx, consumerObj)
+	storageQuotaInGiB, err := getStorageQuotaFromOnboardingTicket(ticket)
+	if err != nil {
+		klog.Warningf("onboarding ticket has invalid quota %v :", err.Error())
+		return "", errTicketInvalidStorageQuota
+	}
+
+	consumerObj.Spec.StorageQuotaInGiB = int(storageQuotaInGiB)
+
+	err = c.client.Create(ctx, consumerObj)
 	if err != nil {
 		if kerrors.IsAlreadyExists(err) {
 			klog.Warningf("storageConsumer %q already exists", name)
@@ -220,8 +233,28 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.Client.ClusterName = status.GetClusterName()
 
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
-		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
+		return fmt.Errorf("failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
 	}
 	klog.Infof("successfully updated Status for StorageConsumer %v", consumerObj.Name)
 	return nil
+}
+
+func getStorageQuotaFromOnboardingTicket(ticket string) (uint, error) {
+	ticketArr := strings.Split(ticket, ".")
+	if len(ticketArr) != 2 {
+		return 0, fmt.Errorf("invalid ticket")
+	}
+
+	message, err := base64.StdEncoding.DecodeString(ticketArr[0])
+	if err != nil {
+		return 0, fmt.Errorf("failed to decode onboarding ticket: %v", err)
+	}
+
+	var ticketData services.OnboardingTicket
+	err = json.Unmarshal(message, &ticketData)
+	if err != nil {
+		return 0, fmt.Errorf("failed to unmarshal onboarding ticket %v", err)
+	}
+
+	return ticketData.StorageQuotaInGiB, nil
 }
