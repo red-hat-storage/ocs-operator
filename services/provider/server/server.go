@@ -18,19 +18,19 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
+	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -39,6 +39,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
@@ -146,7 +148,10 @@ func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.A
 		}
 		return nil, status.Errorf(codes.Internal, "Failed to update the storageConsumer. %v", err)
 	}
-
+	// create noobaa account CR
+	if err := s.consumerManager.CreateNoobaaAccount(ctx, req.StorageConsumerUUID); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create noobaa account for storageconsumer. %v", err)
+	}
 	return &pb.AcknowledgeOnboardingResponse{}, nil
 }
 
@@ -186,12 +191,15 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
-
-	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
+	// remove noobaa account
+	err := s.consumerManager.DeleteNoobaaAccount(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete noobaaAccount resource with the provided UUID. %v", err)
+	}
+	err = s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete storageConsumer resource with the provided UUID. %v", err)
 	}
-
 	return &pb.OffboardConsumerResponse{}, nil
 }
 
@@ -237,6 +245,14 @@ func newClient() (client.Client, error) {
 	err = opv1a1.AddToScheme(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add operatorsv1alpha1 to scheme. %v", err)
+	}
+	err = routev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
+	}
+	err = nbapis.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
 	}
 
 	config, err := config.GetConfig()
@@ -400,6 +416,59 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 
 	}
 
+	// Fetch noobaa remote secret and management address and append to extResources
+	noobaaOperatorSecret := &v1.Secret{}
+	clusterID := strings.TrimPrefix(consumerResource.Name, "storageconsumer-")
+	if clusterID != "" && len(clusterID) == 0 {
+		return nil, fmt.Errorf("failed to get clusterID from consumerResource Name: %s %v", consumerResource.Name, err)
+	}
+
+	noobaaOperatorSecretName := fmt.Sprintf("noobaa-remote-join-secret-%s", clusterID)
+	err = s.client.Get(ctx, types.NamespacedName{Name: noobaaOperatorSecretName, Namespace: s.namespace}, noobaaOperatorSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecretName, err)
+	}
+
+	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
+	if !ok || len(authToken) == 0 {
+		return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecretName)
+	}
+
+	noobaMgmtRoute := &routev1.Route{}
+	err = s.client.Get(ctx, types.NamespacedName{Name: "noobaa-mgmt", Namespace: s.namespace}, noobaMgmtRoute)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
+	}
+	if noobaMgmtRoute.Status.Ingress == nil || len(noobaMgmtRoute.Status.Ingress) == 0 {
+		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
+	}
+
+	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
+	if noobaaMgmtAddress == "" {
+		return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
+	}
+	joinSecret := &corev1.Secret{
+		Data: map[string][]byte{
+			"auth_token": authToken,
+			"mgmt_addr":  []byte(noobaaMgmtAddress),
+		},
+	}
+	extR = append(extR, &pb.ExternalResource{
+		Name: "noobaa-remote-join-secret",
+		Kind: "Secret",
+		Data: mustMarshal(joinSecret),
+	})
+
+	noobaaSpec := &nbv1.NooBaaSpec{
+		JoinSecret: &v1.SecretReference{
+			Name: "noobaa-remote-join-secret",
+		},
+	}
+	extR = append(extR, &pb.ExternalResource{
+		Name: "noobaa-remote",
+		Kind: "Noobaa",
+		Data: mustMarshal(noobaaSpec),
+	})
 	return extR, nil
 }
 
