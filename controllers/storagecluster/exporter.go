@@ -201,10 +201,10 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 	serverName := fmt.Sprintf("ocs-metrics-exporter.%s.svc", instance.GetNamespace())
 
 	// To add storagecluster CR name to the metrics as label: managedBy
-	relabelConfigs := []*monitoringv1.RelabelConfig{
+	relabelConfigs := []monitoringv1.RelabelConfig{
 		{
 			TargetLabel: "managedBy",
-			Replacement: instance.Name,
+			Replacement: ptr.To(instance.Name),
 		},
 	}
 
@@ -237,8 +237,8 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 					Scheme:          "https",
 					TLSConfig: &monitoringv1.TLSConfig{
 						SafeTLSConfig: monitoringv1.SafeTLSConfig{
-							InsecureSkipVerify: false,
-							ServerName:         serverName,
+							InsecureSkipVerify: ptr.To(false),
+							ServerName:         ptr.To(serverName),
 						},
 						CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
 					},
@@ -252,8 +252,8 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 					Scheme:          "https",
 					TLSConfig: &monitoringv1.TLSConfig{
 						SafeTLSConfig: monitoringv1.SafeTLSConfig{
-							InsecureSkipVerify: false,
-							ServerName:         serverName,
+							InsecureSkipVerify: ptr.To(false),
+							ServerName:         ptr.To(serverName),
 						},
 						CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
 					},
@@ -267,8 +267,8 @@ func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitorin
 					Scheme:          "https",
 					TLSConfig: &monitoringv1.TLSConfig{
 						SafeTLSConfig: monitoringv1.SafeTLSConfig{
-							InsecureSkipVerify: false,
-							ServerName:         serverName,
+							InsecureSkipVerify: ptr.To(false),
+							ServerName:         ptr.To(serverName),
 						},
 						CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
 					},

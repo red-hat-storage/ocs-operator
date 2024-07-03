@@ -755,6 +755,10 @@ type PoolSpec struct {
 	// +nullable
 	DeviceClass string `json:"deviceClass,omitempty"`
 
+	// Allow rook operator to change the pool CRUSH tunables once the pool is created
+	// +optional
+	EnableCrushUpdates bool `json:"enableCrushUpdates,omitempty"`
+
 	// DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force"
 	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
 	// +kubebuilder:validation:Enum=none;passive;aggressive;force;""
@@ -2964,7 +2968,6 @@ type PriorityClassNamesSpec map[KeyType]string
 // +nullable
 type StorageClassDeviceSet struct {
 	// Name is a unique identifier for the set
-	// +kubebuilder:validation:MaxLength=40
 	Name string `json:"name"`
 	// Count is the number of devices in this set
 	// +kubebuilder:validation:Minimum=1
