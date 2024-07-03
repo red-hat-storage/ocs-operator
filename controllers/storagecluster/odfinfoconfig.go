@@ -26,7 +26,7 @@ const (
 	rookCephMonSecretName     = "rook-ceph-mon"
 	fsidKey                   = "fsid"
 	ocsOperatorNamePrefix     = "ocs-operator"
-	odfInfoConfigMapName      = "odf-info"
+	OdfInfoConfigMapName      = "odf-info"
 	odfInfoMapKind            = "ConfigMap"
 )
 
@@ -46,7 +46,7 @@ func (obj *odfInfoConfig) ensureCreated(r *StorageClusterReconciler, storageClus
 
 	odfInfoConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      odfInfoConfigMapName,
+			Name:      OdfInfoConfigMapName,
 			Namespace: operatorNamespace,
 		},
 	}
@@ -91,7 +91,7 @@ func (obj *odfInfoConfig) ensureDeleted(r *StorageClusterReconciler, storageClus
 		return reconcile.Result{}, err
 	}
 	odfInfoConfigMap := &corev1.ConfigMap{}
-	odfInfoConfigMap.Name = odfInfoConfigMapName
+	odfInfoConfigMap.Name = OdfInfoConfigMapName
 	odfInfoConfigMap.Namespace = operatorNamespace
 	if err = r.Client.Get(r.ctx, client.ObjectKeyFromObject(odfInfoConfigMap), odfInfoConfigMap); err != nil {
 		if errors.IsNotFound(err) {
