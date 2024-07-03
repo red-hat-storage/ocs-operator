@@ -933,6 +933,9 @@ k8s.io/utils/pointer
 k8s.io/utils/ptr
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
+# open-cluster-management.io/api v0.13.0
+## explicit; go 1.21
+open-cluster-management.io/api/cluster/v1alpha1
 # sigs.k8s.io/container-object-storage-interface-api v0.1.0
 ## explicit; go 1.18
 sigs.k8s.io/container-object-storage-interface-api/apis
