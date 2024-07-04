@@ -572,7 +572,7 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 		// to remove all occurrences of ' --- ' in description.
 		// "---" is used as YAML separator and should not be replaced.
 		// https://github.com/kubernetes/api/blob/master/core/v1/types.go#L5287-L5301
-		crdBytes = []byte(strings.ReplaceAll(string(crdBytes), " --- ", " "))
+		crdBytes = []byte(strings.ReplaceAll(string(crdBytes), " ---\n", " "))
 		entries := strings.Split(string(crdBytes), "---")
 		for _, entry := range entries {
 			crd := extv1.CustomResourceDefinition{}
