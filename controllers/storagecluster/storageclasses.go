@@ -287,6 +287,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 				Name: generateNameForCephBlockPoolSC(initData),
 				Annotations: map[string]string{
 					"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+					"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 				},
 			},
 			Provisioner:   rbdDriverName,
@@ -342,6 +343,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 				Name: util.GenerateNameForNonResilientCephBlockPoolSC(initData),
 				Annotations: map[string]string{
 					"description": "Ceph Non Resilient Pools : Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+					"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 				},
 			},
 			Provisioner:       rbdDriverName,
