@@ -118,7 +118,7 @@ func getMetricsExporterService(instance *ocsv1.StorageCluster) *corev1.Service {
 			Namespace: instance.Namespace,
 			Labels:    exporterLabels,
 			Annotations: map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name:": "ocs-metrics-exporter-tls",
+				"service.beta.openshift.io/serving-cert-secret-name": "ocs-metrics-exporter-tls",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -387,7 +387,6 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							"--tls-private-key-file", "/etc/tls/private/tls.key",
 							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
 							"--config-file", "/etc/kube-rbac-policy/config.yaml",
-							"--logtostderr", "true",
 							"--v", "10",
 						},
 						VolumeMounts: []corev1.VolumeMount{
@@ -427,7 +426,6 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							"--tls-private-key-file", "/etc/tls/private/tls.key",
 							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
 							"--config-file", "/etc/kube-rbac-policy/config.yaml",
-							"--logtostderr", "true",
 							"--v", "10",
 						},
 						VolumeMounts: []corev1.VolumeMount{
@@ -672,15 +670,15 @@ func createMetricsExporterSecret(ctx context.Context, r *StorageClusterReconcile
 "authorization":
   "static":
   - "path": "/metrics"
-	"resourceRequest": false
-	"user":
-		"name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
-	"verb": "get"
+    "resourceRequest": false
+    "user":
+        "name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
+    "verb": "get"
   - "path": "/metrics/rbd-mirror"
-	"resourceRequest": false
-	"user":
-		"name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
-	"verb": "get"
+    "resourceRequest": false
+    "user":
+        "name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
+    "verb": "get"
 `,
 		}
 		return nil
