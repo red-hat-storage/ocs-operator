@@ -118,7 +118,7 @@ func getMetricsExporterService(instance *ocsv1.StorageCluster) *corev1.Service {
 			Namespace: instance.Namespace,
 			Labels:    exporterLabels,
 			Annotations: map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name:": "ocs-metrics-exporter-tls",
+				"service.beta.openshift.io/serving-cert-secret-name": "ocs-metrics-exporter-tls",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
