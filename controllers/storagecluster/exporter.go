@@ -670,15 +670,15 @@ func createMetricsExporterSecret(ctx context.Context, r *StorageClusterReconcile
 "authorization":
   "static":
   - "path": "/metrics"
-	"resourceRequest": false
-	"user":
-		"name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
-	"verb": "get"
+    "resourceRequest": false
+    "user":
+        "name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
+    "verb": "get"
   - "path": "/metrics/rbd-mirror"
-	"resourceRequest": false
-	"user":
-		"name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
-	"verb": "get"
+    "resourceRequest": false
+    "user":
+        "name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
+    "verb": "get"
 `,
 		}
 		return nil
