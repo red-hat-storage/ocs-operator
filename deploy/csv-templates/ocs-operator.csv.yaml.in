@@ -359,7 +359,12 @@ spec:
           resources:
           - noobaas
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - objectbucket.io
           resources:
