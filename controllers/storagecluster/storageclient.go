@@ -31,7 +31,7 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	storageClient.Name = storagecluster.Name
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
-			token, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath)
+			token, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil)
 			if err != nil {
 				return fmt.Errorf("unable to generate onboarding token: %v", err)
 			}
