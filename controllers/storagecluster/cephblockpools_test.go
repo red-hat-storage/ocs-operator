@@ -171,8 +171,8 @@ func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, c
 	expectedAf, err := reconciler.newCephBlockPoolInstances(cr)
 	assert.NoError(t, err)
 
-	assert.Equal(t, len(expectedAf[1].OwnerReferences), 1)
+	assert.Equal(t, len(expectedAf[2].OwnerReferences), 1)
 
-	assert.Equal(t, expectedAf[1].ObjectMeta.Name, actualNFSBlockPool.ObjectMeta.Name)
-	assert.Equal(t, expectedAf[1].Spec, actualNFSBlockPool.Spec)
+	assert.Equal(t, expectedAf[2].ObjectMeta.Name, actualNFSBlockPool.ObjectMeta.Name)
+	assert.Equal(t, expectedAf[2].Spec, actualNFSBlockPool.Spec)
 }
