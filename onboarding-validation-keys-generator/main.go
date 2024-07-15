@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -23,7 +22,6 @@ const (
 	// Name of existing public key which is used ocs-operator
 	onboardingValidationPublicKeySecretName  = "onboarding-ticket-key"
 	onboardingValidationPrivateKeySecretName = "onboarding-private-key"
-	storageClusterName                       = "ocs-storagecluster"
 )
 
 func main() {
@@ -49,11 +47,16 @@ func main() {
 	privatePem := convertRsaPrivateKeyAsPemStr(privateKey)
 	publicPem := convertRsaPublicKeyAsPemStr(publicKey)
 
-	storageCluster := &v1.StorageCluster{}
-	err = cl.Get(ctx, types.NamespacedName{Name: storageClusterName, Namespace: operatorNamespace}, storageCluster)
+	storageClusterList := &v1.StorageClusterList{}
+	err = cl.List(ctx, storageClusterList, client.InNamespace(operatorNamespace))
 	if err != nil {
-		klog.Exitf("failed to get storage cluster: %v", err)
+		klog.Exitf("failed to get storage clusters: %v", err)
 	}
+
+	if len(storageClusterList.Items) != 1 {
+		klog.Exitf("invalid number of storage clusters found: expected 1, got %v: %v", len(storageClusterList.Items), err)
+	}
+	storageCluster := storageClusterList.Items[0]
 
 	// In situations where there is a risk of one secret being updated and potentially
 	// failing to update another, it is recommended not to rely solely on clientset update mechanisms.
@@ -77,7 +80,7 @@ func main() {
 		klog.Exitf("failed to delete public secret: %v", err)
 	}
 
-	err = controllerutil.SetOwnerReference(storageCluster, privateSecret, cl.Scheme())
+	err = controllerutil.SetOwnerReference(&storageCluster, privateSecret, cl.Scheme())
 	if err != nil {
 		klog.Exitf("failed to set owner reference for private secret: %v", err)
 	}
@@ -91,7 +94,7 @@ func main() {
 		klog.Exitf("failed to create private secret: %v", err)
 	}
 
-	err = controllerutil.SetOwnerReference(storageCluster, publicSecret, cl.Scheme())
+	err = controllerutil.SetOwnerReference(&storageCluster, publicSecret, cl.Scheme())
 	if err != nil {
 		klog.Exitf("failed to set owner reference for public secret: %v", err)
 	}
