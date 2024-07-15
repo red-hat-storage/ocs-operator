@@ -79,6 +79,9 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		}
 	}
 
+	// set device class for metadata pool from the default data pool
+	ret.Spec.MetadataPool.DeviceClass = ret.Spec.DataPools[0].PoolSpec.DeviceClass
+
 	err := controllerutil.SetControllerReference(initStorageCluster, ret, r.Scheme)
 	if err != nil {
 		r.Log.Error(err, "Unable to set Controller Reference for CephFileSystem.", "CephFileSystem", klog.KRef(ret.Namespace, ret.Name))

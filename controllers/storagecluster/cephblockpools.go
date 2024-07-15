@@ -44,6 +44,8 @@ func (r *StorageClusterReconciler) addPeerSecretsToCephBlockPool(initData *ocsv1
 func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.StorageCluster) ([]*cephv1.CephBlockPool, error) {
 	var mirroringSpec cephv1.MirroringSpec
 	poolName := generateNameForCephBlockPool(initData)
+	// This name is used by UI to hide this pool from the list of CephBlockPools
+	builtinMgrPoolName := "builtin-mgr"
 	poolNamespace := initData.Namespace
 
 	if initData.Spec.Mirroring.Enabled {
@@ -66,6 +68,20 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 					Replicated:     generateCephReplicatedSpec(initData, "data"),
 					EnableRBDStats: true,
 					Mirroring:      mirroringSpec,
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      builtinMgrPoolName,
+				Namespace: poolNamespace,
+			},
+			Spec: cephv1.NamedBlockPoolSpec{
+				Name: ".mgr",
+				PoolSpec: cephv1.PoolSpec{
+					DeviceClass:   initData.Status.DefaultCephDeviceClass,
+					FailureDomain: getFailureDomain(initData),
+					Replicated:    generateCephReplicatedSpec(initData, "metadata"),
 				},
 			},
 		},
