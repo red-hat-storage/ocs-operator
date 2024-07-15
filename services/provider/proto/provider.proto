@@ -165,6 +165,8 @@ message ReportStatusRequest{
     string clusterName = 5;
     // clientName is the name of the connected storageclient
     string clientName = 6;
+    // usedCapacityInGiB is the used capacity of connected storageclient
+    int64 usedCapacityInGiB = 7;
 
 }
 

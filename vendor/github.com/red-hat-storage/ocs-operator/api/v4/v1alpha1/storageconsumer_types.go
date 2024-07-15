@@ -90,6 +90,10 @@ type ClientStatus struct {
 	// Name is the name of connected storageclient
 	// +optional
 	Name string `json:"name,omitempty"`
+
+	// UsedCapacityInGiB is the used capacity of connected storageclient
+	// +optional
+	UsedCapacityInGiB int `json:"usedCapacityInGiB,omitempty"`
 }
 
 //+kubebuilder:object:root=true
