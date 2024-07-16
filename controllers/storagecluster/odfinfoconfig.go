@@ -138,7 +138,7 @@ func (obj *odfInfoConfig) ensureDeleted(r *StorageClusterReconciler, storageClus
 }
 
 func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (string, error) {
-	ocsVersion, err := getOcsVersion(r, storageCluster)
+	ocsVersion, err := getOcsVersion(r)
 	if err != nil {
 		return "", err
 	}
@@ -218,9 +218,9 @@ func getStorageSystemName(storageCluster *ocsv1.StorageCluster) (string, error) 
 
 }
 
-func getOcsVersion(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (string, error) {
+func getOcsVersion(r *StorageClusterReconciler) (string, error) {
 	var csvs operatorsv1alpha1.ClusterServiceVersionList
-	err := r.Client.List(r.ctx, &csvs, client.InNamespace(storageCluster.Namespace))
+	err := r.Client.List(r.ctx, &csvs, client.InNamespace(r.OperatorNamespace))
 	if err != nil {
 		return "", err
 	}
