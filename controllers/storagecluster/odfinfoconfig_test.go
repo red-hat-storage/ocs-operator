@@ -130,7 +130,7 @@ func TestOdfInfoConfig(t *testing.T) {
 		assert.NilError(t, err, "expected to find configmap %q: %+v", odfInfoConfigMapName, err)
 
 		// compare with the expected results
-		odfInfoDataOfStorageClusterKey := OdfInfoData{}
+		odfInfoDataOfStorageClusterKey := v1alpha1.OdfInfoData{}
 		err = yaml.Unmarshal([]byte(configMap.Data[odfInfoConfigReconciler.getOdfInfoKeyName(sc)]),
 			&odfInfoDataOfStorageClusterKey)
 		assert.NilError(t, err, "Expected unmarshalling of OdfInfoConfig's data")
