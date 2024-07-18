@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -106,12 +107,13 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 	}
 
-	if err := validateTicket(req.OnboardingTicket, pubKey); err != nil {
+	onboardingTicket, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey)
+	if err != nil {
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req)
+	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(onboardingTicket.StorageQuotaInGiB))
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
@@ -436,41 +438,45 @@ func getSubVolumeGroupClusterID(subVolumeGroup *rookCephv1.CephFilesystemSubVolu
 	return hex.EncodeToString(hash[:16])
 }
 
-func validateTicket(ticket string, pubKey *rsa.PublicKey) error {
+func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.OnboardingTicket, error) {
 	ticketArr := strings.Split(string(ticket), ".")
 	if len(ticketArr) != 2 {
-		return fmt.Errorf("invalid ticket")
+		return nil, fmt.Errorf("invalid ticket")
 	}
 
 	message, err := base64.StdEncoding.DecodeString(ticketArr[0])
 	if err != nil {
-		return fmt.Errorf("failed to decode onboarding ticket: %v", err)
+		return nil, fmt.Errorf("failed to decode onboarding ticket: %v", err)
 	}
 
 	var ticketData services.OnboardingTicket
 	err = json.Unmarshal(message, &ticketData)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)
+		return nil, fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)
+	}
+
+	if ticketData.StorageQuotaInGiB > math.MaxInt {
+		return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, ticketData.StorageQuotaInGiB)
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])
 	if err != nil {
-		return fmt.Errorf("failed to decode onboarding ticket %s signature: %v", ticketData.ID, err)
+		return nil, fmt.Errorf("failed to decode onboarding ticket %s signature: %v", ticketData.ID, err)
 	}
 
 	hash := sha256.Sum256(message)
 	err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hash[:], signature)
 	if err != nil {
-		return fmt.Errorf("failed to verify onboarding ticket signature. %v", err)
+		return nil, fmt.Errorf("failed to verify onboarding ticket signature. %v", err)
 	}
 
 	if ticketData.ExpirationDate < time.Now().Unix() {
-		return fmt.Errorf("onboarding ticket %s is expired", ticketData.ID)
+		return nil, fmt.Errorf("onboarding ticket %s is expired", ticketData.ID)
 	}
 
 	klog.Infof("onboarding ticket %s has been verified successfully", ticketData.ID)
 
-	return nil
+	return &ticketData, nil
 }
 
 // FulfillStorageClaim RPC call to create the StorageClaim CR on

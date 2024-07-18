@@ -3,6 +3,7 @@ package onboardingtokens
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -45,8 +46,8 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 			return
 		}
 
-		if quota.Value == 0 {
-			http.Error(w, fmt.Sprintf("invalid value sent in request body, value should be greater than 0: %v", quota.Value), http.StatusBadRequest)
+		if quota.Value == 0 || quota.Value > math.MaxInt {
+			http.Error(w, fmt.Sprintf("invalid value sent in request body, value should be greater than 0 and less than %v: %v", math.MaxInt, quota.Value), http.StatusBadRequest)
 			return
 		}
 		unitAsGiB, ok := unitToGib[quota.Unit]
