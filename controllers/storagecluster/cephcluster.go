@@ -192,15 +192,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 					return reconcile.Result{}, err
 				}
 			}
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, kmsConfigMap, r.Log)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
+			cephCluster = newCephCluster(sc, r.images.Ceph, kmsConfigMap, r.Log)
 		} else {
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, nil, r.Log)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
+			cephCluster = newCephCluster(sc, r.images.Ceph, nil, r.Log)
 		}
 	}
 
@@ -411,15 +405,12 @@ func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) *rookCephv1.CephCluster {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
 
-	maxLogSize, err := resource.ParseQuantity("500Mi")
-	if err != nil {
-		return &rookCephv1.CephCluster{}, fmt.Errorf("Failed to parse maxLogSize for log rotate. %v", err)
-	}
+	maxLogSize := resource.MustParse("500Mi")
 
 	logCollector := rookCephv1.LogCollectorSpec{
 		Enabled:     true,
@@ -585,7 +576,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
 	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 
-	return cephCluster, nil
+	return cephCluster
 }
 
 func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
@@ -631,6 +622,14 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 		"app": sc.Name,
 	}
 
+	maxLogSize := resource.MustParse("500Mi")
+
+	logCollector := rookCephv1.LogCollectorSpec{
+		Enabled:     true,
+		Periodicity: "daily",
+		MaxLogSize:  &maxLogSize,
+	}
+
 	var monitoringSpec = rookCephv1.MonitoringSpec{Enabled: false}
 
 	if monitoringIP != "" {
@@ -671,6 +670,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 				rookCephv1.KeyMonitoring:   getCephClusterMonitoringLabels(*sc),
 				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
 			},
+			LogCollector: logCollector,
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: getReadAffinityOptions(sc),
 				CephFS: rookCephv1.CSICephFSSpec{
