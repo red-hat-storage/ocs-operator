@@ -19,6 +19,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	quotav1 "github.com/openshift/api/quota/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
@@ -55,8 +56,10 @@ const (
 )
 
 const (
-	monConfigMap = "rook-ceph-mon-endpoints"
-	monSecret    = "rook-ceph-mon"
+	monConfigMap            = "rook-ceph-mon-endpoints"
+	monSecret               = "rook-ceph-mon"
+	kernelMountOptionsKey   = "kernelmountoptions"
+	kernelMountOptionSecure = "ms_mode=secure"
 )
 
 type OCSProviderServer struct {
@@ -237,6 +240,10 @@ func newClient() (client.Client, error) {
 	err = opv1a1.AddToScheme(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add operatorsv1alpha1 to scheme. %v", err)
+	}
+	err = ocsv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add ocsv1 to scheme. %v", err)
 	}
 
 	config, err := config.GetConfig()
@@ -685,6 +692,15 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
 				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
+			}
+
+			storageClusters, err := util.GetStorageClustersInNamespace(ctx, s.client, s.namespace)
+			if err != nil || len(storageClusters.Items) == 0 {
+				return nil, status.Errorf(codes.Internal, "failed to get storage cluster %v", err)
+			}
+			kernelMountOptions := util.GetCephFSKernelMountOptions(&storageClusters.Items[0])
+			if kernelMountOptions == kernelMountOptionSecure {
+				cephfsStorageClassData[kernelMountOptionsKey] = kernelMountOptionSecure
 			}
 
 			extR = append(extR,

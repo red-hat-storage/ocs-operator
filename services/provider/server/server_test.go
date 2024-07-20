@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	quotav1 "github.com/openshift/api/quota/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
@@ -757,6 +758,13 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Phase: ocsv1alpha1.StorageRequestFailed,
 			},
 		}
+		storageClusterResourceName = "mock-storage-cluster"
+		storageClustersResource    = &ocsv1.StorageCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      storageClusterResourceName,
+				Namespace: serverNamespace,
+			},
+		}
 	)
 
 	ctx := context.TODO()
@@ -767,6 +775,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		claimResourceInitializing,
 		claimResourceCreating,
 		claimResourceFailed,
+		storageClustersResource,
 	}
 
 	// Create a fake client to mock API calls.

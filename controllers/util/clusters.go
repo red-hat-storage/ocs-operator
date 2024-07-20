@@ -157,3 +157,16 @@ func (c *Clusters) HasMultipleStorageClustersWithSameName(name string) bool {
 
 	return count > 1
 }
+
+func GetStorageClustersInNamespace(ctx context.Context, cli client.Client, namespace string) (ocsv1.StorageClusterList, error) {
+	storageClusters := ocsv1.StorageClusterList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+	}
+	err := cli.List(ctx, &storageClusters, listOpts...)
+	if err != nil || len(storageClusters.Items) == 0 {
+		return storageClusters, err
+	}
+
+	return storageClusters, nil
+}
