@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
+	quotav1 "github.com/openshift/api/quota/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
@@ -25,6 +26,8 @@ import (
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
@@ -369,6 +372,34 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		}),
 	})
 
+	if consumerResource.Spec.StorageQuotaInGiB > 0 {
+		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
+			Selector: quotav1.ClusterResourceQuotaSelector{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      string(consumerResource.UID),
+							Operator: metav1.LabelSelectorOpDoesNotExist,
+						},
+					},
+				},
+			},
+			Quota: corev1.ResourceQuotaSpec{
+				Hard: corev1.ResourceList{"requests.storage": *resource.NewScaledQuantity(
+					int64(consumerResource.Spec.StorageQuotaInGiB),
+					resource.Giga,
+				)},
+			},
+		}
+
+		extR = append(extR, &pb.ExternalResource{
+			Name: "QuotaForConsumer",
+			Kind: "ClusterResourceQuota",
+			Data: mustMarshal(clusterResourceQuotaSpec),
+		})
+
+	}
+
 	return extR, nil
 }
 
@@ -420,13 +451,14 @@ func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rs
 	return publicKey, nil
 }
 
-func mustMarshal(data map[string]string) []byte {
-	newData, err := json.Marshal(data)
+func mustMarshal[T any](value T) []byte {
+	newData, err := json.Marshal(value)
 	if err != nil {
 		panic("failed to marshal")
 	}
 	return newData
 }
+
 func getSubVolumeGroupClusterID(subVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup) string {
 	str := fmt.Sprintf(
 		"%s-%s-file-%s",

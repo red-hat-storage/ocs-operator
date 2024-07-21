@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	quotav1 "github.com/openshift/api/quota/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
@@ -14,7 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	crClient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,7 +30,24 @@ type externalResource struct {
 }
 
 var serverNamespace = "openshift-storage"
-
+var clusterResourceQuotaSpec = &quotav1.ClusterResourceQuotaSpec{
+	Selector: quotav1.ClusterResourceQuotaSelector{
+		LabelSelector: &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "consumer-test",
+					Operator: metav1.LabelSelectorOpDoesNotExist,
+				},
+			},
+		},
+	},
+	Quota: corev1.ResourceQuotaSpec{
+		Hard: corev1.ResourceList{"requests.storage": *resource.NewScaledQuantity(
+			int64(consumerResource.Spec.StorageQuotaInGiB),
+			resource.Giga,
+		)},
+	},
+}
 var mockExtR = map[string]*externalResource{
 	"rook-ceph-mon-endpoints": {
 		Name: "rook-ceph-mon-endpoints",
@@ -62,6 +82,13 @@ var mockExtR = map[string]*externalResource{
 		Data: map[string]string{
 			"userID":  "995e66248ad3e8642de868f461cdd827",
 			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
+		},
+	},
+	"QuotaForConsumer": {
+		Name: "QuotaForConsumer",
+		Kind: "ClusterResourceQuota",
+		Data: map[string]string{
+			"QuotaForConsumer": fmt.Sprintf("%+v\n", clusterResourceQuotaSpec),
 		},
 	},
 }
@@ -135,6 +162,26 @@ var (
 			State:         ocsv1alpha1.StorageConsumerStateReady,
 		},
 	}
+
+	consumerResource6 = &ocsv1alpha1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer6",
+			UID:       "uid6",
+			Namespace: serverNamespace,
+		},
+		Spec: ocsv1alpha1.StorageConsumerSpec{
+			StorageQuotaInGiB: 10240,
+		},
+		Status: ocsv1alpha1.StorageConsumerStatus{
+			CephResources: []*ocsv1alpha1.CephResourcesSpec{
+				{
+					Name: "995e66248ad3e8642de868f461cdd827",
+					Kind: "CephClient",
+				},
+			},
+			State: ocsv1alpha1.StorageConsumerStateReady,
+		},
+	}
 )
 
 func TestGetExternalResources(t *testing.T) {
@@ -146,6 +193,7 @@ func TestGetExternalResources(t *testing.T) {
 		consumerResource3,
 		consumerResource4,
 		consumerResource5,
+		consumerResource6,
 	}
 
 	client := newFakeClient(t, objects...)
@@ -225,6 +273,35 @@ func TestGetExternalResources(t *testing.T) {
 		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
+		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
+		assert.Equal(t, extResource.Name, mockResoruce.Name)
+	}
+
+	// When ocsv1alpha1.StorageConsumerStateReady and quota is set
+	req = pb.StorageConfigRequest{
+		StorageConsumerUUID: string(consumerResource6.UID),
+	}
+	storageConRes, err = server.GetStorageConfig(ctx, &req)
+	assert.NoError(t, err)
+	assert.NotNil(t, storageConRes)
+
+	for i := range storageConRes.ExternalResource {
+		extResource := storageConRes.ExternalResource[i]
+		mockResoruce, ok := mockExtR[extResource.Name]
+		assert.True(t, ok)
+
+		data, err := json.Marshal(mockResoruce.Data)
+		assert.NoError(t, err)
+		if extResource.Kind == "ClusterResourceQuota" {
+			var clusterResourceQuotaSpec quotav1.ClusterResourceQuotaSpec
+			err = json.Unmarshal([]byte(extResource.Data), &clusterResourceQuotaSpec)
+			assert.NoError(t, err)
+			quantity, _ := resource.ParseQuantity("10240G")
+			assert.Equal(t, clusterResourceQuotaSpec.Quota.Hard["requests.storage"], quantity)
+		} else {
+			assert.Equal(t, string(extResource.Data), string(data))
+		}
+
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
