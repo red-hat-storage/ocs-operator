@@ -57,11 +57,9 @@ var noobaaSpec = &nbv1.NooBaaSpec{
 	},
 }
 
-var joinSecret = &v1.Secret{
-	Data: map[string][]byte{
-		"auth_token": []byte("authToken"),
-		"mgmt_addr":  []byte("noobaaMgmtAddress"),
-	},
+var joinSecret = map[string][]byte{
+	"auth_token": []byte("authToken"),
+	"mgmt_addr":  []byte("noobaaMgmtAddress"),
 }
 
 var mockExtR = map[string]*externalResource{
@@ -132,6 +130,9 @@ var (
 					Name: "995e66248ad3e8642de868f461cdd827",
 					Kind: "CephClient",
 				},
+			},
+			Client: ocsv1alpha1.ClientStatus{
+				ClusterID: "consumer",
 			},
 			State: ocsv1alpha1.StorageConsumerStateReady,
 		},
@@ -204,6 +205,9 @@ var (
 					Name: "995e66248ad3e8642de868f461cdd827",
 					Kind: "CephClient",
 				},
+			},
+			Client: ocsv1alpha1.ClientStatus{
+				ClusterID: "consumer6",
 			},
 			State: ocsv1alpha1.StorageConsumerStateReady,
 		},
