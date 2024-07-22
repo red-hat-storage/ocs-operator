@@ -384,6 +384,7 @@ spec:
         - apiGroups:
           - noobaa.io
           resources:
+          - noobaaaccounts
           - noobaas
           verbs:
           - create
