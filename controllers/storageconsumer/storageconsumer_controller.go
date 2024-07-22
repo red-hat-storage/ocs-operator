@@ -21,9 +21,11 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -59,12 +62,14 @@ type StorageConsumerReconciler struct {
 	storageConsumer         *ocsv1alpha1.StorageConsumer
 	cephClientHealthChecker *rookCephv1.CephClient
 	namespace               string
+	noobaaAccount           *nbv1.NooBaaAccount
 }
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;
+// +kubebuilder:rbac:groups=noobaa.io,resources=noobaaaccounts,verbs=get;list;watch;create;update;delete
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
@@ -127,6 +132,10 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.cephClientHealthChecker = &rookCephv1.CephClient{}
 	r.cephClientHealthChecker.Name = GenerateHashForCephClient(r.storageConsumer.Name, "global")
 	r.cephClientHealthChecker.Namespace = r.namespace
+
+	r.noobaaAccount = &nbv1.NooBaaAccount{}
+	r.noobaaAccount.Name = "noobaa-remote-" + r.storageConsumer.Name
+	r.noobaaAccount.Namespace = r.storageConsumer.Namespace
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
@@ -142,6 +151,10 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
 
 		if err := r.reconcileCephClientHealthChecker(); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if err := r.reconcileNoobaaAccount(); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -201,6 +214,25 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 	}
 
 	r.setCephResourceStatus(r.cephClientHealthChecker.Name, "CephClient", phase, nil)
+
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.noobaaAccount, func() error {
+		if err := r.own(r.noobaaAccount); err != nil {
+			return err
+		}
+		// the following annotation will enable noobaa-operator to create a auth_token secret based on this account
+		util.AddAnnotation(r.noobaaAccount, "remote-operator", "true")
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create noobaa account for storageConsumer %v: %v", r.storageConsumer.Name, err)
+	}
+
+	phase := string(r.noobaaAccount.Status.Phase)
+	r.setCephResourceStatus(r.noobaaAccount.Name, "NooBaaAccount", phase, nil)
 
 	return nil
 }

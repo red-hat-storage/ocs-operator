@@ -69,15 +69,6 @@ rules:
   - get
   - list
 - apiGroups:
-  - noobaa.io
-  resources:
-  - noobaaaccounts
-  verbs:
-  - get
-  - list
-  - create
-  - delete
-- apiGroups:
   - route.openshift.io
   resources:
   - routes
