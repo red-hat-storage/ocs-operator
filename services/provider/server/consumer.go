@@ -4,12 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -227,49 +224,5 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
 	}
 	klog.Infof("successfully updated Status for StorageConsumer %v", consumerObj.Name)
-	return nil
-}
-
-func (c *ocsConsumerManager) CreateNoobaaAccount(ctx context.Context, id string) error {
-
-	consumerObj, err := c.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	consumerClusterID := strings.TrimPrefix(consumerObj.Name, "storageconsumer-")
-	if consumerClusterID != "" && len(consumerClusterID) == 0 {
-		return fmt.Errorf("failed to get clusterID from consumerResource Name: %s %v", consumerObj.Name, err)
-	}
-
-	noobaaAccountName := fmt.Sprintf("noobaa-remote-%s", consumerClusterID)
-	nbAccountObj := &nbv1.NooBaaAccount{}
-	nbAccountObj.Name = noobaaAccountName
-	nbAccountObj.Namespace = consumerObj.Namespace
-	// the following annotation will enable noobaa-operator to create a auth_token secret based on this account
-	util.AddAnnotation(nbAccountObj, "remote-operator", "true")
-
-	err = c.client.Create(ctx, nbAccountObj)
-	if err != nil {
-		return fmt.Errorf("failed to create noobaa account for storageConsumer %v: %v", consumerObj.Name, err)
-	}
-	return nil
-}
-
-func (c *ocsConsumerManager) DeleteNoobaaAccount(ctx context.Context, id string) error {
-	consumerObj, err := c.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	clusterID := strings.TrimPrefix(consumerObj.Name, "storageconsumer-")
-	if clusterID != "" && len(clusterID) == 0 {
-		return fmt.Errorf("failed to get clusterID from consumerResource Name: %s %v", consumerObj.Name, err)
-	}
-	noobaaAccountName := fmt.Sprintf("noobaa-remote-%s", clusterID)
-	nbAccountObj := &nbv1.NooBaaAccount{}
-	nbAccountObj.Name = noobaaAccountName
-	nbAccountObj.Namespace = consumerObj.Namespace
-	if err := c.client.Delete(ctx, nbAccountObj); err != nil {
-		return fmt.Errorf("failed to delete Noobaa account %q. %v", nbAccountObj.Name, err)
-	}
 	return nil
 }
