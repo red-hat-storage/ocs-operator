@@ -73,6 +73,7 @@ const (
 	clusterNetworkSelectorKey = "cluster"
 	// DisasterRecoveryTargetAnnotation signifies that the cluster is intended to be used for Disaster Recovery
 	DisasterRecoveryTargetAnnotation = "ocs.openshift.io/clusterIsDisasterRecoveryTarget"
+	upmapReadBalancerMode            = "upmap-read"
 )
 
 const (
@@ -1101,7 +1102,7 @@ func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
 		Modules: []rookCephv1.Module{
 			{Name: "pg_autoscaler", Enabled: true},
-			{Name: "balancer", Enabled: true},
+			{Name: "balancer", Enabled: true, Settings: rookCephv1.ModuleSettings{BalancerMode: upmapReadBalancerMode}},
 		},
 	}
 
