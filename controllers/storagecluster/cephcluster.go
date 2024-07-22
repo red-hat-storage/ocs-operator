@@ -71,9 +71,7 @@ const (
 	networkProvider           = "multus"
 	publicNetworkSelectorKey  = "public"
 	clusterNetworkSelectorKey = "cluster"
-	// DisasterRecoveryTargetAnnotation signifies that the cluster is intended to be used for Disaster Recovery
-	DisasterRecoveryTargetAnnotation = "ocs.openshift.io/clusterIsDisasterRecoveryTarget"
-	upmapReadBalancerMode            = "upmap-read"
+	upmapReadBalancerMode     = "upmap-read"
 )
 
 const (
@@ -269,9 +267,8 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Record actual Ceph container image version before attempting update
 	sc.Status.Images.Ceph.ActualImage = found.Spec.CephVersion.Image
 
-	// Allow migration of OSD to bluestore-rdr if RDR optimization annotation is added on an existing cluster.
-	// Prevent changing the bluestore-rdr settings if they are already applied in the existing ceph cluster.
-	cephCluster.Spec.Storage.Store = determineOSDStore(sc, cephCluster.Spec.Storage.Store, found.Spec.Storage.Store)
+	// Update OSD store to `bluestore`
+	cephCluster.Spec.Storage.Store = updateOSDStore(found.Spec.Storage.Store)
 
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
@@ -419,11 +416,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 		MaxLogSize:  &maxLogSize,
 	}
 
-	osdStore := getOSDStoreConfig(sc)
-	if osdStore.Type != "" {
-		reqLogger.Info("osd store settings", osdStore)
-	}
-
 	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNameForCephCluster(sc),
@@ -454,7 +446,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			},
 			Storage: rookCephv1.StorageScopeSpec{
 				StorageClassDeviceSets:       newStorageClassDeviceSets(sc),
-				Store:                        osdStore,
 				FlappingRestartIntervalHours: 24,
 				FullRatio:                    sc.Spec.ManagedResources.CephCluster.FullRatio,
 				NearFullRatio:                sc.Spec.ManagedResources.CephCluster.NearFullRatio,
@@ -1297,45 +1288,14 @@ func getIPFamilyConfig(c client.Client) (rookCephv1.IPFamilyType, bool, error) {
 	return rookCephv1.IPv4, false, nil
 }
 
-func getOSDStoreConfig(sc *ocsv1.StorageCluster) rookCephv1.OSDStore {
-	osdStore := rookCephv1.OSDStore{}
-	if !sc.Spec.ExternalStorage.Enable && optimizeDisasterRecovery(sc) {
-		osdStore.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
-	}
-
-	return osdStore
-}
-
-// optimizeDisasterRecovery returns true if any RDR optimizations are required
-func optimizeDisasterRecovery(sc *ocsv1.StorageCluster) bool {
-	if annotation, found := sc.GetAnnotations()[DisasterRecoveryTargetAnnotation]; found {
-		if annotation == "true" {
-			return true
-		}
-	}
-
-	return false
-}
-
-func determineOSDStore(sc *ocsv1.StorageCluster, newOSDStore, existingOSDStore rookCephv1.OSDStore) rookCephv1.OSDStore {
+func updateOSDStore(existingOSDStore rookCephv1.OSDStore) rookCephv1.OSDStore {
 	if existingOSDStore.Type == string(rookCephv1.StoreTypeBlueStoreRDR) {
-		return existingOSDStore
-	} else if !sc.Spec.ExternalStorage.Enable && (isBluestore(existingOSDStore) && optimizeDisasterRecovery(sc)) {
 		return rookCephv1.OSDStore{
-			Type:        string(rookCephv1.StoreTypeBlueStoreRDR),
+			Type:        string(rookCephv1.StoreTypeBlueStore),
 			UpdateStore: "yes-really-update-store",
 		}
 	}
-
-	return newOSDStore
-}
-
-func isBluestore(store rookCephv1.OSDStore) bool {
-	if store.Type == string(rookCephv1.StoreTypeBlueStore) || store.Type == "" {
-		return true
-	}
-
-	return false
+	return existingOSDStore
 }
 
 func getOsdCount(sc *ocsv1.StorageCluster) int {
