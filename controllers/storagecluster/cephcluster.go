@@ -473,7 +473,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: getReadAffinityOptions(sc),
 				CephFS: rookCephv1.CSICephFSSpec{
-					KernelMountOptions: getCephFSKernelMountOptions(sc),
+					KernelMountOptions: statusutil.GetCephFSKernelMountOptions(sc),
 				},
 			},
 			SkipUpgradeChecks:            sc.Spec.ManagedResources.CephCluster.SkipUpgradeChecks,
@@ -666,7 +666,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: getReadAffinityOptions(sc),
 				CephFS: rookCephv1.CSICephFSSpec{
-					KernelMountOptions: getCephFSKernelMountOptions(sc),
+					KernelMountOptions: statusutil.GetCephFSKernelMountOptions(sc),
 				},
 			},
 		},
