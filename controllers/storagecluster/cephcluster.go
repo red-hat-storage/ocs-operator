@@ -762,7 +762,6 @@ func getMonCount(sc *ocsv1.StorageCluster) int {
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
 func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
-	topologyMap := sc.Status.NodeTopologies
 
 	var storageClassDeviceSets []rookCephv1.StorageClassDeviceSet
 
@@ -775,7 +774,6 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 		portable := ds.Portable
 
 		topologyKey := ds.TopologyKey
-		topologyKeyValues := []string{}
 
 		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil && ds.Placement.TopologySpreadConstraints == nil
 		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil && ds.PreparePlacement.TopologySpreadConstraints == nil
@@ -788,10 +786,6 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			if topologyKey == "host" {
 				portable = false
 			}
-
-			if topologyMap != nil {
-				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
-			}
 		}
 
 		count, replica := countAndReplicaOf(&ds)
@@ -800,42 +794,25 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			preparePlacement := rookCephv1.Placement{}
 
 			if noPlacement {
-				in := getPlacement(sc, "osd")
-				(&in).DeepCopyInto(&placement)
-
-				if noPreparePlacement {
-					in := getPlacement(sc, "osd-prepare")
-					(&in).DeepCopyInto(&preparePlacement)
-				}
-
-				if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
-					// Hard constraints are set in OSD placement for portable volumes with rack failure domain
-					// domain as there is no node affinity in PVs. This restricts the movement of OSDs
-					// between failure domain.
-					if portable && !strings.Contains(topologyKey, "zone") {
-						addStrictFailureDomainTSC(&placement, topologyKey)
-					}
-					// If topologyKey is not host, append additional topology spread constraint to the
-					// default preparePlacement. This serves even distribution at the host level
-					// within a failure domain (zone/rack).
-					if noPreparePlacement {
-						if topologyKey != corev1.LabelHostname {
-							addStrictFailureDomainTSC(&preparePlacement, topologyKey)
-						} else {
-							preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
-						}
-					}
-				}
-
-				if !noPreparePlacement {
-					preparePlacement = ds.PreparePlacement
-				}
-			} else if !noPlacement && noPreparePlacement {
-				preparePlacement = ds.Placement
+				placement = getPlacement(sc, "osd")
+			} else {
 				placement = ds.Placement
+				// For OSDs  we need to add the topology spread constraints always
+				// Without TSCs they will rarely be balanced by themselves
+				if len(placement.TopologySpreadConstraints) == 0 {
+					placement.TopologySpreadConstraints = getPlacement(sc, "osd").TopologySpreadConstraints
+				}
+			}
+
+			if noPreparePlacement {
+				preparePlacement = getPlacement(sc, "osd-prepare")
 			} else {
 				preparePlacement = ds.PreparePlacement
-				placement = ds.Placement
+				// ForOSD-prepare pods, we need to add the topology spread constraints always
+				// Without TSCs they will rarely be balanced by themselves
+				if len(preparePlacement.TopologySpreadConstraints) == 0 {
+					preparePlacement.TopologySpreadConstraints = getPlacement(sc, "osd-prepare").TopologySpreadConstraints
+				}
 			}
 
 			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
@@ -1098,16 +1075,6 @@ func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 	}
 
 	return spec
-}
-
-// addStrictFailureDomainTSC adds hard topology constraints at failure domain level
-// and uses soft topology constraints within failure domain (across host).
-func addStrictFailureDomainTSC(placement *rookCephv1.Placement, topologyKey string) {
-	newTSC := placement.TopologySpreadConstraints[0]
-	newTSC.TopologyKey = topologyKey
-	newTSC.WhenUnsatisfiable = "DoNotSchedule"
-
-	placement.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{newTSC, placement.TopologySpreadConstraints[0]}
 }
 
 // ensureCreated ensures that cephFilesystem resources exist in the desired
