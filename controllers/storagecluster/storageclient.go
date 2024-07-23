@@ -11,10 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	tokenLifetimeInHours         = 48
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
-)
+const tokenLifetimeInHours = 48
 
 type storageClient struct{}
 
@@ -27,11 +24,17 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 		return s.ensureDeleted(r, storagecluster)
 	}
 
+	privateKey, err := util.ReadPrivateKey(r.Client)
+	if err != nil {
+		r.Log.Info("Unable to get privatekey:")
+		return reconcile.Result{}, nil
+	}
+
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
-	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
+	_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
-			token, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil)
+			token, err := util.GenerateOnboardingToken(tokenLifetimeInHours, privateKey, nil)
 			if err != nil {
 				return fmt.Errorf("unable to generate onboarding token: %v", err)
 			}

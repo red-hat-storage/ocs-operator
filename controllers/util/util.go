@@ -5,6 +5,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const onboardingValidationPrivateKeySecretName = "onboarding-private-key"
+
 func RemoveDuplicatesFromStringSlice(slice []string) []string {
 	keys := make(map[string]bool)
 	list := []string{}

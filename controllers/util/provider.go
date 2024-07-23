@@ -5,12 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,9 +15,9 @@ import (
 )
 
 // GenerateOnboardingToken generates a token valid for a duration of "tokenLifetimeInHours".
-// The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
+// The token content is predefined and signed by the private key which'll be read from supplied "privateKey"
 // The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.
-func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotaInGiB *uint) (string, error) {
+func GenerateOnboardingToken(tokenLifetimeInHours int, privateKey *rsa.PrivateKey, storageQuotaInGiB *uint) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -46,11 +43,6 @@ func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, st
 		return "", fmt.Errorf("failed to hash onboarding token payload: %v", err)
 	}
 
-	privateKey, err := readAndDecodePrivateKey(privateKeyPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read and decode private key: %v", err)
-	}
-
 	msgHashSum := msgHash.Sum(nil)
 	// In order to generate the signature, we provide a random number generator,
 	// our private key, the hashing algorithm that we used, and the hash sum
@@ -62,18 +54,4 @@ func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, st
 
 	encodedSignature := base64.StdEncoding.EncodeToString(signature)
 	return fmt.Sprintf("%s.%s", encodedPayload, encodedSignature), nil
-}
-
-func readAndDecodePrivateKey(privateKeyPath string) (*rsa.PrivateKey, error) {
-	pemString, err := os.ReadFile(privateKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key: %v", err)
-	}
-
-	Block, _ := pem.Decode(pemString)
-	privateKey, err := x509.ParsePKCS1PrivateKey(Block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key: %v", err)
-	}
-	return privateKey, nil
 }

@@ -7,12 +7,17 @@ import (
 	"os"
 	"strconv"
 
-	"k8s.io/klog/v2"
-
+	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboardingtokens"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 type serverConfig struct {
+	client.Client
 	listenPort           int
 	tokenLifetimeInHours int
 	tlsEnabled           bool
@@ -61,8 +66,14 @@ func main() {
 		klog.Info("shutting down!")
 		os.Exit(-1)
 	}
+
+	cl, err := newClient()
+	if err != nil {
+		klog.Exitf("failed to create client: %v", err)
+	}
+
 	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
-		onboardingtokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+		onboardingtokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)
@@ -81,4 +92,26 @@ func main() {
 	}
 	log.Fatal(err)
 
+}
+
+func newClient() (client.Client, error) {
+	klog.Info("Setting up k8s client")
+	scheme := runtime.NewScheme()
+	if err := v1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
 }

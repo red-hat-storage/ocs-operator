@@ -10,10 +10,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-)
-
-const (
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var unitToGib = map[string]uint{
@@ -22,20 +19,27 @@ var unitToGib = map[string]uint{
 	"Pi": 1024 * 1024,
 }
 
-func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client) {
 	switch r.Method {
 	case "POST":
-		handlePost(w, r, tokenLifetimeInHours)
+		handlePost(w, r, tokenLifetimeInHours, cl)
 	default:
 		handleUnsupportedMethod(w, r)
 	}
 }
 
-func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client) {
 	var storageQuotaInGiB *uint
 	// When ContentLength is 0 that means request body is empty and
 	// storage quota is unlimited
 	var err error
+
+	privateKey, err := util.ReadPrivateKey(cl)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get private key: %v", err), http.StatusBadRequest)
+		return
+	}
+
 	if r.ContentLength != 0 {
 		var quota = struct {
 			Value uint   `json:"value"`
@@ -57,7 +61,8 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 		}
 		storageQuotaInGiB = ptr.To(unitAsGiB * quota.Value)
 	}
-	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB); err != nil {
+
+	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, privateKey, storageQuotaInGiB); err != nil {
 		klog.Errorf("failed to get onboardig token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
