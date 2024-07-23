@@ -629,6 +629,10 @@ spec:
                 - name: ONBOARDING_TOKEN_LIFETIME
                 - name: UX_BACKEND_PORT
                 - name: TLS_ENABLED
+                - name: OPERATOR_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: IfNotPresent
                 name: ux-backend-server
@@ -639,8 +643,6 @@ spec:
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
                 volumeMounts:
-                - mountPath: /etc/private-key
-                  name: onboarding-private-key
                 - mountPath: /etc/tls/private
                   name: ux-cert-secret
               - args:
@@ -676,10 +678,6 @@ spec:
                 operator: Equal
                 value: "true"
               volumes:
-              - name: onboarding-private-key
-                secret:
-                  optional: true
-                  secretName: onboarding-private-key
               - name: ux-proxy-secret
                 secret:
                   secretName: ux-backend-proxy

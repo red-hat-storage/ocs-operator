@@ -44,7 +44,12 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	storageClient.Name = storagecluster.Name
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
-			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil)
+
+			privateKey, err := util.GetParsedPrivateKey(r.Client, r.OperatorNamespace)
+			if err != nil {
+				return fmt.Errorf("unable to get Parsed Private Key: %v", err)
+			}
+			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, privateKey, nil)
 			if err != nil {
 				return fmt.Errorf("unable to generate onboarding token: %v", err)
 			}

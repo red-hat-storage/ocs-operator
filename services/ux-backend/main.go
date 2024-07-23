@@ -10,7 +10,12 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/clienttokens"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 type serverConfig struct {
@@ -63,18 +68,23 @@ func main() {
 		os.Exit(-1)
 	}
 
+	cl, err := newClient()
+	if err != nil {
+		klog.Exitf("failed to create client: %v", err)
+	}
+
 	// TODO: remove '/onboarding-tokens' in the future
 	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
 		// Set the Deprecation header
 		w.Header().Set("Deprecation", "true") // Standard "Deprecation" header
 		w.Header().Set("Link", "/onboarding/client-tokens; rel=\"alternate\"")
-		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl)
 	})
 	http.HandleFunc("/onboarding/client-tokens", func(w http.ResponseWriter, r *http.Request) {
-		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl)
 	})
 	http.HandleFunc("/onboarding/peer-tokens", func(w http.ResponseWriter, r *http.Request) {
-		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)
@@ -93,4 +103,26 @@ func main() {
 	}
 	log.Fatal(err)
 
+}
+
+func newClient() (client.Client, error) {
+	klog.Info("Setting up k8s client")
+	scheme := runtime.NewScheme()
+	if err := ocsv1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
 }
