@@ -8,6 +8,7 @@ import (
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -136,6 +137,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	nb.Labels = map[string]string{
 		"app": "noobaa",
+	}
+
+	if sc.Spec.AllowRemoteStorageConsumers {
+		util.AddAnnotation(nb, "MulticloudObjectGatewayProviderMode", "true")
 	}
 
 	if !r.IsNoobaaStandalone {
