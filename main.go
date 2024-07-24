@@ -168,6 +168,22 @@ func main() {
 		setupLog.Error(err, "Unable to get OperatorCondition")
 		os.Exit(1)
 	}
+	// apiclient.New() returns a client without cache.
+	// cache is not initialized before mgr.Start()
+	// we need this because we need to interact with OperatorCondition
+	apiClient, err := apiclient.New(mgr.GetConfig(), apiclient.Options{
+		Scheme: mgr.GetScheme(),
+	})
+	if err != nil {
+		setupLog.Error(err, "Unable to get Client")
+		os.Exit(1)
+	}
+
+	availCrds, err := getAvailableCRDNames(context.Background(), apiClient)
+	if err != nil {
+		setupLog.Error(err, "Unable get a list of available CRD names")
+		os.Exit(1)
+	}
 
 	if err = (&ocsinitialization.OCSInitializationReconciler{
 		Client:            mgr.GetClient(),
@@ -175,6 +191,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		SecurityClient:    secv1client.NewForConfigOrDie(mgr.GetConfig()),
 		OperatorNamespace: operatorNamespace,
+		AvailableCrds:     availCrds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OCSInitialization")
 		os.Exit(1)
@@ -186,6 +203,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
 		OperatorCondition: condition,
+		AvailableCrds:     availCrds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageCluster")
 		os.Exit(1)
@@ -243,17 +261,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// apiclient.New() returns a client without cache.
-	// cache is not initialized before mgr.Start()
-	// we need this because we need to interact with OperatorCondition
-	apiClient, err := apiclient.New(mgr.GetConfig(), apiclient.Options{
-		Scheme: mgr.GetScheme(),
-	})
-	if err != nil {
-		setupLog.Error(err, "Unable to get Client")
-		os.Exit(1)
-	}
-
 	// Set OperatorCondition Upgradeable to True
 	// We have to at least default the condition to True or
 	// OLM will use the Readiness condition via our readiness probe instead:
@@ -281,4 +288,18 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func getAvailableCRDNames(ctx context.Context, cl apiclient.Client) (map[string]bool, error) {
+	crdExist := map[string]bool{}
+	crdList := &metav1.PartialObjectMetadataList{}
+	crdList.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinitionList"))
+	if err := cl.List(ctx, crdList); err != nil {
+		return nil, fmt.Errorf("error listing CRDs, %v", err)
+	}
+	// Iterate over the list and populate the map
+	for i := range crdList.Items {
+		crdExist[crdList.Items[i].Name] = true
+	}
+	return crdExist, nil
 }

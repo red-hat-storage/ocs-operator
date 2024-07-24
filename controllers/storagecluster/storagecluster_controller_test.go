@@ -1208,6 +1208,8 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	frecorder := record.NewFakeRecorder(1024)
 	reporter := statusutil.NewEventReporter(frecorder)
 
+	availCrds := map[string]bool{}
+
 	return StorageClusterReconciler{
 		recorder:          reporter,
 		Client:            client,
@@ -1216,6 +1218,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 		clusters:          clusters,
 		OperatorNamespace: operatorNamespace,
+		AvailableCrds:     availCrds,
 	}
 }
 

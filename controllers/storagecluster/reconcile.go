@@ -7,16 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blang/semver/v4"
-	"github.com/go-logr/logr"
-	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	"github.com/operator-framework/operator-lib/conditions"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
+
+	"github.com/blang/semver/v4"
+	"github.com/go-logr/logr"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	"github.com/operator-framework/operator-lib/conditions"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -70,6 +72,8 @@ const (
 
 	// EBS represents AWS EBS provisioner for StorageClass
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
+
+	VirtualMachineCrdName = "virtualmachines.kubevirt.io"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -142,6 +146,15 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.ctx = ctrllog.IntoContext(ctx, r.Log)
+
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = VirtualMachineCrdName
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to get CRD", "CRD", VirtualMachineCrdName)
+		return reconcile.Result{}, err
+	}
+	util.AssertEqual(r.AvailableCrds[VirtualMachineCrdName], crd.UID != "", util.ExitCodeThatShouldRestartTheProcess)
 
 	// Fetch the StorageCluster instance
 	sc := &ocsv1.StorageCluster{}

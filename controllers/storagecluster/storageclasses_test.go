@@ -62,6 +62,7 @@ var (
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: pluralName + "." + "kubevirt.io",
+				UID:  "uid",
 			},
 			Spec: extv1.CustomResourceDefinitionSpec{
 				Group: "kubevirt.io",
@@ -99,7 +100,6 @@ func TestCustomEncryptedStorageClasses(t *testing.T) {
 
 func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.StorageClusterSpec) {
 	runtimeObjs := []client.Object{}
-	runtimeObjs = append(runtimeObjs, createVirtualMachineCRD())
 	if pvEncryption {
 		runtimeObjs = append(runtimeObjs, createDummyKMSConfigMap(dummyKmsProvider, dummyKmsAddress, ""))
 	}

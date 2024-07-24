@@ -1,7 +1,9 @@
 package util
 
 import (
+	"github.com/go-logr/logr"
 	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -67,4 +69,35 @@ func (p MetadataChangedPredicate) Update(e event.UpdateEvent) bool {
 		!reflect.DeepEqual(e.ObjectOld.GetFinalizers(), e.ObjectNew.GetFinalizers())
 
 	return metaChanged
+}
+
+// Name Predicate return a predicate the filter events produced
+// by resources that matches the given name
+func NamePredicate(name string) predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetName() == name
+	})
+}
+
+func CrdCreateAndDeletePredicate(log *logr.Logger, crdName string, crdExists bool) predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool {
+			if !crdExists {
+				log.Info("CustomResourceDefinition %s was Created.", crdName)
+			}
+			return !crdExists
+		},
+		DeleteFunc: func(_ event.DeleteEvent) bool {
+			if crdExists {
+				log.Info("CustomResourceDefinition %s was Deleted.", crdName)
+			}
+			return crdExists
+		},
+		UpdateFunc: func(_ event.UpdateEvent) bool {
+			return false
+		},
+		GenericFunc: func(_ event.GenericEvent) bool {
+			return false
+		},
+	}
 }
