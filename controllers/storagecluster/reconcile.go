@@ -4,6 +4,8 @@ import (
 	"context"
 	error1 "errors"
 	"fmt"
+	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -159,6 +161,17 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 		return reconcile.Result{}, err
 	}
 
+	var err error
+	availableCrds, err := statusutil.MapCRDAvailability(ctx, r.Client, statusutil.GetCrds()...)
+	if err != nil {
+		r.Log.Error(err, "error fetching the CRDs")
+		return reconcile.Result{}, err
+	}
+	if !reflect.DeepEqual(availableCrds, r.AvailableCrds) {
+		r.Log.Info("CustomResourceDefinitions created/deleted. Restarting process.")
+		os.Exit(42)
+	}
+
 	if err := r.validateStorageClusterSpec(sc); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -166,7 +179,6 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	r.IsNoobaaStandalone = sc.Spec.MultiCloudGateway != nil &&
 		ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) == ReconcileStrategyStandalone
 
-	var err error
 	r.clusters, err = statusutil.GetClusters(ctx, r.Client)
 	if err != nil {
 		r.Log.Error(err, "Failed to get clusters")

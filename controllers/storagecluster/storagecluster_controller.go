@@ -96,6 +96,7 @@ type StorageClusterReconciler struct {
 	IsMultipleStorageClusters bool
 	clusters                  *util.Clusters
 	OperatorNamespace         string
+	AvailableCrds             map[string]bool
 }
 
 // SetupWithManager sets up a controller with manager
@@ -211,6 +212,31 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	crdPredicate := predicate.Funcs{
+		CreateFunc: func(e event.TypedCreateEvent[client.Object]) bool {
+			crdAvailable, keyExist := r.AvailableCrds[e.Object.GetName()]
+			if keyExist && !crdAvailable {
+				r.Log.Info("CustomResourceDefinition %s was Created.", e.Object.GetName())
+				return true
+			}
+			return false
+		},
+		DeleteFunc: func(e event.TypedDeleteEvent[client.Object]) bool {
+			crdAvailable, keyExist := r.AvailableCrds[e.Object.GetName()]
+			if keyExist && crdAvailable {
+				r.Log.Info("CustomResourceDefinition %s was Deleted.", e.Object.GetName())
+				return true
+			}
+			return false
+		},
+		UpdateFunc: func(e event.TypedUpdateEvent[client.Object]) bool {
+			return false
+		},
+		GenericFunc: func(e event.TypedGenericEvent[client.Object]) bool {
+			return false
+		},
+	}
+
 	build := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}, builder.WithPredicates(cephClusterIgnoreTimeUpdatePredicate)).
@@ -228,6 +254,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&routev1.Route{}).
 		Owns(&templatev1.Template{}).
+		Watches(&extv1.CustomResourceDefinition{}, enqueueStorageClusterRequest, builder.WithPredicates(crdPredicate)).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
 		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
 		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).

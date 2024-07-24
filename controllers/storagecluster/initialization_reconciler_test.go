@@ -401,5 +401,6 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		Scheme:            scheme,
 		OperatorCondition: newStubOperatorCondition(),
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
+		AvailableCrds:     make(map[string]bool),
 	}
 }

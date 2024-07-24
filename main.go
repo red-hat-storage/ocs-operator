@@ -166,6 +166,22 @@ func main() {
 		setupLog.Error(err, "Unable to get OperatorCondition")
 		os.Exit(1)
 	}
+	// apiclient.New() returns a client without cache.
+	// cache is not initialized before mgr.Start()
+	// we need this because we need to interact with OperatorCondition
+	apiClient, err := apiclient.New(mgr.GetConfig(), apiclient.Options{
+		Scheme: mgr.GetScheme(),
+	})
+	if err != nil {
+		setupLog.Error(err, "Unable to get Client")
+		os.Exit(1)
+	}
+
+	availCrds, err := util.MapCRDAvailability(context.Background(), apiClient, util.GetCrds()...)
+	if err != nil {
+		setupLog.Error(err, "Unable to get CRD")
+		os.Exit(1)
+	}
 
 	if err = (&ocsinitialization.OCSInitializationReconciler{
 		Client:            mgr.GetClient(),
@@ -184,6 +200,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
 		OperatorCondition: condition,
+		AvailableCrds:     availCrds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageCluster")
 		os.Exit(1)
@@ -238,17 +255,6 @@ func main() {
 	// Add readiness probe
 	if err := mgr.AddReadyzCheck("readyz", storagecluster.ReadinessChecker); err != nil {
 		setupLog.Error(err, "unable add a readiness check")
-		os.Exit(1)
-	}
-
-	// apiclient.New() returns a client without cache.
-	// cache is not initialized before mgr.Start()
-	// we need this because we need to interact with OperatorCondition
-	apiClient, err := apiclient.New(mgr.GetConfig(), apiclient.Options{
-		Scheme: mgr.GetScheme(),
-	})
-	if err != nil {
-		setupLog.Error(err, "Unable to get Client")
 		os.Exit(1)
 	}
 
