@@ -30,8 +30,8 @@ require (
 	github.com/prometheus/client_model v0.6.1
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240701091545-dfffbde82a9d
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-20240701091545-dfffbde82a9d
-	github.com/rook/rook v1.14.7
-	github.com/rook/rook/pkg/apis v0.0.0-20240701212738-8e25300ad55a
+	github.com/rook/rook v1.14.8
+	github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0

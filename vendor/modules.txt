@@ -390,8 +390,8 @@ github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 ## explicit; go 1.22.0
 github.com/red-hat-storage/ocs-operator/api/v4/v1
 github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
-# github.com/rook/rook/pkg/apis v0.0.0-20240701212738-8e25300ad55a
-## explicit; go 1.21
+# github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330
+## explicit; go 1.22.0
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 # github.com/ryanuber/go-glob v1.0.0
