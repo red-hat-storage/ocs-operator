@@ -620,11 +620,8 @@ spec:
                 name: ocs-operator
             spec:
               containers:
-              - args:
-                - --enable-leader-election
-                - --health-probe-bind-address=:8081
-                command:
-                - ocs-operator
+              - command:
+                - crdavail
                 env:
                 - name: WATCH_NAMESPACE
                   valueFrom:

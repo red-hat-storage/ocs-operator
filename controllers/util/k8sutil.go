@@ -11,6 +11,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -148,4 +149,17 @@ func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) 
 		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
+}
+
+func MapCRDAvailability(ctx context.Context, clnt client.Client, crdNames ...string) (map[string]bool, error) {
+	crdExist := map[string]bool{}
+	for _, crdName := range crdNames {
+		crd := &apiextensionsv1.CustomResourceDefinition{}
+		crd.Name = crdName
+		if err := clnt.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+			return nil, fmt.Errorf("error getting CRD, %v", err)
+		}
+		crdExist[crdName] = crd.UID != ""
+	}
+	return crdExist, nil
 }
