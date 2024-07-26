@@ -213,6 +213,8 @@ type ManageCephCluster struct {
 	// +kubebuilder:validation:Maximum=1.0
 	// +nullable
 	BackfillFullRatio *float64 `json:"backfillFullRatio,omitempty"`
+	// Whether to allow updating the device class after the OSD is initially provisioned
+	AllowDeviceClassUpdate bool `json:"allowDeviceClassUpdate,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
