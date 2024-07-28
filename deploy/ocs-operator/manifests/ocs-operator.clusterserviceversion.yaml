@@ -635,7 +635,7 @@ spec:
                 - name: OCS_METRICS_EXPORTER_IMAGE
                   value: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 - name: ROOK_CEPH_IMAGE
-                  value: quay.io/ocs-dev/rook-ceph:vmaster-19a200ac8
+                  value: quay.io/ocs-dev/rook-ceph:vmaster-f470cffb4
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v18.2.0
                 - name: NOOBAA_CORE_IMAGE
@@ -792,7 +792,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: quay.io/ocs-dev/rook-ceph:vmaster-19a200ac8
+  - image: quay.io/ocs-dev/rook-ceph:vmaster-f470cffb4
     name: rook-container
   - image: quay.io/ceph/ceph:v18.2.0
     name: ceph-container

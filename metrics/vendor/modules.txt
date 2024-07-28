@@ -294,14 +294,14 @@ github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 # github.com/red-hat-storage/ocs-operator/v4 v4.0.0-20240701091545-dfffbde82a9d => ../
 ## explicit; go 1.22.0
 github.com/red-hat-storage/ocs-operator/v4/version
-# github.com/rook/rook v1.14.7
+# github.com/rook/rook v1.14.8
 ## explicit; go 1.21
 github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
-# github.com/rook/rook/pkg/apis v0.0.0-20240701212738-8e25300ad55a
-## explicit; go 1.21
+# github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330
+## explicit; go 1.22.0
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 # github.com/ryanuber/go-glob v1.0.0

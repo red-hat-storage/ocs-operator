@@ -716,10 +716,10 @@ github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTE
 github.com/rogpeppe/go-internal v1.8.1/go.mod h1:JeRgkft04UBgHMgCIwADu4Pn6Mtm5d4nPKWu0nJ5d+o=
 github.com/rogpeppe/go-internal v1.12.0 h1:exVL4IDcn6na9z1rAb56Vxr+CgyK3nn3O+epU5NdKM8=
 github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99yedzYV+kq4uf4=
-github.com/rook/rook v1.14.7 h1:zM7AqFFIF1T7s9UuGyVc+W57C+5NarrPqGxelpa6aLQ=
-github.com/rook/rook v1.14.7/go.mod h1:sOQF/ldz7F8PBMbSZjKvmMa8fxPooKXed2bFSYnjX98=
-github.com/rook/rook/pkg/apis v0.0.0-20240701212738-8e25300ad55a h1:OFQE5B28nldHt3ra/btSxA/4IBNT4nxkdn4pi/oMTCQ=
-github.com/rook/rook/pkg/apis v0.0.0-20240701212738-8e25300ad55a/go.mod h1:eRyfiXm9FbP2cYJnwQHnbEQiyCcD2B7efUY4Nru3vYo=
+github.com/rook/rook v1.14.8 h1:8Xc/5ObOI86xl/q/kmZIItjl6AYjdAX91E6lOaR2akc=
+github.com/rook/rook v1.14.8/go.mod h1:wr+uEGtUsleDyKjoycsZ0Ri1bPx44gdaLfA6/cVu2m4=
+github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330 h1:O581QP/ezZL6W+7FiUzIK4JyBeVMeYw5RkRgeeZc+6I=
+github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330/go.mod h1:KrSNWObtUiClFp78mM5EMlrKrYvhy0APKejdAkdAlT8=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=

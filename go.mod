@@ -31,7 +31,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.75.0
 	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240325165741-300e2b620f51
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240701091545-dfffbde82a9d
-	github.com/rook/rook/pkg/apis v0.0.0-20240701212738-8e25300ad55a
+	github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.26.0

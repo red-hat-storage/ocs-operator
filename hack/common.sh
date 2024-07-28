@@ -49,7 +49,7 @@ OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 # We are using rook dowsntream image now, i.e, red-hat-storage/rook code
 # and we should continue to use dowsntream image only due to few
 # downstream only changes present in rook downstream fork.
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-19a200ac8"
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-f470cffb4"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20240108"
 LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v18.2.0"

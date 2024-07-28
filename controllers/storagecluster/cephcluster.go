@@ -445,6 +445,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				Interval: &metav1.Duration{Duration: 30 * time.Second},
 			},
 			Storage: rookCephv1.StorageScopeSpec{
+				AllowDeviceClassUpdate:       sc.Spec.ManagedResources.CephCluster.AllowDeviceClassUpdate,
 				StorageClassDeviceSets:       newStorageClassDeviceSets(sc),
 				FlappingRestartIntervalHours: 24,
 				FullRatio:                    sc.Spec.ManagedResources.CephCluster.FullRatio,
