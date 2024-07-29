@@ -57,6 +57,11 @@ spec:
                   should be deployed.
                   Defaults to false
                 type: boolean
+              ocsServerServiceType:
+                description: |-
+                  OCSServerServiceType indicates the ServiceType for OCS Server Service.
+                  The supported values are ClusterIP, NodePort and LoadBalancer. The default ServiceType is NodePort if the value is empty.
+                type: string
               tolerations:
                 description: |-
                   Tolerations if specified set toolbox ceph tools pod tolerations
@@ -132,6 +137,12 @@ spec:
                   type: object
                 type: array
               errorMessage:
+                type: string
+              ocsServerEndpoint:
+                description: |-
+                  OCSServerEndpoint holds endpoint info of ocs cluster which is required for
+                  clients to establish connection with the storage providing cluster and
+                  cross communication between the ocs clusters
                 type: string
               phase:
                 description: |-

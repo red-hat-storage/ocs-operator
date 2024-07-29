@@ -7884,11 +7884,6 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
-              storageProviderEndpoint:
-                description: |-
-                  StorageProviderEndpoint holds endpoint info on Provider cluster which is required
-                  for consumer to establish connection with the storage providing cluster.
-                type: string
               version:
                 description: Version specifies the version of StorageCluster
                 type: string

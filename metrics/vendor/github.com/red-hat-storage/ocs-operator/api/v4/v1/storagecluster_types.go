@@ -98,6 +98,7 @@ type StorageClusterSpec struct {
 	// ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
 	// The supported values are NodePort or LoadBalancer. The default ServiceType is NodePort if the value is empty.
 	// This will only be used when AllowRemoteStorageConsumers is set to true
+	// +kubebuilder:deprecatedversion:warning="v1/StorageCluster/ProviderAPIServerServiceType is deprecated use v1/OCSInitialization/OCSServerServiceType "
 	ProviderAPIServerServiceType corev1.ServiceType `json:"providerAPIServerServiceType,omitempty"`
 
 	// EnableCephTools toggles on whether or not the ceph tools pod
@@ -574,10 +575,6 @@ type StorageClusterStatus struct {
 
 	// LastAppliedResourceProfile is the resource profile that was last applied successfully & is currently in use.
 	LastAppliedResourceProfile string `json:"lastAppliedResourceProfile,omitempty"`
-
-	// StorageProviderEndpoint holds endpoint info on Provider cluster which is required
-	// for consumer to establish connection with the storage providing cluster.
-	StorageProviderEndpoint string `json:"storageProviderEndpoint,omitempty"`
 
 	// ExternalSecretHash holds the checksum value of external secret data.
 	ExternalSecretHash string `json:"externalSecretHash,omitempty"`
