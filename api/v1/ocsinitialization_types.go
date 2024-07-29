@@ -37,6 +37,10 @@ type OCSInitializationSpec struct {
 	// +optional
 	// +kubebuilder:deprecatedversion:warning="This field doesn't work anymore and will be removed in future. The tolerations along with any other placement spec are now set by adding them in the storage cluster CR under spec.placement[toolbox]"
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// OCSServerServiceType indicates the ServiceType for OCS Server Service.
+	// The supported values are ClusterIP, NodePort and LoadBalancer. The default ServiceType is NodePort if the value is empty.
+	OCSServerServiceType corev1.ServiceType `json:"ocsServerServiceType,omitempty"`
 }
 
 // OCSInitializationStatus defines the observed state of OCSInitialization
@@ -59,6 +63,11 @@ type OCSInitializationStatus struct {
 	SCCsCreated                   bool                         `json:"sCCsCreated,omitempty"`
 	RookCephOperatorConfigCreated bool                         `json:"rookCephOperatorConfigCreated,omitempty"`
 	RookCephOperatorConfig        RookCephOperatorConfigStatus `json:"rookCephOperatorConfig,omitempty"`
+
+	// OCSServerEndpoint holds endpoint info of ocs cluster which is required for
+	// clients to establish connection with the storage providing cluster and
+	// cross communication between the ocs clusters
+	OCSServerEndpoint string `json:"ocsServerEndpoint,omitempty"`
 }
 
 type RookCephOperatorConfigStatus struct {
