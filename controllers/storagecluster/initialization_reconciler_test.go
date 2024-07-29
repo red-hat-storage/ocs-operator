@@ -216,6 +216,7 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 		addedRuntimeObjects := []runtime.Object{node, service, deployment, secret, clientConfigMap}
 		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, addedRuntimeObjects...)
 
+		util.AddAnnotation(cr, "ocs.openshift.io/deployment-mode", "provider")
 	}
 
 	// Unpacks StorageProfile list to runtime objects array
