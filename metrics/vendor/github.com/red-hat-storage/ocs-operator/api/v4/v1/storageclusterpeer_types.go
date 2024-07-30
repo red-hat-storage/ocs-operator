@@ -35,8 +35,25 @@ const (
 	StorageClusterPeerRemoteStateConnected StorageClusterPeerRemoteState = "Connected"
 	// StorageClusterPeerRemoteStateOffboarding represents Onboarding state of storageClusterPeer
 	StorageClusterPeerRemoteStateOffboarding StorageClusterPeerRemoteState = "Offboarding"
-	// StorageClusterPeerRemoteStateDeleting represents Deleting state of StorageClusterPeerState
-	StorageClusterPeerRemoteStateDeleting StorageClusterPeerRemoteState = "Deleting"
+	// StorageClusterPeerRemoteStateOffboarded represents Deleting state of StorageClusterPeerState
+	StorageClusterPeerRemoteStateOffboarded StorageClusterPeerRemoteState = "Offboarded"
+)
+
+type BlockPoolMirroringState string
+
+const (
+	// BlockPoolMirroringStateInitializing represents Initializing state of BlockPoolMirroring
+	BlockPoolMirroringStateInitializing BlockPoolMirroringState = "Initializing"
+	// BlockPoolMirroringStateEnabling represents Enabling state of BlockPoolMirroring
+	BlockPoolMirroringStateEnabling BlockPoolMirroringState = "Enabling"
+	// BlockPoolMirroringStateFetchingBootstrapSecret represents FetchingBootstrapSecret state of BlockPoolMirroring
+	BlockPoolMirroringStateFetchingBootstrapSecret = "Fetching Bootstrap Secret"
+	// BlockPoolMirroringStateUpdatingBootstrapSecretRef represents UpdatingBootstrapSecretRef state of BlockPoolMirroring
+	BlockPoolMirroringStateUpdatingBootstrapSecretRef = "Updating Bootstrap Secret Ref"
+	// BlockPoolMirroringStateReady represents Ready state of BlockPoolMirroring
+	BlockPoolMirroringStateReady = "Ready"
+	// BlockPoolMirroringStateDisabled represents Disabled state of BlockPoolMirroring
+	BlockPoolMirroringStateDisabled BlockPoolMirroringState = "Disabled"
 )
 
 type NamespacedName struct {
@@ -88,7 +105,8 @@ type StorageClusterPeerSpec struct {
 
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer
 type StorageClusterPeerStatus struct {
-	RemoteState StorageClusterPeerRemoteState `json:"remoteState,omitempty"`
+	RemoteState             StorageClusterPeerRemoteState `json:"remoteState,omitempty"`
+	BlockPoolMirroringState BlockPoolMirroringState       `json:"BlockPoolMirroringState,omitempty"`
 }
 
 //+kubebuilder:object:root=true

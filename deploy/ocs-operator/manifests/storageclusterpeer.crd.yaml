@@ -150,6 +150,11 @@ spec:
             type: object
           status:
             description: StorageClusterPeerStatus defines the observed state of StorageClusterPeer
+            properties:
+              BlockPoolMirroringState:
+                type: string
+              remoteState:
+                type: string
             type: object
         type: object
     served: true
