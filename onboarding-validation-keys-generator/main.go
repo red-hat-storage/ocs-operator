@@ -5,14 +5,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -23,7 +21,6 @@ const (
 	// Name of existing public key which is used ocs-operator
 	onboardingValidationPublicKeySecretName  = "onboarding-ticket-key"
 	onboardingValidationPrivateKeySecretName = "onboarding-private-key"
-	storageClusterName                       = "ocs-storagecluster"
 )
 
 func main() {
@@ -33,10 +30,8 @@ func main() {
 	}
 
 	ctx := context.Background()
-	operatorNamespace, err := util.GetOperatorNamespace()
-	if err != nil {
-		klog.Exitf("unable to get operator namespace: %v", err)
-	}
+
+	namespace := util.GetPodNamespace()
 
 	// Generate RSA key.
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
@@ -49,11 +44,15 @@ func main() {
 	privatePem := convertRsaPrivateKeyAsPemStr(privateKey)
 	publicPem := convertRsaPublicKeyAsPemStr(publicKey)
 
-	storageCluster := &v1.StorageCluster{}
-	err = cl.Get(ctx, types.NamespacedName{Name: storageClusterName, Namespace: operatorNamespace}, storageCluster)
+	storageClusterList := &v1.StorageClusterList{}
+	err = cl.List(ctx, storageClusterList, client.InNamespace(namespace))
 	if err != nil {
-		klog.Exitf("failed to get storage cluster: %v", err)
+		klog.Exitf("unable to list storageCluster(s) in %v namespace, %v", namespace, err)
 	}
+	if len(storageClusterList.Items) != 1 {
+		klog.Exitf("unexpected number of storageCluster(s) found in %v namespace, expected: 1 actual: %v", namespace, len(storageClusterList.Items))
+	}
+	storageCluster := &storageClusterList.Items[0]
 
 	// In situations where there is a risk of one secret being updated and potentially
 	// failing to update another, it is recommended not to rely solely on clientset update mechanisms.
@@ -62,7 +61,7 @@ func main() {
 	// issues if one or two secrets do not exist instead of trying to understand if they match
 	privateSecret := &corev1.Secret{}
 	privateSecret.Name = onboardingValidationPrivateKeySecretName
-	privateSecret.Namespace = operatorNamespace
+	privateSecret.Namespace = namespace
 	err = cl.Delete(ctx, privateSecret)
 	if err != nil && !kerrors.IsNotFound(err) {
 		klog.Exitf("failed to delete private secret: %v", err)
@@ -71,7 +70,7 @@ func main() {
 	// Delete public key secret
 	publicSecret := &corev1.Secret{}
 	publicSecret.Name = onboardingValidationPublicKeySecretName
-	publicSecret.Namespace = operatorNamespace
+	publicSecret.Namespace = namespace
 	err = cl.Delete(ctx, publicSecret)
 	if err != nil && !kerrors.IsNotFound(err) {
 		klog.Exitf("failed to delete public secret: %v", err)

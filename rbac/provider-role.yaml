@@ -3,75 +3,75 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ocs-provider-server
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - secrets
-  - services
-  verbs:
-  - get
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - cephfilesystemsubvolumegroups
-  - cephblockpoolradosnamespaces
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ocs.openshift.io
-  resources:
-  - storageconsumers
-  - storageconsumers/finalizers
-  - storageconsumers/status
-  verbs:
-  - get
-  - list
-  - create
-  - delete
-  - update
-  - patch
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - cephclients
-  verbs:
-  - get
-- apiGroups:
-    - ""
-  resources:
-    - pods
-  verbs:
-    - get
-    - list
-- apiGroups:
-  - ocs.openshift.io
-  resources:
-  - storagerequests
-  verbs:
-  - get
-  - list
-  - create
-  - delete
-- apiGroups:
-  - operators.coreos.com
-  resources:
-  - subscriptions
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ocs.openshift.io
-  resources:
-  - storageclusters
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - route.openshift.io
-  resources:
-  - routes
-  verbs:
-  - get
-  - list
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+      - services
+    verbs:
+      - get
+  - apiGroups:
+      - ceph.rook.io
+    resources:
+      - cephfilesystemsubvolumegroups
+      - cephblockpoolradosnamespaces
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ocs.openshift.io
+    resources:
+      - storageconsumers
+      - storageconsumers/finalizers
+      - storageconsumers/status
+    verbs:
+      - get
+      - list
+      - create
+      - delete
+      - update
+      - patch
+  - apiGroups:
+      - ceph.rook.io
+    resources:
+      - cephclients
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ocs.openshift.io
+    resources:
+      - storagerequests
+    verbs:
+      - get
+      - list
+      - create
+      - delete
+  - apiGroups:
+      - operators.coreos.com
+    resources:
+      - subscriptions
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ocs.openshift.io
+    resources:
+      - storageclusters
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes
+    verbs:
+      - get
+      - list
