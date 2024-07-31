@@ -19,9 +19,9 @@ var (
 func main() {
 	flag.Parse()
 
-	klog.Info("Starting Provider API server")
+	klog.Info("Starting OCS API server")
 
-	namespace, err := util.GetWatchNamespace()
+	namespace, err := util.GetOperatorNamespace()
 	if err != nil {
 		klog.Errorf("failed to get provider cluster namespace. %v", err)
 		return
@@ -30,9 +30,9 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	providerServer, err := server.NewOCSProviderServer(ctx, namespace)
+	providerServer, err := server.NewOCSServer(ctx, namespace)
 	if err != nil {
-		klog.Errorf("failed to start provider server. %v", err)
+		klog.Errorf("failed to start ocs api server. %v", err)
 		return
 	}
 

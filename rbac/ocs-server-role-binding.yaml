@@ -1,11 +1,11 @@
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ocs-provider-server
+  name: ocs-server
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: ocs-provider-server
+  name: ocs-server
 subjects:
 - kind: ServiceAccount
-  name: ocs-provider-server
+  name: ocs-server

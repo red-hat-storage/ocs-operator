@@ -5,14 +5,16 @@ import (
 	"strings"
 	"sync"
 
-	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -142,6 +144,11 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 		return "", err
 	}
 
+	ocsInit := &ocsv1.OCSInitialization{}
+	if err := r.Client.Get(r.ctx, types.NamespacedName{Name: util.OCSInitName, Namespace: r.OperatorNamespace}, ocsInit); err != nil {
+		return "", err
+	}
+
 	data := ocsv1a1.OdfInfoData{
 		Version:           ocsVersion,
 		DeploymentType:    odfDeploymentType,
@@ -149,7 +156,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 		Clients:           connectedClients,
 		StorageCluster: ocsv1a1.InfoStorageCluster{
 			NamespacedName:          client.ObjectKeyFromObject(storageCluster),
-			StorageProviderEndpoint: storageCluster.Status.StorageProviderEndpoint,
+			StorageProviderEndpoint: ocsInit.Status.OCSServerEndpoint,
 			CephClusterFSID:         cephFSId,
 		},
 	}

@@ -177,49 +177,12 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 	}
 
 	if remoteConsumers {
-		node := &v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					"node-role.kubernetes.io/worker": "",
-				},
-			},
-			Status: v1.NodeStatus{
-				Addresses: []v1.NodeAddress{
-					{
-						Type:    v1.NodeInternalIP,
-						Address: "0:0:0:0",
-					},
-				},
-			},
-		}
-
-		os.Setenv(providerAPIServerImage, "fake-image")
-		os.Setenv(util.WatchNamespaceEnvVar, "")
-		os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
-
-		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		deployment.Status.AvailableReplicas = 1
-
-		service := &v1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		service.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{
-			{
-				Hostname: "fake",
-			},
-		}
-
-		secret := &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
 
 		clientConfigMap := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
 		}
 
-		addedRuntimeObjects := []runtime.Object{node, service, deployment, secret, clientConfigMap}
+		addedRuntimeObjects := []runtime.Object{clientConfigMap}
 		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, addedRuntimeObjects...)
 
 		util.AddAnnotation(cr, "ocs.openshift.io/deployment-mode", "provider")

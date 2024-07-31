@@ -3,6 +3,7 @@ package ocsinitialization
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -16,6 +17,7 @@ import (
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,6 +72,24 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconciler {
 	ocsinit := &v1.OCSInitialization{}
 	scheme := createFakeScheme(t)
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"node-role.kubernetes.io/worker": "",
+			},
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    corev1.NodeInternalIP,
+					Address: "0:0:0:0",
+				},
+			},
+		},
+	}
+	objs = append(objs, node)
+	os.Setenv(statusutil.OnboardingValidationKeysGeneratorImage, "fake-image")
+
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).WithStatusSubresource(ocsinit).Build()
 	secClient := &fakeSecClient.FakeSecurityV1{Fake: &testingClient.Fake{}}
 	log := logf.Log.WithName("controller_storagecluster_test")
@@ -120,6 +140,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 		assert.Fail(t, "failed to add extensionsv1 scheme")
 	}
 
+	err = batchv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add batchv1 scheme")
+	}
 	return scheme
 }
 
