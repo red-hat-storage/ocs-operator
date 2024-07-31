@@ -22,11 +22,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		(&in).DeepCopyInto(&placement)
 	}
 
-	// ignore default PodAntiAffinity mon placement when arbiter is enabled
-	if component == "mon" && arbiterEnabled(sc) {
-		placement.PodAntiAffinity = &corev1.PodAntiAffinity{}
-	}
-
 	if component == "arbiter" {
 		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
 			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
@@ -41,13 +36,11 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	// if provider-server placements are found in the storagecluster spec append the default ocs tolerations to it
 	if ok && component == defaults.APIServerKey {
 		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
 	}
 
 	// if metrics-exporter placements are found in the storagecluster spec append the default ocs tolerations to it
 	if ok && component == defaults.MetricsExporterKey {
 		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
 	}
 
 	// If no placement is specified for the given component and the
@@ -66,24 +59,15 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		}
 	}
 
-	topologyMap := sc.Status.NodeTopologies
-	if topologyMap == nil {
-		return placement
-	}
-
-	topologyKey := getFailureDomain(sc)
-	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-	if component == "mon" || component == "mds" || component == "rgw" {
-		if placement.PodAntiAffinity != nil {
-			if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[i].PodAffinityTerm.TopologyKey = topologyKey
-				}
-			}
-			if placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i].TopologyKey = topologyKey
-				}
+	if component == "mgr" || component == "mon" || component == "mds" || component == "rgw" || component == "nfs" {
+		// for these ceph-daemons we always need to add topology spread constraints if not present, to ensure their even distribution
+		if len(placement.TopologySpreadConstraints) == 0 {
+			placement.TopologySpreadConstraints = defaults.DaemonPlacements[component].TopologySpreadConstraints
+		}
+		// if the topology key is empty, set it to the failure domain key of the cluster
+		for i := range placement.TopologySpreadConstraints {
+			if placement.TopologySpreadConstraints[i].TopologyKey == "" {
+				placement.TopologySpreadConstraints[i].TopologyKey = sc.Status.FailureDomainKey
 			}
 		}
 	}
