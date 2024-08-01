@@ -331,11 +331,19 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if instance.GetDeletionTimestamp().IsZero() {
+		var instanceUpdateRequired bool
+		// Setting an annotation on the storagecluster allows to only look at metadata for finding the configured mode rather than parsing the spec
+		if instance.Spec.AllowRemoteStorageConsumers && util.AddAnnotation(instance, "ocs.openshift.io/deployment-mode", "provider") {
+			instanceUpdateRequired = true
+		}
 		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			r.Log.Info("Finalizer not found for StorageCluster. Adding finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
-			if err := r.Client.Update(context.TODO(), instance); err != nil {
-				r.Log.Info("Failed to update StorageCluster with finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+			instanceUpdateRequired = true
+		}
+		if instanceUpdateRequired {
+			if err := r.Client.Update(r.ctx, instance); err != nil {
+				r.Log.Info("Failed to update StorageCluster", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return reconcile.Result{}, err
 			}
 		}
