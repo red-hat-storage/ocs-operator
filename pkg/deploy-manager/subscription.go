@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	yaml "github.com/ghodss/yaml"
 	operatorv1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	operatorv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	yaml "sigs.k8s.io/yaml"
 )
 
 const marketplaceNamespace = "openshift-marketplace"

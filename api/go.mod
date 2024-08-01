@@ -3,12 +3,12 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 go 1.22.0
 
 require (
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240625102417-4d63b956e6e6
-	github.com/openshift/api v0.0.0-20240701145226-44d00ee80f5e
-	github.com/openshift/custom-resource-status v1.1.2
-	github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330
-	k8s.io/api v0.30.2
-	k8s.io/apimachinery v0.30.2
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240729130336-d3d80339937e
+	github.com/openshift/api v0.0.0-20240731234847-c299a673ec72
+	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
+	github.com/rook/rook/pkg/apis v0.0.0-20240731231156-36a318edb995
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
 )
 
 require (
@@ -64,7 +64,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/client-go v0.30.2 // indirect
+	k8s.io/client-go v0.30.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240620174524-b456828f718b // indirect
 	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0 // indirect
