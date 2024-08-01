@@ -9,43 +9,42 @@ replace github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
 require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi/api v0.0.0-20240701133233-1f192ac3dad8
-	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
+	github.com/ceph/ceph-csi/api v0.0.0-20240731141259-e3697f4d3e49
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.0.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240625102417-4d63b956e6e6
-	github.com/onsi/ginkgo/v2 v2.19.0
-	github.com/onsi/gomega v1.33.1
-	github.com/openshift/api v0.0.0-20240701145226-44d00ee80f5e
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240729130336-d3d80339937e
+	github.com/onsi/ginkgo/v2 v2.19.1
+	github.com/onsi/gomega v1.34.1
+	github.com/openshift/api v0.0.0-20240731234847-c299a673ec72
 	github.com/openshift/build-machinery-go v0.0.0-20240419090851-af9c868bcf52
 	github.com/openshift/client-go v0.0.0-20240528061634-b054aa794d87
-	github.com/openshift/custom-resource-status v1.1.2
+	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 	github.com/operator-framework/api v0.26.0
 	github.com/operator-framework/operator-lib v0.14.0
 	github.com/operator-framework/operator-lifecycle-manager v0.28.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.75.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.75.0
-	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240325165741-300e2b620f51
-	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240701091545-dfffbde82a9d
-	github.com/rook/rook/pkg/apis v0.0.0-20240724043336-cf2462fca330
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.75.2
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.75.2
+	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240731100835-31192d2c370e
+	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240731064750-930a78b89d84
+	github.com/rook/rook/pkg/apis v0.0.0-20240731231156-36a318edb995
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/net v0.26.0
-	google.golang.org/grpc v1.63.2
+	golang.org/x/net v0.27.0
+	google.golang.org/grpc v1.63.3
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/ini.v1 v1.67.0
-	gopkg.in/yaml.v3 v3.0.1
+	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.5.1
-	k8s.io/api v0.30.2
-	k8s.io/apiextensions-apiserver v0.30.2
-	k8s.io/apimachinery v0.30.2
-	k8s.io/client-go v0.30.2
+	k8s.io/api v0.30.3
+	k8s.io/apiextensions-apiserver v0.30.3
+	k8s.io/apimachinery v0.30.3
+	k8s.io/client-go v0.30.3
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0
+	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.18.4
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -55,13 +54,14 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containernetworking/cni v1.2.0-rc1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/analysis v0.20.0 // indirect
@@ -116,20 +116,20 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	go.mongodb.org/mongo-driver v1.9.0 // indirect
-	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/crypto v0.24.0 // indirect
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
+	go.uber.org/zap v1.27.0 // indirect
+	golang.org/x/crypto v0.25.0 // indirect
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	golang.org/x/tools v0.23.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiserver v0.30.2 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	k8s.io/apiserver v0.30.3 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/kube-aggregator v0.29.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20240620174524-b456828f718b // indirect

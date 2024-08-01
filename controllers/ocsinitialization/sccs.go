@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/ocp"
-	"github.com/ghodss/yaml"
 	nbbundle "github.com/noobaa/noobaa-operator/v5/pkg/bundle"
 	secv1 "github.com/openshift/api/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -13,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/yaml"
 )
 
 func (r *OCSInitializationReconciler) ensureSCCs(initialData *ocsv1.OCSInitialization) error {

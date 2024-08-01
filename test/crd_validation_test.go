@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/RHsyseng/operator-utils/pkg/validation"
-	"github.com/ghodss/yaml"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"sigs.k8s.io/yaml"
 
 	"github.com/stretchr/testify/assert"
 )
