@@ -23,7 +23,6 @@ const (
 	// Name of existing public key which is used ocs-operator
 	onboardingValidationPublicKeySecretName  = "onboarding-ticket-key"
 	onboardingValidationPrivateKeySecretName = "onboarding-private-key"
-	storageClusterName                       = "ocs-storagecluster"
 )
 
 func main() {
@@ -49,10 +48,10 @@ func main() {
 	privatePem := convertRsaPrivateKeyAsPemStr(privateKey)
 	publicPem := convertRsaPublicKeyAsPemStr(publicKey)
 
-	storageCluster := &v1.StorageCluster{}
-	err = cl.Get(ctx, types.NamespacedName{Name: storageClusterName, Namespace: operatorNamespace}, storageCluster)
+	ocsInit := &v1.OCSInitialization{}
+	err = cl.Get(ctx, types.NamespacedName{Name: util.OCSInitName, Namespace: operatorNamespace}, ocsInit)
 	if err != nil {
-		klog.Exitf("failed to get storage cluster: %v", err)
+		klog.Exitf("failed to get OCS Initialization resource: %v", err)
 	}
 
 	// In situations where there is a risk of one secret being updated and potentially
@@ -77,7 +76,7 @@ func main() {
 		klog.Exitf("failed to delete public secret: %v", err)
 	}
 
-	err = controllerutil.SetOwnerReference(storageCluster, privateSecret, cl.Scheme())
+	err = controllerutil.SetControllerReference(ocsInit, privateSecret, cl.Scheme())
 	if err != nil {
 		klog.Exitf("failed to set owner reference for private secret: %v", err)
 	}
@@ -91,7 +90,7 @@ func main() {
 		klog.Exitf("failed to create private secret: %v", err)
 	}
 
-	err = controllerutil.SetOwnerReference(storageCluster, publicSecret, cl.Scheme())
+	err = controllerutil.SetControllerReference(ocsInit, publicSecret, cl.Scheme())
 	if err != nil {
 		klog.Exitf("failed to set owner reference for public secret: %v", err)
 	}

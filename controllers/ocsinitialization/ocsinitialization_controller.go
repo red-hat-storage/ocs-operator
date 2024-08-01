@@ -294,7 +294,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ocsInitializationController := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
+		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&promv1.Prometheus{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&promv1.Alertmanager{}).
