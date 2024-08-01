@@ -13,6 +13,7 @@ import (
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
 	corev1 "k8s.io/api/core/v1"
@@ -330,11 +331,19 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if instance.GetDeletionTimestamp().IsZero() {
+		var instanceUpdateRequired bool
+		// Setting an annotation on the storagecluster allows to only look at metadata for finding the configured mode rather than parsing the spec
+		if instance.Spec.AllowRemoteStorageConsumers && util.AddAnnotation(instance, "ocs.openshift.io/deployment-mode", "provider") {
+			instanceUpdateRequired = true
+		}
 		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			r.Log.Info("Finalizer not found for StorageCluster. Adding finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
-			if err := r.Client.Update(context.TODO(), instance); err != nil {
-				r.Log.Info("Failed to update StorageCluster with finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+			instanceUpdateRequired = true
+		}
+		if instanceUpdateRequired {
+			if err := r.Client.Update(r.ctx, instance); err != nil {
+				r.Log.Info("Failed to update StorageCluster", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return reconcile.Result{}, err
 			}
 		}
