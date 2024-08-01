@@ -746,6 +746,56 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
 					})},
 				&pb.ExternalResource{
+					Name: "ceph-rbd",
+					Kind: "VolumeReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+						"mirroringMode": "snapshot",
+					}),
+					Annotations: map[string]string{
+						"replication.storage.openshift.io/is-default-class": "true",
+					},
+				},
+				&pb.ExternalResource{
+					Name: "ceph-rbd-flatten",
+					Kind: "VolumeReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+						"mirroringMode": "snapshot",
+					}),
+					Labels: map[string]string{
+						"flattenMode": "force",
+					},
+					Annotations: map[string]string{
+						"replication.storage.openshift.io/flatten-mode": "force",
+					},
+				},
+				&pb.ExternalResource{
+					Name: "ceph-rbd",
+					Kind: "VolumeGroupReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/group-replication-secret-name": provisionerSecretName,
+						"mirroringMode": "snapshot",
+					}),
+					Annotations: map[string]string{
+						"replication.storage.openshift.io/is-default-class": "true",
+					},
+				},
+				&pb.ExternalResource{
+					Name: "ceph-rbd-flatten",
+					Kind: "VolumeGroupReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/group-replication-secret-name": provisionerSecretName,
+						"mirroringMode": "snapshot",
+					}),
+					Labels: map[string]string{
+						"flattenMode": "force",
+					},
+					Annotations: map[string]string{
+						"replication.storage.openshift.io/flatten-mode": "force",
+					},
+				},
+				&pb.ExternalResource{
 					Kind: "ClientProfile",
 					Name: "ceph-rbd",
 					Data: mustMarshal(&csiopv1a1.ClientProfileSpec{
