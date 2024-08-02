@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
-	"github.com/ghodss/yaml"
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -24,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 )
 
 var (
