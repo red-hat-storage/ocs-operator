@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"go.uber.org/multierr"
@@ -42,6 +43,7 @@ const (
 
 	ocsClientConfigMapName = "ocs-client-operator-config"
 	deployCSIKey           = "DEPLOY_CSI"
+	manageNoobaaSubKey     = "manageNoobaaSubscription"
 )
 
 type ocsProviderServer struct{}
@@ -537,10 +539,11 @@ func (o *ocsProviderServer) updateClientConfigMap(r *StorageClusterReconciler, n
 		clientConfig.Data = map[string]string{}
 	}
 	clientConfig.Data[deployCSIKey] = "true"
+	clientConfig.Data[manageNoobaaSubKey] = strconv.FormatBool(false)
 
 	if !maps.Equal(clientConfig.Data, existingData) {
 		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
-			r.Log.Error(err, "failed to update ocs client configmap for enabling CSI")
+			r.Log.Error(err, "failed to update client operator's configmap data")
 			return err
 		}
 	}

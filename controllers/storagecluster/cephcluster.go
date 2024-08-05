@@ -180,12 +180,17 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 				// reset the KMS connection's error field,
 				// it will be anyway set if there is an error
 				sc.Status.KMSServerConnection.KMSServerConnectionError = ""
-				if kmsConfigMap.Data["KMS_PROVIDER"] == "vault" {
-					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["VAULT_ADDR"]
-				} else if kmsConfigMap.Data["KMS_PROVIDER"] == AzureKSMProvider {
-					sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data["AZURE_VAULT_URL"]
-				}
-				if err = reachKMSProvider(kmsConfigMap); err != nil {
+				// get the current KMS provider name
+				currKMSProvider := kmsConfigMap.Data[KMSProviderKey]
+				// according to the KMS provider, get the corresponding address/endpoint key
+				// and use it to set 'KMSServerAddress' status
+				kmsAddrssKey := kmsProviderAddressKeyMap[currKMSProvider]
+				sc.Status.KMSServerConnection.KMSServerAddress = kmsConfigMap.Data[kmsAddrssKey]
+				// if the KMS connection address is empty, log it as an error and continue
+				if sc.Status.KMSServerConnection.KMSServerAddress == "" {
+					r.Log.Error(nil, "An empty KMS server connection address found",
+						"KMSProviderName", currKMSProvider, "KMSAddressKey", kmsAddrssKey)
+				} else if err = reachKMSProvider(kmsConfigMap); err != nil {
 					sc.Status.KMSServerConnection.KMSServerConnectionError = err.Error()
 					r.Log.Error(err, "Address provided in KMS ConfigMap is not reachable.", "KMSConfigMap", klog.KRef(kmsConfigMap.Namespace, kmsConfigMap.Name))
 					return reconcile.Result{}, err
