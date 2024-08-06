@@ -7,9 +7,9 @@ import (
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"gotest.tools/v3/assert"
