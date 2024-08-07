@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"math"
 	"net"
 	"strconv"
@@ -55,16 +56,18 @@ const (
 )
 
 const (
-	monConfigMap = "rook-ceph-mon-endpoints"
-	monSecret    = "rook-ceph-mon"
+	monConfigMap                     = "rook-ceph-mon-endpoints"
+	monSecret                        = "rook-ceph-mon"
+	rbdMirrorBootstrapPeerSecretName = "rbdMirrorBootstrapPeerSecretName"
 )
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
-	client                client.Client
-	consumerManager       *ocsConsumerManager
-	storageRequestManager *storageRequestManager
-	namespace             string
+	client                    client.Client
+	consumerManager           *ocsConsumerManager
+	storageRequestManager     *storageRequestManager
+	storageClusterPeerManager *ocsConfigMapManager
+	namespace                 string
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
@@ -83,11 +86,17 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
 	}
 
+	storageClusterPeerManager, err := newConfigMapManager(ctx, client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new StorageClusterPeerManager instance. %v", err)
+	}
+
 	return &OCSProviderServer{
-		client:                client,
-		consumerManager:       consumerManager,
-		storageRequestManager: storageRequestManager,
-		namespace:             namespace,
+		client:                    client,
+		consumerManager:           consumerManager,
+		storageRequestManager:     storageRequestManager,
+		storageClusterPeerManager: storageClusterPeerManager,
+		namespace:                 namespace,
 	}, nil
 }
 
@@ -110,7 +119,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 	}
 
-	onboardingTicket, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey)
+	onboardingTicket, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey, services.ClientRole)
 	if err != nil {
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
@@ -225,6 +234,10 @@ func newClient() (client.Client, error) {
 	err := ocsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
+	}
+	err = ocsv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add ocsv1 to scheme. %v", err)
 	}
 	err = corev1.AddToScheme(scheme)
 	if err != nil {
@@ -470,7 +483,7 @@ func getSubVolumeGroupClusterID(subVolumeGroup *rookCephv1.CephFilesystemSubVolu
 	return hex.EncodeToString(hash[:16])
 }
 
-func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.OnboardingTicket, error) {
+func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey, desiredRole services.Role) (*services.OnboardingTicket, error) {
 	ticketArr := strings.Split(string(ticket), ".")
 	if len(ticketArr) != 2 {
 		return nil, fmt.Errorf("invalid ticket")
@@ -489,6 +502,10 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 
 	if ticketData.StorageQuotaInGiB > math.MaxInt {
 		return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, ticketData.StorageQuotaInGiB)
+	}
+
+	if ticketData.Role != desiredRole {
+		return nil, fmt.Errorf("failed to validate onboarding ticket role, %s role used instead of %s", ticketData.Role, desiredRole)
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])
@@ -768,4 +785,163 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
 	}
 	return subscription.Spec.Channel, nil
+}
+
+func (s *OCSProviderServer) getStorageCluster(ctx context.Context, storageClusterName string) (*ocsv1.StorageCluster, error) {
+	namespacedName := strings.Split(storageClusterName, "/")
+	if len(namespacedName) != 2 {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get storageCluster. %v", fmt.Errorf("invalid format: expected 'namespace/name', got '%s'", storageClusterName))
+	}
+	storageCluster := &ocsv1.StorageCluster{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: namespacedName[1], Namespace: namespacedName[0]}, storageCluster)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get storageCluster. %v", err)
+	}
+	return storageCluster, nil
+}
+
+func (s *OCSProviderServer) OnboardStorageClusterPeer(ctx context.Context, req *pb.OnboardStorageClusterPeerRequest) (*pb.OnboardStorageClusterPeerResponse, error) {
+
+	pubKey, err := s.getOnboardingValidationKey(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for StorageClusterPeer %q. %v", req.StorageClusterPeerUID, err)
+	}
+
+	if _, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey, services.MirroringPeerRole); err != nil {
+		klog.Errorf("failed to validate onboarding ticket for StorageClusterPeer  %q. %v", req.StorageClusterPeerUID, err)
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
+	}
+
+	storageCluster, err := s.getStorageCluster(ctx, req.RemoteStorageClusterName)
+	if err != nil {
+		klog.Errorf("failed to get Storage Cluster %q. %v", req.RemoteStorageClusterName, err)
+		return nil, err
+	}
+
+	err = s.storageClusterPeerManager.Create(ctx, req.OnboardingTicket, req.StorageClusterPeerUID, storageCluster.Name, storageCluster.Namespace)
+	if err != nil {
+		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExistsStorageClusterPeer {
+			return nil, status.Errorf(codes.Internal, "failed to create StorageClusterPeer representation %q. %v", req.StorageClusterPeerUID, err)
+		}
+
+		representation, err := s.storageClusterPeerManager.GetByName(ctx, req.StorageClusterPeerUID, storageCluster.Namespace)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get StorageClusterPeer representation. %v", err)
+		}
+
+		if s.storageClusterPeerManager.IsEnabled(representation) {
+			err = fmt.Errorf("storageClusterPeer representation %s already exists", req.StorageClusterPeerUID)
+			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageClusterPeer representation %q. %v", req.StorageClusterPeerUID, err)
+		}
+	}
+
+	return &pb.OnboardStorageClusterPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) OffboardStorageClusterPeer(ctx context.Context, req *pb.OffboardStorageClusterPeerRequest) (*pb.OffboardStorageClusterPeerResponse, error) {
+
+	storageCluster, err := s.getStorageCluster(ctx, req.RemoteStorageClusterName)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.storageClusterPeerManager.Delete(ctx, req.StorageClusterPeerUID, storageCluster.Namespace)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete storageClusterPeer representation with the provided UUID. %v", err)
+	}
+
+	return &pb.OffboardStorageClusterPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) AcknowledgeOnboardingStorageClusterPeer(ctx context.Context, req *pb.AcknowledgeOnboardingStorageClusterPeerRequest) (*pb.AcknowledgeOnboardingStorageClusterPeerResponse, error) {
+
+	storageCluster, err := s.getStorageCluster(ctx, req.RemoteStorageClusterName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = s.storageClusterPeerManager.Enable(ctx, req.StorageClusterPeerUID, storageCluster.Namespace); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "storageClusterPeer representation not found. %v", err)
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to update the storageClusterPeer representation. %v", err)
+	}
+	return &pb.AcknowledgeOnboardingStorageClusterPeerResponse{}, nil
+}
+
+func (s *OCSProviderServer) GetMirroringInfo(ctx context.Context, req *pb.MirroringInfoRequest) (*pb.MirroringInfoResponse, error) {
+
+	storageCluster, err := s.getStorageCluster(ctx, req.RemoteStorageClusterName)
+	if err != nil {
+		return nil, err
+	}
+
+	representation, err := s.storageClusterPeerManager.GetByName(ctx, req.StorageClusterPeerUID, storageCluster.Namespace)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to get storageClusterPeer representation: %q. %v", req.StorageClusterPeerUID, err)
+		if kerrors.IsNotFound(err) {
+			return nil, status.Error(codes.NotFound, errMsg)
+		}
+		return nil, status.Error(codes.Internal, errMsg)
+	}
+
+	if !s.storageClusterPeerManager.IsEnabled(representation) {
+		errMsg := fmt.Sprintf("failed to process the request as StorageClusterPeer is not acknowledged: %q", req.StorageClusterPeerUID)
+		return nil, status.Errorf(codes.Unauthenticated, errMsg)
+
+	}
+
+	var extR []*pb.ExternalResource
+
+	cephBlockPool := &rookCephv1.CephBlockPool{}
+	for _, blockPoolName := range req.BlockPoolNames {
+		err := s.client.Get(ctx, types.NamespacedName{Name: blockPoolName, Namespace: storageCluster.Namespace}, cephBlockPool)
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, err.Error())
+		}
+
+		// if the blockPool is forbidden for mirroring return an error
+		if _, ok := cephBlockPool.Labels[util.CephBlockPoolForbidMirroringLabel]; ok {
+			errMsg := fmt.Sprintf("BlockPool is forbidden for mirroring: %v", blockPoolName)
+			klog.Error(errMsg)
+			return nil, status.Errorf(codes.Internal, errMsg)
+		}
+
+		// if the blockPool mirroring is not enabled return an error
+		if !cephBlockPool.Spec.Mirroring.Enabled {
+			errMsg := fmt.Sprintf("Mirroring is not enabled for blockpool: %v", blockPoolName)
+			klog.Error(errMsg)
+			return nil, status.Errorf(codes.Internal, errMsg)
+		}
+
+		if cephBlockPool.Status.Info != nil &&
+			cephBlockPool.Status.Info[rbdMirrorBootstrapPeerSecretName] != "" {
+
+			secret := &corev1.Secret{}
+			err := s.client.Get(ctx,
+				types.NamespacedName{
+					Name:      cephBlockPool.Status.Info[rbdMirrorBootstrapPeerSecretName],
+					Namespace: storageCluster.Namespace},
+				secret)
+			if err != nil {
+				errMsg := fmt.Sprintf("Error fetching bootstrap secret %s for blockPool %s: %v",
+					cephBlockPool.Status.Info[rbdMirrorBootstrapPeerSecretName],
+					blockPoolName,
+					err)
+				klog.Error(errMsg)
+				return nil, status.Errorf(codes.Internal, errMsg)
+			}
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: cephBlockPool.Name,
+				Kind: "Secret",
+				Data: mustMarshal(secret.Data)})
+		} else {
+			errMsg := fmt.Sprintf("Bootstrap secret for BlockPool %s is not generated", blockPoolName)
+			klog.Error(errMsg)
+			return nil, status.Errorf(codes.Internal, errMsg)
+		}
+	}
+
+	return &pb.MirroringInfoResponse{ExternalResource: extR}, nil
 }
