@@ -400,6 +400,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			objs = []resourceManager{
 				&ocsProviderServer{},
 				&storageClient{},
+				&onboardingValidationKeysGeneratorJob{},
 				&backingStorageClasses{},
 				&ocsTopologyMap{},
 				&ocsStorageQuota{},
