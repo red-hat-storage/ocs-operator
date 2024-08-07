@@ -8,6 +8,7 @@ approvers:
   - BlaineEXE
   - nb-ohad
   - iamniting
+  - travisn
 # review == this code is good /lgtm
 reviewers:
   - jarrpa
@@ -18,3 +19,4 @@ reviewers:
   - BlaineEXE
   - nb-ohad
   - iamniting
+  - travisn
