@@ -88,6 +88,12 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		}
 	}
 
+	if component == "osd" || component == "osd-prepare" {
+		if len(placement.TopologySpreadConstraints) > 0 && placement.TopologySpreadConstraints[0].TopologyKey == "" {
+			placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		}
+	}
+
 	return placement
 }
 

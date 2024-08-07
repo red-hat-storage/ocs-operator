@@ -45,8 +45,30 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			// The first TSC is a hard constraint which restricts the movement of OSDs between failure domain
+			// The second TSC is a soft constraint which restricts the movement of OSDs between hosts
+			// The topology key in the first TSC is set to empty string, it should be updated to the failure domain key
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector}),
+				{
+					MaxSkew:           1,
+					TopologyKey:       "",
+					WhenUnsatisfiable: "DoNotSchedule",
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							appLabelSelectorKey: osdLabelSelector,
+						},
+					},
+				},
+				{
+					MaxSkew:           1,
+					TopologyKey:       corev1.LabelHostname,
+					WhenUnsatisfiable: "ScheduleAnyway",
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							appLabelSelectorKey: osdLabelSelector,
+						},
+					},
+				},
 			},
 		},
 
@@ -54,8 +76,40 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			// The first TSC is a hard constraint which restricts the movement of OSD-prepares between failure domain
+			// The second TSC is a soft constraint which restricts the movement of OSD-prepares between hosts
+			// The topology key in the first TSC is set to empty string, it should be updated to the failure domain key
+			// The TSCs for prepare pods should take into account both the osdLabelSelector and osdPrepareLabelSelector
+			// This is due to the fact that some of the prepare job pods might have been removed after completion
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector, osdPrepareLabelSelector}),
+				{
+					MaxSkew:           1,
+					TopologyKey:       "",
+					WhenUnsatisfiable: "DoNotSchedule",
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      appLabelSelectorKey,
+								Operator: metav1.LabelSelectorOpIn,
+								Values:   []string{osdLabelSelector, osdPrepareLabelSelector},
+							},
+						},
+					},
+				},
+				{
+					MaxSkew:           1,
+					TopologyKey:       corev1.LabelHostname,
+					WhenUnsatisfiable: "ScheduleAnyway",
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      appLabelSelectorKey,
+								Operator: metav1.LabelSelectorOpIn,
+								Values:   []string{osdLabelSelector, osdPrepareLabelSelector},
+							},
+						},
+					},
+				},
 			},
 		},
 
@@ -135,27 +189,6 @@ var (
 		},
 	}
 )
-
-// getTopologySpreadConstraintsSpec populates values required for topology spread constraints.
-// TopologyKey gets updated in newStorageClassDeviceSets after determining it from determineFailureDomain.
-func getTopologySpreadConstraintsSpec(maxSkew int32, valueLabels []string) corev1.TopologySpreadConstraint {
-	topologySpreadConstraints := corev1.TopologySpreadConstraint{
-		MaxSkew:           maxSkew,
-		TopologyKey:       corev1.LabelHostname,
-		WhenUnsatisfiable: "ScheduleAnyway",
-		LabelSelector: &metav1.LabelSelector{
-			MatchExpressions: []metav1.LabelSelectorRequirement{
-				{
-					Key:      appLabelSelectorKey,
-					Operator: metav1.LabelSelectorOpIn,
-					Values:   valueLabels,
-				},
-			},
-		},
-	}
-
-	return topologySpreadConstraints
-}
 
 func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
 	WeightedPodAffinityTerm := corev1.WeightedPodAffinityTerm{
