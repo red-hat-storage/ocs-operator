@@ -153,6 +153,7 @@ ceph config set client.rbd-mirror-peer debug_rbd 15
 ceph config set client.rbd-mirror-peer debug_rbd_mirror 30
 ceph config set client.rbd-mirror-peer log_file /var/log/ceph/\$cluster-\$name.log
 ceph config set mgr mgr/rbd_support/log_level debug
+ceph config set mgr mgr/prometheus/rbd_stats_pools "*"
 		echo "completed"`
 	disableRbdMirrorDebugLoggingCommands :=
 		`echo "Removing configuration of mirror logging"
