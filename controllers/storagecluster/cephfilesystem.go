@@ -54,7 +54,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		ret.Spec.DataPools = []cephv1.NamedPoolSpec{
 			{
 				PoolSpec: cephv1.PoolSpec{
-					DeviceClass:   generateDeviceClass(initStorageCluster),
+					DeviceClass:   initStorageCluster.Status.DefaultCephDeviceClass,
 					Replicated:    generateCephReplicatedSpec(initStorageCluster, "data"),
 					FailureDomain: initStorageCluster.Status.FailureDomain,
 				},
