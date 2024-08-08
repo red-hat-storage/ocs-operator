@@ -23,10 +23,7 @@ spec:
       serviceAccountName: ocs-operator
       containers:
       - command:
-        - ocs-operator
-        args:
-        - --enable-leader-election
-        - "--health-probe-bind-address=:8081"
+        - crdavail
         image: ocs-dev/ocs-operator:latest
         imagePullPolicy: Always
         name: ocs-operator
