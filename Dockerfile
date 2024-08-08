@@ -24,9 +24,10 @@ COPY --from=builder workspace/provider-api /usr/local/bin/provider-api
 COPY --from=builder workspace/onboarding-validation-keys-gen /usr/local/bin/onboarding-validation-keys-gen
 COPY --from=builder workspace/metrics/deploy/*rules*.yaml /ocs-prometheus-rules/
 COPY --from=builder workspace/ux-backend-server /usr/local/bin/ux-backend-server
+COPY --from=builder workspace/hack/crdavail.sh /usr/local/bin/crdavail
 
-RUN chmod +x /usr/local/bin/ocs-operator /usr/local/bin/provider-api
+RUN chmod +x /usr/local/bin/ocs-operator /usr/local/bin/provider-api /usr/local/bin/crdavail
 
 USER operator
 
-ENTRYPOINT ["/usr/local/bin/ocs-operator"]
+ENTRYPOINT ["/usr/local/bin/crdavail"]
