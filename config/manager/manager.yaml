@@ -23,7 +23,7 @@ spec:
       serviceAccountName: ocs-operator
       containers:
       - command:
-        - ocs-operator
+        - entrypoint
         args:
         - --enable-leader-election
         - "--health-probe-bind-address=:8081"
