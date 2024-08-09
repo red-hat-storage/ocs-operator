@@ -315,9 +315,6 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	if initData.Spec.ManagedResources.CephBlockPools.DefaultStorageClass {
 		scc.storageClass.Annotations[defaultStorageClassAnnotation] = "true"
 	}
-	if initData.Spec.Encryption.StorageClass {
-		scc.storageClass.Annotations["keyrotation.csiaddons.openshift.io/schedule"] = "@weekly"
-	}
 	return scc
 }
 
@@ -340,7 +337,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	volumeBindingWaitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
-	scc := StorageClassConfiguration{
+	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateNameForNonResilientCephBlockPoolSC(initData),
@@ -370,11 +367,6 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 		},
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
-	if initData.Spec.Encryption.StorageClass {
-		scc.storageClass.Annotations["keyrotation.csiaddons.openshift.io/schedule"] = "@weekly"
-	}
-
-	return scc
 }
 
 // newCephNFSStorageClassConfiguration generates configuration options for a Ceph NFS StorageClass.
