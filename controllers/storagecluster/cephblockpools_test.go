@@ -139,23 +139,41 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 	request.Name = "ocsinit-cephblockpool"
 	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCbp)
 	assert.NoError(t, err)
+
+	expectedCbp := cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephBlockPool(cr),
+			Namespace: cr.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					UID: cr.UID,
+				},
+			},
+		},
+		Spec: cephv1.NamedBlockPoolSpec{
+			PoolSpec: cephv1.PoolSpec{
+				DeviceClass:    cr.Status.DefaultCephDeviceClass,
+				FailureDomain:  getFailureDomain(cr),
+				Replicated:     generateCephReplicatedSpec(cr, "data"),
+				EnableRBDStats: true,
+			},
+		},
+	}
+
 	if mirroringEnabled {
-		assert.Equal(t, true, actualCbp.Spec.Mirroring.Enabled)
-		assert.Equal(t, "image", actualCbp.Spec.Mirroring.Mode)
+		expectedCbp.Spec.Mirroring.Enabled = true
+		expectedCbp.Spec.Mirroring.Mode = "image"
 		expectedSecretNames := []string(nil)
 		if validSecret {
 			expectedSecretNames = []string{testPeerSecretName}
 		}
-		assert.Equal(t, expectedSecretNames, actualCbp.Spec.Mirroring.Peers.SecretNames)
+		expectedCbp.Spec.Mirroring.Peers = &cephv1.MirroringPeerSpec{SecretNames: expectedSecretNames}
 	}
 
-	expectedCbp, err := reconciler.newCephBlockPoolInstances(cr)
-	assert.NoError(t, err)
+	assert.Equal(t, len(expectedCbp.OwnerReferences), 1)
 
-	assert.Equal(t, len(expectedCbp[0].OwnerReferences), 1)
-
-	assert.Equal(t, expectedCbp[0].ObjectMeta.Name, actualCbp.ObjectMeta.Name)
-	assert.Equal(t, expectedCbp[0].Spec, actualCbp.Spec)
+	assert.Equal(t, expectedCbp.ObjectMeta.Name, actualCbp.ObjectMeta.Name)
+	assert.Equal(t, expectedCbp.Spec, actualCbp.Spec)
 }
 
 func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
@@ -168,11 +186,28 @@ func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, c
 	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualNFSBlockPool)
 	assert.NoError(t, err)
 
-	expectedAf, err := reconciler.newCephBlockPoolInstances(cr)
-	assert.NoError(t, err)
+	expectedCbp := cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateNameForCephNFSBlockPool(cr),
+			Namespace: cr.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					UID: cr.UID,
+				},
+			},
+		},
+		Spec: cephv1.NamedBlockPoolSpec{
+			PoolSpec: cephv1.PoolSpec{
+				DeviceClass:    cr.Status.DefaultCephDeviceClass,
+				FailureDomain:  getFailureDomain(cr),
+				Replicated:     generateCephReplicatedSpec(cr, "data"),
+				EnableRBDStats: true,
+			},
+			Name: ".nfs",
+		},
+	}
 
-	assert.Equal(t, len(expectedAf[2].OwnerReferences), 1)
-
-	assert.Equal(t, expectedAf[2].ObjectMeta.Name, actualNFSBlockPool.ObjectMeta.Name)
-	assert.Equal(t, expectedAf[2].Spec, actualNFSBlockPool.Spec)
+	assert.Equal(t, len(expectedCbp.OwnerReferences), 1)
+	assert.Equal(t, expectedCbp.ObjectMeta.Name, actualNFSBlockPool.ObjectMeta.Name)
+	assert.Equal(t, expectedCbp.Spec, actualNFSBlockPool.Spec)
 }
