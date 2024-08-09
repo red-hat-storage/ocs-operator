@@ -666,7 +666,46 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					Kind: "VolumeGroupSnapshotClass",
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
-					})})
+					})},
+				&pb.ExternalResource{
+					Name: "ceph-rbd",
+					Kind: "VolumeReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+						"replication.storage.openshift.io/is-default-class":        "true",
+						"mirroringMode": "snapshot",
+					}),
+				},
+				&pb.ExternalResource{
+					Name: "ceph-rbd-flatten",
+					Kind: "VolumeReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+						"flattenMode":   "force",
+						"mirroringMode": "snapshot",
+						"replication.storage.openshift.io/flatten-mode": "force",
+					}),
+				},
+				&pb.ExternalResource{
+					Name: "ceph-rbd",
+					Kind: "VolumeGroupReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/group-replication-secret-name": provisionerSecretName,
+						"replication.storage.openshift.io/is-default-class":              "true",
+						"mirroringMode": "snapshot",
+					}),
+				},
+				&pb.ExternalResource{
+					Name: "ceph-rbd-flatten",
+					Kind: "VolumeGroupReplicationClass",
+					Data: mustMarshal(map[string]string{
+						"replication.storage.openshift.io/group-replication-secret-name": provisionerSecretName,
+						"flattenMode":   "force",
+						"mirroringMode": "snapshot",
+						"replication.storage.openshift.io/flatten-mode": "force",
+					}),
+				},
+			)
 
 		case "CephFilesystemSubVolumeGroup":
 			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}

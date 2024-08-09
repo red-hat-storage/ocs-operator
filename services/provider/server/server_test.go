@@ -594,6 +594,44 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
+			"ceph-rbd-volumereplicationclass": {
+				Name: "ceph-rbd",
+				Kind: "VolumeReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"replication.storage.openshift.io/is-default-class":        "true",
+					"mirroringMode": "snapshot",
+				},
+			},
+			"ceph-rbd-flatten-volumereplicationclass": {
+				Name: "ceph-rbd-flatten",
+				Kind: "VolumeReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"flattenMode":   "force",
+					"mirroringMode": "snapshot",
+					"replication.storage.openshift.io/flatten-mode": "force",
+				},
+			},
+			"ceph-rbd-volumegroupreplicationclass": {
+				Name: "ceph-rbd",
+				Kind: "VolumeGroupReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/group-replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"replication.storage.openshift.io/is-default-class":              "true",
+					"mirroringMode": "snapshot",
+				},
+			},
+			"ceph-rbd-flatten-volumegroupreplicationclass": {
+				Name: "ceph-rbd-flatten",
+				Kind: "VolumeGroupReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/group-replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"flattenMode":   "force",
+					"mirroringMode": "snapshot",
+					"replication.storage.openshift.io/flatten-mode": "force",
+				},
+			},
 			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
 				Name: "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				Kind: "Secret",
@@ -945,6 +983,10 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
 			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+		} else if extResource.Kind == "VolumeReplicationClass" {
+			name = fmt.Sprintf("%s-volumereplicationclass", name)
+		} else if extResource.Kind == "VolumeGroupReplicationClass" {
+			name = fmt.Sprintf("%s-volumegroupreplicationclass", name)
 		}
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
@@ -974,6 +1016,10 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
 			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+		} else if extResource.Kind == "VolumeReplicationClass" {
+			name = fmt.Sprintf("%s-volumereplicationclass", name)
+		} else if extResource.Kind == "VolumeGroupReplicationClass" {
+			name = fmt.Sprintf("%s-volumegroupreplicationclass", name)
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
