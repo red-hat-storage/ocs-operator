@@ -19,6 +19,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	quotav1 "github.com/openshift/api/quota/v1"
+	ocsopv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
@@ -593,6 +594,9 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	var extR []*pb.ExternalResource
 
 	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
+
+	var storageClassMetaData []byte
+
 	for _, cephRes := range storageRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
@@ -631,6 +635,22 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", cephRes.Name, err)
 			}
 
+			// fetch ceph block pool for the mirroring flag
+			cbp := &rookCephv1.CephBlockPool{}
+			cbp.Name = rns.Spec.BlockPoolName
+			cbp.Namespace = s.namespace
+
+			if err = s.client.Get(ctx, client.ObjectKeyFromObject(cbp), cbp); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPool. %v", cephRes.Name, err)
+			}
+
+			// fetch storage cluster peer to indicate whether replication is enabled
+			scp := &ocsopv1.StorageClusterPeerList{}
+			if err = s.client.List(ctx, scp, client.InNamespace(s.namespace)); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s StorageClusterPeerList. %v", cephRes.Name, err)
+			}
+			replicationFlag := len(scp.Items) > 1
+
 			provisionerSecretName := storageClaimCephCsiSecretName("provisioner", storageRequestHash)
 			nodeSecretName := storageClaimCephCsiSecretName("node", storageRequestHash)
 			rbdStorageClassData := map[string]string{
@@ -649,24 +669,24 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				rbdStorageClassData["encryptionKMSID"] = storageRequest.Spec.EncryptionMethod
 			}
 
-			extR = append(extR,
-				&pb.ExternalResource{
-					Name: "ceph-rbd",
-					Kind: "StorageClass",
-					Data: mustMarshal(rbdStorageClassData),
-				},
-				&pb.ExternalResource{
-					Name: "ceph-rbd",
-					Kind: "VolumeSnapshotClass",
-					Data: mustMarshal(map[string]string{
-						"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
-					})},
-				&pb.ExternalResource{
-					Name: "ceph-rbd",
-					Kind: "VolumeGroupSnapshotClass",
-					Data: mustMarshal(map[string]string{
-						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
-					})})
+			storageClassMetaData = mustMarshal(map[string]string{
+				"mirroring":   fmt.Sprintf("%v", cbp.Spec.Mirroring.Enabled),
+				"replication": fmt.Sprintf("%v", replicationFlag),
+			})
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: "ceph-rbd",
+				Kind: "StorageClass",
+				Data: mustMarshal(rbdStorageClassData),
+			})
+
+			extR = append(extR, &pb.ExternalResource{
+				Name: "ceph-rbd",
+				Kind: "VolumeSnapshotClass",
+				Data: mustMarshal(map[string]string{
+					"clusterID": rbdStorageClassData["clusterID"],
+					"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
+				})})
 
 		case "CephFilesystemSubVolumeGroup":
 			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
@@ -715,7 +735,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	}
 
 	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
-	return &pb.StorageClaimConfigResponse{ExternalResource: extR}, nil
+	return &pb.StorageClaimConfigResponse{ExternalResource: extR, MetaData: storageClassMetaData}, nil
 
 }
 
