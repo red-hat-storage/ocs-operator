@@ -61,3 +61,10 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageclusters
+  verbs:
+  - get
+  - list
