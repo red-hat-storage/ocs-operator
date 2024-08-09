@@ -1,4 +1,4 @@
-package storagecluster
+package util
 
 import (
 	"reflect"
@@ -85,8 +85,8 @@ func Test_getReadAffinityOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getReadAffinityOptions(tt.args.sc); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getReadAffinityOptions() = %v, want %v", got, tt.want)
+			if got := GetReadAffinityOptions(tt.args.sc); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetReadAffinityOptions() = %v, want %v", got, tt.want)
 			}
 		})
 	}
