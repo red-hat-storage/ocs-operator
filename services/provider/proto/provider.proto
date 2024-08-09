@@ -38,6 +38,23 @@ service OCSProvider {
 
   rpc ReportStatus(ReportStatusRequest)
   returns (ReportStatusResponse){}
+
+  // OnboardStorageClusterPeer RPC call to onboard the StorageClusterPeer to the remote ODF Cluster
+  rpc OnboardStorageClusterPeer(OnboardStorageClusterPeerRequest)
+  returns (OnboardStorageClusterPeerResponse) {}
+
+  // OffboardStorageClusterPeer RPC call to offboard the StorageClusterPeer from the remote ODF Cluster
+  rpc OffboardStorageClusterPeer(OffboardStorageClusterPeerRequest)
+  returns (OffboardStorageClusterPeerResponse) {}
+
+  // AcknowledgeOnboardingStorageClusterPeer RPC call acknowledge the StorageClusterPeer Onboarding
+  rpc AcknowledgeOnboardingStorageClusterPeer(AcknowledgeOnboardingStorageClusterPeerRequest)
+  returns (AcknowledgeOnboardingStorageClusterPeerResponse){}
+
+  // GetMirroringInfo RPC call to get the mirroring info for connecting block pools from local to remote ODF Cluster
+  rpc GetMirroringInfo(MirroringInfoRequest)
+  returns (MirroringInfoResponse) {}
+
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -172,3 +189,55 @@ message ReportStatusResponse{
     // Contains subscription channel of provider operator for client operator to match
     string desiredClientOperatorChannel = 1;
 }
+
+// OnboardStorageClusterPeerRequest holds the required information to onboard to remote ODF cluster
+message OnboardStorageClusterPeerRequest{
+    // onboardingTicket authenticates the StorageClusterPeer
+    string onboardingTicket = 1;
+    // storageClusterPeerUID is the k8s UID of the StorageClusterPeer on local ODF cluster
+    string storageClusterPeerUID = 2;
+    // remoteStorageClusterName is the namespacedName of the remote storage Cluster
+    string remoteStorageClusterName = 3;
+}
+
+// OnboardStorageClusterPeerResponse holds the response for OnboardStorageClusterPeer API request
+message OnboardStorageClusterPeerResponse{}
+
+// OffboardStorageClusterPeerRequest holds the required information to offboard from remote ODF cluster.
+message OffboardStorageClusterPeerRequest{
+    // storageClusterPeerUID is the K8s UID of the StorageClusterPeer on local ODF cluster
+    string storageClusterPeerUID = 1;
+    // remoteStorageClusterName is the namespacedName of the remote storage Cluster
+    string remoteStorageClusterName = 2;
+}
+
+// OffboardStorageClusterPeerResponse holds the response for the OffboardStorageClusterPeer API request
+message OffboardStorageClusterPeerResponse{}
+
+// AcknowledgeOnboardingStorageClusterPeerRequest holds the information required to acknowledge the onboarding
+message AcknowledgeOnboardingStorageClusterPeerRequest{
+    // storageClusterPeerUID is the K8s UID of the StorageClusterPeer on local ODF cluster
+    string storageClusterPeerUID = 1;
+    // remoteStorageClusterName is the namespacedName of the remote storage Cluster
+    string remoteStorageClusterName = 2;
+}
+
+// AcknowledgeMirrorPeerOnboardingResponse holds the response for the AcknowledgeOnboardingStorageClusterPeer API request
+message AcknowledgeOnboardingStorageClusterPeerResponse{}
+
+// MirroringInfoRequest holds the information required to get config for mirroring block pools on local cluster.
+message MirroringInfoRequest{
+    // storageClusterPeerUID is the K8s UID of the StorageClusterPeer on local ODF cluster
+    string storageClusterPeerUID = 1;
+    // remoteStorageClusterName is the namespacedName of the remote storage Cluster
+    string remoteStorageClusterName = 2;
+    // BlockPoolNames is a list of BlockPools for mirroring
+    repeated string BlockPoolNames = 3;
+}
+
+// MirroringInfoResponse holds the response for the GetMirroringInfo API request
+message MirroringInfoResponse{
+    // ExternalResource holds the block pool configuration data from remote cluster
+    repeated ExternalResource externalResource = 1;
+}
+
