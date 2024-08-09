@@ -8,12 +8,11 @@ import (
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-)
-
-const (
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 var unitToGib = map[string]uint{
@@ -36,6 +35,11 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 	// When ContentLength is 0 that means request body is empty and
 	// storage quota is unlimited
 	var err error
+	client, err := newClient()
+	if err != nil {
+		klog.Errorf("failed to create new client. %v", err)
+	}
+
 	if r.ContentLength != 0 {
 		var quota = struct {
 			Value uint   `json:"value"`
@@ -57,7 +61,7 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 		}
 		storageQuotaInGiB = ptr.To(unitAsGiB * quota.Value)
 	}
-	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB); err != nil {
+	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, client, storageQuotaInGiB); err != nil {
 		klog.Errorf("failed to get onboardig token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
@@ -85,4 +89,20 @@ func handleUnsupportedMethod(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte(fmt.Sprintf("Unsupported method : %s", r.Method))); err != nil {
 		klog.Errorf("failed write data to response writer: %v", err)
 	}
+}
+
+func newClient() (client.Client, error) {
+	klog.Info("Setting up k8s client")
+	scheme := runtime.NewScheme()
+
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
 }
