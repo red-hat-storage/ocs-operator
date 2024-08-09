@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,10 +34,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // operatorNamespace is the namespace the operator is running in
@@ -63,6 +68,8 @@ func InitNamespacedName() types.NamespacedName {
 // nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
+	cluster           cluster.Cluster
+	controller        controller.Controller
 	ctx               context.Context
 	Log               logr.Logger
 	Scheme            *runtime.Scheme
@@ -150,6 +157,45 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	r.availableCrds, err = util.MapCRDAvailability(r.ctx, r.Client, r.Log, ClusterClaimCrdName)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if _, ok := r.availableCrds[ClusterClaimCrdName]; ok {
+		crdHandler := handler.TypedEnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
+			if obj.GetName() == ClusterClaimCrdName {
+				return []reconcile.Request{
+					{
+						NamespacedName: initNamespacedName,
+					},
+				}
+			}
+			return []reconcile.Request{}
+		})
+
+		crdPredicate := predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				if metaObj, ok := e.Object.(metav1.Object); ok {
+					return metaObj.GetName() == ClusterClaimCrdName
+				}
+				return false
+			},
+			DeleteFunc: func(_ event.DeleteEvent) bool {
+				return false
+			},
+			UpdateFunc: func(_ event.UpdateEvent) bool {
+				return false
+			},
+			GenericFunc: func(_ event.GenericEvent) bool {
+				return false
+			},
+		}
+		if err := r.controller.Watch(source.Kind[client.Object](r.cluster.GetCache(),
+			&apiextensionsv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: ClusterClaimCrdName,
+				},
+			}, crdHandler, crdPredicate)); err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to watch CRD")
+		}
 	}
 
 	r.clusters, err = util.GetClusters(ctx, r.Client)
@@ -264,6 +310,13 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 
 // SetupWithManager sets up a controller with a manager
 func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	cluster, err := cluster.New(mgr.GetConfig(), func(options *cluster.Options) {
+		options.Scheme = mgr.GetScheme()
+	})
+	if err != nil {
+		return err
+	}
+	r.cluster = cluster
 	operatorNamespace = r.OperatorNamespace
 	prometheusPredicate := predicate.NewPredicateFuncs(
 		func(client client.Object) bool {
@@ -271,7 +324,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
-	ocsInitializationController := ctrl.NewControllerManagedBy(mgr).
+	ocsInitializationController, err := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
@@ -352,8 +405,12 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			),
 			builder.WithPredicates(prometheusPredicate),
-		)
-	return ocsInitializationController.Complete(r)
+		).Build(r)
+	if err != nil {
+		return err
+	}
+	r.controller = ocsInitializationController
+	return nil
 }
 
 func (r *OCSInitializationReconciler) ensureClusterClaimExists() error {

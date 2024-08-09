@@ -42,6 +42,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,6 +96,7 @@ func init() {
 	utilruntime.Must(operatorsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(nadscheme.AddToScheme(scheme))
 	utilruntime.Must(ocsclientv1a1.AddToScheme(scheme))
+	utilruntime.Must(apiextensions.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
