@@ -20,7 +20,7 @@ import (
 // GenerateOnboardingToken generates a token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
 // The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.
-func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotaInGiB *uint) (string, error) {
+func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotaInGiB *uint, role services.OnboardingSubjectRole) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -28,6 +28,7 @@ func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, st
 	ticket := services.OnboardingTicket{
 		ID:             uuid.New().String(),
 		ExpirationDate: tokenExpirationDate,
+		SubjectRole:    role,
 	}
 	if storageQuotaInGiB != nil {
 		ticket.StorageQuotaInGiB = *storageQuotaInGiB
