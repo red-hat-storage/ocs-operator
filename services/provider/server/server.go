@@ -373,32 +373,25 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	})
 
 	if consumerResource.Spec.StorageQuotaInGiB > 0 {
-		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
-			Selector: quotav1.ClusterResourceQuotaSelector{
-				LabelSelector: &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{
-							Key:      string(consumerResource.UID),
-							Operator: metav1.LabelSelectorOpDoesNotExist,
-						},
-					},
-				},
-			},
-			Quota: corev1.ResourceQuotaSpec{
-				Hard: corev1.ResourceList{"requests.storage": *resource.NewScaledQuantity(
-					int64(consumerResource.Spec.StorageQuotaInGiB),
-					resource.Giga,
-				)},
-			},
-		}
 
 		extR = append(extR, &pb.ExternalResource{
 			Name: "QuotaForConsumer",
 			Kind: "ClusterResourceQuota",
-			Data: mustMarshal(clusterResourceQuotaSpec),
+			Data: mustMarshal(s.getClusterResourceQuotaSpec(consumerResource)),
 		})
 
 	}
+
+	desiredClientConfigMap, err := s.getDesiredClientConfigMap(ctx, consumerResource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare desired config map %v", err)
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: "DesiredClientConfig",
+		Kind: "ConfigMap",
+		Data: mustMarshal(desiredClientConfigMap),
+	})
 
 	return extR, nil
 }
@@ -739,20 +732,23 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 			return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientPlatformVersion: %v", err)
 		}
 	}
+	storageConsumer, err := s.consumerManager.UpdateConsumerStatus(ctx, req.StorageConsumerUUID, req)
 
-	if err := s.consumerManager.UpdateConsumerStatus(ctx, req.StorageConsumerUUID, req); err != nil {
+	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil, status.Errorf(codes.NotFound, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 		}
 		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 	}
 
-	channelName, err := s.getOCSSubscriptionChannel(ctx)
+	desiredClientConfigMap, err := s.getDesiredClientConfigMap(ctx, storageConsumer)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+		return nil, fmt.Errorf("failed to prepare desired config map %v", err)
 	}
 
-	return &pb.ReportStatusResponse{DesiredClientOperatorChannel: channelName}, nil
+	desiredClientConfigHash := util.GetMD5Hash(fmt.Sprintf("%v", desiredClientConfigMap))
+
+	return &pb.ReportStatusResponse{DesiredClientConfigHash: desiredClientConfigHash}, nil
 }
 
 func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
@@ -768,4 +764,44 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
 	}
 	return subscription.Spec.Channel, nil
+}
+
+func (s *OCSProviderServer) getClusterResourceQuotaSpec(consumerResource *ocsv1alpha1.StorageConsumer) quotav1.ClusterResourceQuotaSpec {
+
+	clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
+		Selector: quotav1.ClusterResourceQuotaSelector{
+			LabelSelector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{
+						Key:      string(consumerResource.UID),
+						Operator: metav1.LabelSelectorOpDoesNotExist,
+					},
+				},
+			},
+		},
+		Quota: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{"requests.storage": *resource.NewScaledQuantity(
+				int64(consumerResource.Spec.StorageQuotaInGiB),
+				resource.Giga,
+			)},
+		},
+	}
+
+	return *clusterResourceQuotaSpec
+}
+
+func (s *OCSProviderServer) getDesiredClientConfigMap(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) (map[string]string, error) {
+
+	desiredClientConfigMap := make(map[string]string)
+	channelName, err := s.getOCSSubscriptionChannel(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get subscription channel %v", err)
+	}
+	desiredClientConfigMap["DesiredClientOperatorChannel"] = channelName
+	if consumerResource.Spec.StorageQuotaInGiB > 0 {
+		clusterResourceQuotaSpec := s.getClusterResourceQuotaSpec(consumerResource)
+		desiredClientConfigMap["ClusterResourceQuotaSpec"] = fmt.Sprintf("%v", clusterResourceQuotaSpec)
+	}
+
+	return desiredClientConfigMap, nil
 }

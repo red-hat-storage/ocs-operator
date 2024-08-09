@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	quotav1 "github.com/openshift/api/quota/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
@@ -35,7 +36,7 @@ var clusterResourceQuotaSpec = &quotav1.ClusterResourceQuotaSpec{
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				{
-					Key:      "consumer-test",
+					Key:      "uid6",
 					Operator: metav1.LabelSelectorOpDoesNotExist,
 				},
 			},
@@ -56,6 +57,13 @@ var mockExtR = map[string]*externalResource{
 			"data":     "a=10.99.45.27:6789",
 			"maxMonId": "0",
 			"mapping":  "{}",
+		},
+	},
+	"DesiredClientConfig": {
+		Name: "DesiredClientConfig",
+		Kind: "ConfigMap",
+		Data: map[string]string{
+			"DesiredClientOperatorChannel": "1.0",
 		},
 	},
 	"rook-ceph-mon": {
@@ -257,6 +265,18 @@ func TestGetExternalResources(t *testing.T) {
 	assert.NoError(t, client.Create(ctx, monCm))
 	assert.NoError(t, client.Create(ctx, monSc))
 
+	ocsSubscription := opv1a1.Subscription{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-subscription",
+			Namespace: server.namespace,
+		},
+		Spec: &opv1a1.SubscriptionSpec{
+			Channel: "1.0",
+			Package: "ocs-operator",
+		},
+	}
+	assert.NoError(t, client.Create(ctx, &ocsSubscription))
+
 	// When ocsv1alpha1.StorageConsumerStateReady
 	req := pb.StorageConfigRequest{
 		StorageConsumerUUID: string(consumerResource.UID),
@@ -298,6 +318,16 @@ func TestGetExternalResources(t *testing.T) {
 			assert.NoError(t, err)
 			quantity, _ := resource.ParseQuantity("10240G")
 			assert.Equal(t, clusterResourceQuotaSpec.Quota.Hard["requests.storage"], quantity)
+		} else if extResource.Name == "DesiredClientConfig" {
+			desiredClientConfigMap := map[string]string{}
+			err := json.Unmarshal(extResource.Data, &desiredClientConfigMap)
+			assert.NoError(t, err)
+			value, ok := desiredClientConfigMap["ClusterResourceQuotaSpec"]
+			assert.True(t, ok)
+			assert.NotNil(t, value)
+			value, ok = desiredClientConfigMap["DesiredClientOperatorChannel"]
+			assert.True(t, ok)
+			assert.Equal(t, "1.0", value)
 		} else {
 			assert.Equal(t, string(extResource.Data), string(data))
 		}

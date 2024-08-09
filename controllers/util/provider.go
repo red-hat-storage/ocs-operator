@@ -2,11 +2,13 @@ package util
 
 import (
 	"crypto"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -76,4 +78,9 @@ func readAndDecodePrivateKey(privateKeyPath string) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
 	return privateKey, nil
+}
+
+func GetMD5Hash(text string) string {
+	hash := md5.Sum([]byte(text))
+	return hex.EncodeToString(hash[:])
 }
