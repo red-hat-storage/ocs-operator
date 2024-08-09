@@ -59,7 +59,7 @@ const (
 	monSecret    = "rook-ceph-mon"
 )
 
-type OCSProviderServer struct {
+type OCSServer struct {
 	pb.UnimplementedOCSProviderServer
 	client                client.Client
 	consumerManager       *ocsConsumerManager
@@ -67,7 +67,7 @@ type OCSProviderServer struct {
 	namespace             string
 }
 
-func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
+func NewOCSServer(ctx context.Context, namespace string) (*OCSServer, error) {
 	client, err := newClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client. %v", err)
@@ -83,7 +83,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
 	}
 
-	return &OCSProviderServer{
+	return &OCSServer{
 		client:                client,
 		consumerManager:       consumerManager,
 		storageRequestManager: storageRequestManager,
@@ -92,7 +92,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 }
 
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
-func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
+func (s *OCSServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
 
 	version, err := semver.FinalizeVersion(req.ClientOperatorVersion)
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 }
 
 // AcknowledgeOnboarding acknowledge the onboarding is complete
-func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
+func (s *OCSServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
 
 	if err := s.consumerManager.EnableStorageConsumer(ctx, req.StorageConsumerUUID); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -151,7 +151,7 @@ func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.A
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
-func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
+func (s *OCSServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
 
 	// Get storage consumer resource using UUID
 	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
@@ -185,7 +185,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 }
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
-func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
+func (s *OCSServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
 
 	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
 	if err != nil {
@@ -195,7 +195,7 @@ func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.Offboa
 	return &pb.OffboardConsumerResponse{}, nil
 }
 
-func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
+func (s *OCSServer) Start(port int, opts []grpc.ServerOption) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		klog.Fatalf("failed to listen: %v", err)
@@ -252,7 +252,7 @@ func newClient() (client.Client, error) {
 
 	return client, nil
 }
-func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
+func (s *OCSServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
 	var extR []*pb.ExternalResource
 
 	// Configmap with mon endpoints
@@ -403,7 +403,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	return extR, nil
 }
 
-func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name string) (string, string, error) {
+func (s *OCSServer) getCephClientInformation(ctx context.Context, name string) (string, string, error) {
 	cephClient := &rookCephv1.CephClient{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: name, Namespace: s.namespace}, cephClient)
 	if err != nil {
@@ -426,7 +426,7 @@ func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name s
 	return cephClient.Status.Info["secretName"], cephClient.Annotations[controllers.StorageCephUserTypeAnnotation], nil
 }
 
-func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rsa.PublicKey, error) {
+func (s *OCSServer) getOnboardingValidationKey(ctx context.Context) (*rsa.PublicKey, error) {
 	pubKeySecret := &corev1.Secret{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: onboardingTicketKeySecret, Namespace: s.namespace}, pubKeySecret)
 	if err != nil {
@@ -513,7 +513,7 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
 // provider cluster.
-func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
+func (s *OCSServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
 	// Get storage consumer resource using UUID
 	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
@@ -547,7 +547,7 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 
 // RevokeStorageClaim RPC call to delete the StorageClaim CR on
 // provider cluster.
-func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
+func (s *OCSServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
 	err := s.storageRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to revoke storage class claim %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
@@ -563,7 +563,7 @@ func storageClaimCephCsiSecretName(secretType, suffix string) string {
 }
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
-func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
+func (s *OCSServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
 	storageRequest, err := s.storageRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to get storage class claim config %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
@@ -720,7 +720,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 }
 
 // ReportStatus rpc call to check if a consumer can reach to the provider.
-func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStatusRequest) (*pb.ReportStatusResponse, error) {
+func (s *OCSServer) ReportStatus(ctx context.Context, req *pb.ReportStatusRequest) (*pb.ReportStatusResponse, error) {
 	// Update the status in storageConsumer CR
 	klog.Infof("Client status report received: %+v", req)
 
@@ -755,7 +755,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	return &pb.ReportStatusResponse{DesiredClientOperatorChannel: channelName}, nil
 }
 
-func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
+func (s *OCSServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
 	subscriptionList := &opv1a1.SubscriptionList{}
 	err := s.client.List(ctx, subscriptionList, client.InNamespace(s.namespace))
 	if err != nil {

@@ -6,18 +6,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/blang/semver/v4"
-	oprverion "github.com/operator-framework/api/pkg/lib/version"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
+	"github.com/blang/semver/v4"
 	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	oprverion "github.com/operator-framework/api/pkg/lib/version"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -177,49 +177,12 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 	}
 
 	if remoteConsumers {
-		node := &v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					"node-role.kubernetes.io/worker": "",
-				},
-			},
-			Status: v1.NodeStatus{
-				Addresses: []v1.NodeAddress{
-					{
-						Type:    v1.NodeInternalIP,
-						Address: "0:0:0:0",
-					},
-				},
-			},
-		}
-
-		os.Setenv(providerAPIServerImage, "fake-image")
-		os.Setenv(util.WatchNamespaceEnvVar, "")
-		os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
-
-		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		deployment.Status.AvailableReplicas = 1
-
-		service := &v1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		service.Status.LoadBalancer.Ingress = []v1.LoadBalancerIngress{
-			{
-				Hostname: "fake",
-			},
-		}
-
-		secret := &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
 
 		clientConfigMap := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
 		}
 
-		addedRuntimeObjects := []runtime.Object{node, service, deployment, secret, clientConfigMap}
+		addedRuntimeObjects := []runtime.Object{clientConfigMap}
 		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, addedRuntimeObjects...)
 
 		util.AddAnnotation(cr, "ocs.openshift.io/deployment-mode", "provider")
@@ -281,6 +244,8 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 			Namespace: "",
 		},
 	}
+	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
+	assert.NoError(t, err)
 
 	rtObjsToCreateReconciler := []runtime.Object{&nbv1.NooBaa{}}
 	// runtimeObjs are present, it means tests are for update
@@ -302,8 +267,6 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 		_ = reconciler.Client.Create(context.TODO(), rtObj)
 	}
 
-	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
-	assert.NoError(t, err)
 	result, err := reconciler.Reconcile(context.TODO(), requestOCSInit)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -392,8 +355,17 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 			}
 		}
 	}
+	ocsInit := &api.OCSInitialization{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.OCSInitName,
+			Namespace: operatorNamespace,
+		},
+		Status: api.OCSInitializationStatus{
+			OCSServerEndpoint: "test-endpoint",
+		},
+	}
 
-	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig, rookCephMonSecret, csv)
+	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig, rookCephMonSecret, csv, ocsInit)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjects...).WithStatusSubresource(statusSubresourceObjs...).Build()
 
 	return StorageClusterReconciler{

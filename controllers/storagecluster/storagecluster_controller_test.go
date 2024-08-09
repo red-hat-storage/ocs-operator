@@ -8,8 +8,11 @@ import (
 	"regexp"
 	"testing"
 
-	opverion "github.com/operator-framework/api/pkg/lib/version"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
@@ -20,13 +23,10 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	opverion "github.com/operator-framework/api/pkg/lib/version"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1111,6 +1111,10 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	scheme := createFakeScheme(t)
 	name := mockStorageClusterRequest.NamespacedName.Name
 	namespace := mockStorageClusterRequest.NamespacedName.Namespace
+	operatorNamespace, err := statusutil.GetOperatorNamespace()
+	if err != nil {
+		operatorNamespace = "openshift-storage"
+	}
 	cfs := &rookCephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-cephfilesystem", name),
@@ -1148,17 +1152,21 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 			"fsid": []byte(cephFSID),
 		},
 	}
-	obj = append(obj, cbp, cfs, rookCephMonSecret, csv)
+	ocsInit := &api.OCSInitialization{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      statusutil.OCSInitName,
+			Namespace: operatorNamespace,
+		},
+		Status: api.OCSInitializationStatus{
+			OCSServerEndpoint: "test-endpoint",
+		},
+	}
+	obj = append(obj, cbp, cfs, rookCephMonSecret, csv, ocsInit)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	clusters, err := statusutil.GetClusters(context.TODO(), client)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get clusters %s", err.Error()))
-	}
-
-	operatorNamespace, err := statusutil.GetOperatorNamespace()
-	if err != nil {
-		operatorNamespace = "openshift-storage"
 	}
 
 	return StorageClusterReconciler{
@@ -1297,6 +1305,8 @@ func TestStorageClusterOnMultus(t *testing.T) {
 
 	for _, c := range cases {
 		c.cr = createDefaultStorageCluster()
+		err := os.Setenv("OPERATOR_NAMESPACE", c.cr.Namespace)
+		assert.NoError(t, err)
 		if c.testCase != "default" {
 			c.cr.Spec.Network = &rookCephv1.NetworkSpec{
 				Provider: networkProvider,

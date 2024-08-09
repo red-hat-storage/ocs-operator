@@ -45,6 +45,16 @@ const (
 	OwnerUIDIndexName = "ownerUID"
 
 	OdfInfoNamespacedNameClaimName = "odfinfo.odf.openshift.io"
+	OCSInitName                    = "ocsinit"
+
+	OnboardingValidationKeysGeneratorImage   = "ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE"
+	OnboardingValidationKeysGeneratorJobName = "onboarding-validation-keys-generator"
+	OnboardingValidationPublicKeySecretName  = "onboarding-ticket-key"
+
+	OcsServerName            = "ocs-server"
+	OcsServerServicePort     = int32(50051)
+	OcsServerServiceNodePort = int32(31659)
+	OcsServerCertSecretName  = OcsServerName + "-cert"
 )
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes

@@ -3,23 +3,28 @@ package ocsinitialization
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/go-logr/logr"
-	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/templates"
+
+	"github.com/go-logr/logr"
+	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -54,7 +59,7 @@ const (
 // should exist.
 func InitNamespacedName() types.NamespacedName {
 	return types.NamespacedName{
-		Name:      "ocsinit",
+		Name:      util.OCSInitName,
 		Namespace: operatorNamespace,
 	}
 }
@@ -199,6 +204,20 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
+	res, err := r.reconcileOCSServerService(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure ocs-server service")
+		return res, err
+	} else if !res.IsZero() {
+		return res, nil
+	}
+
+	err = r.reconcileOnboardingJob(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to ensure onboarding-job")
+		return reconcile.Result{}, err
+	}
+
 	err = r.reconcileUXBackendSecret(instance)
 	if err != nil {
 		r.Log.Error(err, "Failed to ensure uxbackend secret")
@@ -210,6 +229,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		r.Log.Error(err, "Failed to ensure uxbackend service")
 		return reconcile.Result{}, err
 	}
+
 	if isROSAHCP, err := platform.IsPlatformROSAHCP(); err != nil {
 		r.Log.Error(err, "Failed to determine if ROSA HCP cluster")
 		return reconcile.Result{}, err
@@ -274,7 +294,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ocsInitializationController := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
+		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&promv1.Prometheus{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&promv1.Alertmanager{}).
@@ -604,6 +624,177 @@ func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) st
 	}
 }
 
+func (r *OCSInitializationReconciler) reconcileOCSServerService(initialData *ocsv1.OCSInitialization) (reconcile.Result, error) {
+	/*
+		OCS API Server ServiceType follows the following level of priority:
+			1. Value set in OCSInitialization
+			2. Value set in InternalStorageCluster
+		This helps to maintain backward compatibility
+	*/
+	sc := r.clusters.GetInternalStorageClusters()
+	var serviceType corev1.ServiceType
+	for i := 0; i < len(sc); i++ {
+		if sc[i].Spec.ProviderAPIServerServiceType != "" {
+			serviceType = sc[i].Spec.ProviderAPIServerServiceType
+			break
+		}
+	}
+
+	if initialData.Spec.OCSServerServiceType == "" {
+		if serviceType != "" {
+			initialData.Spec.OCSServerServiceType = serviceType
+		} else {
+			initialData.Spec.OCSServerServiceType = corev1.ServiceTypeNodePort
+		}
+	}
+
+	switch initialData.Spec.OCSServerServiceType {
+	case corev1.ServiceTypeClusterIP, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
+	default:
+		err := fmt.Errorf("ocs Server only supports service of type %s, %s and %s",
+			corev1.ServiceTypeNodePort, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeClusterIP)
+		initialData.Status.ErrorMessage = err.Error()
+		r.Log.Error(err, "Failed to create/update OCS Server Service, Requested ServiceType is", "ServiceType", initialData.Spec.OCSServerServiceType)
+		return reconcile.Result{}, err
+	}
+
+	service := &corev1.Service{}
+	service.Name = util.OcsServerName
+	service.Namespace = initialData.Namespace
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, service, func() error {
+
+		if err := ctrl.SetControllerReference(initialData, service, r.Scheme); err != nil {
+			return err
+		}
+
+		service.Annotations = map[string]string{
+			"service.beta.openshift.io/serving-cert-secret-name": util.OcsServerCertSecretName,
+		}
+		service.Spec = corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					NodePort: func() int32 {
+						// ClusterIP service doesn't need nodePort
+						if initialData.Spec.OCSServerServiceType == corev1.ServiceTypeClusterIP {
+							return 0
+						}
+						return util.OcsServerServiceNodePort
+					}(),
+					Port:       util.OcsServerServicePort,
+					TargetPort: intstr.FromString(util.OcsServerName),
+				},
+			},
+			Selector: map[string]string{"app": util.OcsServerName},
+			Type:     initialData.Spec.OCSServerServiceType,
+		}
+
+		return nil
+
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update ocs-server service")
+		return reconcile.Result{}, err
+	}
+	r.Log.Info("Service creation succeeded", "Name", service.Name)
+
+	switch initialData.Spec.OCSServerServiceType {
+	case corev1.ServiceTypeLoadBalancer:
+		endpoint := r.getLoadBalancerServiceEndpoint(service)
+
+		if endpoint == "" {
+			r.Log.Info("Waiting for Ingress on service", "Service", service.Name, "Status", service.Status)
+			return reconcile.Result{RequeueAfter: time.Second * 5}, nil
+		}
+
+		initialData.Status.OCSServerEndpoint = fmt.Sprintf("%s:%d", endpoint, util.OcsServerServicePort)
+
+	case corev1.ServiceTypeClusterIP:
+		initialData.Status.OCSServerEndpoint = fmt.Sprintf("%s:%d", service.Spec.ClusterIP, util.OcsServerServicePort)
+
+	default: // Nodeport is the default ServiceType for the provider server
+		nodeAddresses, err := r.getWorkerNodesInternalIPAddresses()
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if len(nodeAddresses) == 0 {
+			err = fmt.Errorf("could not find any worker nodes")
+			r.Log.Error(err, "Worker nodes count is zero")
+			return reconcile.Result{}, err
+		}
+		initialData.Status.OCSServerEndpoint = fmt.Sprintf("%s:%d", nodeAddresses[0], util.OcsServerServiceNodePort)
+	}
+
+	r.Log.Info("status.OcsEndpoint is updated", "Endpoint", initialData.Status.OCSServerEndpoint)
+	return reconcile.Result{}, nil
+}
+
+func (r *OCSInitializationReconciler) getLoadBalancerServiceEndpoint(service *corev1.Service) string {
+	endpoint := ""
+
+	if len(service.Status.LoadBalancer.Ingress) != 0 {
+		if service.Status.LoadBalancer.Ingress[0].IP != "" {
+			endpoint = service.Status.LoadBalancer.Ingress[0].IP
+		} else if service.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			endpoint = service.Status.LoadBalancer.Ingress[0].Hostname
+		}
+	}
+
+	return endpoint
+}
+
+// getWorkerNodesInternalIPAddresses return slice of Internal IPAddress of worker nodes
+func (r *OCSInitializationReconciler) getWorkerNodesInternalIPAddresses() ([]string, error) {
+
+	nodes := &corev1.NodeList{}
+
+	err := r.Client.List(r.ctx, nodes)
+	if err != nil {
+		r.Log.Error(err, "Failed to list nodes")
+		return nil, err
+	}
+
+	nodeAddresses := []string{}
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+		if _, ok := node.ObjectMeta.Labels["node-role.kubernetes.io/worker"]; ok {
+			for _, address := range node.Status.Addresses {
+				if address.Type == corev1.NodeInternalIP {
+					nodeAddresses = append(nodeAddresses, address.Address)
+					break
+				}
+			}
+		}
+	}
+	sort.Strings(nodeAddresses)
+
+	return nodeAddresses, nil
+}
+
+func (r *OCSInitializationReconciler) reconcileOnboardingJob(initialData *ocsv1.OCSInitialization) error {
+	if os.Getenv(util.OnboardingValidationKeysGeneratorImage) == "" {
+		err := fmt.Errorf("OnboardingSecretGeneratorImage env var is not set")
+		r.Log.Error(err, "No value set for env variable")
+		return err
+	}
+
+	actualSecret := &corev1.Secret{}
+	// Creating the job only if public is not found
+	err := r.Client.Get(r.ctx, types.NamespacedName{Name: util.OnboardingValidationPublicKeySecretName,
+		Namespace: initialData.Namespace}, actualSecret)
+
+	if errors.IsNotFound(err) {
+		onboardingSecretGeneratorJob := getOnboardingJobObject(initialData)
+		err = r.Client.Create(r.ctx, onboardingSecretGeneratorJob)
+	}
+	if err != nil {
+		r.Log.Error(err, "failed to create/ensure secret")
+		return err
+	}
+	r.Log.Info("Onboarding job is running as desired", "JobName", util.OnboardingValidationKeysGeneratorJobName)
+	return nil
+}
+
 func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
 
 	var err error
@@ -846,4 +1037,37 @@ func (r *OCSInitializationReconciler) reconcilePrometheusOperatorCSV(initialData
 		}
 	}
 	return nil
+}
+
+func getOnboardingJobObject(initialData *ocsv1.OCSInitialization) *batchv1.Job {
+
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.OnboardingValidationKeysGeneratorJobName,
+			Namespace: initialData.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			// Eligible to delete automatically when job finishes
+			TTLSecondsAfterFinished: ptr.To(int32(0)),
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					RestartPolicy:      corev1.RestartPolicyOnFailure,
+					ServiceAccountName: util.OnboardingValidationKeysGeneratorJobName,
+					Containers: []corev1.Container{
+						{
+							Name:    util.OnboardingValidationKeysGeneratorJobName,
+							Image:   os.Getenv(util.OnboardingValidationKeysGeneratorImage),
+							Command: []string{"/usr/local/bin/onboarding-validation-keys-gen"},
+							Env: []corev1.EnvVar{
+								{
+									Name:  util.OperatorNamespaceEnvVar,
+									Value: os.Getenv(util.OperatorNamespaceEnvVar),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }

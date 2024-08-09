@@ -220,7 +220,7 @@ func TestGetExternalResources(t *testing.T) {
 	err = client.Create(ctx, &mgrpod)
 	assert.NoError(t, err)
 
-	server := &OCSProviderServer{
+	server := &OCSServer{
 		client:          client,
 		namespace:       serverNamespace,
 		consumerManager: consumerManager,
@@ -362,7 +362,7 @@ func TestGetExternalResources(t *testing.T) {
 	s := runtime.NewScheme()
 	assert.NoError(t, v1.AddToScheme(s))
 	client = newFakeClient(t, objects...)
-	server = &OCSProviderServer{
+	server = &OCSServer{
 		client:    client,
 		namespace: serverNamespace,
 	}
@@ -387,7 +387,7 @@ func TestGetExternalResources(t *testing.T) {
 	s = runtime.NewScheme()
 	assert.NoError(t, v1.AddToScheme(s))
 	client = newFakeClient(t, objects...)
-	server = &OCSProviderServer{
+	server = &OCSServer{
 		client:    client,
 		namespace: serverNamespace,
 	}
@@ -413,7 +413,7 @@ func TestGetExternalResources(t *testing.T) {
 	assert.NotEqual(t, len(mockExtR), len(exR))
 }
 
-func createMonConfigMapAndSecret(server *OCSProviderServer) (*v1.ConfigMap, *v1.Secret) {
+func createMonConfigMapAndSecret(server *OCSServer) (*v1.ConfigMap, *v1.Secret) {
 	monCm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: monConfigMap, Namespace: server.namespace},
 		Data:       map[string]string{"data": "a=10.99.45.27:6789", "mapping": "{}", "maxMonId": "0"},
@@ -429,7 +429,7 @@ func createMonConfigMapAndSecret(server *OCSProviderServer) (*v1.ConfigMap, *v1.
 	return monCm, monSc
 }
 
-func createCephClientAndSecret(name string, server *OCSProviderServer) (*rookCephv1.CephClient, *v1.Secret) {
+func createCephClientAndSecret(name string, server *OCSServer) (*rookCephv1.CephClient, *v1.Secret) {
 	cephClient := &rookCephv1.CephClient{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -476,7 +476,7 @@ func TestOCSProviderServerStorageRequest(t *testing.T) {
 	storageRequestManager, err := newStorageRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
-	server := &OCSProviderServer{
+	server := &OCSServer{
 		client:                client,
 		consumerManager:       consumerManager,
 		storageRequestManager: storageRequestManager,
@@ -542,7 +542,7 @@ func TestOCSProviderServerRevokeStorageClaim(t *testing.T) {
 	storageRequestManager, err := newStorageRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
-	server := &OCSProviderServer{
+	server := &OCSServer{
 		client:                client,
 		consumerManager:       consumerManager,
 		storageRequestManager: storageRequestManager,
@@ -778,7 +778,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	storageRequestManager, err := newStorageRequestManager(client, serverNamespace)
 	assert.NoError(t, err)
 
-	server := &OCSProviderServer{
+	server := &OCSServer{
 		client:                client,
 		consumerManager:       consumerManager,
 		storageRequestManager: storageRequestManager,

@@ -13,10 +13,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+
 	"github.com/blang/semver/v4"
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -146,10 +148,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "NOOBAA_DB_IMAGE",
 				Value: *noobaaDBContainerImage,
-			},
-			{
-				Name:  "PROVIDER_API_SERVER_IMAGE",
-				Value: *ocsContainerImage,
 			},
 			{
 				Name:  "ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE",
@@ -286,7 +284,11 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 		Name: "ux-backend-server",
 		Spec: getUXBackendServerDeployment(),
 	}
-	templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, uxBackendStrategySpec)
+	ocsServerStrategySpec := csvv1.StrategyDeploymentSpec{
+		Name: util.OcsServerName,
+		Spec: getOCSServerDeployment(),
+	}
+	templateStrategySpec.DeploymentSpecs = append(templateStrategySpec.DeploymentSpecs, uxBackendStrategySpec, ocsServerStrategySpec)
 
 	// Add tolerations to deployments
 	for i := range templateStrategySpec.DeploymentSpecs {
@@ -747,6 +749,72 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 		},
 	}
 	return deployment
+}
+
+func getOCSServerDeployment() appsv1.DeploymentSpec {
+	return appsv1.DeploymentSpec{
+		Replicas: ptr.To(int32(1)),
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": util.OcsServerName,
+			},
+		},
+		Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
+		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"app": util.OcsServerName,
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    util.OcsServerName,
+						Image:   *ocsContainerImage,
+						Command: []string{"/usr/local/bin/provider-api"},
+						Env: []corev1.EnvVar{
+							{
+								Name: util.OperatorNamespaceEnvVar,
+								ValueFrom: &corev1.EnvVarSource{
+									FieldRef: &corev1.ObjectFieldSelector{
+										FieldPath: "metadata.namespace",
+									},
+								},
+							},
+						},
+						Ports: []corev1.ContainerPort{
+							{
+								Name:          util.OcsServerName,
+								ContainerPort: util.OcsServerServicePort,
+							},
+						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "cert-secret",
+								MountPath: server.ProviderCertsMountPoint,
+								ReadOnly:  true,
+							},
+						},
+					},
+				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "cert-secret",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: util.OcsServerCertSecretName,
+							},
+						},
+					},
+				},
+				ServiceAccountName: util.OcsServerName,
+			},
+		},
+	}
 }
 
 func main() {
