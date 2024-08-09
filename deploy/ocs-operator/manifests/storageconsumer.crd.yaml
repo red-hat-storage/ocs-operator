@@ -91,6 +91,10 @@ spec:
                   platformVersion:
                     description: StorageClient Platform Version
                     type: string
+                  usedCapacityInGiB:
+                    description: UsedCapacityInGiB is the used capacity of connected
+                      storageclient
+                    type: integer
                 type: object
               lastHeartbeat:
                 description: Timestamp of last heartbeat received from consumer
