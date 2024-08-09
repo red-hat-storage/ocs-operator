@@ -15,6 +15,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/templates"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -28,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	"open-cluster-management.io/api/cluster/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,6 +47,7 @@ const (
 	random30CharacterString          = "KP7TThmSTZegSGmHuPKLnSaaAHSG3RSgqw6akBj0oVk"
 	PrometheusOperatorDeploymentName = "prometheus-operator"
 	PrometheusOperatorCSVNamePrefix  = "odf-prometheus-operator"
+	ClusterClaimCrdName              = "clusterclaims.cluster.open-cluster-management.io"
 )
 
 // InitNamespacedName returns a NamespacedName for the singleton instance that
@@ -66,6 +69,7 @@ type OCSInitializationReconciler struct {
 	SecurityClient    secv1client.SecurityV1Interface
 	OperatorNamespace string
 	clusters          *util.Clusters
+	availableCrds     map[string]bool
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -74,6 +78,7 @@ type OCSInitializationReconciler struct {
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources={alertmanagers,prometheuses},verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;list;watch;update;patch;create;delete
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch;delete;update;patch
+// +kubebuilder:rbac:groups=cluster.open-cluster-management.io,resources=clusterclaims,verbs=get;list;watch;create;update
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
 // and what is in the OCSInitialization.Spec
@@ -142,6 +147,11 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		}
 	}
 
+	r.availableCrds, err = util.MapCRDAvailability(r.ctx, r.Client, r.Log, ClusterClaimCrdName)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	r.clusters, err = util.GetClusters(ctx, r.Client)
 	if err != nil {
 		r.Log.Error(err, "Failed to get clusters")
@@ -167,6 +177,14 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	err = r.Client.Status().Update(ctx, instance)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if r.availableCrds[ClusterClaimCrdName] {
+		err = r.ensureClusterClaimExists()
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure odf-info namespacedname ClusterClaim")
+			return reconcile.Result{}, err
+		}
 	}
 
 	err = r.ensureRookCephOperatorConfigExists(instance)
@@ -252,7 +270,8 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return strings.HasPrefix(client.GetName(), PrometheusOperatorCSVNamePrefix)
 		},
 	)
-	return ctrl.NewControllerManagedBy(mgr).
+
+	ocsInitializationController := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
@@ -333,8 +352,39 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			),
 			builder.WithPredicates(prometheusPredicate),
-		).
-		Complete(r)
+		)
+	return ocsInitializationController.Complete(r)
+}
+
+func (r *OCSInitializationReconciler) ensureClusterClaimExists() error {
+	operatorNamespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		r.Log.Error(err, "failed to get operator's namespace. retrying again")
+		return err
+	}
+
+	OdfInfoNamespacedName := types.NamespacedName{
+		Namespace: operatorNamespace,
+		Name:      storagecluster.OdfInfoConfigMapName,
+	}.String()
+
+	cc := &v1alpha1.ClusterClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: util.OdfInfoNamespacedNameClaimName,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, cc, func() error {
+		cc.Spec.Value = OdfInfoNamespacedName
+		return nil
+	})
+	if err != nil {
+		r.Log.Error(err, "failed to create or update clusterclaim", "ClusterClaim", util.OdfInfoNamespacedNameClaimName)
+		return err
+	}
+	r.Log.Info("Created or updated clusterclaim", "ClusterClaim", cc.Name)
+
+	return err
 }
 
 // ensureRookCephOperatorConfigExists ensures that the rook-ceph-operator-config cm exists

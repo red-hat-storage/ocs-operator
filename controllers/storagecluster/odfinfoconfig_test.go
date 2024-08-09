@@ -83,7 +83,7 @@ func TestOdfInfoConfig(t *testing.T) {
 
 		configMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      odfInfoConfigMapName,
+				Name:      OdfInfoConfigMapName,
 				Namespace: namespace,
 			},
 		}
@@ -127,7 +127,7 @@ func TestOdfInfoConfig(t *testing.T) {
 		}
 		// get the output
 		err = r.Client.Get(r.ctx, client.ObjectKeyFromObject(configMap), configMap)
-		assert.NilError(t, err, "expected to find configmap %q: %+v", odfInfoConfigMapName, err)
+		assert.NilError(t, err, "expected to find configmap %q: %+v", OdfInfoConfigMapName, err)
 
 		// compare with the expected results
 		odfInfoDataOfStorageClusterKey := v1alpha1.OdfInfoData{}

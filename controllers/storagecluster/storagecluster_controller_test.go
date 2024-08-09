@@ -1248,7 +1248,6 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	if err != nil {
 		assert.Fail(t, "unable to add opv1a1 to scheme")
 	}
-
 	return scheme
 }
 
