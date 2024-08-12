@@ -20,6 +20,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -477,9 +478,9 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
 			},
 			CSI: rookCephv1.CSIDriverSpec{
-				ReadAffinity: getReadAffinityOptions(sc),
+				ReadAffinity: util.GetReadAffinityOptions(sc),
 				CephFS: rookCephv1.CSICephFSSpec{
-					KernelMountOptions: getCephFSKernelMountOptions(sc),
+					KernelMountOptions: util.GetCephFSKernelMountOptions(sc),
 				},
 			},
 			SkipUpgradeChecks:            sc.Spec.ManagedResources.CephCluster.SkipUpgradeChecks,
@@ -670,9 +671,9 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 			},
 			LogCollector: logCollector,
 			CSI: rookCephv1.CSIDriverSpec{
-				ReadAffinity: getReadAffinityOptions(sc),
+				ReadAffinity: util.GetReadAffinityOptions(sc),
 				CephFS: rookCephv1.CSICephFSSpec{
-					KernelMountOptions: getCephFSKernelMountOptions(sc),
+					KernelMountOptions: util.GetCephFSKernelMountOptions(sc),
 				},
 			},
 		},
