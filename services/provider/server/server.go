@@ -13,13 +13,14 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/blang/semver/v4"
 	quotav1 "github.com/openshift/api/quota/v1"
-	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -29,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"google.golang.org/grpc"
@@ -238,6 +240,10 @@ func newClient() (client.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add operatorsv1alpha1 to scheme. %v", err)
 	}
+	err = ocsv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add ocsv1 to scheme. %v", err)
+	}
 
 	config, err := config.GetConfig()
 	if err != nil {
@@ -274,6 +280,17 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			"maxMonId": "0",
 			"mapping":  "{}",
 		})})
+
+	monIps, err := extractMonitorIps(configmap.Data["data"])
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Kind: "CephConnection",
+		Name: "monitor-endpoints",
+		Data: mustMarshal(&csiopv1a1.CephConnectionSpec{Monitors: monIps}),
+	})
 
 	scMon := &v1.Secret{}
 	// Secret storing cluster mon.admin key, fsid and name
@@ -666,7 +683,16 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					Kind: "VolumeGroupSnapshotClass",
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
-					})})
+					})},
+				&pb.ExternalResource{
+					Kind: "ClientProfile",
+					Name: "ceph-rbd",
+					Data: mustMarshal(&csiopv1a1.ClientProfileSpec{
+						Rbd: &csiopv1a1.RbdConfigSpec{
+							RadosNamespace: cephRes.Name,
+						},
+					})},
+			)
 
 		case "CephFilesystemSubVolumeGroup":
 			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
@@ -681,10 +707,26 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				"clusterID":          getSubVolumeGroupClusterID(subVolumeGroup),
 				"subvolumegroupname": subVolumeGroup.Name,
 				"fsName":             subVolumeGroup.Spec.FilesystemName,
-				"pool":               subVolumeGroup.GetLabels()[v1alpha1.CephFileSystemDataPoolLabel],
+				"pool":               subVolumeGroup.GetLabels()[ocsv1alpha1.CephFileSystemDataPoolLabel],
 				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
 				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
+			}
+
+			storageClusters := &ocsv1.StorageClusterList{}
+			if err := s.client.List(ctx, storageClusters, client.InNamespace(s.namespace), client.Limit(2)); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get storage cluster: %v", err)
+			}
+			if len(storageClusters.Items) != 1 {
+				return nil, status.Errorf(codes.Internal, "expecting one single storagecluster to exist")
+			}
+			var kernelMountOptions map[string]string
+			for _, option := range strings.Split(util.GetCephFSKernelMountOptions(&storageClusters.Items[0]), ",") {
+				if kernelMountOptions == nil {
+					kernelMountOptions = map[string]string{}
+				}
+				parts := strings.Split(option, "=")
+				kernelMountOptions[parts[0]] = parts[1]
 			}
 
 			extR = append(extR,
@@ -710,7 +752,17 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					Kind: "VolumeGroupSnapshotClass",
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
-					})})
+					})},
+				&pb.ExternalResource{
+					Kind: "ClientProfile",
+					Name: "cephfs",
+					Data: mustMarshal(&csiopv1a1.ClientProfileSpec{
+						CephFs: &csiopv1a1.CephFsConfigSpec{
+							SubVolumeGroup:     cephRes.Name,
+							KernelMountOptions: kernelMountOptions,
+						},
+					})},
+			)
 		}
 	}
 
@@ -768,4 +820,19 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
 	}
 	return subscription.Spec.Channel, nil
+}
+
+func extractMonitorIps(data string) ([]string, error) {
+	var ips []string
+	mons := strings.Split(data, ",")
+	for _, mon := range mons {
+		parts := strings.Split(mon, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid mon ip format: %s", mon)
+		}
+		ips = append(ips, parts[1])
+	}
+	// sorting here removes any positional change which reduces spurious reconciles
+	slices.Sort(ips)
+	return ips, nil
 }

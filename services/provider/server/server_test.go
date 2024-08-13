@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"testing"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
@@ -24,9 +26,9 @@ import (
 )
 
 type externalResource struct {
-	Kind string            `json:"kind"`
-	Data map[string]string `json:"data"`
-	Name string            `json:"name"`
+	Kind string `json:"kind"`
+	Data any    `json:"data"`
+	Name string `json:"name"`
 }
 
 var serverNamespace = "openshift-storage"
@@ -90,6 +92,11 @@ var mockExtR = map[string]*externalResource{
 		Data: map[string]string{
 			"QuotaForConsumer": fmt.Sprintf("%+v\n", clusterResourceQuotaSpec),
 		},
+	},
+	"monitor-endpoints": {
+		Name: "monitor-endpoints",
+		Kind: "CephConnection",
+		Data: &csiopv1a1.CephConnectionSpec{Monitors: []string{"10.99.45.27:6789"}},
 	},
 }
 
@@ -610,6 +617,15 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 				},
 			},
+			"ceph-rbd-clientprofile": {
+				Name: "ceph-rbd",
+				Kind: "ClientProfile",
+				Data: &csiopv1a1.ClientProfileSpec{
+					Rbd: &csiopv1a1.RbdConfigSpec{
+						RadosNamespace: "cephradosnamespace",
+					},
+				},
+			},
 		}
 
 		mockShareFilesystemClaimExtR = map[string]*externalResource{
@@ -663,6 +679,19 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Kind: "CephFilesystemSubVolumeGroup",
 				Data: map[string]string{
 					"filesystemName": "myfs",
+				},
+			},
+
+			"cephfs-clientprofile": {
+				Name: "cephfs",
+				Kind: "ClientProfile",
+				Data: &csiopv1a1.ClientProfileSpec{
+					CephFs: &csiopv1a1.CephFsConfigSpec{
+						SubVolumeGroup: "cephFilesystemSubVolumeGroup",
+						KernelMountOptions: map[string]string{
+							"ms_mode": "legacy",
+						},
+					},
 				},
 			},
 		}
@@ -757,6 +786,16 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Phase: ocsv1alpha1.StorageRequestFailed,
 			},
 		}
+		storageClusterResourceName = "mock-storage-cluster"
+		storageClustersResource    = &ocsv1.StorageCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      storageClusterResourceName,
+				Namespace: serverNamespace,
+			},
+			Spec: ocsv1.StorageClusterSpec{
+				AllowRemoteStorageConsumers: true,
+			},
+		}
 	)
 
 	ctx := context.TODO()
@@ -767,6 +806,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		claimResourceInitializing,
 		claimResourceCreating,
 		claimResourceFailed,
+		storageClustersResource,
 	}
 
 	// Create a fake client to mock API calls.
@@ -945,6 +985,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
 			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+		} else if extResource.Kind == "ClientProfile" {
+			name = fmt.Sprintf("%s-clientprofile", name)
 		}
 		mockResoruce, ok := mockBlockPoolClaimExtR[name]
 		assert.True(t, ok)
@@ -974,6 +1016,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
 			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+		} else if extResource.Kind == "ClientProfile" {
+			name = fmt.Sprintf("%s-clientprofile", name)
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
