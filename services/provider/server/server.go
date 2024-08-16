@@ -180,11 +180,11 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
 		}
 
-		channelName, err := s.getOCSSubscriptionChannel(ctx)
+		subscriptionSpec, err := s.getOCSSubscriptionSpec(ctx)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 		}
-		desiredClientConfigHash := getDesiredClientConfigHash(channelName, consumerObj)
+		desiredClientConfigHash := getDesiredClientConfigHash(subscriptionSpec.Channel, consumerObj)
 
 		klog.Infof("successfully returned the config details to the consumer.")
 		return &pb.StorageConfigResponse{
@@ -426,6 +426,17 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		})
 
 	}
+
+	subscriptionSpec, err := s.getOCSSubscriptionSpec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get subscription %v", err)
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: "ocs-operator",
+		Kind: "Subscription",
+		Data: mustMarshal(subscriptionSpec),
+	})
 
 	return extR, nil
 }
@@ -814,15 +825,15 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer resource: %v", err)
 	}
 
-	channelName, err := s.getOCSSubscriptionChannel(ctx)
+	subscriptionSpec, err := s.getOCSSubscriptionSpec(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
-	desiredClientConfigHash := getDesiredClientConfigHash(channelName, storageConsumer)
+	desiredClientConfigHash := getDesiredClientConfigHash(subscriptionSpec.Channel, storageConsumer)
 
 	return &pb.ReportStatusResponse{
-		DesiredClientOperatorChannel: channelName,
+		DesiredClientOperatorChannel: subscriptionSpec.Channel,
 		DesiredConfigHash:            desiredClientConfigHash,
 	}, nil
 }
@@ -835,19 +846,19 @@ func getDesiredClientConfigHash(channelName string, storageConsumer *ocsv1alpha1
 	return util.CalculateMD5Hash(arr)
 }
 
-func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
+func (s *OCSProviderServer) getOCSSubscriptionSpec(ctx context.Context) (*opv1a1.SubscriptionSpec, error) {
 	subscriptionList := &opv1a1.SubscriptionList{}
 	err := s.client.List(ctx, subscriptionList, client.InNamespace(s.namespace))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	subscription := util.Find(subscriptionList.Items, func(sub *opv1a1.Subscription) bool {
 		return sub.Spec.Package == "ocs-operator"
 	})
 	if subscription == nil {
-		return "", fmt.Errorf("unable to find ocs-operator subscription")
+		return nil, fmt.Errorf("unable to find ocs-operator subscription")
 	}
-	return subscription.Spec.Channel, nil
+	return subscription.Spec, nil
 }
 
 func extractMonitorIps(data string) ([]string, error) {

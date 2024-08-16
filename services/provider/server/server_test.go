@@ -105,6 +105,13 @@ var mockExtR = map[string]*externalResource{
 		Kind: "CephConnection",
 		Data: &csiopv1a1.CephConnectionSpec{Monitors: []string{"10.99.45.27:6789"}},
 	},
+	"ocs-operator": {
+		Name: "ocs-operator",
+		Kind: "Subscription",
+		Data: map[string]string{
+			"ocs-operator": fmt.Sprintf("%+v\n", ocsSubscriptionSpec),
+		},
+	},
 }
 
 var (
@@ -292,7 +299,15 @@ func TestGetExternalResources(t *testing.T) {
 
 		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
-		assert.Equal(t, string(extResource.Data), string(data))
+		if extResource.Kind == "Subscription" {
+			subscriptionSpec := &opv1a1.SubscriptionSpec{}
+			err := json.Unmarshal(extResource.Data, &subscriptionSpec)
+			assert.NoError(t, err)
+			assert.Equal(t, subscriptionSpec.Channel, "1.0")
+		} else {
+			assert.Equal(t, string(extResource.Data), string(data))
+		}
+
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
@@ -318,6 +333,11 @@ func TestGetExternalResources(t *testing.T) {
 			assert.NoError(t, err)
 			quantity, _ := resource.ParseQuantity("10240G")
 			assert.Equal(t, clusterResourceQuotaSpec.Quota.Hard["requests.storage"], quantity)
+		} else if extResource.Kind == "Subscription" {
+			subscriptionSpec := &opv1a1.SubscriptionSpec{}
+			err := json.Unmarshal(extResource.Data, &subscriptionSpec)
+			assert.NoError(t, err)
+			assert.Equal(t, subscriptionSpec.Channel, "1.0")
 		} else {
 			assert.Equal(t, string(extResource.Data), string(data))
 		}
