@@ -10,7 +10,7 @@ require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20240812072523-4d50cf3a32a0
-	github.com/ceph/ceph-csi/api v0.0.0-20240731141259-e3697f4d3e49
+	github.com/ceph/ceph-csi/api v0.0.0-20240815120002-0eabe32b7634
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
