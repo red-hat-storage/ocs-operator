@@ -19,7 +19,7 @@ github.com/cenkalti/backoff/v3
 # github.com/ceph/ceph-csi-operator/api v0.0.0-20240812072523-4d50cf3a32a0
 ## explicit; go 1.22.0
 github.com/ceph/ceph-csi-operator/api/v1alpha1
-# github.com/ceph/ceph-csi/api v0.0.0-20240731141259-e3697f4d3e49
+# github.com/ceph/ceph-csi/api v0.0.0-20240815120002-0eabe32b7634
 ## explicit; go 1.22.0
 github.com/ceph/ceph-csi/api/deploy/ocp
 # github.com/cespare/xxhash/v2 v2.3.0
