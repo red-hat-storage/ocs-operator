@@ -63,11 +63,12 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 			},
 			Spec: cephv1.NamedBlockPoolSpec{
 				PoolSpec: cephv1.PoolSpec{
-					DeviceClass:    initData.Status.DefaultCephDeviceClass,
-					FailureDomain:  getFailureDomain(initData),
-					Replicated:     generateCephReplicatedSpec(initData, "data"),
-					EnableRBDStats: true,
-					Mirroring:      mirroringSpec,
+					DeviceClass:        initData.Status.DefaultCephDeviceClass,
+					EnableCrushUpdates: true,
+					FailureDomain:      getFailureDomain(initData),
+					Replicated:         generateCephReplicatedSpec(initData, "data"),
+					EnableRBDStats:     true,
+					Mirroring:          mirroringSpec,
 				},
 			},
 		},
@@ -79,9 +80,10 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 			Spec: cephv1.NamedBlockPoolSpec{
 				Name: ".mgr",
 				PoolSpec: cephv1.PoolSpec{
-					DeviceClass:   initData.Status.DefaultCephDeviceClass,
-					FailureDomain: getFailureDomain(initData),
-					Replicated:    generateCephReplicatedSpec(initData, "metadata"),
+					DeviceClass:        initData.Status.DefaultCephDeviceClass,
+					EnableCrushUpdates: true,
+					FailureDomain:      getFailureDomain(initData),
+					Replicated:         generateCephReplicatedSpec(initData, "metadata"),
 				},
 			},
 		},
@@ -98,8 +100,9 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 					},
 					Spec: cephv1.NamedBlockPoolSpec{
 						PoolSpec: cephv1.PoolSpec{
-							DeviceClass:   failureDomainValue,
-							FailureDomain: getFailureDomain(initData),
+							DeviceClass:        failureDomainValue,
+							EnableCrushUpdates: true,
+							FailureDomain:      getFailureDomain(initData),
 							Parameters: map[string]string{
 								"pg_num":  "16",
 								"pgp_num": "16",
@@ -129,10 +132,11 @@ func (r *StorageClusterReconciler) newCephBlockPoolInstances(initData *ocsv1.Sto
 				Spec: cephv1.NamedBlockPoolSpec{
 					Name: ".nfs",
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass:    initData.Status.DefaultCephDeviceClass,
-						FailureDomain:  getFailureDomain(initData),
-						Replicated:     generateCephReplicatedSpec(initData, "data"),
-						EnableRBDStats: true,
+						DeviceClass:        initData.Status.DefaultCephDeviceClass,
+						EnableCrushUpdates: true,
+						FailureDomain:      getFailureDomain(initData),
+						Replicated:         generateCephReplicatedSpec(initData, "data"),
+						EnableRBDStats:     true,
 					},
 				},
 			},
