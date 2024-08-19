@@ -174,7 +174,8 @@ func TestCephFileSystemDataPools(t *testing.T) {
 			expectedDataPools: []cephv1.NamedPoolSpec{
 				{
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass: "gold",
+						DeviceClass:        "gold",
+						EnableCrushUpdates: true,
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.8,
@@ -213,7 +214,8 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				{
 					Name: "test-1",
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass: defaultPoolSpec.DeviceClass,
+						DeviceClass:        defaultPoolSpec.DeviceClass,
+						EnableCrushUpdates: true,
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.3,
@@ -255,17 +257,19 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				{
 					Name: "test-1",
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass:   "gold",
-						Replicated:    defaultPoolSpec.Replicated,
-						FailureDomain: defaultPoolSpec.FailureDomain,
+						DeviceClass:        "gold",
+						EnableCrushUpdates: true,
+						Replicated:         defaultPoolSpec.Replicated,
+						FailureDomain:      defaultPoolSpec.FailureDomain,
 					},
 				},
 				{
 					Name: "test-2",
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass:   "silver",
-						Replicated:    defaultPoolSpec.Replicated,
-						FailureDomain: defaultPoolSpec.FailureDomain,
+						DeviceClass:        "silver",
+						EnableCrushUpdates: true,
+						Replicated:         defaultPoolSpec.Replicated,
+						FailureDomain:      defaultPoolSpec.FailureDomain,
 					},
 				},
 			},
@@ -311,7 +315,8 @@ func TestCephFileSystemDataPools(t *testing.T) {
 			expectedDataPools: []cephv1.NamedPoolSpec{
 				{
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass: "gold",
+						DeviceClass:        "gold",
+						EnableCrushUpdates: true,
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     defaultPoolSpec.Replicated.Size,
 							TargetSizeRatio:          0.1,
@@ -323,7 +328,8 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				{
 					Name: "test-1",
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass: "silver",
+						DeviceClass:        "silver",
+						EnableCrushUpdates: true,
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.25,
@@ -335,7 +341,8 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				{
 					Name: "test-2",
 					PoolSpec: cephv1.PoolSpec{
-						DeviceClass: "bronze",
+						DeviceClass:        "bronze",
+						EnableCrushUpdates: true,
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.25,

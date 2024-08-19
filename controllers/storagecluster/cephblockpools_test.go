@@ -152,10 +152,11 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 		},
 		Spec: cephv1.NamedBlockPoolSpec{
 			PoolSpec: cephv1.PoolSpec{
-				DeviceClass:    cr.Status.DefaultCephDeviceClass,
-				FailureDomain:  getFailureDomain(cr),
-				Replicated:     generateCephReplicatedSpec(cr, "data"),
-				EnableRBDStats: true,
+				DeviceClass:        cr.Status.DefaultCephDeviceClass,
+				EnableCrushUpdates: true,
+				FailureDomain:      getFailureDomain(cr),
+				Replicated:         generateCephReplicatedSpec(cr, "data"),
+				EnableRBDStats:     true,
 			},
 		},
 	}
@@ -198,10 +199,11 @@ func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, c
 		},
 		Spec: cephv1.NamedBlockPoolSpec{
 			PoolSpec: cephv1.PoolSpec{
-				DeviceClass:    cr.Status.DefaultCephDeviceClass,
-				FailureDomain:  getFailureDomain(cr),
-				Replicated:     generateCephReplicatedSpec(cr, "data"),
-				EnableRBDStats: true,
+				DeviceClass:        cr.Status.DefaultCephDeviceClass,
+				EnableCrushUpdates: true,
+				FailureDomain:      getFailureDomain(cr),
+				Replicated:         generateCephReplicatedSpec(cr, "data"),
+				EnableRBDStats:     true,
 			},
 			Name: ".nfs",
 		},

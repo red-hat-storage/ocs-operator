@@ -88,6 +88,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
+		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
@@ -141,6 +142,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".mgr"
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
+		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "metadata")
 
@@ -187,6 +189,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".nfs"
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
+		cephBlockPool.Spec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
@@ -234,6 +237,7 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 
 		_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 			cephBlockPool.Spec.PoolSpec.DeviceClass = failureDomainValue
+			cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 			cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 			cephBlockPool.Spec.PoolSpec.Parameters = map[string]string{
 				"pg_num":  "16",
