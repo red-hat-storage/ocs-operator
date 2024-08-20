@@ -6,7 +6,7 @@ require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240729130336-d3d80339937e
 	github.com/openshift/api v0.0.0-20240731234847-c299a673ec72
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/rook/rook/pkg/apis v0.0.0-20240731231156-36a318edb995
+	github.com/rook/rook/pkg/apis v0.0.0-20240819063246-893ea7f6d6a1
 	k8s.io/api v0.30.3
 	k8s.io/apimachinery v0.30.3
 )
@@ -53,12 +53,12 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	golang.org/x/crypto v0.24.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/crypto v0.26.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/sys v0.23.0 // indirect
+	golang.org/x/term v0.23.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
