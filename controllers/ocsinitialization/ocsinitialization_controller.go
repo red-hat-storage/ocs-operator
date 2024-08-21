@@ -758,7 +758,7 @@ func (r *OCSInitializationReconciler) reconcilePrometheus(initialData *ocsv1.OCS
 		if alertManagerEndpoint == nil {
 			return fmt.Errorf("unable to find AlertManagerEndpoint")
 		}
-		alertManagerEndpoint.Namespace = initialData.Namespace
+		alertManagerEndpoint.Namespace = ptr.To(initialData.Namespace)
 		return nil
 	})
 
