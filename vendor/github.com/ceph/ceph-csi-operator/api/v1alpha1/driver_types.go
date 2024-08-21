@@ -33,8 +33,10 @@ const (
 	MonthlyPeriod PeriodicityType = "monthly"
 )
 
+// +kubebuilder:validation:XValidation:message="Either maxLogSize or periodicity must be set",rule="(has(self.maxLogSize)) || (has(self.periodicity))"
 type LogRotationSpec struct {
 	// MaxFiles is the number of logrtoate files
+	// Default to 7
 	//+kubebuilder:validation:Optional
 	MaxFiles int `json:"maxFiles,omitempty"`
 
@@ -48,6 +50,7 @@ type LogRotationSpec struct {
 	Periodicity PeriodicityType `json:"periodicity,omitempty"`
 
 	// LogHostPath is the prefix directory path for the csi log files
+	// Default to /var/lib/cephcsi
 	//+kubebuilder:validation:Optional
 	LogHostPath string `json:"logHostPath,omitempty"`
 }
