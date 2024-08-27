@@ -41,6 +41,8 @@ func TestCephRbdMirror(t *testing.T) {
 		},
 	}
 
+	obj := &ocsCephRbdMirrors{}
+
 	for _, c := range cases {
 		cr := getInitData(c.spec)
 		request := reconcile.Request{
@@ -50,7 +52,7 @@ func TestCephRbdMirror(t *testing.T) {
 			},
 		}
 		reconciler := createReconcilerFromCustomResources(t, cr)
-		_, err := reconciler.Reconcile(context.TODO(), request)
+		_, err := obj.ensureCreated(&reconciler, cr)
 		assert.NoError(t, err)
 		switch c.label {
 		case "create-ceph-rbd-mirror":

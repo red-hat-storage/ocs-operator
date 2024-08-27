@@ -83,6 +83,8 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 		},
 	}
 
+	obj := &ocsCephBlockPools{}
+
 	for _, c := range cases {
 		cr := getInitData(c.spec)
 		request := reconcile.Request{
@@ -92,7 +94,7 @@ func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
 			},
 		}
 		reconciler := createReconcilerFromCustomResources(t, cr)
-		_, err := reconciler.Reconcile(context.TODO(), request)
+		_, err := obj.ensureCreated(&reconciler, cr)
 		assert.NoError(t, err)
 		if c.label == "test-injecting-peer-token-to-cephblockpool" {
 			assertCephBlockPools(t, reconciler, cr, request, true, true)
