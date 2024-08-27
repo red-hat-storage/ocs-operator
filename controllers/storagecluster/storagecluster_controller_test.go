@@ -33,6 +33,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -319,9 +321,18 @@ var mockNodeList = &corev1.NodeList{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "node1",
 				Labels: map[string]string{
-					hostnameLabel:            "node1",
-					zoneTopologyLabel:        "zone1",
-					defaults.NodeAffinityKey: "",
+					hostnameLabel:                    "node1",
+					zoneTopologyLabel:                "zone1",
+					defaults.NodeAffinityKey:         "",
+					"node-role.kubernetes.io/worker": "",
+				},
+			},
+			Status: corev1.NodeStatus{
+				Addresses: []corev1.NodeAddress{
+					{
+						Type:    corev1.NodeInternalIP,
+						Address: "0:0:0:0",
+					},
 				},
 			},
 		},
@@ -1156,7 +1167,28 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 			"fsid": []byte(cephFSID),
 		},
 	}
-	obj = append(obj, cbp, cfs, rookCephMonSecret, csv)
+
+	os.Setenv(providerAPIServerImage, "fake-image")
+	os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
+
+	ocsProviderServiceDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName, Namespace: namespace},
+	}
+
+	ocsProviderService := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		Status: corev1.ServiceStatus{
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{{Hostname: "fake"}},
+			},
+		},
+	}
+
+	ocsProviderServiceSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+	}
+
+	obj = append(obj, cbp, cfs, rookCephMonSecret, csv, ocsProviderService, ocsProviderServiceDeployment, ocsProviderServiceSecret)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	clusters, err := statusutil.GetClusters(context.TODO(), client)
@@ -1168,8 +1200,16 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	if err != nil {
 		operatorNamespace = "openshift-storage"
 	}
+	//Update the deployment replicas to 1
+	ocsProviderServiceDeployment.Status.AvailableReplicas = 1
+	err = client.Status().Update(context.TODO(), ocsProviderServiceDeployment)
+	assert.NoError(t, err)
+
+	frecorder := record.NewFakeRecorder(1024)
+	reporter := statusutil.NewEventReporter(frecorder)
 
 	return StorageClusterReconciler{
+		recorder:          reporter,
 		Client:            client,
 		Scheme:            scheme,
 		OperatorCondition: newStubOperatorCondition(),
@@ -1256,6 +1296,12 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	if err != nil {
 		assert.Fail(t, "unable to add opv1a1 to scheme")
 	}
+
+	err = rbacv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "unable to add rbacv1 to scheme")
+	}
+
 	return scheme
 }
 
