@@ -1,6 +1,11 @@
 package util
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -80,4 +85,14 @@ func AddLabel(obj metav1.Object, key string, value string) bool {
 		return true
 	}
 	return false
+}
+
+func CalculateMD5Hash(value any) string {
+	data, err := json.Marshal(value)
+	if err != nil {
+		errStr := fmt.Errorf("failed to marshal for %#v", value)
+		panic(errStr)
+	}
+	hash := md5.Sum(data)
+	return hex.EncodeToString(hash[:])
 }
