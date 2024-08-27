@@ -582,13 +582,10 @@ spec:
           resources:
           - storageclasses
           verbs:
-          - '*'
           - create
           - delete
           - get
           - list
-          - patch
-          - update
           - watch
         - apiGroups:
           - template.openshift.io
