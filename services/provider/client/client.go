@@ -30,9 +30,13 @@ func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Dura
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(config)),
+		// TODO fix deprecated warning
+		//nolint:golint,all
 		grpc.WithBlock(),
 	}
 
+	// TODO fix deprecated warning
+	//nolint:golint,all
 	conn, err := grpc.DialContext(apiCtx, serverAddr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %v", err)
