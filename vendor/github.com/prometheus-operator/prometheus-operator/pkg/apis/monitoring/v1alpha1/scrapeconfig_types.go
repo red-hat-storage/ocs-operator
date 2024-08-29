@@ -37,11 +37,12 @@ type SDFile string
 // NamespaceDiscovery is the configuration for discovering
 // Kubernetes namespaces.
 type NamespaceDiscovery struct {
-	// Includes the namespace in which the Prometheus pod exists to the list of watched namesapces.
+	// Includes the namespace in which the Prometheus pod runs to the list of watched namespaces.
 	// +optional
 	IncludeOwnNamespace *bool `json:"ownNamespace,omitempty"`
 	// List of namespaces where to watch for resources.
 	// If empty and `ownNamespace` isn't true, Prometheus watches for resources in all namespaces.
+	// +listType=set
 	// +optional
 	Names []string `json:"names,omitempty"`
 }
@@ -56,40 +57,50 @@ type AttachMetadata struct {
 	Node *bool `json:"node,omitempty"`
 }
 
-// EC2Filter is the configuration for filtering EC2 instances.
-type EC2Filter struct {
-	Name   string   `json:"name"`
-	Values []string `json:"values"`
-}
-
-// DockerFilter is the configuration to limit the discovery process to a subset of available resources.
-type DockerFilter struct {
-	Name   string   `json:"name"`
-	Values []string `json:"values"`
-}
-
-// Filter is the configuration to limit the discovery process to a subset of available resources.
-type DockerSwarmFilter struct {
-	// Name is the key of the field to check against.
+// Filter name and value pairs to limit the discovery process to a subset of available resources.
+type Filter struct {
+	// Name of the Filter.
 	// +kubebuilder:vaidation:MinLength=1
 	// +required
 	Name string `json:"name"`
-	// Values is the value or set of values to check for a match.
+	// Value to filter on.
 	// +kubebuilder:validation:MinItems=1
 	// +required
 	Values []string `json:"values"`
 }
 
-// Role is role of the service in Kubernetes.
-// +kubebuilder:validation:Enum=Node;node;Service;service;Pod;pod;Endpoints;endpoints;EndpointSlice;endpointslice;Ingress;ingress
-type Role string
+// +listType:=map
+// +listMapKey:=name
+type Filters []Filter
+
+// +kubebuilder:validation:Enum=Pod;Endpoints;Ingress;Service;Node;EndpointSlice
+type KubernetesRole string
+
+const (
+	KubernetesRolePod           KubernetesRole = "Pod"
+	KubernetesRoleEndpoint      KubernetesRole = "Endpoints"
+	KubernetesRoleIngress       KubernetesRole = "Ingress"
+	KubernetesRoleService       KubernetesRole = "Service"
+	KubernetesRoleNode          KubernetesRole = "Node"
+	KubernetesRoleEndpointSlice KubernetesRole = "EndpointSlice"
+)
 
 // K8SSelectorConfig is Kubernetes Selector Config
 type K8SSelectorConfig struct {
-	// +kubebuilder:validation:Required
-	Role  Role   `json:"role"`
-	Label string `json:"label,omitempty"`
-	Field string `json:"field,omitempty"`
+	// Role specifies the type of Kubernetes resource to limit the service discovery to.
+	// Accepted values are: Node, Pod, Endpoints, EndpointSlice, Service, Ingress.
+	// +required
+	Role KubernetesRole `json:"role"`
+	// An optional label selector to limit the service discovery to resources with specific labels and label values.
+	// e.g: `node.kubernetes.io/instance-type=master`
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	Label *string `json:"label,omitempty"`
+	// An optional field selector to limit the service discovery to resources which have fields with specific values.
+	// e.g: `metadata.name=foobar`
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	Field *string `json:"field,omitempty"`
 }
 
 // +genclient
@@ -202,6 +213,9 @@ type ScrapeConfigSpec struct {
 	// OVHCloudSDConfigs defines a list of OVHcloud service discovery configurations.
 	// +optional
 	OVHCloudSDConfigs []OVHCloudSDConfig `json:"ovhcloudSDConfigs,omitempty"`
+	// ScalewaySDConfigs defines a list of Scaleway instances and baremetal service discovery configurations.
+	// +optional
+	ScalewaySDConfigs []ScalewaySDConfig `json:"scalewaySDConfigs,omitempty"`
 	// RelabelConfigs defines how to rewrite the target's labels before scraping.
 	// Prometheus Operator automatically adds relabelings for a few standard Kubernetes fields.
 	// The original scrape job's name is available via the `__tmp_prometheus_job_name` label.
@@ -262,6 +276,9 @@ type ScrapeConfigSpec struct {
 	// Authorization header to use on every scrape request.
 	// +optional
 	Authorization *v1.SafeAuthorization `json:"authorization,omitempty"`
+	// OAuth2 client credentials used to fetch a token for the targets.
+	// +optional
+	OAuth2 *v1.OAuth2 `json:"oauth2,omitempty"`
 	// TLS configuration to use on every scrape request
 	// +optional
 	TLSConfig *v1.SafeTLSConfig `json:"tlsConfig,omitempty"`
@@ -367,11 +384,27 @@ type KubernetesSDConfig struct {
 	// If left empty, Prometheus is assumed to run inside
 	// of the cluster. It will discover API servers automatically and use the pod's
 	// CA certificate and bearer token file at /var/run/secrets/kubernetes.io/serviceaccount/.
+	// +kubebuilder:validation:MinLength=1
 	// +optional
 	APIServer *string `json:"apiServer,omitempty"`
 	// Role of the Kubernetes entities that should be discovered.
+	// Role `Endpointslice` requires Prometheus >= v2.21.0
 	// +required
-	Role Role `json:"role"`
+	Role KubernetesRole `json:"role"`
+	// Optional namespace discovery. If omitted, Prometheus discovers targets across all namespaces.
+	// +optional
+	Namespaces *NamespaceDiscovery `json:"namespaces,omitempty"`
+	// Optional metadata to attach to discovered targets.
+	// It requires Prometheus >= v2.35.0 when using the `Pod` role and
+	// Prometheus >= v2.37.0 for `Endpoints` and `Endpointslice` roles.
+	// +optional
+	AttachMetadata *AttachMetadata `json:"attachMetadata,omitempty"`
+	// Selector to select objects.
+	// It requires Prometheus >= v2.17.0
+	// +optional
+	// +listType=map
+	// +listMapKey=role
+	Selectors []K8SSelectorConfig `json:"selectors,omitempty"`
 	// BasicAuth information to use on every scrape request.
 	// Cannot be set at the same time as `authorization`, or `oauth2`.
 	// +optional
@@ -383,9 +416,7 @@ type KubernetesSDConfig struct {
 	// Optional OAuth 2.0 configuration.
 	// Cannot be set at the same time as `authorization`, or `basicAuth`.
 	// +optional
-	OAuth2 *v1.OAuth2 `json:"oauth2,omitempty"`
-	// ProxyConfig allows customizing the proxy behaviour for this scrape config.
-	// +optional
+	OAuth2         *v1.OAuth2 `json:"oauth2,omitempty"`
 	v1.ProxyConfig `json:",inline"`
 	// Configure whether HTTP requests follow HTTP 3xx redirects.
 	// +optional
@@ -393,22 +424,9 @@ type KubernetesSDConfig struct {
 	// Whether to enable HTTP2.
 	// +optional
 	EnableHTTP2 *bool `json:"enableHTTP2,omitempty"`
-	// TLS configuration to use on every scrape request.
+	// TLS configuration to connect to the Kubernetes API.
 	// +optional
 	TLSConfig *v1.SafeTLSConfig `json:"tlsConfig,omitempty"`
-	// Optional namespace discovery. If omitted, Prometheus discovers targets across all namespaces.
-	// +optional
-	Namespaces *NamespaceDiscovery `json:"namespaces,omitempty"`
-	// Optional metadata to attach to discovered targets.
-	// It requires Prometheus >= v2.35.0 for `pod` role and
-	// Prometheus >= v2.37.0 for `endpoints` and `endpointslice` roles.
-	// +optional
-	AttachMetadata *AttachMetadata `json:"attachMetadata,omitempty"`
-	// Selector to select objects.
-	// +optional
-	// +listType=map
-	// +listMapKey=role
-	Selectors []K8SSelectorConfig `json:"selectors,omitempty"`
 }
 
 // ConsulSDConfig defines a Consul service discovery configuration
@@ -486,6 +504,17 @@ type ConsulSDConfig struct {
 	TLSConfig *v1.SafeTLSConfig `json:"tlsConfig,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=A;AAAA;MX;NS;SRV
+type DNSRecordType string
+
+const (
+	DNSRecordTypeA    DNSRecordType = "A"
+	DNSRecordTypeSRV  DNSRecordType = "SRV"
+	DNSRecordTypeAAAA DNSRecordType = "AAAA"
+	DNSRecordTypeMX   DNSRecordType = "MX"
+	DNSRecordTypeNS   DNSRecordType = "NS"
+)
+
 // DNSSDConfig allows specifying a set of DNS domain names which are periodically queried to discover a list of targets.
 // The DNS servers to be contacted are read from /etc/resolv.conf.
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
@@ -493,6 +522,7 @@ type ConsulSDConfig struct {
 type DNSSDConfig struct {
 	// A list of DNS domain names to be queried.
 	// +kubebuilder:validation:MinItems:=1
+	// +required
 	Names []string `json:"names"`
 	// RefreshInterval configures the time after which the provided names are refreshed.
 	// If not set, Prometheus uses its default value.
@@ -501,15 +531,17 @@ type DNSSDConfig struct {
 	// The type of DNS query to perform. One of SRV, A, AAAA, MX or NS.
 	// If not set, Prometheus uses its default value.
 	//
-	// When set to NS, It requires Prometheus >= 2.49.0.
+	// When set to NS, it requires Prometheus >= v2.49.0.
+	// When set to MX, it requires Prometheus >= v2.38.0
 	//
-	// +kubebuilder:validation:Enum=SRV;A;AAAA;MX;NS
 	// +optional
-	Type *string `json:"type"`
+	Type *DNSRecordType `json:"type,omitempty"`
 	// The port number used if the query type is not SRV
 	// Ignored for SRV records
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
-	Port *int `json:"port"`
+	Port *int32 `json:"port,omitempty"`
 }
 
 // EC2SDConfig allow retrieving scrape targets from AWS EC2 instances.
@@ -542,7 +574,7 @@ type EC2SDConfig struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
 	// Filter API documentation: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html
 	// +optional
-	Filters []*EC2Filter `json:"filters"`
+	Filters Filters `json:"filters,omitempty"`
 }
 
 // AzureSDConfig allow retrieving scrape targets from Azure VMs.
@@ -836,7 +868,7 @@ type DockerSDConfig struct {
 	HostNetworkingHost *string `json:"hostNetworkingHost,omitempty"`
 	// Optional filters to limit the discovery process to a subset of the available resources.
 	// +optional
-	Filters *[]DockerFilter `json:"filters,omitempty"`
+	Filters Filters `json:"filters,omitempty"`
 	// Time after which the container is refreshed.
 	// +optional
 	RefreshInterval *v1.Duration `json:"refreshInterval,omitempty"`
@@ -1002,7 +1034,7 @@ type DockerSwarmSDConfig struct {
 	// Tasks: https://docs.docker.com/engine/api/v1.40/#operation/TaskList
 	// Nodes: https://docs.docker.com/engine/api/v1.40/#operation/NodeList
 	// +optional
-	Filters []DockerSwarmFilter `json:"filters"`
+	Filters Filters `json:"filters,omitempty"`
 	// The time after which the service discovery data is refreshed.
 	// +optional
 	RefreshInterval *v1.Duration `json:"refreshInterval,omitempty"`
@@ -1167,4 +1199,68 @@ type LightSailSDConfig struct {
 	// Configure whether to enable HTTP2.
 	// +optional
 	EnableHTTP2 *bool `json:"enableHTTP2,omitempty"`
+}
+
+// Role of the targets to retrieve. Must be `Instance` or `Baremetal`.
+// +kubebuilder:validation:Enum=Instance;Baremetal
+type ScalewayRole string
+
+const (
+	ScalewayRoleInstance  ScalewayRole = "Instance"
+	ScalewayRoleBaremetal ScalewayRole = "Baremetal"
+)
+
+// ScalewaySDConfig configurations allow retrieving scrape targets from Scaleway instances and baremetal services.
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scaleway_sd_config
+// TODO: Need to document that we will not be supporting the `_file` fields.
+type ScalewaySDConfig struct {
+	// Access key to use. https://console.scaleway.com/project/credentials
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	AccessKey string `json:"accessKey"`
+	// Secret key to use when listing targets.
+	// +required
+	SecretKey corev1.SecretKeySelector `json:"secretKey"`
+	// Project ID of the targets.
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	ProjectID string `json:"projectID"`
+	// Service of the targets to retrieve. Must be `Instance` or `Baremetal`.
+	// +required
+	Role ScalewayRole `json:"role"`
+	// The port to scrape metrics from.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+	// API URL to use when doing the server listing requests.
+	// +kubebuilder:validation:Pattern:="^http(s)?://.+$"
+	// +optional
+	ApiURL *string `json:"apiURL,omitempty"`
+	// Zone is the availability zone of your targets (e.g. fr-par-1).
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	Zone *string `json:"zone,omitempty"`
+	// NameFilter specify a name filter (works as a LIKE) to apply on the server listing request.
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	NameFilter *string `json:"nameFilter,omitempty"`
+	// TagsFilter specify a tag filter (a server needs to have all defined tags to be listed) to apply on the server listing request.
+	// +kubebuilder:validation:MinItems=1
+	// +optional
+	TagsFilter []string `json:"tagsFilter,omitempty"`
+	// Refresh interval to re-read the list of instances.
+	// +optional
+	RefreshInterval *v1.Duration `json:"refreshInterval,omitempty"`
+	// +optional
+	v1.ProxyConfig `json:",inline"`
+	// Configure whether HTTP requests follow HTTP 3xx redirects.
+	// +optional
+	FollowRedirects *bool `json:"followRedirects,omitempty"`
+	// Whether to enable HTTP2.
+	// +optional
+	EnableHTTP2 *bool `json:"enableHTTP2,omitempty"`
+	// TLS configuration to use on every scrape request
+	// +optional
+	TLSConfig *v1.SafeTLSConfig `json:"tlsConfig,omitempty"`
 }

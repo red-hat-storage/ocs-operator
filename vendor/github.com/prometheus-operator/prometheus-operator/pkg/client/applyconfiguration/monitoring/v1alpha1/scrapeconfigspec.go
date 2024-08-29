@@ -47,6 +47,7 @@ type ScrapeConfigSpecApplyConfiguration struct {
 	PuppetDBSDConfigs                []PuppetDBSDConfigApplyConfiguration     `json:"puppetDBSDConfigs,omitempty"`
 	LightSailSDConfigs               []LightSailSDConfigApplyConfiguration    `json:"lightSailSDConfigs,omitempty"`
 	OVHCloudSDConfigs                []OVHCloudSDConfigApplyConfiguration     `json:"ovhcloudSDConfigs,omitempty"`
+	ScalewaySDConfigs                []ScalewaySDConfigApplyConfiguration     `json:"scalewaySDConfigs,omitempty"`
 	RelabelConfigs                   []v1.RelabelConfigApplyConfiguration     `json:"relabelings,omitempty"`
 	MetricsPath                      *string                                  `json:"metricsPath,omitempty"`
 	ScrapeInterval                   *monitoringv1.Duration                   `json:"scrapeInterval,omitempty"`
@@ -60,6 +61,7 @@ type ScrapeConfigSpecApplyConfiguration struct {
 	EnableCompression                *bool                                    `json:"enableCompression,omitempty"`
 	BasicAuth                        *v1.BasicAuthApplyConfiguration          `json:"basicAuth,omitempty"`
 	Authorization                    *v1.SafeAuthorizationApplyConfiguration  `json:"authorization,omitempty"`
+	OAuth2                           *v1.OAuth2ApplyConfiguration             `json:"oauth2,omitempty"`
 	TLSConfig                        *v1.SafeTLSConfigApplyConfiguration      `json:"tlsConfig,omitempty"`
 	SampleLimit                      *uint64                                  `json:"sampleLimit,omitempty"`
 	TargetLimit                      *uint64                                  `json:"targetLimit,omitempty"`
@@ -359,6 +361,19 @@ func (b *ScrapeConfigSpecApplyConfiguration) WithOVHCloudSDConfigs(values ...*OV
 	return b
 }
 
+// WithScalewaySDConfigs adds the given value to the ScalewaySDConfigs field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the ScalewaySDConfigs field.
+func (b *ScrapeConfigSpecApplyConfiguration) WithScalewaySDConfigs(values ...*ScalewaySDConfigApplyConfiguration) *ScrapeConfigSpecApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithScalewaySDConfigs")
+		}
+		b.ScalewaySDConfigs = append(b.ScalewaySDConfigs, *values[i])
+	}
+	return b
+}
+
 // WithRelabelConfigs adds the given value to the RelabelConfigs field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the RelabelConfigs field.
@@ -473,6 +488,14 @@ func (b *ScrapeConfigSpecApplyConfiguration) WithBasicAuth(value *v1.BasicAuthAp
 // If called multiple times, the Authorization field is set to the value of the last call.
 func (b *ScrapeConfigSpecApplyConfiguration) WithAuthorization(value *v1.SafeAuthorizationApplyConfiguration) *ScrapeConfigSpecApplyConfiguration {
 	b.Authorization = value
+	return b
+}
+
+// WithOAuth2 sets the OAuth2 field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the OAuth2 field is set to the value of the last call.
+func (b *ScrapeConfigSpecApplyConfiguration) WithOAuth2(value *v1.OAuth2ApplyConfiguration) *ScrapeConfigSpecApplyConfiguration {
+	b.OAuth2 = value
 	return b
 }
 
