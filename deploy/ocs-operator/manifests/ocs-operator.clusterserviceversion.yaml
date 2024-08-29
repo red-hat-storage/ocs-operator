@@ -473,7 +473,11 @@ spec:
           resources:
           - routes
           verbs:
-          - '*'
+          - create
+          - delete
+          - list
+          - update
+          - watch
         - apiGroups:
           - security.openshift.io
           resources:
