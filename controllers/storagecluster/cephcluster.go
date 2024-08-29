@@ -451,6 +451,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			},
 			Storage: rookCephv1.StorageScopeSpec{
 				AllowDeviceClassUpdate:       sc.Spec.ManagedResources.CephCluster.AllowDeviceClassUpdate,
+				AllowOsdCrushWeightUpdate:    true,
 				StorageClassDeviceSets:       newStorageClassDeviceSets(sc),
 				FlappingRestartIntervalHours: 24,
 				FullRatio:                    sc.Spec.ManagedResources.CephCluster.FullRatio,
