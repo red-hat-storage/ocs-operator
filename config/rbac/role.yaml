@@ -328,4 +328,9 @@ rules:
   resources:
   - templates
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
