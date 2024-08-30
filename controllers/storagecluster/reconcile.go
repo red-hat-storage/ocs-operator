@@ -118,7 +118,6 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=*
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions;networks,verbs=get;list;watch
-// +kubebuilder:rbac:groups=console.openshift.io,resources=consolequickstarts,verbs=*
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;delete;list;watch;update
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update

@@ -289,12 +289,6 @@ spec:
           - list
           - watch
         - apiGroups:
-          - console.openshift.io
-          resources:
-          - consolequickstarts
-          verbs:
-          - '*'
-        - apiGroups:
           - coordination.k8s.io
           resources:
           - leases
