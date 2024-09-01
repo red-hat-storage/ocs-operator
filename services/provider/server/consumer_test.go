@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	routev1 "github.com/openshift/api/route/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -13,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -67,6 +67,8 @@ func newFakeClient(t *testing.T, obj ...client.Object) client.Client {
 	err = opv1a1.AddToScheme(scheme)
 	assert.NoError(t, err, "failed to add opv1a1 scheme")
 
+	err = routev1.AddToScheme(scheme)
+	assert.NoError(t, err, "failed to add routev1 scheme")
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(obj...).

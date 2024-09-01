@@ -19,6 +19,9 @@ package controllers
 import (
 	"testing"
 
+	noobaaApis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
+	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	routev1 "github.com/openshift/api/route/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -46,7 +49,15 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 
 	err = rookCephv1.AddToScheme(scheme)
 	if err != nil {
-		assert.Fail(t, "failed to add rookCephv1scheme")
+		assert.Fail(t, "failed to add rookCephv1 scheme")
+	}
+	err = routev1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add routev1 scheme")
+	}
+	err = noobaaApis.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add nbapis scheme")
 	}
 
 	return scheme
@@ -90,7 +101,23 @@ func TestCephName(t *testing.T) {
 					Name:  "cephfs",
 					Phase: "Ready",
 				},
+				{
+					Kind:  "NooBaaAccount",
+					Name:  "consumer-acc",
+					Phase: "Ready",
+				},
 			},
+			Client: ocsv1alpha1.ClientStatus{
+				ClusterID: "consumer",
+			},
+		},
+	}
+	r.noobaaAccount = &v1alpha1.NooBaaAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "consumer-acc",
+		},
+		Status: v1alpha1.NooBaaAccountStatus{
+			Phase: v1alpha1.NooBaaAccountPhaseReady,
 		},
 	}
 	_, err := r.reconcilePhases()
@@ -100,6 +127,11 @@ func TestCephName(t *testing.T) {
 		{
 			Kind:  "CephClient",
 			Name:  "healthchecker",
+			Phase: "Ready",
+		},
+		{
+			Kind:  "NooBaaAccount",
+			Name:  "consumer-acc",
 			Phase: "Ready",
 		},
 	}
@@ -138,9 +170,23 @@ func TestCephName(t *testing.T) {
 					Name:  "healthchecker",
 					Phase: "Error",
 				},
+				{
+					Kind:  "NooBaaAccount",
+					Name:  "consumer-acc",
+					Phase: "Error",
+				},
 			},
 		},
 	}
+	r.noobaaAccount = &v1alpha1.NooBaaAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "consumer-acc",
+		},
+		Status: v1alpha1.NooBaaAccountStatus{
+			Phase: v1alpha1.NooBaaAccountPhaseRejected,
+		},
+	}
+
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
 
@@ -149,6 +195,11 @@ func TestCephName(t *testing.T) {
 			Kind:  "CephClient",
 			Name:  "healthchecker",
 			Phase: "Error",
+		},
+		{
+			Kind:  "NooBaaAccount",
+			Name:  "consumer-acc",
+			Phase: "Rejected",
 		},
 	}
 	assert.Equal(t, r.storageConsumer.Status.CephResources, want)
