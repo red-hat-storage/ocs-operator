@@ -127,6 +127,10 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.cephClientHealthChecker = &rookCephv1.CephClient{}
 	r.cephClientHealthChecker.Name = GenerateHashForCephClient(r.storageConsumer.Name, "global")
 	r.cephClientHealthChecker.Namespace = r.namespace
+
+	r.noobaaAccount = &nbv1.NooBaaAccount{}
+	r.noobaaAccount.Name = r.storageConsumer.Name
+	r.noobaaAccount.Namespace = r.storageConsumer.Namespace
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
