@@ -50,8 +50,8 @@ OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 # and we should continue to use dowsntream image only due to few
 # downstream only changes present in rook downstream fork.
 LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vrelease-4.17-91cc5780b"
-LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20240820"
-LATEST_NOOBAA_DB_IMAGE="docker.io/centos/postgresql-12-centos8"
+LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20240901"
+LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v18.2.0"
 # TODO: change image once the quay repo is changed
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
@@ -90,7 +90,7 @@ UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_
 
 CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.8.0"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:release-4.16-7c5526d"
-NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20240725"
+NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20240901"
 ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:release-4.17-91cc5780b"
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"
 
