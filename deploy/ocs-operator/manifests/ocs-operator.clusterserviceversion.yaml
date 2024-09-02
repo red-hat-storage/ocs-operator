@@ -572,9 +572,9 @@ spec:
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v18.2.0
                 - name: NOOBAA_CORE_IMAGE
-                  value: quay.io/noobaa/noobaa-core:master-20240820
+                  value: quay.io/noobaa/noobaa-core:master-20240901
                 - name: NOOBAA_DB_IMAGE
-                  value: docker.io/centos/postgresql-12-centos8
+                  value: quay.io/sclorg/postgresql-15-c9s
                 - name: PROVIDER_API_SERVER_IMAGE
                   value: quay.io/ocs-dev/ocs-operator:latest
                 - name: ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE
