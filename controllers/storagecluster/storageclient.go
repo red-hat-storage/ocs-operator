@@ -37,9 +37,9 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 			}
 			storageClient.Spec.OnboardingTicket = token
 		}
-		// the controller of storageclient is running in same namespace and should be able to resolve the endpoint
-		// via servicename:serviceport irrespective of clusterip/nodeport/lb
-		storageClient.Spec.StorageProviderEndpoint = fmt.Sprintf("%s:%d", ocsProviderServerName, ocsProviderServicePort)
+		// we could just use svcName:port however in-cluster traffic from "*.svc" is generally not proxied and
+		// we using qualified name upto ".svc" makes connection not go through any proxies.
+		storageClient.Spec.StorageProviderEndpoint = fmt.Sprintf("%s.%s.svc:%d", ocsProviderServerName, storagecluster.Namespace, ocsProviderServicePort)
 		return nil
 	})
 	if err != nil {
