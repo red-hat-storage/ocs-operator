@@ -487,7 +487,6 @@ spec:
           resources:
           - volumesnapshotclasses
           verbs:
-          - '*'
           - create
           - delete
           - get
@@ -498,7 +497,9 @@ spec:
           resources:
           - volumesnapshots
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
         - apiGroups:
           - storage.k8s.io
           resources:
