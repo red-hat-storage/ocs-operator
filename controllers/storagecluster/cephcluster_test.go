@@ -306,6 +306,7 @@ func TestGenerateMgrSpec(t *testing.T) {
 				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
+					{Name: "rook", Enabled: false},
 				},
 			},
 		},
@@ -326,6 +327,7 @@ func TestGenerateMgrSpec(t *testing.T) {
 				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
+					{Name: "rook", Enabled: false},
 				},
 			},
 		},
@@ -349,6 +351,7 @@ func TestGenerateMgrSpec(t *testing.T) {
 				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
+					{Name: "rook", Enabled: false},
 				},
 			},
 		},
@@ -362,6 +365,7 @@ func TestGenerateMgrSpec(t *testing.T) {
 				Modules: []rookCephv1.Module{
 					{Name: "pg_autoscaler", Enabled: true},
 					{Name: "balancer", Enabled: true},
+					{Name: "rook", Enabled: false},
 				},
 			},
 		},
