@@ -375,9 +375,9 @@ func TestGetPlacement(t *testing.T) {
 									LabelSelector: &metav1.LabelSelector{
 										MatchExpressions: []metav1.LabelSelectorRequirement{
 											{
-												Key:      "app",
+												Key:      "rook_file_system",
 												Operator: metav1.LabelSelectorOpIn,
-												Values:   []string{"rook-ceph-mds"},
+												Values:   []string{"storage-test-cephfilesystem"},
 											},
 										},
 									},
@@ -507,6 +507,21 @@ func TestGetPlacement(t *testing.T) {
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
 
 		expectedPlacement = c.expectedPlacements["mds"]
+		testPodAffinity := &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc)),
+			},
+		}
+		if expectedPlacement.PodAntiAffinity != nil {
+			topologyKeys := ""
+			if len(expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0 {
+				topologyKeys = expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey
+			}
+			expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = testPodAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			if topologyKeys != "" {
+				expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey = topologyKeys
+			}
+		}
 		actualPlacement = getPlacement(sc, "mds")
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
 	}

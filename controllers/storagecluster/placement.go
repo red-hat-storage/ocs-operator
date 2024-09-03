@@ -20,6 +20,14 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	} else {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
+		// label rook_file_system is added to the mds pod using rook operator
+		if component == "mds" {
+			placement.PodAntiAffinity = &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc)),
+				},
+			}
+		}
 	}
 
 	// ignore default PodAntiAffinity mon placement when arbiter is enabled

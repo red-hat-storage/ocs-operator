@@ -76,7 +76,7 @@ var (
 			},
 			PodAntiAffinity: &corev1.PodAntiAffinity{
 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					getWeightedPodAffinityTerm(100, "rook-ceph-mds"),
+					// left the selector value empty as it will be updated later in the getPlacement()
 				},
 			},
 		},
@@ -158,7 +158,7 @@ func getTopologySpreadConstraintsSpec(maxSkew int32, valueLabels []string) corev
 }
 
 func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
-	WeightedPodAffinityTerm := corev1.WeightedPodAffinityTerm{
+	return corev1.WeightedPodAffinityTerm{
 		Weight: weight,
 		PodAffinityTerm: corev1.PodAffinityTerm{
 			LabelSelector: &metav1.LabelSelector{
@@ -173,7 +173,24 @@ func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.We
 			TopologyKey: corev1.LabelHostname,
 		},
 	}
-	return WeightedPodAffinityTerm
+}
+
+func GetMdsWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
+	return corev1.WeightedPodAffinityTerm{
+		Weight: weight,
+		PodAffinityTerm: corev1.PodAffinityTerm{
+			LabelSelector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{
+						Key:      "rook_file_system",
+						Operator: metav1.LabelSelectorOpIn,
+						Values:   selectorValue,
+					},
+				},
+			},
+			TopologyKey: corev1.LabelHostname,
+		},
+	}
 }
 
 func getPodAffinityTerm(selectorValue ...string) corev1.PodAffinityTerm {
