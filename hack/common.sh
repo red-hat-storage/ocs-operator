@@ -89,6 +89,7 @@ METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:-${DEFAULT_
 UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_UX_BACKEND_OAUTH_FULL_IMAGE_NAME}}"
 
 CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.9.1"
+CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:release-4.17-fb535da"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-5595a28"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20240901"
 ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:release-4.17-91cc5780b"
