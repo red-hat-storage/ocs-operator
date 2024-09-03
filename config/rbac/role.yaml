@@ -304,15 +304,8 @@ rules:
   - delete
   - get
   - list
+  - update
   - watch
-- apiGroups:
-  - snapshot.storage.k8s.io
-  resources:
-  - volumesnapshots
-  verbs:
-  - create
-  - delete
-  - get
 - apiGroups:
   - storage.k8s.io
   resources:
