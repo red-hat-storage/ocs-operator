@@ -508,7 +508,12 @@ spec:
           resources:
           - templates
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         serviceAccountName: ocs-operator
       - rules:
         - apiGroups:
