@@ -33,28 +33,39 @@ data:
 EOF
 
 
-# Ensure position independent make targets in release CI, explicitly setting the values ensures client-op doesn't deploy CSI
-# when storagecluster is configured for remoteconsumers, controllers set this value to "true"
-cat <<EOF | oc create -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ocs-client-operator-config
-  namespace: openshift-storage
-data:
-  DEPLOY_CSI: "false"
-EOF
+patch_ocs_client_operator_config_configmap() {
+    while true; do
+        if oc get cm ocs-client-operator-config -n openshift-storage; then
+            oc patch cm ocs-client-operator-config -n openshift-storage --type merge -p '{"data":{"DEPLOY_CSI":"false"}}'
+            sleep 10
+            value=$(oc get cm ocs-client-operator-config -n openshift-storage -o custom-columns=:data.DEPLOY_CSI --no-headers)
+            if [[ "$value" == "false" ]]; then
+                break
+            fi
+        fi
+        sleep 10
+    done
+}
 
 
 "$OPERATOR_SDK" run bundle "$ROOK_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
+"$OPERATOR_SDK" run bundle "$CEPH_CSI_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
+# Patch the ConfigMap in the background because an empty ConfigMap is initially created by the OLM as it is part of the ocs-client-operator bundle.
+# Patching is done in the background to ensure that it happens immediately after creation, preventing the operator from running with the default
+# configuration and deploying the CSI. This approach allows us to stop the CSI deployment by patching the ConfigMap as soon as it's created.
+# We cannot create the ConfigMap early in the process because OLM overwrites it with an empty one later in the cycle.
+patch_ocs_client_operator_config_configmap &
 "$OPERATOR_SDK" run bundle "$OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$NOOBAA_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 
 oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment \
-    rook-ceph-operator \
+    ceph-csi-controller-manager \
     csi-addons-controller-manager \
-    ocs-client-operator-controller-manager \
     noobaa-operator \
+    ocs-client-operator-console \
+    ocs-client-operator-controller-manager \
     ocs-operator \
+    rook-ceph-operator \
+    ux-backend-server
