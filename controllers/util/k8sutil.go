@@ -45,6 +45,9 @@ const (
 	OwnerUIDIndexName = "ownerUID"
 
 	OdfInfoNamespacedNameClaimName = "odfinfo.odf.openshift.io"
+
+	// CephBlockPoolForbidMirroringLabel is used to blacklist cephBlockPool for mirroring
+	CephBlockPoolForbidMirroringLabel = "ocs.openshift.io/forbid-mirroring"
 )
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
