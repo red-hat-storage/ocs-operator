@@ -39,7 +39,7 @@ func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Dura
 	//nolint:golint,all
 	conn, err := grpc.DialContext(apiCtx, serverAddr, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to dial: %v", err)
+		return nil, fmt.Errorf("failed to dial %v, %v : %v", serverAddr, conn.GetState().String(), err)
 	}
 
 	return &OCSProviderClient{
