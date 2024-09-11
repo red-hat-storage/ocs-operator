@@ -2,6 +2,8 @@ package storagecluster
 
 import (
 	"fmt"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"strings"
 	"sync"
 
@@ -35,6 +37,8 @@ type odfInfoConfig struct{}
 var _ resourceManager = &odfInfoConfig{}
 
 var mutex sync.RWMutex
+
+var testSkipIsDrOptimized = false
 
 // ensureCreated ensures that a ConfigMap resource exists with its Spec in
 // the desired state.
@@ -142,6 +146,17 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 		return "", err
 	}
 
+	var isDROptimized = "false"
+	// Set isDROptmized to "false" in case of external clusters as we currently don't have to way to determine
+	// if external cluster OSDs are using bluestore-rdr
+	if !storageCluster.Spec.ExternalStorage.Enable && !testSkipIsDrOptimized {
+		isDROptimized, err = getIsDROptimized(r, storageCluster)
+		if err != nil {
+			r.Log.Error(err, "failed to get cephcluster status. retrying again")
+			return "", err
+		}
+	}
+
 	data := ocsv1a1.OdfInfoData{
 		Version:           ocsVersion,
 		DeploymentType:    odfDeploymentType,
@@ -151,6 +166,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 			NamespacedName:          client.ObjectKeyFromObject(storageCluster),
 			StorageProviderEndpoint: storageCluster.Status.StorageProviderEndpoint,
 			CephClusterFSID:         cephFSId,
+			IsDrOptimized:           fmt.Sprintf("%v", isDROptimized),
 		},
 	}
 	yamlData, err := yaml.Marshal(data)
@@ -233,4 +249,24 @@ func getCephFsid(r *StorageClusterReconciler, storageCluster *ocsv1.StorageClust
 	}
 
 	return string(val), nil
+}
+
+func getIsDROptimized(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (string, error) {
+	var cephCluster rookCephv1.CephCluster
+	err := r.Client.Get(r.ctx, types.NamespacedName{Name: generateNameForCephClusterFromString(storageCluster.Name), Namespace: storageCluster.Namespace}, &cephCluster)
+	if err != nil {
+		return "false", err
+	}
+	if cephCluster.Status.CephStorage == nil || cephCluster.Status.CephStorage.OSD.StoreType == nil {
+		return "false", fmt.Errorf("cephcluster status does not have OSD store information")
+	}
+	bluestorerdr, ok := cephCluster.Status.CephStorage.OSD.StoreType["bluestore-rdr"]
+	if !ok {
+		return "false", nil
+	}
+	total := getOsdCount(storageCluster)
+	if bluestorerdr < total {
+		return "false", nil
+	}
+	return "true", nil
 }

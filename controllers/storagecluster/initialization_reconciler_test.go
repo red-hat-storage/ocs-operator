@@ -271,6 +271,7 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []client.Object,
 	customSpec *api.StorageClusterSpec) (*testing.T, StorageClusterReconciler,
 	*api.StorageCluster, reconcile.Request) {
+	testSkipIsDrOptimized = true
 	cr := createDefaultStorageCluster()
 	if customSpec != nil {
 		_ = mergo.Merge(&cr.Spec, customSpec)
@@ -314,6 +315,7 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 }
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
+	testSkipIsDrOptimized = true
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
 	cfs := &cephv1.CephFilesystem{
