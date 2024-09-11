@@ -1290,7 +1290,9 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 			},
 			ccSpec: rookCephv1.ClusterSpec{
 				Network: rookCephv1.NetworkSpec{
-					Connections: &rookCephv1.ConnectionsSpec{},
+					Connections: &rookCephv1.ConnectionsSpec{
+						RequireMsgr2: true,
+					},
 				},
 			},
 		},
@@ -1308,6 +1310,7 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 			ccSpec: rookCephv1.ClusterSpec{
 				Network: rookCephv1.NetworkSpec{
 					Connections: &rookCephv1.ConnectionsSpec{
+						RequireMsgr2: true,
 						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: true,
 						},
@@ -1329,6 +1332,7 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 			ccSpec: rookCephv1.ClusterSpec{
 				Network: rookCephv1.NetworkSpec{
 					Connections: &rookCephv1.ConnectionsSpec{
+						RequireMsgr2: true,
 						Compression: &rookCephv1.CompressionSpec{
 							Enabled: true,
 						},
@@ -1353,6 +1357,7 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 			ccSpec: rookCephv1.ClusterSpec{
 				Network: rookCephv1.NetworkSpec{
 					Connections: &rookCephv1.ConnectionsSpec{
+						RequireMsgr2: true,
 						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: true,
 						},
@@ -1380,6 +1385,7 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 			ccSpec: rookCephv1.ClusterSpec{
 				Network: rookCephv1.NetworkSpec{
 					Connections: &rookCephv1.ConnectionsSpec{
+						RequireMsgr2: true,
 						Encryption: &rookCephv1.EncryptionSpec{
 							Enabled: false,
 						},
