@@ -110,13 +110,13 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 	}
 
-	onboardingTicket, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey)
+	onboardingTicket, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey, services.ClientRole)
 	if err != nil {
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(onboardingTicket.StorageQuotaInGiB))
+	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(onboardingTicket.SubjectRole.ClientOptions.StorageQuotaInGiB))
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
@@ -470,7 +470,7 @@ func getSubVolumeGroupClusterID(subVolumeGroup *rookCephv1.CephFilesystemSubVolu
 	return hex.EncodeToString(hash[:16])
 }
 
-func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.OnboardingTicket, error) {
+func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey, expectedRole services.OnboardingSubjectRole) (*services.OnboardingTicket, error) {
 	ticketArr := strings.Split(string(ticket), ".")
 	if len(ticketArr) != 2 {
 		return nil, fmt.Errorf("invalid ticket")
@@ -487,8 +487,18 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 		return nil, fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)
 	}
 
-	if ticketData.StorageQuotaInGiB > math.MaxInt {
-		return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, ticketData.StorageQuotaInGiB)
+	if ticketData.SubjectRole.Role != expectedRole {
+		return nil, fmt.Errorf("unsupported role sent in onboarding ticket %s, expectedRole is %s", ticketData.SubjectRole.Role, expectedRole)
+	}
+
+	switch ticketData.SubjectRole.Role {
+	case services.ClientRole:
+		clientOptions := ticketData.SubjectRole.ClientOptions
+		if ticketData.SubjectRole.ClientOptions.StorageQuotaInGiB > math.MaxInt {
+			return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, clientOptions.StorageQuotaInGiB)
+		}
+	default:
+		return nil, fmt.Errorf("invalid role sent in onboarding ticket %s, expectedRole is %s", ticketData.SubjectRole.Role, expectedRole)
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])

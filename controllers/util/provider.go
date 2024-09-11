@@ -19,8 +19,8 @@ import (
 
 // GenerateOnboardingToken generates a token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
-// The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.
-func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotaInGiB *uint) (string, error) {
+// The roleSpec contains the SubjectRole and the RoleOptions for the ticket.
+func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, roleSpec services.OnboardingSubjectRoleSpec) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -28,10 +28,9 @@ func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, st
 	ticket := services.OnboardingTicket{
 		ID:             uuid.New().String(),
 		ExpirationDate: tokenExpirationDate,
+		SubjectRole:    roleSpec,
 	}
-	if storageQuotaInGiB != nil {
-		ticket.StorageQuotaInGiB = *storageQuotaInGiB
-	}
+
 	payload, err := json.Marshal(ticket)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal the payload: %v", err)

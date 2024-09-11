@@ -7,9 +7,10 @@ import (
 	"net/http"
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
+
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -32,9 +33,9 @@ func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours 
 }
 
 func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
-	var storageQuotaInGiB *uint
-	// When ContentLength is 0 that means request body is empty and
-	// storage quota is unlimited
+
+	var roleSpec services.OnboardingSubjectRoleSpec
+	roleSpec.Role = services.ClientRole
 	var err error
 	if r.ContentLength != 0 {
 		var quota = struct {
@@ -55,9 +56,9 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 			http.Error(w, fmt.Sprintf("invalid Unit type sent in request body, Valid types are [Gi,Ti,Pi]: %v", quota.Unit), http.StatusBadRequest)
 			return
 		}
-		storageQuotaInGiB = ptr.To(unitAsGiB * quota.Value)
+		roleSpec.ClientOptions = services.ClientRoleOptions{StorageQuotaInGiB: unitAsGiB * quota.Value}
 	}
-	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB); err != nil {
+	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, roleSpec); err != nil {
 		klog.Errorf("failed to get onboardig token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
