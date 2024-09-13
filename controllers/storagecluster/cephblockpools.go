@@ -93,10 +93,14 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
-		if storageCluster.Spec.Mirroring.Enabled {
-			cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
-			cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
-			cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
+		if storageCluster.Spec.Mirroring != nil {
+			if storageCluster.Spec.Mirroring.Enabled {
+				cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
+				cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
+				cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
+			} else {
+				cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
+			}
 		}
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
@@ -249,10 +253,14 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 			}
 			cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
-			if storageCluster.Spec.Mirroring.Enabled {
-				cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
-				cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
-				cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
+			if storageCluster.Spec.Mirroring != nil {
+				if storageCluster.Spec.Mirroring.Enabled {
+					cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
+					cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
+					cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
+				} else {
+					cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
+				}
 			}
 			return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 		})

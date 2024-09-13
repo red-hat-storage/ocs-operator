@@ -92,7 +92,7 @@ func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instanc
 		return reconcile.Result{}, err
 	}
 
-	if !instance.Spec.Mirroring.Enabled {
+	if instance.Spec.Mirroring == nil || !instance.Spec.Mirroring.Enabled {
 		return reconcile.Result{}, r.deleteCephRbdMirrorInstance(cephRbdMirrors)
 	}
 
@@ -168,7 +168,7 @@ ceph config rm mgr mgr/rbd_support/log_level
 		echo "completed"`
 
 	// Mirroring is enabled but the debug logging is disabled
-	if sc.Spec.Mirroring.Enabled && !rbdMirrorDebugLoggingEnabled {
+	if sc.Spec.Mirroring != nil && sc.Spec.Mirroring.Enabled && !rbdMirrorDebugLoggingEnabled {
 
 		err := r.Client.Create(r.ctx, getRbdMirrorDebugLoggingJob(sc, enableRbdMirrorDebugLoggingJobName, enableRbdMirrorDebugLoggingCommands))
 		if err != nil && !errors.IsAlreadyExists(err) {
@@ -190,7 +190,7 @@ ceph config rm mgr mgr/rbd_support/log_level
 		rbdMirrorDebugLoggingEnabled = true
 	}
 	// Mirroring is disabled but the debug logging is enabled
-	if !sc.Spec.Mirroring.Enabled && rbdMirrorDebugLoggingEnabled {
+	if (sc.Spec.Mirroring == nil || !sc.Spec.Mirroring.Enabled) && rbdMirrorDebugLoggingEnabled {
 		err := r.Client.Create(r.ctx, getRbdMirrorDebugLoggingJob(sc, disableRbdMirrorDebugLoggingJobName, disableRbdMirrorDebugLoggingCommands))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return reconcile.Result{}, err
