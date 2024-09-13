@@ -86,7 +86,7 @@ type StorageClusterSpec struct {
 	Arbiter ArbiterSpec `json:"arbiter,omitempty"`
 	// Mirroring specifies data mirroring configuration for the storage cluster.
 	// This configuration will only be applied to resources managed by the operator.
-	Mirroring MirroringSpec `json:"mirroring,omitempty"`
+	Mirroring *MirroringSpec `json:"mirroring,omitempty"`
 	// OverprovisionControl specifies the allowed hard-limit PVs overprovisioning relative to
 	// the effective usable storage capacity.
 	OverprovisionControl []OverprovisionControlSpec `json:"overprovisionControl,omitempty"`
