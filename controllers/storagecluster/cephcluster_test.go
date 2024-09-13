@@ -1479,27 +1479,82 @@ func TestGetIPFamilyConfig(t *testing.T) {
 	}
 }
 
-func TestEnsureRDRMigration(t *testing.T) {
+func TestCephClusterStoreType(t *testing.T) {
+	sc := &ocsv1.StorageCluster{}
+
+	t.Run("ensure no bluestore optimization", func(t *testing.T) {
+		actual := newCephCluster(sc, "", nil, log)
+		assert.Equal(t, "", actual.Spec.Storage.Store.Type)
+	})
+
+	t.Run("ensure bluestore optimization based on annotation for internal clusters", func(t *testing.T) {
+		annotations := map[string]string{
+			DisasterRecoveryTargetAnnotation: "true",
+		}
+		sc.Annotations = annotations
+		actual := newCephCluster(sc, "", nil, log)
+		assert.Equal(t, "bluestore-rdr", actual.Spec.Storage.Store.Type)
+	})
+
+	t.Run("ensure no bluestore optimization for external clusters", func(t *testing.T) {
+		sc.Spec.ExternalStorage.Enable = true
+		actual := newCephCluster(sc, "", nil, log)
+		assert.Equal(t, "", actual.Spec.Storage.Store.Type)
+	})
+}
+
+func TestEnsureRDROptmizations(t *testing.T) {
+	sc := &ocsv1.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+	sc.Annotations[DisasterRecoveryTargetAnnotation] = "true"
+	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
+
+	// Ensure bluestore-rdr store type if RDR optimization annotation is added
+	var obj ocsCephCluster
+	_, err := obj.ensureCreated(&reconciler, sc)
+	assert.NilError(t, err)
+	actual := &rookCephv1.CephCluster{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	assert.NilError(t, err)
+	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
+
+	// Ensure bluestoreRDR store is not overridden if required annotations are removed later on
 	testSkipPrometheusRules = true
+	delete(sc.Annotations, DisasterRecoveryTargetAnnotation)
+	_, err = obj.ensureCreated(&reconciler, sc)
+	assert.NilError(t, err)
+	actual = &rookCephv1.CephCluster{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	assert.NilError(t, err)
+	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
+}
+
+func TestEnsureRDRMigration(t *testing.T) {
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
-	expected := newCephCluster(mockStorageCluster.DeepCopy(), "", nil, log)
-
-	expected.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
-	err := reconciler.Client.Create(context.TODO(), expected)
-	assert.NilError(t, err)
-
-	// Ensure bluestore-rdr store type is reset to bluestore
+	// Ensure bluestore store type if RDR optimization annotation is not added
 	var obj ocsCephCluster
-	_, err = obj.ensureCreated(&reconciler, sc)
+	_, err := obj.ensureCreated(&reconciler, sc)
 	assert.NilError(t, err)
 	actual := &rookCephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
 	assert.NilError(t, err)
-	assert.Equal(t, string(rookCephv1.StoreTypeBlueStore), actual.Spec.Storage.Store.Type)
+	assert.Equal(t, "", actual.Spec.Storage.Store.Type)
+	assert.Equal(t, "", actual.Spec.Storage.Store.UpdateStore)
+
+	// Ensure bluestoreRDR migration is set if RDR optimization annotation is added later on
+	testSkipPrometheusRules = true
+	sc.Annotations[DisasterRecoveryTargetAnnotation] = "true"
+	_, err = obj.ensureCreated(&reconciler, sc)
+	assert.NilError(t, err)
+	actual = &rookCephv1.CephCluster{}
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	assert.NilError(t, err)
+	assert.Equal(t, string(rookCephv1.StoreTypeBlueStoreRDR), actual.Spec.Storage.Store.Type)
 	assert.Equal(t, "yes-really-update-store", actual.Spec.Storage.Store.UpdateStore)
 }
 
