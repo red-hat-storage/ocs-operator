@@ -73,6 +73,10 @@ message ExternalResource {
     string kind = 2;
     // Data contains the contents of the external cluster resource
     bytes Data = 3;
+    // Labels contains the labels of the external cluster resource
+    map<string, string> Labels = 4;
+    // Annotations contains the annotations of the external cluster resource
+    map<string, string> Annotations = 5;
 }
 
 // StorageConfigResponse holds the response for the GetStorageConfig API request
