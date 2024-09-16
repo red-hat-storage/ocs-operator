@@ -1,7 +1,7 @@
 package providerpb
 
 import (
-	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
+	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 )
 
 // ensure ReportStatusRequest satisfies StorageClientStatus interface

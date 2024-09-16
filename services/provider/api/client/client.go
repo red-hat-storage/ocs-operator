@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
-	pb "github.com/red-hat-storage/ocs-operator/v4/services/provider/pb"
+	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
+	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
