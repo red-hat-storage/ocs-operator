@@ -52,6 +52,6 @@ fi
 # generate code
 for service in "${SERVICES[@]}"
 do
-   ${PROTOC}  --proto_path="services/${service}/proto" --go_out="services/${service}/pb" --plugin="${PROTOC_GEN_GO}"  "${service}.proto"
-   ${PROTOC}  --proto_path="services/${service}/proto" --go-grpc_out="services/${service}/pb" --plugin="${PROTOC_GEN_GO_GRPC}" "${service}.proto"
+   ${PROTOC}  --proto_path="services/${service}/proto" --go_out="services/${service}/api" --plugin="${PROTOC_GEN_GO}"  "${service}.proto"
+   ${PROTOC}  --proto_path="services/${service}/proto" --go-grpc_out="services/${service}/api" --plugin="${PROTOC_GEN_GO_GRPC}" "${service}.proto"
 done

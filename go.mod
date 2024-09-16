@@ -6,6 +6,8 @@ replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 
 replace github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
 
+replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
+
 require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0
@@ -31,12 +33,12 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.76.0
 	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240731100835-31192d2c370e
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240731064750-930a78b89d84
+	github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/rook/rook/pkg/apis v0.0.0-20240828225153-88eab510dd2b
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.28.0
 	google.golang.org/grpc v1.66.0
-	google.golang.org/protobuf v1.34.2
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.5.1
@@ -128,6 +130,7 @@ require (
 	golang.org/x/tools v0.24.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240827150818-7e3bb234dfed // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

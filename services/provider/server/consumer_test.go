@@ -8,7 +8,7 @@ import (
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	providerClient "github.com/red-hat-storage/ocs-operator/v4/services/provider/client"
+	providerClient "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
