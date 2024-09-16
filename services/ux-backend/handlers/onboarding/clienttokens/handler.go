@@ -1,4 +1,4 @@
-package onboardingtokens
+package clienttokens
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
+
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
@@ -57,8 +58,9 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 		}
 		storageQuotaInGiB = ptr.To(unitAsGiB * quota.Value)
 	}
-	if onboardingToken, err := util.GenerateOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB); err != nil {
-		klog.Errorf("failed to get onboardig token: %v", err)
+
+	if onboardingToken, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB); err != nil {
+		klog.Errorf("failed to get onboarding token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
 
@@ -74,10 +76,11 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 			klog.Errorf("failed write data to response writer: %v", err)
 		}
 	}
+
 }
 
 func handleUnsupportedMethod(w http.ResponseWriter, r *http.Request) {
-	klog.Info("Only POST method should be used to send data to this endpoint /onboarding-tokens")
+	klog.Infof("Only POST method should be used to send data to this endpoint %s", r.URL.Path)
 	w.WriteHeader(http.StatusMethodNotAllowed)
 	w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
 	w.Header().Set("Allow", "POST")
