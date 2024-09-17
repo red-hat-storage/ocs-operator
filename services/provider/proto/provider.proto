@@ -77,8 +77,10 @@ message ExternalResource {
 
 // StorageConfigResponse holds the response for the GetStorageConfig API request
 message StorageConfigResponse{
-     // ExternalResource holds the configuration data of external storage cluster
-     repeated ExternalResource externalResource = 1;
+    // ExternalResource holds the configuration data of external storage cluster
+    repeated ExternalResource externalResource = 1;
+    // Contains hash of desired config
+    string desiredConfigHash = 2;
 }
 
 
@@ -169,6 +171,8 @@ message ReportStatusRequest{
 }
 
 message ReportStatusResponse{
-    // Contains subscription channel of provider operator for client operator to match
     string desiredClientOperatorChannel = 1;
+    // Contains hash of desired config
+    string desiredConfigHash = 2;
+    
 }
