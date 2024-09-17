@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
@@ -50,6 +52,18 @@ var clusterResourceQuotaSpec = &quotav1.ClusterResourceQuotaSpec{
 		)},
 	},
 }
+
+var noobaaSpec = &nbv1.NooBaaSpec{
+	JoinSecret: &v1.SecretReference{
+		Name: "noobaa-remote-join-secret",
+	},
+}
+
+var joinSecret = map[string][]byte{
+	"auth_token": []byte("authToken"),
+	"mgmt_addr":  []byte("noobaaMgmtAddress"),
+}
+
 var mockExtR = map[string]*externalResource{
 	"rook-ceph-mon-endpoints": {
 		Name: "rook-ceph-mon-endpoints",
@@ -92,6 +106,16 @@ var mockExtR = map[string]*externalResource{
 		Data: map[string]string{
 			"QuotaForConsumer": fmt.Sprintf("%+v\n", clusterResourceQuotaSpec),
 		},
+	},
+	"noobaa-remote-join-secret": {
+		Name: "noobaa-remote-join-secret",
+		Kind: "Secret",
+		Data: joinSecret,
+	},
+	"noobaa-remote": {
+		Name: "noobaa-remote",
+		Kind: "Noobaa",
+		Data: noobaaSpec,
 	},
 	"monitor-endpoints": {
 		Name: "monitor-endpoints",
@@ -257,8 +281,33 @@ func TestGetExternalResources(t *testing.T) {
 		},
 	}
 
+	noobaaRemoteJoinSecretConsumer := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-account-consumer", Namespace: server.namespace},
+		Data: map[string][]byte{
+			"auth_token": []byte("authToken"),
+		},
+	}
+
+	noobaaRemoteJoinSecretConsumer6 := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-account-consumer6", Namespace: server.namespace},
+		Data: map[string][]byte{
+			"auth_token": []byte("authToken"),
+		},
+	}
+
+	noobaaMgmtRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-mgmt", Namespace: server.namespace},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{Host: "noobaaMgmtAddress"}},
+		},
+	}
+
 	assert.NoError(t, client.Create(ctx, cephClient))
 	assert.NoError(t, client.Create(ctx, secret))
+
+	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer))
+	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer6))
+	assert.NoError(t, client.Create(ctx, noobaaMgmtRoute))
 
 	monCm, monSc := createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
@@ -277,9 +326,20 @@ func TestGetExternalResources(t *testing.T) {
 		mockResoruce, ok := mockExtR[extResource.Name]
 		assert.True(t, ok)
 
-		data, err := json.Marshal(mockResoruce.Data)
-		assert.NoError(t, err)
-		assert.Equal(t, string(extResource.Data), string(data))
+		if extResource.Kind == "Noobaa" {
+			var extNoobaaSpec, mockNoobaaSpec nbv1.NooBaaSpec
+			err = json.Unmarshal(extResource.Data, &extNoobaaSpec)
+			assert.NoError(t, err)
+			data, err := json.Marshal(mockResoruce.Data)
+			assert.NoError(t, err)
+			err = json.Unmarshal(data, &mockNoobaaSpec)
+			assert.NoError(t, err)
+			assert.Equal(t, extNoobaaSpec.JoinSecret, mockNoobaaSpec.JoinSecret)
+		} else {
+			data, err := json.Marshal(mockResoruce.Data)
+			assert.NoError(t, err)
+			assert.Equal(t, string(extResource.Data), string(data))
+		}
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
@@ -297,15 +357,24 @@ func TestGetExternalResources(t *testing.T) {
 		mockResoruce, ok := mockExtR[extResource.Name]
 		assert.True(t, ok)
 
-		data, err := json.Marshal(mockResoruce.Data)
-		assert.NoError(t, err)
 		if extResource.Kind == "ClusterResourceQuota" {
 			var clusterResourceQuotaSpec quotav1.ClusterResourceQuotaSpec
 			err = json.Unmarshal([]byte(extResource.Data), &clusterResourceQuotaSpec)
 			assert.NoError(t, err)
 			quantity, _ := resource.ParseQuantity("10240G")
 			assert.Equal(t, clusterResourceQuotaSpec.Quota.Hard["requests.storage"], quantity)
+		} else if extResource.Kind == "Noobaa" {
+			var extNoobaaSpec, mockNoobaaSpec nbv1.NooBaaSpec
+			err = json.Unmarshal(extResource.Data, &extNoobaaSpec)
+			assert.NoError(t, err)
+			data, err := json.Marshal(mockResoruce.Data)
+			assert.NoError(t, err)
+			err = json.Unmarshal(data, &mockNoobaaSpec)
+			assert.NoError(t, err)
+			assert.Equal(t, mockNoobaaSpec.JoinSecret, extNoobaaSpec.JoinSecret)
 		} else {
+			data, err := json.Marshal(mockResoruce.Data)
+			assert.NoError(t, err)
 			assert.Equal(t, string(extResource.Data), string(data))
 		}
 
@@ -1021,7 +1090,6 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		}
 		mockResoruce, ok := mockShareFilesystemClaimExtR[name]
 		assert.True(t, ok)
-
 		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
