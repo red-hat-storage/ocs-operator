@@ -175,8 +175,7 @@ message ReportStatusRequest{
 }
 
 message ReportStatusResponse{
-    // DEPRECATED: Contains subscription channel of provider operator for client operator to match
-    string desiredClientOperatorChannel = 1 [deprecated = true];
+    string desiredClientOperatorChannel = 1;
     // Contains hash of desired config
     string desiredConfigHash = 2;
     
