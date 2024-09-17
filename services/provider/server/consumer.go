@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	ifaces "github.com/red-hat-storage/ocs-operator/v4/services/provider/interfaces"
+	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

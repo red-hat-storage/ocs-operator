@@ -1048,7 +1048,11 @@ func (in *StorageClusterSpec) DeepCopyInto(out *StorageClusterSpec) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.Arbiter.DeepCopyInto(&out.Arbiter)
-	in.Mirroring.DeepCopyInto(&out.Mirroring)
+	if in.Mirroring != nil {
+		in, out := &in.Mirroring, &out.Mirroring
+		*out = new(MirroringSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.OverprovisionControl != nil {
 		in, out := &in.OverprovisionControl, &out.OverprovisionControl
 		*out = make([]OverprovisionControlSpec, len(*in))

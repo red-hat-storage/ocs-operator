@@ -24,7 +24,7 @@ func TestCephRbdMirror(t *testing.T) {
 			label:                "create-ceph-rbd-mirror",
 			createRuntimeObjects: false,
 			spec: &api.StorageClusterSpec{
-				Mirroring: api.MirroringSpec{
+				Mirroring: &api.MirroringSpec{
 					Enabled:         true,
 					PeerSecretNames: []string{testPeerSecretName},
 				},
@@ -34,7 +34,7 @@ func TestCephRbdMirror(t *testing.T) {
 			label:                "delete-ceph-rbd-mirror",
 			createRuntimeObjects: false,
 			spec: &api.StorageClusterSpec{
-				Mirroring: api.MirroringSpec{
+				Mirroring: &api.MirroringSpec{
 					Enabled: false,
 				},
 			},
