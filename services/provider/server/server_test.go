@@ -11,6 +11,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
@@ -62,6 +63,11 @@ var noobaaSpec = &nbv1.NooBaaSpec{
 var joinSecret = map[string][]byte{
 	"auth_token": []byte("authToken"),
 	"mgmt_addr":  []byte("noobaaMgmtAddress"),
+}
+
+var ocsSubscriptionSpec = &opv1a1.SubscriptionSpec{
+	Channel: "1.0",
+	Package: "ocs-operator",
 }
 
 var mockExtR = map[string]*externalResource{
@@ -312,6 +318,12 @@ func TestGetExternalResources(t *testing.T) {
 	monCm, monSc := createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
 	assert.NoError(t, client.Create(ctx, monSc))
+
+	ocsSubscription := &opv1a1.Subscription{}
+	ocsSubscription.Name = "ocs-operator"
+	ocsSubscription.Namespace = serverNamespace
+	ocsSubscription.Spec = ocsSubscriptionSpec
+	assert.NoError(t, client.Create(ctx, ocsSubscription))
 
 	// When ocsv1alpha1.StorageConsumerStateReady
 	req := pb.StorageConfigRequest{

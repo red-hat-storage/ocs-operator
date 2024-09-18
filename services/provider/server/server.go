@@ -180,8 +180,18 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
 		}
+
+		channelName, err := s.getOCSSubscriptionChannel(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+		}
+		desiredClientConfigHash := getDesiredClientConfigHash(channelName, consumerObj)
+
 		klog.Infof("successfully returned the config details to the consumer.")
-		return &pb.StorageConfigResponse{ExternalResource: conString}, nil
+		return &pb.StorageConfigResponse{
+			ExternalResource:  conString,
+			DesiredConfigHash: desiredClientConfigHash,
+		}, nil
 	}
 
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
@@ -850,12 +860,30 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
 	}
 
+	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer resource: %v", err)
+	}
+
 	channelName, err := s.getOCSSubscriptionChannel(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
-	return &pb.ReportStatusResponse{DesiredClientOperatorChannel: channelName}, nil
+	desiredClientConfigHash := getDesiredClientConfigHash(channelName, storageConsumer)
+
+	return &pb.ReportStatusResponse{
+		DesiredClientOperatorChannel: channelName,
+		DesiredConfigHash:            desiredClientConfigHash,
+	}, nil
+}
+
+func getDesiredClientConfigHash(channelName string, storageConsumer *ocsv1alpha1.StorageConsumer) string {
+	var arr = []any{
+		channelName,
+		storageConsumer.Spec.StorageQuotaInGiB,
+	}
+	return util.CalculateMD5Hash(arr)
 }
 
 func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
