@@ -128,16 +128,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	enqueueStorageClusterRequest := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
-
-			ocinit, ok := obj.(*ocsv1.OCSInitialization)
-			if !ok {
-				return []reconcile.Request{}
-			}
-
-			if ocinit.Status.Phase != util.PhaseReady {
-				return []reconcile.Request{}
-			}
-
 			// Get the StorageCluster objects
 			scList := &ocsv1.StorageClusterList{}
 			err := r.Client.List(context, scList, &client.ListOptions{Namespace: obj.GetNamespace()})
