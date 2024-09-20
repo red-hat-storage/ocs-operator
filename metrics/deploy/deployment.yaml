@@ -92,9 +92,6 @@ spec:
           readOnly: true
           mountPath: /etc/kube-rbac-policy
       - resources:
-          limits:
-            cpu: 150m
-            memory: 150Mi
           requests:
             cpu: 50m
             memory: 50Mi
@@ -145,4 +142,3 @@ spec:
       - name: ocs-metrics-exporter-kube-rbac-proxy-config
         secret:
           secretName: ocs-metrics-exporter-kube-rbac-proxy-config
-
