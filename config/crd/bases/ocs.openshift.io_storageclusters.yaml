@@ -752,7 +752,7 @@ spec:
                       backfillFullRatio:
                         description: BackfillFullRatio is the ratio at which the cluster
                           is too full for backfill. Backfill will be disabled if above
-                          this threshold. Default is 0.90.
+                          this threshold. Default is 0.80.
                         maximum: 1
                         minimum: 0
                         nullable: true
@@ -764,7 +764,7 @@ spec:
                       fullRatio:
                         description: FullRatio is the ratio at which the cluster is
                           considered full and ceph will stop accepting writes. Default
-                          is 0.95.
+                          is 0.85.
                         maximum: 1
                         minimum: 0
                         nullable: true
@@ -782,7 +782,7 @@ spec:
                       nearFullRatio:
                         description: NearFullRatio is the ratio at which the cluster
                           is considered nearly full and will raise a ceph health warning.
-                          Default is 0.85.
+                          Default is 0.75.
                         maximum: 1
                         minimum: 0
                         nullable: true
