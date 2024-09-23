@@ -695,7 +695,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 					"mirroringMode": "snapshot",
 				},
-
+				Labels: map[string]string{},
 				Annotations: map[string]string{
 					"replication.storage.openshift.io/is-default-class": "true",
 				},
@@ -706,12 +706,11 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Data: map[string]string{
 					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 					"mirroringMode": "snapshot",
+					"flattenMode":   "force",
 				},
-				Labels: map[string]string{
-					"flattenMode": "force",
-				},
+				Labels: map[string]string{},
 				Annotations: map[string]string{
-					"replication.storage.openshift.io/flatten-mode": "force",
+					"replication.storage.openshift.io/is-default-class": "true",
 				},
 			},
 			"ceph-rbd-volumegroupreplicationclass": {
@@ -721,6 +720,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"replication.storage.openshift.io/group-replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 					"mirroringMode": "snapshot",
 				},
+				Labels: map[string]string{},
 				Annotations: map[string]string{
 					"replication.storage.openshift.io/is-default-class": "true",
 				},
@@ -731,12 +731,11 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Data: map[string]string{
 					"replication.storage.openshift.io/group-replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 					"mirroringMode": "snapshot",
+					"flattenMode":   "force",
 				},
-				Labels: map[string]string{
-					"flattenMode": "force",
-				},
+				Labels: map[string]string{},
 				Annotations: map[string]string{
-					"replication.storage.openshift.io/flatten-mode": "force",
+					"replication.storage.openshift.io/is-default-class": "true",
 				},
 			},
 			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
@@ -1105,6 +1104,18 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	}
 	assert.NoError(t, client.Create(ctx, radosNamespace))
 
+	cephBlockPool := &rookCephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cephblockpool",
+			Namespace: server.namespace,
+		},
+		Spec: rookCephv1.NamedBlockPoolSpec{
+			PoolSpec: rookCephv1.PoolSpec{
+				Mirroring: rookCephv1.MirroringSpec{Enabled: false},
+			}},
+	}
+	assert.NoError(t, client.Create(ctx, cephBlockPool))
+
 	// get the storage class request config for block pool
 	req := pb.StorageClaimConfigRequest{
 		StorageConsumerUUID: string(consumerResource.UID),
@@ -1136,6 +1147,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
+		assert.Equal(t, extResource.Labels, mockResoruce.Labels)
 		assert.True(t, reflect.DeepEqual(extResource.Labels, mockResoruce.Labels))
 		assert.True(t, reflect.DeepEqual(extResource.Annotations, mockResoruce.Annotations))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
