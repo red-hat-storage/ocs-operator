@@ -29,6 +29,7 @@ type InfoStorageCluster struct {
 	NamespacedName          types.NamespacedName `yaml:"namespacedName"`
 	StorageProviderEndpoint string               `yaml:"storageProviderEndpoint"`
 	CephClusterFSID         string               `yaml:"cephClusterFSID"`
+	IsDrOptimized           string               `yaml:"isDrOptimized"`
 }
 
 // OdfInfoData describes odf-info CM's data
