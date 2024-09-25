@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -153,9 +154,14 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 		if err := r.reconcileCephClientHealthChecker(); err != nil {
 			return reconcile.Result{}, err
 		}
-
-		if err := r.reconcileNoobaaAccount(); err != nil {
-			return reconcile.Result{}, err
+		// A provider cluster already has a NooBaa system and does not require a NooBaa account
+		// to connect to a remote cluster, unlike client clusters.
+		// A NooBaa account only needs to be created if the storage consumer is for a client cluster.
+		clusterID := util.GetClusterID(r.ctx, r.Client, &r.Log)
+		if clusterID != "" && !strings.Contains(r.storageConsumer.Name, clusterID) {
+			if err := r.reconcileNoobaaAccount(); err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 
 		cephResourcesReady := true

@@ -64,9 +64,9 @@ var noobaaSpec = &nbv1.NooBaaSpec{
 	},
 }
 
-var joinSecret = map[string][]byte{
-	"auth_token": []byte("authToken"),
-	"mgmt_addr":  []byte("noobaaMgmtAddress"),
+var joinSecret = map[string]string{
+	"auth_token": "authToken",
+	"mgmt_addr":  "noobaaMgmtAddress",
 }
 
 var mockExtR = map[string]*externalResource{
