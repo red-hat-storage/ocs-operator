@@ -345,7 +345,6 @@ func createSetupForOcsProviderTest(t *testing.T, allowRemoteStorageConsumers boo
 	}
 
 	os.Setenv(providerAPIServerImage, "fake-image")
-	os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
 	os.Setenv(util.WatchNamespaceEnvVar, "openshift-storage")
 
 	return r, instance
