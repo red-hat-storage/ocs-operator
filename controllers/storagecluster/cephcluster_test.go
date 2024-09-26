@@ -1289,16 +1289,18 @@ func TestParsePrometheusRules(t *testing.T) {
 	assert.Equal(t, 1, len(prometheusRules.Spec.Groups))
 }
 
-func TestChangePrometheusExprFunc(t *testing.T) {
+func TestChangePromRuleFunc(t *testing.T) {
 	prometheusRule, err := parsePrometheusRule(localPrometheusRules)
+	const DescriptionKey, SeverityKey = "description", "severity"
 	assert.NilError(t, err)
-	var changeTokens = []replaceToken{
-		{recordOrAlertName: "CephMgrIsAbsent", wordToReplace: "openshift-storage", replaceWith: "new-namespace"},
+	var changeTokens = []ReplaceToken{
+		CreateExpressionReplaceToken("", "CephMgrIsAbsent", "openshift-storage", "new-namespace"),
 		// when alert or record name is not specified,
-		// the change should affect all the expressions which has the 'wordInExpr'
-		{recordOrAlertName: "", wordToReplace: "ceph_pool_stored", replaceWith: "new_ceph_pool_stored"},
-		{recordOrAlertName: "", wordToReplace: "0.75", replaceWith: "0.775"},
-		{recordOrAlertName: "", wordToReplace: "85%", replaceWith: "92.50%"},
+		// the change should affect all the alerts' specified 'RuleSection' which has the 'wordToReplace' string
+		CreateExpressionReplaceToken("", "", "ceph_pool_stored", "new_ceph_pool_stored"),
+		CreateExpressionReplaceToken("", "", "0.75", "0.775"),
+		CreateAnnotationReplaceToken("", "", "85%", "92.50%", DescriptionKey),
+		CreateLabelReplaceToken("", "", "critical", "warning", SeverityKey),
 	}
 	changePromRule(prometheusRule, changeTokens)
 
@@ -1317,13 +1319,25 @@ func TestChangePrometheusExprFunc(t *testing.T) {
 			for _, eachChange := range recordOrAlertNameAndReplacedWord {
 				alertName := eachChange[0]
 				changeStr := eachChange[1]
+				// one of the replace token is to change all 'critical' severity rules to 'warning'
+				if severityVal, ok := rule.Labels[SeverityKey]; ok {
+					assert.Assert(t, severityVal != "critical", "There should not be any 'critical' severity rules", "Rule", rule)
+				}
 				if rule.Alert != alertName {
 					continue
 				}
-				assert.Assert(t,
-					strings.Contains(rule.Expr.String(), changeStr) ||
-						(rule.Annotations != nil && strings.Contains(rule.Annotations["description"], changeStr)),
-					fmt.Sprintf("Expected '%s' to be found in either Expr or Annotations for alert %s", changeStr, alertName))
+				// below is a small hack to determine whether we have to check 'Annotation' or 'Expr'
+				// if it contains a %-age sign, then check the annotation description
+				if strings.Contains(changeStr, "%") {
+					assert.Assert(t,
+						strings.Contains(rule.Annotations[DescriptionKey], changeStr),
+						"Annotation description doesn't mach", "Current Annotation Description",
+						rule.Annotations[DescriptionKey], "Expected Change", changeStr)
+				} else { // check the expression
+					assert.Assert(t,
+						strings.Contains(rule.Expr.String(), changeStr), "Expression doesn't mach",
+						"Current Expression", rule.Expr.String(), "Expected Change", changeStr)
+				}
 			}
 		}
 	}
