@@ -1041,29 +1041,40 @@ func TestParsePrometheusRules(t *testing.T) {
 }
 
 func TestChangePrometheusExprFunc(t *testing.T) {
-	prometheusRules, err := parsePrometheusRule(localPrometheusRules)
+	prometheusRule, err := parsePrometheusRule(localPrometheusRules)
 	assert.NilError(t, err)
-	var changeTokens = []exprReplaceToken{
-		{recordOrAlertName: "CephMgrIsAbsent", wordInExpr: "openshift-storage", replaceWith: "new-namespace"},
+	var changeTokens = []replaceToken{
+		{recordOrAlertName: "CephMgrIsAbsent", wordToReplace: "openshift-storage", replaceWith: "new-namespace"},
 		// when alert or record name is not specified,
 		// the change should affect all the expressions which has the 'wordInExpr'
-		{recordOrAlertName: "", wordInExpr: "ceph_pool_stored_raw", replaceWith: "new_ceph_pool_stored_raw"},
+		{recordOrAlertName: "", wordToReplace: "ceph_pool_stored_raw", replaceWith: "new_ceph_pool_stored_raw"},
+		{recordOrAlertName: "", wordToReplace: "0.75", replaceWith: "0.775"},
+		{recordOrAlertName: "", wordToReplace: "85%", replaceWith: "92.50%"},
 	}
-	changePromRuleExpr(prometheusRules, changeTokens)
-	alertNameAndChangedExpr := [][2]string{
+	changePromRule(prometheusRule, changeTokens)
+
+	recordOrAlertNameAndReplacedWord := [][2]string{
 		{"CephMgrIsAbsent", "new-namespace"},
 		{"CephPoolQuotaBytesNearExhaustion", "new_ceph_pool_stored_raw"},
 		{"CephPoolQuotaBytesCriticallyExhausted", "new_ceph_pool_stored_raw"},
+		{"CephClusterNearFull", "0.775"},
+		{"CephOSDNearFull", "0.775"},
+		{"CephClusterNearFull", "92.50%"},
+		{"CephClusterCriticallyFull", "92.50%"},
+		{"CephClusterReadOnly", "92.50%"},
 	}
-	for _, grp := range prometheusRules.Spec.Groups {
+	for _, grp := range prometheusRule.Spec.Groups {
 		for _, rule := range grp.Rules {
-			for _, eachAlertChanged := range alertNameAndChangedExpr {
-				alertName := eachAlertChanged[0]
-				changeStr := eachAlertChanged[1]
+			for _, eachChange := range recordOrAlertNameAndReplacedWord {
+				alertName := eachChange[0]
+				changeStr := eachChange[1]
 				if rule.Alert != alertName {
 					continue
 				}
-				assert.Assert(t, strings.Contains(rule.Expr.String(), changeStr))
+				assert.Assert(t,
+					strings.Contains(rule.Expr.String(), changeStr) ||
+						(rule.Annotations != nil && strings.Contains(rule.Annotations["description"], changeStr)),
+					fmt.Sprintf("Expected '%s' to be found in either Expr or Annotations for alert %s", changeStr, alertName))
 			}
 		}
 	}
