@@ -17,10 +17,31 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 )
 
-// GenerateOnboardingToken generates a token valid for a duration of "tokenLifetimeInHours".
+// GenerateClientOnboardingToken generates a ocs-client token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
 // The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.
-func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotaInGiB *uint) (string, error) {
+func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotainGib *uint) (string, error) {
+	tokenExpirationDate := time.Now().
+		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
+		Unix()
+
+	ticket := services.OnboardingTicket{
+		ID:                uuid.New().String(),
+		ExpirationDate:    tokenExpirationDate,
+		SubjectRole:       services.ClientRole,
+		StorageQuotaInGiB: storageQuotainGib,
+	}
+
+	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// GeneratePeerOnboardingToken generates a ocs-peer token valid for a duration of "tokenLifetimeInHours".
+// The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
+func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -28,10 +49,18 @@ func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, st
 	ticket := services.OnboardingTicket{
 		ID:             uuid.New().String(),
 		ExpirationDate: tokenExpirationDate,
+		SubjectRole:    services.PeerRole,
 	}
-	if storageQuotaInGiB != nil {
-		ticket.StorageQuotaInGiB = *storageQuotaInGiB
+	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
+	if err != nil {
+		return "", err
 	}
+	return token, nil
+}
+
+// encodeAndSignOnboardingToken generates a token from the ticket.
+// The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
+func encodeAndSignOnboardingToken(privateKeyPath string, ticket services.OnboardingTicket) (string, error) {
 	payload, err := json.Marshal(ticket)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal the payload: %v", err)
