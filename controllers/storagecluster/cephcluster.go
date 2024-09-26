@@ -1148,16 +1148,39 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 		return err
 	}
 	applyLabels(getCephClusterMonitoringLabels(*sc), &prometheusRule.ObjectMeta)
-	replaceTokens := []exprReplaceToken{
+
+	replaceTokens := []replaceToken{
 		{
 			recordOrAlertName: "CephMgrIsAbsent",
-			wordInExpr:        "openshift-storage",
+			wordToReplace:     "openshift-storage",
 			replaceWith:       sc.Namespace,
 		},
 	}
+
+	// if nearFullRatio/backfillFullRatio/fullRatio are specified on the StorageCLuster CR, replace the values in the prometheus rule accordingly
+	specifiedNearFullRatio := sc.Spec.ManagedResources.CephCluster.NearFullRatio
+	specifiedBackfillFullRatio := sc.Spec.ManagedResources.CephCluster.BackfillFullRatio
+	specifiedFullRatio := sc.Spec.ManagedResources.CephCluster.FullRatio
+
+	if specifiedNearFullRatio != nil {
+		replaceTokens = append(replaceTokens,
+			createReplaceToken("", "", "75%", fmt.Sprintf("%.2f%%", *specifiedNearFullRatio*100)),
+			createReplaceToken("", "", "0.75", fmt.Sprintf("%f", *specifiedNearFullRatio)))
+	}
+	if specifiedBackfillFullRatio != nil {
+		replaceTokens = append(replaceTokens,
+			createReplaceToken("", "", "80%", fmt.Sprintf("%.2f%%", *specifiedBackfillFullRatio*100)),
+			createReplaceToken("", "", "0.80", fmt.Sprintf("%f", *specifiedBackfillFullRatio)))
+	}
+	if specifiedFullRatio != nil {
+		replaceTokens = append(replaceTokens,
+			createReplaceToken("", "", "85%", fmt.Sprintf("%.2f%%", *specifiedFullRatio*100)),
+			createReplaceToken("", "", "0.85", fmt.Sprintf("%f", *specifiedFullRatio)))
+	}
+
 	// nothing to replace in external mode
 	if name != prometheusExternalRuleName {
-		changePromRuleExpr(prometheusRule, replaceTokens)
+		changePromRule(prometheusRule, replaceTokens)
 	}
 
 	if err := createOrUpdatePrometheusRule(r, prometheusRule); err != nil {
@@ -1180,38 +1203,64 @@ func applyLabels(labels map[string]string, t *metav1.ObjectMeta) {
 	}
 }
 
-type exprReplaceToken struct {
+type replaceToken struct {
 	groupName         string
 	recordOrAlertName string
-	wordInExpr        string
+	wordToReplace     string
 	replaceWith       string
 }
 
-func changePromRuleExpr(promRules *monitoringv1.PrometheusRule, replaceTokens []exprReplaceToken) {
-	if promRules == nil {
+func createReplaceToken(groupName, recordOrAlertName, wordToReplace, replaceWith string) replaceToken {
+	return replaceToken{
+		groupName:         groupName,
+		recordOrAlertName: recordOrAlertName,
+		wordToReplace:     wordToReplace,
+		replaceWith:       replaceWith,
+	}
+}
+
+// changePromRule replaces the wordToReplace with replaceWith in the PrometheusRule
+// This can be used to update the values in the PrometheusRule dynamically
+func changePromRule(promRule *monitoringv1.PrometheusRule, tokens []replaceToken) {
+	if promRule == nil {
 		return
 	}
-	for _, eachToken := range replaceTokens {
-		// if both the words, one being replaced and the one replacing it, are same
-		// then we don't have to do anything
-		if eachToken.replaceWith == eachToken.wordInExpr {
+
+	// Iterate over each token for replacements
+	for _, token := range tokens {
+		// Skip if the word and replacement are the same
+		if token.replaceWith == token.wordToReplace {
 			continue
 		}
-		for gIndx, currGroup := range promRules.Spec.Groups {
-			if eachToken.groupName != "" && eachToken.groupName != currGroup.Name {
+
+		// Iterate through all groups in the Prometheus rule
+		for groupIdx := range promRule.Spec.Groups {
+			group := &promRule.Spec.Groups[groupIdx]
+			// If groupName is specified, ensure it matches; otherwise, apply to all groups
+			if token.groupName != "" && token.groupName != group.Name {
 				continue
 			}
-			for rIndx, currRule := range currGroup.Rules {
-				if eachToken.recordOrAlertName != "" {
-					if currRule.Record != "" && currRule.Record != eachToken.recordOrAlertName {
-						continue
-					} else if currRule.Alert != "" && currRule.Alert != eachToken.recordOrAlertName {
-						continue
+
+			// Iterate through the rules in the group
+			for ruleIdx := range group.Rules {
+				rule := &group.Rules[ruleIdx]
+				// If recordOrAlertName is specified, ensure it matches; otherwise, apply to all rules
+				if token.recordOrAlertName == "" || rule.Record == token.recordOrAlertName || rule.Alert == token.recordOrAlertName {
+					// Update the annotations in the rule
+					if rule.Annotations != nil {
+						// Update description if it exists
+						if description, exists := rule.Annotations["description"]; exists {
+							newDescription := strings.Replace(description, token.wordToReplace, token.replaceWith, -1)
+							rule.Annotations["description"] = newDescription
+						}
+					}
+					// Update the expression field in the rule
+					exprStr := rule.Expr.String()
+					if exprStr != "" {
+						newExpr := strings.Replace(exprStr, token.wordToReplace, token.replaceWith, -1)
+						rule.Expr = intstr.Parse(newExpr)
 					}
 				}
-				exprStr := currRule.Expr.String()
-				newExpr := strings.Replace(exprStr, eachToken.wordInExpr, eachToken.replaceWith, -1)
-				promRules.Spec.Groups[gIndx].Rules[rIndx].Expr = intstr.Parse(newExpr)
 			}
 		}
 	}
