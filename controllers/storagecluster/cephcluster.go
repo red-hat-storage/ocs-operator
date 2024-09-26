@@ -1164,33 +1164,50 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 	}
 	applyLabels(getCephClusterMonitoringLabels(*sc), &prometheusRule.ObjectMeta)
 
-	replaceTokens := []replaceToken{
-		{
-			recordOrAlertName: "CephMgrIsAbsent",
-			wordToReplace:     "openshift-storage",
-			replaceWith:       sc.Namespace,
-		},
+	replaceTokens := []ReplaceToken{
+		CreateExpressionReplaceToken("", "CephMgrIsAbsent", "openshift-storage", sc.Namespace),
 	}
 
-	// if nearFullRatio/backfillFullRatio/fullRatio are specified on the StorageCLuster CR, replace the values in the prometheus rule accordingly
+	const DescriptionKey = "description"
+	// if nearFullRatio/backfillFullRatio/fullRatio are specified on the StorageCLuster CR,
+	// replace the values in the prometheus rule accordingly
 	specifiedNearFullRatio := sc.Spec.ManagedResources.CephCluster.NearFullRatio
 	specifiedBackfillFullRatio := sc.Spec.ManagedResources.CephCluster.BackfillFullRatio
 	specifiedFullRatio := sc.Spec.ManagedResources.CephCluster.FullRatio
 
+	// nearFullRatio changes ceph cluster/osd near full alerts
 	if specifiedNearFullRatio != nil {
+		nearFullPercentStr := fmt.Sprintf("%.0f%%", *specifiedNearFullRatio*100)
+		nearFullDecimalStr := fmt.Sprintf("%.2f", *specifiedNearFullRatio)
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "75%", fmt.Sprintf("%.2f%%", *specifiedNearFullRatio*100)),
-			createReplaceToken("", "", "0.75", fmt.Sprintf("%f", *specifiedNearFullRatio)))
+			CreateAnnotationReplaceToken("", "CephClusterNearFull", "75%", nearFullPercentStr, DescriptionKey),
+			CreateExpressionReplaceToken("", "CephClusterNearFull", "0.75", nearFullDecimalStr),
+			CreateAnnotationReplaceToken("", "CephOSDNearFull", "75%", nearFullPercentStr, DescriptionKey),
+			CreateExpressionReplaceToken("", "CephOSDNearFull", "0.75", nearFullDecimalStr))
 	}
+	// backfillFullRatio changes ceph cluster/osd critically full alerts
 	if specifiedBackfillFullRatio != nil {
+		backFillFullPercentStr := fmt.Sprintf("%.0f%%", *specifiedBackfillFullRatio*100)
+		backFillFullDecimalStr := fmt.Sprintf("%.2f", *specifiedBackfillFullRatio)
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "80%", fmt.Sprintf("%.2f%%", *specifiedBackfillFullRatio*100)),
-			createReplaceToken("", "", "0.80", fmt.Sprintf("%f", *specifiedBackfillFullRatio)))
+			CreateAnnotationReplaceToken("", "CephClusterCriticallyFull", "80%", backFillFullPercentStr, DescriptionKey),
+			CreateExpressionReplaceToken("", "CephClusterCriticallyFull",
+				"0.80", backFillFullDecimalStr),
+			CreateAnnotationReplaceToken("", "CephOSDCriticallyFull", "80%", backFillFullPercentStr, DescriptionKey),
+			CreateExpressionReplaceToken("", "CephOSDCriticallyFull",
+				"0.80", backFillFullDecimalStr))
 	}
+	// fullRatio changes ceph cluster read-only alert
 	if specifiedFullRatio != nil {
+		fullRatioPercentStr := fmt.Sprintf("%.0f%%", *specifiedFullRatio*100)
+		fullRatioDecimalStr := fmt.Sprintf("%.2f", *specifiedFullRatio)
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "85%", fmt.Sprintf("%.2f%%", *specifiedFullRatio*100)),
-			createReplaceToken("", "", "0.85", fmt.Sprintf("%f", *specifiedFullRatio)))
+			CreateAnnotationReplaceToken("", "CephClusterReadOnly", "85%", fullRatioPercentStr, DescriptionKey),
+			CreateExpressionReplaceToken("", "CephClusterReadOnly", "0.85", fullRatioDecimalStr),
+			// if 'FullRatio' is specified, make changes to other alerts as well,
+			// where the alerts' description has read-only ratio / value specified
+			CreateAnnotationReplaceToken("", "CephClusterNearFull", "85%", fullRatioPercentStr, DescriptionKey),
+			CreateAnnotationReplaceToken("", "CephClusterCriticallyFull", "85%", fullRatioPercentStr, DescriptionKey))
 	}
 
 	// nothing to replace in external mode
@@ -1218,25 +1235,64 @@ func applyLabels(labels map[string]string, t *metav1.ObjectMeta) {
 	}
 }
 
-type replaceToken struct {
-	groupName         string
+// ReplaceFieldType determines which section in the Rule struct the change has to go in
+type ReplaceFieldType int
+
+const (
+	ExpressionReplaceFieldType ReplaceFieldType = iota
+	AnnotationReplaceFieldType
+	LabelReplaceFieldType
+)
+
+// ReplaceToken holds the information required to make a replacement in the PrometheusRule
+// it is an opaque struct and should be created using the provided 'Create*' functions
+type ReplaceToken struct {
+	// groupName is an optional field
+	// if provided, the replacement will be done only in that group
+	// else, it will be done in all groups
+	groupName string
+	// recordOrAlertName is a mandatory field
+	// the replacement will be done only in the rule with this record/alert name
 	recordOrAlertName string
-	wordToReplace     string
-	replaceWith       string
+	// replacingWord is the word to be replaced
+	replacingWord string
+	// replaceWith is the word to replace with
+	replaceWith string
+	// replaceFieldType represents
+	// which type of field, in the rule struct, this change has to go
+	replaceFieldType ReplaceFieldType
+	// replaceValueInKey is an optional field, used only for AnnotationReplaceFieldType and LabelReplaceType
+	// it represents the key in the Annotations/Labels map whose value has to be changed
+	replaceValueInKey string
 }
 
-func createReplaceToken(groupName, recordOrAlertName, wordToReplace, replaceWith string) replaceToken {
-	return replaceToken{
+func createReplaceToken(groupName, recordOrAlertName, replacingWord, replaceWith string,
+	replaceFieldType ReplaceFieldType, replaceValueInKey string) ReplaceToken {
+	return ReplaceToken{
 		groupName:         groupName,
 		recordOrAlertName: recordOrAlertName,
-		wordToReplace:     wordToReplace,
+		replacingWord:     replacingWord,
 		replaceWith:       replaceWith,
+		replaceFieldType:  replaceFieldType,
+		replaceValueInKey: replaceValueInKey,
 	}
 }
 
-// changePromRule replaces the wordToReplace with replaceWith in the PrometheusRule
+func CreateExpressionReplaceToken(groupName, recordOrAlertName, replacingWord, replaceWith string) ReplaceToken {
+	return createReplaceToken(groupName, recordOrAlertName, replacingWord, replaceWith, ExpressionReplaceFieldType, "")
+}
+
+func CreateAnnotationReplaceToken(groupName, recordOrAlertName, replacingWord, replaceWith, annotationKey string) ReplaceToken {
+	return createReplaceToken(groupName, recordOrAlertName, replacingWord, replaceWith, AnnotationReplaceFieldType, annotationKey)
+}
+
+func CreateLabelReplaceToken(groupName, recordOrAlertName, replacingWord, replaceWith, labelKey string) ReplaceToken {
+	return createReplaceToken(groupName, recordOrAlertName, replacingWord, replaceWith, LabelReplaceFieldType, labelKey)
+}
+
+// changePromRule replaces the 'replacingWord' with 'replaceWith' in the PrometheusRule
 // This can be used to update the values in the PrometheusRule dynamically
-func changePromRule(promRule *monitoringv1.PrometheusRule, tokens []replaceToken) {
+func changePromRule(promRule *monitoringv1.PrometheusRule, tokens []ReplaceToken) {
 	if promRule == nil {
 		return
 	}
@@ -1244,7 +1300,7 @@ func changePromRule(promRule *monitoringv1.PrometheusRule, tokens []replaceToken
 	// Iterate over each token for replacements
 	for _, token := range tokens {
 		// Skip if the word and replacement are the same
-		if token.replaceWith == token.wordToReplace {
+		if token.replaceWith == token.replacingWord {
 			continue
 		}
 
@@ -1261,19 +1317,25 @@ func changePromRule(promRule *monitoringv1.PrometheusRule, tokens []replaceToken
 				rule := &group.Rules[ruleIdx]
 				// If recordOrAlertName is specified, ensure it matches; otherwise, apply to all rules
 				if token.recordOrAlertName == "" || rule.Record == token.recordOrAlertName || rule.Alert == token.recordOrAlertName {
-					// Update the annotations in the rule
-					if rule.Annotations != nil {
-						// Update description if it exists
-						if description, exists := rule.Annotations["description"]; exists {
-							newDescription := strings.Replace(description, token.wordToReplace, token.replaceWith, -1)
-							rule.Annotations["description"] = newDescription
-						}
-					}
-					// Update the expression field in the rule
-					exprStr := rule.Expr.String()
-					if exprStr != "" {
-						newExpr := strings.Replace(exprStr, token.wordToReplace, token.replaceWith, -1)
+					switch token.replaceFieldType {
+					case ExpressionReplaceFieldType:
+						// Update the expression field in the rule
+						newExpr := strings.ReplaceAll(rule.Expr.String(), token.replacingWord, token.replaceWith)
 						rule.Expr = intstr.Parse(newExpr)
+					case AnnotationReplaceFieldType:
+						annotationValue, ok := rule.Annotations[token.replaceValueInKey]
+						if !ok {
+							continue
+						}
+						rule.Annotations[token.replaceValueInKey] = strings.ReplaceAll(
+							annotationValue, token.replacingWord, token.replaceWith)
+					case LabelReplaceFieldType:
+						labelValue, ok := rule.Labels[token.replaceValueInKey]
+						if !ok {
+							continue
+						}
+						rule.Labels[token.replaceValueInKey] = strings.ReplaceAll(
+							labelValue, token.replacingWord, token.replaceWith)
 					}
 				}
 			}
