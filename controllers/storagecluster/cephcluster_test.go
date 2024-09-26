@@ -1535,7 +1535,7 @@ func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 			foundDeviceClasses:    []rookCephv1.DeviceClasses{},
 			isReplica1:            false,
 			replica1DeviceClasses: []string{},
-			expectedDeviceClass:   "ssd",
+			expectedDeviceClass:   "",
 		},
 		{
 			label: "Case 2: Replica 1 not enabled & 1 DeviceClass is in status",
@@ -1567,7 +1567,7 @@ func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 			foundDeviceClasses:    []rookCephv1.DeviceClasses{},
 			isReplica1:            true,
 			replica1DeviceClasses: []string{"zone1", "zone2", "zone3"},
-			expectedDeviceClass:   "ssd",
+			expectedDeviceClass:   "",
 		},
 		{
 			label: "Case 5:  Replica 1 enabled. Total less than n DeviceClass are in status, with only one non replica-1 DeviceClass",
@@ -1608,7 +1608,7 @@ func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 			},
 			isReplica1:            true,
 			replica1DeviceClasses: []string{"zone1", "zone2", "zone3"},
-			expectedDeviceClass:   "ssd",
+			expectedDeviceClass:   "",
 		},
 		{
 			label: "Case 8: Replica 1 enabled & n+1 total DeviceClass are in status(n replica-1 DeviceClass, 1 non-replica-1 DeviceClass)",

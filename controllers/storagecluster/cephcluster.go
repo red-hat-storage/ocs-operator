@@ -264,11 +264,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, nil
 	}
 
-	// Set the default CephDeviceClass in the StorageCluster status(not needed for external clusters)
-	if !sc.Spec.ExternalStorage.Enable && found.Status.CephStorage != nil {
-		sc.Status.DefaultCephDeviceClass = determineDefaultCephDeviceClass(found.Status.CephStorage.DeviceClasses, sc.Spec.ManagedResources.CephNonResilientPools.Enable, sc.Status.FailureDomainValues)
-	}
-
 	// Record actual Ceph container image version before attempting update
 	sc.Status.Images.Ceph.ActualImage = found.Spec.CephVersion.Image
 
@@ -347,6 +342,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			r.Log.Error(err, "Unable to update CephCluster.", "CephCluster", klog.KRef(found.Namespace, found.Name))
 			return reconcile.Result{}, err
 		}
+	}
+
+	// Set the default CephDeviceClass in the StorageCluster status if it's not set yet (not needed for external clusters)
+	if !sc.Spec.ExternalStorage.Enable && sc.Status.DefaultCephDeviceClass == "" && found.Status.CephStorage != nil {
+		sc.Status.DefaultCephDeviceClass = determineDefaultCephDeviceClass(found.Status.CephStorage.DeviceClasses, sc.Spec.ManagedResources.CephNonResilientPools.Enable, sc.Status.FailureDomainValues)
 	}
 
 	// Update the currentMonCount field in StoragCluster status from the cephCluster CR
@@ -1335,6 +1335,6 @@ func determineDefaultCephDeviceClass(foundDeviceClasses []rookCephv1.DeviceClass
 			}
 		}
 	}
-	// By default return "ssd"
-	return "ssd"
+	// if no device classes are found in status return empty string
+	return ""
 }
