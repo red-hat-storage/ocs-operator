@@ -1,13 +1,9 @@
 package storagecluster
 
 import (
-	"context"
 	"fmt"
-	"maps"
-	"math/rand"
 	"os"
 	"sort"
-	"strconv"
 	"time"
 
 	"go.uber.org/multierr"
@@ -40,47 +36,22 @@ const (
 	ocsProviderServiceNodePort = int32(31659)
 
 	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
-
-	ocsClientConfigMapName = "ocs-client-operator-config"
-	deployCSIKey           = "DEPLOY_CSI"
-	manageNoobaaSubKey     = "manageNoobaaSubscription"
 )
 
 type ocsProviderServer struct{}
 
 func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if !instance.Spec.AllowRemoteStorageConsumers {
-		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
-		return o.ensureDeleted(r, instance)
+	if res, err := o.createService(r, instance); err != nil || !res.IsZero() {
+		return res, err
 	}
 
-	r.Log.Info("Spec.AllowRemoteStorageConsumers is enabled. Creating Provider API resources")
-
-	if err := o.createSecret(r, instance); err != nil {
-		return reconcile.Result{}, err
+	if res, err := o.createDeployment(r, instance); err != nil || !res.IsZero() {
+		return res, err
 	}
 
-	if res, err := o.createService(r, instance); err != nil {
-		return reconcile.Result{}, err
-	} else if !res.IsZero() {
-		return res, nil
-	}
-
-	if res, err := o.createDeployment(r, instance); err != nil {
-		return reconcile.Result{}, err
-	} else if !res.IsZero() {
-		return res, nil
-	}
-
-	if res, err := o.createJob(r, instance); err != nil {
-		return reconcile.Result{}, err
-	} else if !res.IsZero() {
-		return res, nil
-	}
-
-	if err := o.updateClientConfigMap(r, instance.Namespace); err != nil {
-		return reconcile.Result{}, err
+	if res, err := o.createJob(r, instance); err != nil || !res.IsZero() {
+		return res, err
 	}
 
 	return reconcile.Result{}, nil
@@ -103,11 +74,10 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	var finalErr error
 
 	for _, resource := range []client.Object{
-		GetProviderAPIServerSecret(instance),
 		GetProviderAPIServerService(instance),
 		GetProviderAPIServerDeployment(instance),
 	} {
-		err := r.Client.Delete(context.TODO(), resource)
+		err := r.Client.Delete(r.ctx, resource)
 
 		if err != nil && !errors.IsNotFound(err) {
 			r.Log.Error(err, "Failed to delete resource", "Kind", resource.GetObjectKind(), "Name", resource.GetName())
@@ -127,7 +97,7 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 
 	var finalErr error
 
-	for _, env := range []string{providerAPIServerImage, util.WatchNamespaceEnvVar} {
+	for _, env := range []string{providerAPIServerImage} {
 		if _, ok := os.LookupEnv(env); !ok {
 			multierr.AppendInto(&finalErr, fmt.Errorf("ENV var %s not found", env))
 		}
@@ -145,13 +115,10 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(
-		context.TODO(), r.Client, actualDeployment,
-		func() error {
-			actualDeployment.Spec = desiredDeployment.Spec
-			return controllerutil.SetOwnerReference(instance, actualDeployment, r.Client.Scheme())
-		},
-	)
+	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, actualDeployment, func() error {
+		actualDeployment.Spec = desiredDeployment.Spec
+		return controllerutil.SetOwnerReference(instance, actualDeployment, r.Client.Scheme())
+	})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		r.Log.Error(err, "Failed to create/update deployment", "Name", desiredDeployment.Name)
 		return reconcile.Result{}, err
@@ -190,24 +157,21 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(
-		context.TODO(), r.Client, actualService,
-		func() error {
-			desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
-			desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
+	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, actualService, func() error {
+		desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
+		desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
 
-			if actualService.Annotations == nil {
-				actualService.Annotations = map[string]string{}
-			}
+		if actualService.Annotations == nil {
+			actualService.Annotations = map[string]string{}
+		}
 
-			for key, value := range desiredService.Annotations {
-				actualService.Annotations[key] = value
-			}
+		for key, value := range desiredService.Annotations {
+			actualService.Annotations[key] = value
+		}
 
-			actualService.Spec = desiredService.Spec
-			return controllerutil.SetOwnerReference(instance, actualService, r.Client.Scheme())
-		},
-	)
+		actualService.Spec = desiredService.Spec
+		return controllerutil.SetOwnerReference(instance, actualService, r.Client.Scheme())
+	})
 	if err != nil {
 		r.Log.Error(err, "Failed to create/update service", "Name", desiredService.Name)
 		return reconcile.Result{}, err
@@ -270,7 +234,7 @@ func (o *ocsProviderServer) getWorkerNodesInternalIPAddresses(r *StorageClusterR
 
 	nodes := &corev1.NodeList{}
 
-	err := r.Client.List(context.TODO(), nodes)
+	err := r.Client.List(r.ctx, nodes)
 	if err != nil {
 		r.Log.Error(err, "Failed to list nodes")
 		return nil, err
@@ -293,28 +257,6 @@ func (o *ocsProviderServer) getWorkerNodesInternalIPAddresses(r *StorageClusterR
 	sort.Strings(nodeAddresses)
 
 	return nodeAddresses, nil
-}
-
-func (o *ocsProviderServer) createSecret(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-
-	desiredSecret := GetProviderAPIServerSecret(instance)
-	actualSecret := &corev1.Secret{}
-
-	err := r.Client.Get(context.TODO(), client.ObjectKeyFromObject(desiredSecret), actualSecret)
-
-	if err != nil && errors.IsNotFound(err) {
-		err = r.Client.Create(context.TODO(), desiredSecret)
-		if err != nil {
-			r.Log.Error(err, "Failed to create secret", "Name", desiredSecret.Name)
-			return err
-		}
-		r.Log.Info("Secret creation succeeded", "Name", desiredSecret.Name)
-	} else if err != nil {
-		r.Log.Error(err, "Failed to get secret", "Name", desiredSecret.Name)
-		return err
-	}
-
-	return nil
 }
 
 func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Deployment) error {
@@ -354,16 +296,12 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 							Command: []string{"/usr/local/bin/provider-api"},
 							Env: []corev1.EnvVar{
 								{
-									Name:  util.WatchNamespaceEnvVar,
-									Value: os.Getenv(util.WatchNamespaceEnvVar),
-								},
-								{
-									Name:  "STORAGE_CLUSTER_NAME",
-									Value: instance.Name,
-								},
-								{
-									Name:  "STORAGE_CLUSTER_UID",
-									Value: string(instance.UID),
+									Name: util.PodNamespaceEnvVar,
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
 								},
 							},
 							Ports: []corev1.ContainerPort{
@@ -439,31 +377,6 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 	}
 }
 
-func GetProviderAPIServerSecret(instance *ocsv1.StorageCluster) *corev1.Secret {
-
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsProviderServerName,
-			Namespace: instance.Namespace,
-		},
-		Immutable: func(flag bool) *bool { return &flag }(true),
-		StringData: map[string]string{
-			"Key": RandomString(1024),
-		},
-	}
-}
-
-// RandomString - Generate a random string of A-Z chars with len = l
-func RandomString(l int) string {
-
-	bytes := make([]byte, l)
-	for i := 0; i < l; i++ {
-		bytes[i] = byte(65 + rand.Intn(25)) //A=65 and Z = 65+25
-	}
-
-	return string(bytes)
-}
-
 func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
 
 	return &batchv1.Job{
@@ -485,8 +398,12 @@ func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
 							Command: []string{"/usr/local/bin/onboarding-validation-keys-gen"},
 							Env: []corev1.EnvVar{
 								{
-									Name:  util.OperatorNamespaceEnvVar,
-									Value: os.Getenv(util.OperatorNamespaceEnvVar),
+									Name: util.PodNamespaceEnvVar,
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
 								},
 							},
 						},
@@ -508,12 +425,12 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 
 	actualSecret := &corev1.Secret{}
 	// Creating the job only if public is not found
-	err = r.Client.Get(context.Background(), types.NamespacedName{Name: onboardingValidationPublicKeySecretName,
+	err = r.Client.Get(r.ctx, types.NamespacedName{Name: onboardingValidationPublicKeySecretName,
 		Namespace: instance.Namespace}, actualSecret)
 
 	if errors.IsNotFound(err) {
 		onboardingSecretGeneratorJob := getOnboardingJobObject(instance)
-		err = r.Client.Create(context.Background(), onboardingSecretGeneratorJob)
+		err = r.Client.Create(r.ctx, onboardingSecretGeneratorJob)
 	}
 	if err != nil {
 		r.Log.Error(err, "failed to create/ensure secret")
@@ -522,31 +439,4 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 
 	r.Log.Info("Job is running as desired")
 	return reconcile.Result{}, nil
-}
-
-func (o *ocsProviderServer) updateClientConfigMap(r *StorageClusterReconciler, namespace string) error {
-	clientConfig := &corev1.ConfigMap{}
-	clientConfig.Name = ocsClientConfigMapName
-	clientConfig.Namespace = namespace
-
-	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(clientConfig), clientConfig); err != nil {
-		r.Log.Error(err, "failed to get ocs client configmap")
-		return err
-	}
-
-	existingData := maps.Clone(clientConfig.Data)
-	if clientConfig.Data == nil {
-		clientConfig.Data = map[string]string{}
-	}
-	clientConfig.Data[deployCSIKey] = "true"
-	clientConfig.Data[manageNoobaaSubKey] = strconv.FormatBool(false)
-
-	if !maps.Equal(clientConfig.Data, existingData) {
-		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
-			r.Log.Error(err, "failed to update client operator's configmap data")
-			return err
-		}
-	}
-
-	return nil
 }
