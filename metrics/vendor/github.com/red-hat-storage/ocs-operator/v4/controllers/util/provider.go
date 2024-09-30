@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -10,19 +11,22 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 
 	"github.com/google/uuid"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const onboardingValidationPrivateKeySecretName = "onboarding-private-key"
 
 // GenerateClientOnboardingToken generates a ocs-client token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
 // The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.
-func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotainGib *uint, storageClusterUID types.UID) (string, error) {
+func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKey *rsa.PrivateKey, storageQuotainGib *uint, storageClusterUID types.UID) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -35,7 +39,7 @@ func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath stri
 		StorageCluster:    storageClusterUID,
 	}
 
-	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
+	token, err := encodeAndSignOnboardingToken(privateKey, ticket)
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +48,7 @@ func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath stri
 
 // GeneratePeerOnboardingToken generates a ocs-peer token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
-func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageClusterUID types.UID) (string, error) {
+func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKey *rsa.PrivateKey, storageClusterUID types.UID) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -55,7 +59,7 @@ func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string
 		SubjectRole:    services.PeerRole,
 		StorageCluster: storageClusterUID,
 	}
-	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
+	token, err := encodeAndSignOnboardingToken(privateKey, ticket)
 	if err != nil {
 		return "", err
 	}
@@ -64,7 +68,7 @@ func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string
 
 // encodeAndSignOnboardingToken generates a token from the ticket.
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
-func encodeAndSignOnboardingToken(privateKeyPath string, ticket services.OnboardingTicket) (string, error) {
+func encodeAndSignOnboardingToken(privateKey *rsa.PrivateKey, ticket services.OnboardingTicket) (string, error) {
 	payload, err := json.Marshal(ticket)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal the payload: %v", err)
@@ -77,11 +81,6 @@ func encodeAndSignOnboardingToken(privateKeyPath string, ticket services.Onboard
 	_, err = msgHash.Write(payload)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash onboarding token payload: %v", err)
-	}
-
-	privateKey, err := readAndDecodePrivateKey(privateKeyPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read and decode private key: %v", err)
 	}
 
 	msgHashSum := msgHash.Sum(nil)
@@ -97,16 +96,30 @@ func encodeAndSignOnboardingToken(privateKeyPath string, ticket services.Onboard
 	return fmt.Sprintf("%s.%s", encodedPayload, encodedSignature), nil
 }
 
-func readAndDecodePrivateKey(privateKeyPath string) (*rsa.PrivateKey, error) {
-	pemString, err := os.ReadFile(privateKeyPath)
+func LoadOnboardingValidationPrivateKey(ctx context.Context, cl client.Client, namespace string) (*rsa.PrivateKey, error) {
+	privateSecret := &corev1.Secret{}
+	privateSecret.Name = onboardingValidationPrivateKeySecretName
+	privateSecret.Namespace = namespace
+
+	err := cl.Get(ctx, client.ObjectKeyFromObject(privateSecret), privateSecret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read private key: %v", err)
+		return nil, fmt.Errorf("failed to get private secret: %v", err)
 	}
 
-	Block, _ := pem.Decode(pemString)
-	privateKey, err := x509.ParsePKCS1PrivateKey(Block.Bytes)
+	privateSecretKey := privateSecret.Data["key"]
+	if len(privateSecretKey) == 0 {
+		return nil, fmt.Errorf("No data found in secret")
+	}
+
+	block, rest := pem.Decode(privateSecretKey)
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("PEM block not found in private key: %s", rest)
+	}
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
+
 	return privateKey, nil
 }

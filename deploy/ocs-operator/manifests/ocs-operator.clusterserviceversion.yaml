@@ -647,8 +647,6 @@ spec:
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
                 volumeMounts:
-                - mountPath: /etc/private-key
-                  name: onboarding-private-key
                 - mountPath: /etc/tls/private
                   name: ux-cert-secret
               - args:
@@ -684,10 +682,6 @@ spec:
                 operator: Equal
                 value: "true"
               volumes:
-              - name: onboarding-private-key
-                secret:
-                  optional: true
-                  secretName: onboarding-private-key
               - name: ux-proxy-secret
                 secret:
                   secretName: ux-backend-proxy
