@@ -357,51 +357,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			"MonitoringPort":     strconv.Itoa(int(port)),
 		})})
 
-	healthCheckerSecretName := ""
-	healthCheckerName := ""
-	for _, cephRes := range consumerResource.Status.CephResources {
-		if cephRes.Kind == "CephClient" {
-			clientSecretName, cephUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
-			if err != nil {
-				return nil, err
-			} else if cephUserType == "healthchecker" {
-				healthCheckerSecretName = clientSecretName
-				healthCheckerName = cephRes.Name
-				break
-			}
-		}
-	}
-
-	if healthCheckerSecretName == "" {
-		return nil, fmt.Errorf("no healthchecker secret found")
-	}
-
-	cephUserSecret := &v1.Secret{}
-	err = s.client.Get(ctx, types.NamespacedName{Name: healthCheckerSecretName, Namespace: s.namespace}, cephUserSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s secret. %v", healthCheckerSecretName, err)
-	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: healthCheckerSecretName,
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"userID":  healthCheckerName,
-			"userKey": string(cephUserSecret.Data[healthCheckerName]),
-		}),
-	})
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: monSecret,
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"fsid":          fsid,
-			"mon-secret":    "mon-secret",
-			"ceph-username": fmt.Sprintf("client.%s", healthCheckerName),
-			"ceph-secret":   string(cephUserSecret.Data[healthCheckerName]),
-		}),
-	})
-
 	if consumerResource.Spec.StorageQuotaInGiB > 0 {
 		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
 			Selector: quotav1.ClusterResourceQuotaSelector{
