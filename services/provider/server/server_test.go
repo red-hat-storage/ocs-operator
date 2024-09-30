@@ -79,16 +79,6 @@ var mockExtR = map[string]*externalResource{
 			"mapping":  "{}",
 		},
 	},
-	"rook-ceph-mon": {
-		Name: "rook-ceph-mon",
-		Kind: "Secret",
-		Data: map[string]string{
-			"ceph-username": "client.995e66248ad3e8642de868f461cdd827",
-			"fsid":          "b88c2d78-9de9-4227-9313-a63f62f78743",
-			"mon-secret":    "mon-secret",
-			"ceph-secret":   "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
-	},
 	"monitoring-endpoint": {
 		Name: "monitoring-endpoint",
 		Kind: "CephCluster",
@@ -97,14 +87,7 @@ var mockExtR = map[string]*externalResource{
 			"MonitoringPort":     "9283",
 		},
 	},
-	"rook-ceph-client-995e66248ad3e8642de868f461cdd827": {
-		Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
-		Kind: "Secret",
-		Data: map[string]string{
-			"userID":  "995e66248ad3e8642de868f461cdd827",
-			"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
-		},
-	},
+
 	"QuotaForConsumer": {
 		Name: "QuotaForConsumer",
 		Kind: "ClusterResourceQuota",
@@ -137,13 +120,8 @@ var (
 			Namespace: serverNamespace,
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
-			CephResources: []*ocsv1alpha1.CephResourcesSpec{
-				{
-					Name: "995e66248ad3e8642de868f461cdd827",
-					Kind: "CephClient",
-				},
-			},
-			State: ocsv1alpha1.StorageConsumerStateReady,
+			CephResources: []*ocsv1alpha1.CephResourcesSpec{},
+			State:         ocsv1alpha1.StorageConsumerStateReady,
 		},
 	}
 
@@ -262,30 +240,6 @@ func TestGetExternalResources(t *testing.T) {
 		consumerManager: consumerManager,
 	}
 
-	cephClient := &rookCephv1.CephClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "995e66248ad3e8642de868f461cdd827",
-			Namespace: server.namespace,
-			Annotations: map[string]string{
-				controllers.StorageCephUserTypeAnnotation: "healthchecker",
-				controllers.StorageRequestAnnotation:      "global",
-				controllers.StorageConsumerAnnotation:     "consumer",
-			},
-		},
-		Status: &rookCephv1.CephClientStatus{
-			Info: map[string]string{
-				"secretName": "rook-ceph-client-995e66248ad3e8642de868f461cdd827",
-			},
-		},
-	}
-
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-client-995e66248ad3e8642de868f461cdd827", Namespace: server.namespace},
-		Data: map[string][]byte{
-			"995e66248ad3e8642de868f461cdd827": []byte("AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ=="),
-		},
-	}
-
 	noobaaRemoteJoinSecretConsumer := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-account-consumer", Namespace: server.namespace},
 		Data: map[string][]byte{
@@ -306,9 +260,6 @@ func TestGetExternalResources(t *testing.T) {
 			Ingress: []routev1.RouteIngress{{Host: "noobaaMgmtAddress"}},
 		},
 	}
-
-	assert.NoError(t, client.Create(ctx, cephClient))
-	assert.NoError(t, client.Create(ctx, secret))
 
 	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer))
 	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer6))
@@ -396,8 +347,8 @@ func TestGetExternalResources(t *testing.T) {
 	// When ocsv1alpha1.StorageConsumerStateReady but ceph resources is empty
 	req.StorageConsumerUUID = string(consumerResource5.UID)
 	storageConRes, err = server.GetStorageConfig(ctx, &req)
-	assert.Error(t, err)
-	assert.Nil(t, storageConRes)
+	assert.NoError(t, err)
+	assert.NotNil(t, storageConRes)
 
 	// When ocsv1alpha1.StorageConsumerStateReady but secret is not ready
 	for _, i := range consumerResource.Status.CephResources {
