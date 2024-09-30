@@ -1,6 +1,7 @@
 package peertokens
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -8,23 +9,30 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
 
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
-)
-
-func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client, ns string) {
 	switch r.Method {
 	case "POST":
-		handlePost(w, r, tokenLifetimeInHours)
+		handlePost(w, r, tokenLifetimeInHours, cl, ns)
 	default:
 		handleUnsupportedMethod(w, r)
 	}
 }
 
-func handlePost(w http.ResponseWriter, _ *http.Request, tokenLifetimeInHours int) {
-	if onboardingToken, err := util.GeneratePeerOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath); err != nil {
+func handlePost(w http.ResponseWriter, _ *http.Request, tokenLifetimeInHours int, cl client.Client, ns string) {
+	var err error
+
+	ctx := context.TODO()
+	privateKey, err := util.GetParsedPrivateKey(ctx, cl, ns)
+	klog.Info("Getting the Pem key")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get private key: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if onboardingToken, err := util.GeneratePeerOnboardingToken(tokenLifetimeInHours, privateKey); err != nil {
 		klog.Errorf("failed to get onboarding token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
