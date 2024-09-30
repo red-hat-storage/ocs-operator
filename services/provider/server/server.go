@@ -437,6 +437,11 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	noobaaOperatorSecret.Namespace = s.namespace
 
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); err != nil {
+		if kerrors.IsNotFound(err) {
+			// ignoring because it is a provider cluster and the noobaa secret does not exist
+			return extR, nil
+
+		}
 		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
 	}
 
@@ -463,9 +468,9 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	extR = append(extR, &pb.ExternalResource{
 		Name: "noobaa-remote-join-secret",
 		Kind: "Secret",
-		Data: mustMarshal(map[string][]byte{
-			"auth_token": authToken,
-			"mgmt_addr":  []byte(noobaaMgmtAddress),
+		Data: mustMarshal(map[string]string{
+			"auth_token": string(authToken),
+			"mgmt_addr":  noobaaMgmtAddress,
 		}),
 	})
 

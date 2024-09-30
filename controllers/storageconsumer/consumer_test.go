@@ -17,10 +17,12 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"testing"
 
 	noobaaApis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -59,12 +61,17 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	if err != nil {
 		assert.Fail(t, "failed to add nbapis scheme")
 	}
+	err = configv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add configv1 scheme")
+	}
 
 	return scheme
 }
 
 func TestCephName(t *testing.T) {
 	var r StorageConsumerReconciler
+	ctx := context.TODO()
 	r.cephClientHealthChecker = &rookCephv1.CephClient{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "healthchecker",
@@ -75,12 +82,13 @@ func TestCephName(t *testing.T) {
 	}
 	scheme := createFakeScheme(t)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(r.cephClientHealthChecker).Build()
-
 	r.Client = client
 	r.Scheme = scheme
 	r.Log = log.Log.WithName("controller_storagecluster_test")
-
 	r.storageConsumer = &ocsv1alpha1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "provider",
+		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
 			Enable: true,
 		},
@@ -108,7 +116,7 @@ func TestCephName(t *testing.T) {
 				},
 			},
 			Client: ocsv1alpha1.ClientStatus{
-				ClusterID: "consumer",
+				ClusterID: "provider",
 			},
 		},
 	}
@@ -120,7 +128,17 @@ func TestCephName(t *testing.T) {
 			Phase: v1alpha1.NooBaaAccountPhaseReady,
 		},
 	}
-	_, err := r.reconcilePhases()
+	clusterVersionProvider := &configv1.ClusterVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "version",
+		},
+		Spec: configv1.ClusterVersionSpec{
+			ClusterID: "12345",
+		},
+	}
+	err := client.Create(ctx, clusterVersionProvider)
+	assert.NoError(t, err)
+	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
 
 	want := []*ocsv1alpha1.CephResourcesSpec{
@@ -150,6 +168,9 @@ func TestCephName(t *testing.T) {
 	r.Client = client
 
 	r.storageConsumer = &ocsv1alpha1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "consumer",
+		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
 			Enable: true,
 		},
@@ -186,7 +207,16 @@ func TestCephName(t *testing.T) {
 			Phase: v1alpha1.NooBaaAccountPhaseRejected,
 		},
 	}
-
+	clusterVersionConsumer := &configv1.ClusterVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "version",
+		},
+		Spec: configv1.ClusterVersionSpec{
+			ClusterID: "provider",
+		},
+	}
+	err = client.Create(ctx, clusterVersionConsumer)
+	assert.NoError(t, err)
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
 
