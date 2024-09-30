@@ -7,9 +7,10 @@ import (
 	"os"
 	"strconv"
 
-	"k8s.io/klog/v2"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/clienttokens"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
 
-	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboardingtokens"
+	"k8s.io/klog/v2"
 )
 
 type serverConfig struct {
@@ -61,8 +62,19 @@ func main() {
 		klog.Info("shutting down!")
 		os.Exit(-1)
 	}
+
+	// TODO: remove '/onboarding-tokens' in the future
 	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
-		onboardingtokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+		// Set the Deprecation header
+		w.Header().Set("Deprecation", "true") // Standard "Deprecation" header
+		w.Header().Set("Link", "/onboarding/client-tokens; rel=\"alternate\"")
+		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+	})
+	http.HandleFunc("/onboarding/client-tokens", func(w http.ResponseWriter, r *http.Request) {
+		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+	})
+	http.HandleFunc("/onboarding/peer-tokens", func(w http.ResponseWriter, r *http.Request) {
+		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)

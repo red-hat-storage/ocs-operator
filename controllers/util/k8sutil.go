@@ -23,6 +23,9 @@ const (
 	// this value is empty if the operator is running with clusterScope.
 	WatchNamespaceEnvVar = "WATCH_NAMESPACE"
 
+	// PodNamespaceEnvVar is the env variable for the pod namespace
+	PodNamespaceEnvVar = "POD_NAMESPACE"
+
 	// SingleNodeEnvVar is set if StorageCluster needs to be deployed on a single node
 	SingleNodeEnvVar = "SINGLE_NODE"
 
@@ -46,6 +49,16 @@ const (
 
 	OdfInfoNamespacedNameClaimName = "odfinfo.odf.openshift.io"
 )
+
+var podNamespace = os.Getenv(PodNamespaceEnvVar)
+
+// GetPodNamespace returns the namespace where the pod is deployed
+func GetPodNamespace() string {
+	if podNamespace == "" {
+		panic(fmt.Errorf("%s must be set", PodNamespaceEnvVar))
+	}
+	return podNamespace
+}
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
 func GetWatchNamespace() (string, error) {

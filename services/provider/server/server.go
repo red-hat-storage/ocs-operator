@@ -120,7 +120,13 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(onboardingTicket.StorageQuotaInGiB))
+	if onboardingTicket.SubjectRole != services.ClientRole {
+		err := fmt.Errorf("unsupported ticket role for consumer %q, found %s, expected %s", req.ConsumerName, onboardingTicket.SubjectRole, services.ClientRole)
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(*onboardingTicket.StorageQuotaInGiB))
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
@@ -437,6 +443,11 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	noobaaOperatorSecret.Namespace = s.namespace
 
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); err != nil {
+		if kerrors.IsNotFound(err) {
+			// ignoring because it is a provider cluster and the noobaa secret does not exist
+			return extR, nil
+
+		}
 		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
 	}
 
@@ -463,9 +474,9 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	extR = append(extR, &pb.ExternalResource{
 		Name: "noobaa-remote-join-secret",
 		Kind: "Secret",
-		Data: mustMarshal(map[string][]byte{
-			"auth_token": authToken,
-			"mgmt_addr":  []byte(noobaaMgmtAddress),
+		Data: mustMarshal(map[string]string{
+			"auth_token": string(authToken),
+			"mgmt_addr":  noobaaMgmtAddress,
 		}),
 	})
 
@@ -565,8 +576,17 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 		return nil, fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)
 	}
 
-	if ticketData.StorageQuotaInGiB > math.MaxInt {
-		return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, ticketData.StorageQuotaInGiB)
+	switch ticketData.SubjectRole {
+	case services.ClientRole:
+		if ticketData.StorageQuotaInGiB != nil {
+			quota := *ticketData.StorageQuotaInGiB
+			if quota > math.MaxInt {
+				return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, quota)
+			}
+		}
+	case services.PeerRole:
+	default:
+		return nil, fmt.Errorf("invalid onboarding ticket subject role")
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])

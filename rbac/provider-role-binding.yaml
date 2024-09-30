@@ -7,5 +7,5 @@ roleRef:
   kind: Role
   name: ocs-provider-server
 subjects:
-- kind: ServiceAccount
-  name: ocs-provider-server
+  - kind: ServiceAccount
+    name: ocs-provider-server

@@ -7,6 +7,5 @@ roleRef:
   kind: Role
   name: onboarding-validation-keys-generator
 subjects:
-- kind: ServiceAccount
-  name: onboarding-validation-keys-generator
-  namespace: openshift-storage
+  - kind: ServiceAccount
+    name: onboarding-validation-keys-generator

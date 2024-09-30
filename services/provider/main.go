@@ -21,11 +21,7 @@ func main() {
 
 	klog.Info("Starting Provider API server")
 
-	namespace, err := util.GetWatchNamespace()
-	if err != nil {
-		klog.Errorf("failed to get provider cluster namespace. %v", err)
-		return
-	}
+	namespace := util.GetPodNamespace()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
