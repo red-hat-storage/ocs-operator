@@ -6,18 +6,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/blang/semver/v4"
-	oprverion "github.com/operator-framework/api/pkg/lib/version"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
+	"github.com/blang/semver/v4"
 	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	oprverion "github.com/operator-framework/api/pkg/lib/version"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -255,7 +255,6 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 		}
 		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, tbd)
 	}
-
 	reconciler := createFakeInitializationStorageClusterReconciler(
 		t, rtObjsToCreateReconciler...)
 
@@ -271,7 +270,6 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	assert.Equal(t, reconcile.Result{}, result)
 	err = os.Setenv("WATCH_NAMESPACE", cr.Namespace)
 	assert.NoError(t, err)
-
 	return t, reconciler, cr, requestOCSInit
 }
 
@@ -395,13 +393,35 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		}
 	}
 
-	runtimeObjects = append(runtimeObjects, mockNodeList.DeepCopy(), cbp, cfs, cnfs, cnfsbp, cnfssvc, infrastructure, networkConfig, rookCephMonSecret, csv, workerNode, ocsProviderServiceSecret, ocsProviderServiceDeployment, ocsProviderService)
+	runtimeObjects = append(
+		runtimeObjects,
+		mockNodeList.DeepCopy(),
+		cbp,
+		cfs,
+		cnfs,
+		cnfsbp,
+		cnfssvc,
+		infrastructure,
+		networkConfig,
+		rookCephMonSecret,
+		csv,
+		workerNode,
+		ocsProviderServiceSecret,
+		ocsProviderServiceDeployment,
+		ocsProviderService,
+		createVirtualMachineCRD(),
+	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjects...).WithStatusSubresource(statusSubresourceObjs...).Build()
+
+	availCrds := map[string]bool{
+		VirtualMachineCrdName: true,
+	}
 
 	return StorageClusterReconciler{
 		Client:            client,
 		Scheme:            scheme,
 		OperatorCondition: newStubOperatorCondition(),
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
+		AvailableCrds:     availCrds,
 	}
 }

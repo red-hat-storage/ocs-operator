@@ -5,8 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"os"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -95,4 +96,10 @@ func CalculateMD5Hash(value any) string {
 	}
 	hash := md5.Sum(data)
 	return hex.EncodeToString(hash[:])
+}
+
+func AssertEqual[T comparable](actual T, expected T, exitCode int) {
+	if actual != expected {
+		os.Exit(exitCode)
+	}
 }
