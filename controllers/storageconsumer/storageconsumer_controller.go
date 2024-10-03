@@ -28,7 +28,9 @@ import (
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -64,6 +66,7 @@ type StorageConsumerReconciler struct {
 	cephClientHealthChecker *rookCephv1.CephClient
 	namespace               string
 	noobaaAccount           *nbv1.NooBaaAccount
+	backingStore            *nbv1.BackingStore
 }
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
@@ -71,6 +74,7 @@ type StorageConsumerReconciler struct {
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaaaccounts,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=noobaa.io,resources=backingstores,verbs=get;list;watch;create;update;delete
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
@@ -137,6 +141,10 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.noobaaAccount = &nbv1.NooBaaAccount{}
 	r.noobaaAccount.Name = r.storageConsumer.Name
 	r.noobaaAccount.Namespace = r.storageConsumer.Namespace
+
+	r.backingStore = &nbv1.BackingStore{}
+	r.backingStore.Name = r.storageConsumer.Name
+	r.backingStore.Namespace = r.storageConsumer.Namespace
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
@@ -159,6 +167,9 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 		// A NooBaa account only needs to be created if the storage consumer is for a client cluster.
 		clusterID := util.GetClusterID(r.ctx, r.Client, &r.Log)
 		if clusterID != "" && !strings.Contains(r.storageConsumer.Name, clusterID) {
+			if err := r.reconcileRemoteBackingStore(); err != nil {
+				return reconcile.Result{}, err
+			}
 			if err := r.reconcileNoobaaAccount(); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -224,13 +235,54 @@ func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
 	return nil
 }
 
+func (r *StorageConsumerReconciler) reconcileRemoteBackingStore() error {
+
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.backingStore, func() error {
+		if err := r.own(r.backingStore); err != nil {
+			return err
+		}
+		r.backingStore = &nbv1.BackingStore{
+			Spec: nbv1.BackingStoreSpec{
+				Type: nbv1.StoreTypePVPool,
+				PVPool: &nbv1.PVPoolSpec{
+					// TODO: query to get storageclass
+					StorageClass: "ocs-storagecluster-ceph-rbd",
+					NumVolumes:   1,
+					VolumeResources: &v1.VolumeResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceStorage: resource.MustParse("50Gi"),
+						},
+					},
+				},
+			},
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create noobaa backingstore for storageConsumer %v: %v", r.storageConsumer.Name, err)
+	}
+
+	phase := string(r.backingStore.Status.Phase)
+	r.setCephResourceStatus(r.backingStore.Name, "BackingStore", phase, nil)
+
+	return nil
+}
+
 func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
+
+	// if err := r.get(r.backingStore); err != nil {
+	// 	return err
+	// }
+
+	// if r.backingStore.Status.Phase != nbv1.BackingStorePhaseReady {
+	// 	return fmt.Errorf("noobaa backing store with name  %v is not yet ready ", r.backingStore.Name)
+	// }
 	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.noobaaAccount, func() error {
 		if err := r.own(r.noobaaAccount); err != nil {
 			return err
 		}
-		// TODO: query the name of backing store during runtime
-		r.noobaaAccount.Spec.DefaultResource = "noobaa-default-backing-store"
+		r.noobaaAccount.Spec.AllowBucketCreate = true
+		r.noobaaAccount.Spec.DefaultResource = r.backingStore.Name
 		// the following annotation will enable noobaa-operator to create a auth_token secret based on this account
 		util.AddAnnotation(r.noobaaAccount, "remote-operator", "true")
 		return nil
@@ -296,6 +348,8 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&rookCephv1.CephBlockPool{},
 			enqueueStorageConsumerRequest,
 		).
+		Owns(&nbv1.NooBaaAccount{}).
+		Owns(&nbv1.BackingStore{}).
 		Complete(r)
 }
 

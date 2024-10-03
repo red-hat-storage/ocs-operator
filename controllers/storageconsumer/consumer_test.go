@@ -22,6 +22,7 @@ import (
 
 	noobaaApis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -128,6 +129,14 @@ func TestCephName(t *testing.T) {
 			Phase: v1alpha1.NooBaaAccountPhaseReady,
 		},
 	}
+	r.backingStore = &nbv1.BackingStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "consumer-acc",
+		},
+		Status: nbv1.BackingStoreStatus{
+			Phase: nbv1.BackingStorePhaseReady,
+		},
+	}
 	clusterVersionProvider := &configv1.ClusterVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "version",
@@ -149,6 +158,11 @@ func TestCephName(t *testing.T) {
 		},
 		{
 			Kind:  "NooBaaAccount",
+			Name:  "consumer-acc",
+			Phase: "Ready",
+		},
+		{
+			Kind:  "BackingStore",
 			Name:  "consumer-acc",
 			Phase: "Ready",
 		},
