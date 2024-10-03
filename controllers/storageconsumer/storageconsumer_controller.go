@@ -229,6 +229,8 @@ func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
 		if err := r.own(r.noobaaAccount); err != nil {
 			return err
 		}
+		// TODO: query the name of backing store during runtime
+		r.noobaaAccount.Spec.DefaultResource = "noobaa-default-backing-store"
 		// the following annotation will enable noobaa-operator to create a auth_token secret based on this account
 		util.AddAnnotation(r.noobaaAccount, "remote-operator", "true")
 		return nil
@@ -288,6 +290,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			predicate.GenerationChangedPredicate{},
 		)).
 		Owns(&rookCephv1.CephClient{}).
+		Owns(&nbv1.NooBaaAccount{}).
 		// Watch non-owned resources cephBlockPool
 		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
 		Watches(&rookCephv1.CephBlockPool{},
