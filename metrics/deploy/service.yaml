@@ -3,20 +3,20 @@ kind: Service
 metadata:
   name: ocs-metrics-exporter
   namespace: openshift-storage
-  annotations:
-    service.beta.openshift.io/serving-cert-secret-name: ocs-metrics-exporter-tls
   labels:
     app.kubernetes.io/component: ocs-metrics-exporter
     app.kubernetes.io/name: ocs-metrics-exporter
 spec:
   type: ClusterIP
   ports:
-  - name: https-main
-    port: 8443
-    targetPort: https-main
-  - name: https-self
-    port: 9443
-    targetPort: https-self
+  - name: metrics
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  - name: exporter
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
   selector:
     app.kubernetes.io/component: ocs-metrics-exporter
     app.kubernetes.io/name: ocs-metrics-exporter

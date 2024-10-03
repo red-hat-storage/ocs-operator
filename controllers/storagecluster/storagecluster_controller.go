@@ -44,7 +44,6 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 	r.images.NooBaaCore = os.Getenv("NOOBAA_CORE_IMAGE")
 	r.images.NooBaaDB = os.Getenv("NOOBAA_DB_IMAGE")
 	r.images.OCSMetricsExporter = os.Getenv("OCS_METRICS_EXPORTER_IMAGE")
-	r.images.KubeRBACProxy = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
 
 	if r.images.Ceph == "" {
 		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
@@ -62,10 +61,6 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 		err := fmt.Errorf("OCS_METRICS_EXPORTER_IMAGE environment variable not found")
 		r.Log.Error(err, "Missing OCS_METRICS_EXPORTER_IMAGE environment variable for ocs initialization.")
 		return err
-	} else if r.images.KubeRBACProxy == "" {
-		err := fmt.Errorf("KUBE_RBAC_PROXY_IMAGE environment variable not found")
-		r.Log.Error(err, "Missing KUBE_RBAC_PROXY_IMAGE environment variable for ocs initialization.")
-		return err
 	}
 	return nil
 }
@@ -76,7 +71,6 @@ type ImageMap struct {
 	NooBaaCore         string
 	NooBaaDB           string
 	OCSMetricsExporter string
-	KubeRBACProxy      string
 }
 
 // StorageClusterReconciler reconciles a StorageCluster object
