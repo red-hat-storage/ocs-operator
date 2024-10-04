@@ -537,7 +537,7 @@ spec:
                 - --enable-leader-election
                 - --health-probe-bind-address=:8081
                 command:
-                - ocs-operator
+                - entrypoint
                 env:
                 - name: WATCH_NAMESPACE
                   valueFrom:

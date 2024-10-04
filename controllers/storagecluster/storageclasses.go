@@ -13,7 +13,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -452,9 +451,7 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 	// when allowing consumers, creation of storage classes should only be done via storagerequests
 	if !initData.Spec.AllowRemoteStorageConsumers {
 		// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
-		kvcrd := &extv1.CustomResourceDefinition{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "virtualmachines.kubevirt.io", Namespace: ""}, kvcrd)
-		if err == nil {
+		if r.AvailableCrds[VirtualMachineCrdName] {
 			ret = append(ret, newCephBlockPoolVirtualizationStorageClassConfiguration(initData))
 		}
 	}

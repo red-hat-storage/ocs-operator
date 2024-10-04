@@ -8,20 +8,22 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-logr/logr"
-	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/templates"
+
+	"github.com/go-logr/logr"
+	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,8 +45,8 @@ import (
 var operatorNamespace string
 
 const (
-	wrongNamespacedName              = "Ignoring this resource. Only one should exist, and this one has the wrong name and/or namespace."
-	random30CharacterString          = "KP7TThmSTZegSGmHuPKLnSaaAHSG3RSgqw6akBj0oVk"
+	random30CharacterString = "KP7TThmSTZegSGmHuPKLnSaaAHSG3RSgqw6akBj0oVk"
+
 	PrometheusOperatorDeploymentName = "prometheus-operator"
 	PrometheusOperatorCSVNamePrefix  = "odf-prometheus-operator"
 	ClusterClaimCrdName              = "clusterclaims.cluster.open-cluster-management.io"
@@ -63,13 +65,14 @@ func InitNamespacedName() types.NamespacedName {
 // nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
-	ctx               context.Context
+	ctx      context.Context
+	clusters *util.Clusters
+
 	Log               logr.Logger
 	Scheme            *runtime.Scheme
 	SecurityClient    secv1client.SecurityV1Interface
 	OperatorNamespace string
-	clusters          *util.Clusters
-	availableCrds     map[string]bool
+	AvailableCrds     map[string]bool
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -93,11 +96,26 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 
 	r.Log.Info("Reconciling OCSInitialization.", "OCSInitialization", klog.KRef(request.Namespace, request.Name))
 
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = ClusterClaimCrdName
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to get CRD", "CRD", ClusterClaimCrdName)
+		return reconcile.Result{}, err
+	}
+	util.AssertEqual(r.AvailableCrds[ClusterClaimCrdName], crd.UID != "", util.ExitCodeThatShouldRestartTheProcess)
+
 	initNamespacedName := InitNamespacedName()
 	instance := &ocsv1.OCSInitialization{}
 	if initNamespacedName.Name != request.Name || initNamespacedName.Namespace != request.Namespace {
 		// Ignoring this resource because it has the wrong name or namespace
-		r.Log.Info(wrongNamespacedName)
+		r.Log.Info(
+			"Ignoring this resource. Only one OCSInitialization should exist.",
+			"Expected",
+			initNamespacedName,
+			"Got",
+			request.NamespacedName,
+		)
 		err := r.Client.Get(ctx, request.NamespacedName, instance)
 		if err != nil {
 			// the resource probably got deleted
@@ -147,11 +165,6 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		}
 	}
 
-	r.availableCrds, err = util.MapCRDAvailability(r.ctx, r.Client, r.Log, ClusterClaimCrdName)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
 	r.clusters, err = util.GetClusters(ctx, r.Client)
 	if err != nil {
 		r.Log.Error(err, "Failed to get clusters")
@@ -179,7 +192,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	if r.availableCrds[ClusterClaimCrdName] {
+	if r.AvailableCrds[ClusterClaimCrdName] {
 		err = r.ensureClusterClaimExists()
 		if err != nil {
 			r.Log.Error(err, "Failed to ensure odf-info namespacedname ClusterClaim")
@@ -271,6 +284,14 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
+	enqueueOCSInit := handler.EnqueueRequestsFromMapFunc(
+		func(context context.Context, obj client.Object) []reconcile.Request {
+			return []reconcile.Request{{
+				NamespacedName: InitNamespacedName(),
+			}}
+		},
+	)
+
 	ocsInitializationController := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
@@ -283,13 +304,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// ocs-operator-config configmap if storagecluster spec changes
 		Watches(
 			&ocsv1.StorageCluster{},
-			handler.EnqueueRequestsFromMapFunc(
-				func(context context.Context, obj client.Object) []reconcile.Request {
-					return []reconcile.Request{{
-						NamespacedName: InitNamespacedName(),
-					}}
-				},
-			),
+			enqueueOCSInit,
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		// Watcher for storageClass required to update values related to replica-1
@@ -317,13 +332,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					Namespace: r.OperatorNamespace,
 				},
 			},
-			handler.EnqueueRequestsFromMapFunc(
-				func(context context.Context, obj client.Object) []reconcile.Request {
-					return []reconcile.Request{{
-						NamespacedName: InitNamespacedName(),
-					}}
-				},
-			),
+			enqueueOCSInit,
 		).
 		// Watcher for ocs-operator-config cm
 		Watches(
@@ -333,26 +342,34 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					Namespace: r.OperatorNamespace,
 				},
 			},
-			handler.EnqueueRequestsFromMapFunc(
-				func(context context.Context, obj client.Object) []reconcile.Request {
-					return []reconcile.Request{{
-						NamespacedName: InitNamespacedName(),
-					}}
-				},
-			),
+			enqueueOCSInit,
 		).
 		// Watcher for prometheus operator csv
 		Watches(
 			&opv1a1.ClusterServiceVersion{},
-			handler.EnqueueRequestsFromMapFunc(
-				func(context context.Context, obj client.Object) []reconcile.Request {
-					return []reconcile.Request{{
-						NamespacedName: InitNamespacedName(),
-					}}
-				},
-			),
+			enqueueOCSInit,
 			builder.WithPredicates(prometheusPredicate),
+		).
+		Watches(
+			&extv1.CustomResourceDefinition{},
+			enqueueOCSInit,
+			builder.WithPredicates(
+				util.NamePredicate(ClusterClaimCrdName),
+				util.CrdCreateAndDeletePredicate(&r.Log, ClusterClaimCrdName, r.AvailableCrds[ClusterClaimCrdName]),
+			),
+			builder.OnlyMetadata,
 		)
+
+	if r.AvailableCrds[ClusterClaimCrdName] {
+		ocsInitializationController = ocsInitializationController.Watches(
+			&v1alpha1.ClusterClaim{},
+			enqueueOCSInit,
+			builder.WithPredicates(
+				util.NamePredicate(util.OdfInfoNamespacedNameClaimName),
+				predicate.GenerationChangedPredicate{},
+			),
+		)
+	}
 	return ocsInitializationController.Complete(r)
 }
 

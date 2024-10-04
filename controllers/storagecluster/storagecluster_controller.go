@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -96,6 +95,7 @@ type StorageClusterReconciler struct {
 	IsMultipleStorageClusters bool
 	clusters                  *util.Clusters
 	OperatorNamespace         string
+	AvailableCrds             map[string]bool
 }
 
 // SetupWithManager sets up a controller with manager
@@ -228,18 +228,20 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&routev1.Route{}).
 		Owns(&templatev1.Template{}).
+		// Using builder.OnlyMetadata as we are only interested in the presence and not getting this resource anywhere
+		Watches(
+			&extv1.CustomResourceDefinition{},
+			enqueueStorageClusterRequest,
+			builder.WithPredicates(
+				util.NamePredicate(VirtualMachineCrdName),
+				util.CrdCreateAndDeletePredicate(&r.Log, VirtualMachineCrdName, r.AvailableCrds[VirtualMachineCrdName]),
+			),
+			builder.OnlyMetadata,
+		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
 		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
 		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
-		Watches(
-			&extv1.CustomResourceDefinition{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "virtualmachines.kubevirt.io",
-				},
-			},
-			enqueueStorageClusterRequest,
-		).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate))
 
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {

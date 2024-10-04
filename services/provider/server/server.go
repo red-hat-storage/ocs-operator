@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"k8s.io/utils/ptr"
 	"math"
 	"net"
 	"slices"
@@ -119,6 +120,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
+	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
 
 	if onboardingTicket.SubjectRole != services.ClientRole {
 		err := fmt.Errorf("unsupported ticket role for consumer %q, found %s, expected %s", req.ConsumerName, onboardingTicket.SubjectRole, services.ClientRole)
@@ -126,7 +128,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(*onboardingTicket.StorageQuotaInGiB))
+	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(storageQuotaInGiB))
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
 			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
