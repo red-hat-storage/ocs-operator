@@ -41,7 +41,6 @@ var (
 	ocsMetricsExporterImage  = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
 	uxBackendOauthImage      = flag.String("ux-backend-oauth-image", "", "ux backend oauth container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
-	kubeRbacProxyImage       = flag.String("kube-rbac-proxy-image", "", "kube-rbac-proxy container image")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -123,10 +122,6 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	// inject custom ENV VARS.
 	if strings.Contains(csv.Name, "ocs") || strings.Contains(csv.Name, "ics") {
 		vars := []corev1.EnvVar{
-			{
-				Name:  "KUBE_RBAC_PROXY_IMAGE",
-				Value: *kubeRbacProxyImage,
-			},
 			{
 				Name:  "OCS_METRICS_EXPORTER_IMAGE",
 				Value: *ocsMetricsExporterImage,
@@ -529,12 +524,6 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 			"image": *uxBackendOauthImage,
 		})
 	}
-	if *kubeRbacProxyImage != "" {
-		relatedImages = append(relatedImages, map[string]interface{}{
-			"name":  "kube-rbac-proxy",
-			"image": *kubeRbacProxyImage,
-		})
-	}
 	return unstructured.SetNestedSlice(r.Object, relatedImages, "spec", "relatedImages")
 }
 
@@ -768,8 +757,6 @@ func main() {
 		log.Fatal("--ocs-image is required")
 	} else if *ocsMetricsExporterImage == "" {
 		log.Fatal("--ocs-metrics-exporter-image is required")
-	} else if *kubeRbacProxyImage == "" {
-		log.Fatal("--kube-rbac-proxy-image is required")
 	} else if *inputCrdsDir == "" {
 		log.Fatal("--crds-directory is required")
 	} else if *outputDir == "" {
