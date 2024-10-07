@@ -7,15 +7,17 @@ import (
 	"strconv"
 	"testing"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
+	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
-	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -613,35 +615,35 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 					"csi.storage.k8s.io/fstype": "ext4",
 					"imageFormat":               "2",
-					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
-					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79",
+					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-03fa88943ffe9c61edd453f583b37e79",
+					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79",
 				},
 			},
 			"ceph-rbd-volumesnapshotclass": {
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
-					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79",
 				},
 			},
 			"ceph-rbd-volumegroupsnapshotclass": {
 				Name: "ceph-rbd",
 				Kind: "VolumeGroupSnapshotClass",
 				Data: map[string]string{
-					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79",
 				},
 			},
-			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
-				Name: "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+			"ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79": {
+				Name: "ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79",
 				Kind: "Secret",
 				Data: map[string]string{
 					"userID":  "3de200d5c23524a4612bde1fdbeb717e",
 					"userKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 				},
 			},
-			"ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c": {
-				Name: "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
+			"ceph-client-node-03fa88943ffe9c61edd453f583b37e79": {
+				Name: "ceph-client-node-03fa88943ffe9c61edd453f583b37e79",
 				Kind: "Secret",
 				Data: map[string]string{
 					"userID":  "995e66248ad3e8642de868f461cdd827",
@@ -668,16 +670,16 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"fsName":             "myfs",
 					"subvolumegroupname": "cephFilesystemSubVolumeGroup",
 					"pool":               "",
-					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
-					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
-					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+					"csi.storage.k8s.io/provisioner-secret-name":       "ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101",
+					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-8c905f454c6e41bb28f1073cecc9d101",
+					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101",
 				},
 			},
 			"cephfs-volumesnapshotclass": {
 				Name: "cephfs",
 				Kind: "VolumeSnapshotClass",
 				Data: map[string]string{
-					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101",
 				},
 			},
 
@@ -685,19 +687,19 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "cephfs",
 				Kind: "VolumeGroupSnapshotClass",
 				Data: map[string]string{
-					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101",
 				},
 			},
-			"ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c": {
-				Name: "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+			"ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101": {
+				Name: "ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101",
 				Kind: "Secret",
 				Data: map[string]string{
 					"adminID":  "4ffcb503ff8044c8699dac415f82d604",
 					"adminKey": "AQADw/hhqBOcORAAJY3fKIvte++L/zYhASjYPQ==",
 				},
 			},
-			"ceph-client-node-0e8555e6556f70d23a61675af44e880c": {
-				Name: "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
+			"ceph-client-node-8c905f454c6e41bb28f1073cecc9d101": {
+				Name: "ceph-client-node-8c905f454c6e41bb28f1073cecc9d101",
 				Kind: "Secret",
 				Data: map[string]string{
 					"adminID":  "1b042fcc8812fe4203689eec38fdfbfa",
@@ -868,14 +870,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
+				"secretName": "ceph-client-node-03fa88943ffe9c61edd453f583b37e79",
 			},
 		},
 	}
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
+			Name:      "ceph-client-node-03fa88943ffe9c61edd453f583b37e79",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -898,14 +900,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+				"secretName": "ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+			Name:      "ceph-client-provisioner-03fa88943ffe9c61edd453f583b37e79",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -928,14 +930,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
+				"secretName": "ceph-client-node-8c905f454c6e41bb28f1073cecc9d101",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
+			Name:      "ceph-client-node-8c905f454c6e41bb28f1073cecc9d101",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -958,14 +960,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		},
 		Status: &rookCephv1.CephClientStatus{
 			Info: map[string]string{
-				"secretName": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+				"secretName": "ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101",
 			},
 		},
 	}
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+			Name:      "ceph-client-provisioner-8c905f454c6e41bb28f1073cecc9d101",
 			Namespace: server.namespace,
 		},
 		Data: map[string][]byte{
@@ -1060,7 +1062,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	}
 
 	// When ceph resources is empty
-	scrNameHash := getStorageRequestHash(string(consumerResource.UID), shareFilesystemClaimName)
+	scrNameHash := util.CalculateMD5Hash(shareFilesystemClaimName)
 	for _, i := range sharedFilesystemClaimResource.Status.CephResources {
 		if i.Kind == "CephFilesystemSubVolumeGroup" {
 			for cephClientUserType, cephClientName := range i.CephClients {

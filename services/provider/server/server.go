@@ -647,7 +647,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	}
 	var extR []*pb.ExternalResource
 
-	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
+	storageRequestHash := util.CalculateMD5Hash(req.StorageClaimName)
 	for _, cephRes := range storageRequest.Status.CephResources {
 		switch cephRes.Kind {
 		case "CephClient":
