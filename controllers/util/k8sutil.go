@@ -13,8 +13,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 const (
@@ -165,4 +168,37 @@ func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) 
 		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
+}
+
+func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*ocsv1.StorageCluster, error) {
+	storageClusterList := &ocsv1.StorageClusterList{}
+	err := cl.List(ctx, storageClusterList, client.InNamespace(namespace), client.Limit(1))
+	if err != nil {
+		return nil, fmt.Errorf("unable to list storageCluster(s) in namespace %s: %v", namespace, err)
+	}
+
+	if len(storageClusterList.Items) == 0 {
+		return nil, fmt.Errorf("no storageCluster found in namespace %s", namespace)
+	}
+	if storageClusterList.Items[0].Status.Phase == PhaseIgnored {
+		return nil, fmt.Errorf("storageCluster with Phase 'Ignored' found. Please delete the storageCluster to proceed")
+	}
+
+	return &storageClusterList.Items[0], nil
+}
+
+func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
+	klog.Info("Setting up k8s client")
+
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
 }
