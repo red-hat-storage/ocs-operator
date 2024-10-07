@@ -12,4 +12,5 @@ type OnboardingTicket struct {
 	ExpirationDate    int64                 `json:"expirationDate,string"`
 	SubjectRole       OnboardingSubjectRole `json:"subjectRole"`
 	StorageQuotaInGiB *uint                 `json:"storageQuotaInGiB,omitempty"`
+	StorageClusterUID string                `json:"storageClusterUID"`
 }

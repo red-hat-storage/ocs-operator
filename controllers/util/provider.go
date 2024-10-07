@@ -41,15 +41,16 @@ func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath stri
 
 // GeneratePeerOnboardingToken generates a ocs-peer token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
-func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string) (string, error) {
+func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageClusterUID string) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
 
 	ticket := services.OnboardingTicket{
-		ID:             uuid.New().String(),
-		ExpirationDate: tokenExpirationDate,
-		SubjectRole:    services.PeerRole,
+		ID:                uuid.New().String(),
+		ExpirationDate:    tokenExpirationDate,
+		SubjectRole:       services.PeerRole,
+		StorageClusterUID: storageClusterUID,
 	}
 	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
 	if err != nil {
