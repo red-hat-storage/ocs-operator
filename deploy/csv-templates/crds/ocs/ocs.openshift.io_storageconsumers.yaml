@@ -91,6 +91,10 @@ spec:
                   platformVersion:
                     description: StorageClient Platform Version
                     type: string
+                  storageQuotaUtilizationRatio:
+                    description: StorageQuotaUtilizationRatio is the ratio of utilized
+                      quota of connected client
+                    type: number
                 type: object
               lastHeartbeat:
                 description: Timestamp of last heartbeat received from consumer

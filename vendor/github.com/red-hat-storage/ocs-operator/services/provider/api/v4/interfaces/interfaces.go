@@ -9,12 +9,14 @@ type StorageClientStatus interface {
 	GetClusterID() string
 	GetClusterName() string
 	GetClientName() string
+	GetStorageQuotaUtilizationRatio() float32
 
 	SetPlatformVersion(string) StorageClientStatus
 	SetOperatorVersion(string) StorageClientStatus
 	SetClusterID(string) StorageClientStatus
 	SetClusterName(string) StorageClientStatus
 	SetClientName(string) StorageClientStatus
+	SetStorageQuotaUtilizationRatio(float32) StorageClientStatus
 }
 
 type StorageClientOnboarding interface {

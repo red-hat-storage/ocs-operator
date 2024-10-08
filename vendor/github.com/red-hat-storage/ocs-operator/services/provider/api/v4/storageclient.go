@@ -40,6 +40,11 @@ func (r *ReportStatusRequest) SetClusterName(clusterName string) ifaces.StorageC
 	return r
 }
 
+func (r *ReportStatusRequest) SetStorageQuotaUtilizationRatio(storageQuotaUtilizationRatio float32) ifaces.StorageClientStatus {
+	r.StorageQuotaUtilizationRatio = storageQuotaUtilizationRatio
+	return r
+}
+
 // ensure OnboardConsumerRequest satisfies StorageClientOnboarding interface
 var _ ifaces.StorageClientOnboarding = &OnboardConsumerRequest{}
 
