@@ -10,7 +10,7 @@ GINKGO=$GOBIN/ginkgo
 
 if ! [ -x "$GINKGO" ]; then
 	echo "Installing GINKGO"
-	go install -v github.com/onsi/ginkgo/v2/ginkgo@latest
+	go install -v github.com/onsi/ginkgo/v2/ginkgo
 else
 	echo "GINKO binary found at $GINKGO"
 fi
