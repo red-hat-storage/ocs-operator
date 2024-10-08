@@ -22,6 +22,7 @@ import "k8s.io/apimachinery/pkg/types"
 type ConnectedClient struct {
 	Name      string `yaml:"name"`
 	ClusterID string `yaml:"clusterId"`
+	ClientID  string `yaml:"clientId"`
 }
 
 // InfoStorageCluster describes information regarding a storage cluster key
@@ -29,6 +30,7 @@ type InfoStorageCluster struct {
 	NamespacedName          types.NamespacedName `yaml:"namespacedName"`
 	StorageProviderEndpoint string               `yaml:"storageProviderEndpoint"`
 	CephClusterFSID         string               `yaml:"cephClusterFSID"`
+	StorageClusterUID       string               `yaml:"storageClusterUID"`
 }
 
 // OdfInfoData describes odf-info CM's data
