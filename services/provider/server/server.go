@@ -11,13 +11,14 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"math"
 	"net"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/utils/ptr"
 
 	"github.com/blang/semver/v4"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -193,7 +194,17 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 		}
-		desiredClientConfigHash := getDesiredClientConfigHash(channelName, consumerObj)
+
+		storageCluster, err := s.getStorageCluster(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		desiredClientConfigHash := getDesiredClientConfigHash(
+			channelName,
+			consumerObj,
+			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+		)
 
 		klog.Infof("successfully returned the config details to the consumer.")
 		return &pb.StorageConfigResponse{
@@ -751,15 +762,12 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
 			}
 
-			storageClusters := &ocsv1.StorageClusterList{}
-			if err := s.client.List(ctx, storageClusters, client.InNamespace(s.namespace), client.Limit(2)); err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get storage cluster: %v", err)
-			}
-			if len(storageClusters.Items) != 1 {
-				return nil, status.Errorf(codes.Internal, "expecting one single storagecluster to exist")
+			storageCluster, err := s.getStorageCluster(ctx)
+			if err != nil {
+				return nil, err
 			}
 			var kernelMountOptions map[string]string
-			for _, option := range strings.Split(util.GetCephFSKernelMountOptions(&storageClusters.Items[0]), ",") {
+			for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
 				if kernelMountOptions == nil {
 					kernelMountOptions = map[string]string{}
 				}
@@ -847,7 +855,16 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
-	desiredClientConfigHash := getDesiredClientConfigHash(channelName, storageConsumer)
+	storageCluster, err := s.getStorageCluster(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	desiredClientConfigHash := getDesiredClientConfigHash(
+		channelName,
+		storageConsumer,
+		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+	)
 
 	return &pb.ReportStatusResponse{
 		DesiredClientOperatorChannel: channelName,
@@ -855,10 +872,11 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	}, nil
 }
 
-func getDesiredClientConfigHash(channelName string, storageConsumer *ocsv1alpha1.StorageConsumer) string {
+func getDesiredClientConfigHash(channelName string, storageConsumer *ocsv1alpha1.StorageConsumer, encryptionInTransit bool) string {
 	var arr = []any{
 		channelName,
 		storageConsumer.Spec.StorageQuotaInGiB,
+		encryptionInTransit,
 	}
 	return util.CalculateMD5Hash(arr)
 }
@@ -876,6 +894,41 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
 	}
 	return subscription.Spec.Channel, nil
+}
+
+func (s *OCSProviderServer) getStorageCluster(ctx context.Context) (*ocsv1.StorageCluster, error) {
+	scList := &ocsv1.StorageClusterList{}
+	if err := s.client.List(ctx, scList, client.InNamespace(s.namespace)); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list storage clusters: %v", err)
+	}
+
+	var foundSc *ocsv1.StorageCluster
+	for i := range scList.Items {
+		sc := &scList.Items[i]
+		if sc.Status.Phase == util.PhaseIgnored {
+			continue // Skip Ignored storage cluster
+		}
+		if sc.Spec.AllowRemoteStorageConsumers {
+			if foundSc != nil {
+				// This means we have already found one storage cluster, so this is a second one
+				return nil, status.Errorf(codes.FailedPrecondition, "multiple provider storage clusters found")
+			}
+			foundSc = sc
+		}
+	}
+
+	if foundSc == nil {
+		return nil, status.Errorf(codes.NotFound, "no provider storage cluster found")
+	}
+
+	return foundSc, nil
+}
+
+func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
+	return networkSpec != nil &&
+		networkSpec.Connections != nil &&
+		networkSpec.Connections.Encryption != nil &&
+		networkSpec.Connections.Encryption.Enabled
 }
 
 func extractMonitorIps(data string) ([]string, error) {
