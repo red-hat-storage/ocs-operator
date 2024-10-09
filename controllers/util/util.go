@@ -5,8 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"os"
+
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,8 +43,8 @@ func GetKeyRotationSpec(sc *ocsv1.StorageCluster) (bool, string) {
 	}
 
 	if sc.Spec.Encryption.KeyRotation.Enable == nil {
-		if (sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide) && !sc.Spec.Encryption.KeyManagementService.Enable {
-			// use key-rotation by default if cluster-wide encryption is opted without KMS & "enable" spec is missing
+		if (sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide || IsAnyDeviceSetEncrypted(sc.Spec.StorageDeviceSets)) && !sc.Spec.Encryption.KeyManagementService.Enable {
+			// use key-rotation by default if cluster-wide encryption/any deviceSet encryption is opted without KMS & "enable" spec is missing
 			return true, schedule
 		}
 		return false, schedule
@@ -102,4 +103,13 @@ func AssertEqual[T comparable](actual T, expected T, exitCode int) {
 	if actual != expected {
 		os.Exit(exitCode)
 	}
+}
+
+func IsAnyDeviceSetEncrypted(storageDeviceSets []ocsv1.StorageDeviceSet) bool {
+	for _, deviceSet := range storageDeviceSets {
+		if deviceSet.Encrypted != nil && *deviceSet.Encrypted {
+			return true
+		}
+	}
+	return false
 }
