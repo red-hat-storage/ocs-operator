@@ -87,14 +87,6 @@ type RBDMirrorPeerSite struct {
 	LastUpdate  string `json:"last_update"`
 }
 
-type RBDMirrorPeerSiteDescription struct {
-	BytesPerSecond          float64 `json:"bytes_per_second"`
-	BytesPerSnapshot        float64 `json:"bytes_per_snapshot"`
-	LocalSnapshotTimestamp  int64   `json:"local_snapshot_timestamp"`
-	RemoteSnapshotTimestamp int64   `json:"remote_snapshot_timestamp"`
-	ReplayState             string  `json:"replay_state"`
-}
-
 type csiClusterConfig struct {
 	ClusterID string   `json:"clusterID"`
 	Monitors  []string `json:"monitors"`
