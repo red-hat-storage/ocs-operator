@@ -90,6 +90,10 @@ type ClientStatus struct {
 	// Name is the name of connected storageclient
 	// +optional
 	Name string `json:"name,omitempty"`
+
+	// StorageQuotaUtilizationRatio is the ratio of utilized quota of connected client
+	// +optional
+	StorageQuotaUtilizationRatio float32 `json:"storageQuotaUtilizationRatio,omitempty"`
 }
 
 //+kubebuilder:object:root=true

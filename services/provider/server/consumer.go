@@ -219,6 +219,7 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.Client.ClusterID = status.GetClusterID()
 	consumerObj.Status.Client.Name = status.GetClientName()
 	consumerObj.Status.Client.ClusterName = status.GetClusterName()
+	consumerObj.Status.Client.StorageQuotaUtilizationRatio = status.GetStorageQuotaUtilizationRatio()
 
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
 		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
