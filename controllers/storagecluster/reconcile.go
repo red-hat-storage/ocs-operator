@@ -371,6 +371,17 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		// The object is marked for deletion
 		instance.Status.Phase = statusutil.PhaseDeleting
 
+		storageClusterPeerList := ocsv1.StorageClusterPeerList{}
+		err := r.List(ctx, &storageClusterPeerList, client.InNamespace(instance.Namespace))
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if len(storageClusterPeerList.Items) != 0 {
+			err := fmt.Errorf("waiting for %v StorageClusterPeer attached to StorageCluster to be deleted before proceeding", len(storageClusterPeerList.Items))
+			r.Log.Info(err.Error())
+			return reconcile.Result{}, err
+		}
+
 		if contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			if res, err := r.deleteResources(instance); err != nil {
 				r.Log.Info("Uninstall in progress.", "Status", err)
