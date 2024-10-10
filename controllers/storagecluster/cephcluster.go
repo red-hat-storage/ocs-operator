@@ -1150,13 +1150,10 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 	applyLabels(getCephClusterMonitoringLabels(*sc), &prometheusRule.ObjectMeta)
 
 	replaceTokens := []replaceToken{
-		{
-			recordOrAlertName: "CephMgrIsAbsent",
-			wordToReplace:     "openshift-storage",
-			replaceWith:       sc.Namespace,
-		},
+		createReplaceToken("", "CephMgrIsAbsent", "openshift-storage", sc.Namespace, ExprRuleSection, ""),
 	}
 
+	const DescriptionKey = "description"
 	// if nearFullRatio/backfillFullRatio/fullRatio are specified on the StorageCLuster CR, replace the values in the prometheus rule accordingly
 	specifiedNearFullRatio := sc.Spec.ManagedResources.CephCluster.NearFullRatio
 	specifiedBackfillFullRatio := sc.Spec.ManagedResources.CephCluster.BackfillFullRatio
@@ -1164,18 +1161,24 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 
 	if specifiedNearFullRatio != nil {
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "75%", fmt.Sprintf("%.2f%%", *specifiedNearFullRatio*100)),
-			createReplaceToken("", "", "0.75", fmt.Sprintf("%f", *specifiedNearFullRatio)))
+			createReplaceToken("cluster-utilization-alert.rules", "CephClusterNearFull",
+				"75%", fmt.Sprintf("%0.0f%%", *specifiedNearFullRatio*100), AnnotationRuleSection, DescriptionKey),
+			createReplaceToken("cluster-utilization-alert.rules", "CephClusterNearFull",
+				"0.75", fmt.Sprintf("%0.2f", *specifiedNearFullRatio), ExprRuleSection, ""))
 	}
 	if specifiedBackfillFullRatio != nil {
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "80%", fmt.Sprintf("%.2f%%", *specifiedBackfillFullRatio*100)),
-			createReplaceToken("", "", "0.80", fmt.Sprintf("%f", *specifiedBackfillFullRatio)))
+			createReplaceToken("cluster-utilization-alert.rules", "CephClusterCriticallyFull",
+				"80%", fmt.Sprintf("%0.0f%%", *specifiedBackfillFullRatio*100), AnnotationRuleSection, DescriptionKey),
+			createReplaceToken("cluster-utilization-alert.rules", "CephClusterCriticallyFull",
+				"0.80", fmt.Sprintf("%0.2f", *specifiedBackfillFullRatio), ExprRuleSection, ""))
 	}
 	if specifiedFullRatio != nil {
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "85%", fmt.Sprintf("%.2f%%", *specifiedFullRatio*100)),
-			createReplaceToken("", "", "0.85", fmt.Sprintf("%f", *specifiedFullRatio)))
+			createReplaceToken("cluster-utilization-alert.rules", "CephClusterReadOnly",
+				"85%", fmt.Sprintf("%0.0f%%", *specifiedFullRatio*100), AnnotationRuleSection, DescriptionKey),
+			createReplaceToken("cluster-utilization-alert.rules", "CephClusterReadOnly",
+				"0.85", fmt.Sprintf("%0.2f", *specifiedFullRatio), ExprRuleSection, ""))
 	}
 
 	// nothing to replace in external mode
@@ -1203,19 +1206,36 @@ func applyLabels(labels map[string]string, t *metav1.ObjectMeta) {
 	}
 }
 
+// RuleSection determines which section in the Rule struct the change has to go in
+type RuleSection int
+
+const (
+	ExprRuleSection RuleSection = iota
+	AnnotationRuleSection
+	LabelRuleSection
+)
+
 type replaceToken struct {
 	groupName         string
 	recordOrAlertName string
 	wordToReplace     string
 	replaceWith       string
+	// wordInSection represents
+	// which field, in the rule struct, this change has to go
+	wordInSection RuleSection
+	// sectionKey contains the key value, if the above RuleSection is a map (like Annotations or Labels)
+	sectionKey string
 }
 
-func createReplaceToken(groupName, recordOrAlertName, wordToReplace, replaceWith string) replaceToken {
+func createReplaceToken(groupName, recordOrAlertName, wordToReplace, replaceWith string,
+	wordInSection RuleSection, sectionKey string) replaceToken {
 	return replaceToken{
 		groupName:         groupName,
 		recordOrAlertName: recordOrAlertName,
 		wordToReplace:     wordToReplace,
 		replaceWith:       replaceWith,
+		wordInSection:     wordInSection,
+		sectionKey:        sectionKey,
 	}
 }
 
@@ -1246,19 +1266,23 @@ func changePromRule(promRule *monitoringv1.PrometheusRule, tokens []replaceToken
 				rule := &group.Rules[ruleIdx]
 				// If recordOrAlertName is specified, ensure it matches; otherwise, apply to all rules
 				if token.recordOrAlertName == "" || rule.Record == token.recordOrAlertName || rule.Alert == token.recordOrAlertName {
-					// Update the annotations in the rule
-					if rule.Annotations != nil {
-						// Update description if it exists
-						if description, exists := rule.Annotations["description"]; exists {
-							newDescription := strings.Replace(description, token.wordToReplace, token.replaceWith, -1)
-							rule.Annotations["description"] = newDescription
-						}
-					}
-					// Update the expression field in the rule
-					exprStr := rule.Expr.String()
-					if exprStr != "" {
-						newExpr := strings.Replace(exprStr, token.wordToReplace, token.replaceWith, -1)
+					switch token.wordInSection {
+					case ExprRuleSection:
+						// Update the expression field in the rule
+						newExpr := strings.ReplaceAll(rule.Expr.String(), token.wordToReplace, token.replaceWith)
 						rule.Expr = intstr.Parse(newExpr)
+					case AnnotationRuleSection:
+						if _, ok := rule.Annotations[token.sectionKey]; !ok {
+							continue
+						}
+						rule.Annotations[token.sectionKey] = strings.ReplaceAll(
+							rule.Annotations[token.sectionKey], token.wordToReplace, token.replaceWith)
+					case LabelRuleSection:
+						if _, ok := rule.Labels[token.sectionKey]; !ok {
+							continue
+						}
+						rule.Labels[token.sectionKey] = strings.ReplaceAll(
+							rule.Labels[token.sectionKey], token.wordToReplace, token.replaceWith)
 					}
 				}
 			}
