@@ -151,6 +151,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 			NamespacedName:          client.ObjectKeyFromObject(storageCluster),
 			StorageProviderEndpoint: storageCluster.Status.StorageProviderEndpoint,
 			CephClusterFSID:         cephFSId,
+			StorageClusterUID:       string(storageCluster.UID),
 		},
 	}
 	yamlData, err := yaml.Marshal(data)
@@ -176,6 +177,7 @@ func getConnectedClients(r *StorageClusterReconciler, storageCluster *ocsv1.Stor
 		newConnectedClient := ocsv1a1.ConnectedClient{
 			Name:      name,
 			ClusterID: clusterID,
+			ClientID:  string(storageConsumer.UID),
 		}
 		connectedClients = append(connectedClients, newConnectedClient)
 	}
