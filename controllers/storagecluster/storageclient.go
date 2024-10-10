@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	tokenLifetimeInHours         = 48
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
+	tokenLifetimeInHours = 48
 
 	ocsClientConfigMapName = "ocs-client-operator-config"
 	deployCSIKey           = "DEPLOY_CSI"
@@ -42,9 +41,14 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
+	storageClusterNamespace := storagecluster.Namespace
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
-			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil)
+			privateKey, err := util.GetParsedPrivateKey(r.ctx, r.Client, storageClusterNamespace)
+			if err != nil {
+				return fmt.Errorf("unable to get Parsed Private Key: %v", err)
+			}
+			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, privateKey, nil)
 			if err != nil {
 				return fmt.Errorf("unable to generate onboarding token: %v", err)
 			}
