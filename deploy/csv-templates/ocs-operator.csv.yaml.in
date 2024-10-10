@@ -334,6 +334,7 @@ spec:
         - apiGroups:
           - noobaa.io
           resources:
+          - backingstores
           - noobaaaccounts
           - noobaas
           verbs:
