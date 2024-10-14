@@ -280,27 +280,24 @@ spec:
           - events
           - nodes
           - persistentvolumeclaims
+          - persistentvolumes
           - pods
           - secrets
           - serviceaccounts
           - services
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - ""
           resources:
           - namespaces
           verbs:
           - get
-        - apiGroups:
-          - ""
-          resources:
-          - persistentvolumes
-          verbs:
-          - '*'
-          - get
-          - list
-          - watch
         - apiGroups:
           - k8s.cni.cncf.io
           resources:
