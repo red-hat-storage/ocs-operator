@@ -521,16 +521,19 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		Kind: "Secret",
 		Data: mustMarshal(map[string]string{
 			"auth_token": string(authToken),
-			"mgmt_addr":  noobaaMgmtAddress,
+			"mgmt_addr":  fmt.Sprintf("https://%s:443", noobaaMgmtAddress),
 		}),
 	})
 
 	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
+		Name: "noobaa",
 		Kind: "Noobaa",
 		Data: mustMarshal(&nbv1.NooBaaSpec{
 			JoinSecret: &v1.SecretReference{
 				Name: "noobaa-remote-join-secret",
+			},
+			CleanupPolicy: nbv1.CleanupPolicySpec{
+				AllowNoobaaDeletion: true,
 			},
 		}),
 	})
