@@ -402,6 +402,10 @@ type StorageDeviceSet struct {
 	DataPVCTemplate     corev1.PersistentVolumeClaim  `json:"dataPVCTemplate"`
 	MetadataPVCTemplate *corev1.PersistentVolumeClaim `json:"metadataPVCTemplate,omitempty"`
 	WalPVCTemplate      *corev1.PersistentVolumeClaim `json:"walPVCTemplate,omitempty"`
+
+	// Whether to encrypt the deviceSet or not
+	// +optional
+	Encrypted *bool `json:"encrypted,omitempty"`
 }
 
 // TODO: Fill in the members when the actual configurable options are defined in rook-ceph

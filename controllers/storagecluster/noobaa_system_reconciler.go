@@ -230,10 +230,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	// Add KMS details to Noobaa spec, only if
 	// KMS is enabled, along with
-	// ClusterWide encryption OR in a StandAlone Noobaa cluster mode
+	// ClusterWide encryption/any deviceSet Encryption OR in a StandAlone Noobaa cluster mode
 	// PS: sc.Spec.Encryption.Enable field is deprecated and added for backward compatibility
 	if sc.Spec.Encryption.KeyManagementService.Enable &&
-		(sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide || r.IsNoobaaStandalone) {
+		(util.IsClusterOrDeviceSetEncrypted(sc) || r.IsNoobaaStandalone) {
 		if kmsConfig, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client); err != nil {
 			return err
 		} else if kmsConfig != nil {
