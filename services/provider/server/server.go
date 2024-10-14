@@ -11,13 +11,14 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"math"
 	"net"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/utils/ptr"
 
 	"github.com/blang/semver/v4"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -433,16 +434,19 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		Kind: "Secret",
 		Data: mustMarshal(map[string]string{
 			"auth_token": string(authToken),
-			"mgmt_addr":  noobaaMgmtAddress,
+			"mgmt_addr":  fmt.Sprintf("https://%s:443", noobaaMgmtAddress),
 		}),
 	})
 
 	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
+		Name: "noobaa",
 		Kind: "Noobaa",
 		Data: mustMarshal(&nbv1.NooBaaSpec{
 			JoinSecret: &v1.SecretReference{
 				Name: "noobaa-remote-join-secret",
+			},
+			CleanupPolicy: nbv1.CleanupPolicySpec{
+				AllowNoobaaDeletion: true,
 			},
 		}),
 	})
