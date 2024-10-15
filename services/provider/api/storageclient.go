@@ -40,7 +40,7 @@ func (r *ReportStatusRequest) SetClusterName(clusterName string) ifaces.StorageC
 	return r
 }
 
-func (r *ReportStatusRequest) SetStorageQuotaUtilizationRatio(storageQuotaUtilizationRatio float32) ifaces.StorageClientStatus {
+func (r *ReportStatusRequest) SetStorageQuotaUtilizationRatio(storageQuotaUtilizationRatio float64) ifaces.StorageClientStatus {
 	r.StorageQuotaUtilizationRatio = storageQuotaUtilizationRatio
 	return r
 }
