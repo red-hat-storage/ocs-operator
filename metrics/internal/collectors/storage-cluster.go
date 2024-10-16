@@ -9,6 +9,7 @@ import (
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 )
 
 type StorageClusterCollector struct {
@@ -79,7 +80,7 @@ func getAllStorageClusters(lister StorageClusterLister) []*v1.StorageCluster {
 func (c *StorageClusterCollector) collectKMSConnectionStatuses(ch chan<- prometheus.Metric, storageClusters []*v1.StorageCluster) {
 	for _, storageCluster := range storageClusters {
 		v := 2
-		if storageCluster.Spec.Encryption.Enable || storageCluster.Spec.Encryption.ClusterWide {
+		if util.IsClusterOrDeviceSetEncrypted(storageCluster) {
 			v = 0
 			if storageCluster.Status.KMSServerConnection.KMSServerConnectionError != "" {
 				v = 1

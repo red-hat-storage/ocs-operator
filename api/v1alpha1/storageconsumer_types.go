@@ -93,7 +93,7 @@ type ClientStatus struct {
 
 	// StorageQuotaUtilizationRatio is the ratio of utilized quota of connected client
 	// +optional
-	StorageQuotaUtilizationRatio float32 `json:"storageQuotaUtilizationRatio,omitempty"`
+	StorageQuotaUtilizationRatio float64 `json:"storageQuotaUtilizationRatio,omitempty"`
 }
 
 //+kubebuilder:object:root=true

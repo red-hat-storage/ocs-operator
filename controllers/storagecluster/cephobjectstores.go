@@ -7,6 +7,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,10 +43,10 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 	}
 	var cephObjectStores []*cephv1.CephObjectStore
 	// Add KMS details to cephObjectStores spec, only if
-	// cluster-wide encryption is enabled
-	// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True
+	// cluster-wide encryption is enabled or any of the device set is encrypted
+	// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True or any of the deviceSet is encrypted
 	// and KMS ConfigMap is available
-	if instance.Spec.Encryption.Enable || instance.Spec.Encryption.ClusterWide {
+	if util.IsClusterOrDeviceSetEncrypted(instance) {
 		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, instance, r.Client)
 		if err != nil {
 			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, KMSConfigMapName))

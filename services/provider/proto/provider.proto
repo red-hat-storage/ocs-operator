@@ -172,7 +172,7 @@ message ReportStatusRequest{
     // clientName is the name of the connected storageclient
     string clientName = 6;
     // storageQuotaUtilizationRatio is the ratio of utilized quota of connected client
-    float storageQuotaUtilizationRatio = 7;
+    double storageQuotaUtilizationRatio = 7;
 
 }
 

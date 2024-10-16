@@ -161,10 +161,15 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	placement := getPlacement(sc, component)
 
 	nb.Spec.Tolerations = placement.Tolerations
-	// if we are "noobaa-standalone" and placement is not set - don't set affinity
+
 	if !r.IsNoobaaStandalone || ok {
+		// Add affinity if not in noobaa-standalone mode or if placement is specified
 		nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
+	} else if nb.Spec.Affinity != nil {
+		// Clear the affinity if it was set previously to handle upgrades
+		nb.Spec.Affinity = nil
 	}
+
 	nb.Spec.DBVolumeResources = &corev1.VolumeResourceRequirements{
 		Limits:   dBVolumeResources.Limits,
 		Requests: dBVolumeResources.Requests,
@@ -230,10 +235,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	// Add KMS details to Noobaa spec, only if
 	// KMS is enabled, along with
-	// ClusterWide encryption OR in a StandAlone Noobaa cluster mode
+	// ClusterWide encryption/any deviceSet Encryption OR in a StandAlone Noobaa cluster mode
 	// PS: sc.Spec.Encryption.Enable field is deprecated and added for backward compatibility
 	if sc.Spec.Encryption.KeyManagementService.Enable &&
-		(sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide || r.IsNoobaaStandalone) {
+		(util.IsClusterOrDeviceSetEncrypted(sc) || r.IsNoobaaStandalone) {
 		if kmsConfig, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client); err != nil {
 			return err
 		} else if kmsConfig != nil {

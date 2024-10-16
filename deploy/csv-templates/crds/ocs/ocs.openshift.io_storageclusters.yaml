@@ -4452,6 +4452,9 @@ spec:
                       - NVME
                       - nvme
                       type: string
+                    encrypted:
+                      description: Whether to encrypt the deviceSet or not
+                      type: boolean
                     initialWeight:
                       description: |-
                         InitialWeight is an optional explicit OSD weight value in TiB units.
