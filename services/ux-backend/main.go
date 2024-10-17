@@ -7,9 +7,13 @@ import (
 	"os"
 	"strconv"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/clienttokens"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 )
 
@@ -63,6 +67,21 @@ func main() {
 		os.Exit(-1)
 	}
 
+	namespace := util.GetPodNamespace()
+
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add corecv2 to scheme. %v", err)
+	}
+	if err := ocsv1.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add ocsv1 to scheme. %v", err)
+	}
+
+	cl, err := util.NewK8sClient(scheme)
+	if err != nil {
+		klog.Exitf("failed to create client: %v", err)
+	}
+
 	// TODO: remove '/onboarding-tokens' in the future
 	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
 		// Set the Deprecation header
@@ -74,7 +93,7 @@ func main() {
 		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours)
 	})
 	http.HandleFunc("/onboarding/peer-tokens", func(w http.ResponseWriter, r *http.Request) {
-		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours)
+		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl, namespace)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)

@@ -5,15 +5,16 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -24,7 +25,16 @@ const (
 )
 
 func main() {
-	cl, err := newClient()
+
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add corecv2 to scheme. %v", err)
+	}
+	if err := ocsv1.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add ocsv1 to scheme. %v", err)
+	}
+
+	cl, err := util.NewK8sClient(scheme)
 	if err != nil {
 		klog.Exitf("failed to create client: %v", err)
 	}
@@ -44,7 +54,7 @@ func main() {
 	privatePem := convertRsaPrivateKeyAsPemStr(privateKey)
 	publicPem := convertRsaPublicKeyAsPemStr(publicKey)
 
-	storageClusterList := &v1.StorageClusterList{}
+	storageClusterList := &ocsv1.StorageClusterList{}
 	err = cl.List(ctx, storageClusterList, client.InNamespace(namespace))
 	if err != nil {
 		klog.Exitf("unable to list storageCluster(s) in %v namespace, %v", namespace, err)
@@ -103,27 +113,6 @@ func main() {
 		klog.Exitf("failed to create public secret: %v", err)
 	}
 
-}
-
-func newClient() (client.Client, error) {
-	klog.Info("Setting up k8s client")
-	scheme := runtime.NewScheme()
-	if err := v1.AddToScheme(scheme); err != nil {
-		return nil, err
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return nil, err
-	}
-	config, err := config.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
-	if err != nil {
-		return nil, err
-	}
-
-	return k8sClient, nil
 }
 
 func convertRsaPrivateKeyAsPemStr(privateKey *rsa.PrivateKey) string {
