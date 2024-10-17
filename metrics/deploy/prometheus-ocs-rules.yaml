@@ -354,6 +354,16 @@ spec:
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
       labels:
         severity: critical
+    - alert: StorageQuotaUtilizationThresholdReached
+      annotations:
+        description: ODF client ({{ $labels.client_name }}) - ({{ $labels.client_cluster_name }}) storage consumption has surpassed 80% of the configured quota, this might result in issues in the creation of new PV/PVCs on the target cluster.
+        message: ODF client ({{ $labels.odf_client_name }}) storage consumption has surpassed 80% of the configured quota, this might result in issues in the creation of new PV/PVCs on the target cluster.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageQuotaUtilizationThresholdReached.md
+        severity_level: warning
+      expr: |
+        ocs_storage_client_storage_quota_utilization_ratio > 0.8
+      labels:
+        severity: warning
   - name: storage-cluster-alerts.rules
     rules:
     - alert: CephMonLowNumber
