@@ -1,0 +1,242 @@
+{
+    "evaluation_interval": "1m",
+    "tests": [
+        {
+            "name": "OdfPoolMirroringImageHealth-unknown",
+            "alert_rule_test": [
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "1m"
+                },
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "6m",
+                    "exp_alerts": [
+                        {
+                            "exp_annotations": {
+                                "description": "Mirroring image(s) (PV) in the pool ocs-storagecluster-cephblockpool are in Unknown state for more than 1m. Mirroring might not work as expected in namespace:cluster openshift-storage:ocs-storagecluster.",
+                                "message": "Mirroring image(s) (PV) in the pool ocs-storagecluster-cephblockpool are in Unknown state in namespace:cluster openshift-storage:ocs-storagecluster.",
+                                "severity_level": "warning",
+				"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md",
+                                "storage_type": "ceph"
+                            },
+                            "exp_labels": {
+                                "mirroring_image_status": "unknown",
+                                "severity": "warning",
+                                "job": "ocs-metrics-exporter",
+                                "name": "ocs-storagecluster-cephblockpool",
+                                "managedBy": "ocs-storagecluster",
+                                "namespace": "openshift-storage"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "12m"
+                }
+            ],
+            "input_series": [
+                {
+                    "series": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                    "values": "0x3 1x7 0x5"
+                },
+                {
+                    "series": "ocs_pool_mirroring_status{name=\"ocs-storagecluster-cephblockpool\", job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagecluster\"}",
+                    "values": "0x2 1x8 0x5"
+                }
+            ],
+            "interval": "1m",
+            "promql_expr_test": [
+                {
+                    "eval_time": "3m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 0
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_image_health == 0"
+                },
+                {
+                    "eval_time": "9m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 1
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_image_health == 1"
+                },
+                {
+                    "eval_time": "6m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_status{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 1
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_status == 1"
+                }
+            ]
+        },
+        {
+            "name": "OdfPoolMirroringImageHealth-warning",
+            "alert_rule_test": [
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "1m"
+                },
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "6m",
+                    "exp_alerts": [
+                        {
+                            "exp_annotations": {
+                                "description": "Mirroring image(s) (PV) in the pool ocs-storagecluster-cephblockpool are in Warning state for more than 1m. Mirroring might not work as expected in namespace:cluster openshift-storage:ocs-storagecluster.",
+                                "message": "Mirroring image(s) (PV) in the pool ocs-storagecluster-cephblockpool are in Warning state for cluster openshift-storage:ocs-storagecluster.",
+                                "severity_level": "warning",
+				"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md",
+                                "storage_type": "ceph"
+                            },
+                            "exp_labels": {
+                                "mirroring_image_status": "warning",
+                                "severity": "warning",
+                                "job": "ocs-metrics-exporter",
+                                "name": "ocs-storagecluster-cephblockpool",
+                                "managedBy": "ocs-storagecluster",
+                                "namespace": "openshift-storage"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "12m"
+                }
+            ],
+            "input_series": [
+                {
+                    "series": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                    "values": "0x3 2x7 0x5"
+                },
+                {
+                    "series": "ocs_pool_mirroring_status{name=\"ocs-storagecluster-cephblockpool\", job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagecluster\"}",
+                    "values": "0x2 1x8 0x5"
+                }
+            ],
+            "interval": "1m",
+            "promql_expr_test": [
+                {
+                    "eval_time": "3m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 0
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_image_health == 0"
+                },
+                {
+                    "eval_time": "9m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 2
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_image_health == 2"
+                },
+                {
+                    "eval_time": "10m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_status{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 1
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_status == 1"
+                }
+            ]
+        },
+        {
+            "name": "OdfPoolMirroringImageHealth-error",
+            "alert_rule_test": [
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "1m"
+                },
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "6m",
+                    "exp_alerts": [
+                        {
+                            "exp_annotations": {
+                                "description": "Mirroring image(s) (PV) in the pool ocs-storagecluster-cephblockpool are in Error state for more than 10s. Mirroring is not working as expected in namespace:cluster openshift-storage:ocs-storagecluster.",
+                                "message": "Mirroring image(s) (PV) in the pool ocs-storagecluster-cephblockpool are in Error state for cluster openshift-storage:ocs-storagecluster.",
+                                "severity_level": "error",
+				"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md",
+                                "storage_type": "ceph"
+                            },
+                            "exp_labels": {
+                                "mirroring_image_status": "error",
+                                "severity": "critical",
+                                "job": "ocs-metrics-exporter",
+                                "name": "ocs-storagecluster-cephblockpool",
+                                "managedBy": "ocs-storagecluster",
+                                "namespace": "openshift-storage"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "alertname": "OdfPoolMirroringImageHealth",
+                    "eval_time": "12m"
+                }
+            ],
+            "input_series": [
+                {
+                    "series": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                    "values": "0x3 3x7 0x5"
+                },
+                {
+                    "series": "ocs_pool_mirroring_status{name=\"ocs-storagecluster-cephblockpool\", job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", managedBy=\"ocs-storagecluster\"}",
+                    "values": "0x2 1x8 0x5"
+                }
+            ],
+            "interval": "1m",
+            "promql_expr_test": [
+                {
+                    "eval_time": "3m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 0
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_image_health == 0"
+                },
+                {
+                    "eval_time": "9m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_image_health{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 3
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_image_health == 3"
+                },
+                {
+                    "eval_time": "10m",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_pool_mirroring_status{job=\"ocs-metrics-exporter\", namespace=\"openshift-storage\", name=\"ocs-storagecluster-cephblockpool\", managedBy=\"ocs-storagecluster\"}",
+                            "value": 1
+                        }
+                    ],
+                    "expr": "ocs_pool_mirroring_status == 1"
+                }
+            ]
+        }
+    ]
+}
