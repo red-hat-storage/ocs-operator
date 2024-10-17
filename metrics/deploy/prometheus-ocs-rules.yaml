@@ -354,6 +354,16 @@ spec:
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
       labels:
         severity: critical
+    - alert: StorageQuotaUtilizationThresholdReached
+      annotations:
+        description: Storage Client ({{ $labels.storage_consumer_name }}) has reached more than 80% of storage. Client might face issue while creating new pvc more than the quota allotted.
+        message: Storage Client ({{ $labels.storage_consumer_name }}) has reached more than 80% of storage. Client might face issue while creating new pvc more than the quota allotted.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageQuotaUtilizationThresholdReached.md
+        severity_level: warning
+      expr: |
+        ocs_storage_client_storage_quota_utilization_ratio > 0.8
+      labels:
+        severity: warning
   - name: storage-cluster-alerts.rules
     rules:
     - alert: CephMonLowNumber
