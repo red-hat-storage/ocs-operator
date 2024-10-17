@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -207,7 +208,7 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	return consumerObj, nil
 }
 
-func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string, status ifaces.StorageClientStatus) error {
+func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string, status *pb.ReportStatusRequest) error {
 	consumerObj, err := c.Get(ctx, id)
 	if err != nil {
 		return err

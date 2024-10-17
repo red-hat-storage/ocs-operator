@@ -214,9 +214,9 @@ func TestUpdateConsumerStatus(t *testing.T) {
 	assert.NoError(t, err)
 
 	// with fields
-	fields := providerClient.NewStorageClientStatus().
-		SetPlatformVersion("1.0.0").
-		SetOperatorVersion("1.0.0")
+	fields := providerClient.NewStorageClientStatus()
+	fields.SetPlatformVersion("1.0.0")
+	fields.SetOperatorVersion("1.0.0")
 	err = consumerManager.UpdateConsumerStatus(ctx, "uid1", fields)
 	assert.NoError(t, err)
 
