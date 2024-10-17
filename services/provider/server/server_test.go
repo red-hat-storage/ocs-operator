@@ -720,7 +720,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					CephFs: &csiopv1a1.CephFsConfigSpec{
 						SubVolumeGroup: "cephFilesystemSubVolumeGroup",
 						KernelMountOptions: map[string]string{
-							"ms_mode": "legacy",
+							"ms_mode": "prefer-crc",
 						},
 					},
 				},

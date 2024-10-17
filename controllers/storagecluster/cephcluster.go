@@ -606,13 +606,11 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	// respect both the old way and the new way for enabling HostNetwork
 	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
 
-	// If it's not an external and not a provider cluster always require msgr2
-	if !sc.Spec.AllowRemoteStorageConsumers && !sc.Spec.ExternalStorage.Enable {
-		if networkSpec.Connections == nil {
-			networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
-		}
-		networkSpec.Connections.RequireMsgr2 = true
+	if networkSpec.Connections == nil {
+		networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
 	}
+	// Always require msgr2 for all modes of ODF
+	networkSpec.Connections.RequireMsgr2 = true
 
 	return networkSpec
 }
