@@ -194,7 +194,7 @@ func (cc *OCSProviderClient) GetStorageClaimConfig(ctx context.Context, consumer
 	return cc.Client.GetStorageClaimConfig(apiCtx, req)
 }
 
-func NewStorageClientStatus() ifaces.StorageClientStatus {
+func NewStorageClientStatus() *pb.ReportStatusRequest {
 	return &pb.ReportStatusRequest{}
 }
 
