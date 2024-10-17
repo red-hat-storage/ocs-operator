@@ -100,7 +100,7 @@ func setFailureDomain(sc *ocsv1.StorageCluster) {
 	// If sufficient zones are available then we select zone as the failure domain
 	topologyMap := sc.Status.NodeTopologies
 	for label, labelValues := range topologyMap.Labels {
-		if strings.Contains(label, "zone") {
+		if label == corev1.LabelZoneFailureDomainStable || label == labelZoneFailureDomainWithoutBeta {
 			if (len(labelValues) >= 2 && arbiterEnabled(sc)) || (len(labelValues) >= 3) {
 				failureDomain = "zone"
 			}
@@ -135,7 +135,7 @@ func determinePlacementRack(
 	targetAZ := ""
 	for label, value := range node.Labels {
 		for _, key := range validTopologyLabelKeys {
-			if strings.Contains(label, key) && strings.Contains(label, "zone") {
+			if strings.Contains(label, key) && (label == corev1.LabelZoneFailureDomainStable || label == labelZoneFailureDomainWithoutBeta) {
 				targetAZ = value
 				break
 			}
@@ -159,7 +159,7 @@ func determinePlacementRack(
 					if n.Name == nodeName {
 						for label, value := range n.Labels {
 							for _, key := range validTopologyLabelKeys {
-								if strings.Contains(label, key) && strings.Contains(label, "zone") && value == targetAZ {
+								if strings.Contains(label, key) && (label == corev1.LabelZoneFailureDomainStable || label == labelZoneFailureDomainWithoutBeta) && value == targetAZ {
 									validRack = true
 									break
 								}
