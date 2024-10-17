@@ -275,6 +275,15 @@ func TestGetExternalResources(t *testing.T) {
 	ocsSubscription.Spec = ocsSubscriptionSpec
 	assert.NoError(t, client.Create(ctx, ocsSubscription))
 
+	storageCluster := &ocsv1.StorageCluster{
+		Spec: ocsv1.StorageClusterSpec{
+			AllowRemoteStorageConsumers: true,
+		},
+	}
+	storageCluster.Name = "test-storagecluster"
+	storageCluster.Namespace = serverNamespace
+	assert.NoError(t, client.Create(ctx, storageCluster))
+
 	// When ocsv1alpha1.StorageConsumerStateReady
 	req := pb.StorageConfigRequest{
 		StorageConsumerUUID: string(consumerResource.UID),
