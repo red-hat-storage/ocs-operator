@@ -1,6 +1,7 @@
 package clienttokens
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -11,10 +12,7 @@ import (
 
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-)
-
-const (
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var unitToGib = map[string]uint{
@@ -23,26 +21,26 @@ var unitToGib = map[string]uint{
 	"Pi": 1024 * 1024,
 }
 
-func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func HandleMessage(ctx context.Context, w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client, namespace string) {
 	switch r.Method {
 	case "POST":
-		handlePost(w, r, tokenLifetimeInHours)
+		handlePost(ctx, w, r, tokenLifetimeInHours, cl, namespace)
 	default:
 		handleUnsupportedMethod(w, r)
 	}
 }
 
-func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func handlePost(ctx context.Context, w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client, namespace string) {
 	var storageQuotaInGiB *uint
 	// When ContentLength is 0 that means request body is empty and
 	// storage quota is unlimited
-	var err error
+
 	if r.ContentLength != 0 {
 		var quota = struct {
 			Value uint   `json:"value"`
 			Unit  string `json:"unit"`
 		}{}
-		if err = json.NewDecoder(r.Body).Decode(&quota); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&quota); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -59,7 +57,14 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 		storageQuotaInGiB = ptr.To(unitAsGiB * quota.Value)
 	}
 
-	if onboardingToken, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB); err != nil {
+	privateKey, err := util.LoadOnboardingValidationPrivateKey(ctx, cl, namespace)
+	klog.Info("Getting the Pem key")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get private key: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if onboardingToken, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, privateKey, storageQuotaInGiB); err != nil {
 		klog.Errorf("failed to get onboarding token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
