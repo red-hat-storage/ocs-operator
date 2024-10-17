@@ -310,6 +310,17 @@ rules:
   - get
   - update
 - apiGroups:
+  - groupsnapshot.storage.k8s.io
+  resources:
+  - volumegroupsnapshotclasses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - snapshot.storage.k8s.io
   resources:
   - volumesnapshotclasses
