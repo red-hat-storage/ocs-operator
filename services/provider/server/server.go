@@ -11,13 +11,14 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"math"
 	"net"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/utils/ptr"
 
 	"github.com/blang/semver/v4"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -247,7 +248,7 @@ func newClient() (client.Client, error) {
 	}
 	err = corev1.AddToScheme(scheme)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
+		return nil, fmt.Errorf("failed to add corev1 to scheme. %v", err)
 	}
 	err = rookCephv1.AddToScheme(scheme)
 	if err != nil {
