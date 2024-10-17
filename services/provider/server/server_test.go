@@ -10,7 +10,6 @@ import (
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -58,6 +57,15 @@ var ocsSubscriptionSpec = &opv1a1.SubscriptionSpec{
 	Channel: "1.0",
 	Package: "ocs-operator",
 }
+var nbProviderStatus = &nbv1.NooBaaStatus{
+	Phase: nbv1.SystemPhaseReady,
+	Services: &nbv1.ServicesStatus{
+		ServiceMgmt: nbv1.ServiceStatus{
+			ExternalDNS: []string{"noobaaMgmtAddress"},
+		},
+	},
+}
+
 var noobaaSpec = &nbv1.NooBaaSpec{
 	JoinSecret: &v1.SecretReference{
 		Name: "noobaa-remote-join-secret",
@@ -100,8 +108,8 @@ var mockExtR = map[string]*externalResource{
 		Kind: "Secret",
 		Data: joinSecret,
 	},
-	"noobaa-remote": {
-		Name: "noobaa-remote",
+	"noobaa": {
+		Name: "noobaa",
 		Kind: "Noobaa",
 		Data: noobaaSpec,
 	},
@@ -254,16 +262,8 @@ func TestGetExternalResources(t *testing.T) {
 		},
 	}
 
-	noobaaMgmtRoute := &routev1.Route{
-		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-mgmt", Namespace: server.namespace},
-		Status: routev1.RouteStatus{
-			Ingress: []routev1.RouteIngress{{Host: "noobaaMgmtAddress"}},
-		},
-	}
-
 	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer))
 	assert.NoError(t, client.Create(ctx, noobaaRemoteJoinSecretConsumer6))
-	assert.NoError(t, client.Create(ctx, noobaaMgmtRoute))
 
 	monCm, monSc := createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
@@ -274,6 +274,12 @@ func TestGetExternalResources(t *testing.T) {
 	ocsSubscription.Namespace = serverNamespace
 	ocsSubscription.Spec = ocsSubscriptionSpec
 	assert.NoError(t, client.Create(ctx, ocsSubscription))
+
+	noobaa := &nbv1.NooBaa{}
+	noobaa.Name = "noobaa"
+	noobaa.Namespace = serverNamespace
+	noobaa.Status = *nbProviderStatus
+	assert.NoError(t, client.Create(ctx, noobaa))
 
 	// When ocsv1alpha1.StorageConsumerStateReady
 	req := pb.StorageConfigRequest{

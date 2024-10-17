@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"math"
 	"net"
 	"slices"
@@ -19,10 +18,12 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/blang/semver/v4"
+	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -261,9 +262,9 @@ func newClient() (client.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add ocsv1 to scheme. %v", err)
 	}
-	err = routev1.AddToScheme(scheme)
+	err = nbapis.AddToScheme(scheme)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
 	}
 
 	config, err := config.GetConfig()
@@ -413,21 +414,21 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
 	}
 
-	noobaMgmtRoute := &routev1.Route{}
-	noobaMgmtRoute.Name = "noobaa-mgmt"
-	noobaMgmtRoute.Namespace = s.namespace
+	nb := &nbv1.NooBaa{}
+	nb.Name = "noobaa"
+	nb.Namespace = s.namespace
 
-	if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
-		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
-	}
-	if noobaMgmtRoute.Status.Ingress == nil || len(noobaMgmtRoute.Status.Ingress) == 0 {
-		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
+	if err = s.client.Get(ctx, client.ObjectKeyFromObject(nb), nb); err != nil {
+		return nil, fmt.Errorf("failed to get noobaa %v", err)
 	}
 
-	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
-	if noobaaMgmtAddress == "" {
-		return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
+	if nb.Status.Phase != nbv1.SystemPhaseReady {
+		// Noobaa system is not yet ready
+		return extR, nil
 	}
+
+	noobaaMgmtAddress := nb.Status.Services.ServiceMgmt.ExternalDNS[0]
+
 	extR = append(extR, &pb.ExternalResource{
 		Name: "noobaa-remote-join-secret",
 		Kind: "Secret",
@@ -438,7 +439,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	})
 
 	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
+		Name: "noobaa",
 		Kind: "Noobaa",
 		Data: mustMarshal(&nbv1.NooBaaSpec{
 			JoinSecret: &v1.SecretReference{
