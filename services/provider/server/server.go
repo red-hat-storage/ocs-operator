@@ -67,10 +67,11 @@ const (
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
-	client                client.Client
-	consumerManager       *ocsConsumerManager
-	storageRequestManager *storageRequestManager
-	namespace             string
+	client                    client.Client
+	consumerManager           *ocsConsumerManager
+	storageRequestManager     *storageRequestManager
+	storageClusterPeerManager *storageClusterPeerManager
+	namespace                 string
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
@@ -89,11 +90,17 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
 	}
 
+	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
+	}
+
 	return &OCSProviderServer{
-		client:                client,
-		consumerManager:       consumerManager,
-		storageRequestManager: storageRequestManager,
-		namespace:             namespace,
+		client:                    client,
+		consumerManager:           consumerManager,
+		storageRequestManager:     storageRequestManager,
+		storageClusterPeerManager: storageClusterPeerManager,
+		namespace:                 namespace,
 	}, nil
 }
 
@@ -944,4 +951,82 @@ func extractMonitorIps(data string) ([]string, error) {
 	// sorting here removes any positional change which reduces spurious reconciles
 	slices.Sort(ips)
 	return ips, nil
+}
+
+func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
+
+	pubKey, err := s.getOnboardingValidationKey(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for StorageCluster %q. %v", req.StorageClusterUID, err)
+	}
+
+	onboardingToken, err := decodeAndValidateTicket(req.OnboardingToken, pubKey)
+	if err != nil {
+		klog.Errorf("failed to validate onboarding ticket for StorageCluster  %q. %v", req.StorageClusterUID, err)
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
+	}
+
+	if onboardingToken.SubjectRole != services.PeerRole {
+		err := fmt.Errorf("unsupported ticket role for StorageCluster %q, found %s, expected %s", req.StorageClusterUID, onboardingToken.SubjectRole, services.ClientRole)
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	storageCluster, err := s.findStorageClusterWithUID(ctx, onboardingToken.StorageClusterUID)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	klog.Infof("Found StorageCluster %s for PeerStorageCluster", storageCluster.Name)
+
+	storageClusterPeer, err := s.storageClusterPeerManager.FindStorageClusterPeerWithStorageClusterID(ctx, types.UID(req.StorageClusterUID))
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	klog.Infof("Found StorageClusterPeer %s for PeerStorageCluster", storageClusterPeer.Name)
+
+	//TODO: Should we store the onboarding token in storageClusterPeer?
+
+	err = s.storageClusterPeerManager.UpdateStorageClusterPeerStatus(ctx, storageClusterPeer, req.StorageClusterUID)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	return &pb.PeerStorageClusterResponse{StorageClusterUID: string(storageCluster.UID)}, nil
+}
+
+func (s *OCSProviderServer) findStorageClusterWithUID(ctx context.Context, uid types.UID) (*ocsv1.StorageCluster, error) {
+	storageClusterList := &ocsv1.StorageClusterList{}
+	err := s.client.List(ctx, storageClusterList, client.InNamespace(s.namespace))
+	if err != nil {
+		return nil, err
+	}
+	for i := range storageClusterList.Items {
+		if storageClusterList.Items[i].UID == uid {
+			return &storageClusterList.Items[i], nil
+		}
+	}
+	return nil, fmt.Errorf("storage cluster with uid %q not found", uid)
+}
+
+func decodeToken(ticket string) (*services.OnboardingTicket, error) {
+	ticketArr := strings.Split(string(ticket), ".")
+	if len(ticketArr) != 2 {
+		return nil, fmt.Errorf("invalid ticket")
+	}
+
+	message, err := base64.StdEncoding.DecodeString(ticketArr[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode onboarding ticket: %v", err)
+	}
+
+	var ticketData services.OnboardingTicket
+	err = json.Unmarshal(message, &ticketData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal onboarding ticket message. %v", err)
+	}
+	return &ticketData, nil
 }
