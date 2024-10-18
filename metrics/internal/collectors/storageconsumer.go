@@ -19,12 +19,13 @@ import (
 var _ prometheus.Collector = &StorageConsumerCollector{}
 
 type StorageConsumerCollector struct {
-	Informer                cache.SharedIndexInformer
-	StorageConsumerMetadata *prometheus.Desc
-	LastHeartbeat           *prometheus.Desc
-	ProviderOperatorVersion *prometheus.Desc
-	ClientOperatorVersion   *prometheus.Desc
-	AllowedNamespace        string
+	Informer                     cache.SharedIndexInformer
+	StorageConsumerMetadata      *prometheus.Desc
+	LastHeartbeat                *prometheus.Desc
+	StorageQuotaUtilizationRatio *prometheus.Desc
+	ProviderOperatorVersion      *prometheus.Desc
+	ClientOperatorVersion        *prometheus.Desc
+	AllowedNamespace             string
 }
 
 func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollector {
@@ -60,6 +61,12 @@ func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollecto
 			[]string{"storage_consumer_name"},
 			nil,
 		),
+		StorageQuotaUtilizationRatio: prometheus.NewDesc(
+			prometheus.BuildFQName("ocs", "storage_client", "storage_quota_utilization_ratio"),
+			`StorageQuotaUtilizationRatio of OCS Storage Client`,
+			[]string{"storage_consumer_name"},
+			nil,
+		),
 		Informer: sharedIndexInformer,
 	}
 }
@@ -78,6 +85,7 @@ func (c *StorageConsumerCollector) Describe(ch chan<- *prometheus.Desc) {
 		c.LastHeartbeat,
 		c.ProviderOperatorVersion,
 		c.ClientOperatorVersion,
+		c.StorageQuotaUtilizationRatio,
 	}
 	for _, d := range ds {
 		ch <- d
@@ -136,6 +144,10 @@ func (c *StorageConsumerCollector) collectStorageConsumersMetadata(storageConsum
 		ch <- prometheus.MustNewConstMetric(c.ClientOperatorVersion,
 			prometheus.GaugeValue,
 			float64(encodeVersion(storageConsumer.Status.Client.OperatorVersion)),
+			storageConsumer.Name)
+
+		ch <- prometheus.MustNewConstMetric(c.StorageQuotaUtilizationRatio,
+			prometheus.GaugeValue, storageConsumer.Status.Client.StorageQuotaUtilizationRatio,
 			storageConsumer.Name)
 	}
 }
