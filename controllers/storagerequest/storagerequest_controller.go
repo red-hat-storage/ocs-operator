@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1alpha1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -78,6 +79,7 @@ type StorageRequestReconciler struct {
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters,verbs=get;watch;list
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=watch;create;delete;get;list
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=groupsnapshot.storage.k8s.io,resources=volumegroupsnapshotclasses,verbs=get;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=get;list;watch
 
 func (r *StorageRequestReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -186,6 +188,7 @@ func (r *StorageRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&rookCephv1.CephClient{}, enqueueForOwner).
 		Watches(&storagev1.StorageClass{}, enqueueStorageConsumerRequest).
 		Watches(&snapapi.VolumeSnapshotClass{}, enqueueStorageConsumerRequest).
+		Watches(&groupsnapapi.VolumeGroupSnapshotClass{}, enqueueStorageConsumerRequest).
 		Complete(r)
 }
 

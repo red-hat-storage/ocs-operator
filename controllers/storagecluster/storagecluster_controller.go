@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
+	volumegroupsnapshotv1a1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1alpha1"
 	volumesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -240,6 +241,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
 		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
+		Watches(&volumegroupsnapshotv1a1.VolumeGroupSnapshotClass{}, enqueueStorageClusterRequest).
 		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate))
