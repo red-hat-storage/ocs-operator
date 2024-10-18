@@ -167,10 +167,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		cephCluster = newExternalCephCluster(sc, monitoringIP, monitoringPort)
 	} else {
 		// Add KMS details to CephCluster spec, only if
-		// cluster-wide encryption is enabled
-		// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True
+		// cluster-wide encryption is enabled or any of the device set is encrypted
+		// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True or any device is encrypted
 		// and KMS ConfigMap is available
-		if sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide {
+
+		if util.IsClusterOrDeviceSetEncrypted(sc) {
 			kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
 			if err != nil {
 				r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, KMSConfigMapName))
@@ -605,13 +606,11 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	// respect both the old way and the new way for enabling HostNetwork
 	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
 
-	// If it's not an external and not a provider cluster always require msgr2
-	if !sc.Spec.AllowRemoteStorageConsumers && !sc.Spec.ExternalStorage.Enable {
-		if networkSpec.Connections == nil {
-			networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
-		}
-		networkSpec.Connections.RequireMsgr2 = true
+	if networkSpec.Connections == nil {
+		networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
 	}
+	// Always require msgr2 for all modes of ODF
+	networkSpec.Connections.RequireMsgr2 = true
 
 	return networkSpec
 }
@@ -882,7 +881,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 				Portable:            portable,
 				TuneSlowDeviceClass: ds.Config.TuneSlowDeviceClass,
 				TuneFastDeviceClass: ds.Config.TuneFastDeviceClass,
-				Encrypted:           sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide,
+				Encrypted:           isDeviceSetToBeEncrypted(sc, ds),
 			}
 
 			if ds.MetadataPVCTemplate != nil {
@@ -987,6 +986,13 @@ func countAndReplicaOf(ds *ocsv1.StorageDeviceSet) (int, int) {
 		count = count / 3
 	}
 	return count, replica
+}
+
+func isDeviceSetToBeEncrypted(sc *ocsv1.StorageCluster, ds ocsv1.StorageDeviceSet) bool {
+	if ds.Encrypted != nil {
+		return *ds.Encrypted
+	}
+	return sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide
 }
 
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
