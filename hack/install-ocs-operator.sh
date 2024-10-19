@@ -37,13 +37,8 @@ patch_ocs_client_operator_config_configmap() {
     while true; do
         if oc get cm ocs-client-operator-config -n openshift-storage; then
             oc patch cm ocs-client-operator-config -n openshift-storage --type merge -p '{"data":{"DEPLOY_CSI":"false"}}'
-            sleep 10
-            value=$(oc get cm ocs-client-operator-config -n openshift-storage -o custom-columns=:data.DEPLOY_CSI --no-headers)
-            if [[ "$value" == "false" ]]; then
-                break
-            fi
+            sleep 2
         fi
-        sleep 10
     done
 }
 
@@ -56,6 +51,11 @@ patch_ocs_client_operator_config_configmap() {
 # configuration and deploying the CSI. This approach allows us to stop the CSI deployment by patching the ConfigMap as soon as it's created.
 # We cannot create the ConfigMap early in the process because OLM overwrites it with an empty one later in the cycle.
 patch_ocs_client_operator_config_configmap &
+# Get the process ID (PID) of the background process
+bg_pid=$!
+# Trap to kill the process when the script exits
+trap 'kill $bg_pid' EXIT
+
 "$OPERATOR_SDK" run bundle "$OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$NOOBAA_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
