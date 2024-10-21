@@ -21,7 +21,6 @@ const (
 	onboardingPrivateKeyFilePath = "/etc/private-key/key"
 
 	ocsClientConfigMapName = "ocs-client-operator-config"
-	deployCSIKey           = "DEPLOY_CSI"
 	manageNoobaaSubKey     = "manageNoobaaSubscription"
 )
 
@@ -34,6 +33,10 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	if !storagecluster.Spec.AllowRemoteStorageConsumers {
 		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
 		return s.ensureDeleted(r, storagecluster)
+	}
+
+	if !r.AvailableCrds[StorageClientCrdName] {
+		return reconcile.Result{}, fmt.Errorf("StorageClient CRD is not available")
 	}
 
 	if err := s.updateClientConfigMap(r, storagecluster.Namespace); err != nil {
@@ -64,6 +67,10 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 }
 
 func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster) (reconcile.Result, error) {
+	if !r.AvailableCrds[StorageClientCrdName] {
+		r.Log.Info("StorageClient CRD doesn't exist and not proceeding with deletion of storageclient CR (if any)")
+		return reconcile.Result{}, nil
+	}
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
 	if err := r.Delete(r.ctx, storageClient); err != nil && !kerrors.IsNotFound(err) {
@@ -87,7 +94,6 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 	if clientConfig.Data == nil {
 		clientConfig.Data = map[string]string{}
 	}
-	clientConfig.Data[deployCSIKey] = "true"
 	clientConfig.Data[manageNoobaaSubKey] = strconv.FormatBool(false)
 
 	if !maps.Equal(clientConfig.Data, existingData) {

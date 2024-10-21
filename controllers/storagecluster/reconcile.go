@@ -74,6 +74,8 @@ const (
 	EBS StorageClassProvisionerType = "kubernetes.io/aws-ebs"
 
 	VirtualMachineCrdName = "virtualmachines.kubevirt.io"
+
+	StorageClientCrdName = "storageclients.ocs.openshift.io"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -147,14 +149,16 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.ctx = ctrllog.IntoContext(ctx, r.Log)
 
-	crd := &metav1.PartialObjectMetadata{}
-	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
-	crd.Name = VirtualMachineCrdName
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
-		r.Log.Error(err, "Failed to get CRD", "CRD", VirtualMachineCrdName)
-		return reconcile.Result{}, err
+	for _, crdName := range []string{VirtualMachineCrdName, StorageClientCrdName} {
+		crd := &metav1.PartialObjectMetadata{}
+		crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+		crd.Name = crdName
+		if err := r.Client.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+			r.Log.Error(err, "Failed to get CRD", "CRD", crd.Name)
+			return reconcile.Result{}, err
+		}
+		util.AssertEqual(r.AvailableCrds[crd.Name], crd.UID != "", util.ExitCodeThatShouldRestartTheProcess)
 	}
-	util.AssertEqual(r.AvailableCrds[VirtualMachineCrdName], crd.UID != "", util.ExitCodeThatShouldRestartTheProcess)
 
 	// Fetch the StorageCluster instance
 	sc := &ocsv1.StorageCluster{}
