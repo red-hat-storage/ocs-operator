@@ -80,6 +80,33 @@ var (
 			},
 		}
 	}
+	createStorageClientCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "storageclients"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "ocs.openshift.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "ocs.openshift.io",
+				Scope: extv1.ClusterScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "StorageClient",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1alpha1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
 )
 
 func TestDefaultStorageClasses(t *testing.T) {
