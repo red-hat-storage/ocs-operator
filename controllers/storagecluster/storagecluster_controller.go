@@ -236,16 +236,22 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.NamePredicate(VirtualMachineCrdName),
 				util.CrdCreateAndDeletePredicate(&r.Log, VirtualMachineCrdName, r.AvailableCrds[VirtualMachineCrdName]),
 			),
+			builder.WithPredicates(
+				util.NamePredicate(StorageClientCrdName),
+				util.CrdCreateAndDeletePredicate(&r.Log, StorageClientCrdName, r.AvailableCrds[StorageClientCrdName]),
+			),
 			builder.OnlyMetadata,
 		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
 		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
-		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate))
 
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		build.Owns(&nbv1.NooBaa{}, builder.WithPredicates(noobaaIgnoreTimeUpdatePredicate))
+	}
+	if r.AvailableCrds[StorageClientCrdName] {
+		build.Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest)
 	}
 
 	return build.Complete(r)
