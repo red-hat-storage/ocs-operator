@@ -13,14 +13,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
+
+	"github.com/google/uuid"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // GenerateClientOnboardingToken generates a ocs-client token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
 // The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.
-func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotainGib *uint) (string, error) {
+func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotainGib *uint, storageClusterUID types.UID) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -30,6 +32,7 @@ func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath stri
 		ExpirationDate:    tokenExpirationDate,
 		SubjectRole:       services.ClientRole,
 		StorageQuotaInGiB: storageQuotainGib,
+		StorageCluster:    storageClusterUID,
 	}
 
 	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
@@ -41,7 +44,7 @@ func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath stri
 
 // GeneratePeerOnboardingToken generates a ocs-peer token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
-func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string) (string, error) {
+func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageClusterUID types.UID) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
@@ -50,6 +53,7 @@ func GeneratePeerOnboardingToken(tokenLifetimeInHours int, privateKeyPath string
 		ID:             uuid.New().String(),
 		ExpirationDate: tokenExpirationDate,
 		SubjectRole:    services.PeerRole,
+		StorageCluster: storageClusterUID,
 	}
 	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
 	if err != nil {
