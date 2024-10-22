@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"testing"
 
@@ -29,9 +30,11 @@ import (
 )
 
 type externalResource struct {
-	Kind string `json:"kind"`
-	Data any    `json:"data"`
-	Name string `json:"name"`
+	Kind        string            `json:"kind"`
+	Data        any               `json:"data"`
+	Name        string            `json:"name"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
 }
 
 var serverNamespace = "openshift-storage"
@@ -310,7 +313,10 @@ func TestGetExternalResources(t *testing.T) {
 			data, err := json.Marshal(mockResoruce.Data)
 			assert.NoError(t, err)
 			assert.Equal(t, string(extResource.Data), string(data))
+
 		}
+		assert.True(t, reflect.DeepEqual(extResource.Labels, mockResoruce.Labels))
+		assert.True(t, reflect.DeepEqual(extResource.Annotations, mockResoruce.Annotations))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
@@ -348,7 +354,8 @@ func TestGetExternalResources(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, string(extResource.Data), string(data))
 		}
-
+		assert.True(t, reflect.DeepEqual(extResource.Labels, mockResoruce.Labels))
+		assert.True(t, reflect.DeepEqual(extResource.Annotations, mockResoruce.Annotations))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
@@ -639,6 +646,56 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Kind: "VolumeGroupSnapshotClass",
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+				},
+			},
+			"ceph-rbd-volumereplicationclass": {
+				Name: "ceph-rbd",
+				Kind: "VolumeReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"mirroringMode": "snapshot",
+				},
+				Labels: map[string]string{},
+				Annotations: map[string]string{
+					"replication.storage.openshift.io/is-default-class": "true",
+				},
+			},
+			"ceph-rbd-flatten-volumereplicationclass": {
+				Name: "ceph-rbd-flatten",
+				Kind: "VolumeReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"mirroringMode": "snapshot",
+					"flattenMode":   "force",
+				},
+				Labels: map[string]string{},
+				Annotations: map[string]string{
+					"replication.storage.openshift.io/is-default-class": "true",
+				},
+			},
+			"ceph-rbd-volumegroupreplicationclass": {
+				Name: "ceph-rbd",
+				Kind: "VolumeGroupReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/group-replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"mirroringMode": "snapshot",
+				},
+				Labels: map[string]string{},
+				Annotations: map[string]string{
+					"replication.storage.openshift.io/is-default-class": "true",
+				},
+			},
+			"ceph-rbd-flatten-volumegroupreplicationclass": {
+				Name: "ceph-rbd-flatten",
+				Kind: "VolumeGroupReplicationClass",
+				Data: map[string]string{
+					"replication.storage.openshift.io/group-replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"mirroringMode": "snapshot",
+					"flattenMode":   "force",
+				},
+				Labels: map[string]string{},
+				Annotations: map[string]string{
+					"replication.storage.openshift.io/is-default-class": "true",
 				},
 			},
 			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
@@ -1007,6 +1064,18 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	}
 	assert.NoError(t, client.Create(ctx, radosNamespace))
 
+	cephBlockPool := &rookCephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cephblockpool",
+			Namespace: server.namespace,
+		},
+		Spec: rookCephv1.NamedBlockPoolSpec{
+			PoolSpec: rookCephv1.PoolSpec{
+				Mirroring: rookCephv1.MirroringSpec{Enabled: false},
+			}},
+	}
+	assert.NoError(t, client.Create(ctx, cephBlockPool))
+
 	// get the storage class request config for block pool
 	req := pb.StorageClaimConfigRequest{
 		StorageConsumerUUID: string(consumerResource.UID),
@@ -1025,6 +1094,10 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
 			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+		} else if extResource.Kind == "VolumeReplicationClass" {
+			name = fmt.Sprintf("%s-volumereplicationclass", name)
+		} else if extResource.Kind == "VolumeGroupReplicationClass" {
+			name = fmt.Sprintf("%s-volumegroupreplicationclass", name)
 		} else if extResource.Kind == "ClientProfile" {
 			name = fmt.Sprintf("%s-clientprofile", name)
 		}
@@ -1034,6 +1107,9 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
+		assert.Equal(t, extResource.Labels, mockResoruce.Labels)
+		assert.True(t, reflect.DeepEqual(extResource.Labels, mockResoruce.Labels))
+		assert.True(t, reflect.DeepEqual(extResource.Annotations, mockResoruce.Annotations))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
@@ -1056,6 +1132,10 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
 			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+		} else if extResource.Kind == "VolumeReplicationClass" {
+			name = fmt.Sprintf("%s-volumereplicationclass", name)
+		} else if extResource.Kind == "VolumeGroupReplicationClass" {
+			name = fmt.Sprintf("%s-volumegroupreplicationclass", name)
 		} else if extResource.Kind == "ClientProfile" {
 			name = fmt.Sprintf("%s-clientprofile", name)
 		}
@@ -1064,6 +1144,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		data, err := json.Marshal(mockResoruce.Data)
 		assert.NoError(t, err)
 		assert.Equal(t, string(extResource.Data), string(data))
+		assert.True(t, reflect.DeepEqual(extResource.Labels, mockResoruce.Labels))
+		assert.True(t, reflect.DeepEqual(extResource.Annotations, mockResoruce.Annotations))
 		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
 		assert.Equal(t, extResource.Name, mockResoruce.Name)
 	}
