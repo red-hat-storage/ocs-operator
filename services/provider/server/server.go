@@ -49,7 +49,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 const (
@@ -67,14 +66,20 @@ const (
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
-	client                client.Client
-	consumerManager       *ocsConsumerManager
-	storageRequestManager *storageRequestManager
-	namespace             string
+	client                    client.Client
+	consumerManager           *ocsConsumerManager
+	storageRequestManager     *storageRequestManager
+	storageClusterPeerManager *storageClusterPeerManager
+	namespace                 string
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
-	client, err := newClient()
+	scheme, err := newScheme()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new scheme. %v", err)
+	}
+
+	client, err := util.NewK8sClient(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client. %v", err)
 	}
@@ -89,11 +94,17 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
 	}
 
+	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
+	}
+
 	return &OCSProviderServer{
-		client:                client,
-		consumerManager:       consumerManager,
-		storageRequestManager: storageRequestManager,
-		namespace:             namespace,
+		client:                    client,
+		consumerManager:           consumerManager,
+		storageRequestManager:     storageRequestManager,
+		storageClusterPeerManager: storageClusterPeerManager,
+		namespace:                 namespace,
 	}, nil
 }
 
@@ -121,6 +132,19 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get storageCluster. %v", err)
+	}
+
+	if storageCluster.UID != onboardingTicket.StorageCluster {
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket storageCluster not match existing storageCluster.")
+	}
+
+	if !storageCluster.Spec.AllowRemoteStorageConsumers {
+		return nil, status.Errorf(codes.PermissionDenied, "onboarding remote storageConsumer(s) is not allowed.")
+	}
+
 	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
 
 	if onboardingTicket.SubjectRole != services.ClientRole {
@@ -195,7 +219,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 		}
 
-		storageCluster, err := s.getStorageCluster(ctx)
+		storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +274,7 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 	}
 }
 
-func newClient() (client.Client, error) {
+func newScheme() (*runtime.Scheme, error) {
 	scheme := runtime.NewScheme()
 	err := ocsv1alpha1.AddToScheme(scheme)
 	if err != nil {
@@ -277,19 +301,9 @@ func newClient() (client.Client, error) {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
 	}
 
-	config, err := config.GetConfig()
-	if err != nil {
-		klog.Error(err, "failed to get rest.config")
-		return nil, err
-	}
-	client, err := client.New(config, client.Options{Scheme: scheme})
-	if err != nil {
-		klog.Error(err, "failed to create controller-runtime client")
-		return nil, err
-	}
-
-	return client, nil
+	return scheme, nil
 }
+
 func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
 	var extR []*pb.ExternalResource
 
@@ -528,14 +542,9 @@ func getSubVolumeGroupClusterID(subVolumeGroup *rookCephv1.CephFilesystemSubVolu
 }
 
 func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.OnboardingTicket, error) {
-	ticketArr := strings.Split(string(ticket), ".")
-	if len(ticketArr) != 2 {
-		return nil, fmt.Errorf("invalid ticket")
-	}
-
-	message, err := base64.StdEncoding.DecodeString(ticketArr[0])
+	message, signature, err := decodeTicket(ticket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode onboarding ticket: %v", err)
+		return nil, err
 	}
 
 	var ticketData services.OnboardingTicket
@@ -557,11 +566,6 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 		return nil, fmt.Errorf("invalid onboarding ticket subject role")
 	}
 
-	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode onboarding ticket %s signature: %v", ticketData.ID, err)
-	}
-
 	hash := sha256.Sum256(message)
 	err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hash[:], signature)
 	if err != nil {
@@ -575,6 +579,25 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 	klog.Infof("onboarding ticket %s has been verified successfully", ticketData.ID)
 
 	return &ticketData, nil
+}
+
+func decodeTicket(ticket string) ([]byte, []byte, error) {
+	ticketArr := strings.Split(string(ticket), ".")
+	if len(ticketArr) != 2 {
+		return nil, nil, fmt.Errorf("invalid ticket")
+	}
+
+	message, err := base64.StdEncoding.DecodeString(ticketArr[0])
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode onboarding ticket: %v", err)
+	}
+
+	signature, err := base64.StdEncoding.DecodeString(ticketArr[1])
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode onboarding ticketsignature: %v", err)
+	}
+
+	return message, signature, nil
 }
 
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
@@ -762,7 +785,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
 			}
 
-			storageCluster, err := s.getStorageCluster(ctx)
+			storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 			if err != nil {
 				return nil, err
 			}
@@ -855,7 +878,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
-	storageCluster, err := s.getStorageCluster(ctx)
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -896,34 +919,6 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 	return subscription.Spec.Channel, nil
 }
 
-func (s *OCSProviderServer) getStorageCluster(ctx context.Context) (*ocsv1.StorageCluster, error) {
-	scList := &ocsv1.StorageClusterList{}
-	if err := s.client.List(ctx, scList, client.InNamespace(s.namespace)); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list storage clusters: %v", err)
-	}
-
-	var foundSc *ocsv1.StorageCluster
-	for i := range scList.Items {
-		sc := &scList.Items[i]
-		if sc.Status.Phase == util.PhaseIgnored {
-			continue // Skip Ignored storage cluster
-		}
-		if sc.Spec.AllowRemoteStorageConsumers {
-			if foundSc != nil {
-				// This means we have already found one storage cluster, so this is a second one
-				return nil, status.Errorf(codes.FailedPrecondition, "multiple provider storage clusters found")
-			}
-			foundSc = sc
-		}
-	}
-
-	if foundSc == nil {
-		return nil, status.Errorf(codes.NotFound, "no provider storage cluster found")
-	}
-
-	return foundSc, nil
-}
-
 func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
 	return networkSpec != nil &&
 		networkSpec.Connections != nil &&
@@ -946,6 +941,51 @@ func extractMonitorIps(data string) ([]string, error) {
 	return ips, nil
 }
 
-func (s *OCSProviderServer) PeerStorageCluster(_ context.Context, _ *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
-	return &pb.PeerStorageClusterResponse{}, nil
+func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
+
+	pubKey, err := s.getOnboardingValidationKey(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for StorageCluster %q. %v", req.StorageClusterUID, err)
+	}
+
+	onboardingToken, err := decodeAndValidateTicket(req.OnboardingToken, pubKey)
+	if err != nil {
+		klog.Errorf("failed to validate onboarding ticket for StorageCluster  %q. %v", req.StorageClusterUID, err)
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
+	}
+
+	if onboardingToken.SubjectRole != services.PeerRole {
+		err := fmt.Errorf("unsupported ticket role for StorageCluster %q, found %s, expected %s", req.StorageClusterUID, onboardingToken.SubjectRole, services.PeerRole)
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get storageCluster. %v", err)
+	}
+
+	if storageCluster.UID != onboardingToken.StorageCluster {
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket storageCluster not match existing storageCluster.")
+	}
+
+	klog.Infof("Found StorageCluster %s for PeerStorageCluster", storageCluster.Name)
+
+	storageClusterPeer, err := s.storageClusterPeerManager.FindStorageClusterPeerWithStorageClusterID(ctx, types.UID(req.StorageClusterUID))
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	klog.Infof("Found StorageClusterPeer %s for PeerStorageCluster", storageClusterPeer.Name)
+
+	//TODO: Should we store the onboarding token in storageClusterPeer?
+
+	err = s.storageClusterPeerManager.UpdateStorageClusterPeerStatus(ctx, storageClusterPeer, req.StorageClusterUID)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	return &pb.PeerStorageClusterResponse{StorageClusterUID: string(storageCluster.UID)}, nil
 }

@@ -13,8 +13,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 const (
@@ -165,4 +168,46 @@ func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) 
 		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
+}
+
+func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*ocsv1.StorageCluster, error) {
+	storageClusterList := &ocsv1.StorageClusterList{}
+	err := cl.List(ctx, storageClusterList, client.InNamespace(namespace))
+	if err != nil {
+		return nil, fmt.Errorf("unable to list storageCluster(s) in namespace %s: %v", namespace, err)
+	}
+
+	var foundSc *ocsv1.StorageCluster
+	for i := range storageClusterList.Items {
+		sc := &storageClusterList.Items[i]
+		if sc.Status.Phase == PhaseIgnored {
+			continue // Skip Ignored storage cluster
+		}
+		if foundSc != nil {
+			// This means we have already found one storage cluster, so this is a second one
+			return nil, fmt.Errorf("multiple storageClusters found in namespace %s, expected: 1 actual: %v", namespace, len(storageClusterList.Items))
+		}
+		foundSc = sc
+	}
+
+	if foundSc == nil {
+		return nil, fmt.Errorf("no storageCluster found in namespace %s, expected: 1", namespace)
+	}
+	return foundSc, nil
+}
+
+func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
+	klog.Info("Setting up k8s client")
+
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
 }
