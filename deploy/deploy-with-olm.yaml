@@ -52,17 +52,6 @@ spec:
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: ocs-client-subscription
-  namespace: openshift-storage
-spec:
-  channel: alpha
-  name: ocs-client-operator
-  source: ocs-catalogsource
-  sourceNamespace: openshift-marketplace
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
   name: rook-subscription
   namespace: openshift-storage
 spec:
