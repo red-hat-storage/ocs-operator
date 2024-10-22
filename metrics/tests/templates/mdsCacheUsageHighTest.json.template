@@ -1,0 +1,118 @@
+{
+    "evaluation_interval": "1m",
+    "tests": [
+        {
+            "name": "MDSCacheUsageHighTest",
+            "alert_rule_test": [
+                {
+                    "alertname": "MDSCacheUsageHigh",
+                    "eval_time": "4m"
+                },
+                {
+                    "alertname": "MDSCacheUsageHigh",
+                    "eval_time": "6m",
+                    "exp_alerts": [
+                        {
+                            "exp_annotations": {
+                                "description": "MDS cache usage for the daemon mds.ocs-storagecluster-cephfilesystem-a has exceeded above 95% of the requested value. Increase the memory request for mds.ocs-storagecluster-cephfilesystem-a pod.",
+                                "message": "High MDS cache usage for the daemon mds.ocs-storagecluster-cephfilesystem-a.",
+                                "severity_level": "error",
+                                "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCacheUsageHigh.md"
+                            },
+                            "exp_labels": {
+                              "alertname": "MDSCacheUsageHigh",
+                              "ceph_daemon": "mds.ocs-storagecluster-cephfilesystem-a",
+                              "endpoint":"ceph-exporter-http-metrics",
+                              "instance":"10.128.2.67:9926",
+                              "job":"kube-state-metrics",
+                              "managedBy":"ocs-storagecluster",
+                              "namespace":"openshift-storage",
+                              "pod":"rook-ceph-exporter-ip-10-0-63-194.us-west-1.compute.internr45gh",
+                              "prometheus":"openshift-monitoring/k8s",
+                              "service":"rook-ceph-exporter",
+                              "severity":"critical"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "alertname": "MDSCacheUsageHigh",
+                    "eval_time": "9m"
+                },
+                {
+                    "alertname": "MDSCacheUsageHigh",
+                    "eval_time": "13m",
+                    "exp_alerts": [
+                        {
+                            "exp_annotations": {
+                                "description": "MDS cache usage for the daemon mds.ocs-storagecluster-cephfilesystem-b has exceeded above 95% of the requested value. Increase the memory request for mds.ocs-storagecluster-cephfilesystem-b pod.",
+                                "message": "High MDS cache usage for the daemon mds.ocs-storagecluster-cephfilesystem-b.",
+                                "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCacheUsageHigh.md",
+                                "severity_level": "error"
+                            },
+                            "exp_labels": {
+                                "alertname": "MDSCacheUsageHigh",
+                                "ceph_daemon": "mds.ocs-storagecluster-cephfilesystem-b",
+                                "endpoint": "ceph-exporter-http-metrics",
+                                "instance": "10.131.0.56:9926",
+                                "job": "kube-state-metrics",
+                                "managedBy": "ocs-storagecluster",
+                                "namespace": "openshift-storage",
+                                "pod": "rook-ceph-exporter-ip-10-0-5-56.us-west-1.compute.internalldcqr",
+                                "prometheus": "openshift-monitoring/k8s",
+                                "service": "rook-ceph-exporter",
+                                "severity": "critical"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "input_series": [
+                {
+                    "series": "ceph_mds_mem_rss{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-a\",endpoint=\"ceph-exporter-http-metrics\",instance=\"10.128.2.67:9926\",job=\"rook-ceph-exporter\",managedBy=\"ocs-storagecluster\",namespace=\"openshift-storage\",pod=\"rook-ceph-exporter-ip-10-0-63-194.us-west-1.compute.internr45gh\",prometheus=\"openshift-monitoring/k8s\",service=\"rook-ceph-exporter\"}",
+                    "values": "1380939x7 1380939x7"
+                },
+                {
+                    "series": "kube_pod_container_resource_requests{container=\"mds\", endpoint=\"https-main\", job=\"kube-state-metrics\", namespace=\"openshift-storage\", node=\"ip-10-0-63-194.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", prometheus=\"openshift-monitoring/k8s\", resource=\"memory\", service=\"kube-state-metrics\", uid=\"9240e058-0cf7-4b6e-9c52-10b928564b8e\", unit=\"byte\"}",
+                    "values": "2907230000x7 2907240000x7"
+                },
+                {
+                    "series": "ceph_mds_mem_rss{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\",endpoint=\"ceph-exporter-http-metrics\",instance=\"10.131.0.56:9926\",job=\"rook-ceph-exporter\",managedBy=\"ocs-storagecluster\",namespace=\"openshift-storage\",pod=\"rook-ceph-exporter-ip-10-0-5-56.us-west-1.compute.internalldcqr\",prometheus=\"openshift-monitoring/k8s\",service=\"rook-ceph-exporter\"}",
+                    "values": "0x7 78934x7"
+                },
+                {
+                    "series": "kube_pod_container_resource_requests{container=\"mds\", endpoint=\"https-main\", job=\"kube-state-metrics\", namespace=\"openshift-storage\", node=\"ip-10-0-5-56.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", prometheus=\"openshift-monitoring/k8s\", resource=\"memory\", service=\"kube-state-metrics\", uid=\"eba37695-b1e2-4ccb-bdaa-23f8345325f2\", unit=\"byte\"}",
+                    "values": "0x7 164445834x7"
+                }
+            ],
+            "interval": "1m",
+            "promql_expr_test": [
+                {
+                    "eval_time": "4m",
+                    "exp_samples": [
+                        {
+                            "labels": "ceph_mds_mem_rss{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-a\", endpoint=\"ceph-exporter-http-metrics\", instance=\"10.128.2.67:9926\", job=\"rook-ceph-exporter\", managedBy=\"ocs-storagecluster\", namespace=\"openshift-storage\", pod=\"rook-ceph-exporter-ip-10-0-63-194.us-west-1.compute.internr45gh\", prometheus=\"openshift-monitoring/k8s\", service=\"rook-ceph-exporter\"}",
+                            "value": 1.380939E+06
+                        },
+                        {
+                            "labels": "ceph_mds_mem_rss{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\", endpoint=\"ceph-exporter-http-metrics\", instance=\"10.131.0.56:9926\", job=\"rook-ceph-exporter\", managedBy=\"ocs-storagecluster\", namespace=\"openshift-storage\", pod=\"rook-ceph-exporter-ip-10-0-5-56.us-west-1.compute.internalldcqr\", prometheus=\"openshift-monitoring/k8s\", service=\"rook-ceph-exporter\"}",
+                            "value": 0E+00
+                        }
+                    ],
+                    "expr": "ceph_mds_mem_rss"
+                },
+                {
+                    "eval_time": "14m",
+                    "exp_samples": [
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\", endpoint=\"ceph-exporter-http-metrics\", instance=\"10.131.0.56:9926\", job=\"rook-ceph-exporter\", managedBy=\"ocs-storagecluster\", namespace=\"openshift-storage\", pod=\"rook-ceph-exporter-ip-10-0-5-56.us-west-1.compute.internalldcqr\", prometheus=\"openshift-monitoring/k8s\", service=\"rook-ceph-exporter\"}",
+                            "value": 7.8934E+07
+                        }
+                    ],
+                    "expr": "ceph_mds_mem_rss * 1000 == 7.8934E+07"
+                }
+            ]
+        }
+    ]
+}
+

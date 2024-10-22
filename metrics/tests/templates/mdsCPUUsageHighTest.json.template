@@ -1,0 +1,127 @@
+{
+    "evaluation_interval": "1h",
+    "tests": [
+        {
+            "name": "MDSCPUUsageHighTest",
+            "alert_rule_test": [
+                {
+                    "alertname": "MDSCPUUsageHigh",
+                    "eval_time": "1h"
+                },
+                {
+                    "alertname": "MDSCPUUsageHigh",
+                    "eval_time": "7h"
+                },
+                {
+                    "alertname": "MDSCPUUsageHigh",
+                    "eval_time": "10h",
+                    "exp_alerts": [
+                      {
+                        "exp_annotations": {
+                            "description": "Ceph metadata server pod (rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh) has high cpu usage.\nPlease consider increasing the CPU request for the rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh pod as described in the runbook.",
+                            "message": "Ceph metadata server pod (rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh) has high cpu usage",
+                            "severity_level": "warning",
+                            "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHigh.md"
+                        },
+                        "exp_labels": {
+                            "alertname": "MDSCPUUsageHigh",
+                            "pod": "rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh",
+                            "severity": "warning"
+                        }
+                    },
+                    {
+                        "exp_annotations": {
+                            "description": "Ceph metadata server pod (rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn) has high cpu usage.\nPlease consider increasing the CPU request for the rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn pod as described in the runbook.",
+                            "message": "Ceph metadata server pod (rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn) has high cpu usage",
+                            "severity_level": "warning",
+                            "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHigh.md"
+                        },
+                        "exp_labels": {
+                            "alertname": "MDSCPUUsageHigh",
+                            "pod": "rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn",
+                            "severity": "warning"
+                        }
+                    }
+                  ]
+                },
+                {
+                    "alertname": "MDSCPUUsageHigh",
+                    "eval_time": "29h"
+                }
+            ],
+            "input_series": [
+                {
+                    "series": "pod:container_cpu_usage:sum{namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", prometheus=\"openshift-monitoring/k8s\"}",
+                    "values": "0x3 3x23 0x4"
+                },
+                {
+                    "series": "kube_pod_resource_limit{container=\"kube-scheduler\", endpoint=\"https\", instance=\"10.0.90.226:10259\", job=\"scheduler\", namespace=\"openshift-storage\", node=\"ip-10-0-63-194.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", priority=\"1000000000\", prometheus=\"openshift-monitoring/k8s\", resource=\"cpu\", scheduler=\"default-scheduler\", service=\"scheduler\", unit=\"cores\"}",
+                    "values": "3x30"
+                },
+                {
+                    "series": "pod:container_cpu_usage:sum{namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", prometheus=\"openshift-monitoring/k8s\"}",
+                    "values": "0x3 5x23 0x4"
+                },
+                {
+                    "series": "kube_pod_resource_limit{container=\"kube-scheduler\", endpoint=\"https\", instance=\"10.0.90.226:10259\", job=\"scheduler\", namespace=\"openshift-storage\", node=\"ip-10-0-5-56.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", priority=\"1000000000\", prometheus=\"openshift-monitoring/k8s\", resource=\"cpu\", scheduler=\"default-scheduler\", service=\"scheduler\", unit=\"cores\"}",
+                    "values": "1x7 3x27"
+                }
+            ],
+            "interval": "1h",
+            "promql_expr_test": [
+                {
+                    "eval_time": "1h",
+                    "exp_samples": [],
+                    "expr": "pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"} > 0.67"
+                },
+                {
+                    "eval_time": "4h",
+                    "exp_samples": [
+                        {
+                            "labels": "{pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\"}",
+                            "value": 1E+00
+                        },
+                        {
+                            "labels": "{pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\"}",
+                            "value": 5E+00
+                        }
+                    ],
+                    "expr": "pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"} > 0.67"
+                },
+                {
+                    "eval_time": "28h",
+                    "exp_samples": [],
+                    "expr": "pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"} > 0.67"
+                },
+                {
+                    "eval_time": "4h",
+                    "expr": "kube_pod_resource_limit",
+                    "exp_samples": [
+                        {
+                            "labels": "kube_pod_resource_limit{container=\"kube-scheduler\", endpoint=\"https\", instance=\"10.0.90.226:10259\", job=\"scheduler\", namespace=\"openshift-storage\", node=\"ip-10-0-5-56.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", priority=\"1000000000\", prometheus=\"openshift-monitoring/k8s\", resource=\"cpu\", scheduler=\"default-scheduler\", service=\"scheduler\", unit=\"cores\"}",
+                            "value": 1E+00
+                        },
+                        {
+                            "labels": "kube_pod_resource_limit{container=\"kube-scheduler\", endpoint=\"https\", instance=\"10.0.90.226:10259\", job=\"scheduler\", namespace=\"openshift-storage\", node=\"ip-10-0-63-194.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", priority=\"1000000000\", prometheus=\"openshift-monitoring/k8s\", resource=\"cpu\", scheduler=\"default-scheduler\", service=\"scheduler\", unit=\"cores\"}",
+                            "value": 3E+00
+                        }
+                    ]
+                },
+                {
+                    "eval_time": "10h",
+                    "expr": "pod:container_cpu_usage:sum",
+                    "exp_samples": [
+                        {
+                            "labels": "pod:container_cpu_usage:sum{namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", prometheus=\"openshift-monitoring/k8s\"}",
+                            "value": 3E+00
+                        },
+                        {
+                            "labels": "pod:container_cpu_usage:sum{namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", prometheus=\"openshift-monitoring/k8s\"}",
+                            "value": 5E+00
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,134 @@
+{
+    "evaluation_interval": "1h",
+    "tests": [
+        {
+            "name": "MDSCPUUsageVerticalAndHorizontalScalingAlertTest",
+            "input_series": [
+                {
+                    "series": "pod:container_cpu_usage:sum{namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", prometheus=\"openshift-monitoring/k8s\"}",
+                    "values": "0x3 3x23 0x4 3x10"
+                },
+                {
+                    "series": "kube_pod_resource_limit{container=\"kube-scheduler\", endpoint=\"https\", instance=\"10.0.90.226:10259\", job=\"scheduler\", namespace=\"openshift-storage\", node=\"ip-10-0-63-194.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", priority=\"1000000000\", prometheus=\"openshift-monitoring/k8s\", resource=\"cpu\", scheduler=\"default-scheduler\", service=\"scheduler\", unit=\"cores\"}",
+                    "values": "3x40"
+                },
+                {
+                    "series": "pod:container_cpu_usage:sum{namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", prometheus=\"openshift-monitoring/k8s\"}",
+                    "values": "0x3 5x23 0x4 4x10"
+                },
+                {
+                    "series": "kube_pod_resource_limit{container=\"kube-scheduler\", endpoint=\"https\", instance=\"10.0.90.226:10259\", job=\"scheduler\", namespace=\"openshift-storage\", node=\"ip-10-0-5-56.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", priority=\"1000000000\", prometheus=\"openshift-monitoring/k8s\", resource=\"cpu\", scheduler=\"default-scheduler\", service=\"scheduler\", unit=\"cores\"}",
+                    "values": "1x3 3x27 3x10"
+                },
+                {
+                    "series": "ceph_mds_mem_rss{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-a\",endpoint=\"ceph-exporter-http-metrics\",instance=\"10.128.2.67:9926\",job=\"rook-ceph-exporter\",managedBy=\"ocs-storagecluster\",namespace=\"openshift-storage\",pod=\"rook-ceph-exporter-ip-10-0-63-194.us-west-1.compute.internr45gh\",prometheus=\"openshift-monitoring/k8s\",service=\"rook-ceph-exporter\"}",
+                    "values": "939x10 1380939x20 1380939x10"
+                },
+                {
+                    "series": "kube_pod_container_resource_requests{container=\"mds\", endpoint=\"https-main\", job=\"kube-state-metrics\", namespace=\"openshift-storage\", node=\"ip-10-0-63-194.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\", prometheus=\"openshift-monitoring/k8s\", resource=\"memory\", service=\"kube-state-metrics\", uid=\"9240e058-0cf7-4b6e-9c52-10b928564b8e\", unit=\"byte\"}",
+                    "values": "2907230000x7 2907240000x13 2907236300x10 2907236300x10"
+                },
+                {
+                    "series": "ceph_mds_mem_rss{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\",endpoint=\"ceph-exporter-http-metrics\",instance=\"10.131.0.56:9926\",job=\"rook-ceph-exporter\",managedBy=\"ocs-storagecluster\",namespace=\"openshift-storage\",pod=\"rook-ceph-exporter-ip-10-0-5-56.us-west-1.compute.internalldcqr\",prometheus=\"openshift-monitoring/k8s\",service=\"rook-ceph-exporter\"}",
+                    "values": "0x7 3672x3 78934x20 78934x10"
+                },
+                {
+                    "series": "kube_pod_container_resource_requests{container=\"mds\", endpoint=\"https-main\", job=\"kube-state-metrics\", namespace=\"openshift-storage\", node=\"ip-10-0-5-56.us-west-1.compute.internal\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\", prometheus=\"openshift-monitoring/k8s\", resource=\"memory\", service=\"kube-state-metrics\", uid=\"eba37695-b1e2-4ccb-bdaa-23f8345325f2\", unit=\"byte\"}",
+                    "values": "0x7 164445834x23 164445834x10"
+                }
+            ],
+            "interval": "1h",
+            "promql_expr_test": [
+                {
+                    "eval_time": "1h",
+                    "exp_samples": [],
+                    "expr": "pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"} > 0.67"
+                },
+                {
+                    "eval_time": "14h",
+                    "exp_samples": [
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-a\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\"}",
+                            "value": 1E+00
+                        },
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\"}",
+                            "value": 1.6666666666666667E+00
+                        }
+                    ],
+                    "expr": "label_replace(pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") > 0.67"
+                },
+                {
+                    "eval_time": "15h",
+                    "exp_samples": [
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\", endpoint=\"ceph-exporter-http-metrics\", instance=\"10.131.0.56:9926\", job=\"kube-state-metrics\", managedBy=\"ocs-storagecluster\", namespace=\"openshift-storage\", pod=\"rook-ceph-exporter-ip-10-0-5-56.us-west-1.compute.internalldcqr\", prometheus=\"openshift-monitoring/k8s\", service=\"rook-ceph-exporter\"}",
+                            "value": 0.959999996108141
+                        }
+                    ],
+                    "expr": "(ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container=\"mds\", resource=\"memory\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") * .5) > .95"
+                },
+
+                {
+                    "eval_time": "12h",
+                    "exp_samples": [
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\", namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\"}",
+                            "value": 1.6666666666666667
+                        }
+                    ],
+                    "expr": "(label_replace(pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") > 0.67) and on (ceph_daemon, namespace) ((ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container=\"mds\", resource=\"memory\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") * .5) > 0.95)"
+                },
+
+                {
+                    "eval_time": "23h",
+                    "exp_samples": [
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-a\", namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\"}",
+                            "value": 1
+                        },
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\", namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\"}",
+                            "value": 1.6666666666666667
+                        }
+                    ],
+                    "expr": "(label_replace(pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") > 0.67) and on (ceph_daemon, namespace) ((ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container=\"mds\", resource=\"memory\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") * .5) > 0.95)"
+                },
+
+                {
+                    "eval_time": "8h",
+                    "exp_samples": [
+                        {
+                           "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-a\", namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\"}",
+                            "value": 1
+                        },
+                         {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-b\", namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-b-6684d7dfp96hn\"}",
+                            "value": 1.6666666666666667
+                        }
+                    ],
+                    "comment": "below expression is a combination of '(MDSCPUUsageHigh) and on (ceph_daemon, namespace) (MDSCacheUsageHigh)'",
+                    "expr": "(label_replace(pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") > 0.67) and on (ceph_daemon, namespace) ((ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container=\"mds\", resource=\"memory\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") * .5) <= 0.95)"
+                },
+
+                {
+                    "eval_time": "12h",
+                    "exp_samples": [
+                        {
+                            "labels": "{ceph_daemon=\"mds.ocs-storagecluster-cephfilesystem-a\", namespace=\"openshift-storage\", pod=\"rook-ceph-mds-ocs-storagecluster-cephfilesystem-a-84d68cd5btmmh\"}",
+                            "value": 1
+                        }
+                    ],
+                    "expr": "(label_replace(pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") > 0.67) and on (ceph_daemon, namespace) ((ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container=\"mds\", resource=\"memory\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") * .5) <= 0.95)"
+                },
+
+                {
+                    "eval_time": "23h",
+                    "exp_samples": [],
+                    "expr": "(label_replace(pod:container_cpu_usage:sum{pod=~\"rook-ceph-mds.*\"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~\"rook-ceph-mds.*\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") > 0.67) and on (ceph_daemon, namespace) ((ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container=\"mds\", resource=\"memory\"}, \"ceph_daemon\", \"mds.$1\", \"pod\", \"rook-ceph-mds-(.*)-(.*)\") * .5) <= 0.95)"
+                }
+
+            ]
+        }
+    ]
+}
