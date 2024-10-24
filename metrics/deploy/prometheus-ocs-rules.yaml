@@ -394,16 +394,30 @@ spec:
       for: 30m
       labels:
         severity: warning
-    - alert: MDSCPUUsageHigh
+    - alert: MDSCPUUsageHighNeedsHorizontalScaling
       annotations:
         description: |-
           Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage.
-          Please consider increasing the CPU request for the {{ $labels.pod }} pod as described in the runbook.
+          Please consider scaling horizontally by adding more MDS pods.
         message: Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
-        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHigh.md
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHighNeedsHorizontalScaling.md
         severity_level: warning
       expr: |
-        pod:container_cpu_usage:sum{pod=~"rook-ceph-mds.*"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-mds.*"} > 0.67
+        ((label_replace(pod:container_cpu_usage:sum{pod=~"rook-ceph-mds.*"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-mds.*"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") > 0.67) and on (ceph_daemon, namespace) ((ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container="mds", resource="memory"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") * .5) <= 0.95))
+      for: 6h
+      labels:
+        severity: warning
+    - alert: MDSCPUUsageHighNeedsVerticalScaling
+      annotations:
+        description: |-
+          Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage and also has high cache memory usage.
+          Please consider increasing the CPU request for the {{ $labels.pod }} pod as described in the runbook.
+          This may help to process more requests and thus evict more items from cache.
+        message: Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCPUUsageHighNeedsVerticalScaling.md
+        severity_level: warning
+      expr: |
+        ((label_replace(pod:container_cpu_usage:sum{pod=~"rook-ceph-mds.*"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-mds.*"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") > 0.67) and on (ceph_daemon, namespace) ((ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container="mds", resource="memory"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") * .5) > 0.95))
       for: 6h
       labels:
         severity: warning
