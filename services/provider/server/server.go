@@ -258,7 +258,7 @@ func newClient() (client.Client, error) {
 	}
 	err = corev1.AddToScheme(scheme)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
+		return nil, fmt.Errorf("failed to add corev1 to scheme. %v", err)
 	}
 	err = rookCephv1.AddToScheme(scheme)
 	if err != nil {
