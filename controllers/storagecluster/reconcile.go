@@ -76,6 +76,8 @@ const (
 	VirtualMachineCrdName = "virtualmachines.kubevirt.io"
 
 	StorageClientCrdName = "storageclients.ocs.openshift.io"
+
+	VolumeGroupSnapshotClassCrdName = "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -122,6 +124,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors;prometheusrules,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;watch;create;update;delete
+// +kubebuilder:rbac:groups=groupsnapshot.storage.k8s.io,resources=volumegroupsnapshotclasses,verbs=get;watch;create;update;delete;list
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update
@@ -403,6 +406,15 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		return reconcile.Result{}, nil
 	}
 
+	//check for VolumeGroupSnapshotClass crd
+	vgsc := true
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = VolumeGroupSnapshotClassCrdName
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		vgsc = false
+	}
+
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
@@ -435,6 +447,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephRbdMirrors{},
 				&odfInfoConfig{},
 			}
+			if vgsc {
+				objs = append(objs, &ocsGroupSnapshotClass{})
+			}
 		} else {
 			// noobaa-only ensure functions
 			objs = []resourceManager{
@@ -452,6 +467,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsSnapshotClass{},
 			&ocsNoobaaSystem{},
 			&odfInfoConfig{},
+		}
+		if vgsc {
+			objs = append(objs, &ocsGroupSnapshotClass{})
 		}
 	}
 
