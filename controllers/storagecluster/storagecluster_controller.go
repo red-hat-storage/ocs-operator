@@ -240,6 +240,10 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.NamePredicate(StorageClientCrdName),
 				util.CrdCreateAndDeletePredicate(&r.Log, StorageClientCrdName, r.AvailableCrds[StorageClientCrdName]),
 			),
+			builder.WithPredicates(
+				util.NamePredicate(VolumeGroupSnapshotClassCrdName),
+				util.CrdCreateAndDeletePredicate(&r.Log, VolumeGroupSnapshotClassCrdName, r.AvailableCrds[VolumeGroupSnapshotClassCrdName]),
+			),
 			builder.OnlyMetadata,
 		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
