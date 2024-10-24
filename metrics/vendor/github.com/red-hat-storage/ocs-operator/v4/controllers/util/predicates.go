@@ -1,8 +1,10 @@
 package util
 
 import (
-	"github.com/go-logr/logr"
+	"fmt"
 	"reflect"
+
+	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -83,13 +85,13 @@ func CrdCreateAndDeletePredicate(log *logr.Logger, crdName string, crdExists boo
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool {
 			if !crdExists {
-				log.Info("CustomResourceDefinition %s was Created.", crdName)
+				log.Info(fmt.Sprintf("CustomResourceDefinition %s was Created.", crdName))
 			}
 			return !crdExists
 		},
 		DeleteFunc: func(_ event.DeleteEvent) bool {
 			if crdExists {
-				log.Info("CustomResourceDefinition %s was Deleted.", crdName)
+				log.Info(fmt.Sprintf("CustomResourceDefinition %s was Deleted.", crdName))
 			}
 			return crdExists
 		},
