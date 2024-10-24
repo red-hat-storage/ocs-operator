@@ -14,6 +14,7 @@ import (
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -1252,6 +1253,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = snapapi.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add volume-snapshot scheme")
+	}
+	err = groupsnapapi.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add volume-group-snapshot scheme")
 	}
 	err = monitoringv1.AddToScheme(scheme)
 	if err != nil {
