@@ -100,10 +100,21 @@ func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType S
 	return fmt.Sprintf("%s-%splugin-snapclass", initData.Name, snapshotType)
 }
 
+func generateNameForGroupSnapshotClass(initData *ocsv1.StorageCluster, groupSnapshotType GroupSnapshotterType) string {
+	return fmt.Sprintf("%s-%splugin-groupsnapclass", initData.Name, groupSnapshotType)
+}
+
 func generateNameForSnapshotClassDriver(snapshotType SnapshotterType) string {
 	return fmt.Sprintf("%s.%s.csi.ceph.com", storageclassDriverNamePrefix, snapshotType)
 }
 
+func setParameterBasedOnSnapshotterType(instance *ocsv1.StorageCluster, groupSnapshotterType GroupSnapshotterType) (string, string) {
+	if groupSnapshotterType == rbdGroupSnapshotter {
+		return "pool", generateNameForCephBlockPool(instance)
+	}
+	return "fsName", generateNameForCephFilesystem(instance)
+
+}
 func generateNameForSnapshotClassSecret(instance *ocsv1.StorageCluster, snapshotType SnapshotterType) string {
 	// nfs uses the same cephfs secrets
 	if snapshotType == "nfs" {
