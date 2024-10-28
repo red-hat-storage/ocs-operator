@@ -410,11 +410,13 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		ocsProviderServiceDeployment,
 		ocsProviderService,
 		createVirtualMachineCRD(),
+		createStorageClientCRD(),
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjects...).WithStatusSubresource(statusSubresourceObjs...).Build()
 
 	availCrds := map[string]bool{
 		VirtualMachineCrdName: true,
+		StorageClientCrdName:  true,
 	}
 
 	return StorageClusterReconciler{

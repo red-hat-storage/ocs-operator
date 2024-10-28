@@ -186,20 +186,6 @@ func (t *DeployManager) generateClusterObjects(ocsCatalogImage string, subscript
 	}
 	ocsSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: v1alpha1.SchemeGroupVersion.Version})
 
-	ocsClientSubscription := v1alpha1.Subscription{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ocs-client-subscription",
-			Namespace: InstallNamespace,
-		},
-		Spec: &v1alpha1.SubscriptionSpec{
-			Channel:                subscriptionChannel,
-			Package:                "ocs-client-operator",
-			CatalogSource:          "ocs-catalogsource",
-			CatalogSourceNamespace: marketplaceNamespace,
-		},
-	}
-	ocsClientSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: v1alpha1.SchemeGroupVersion.Version})
-
 	rookSubscription := v1alpha1.Subscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-subscription",
@@ -228,7 +214,7 @@ func (t *DeployManager) generateClusterObjects(ocsCatalogImage string, subscript
 	}
 	noobaSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: v1alpha1.SchemeGroupVersion.Version})
 
-	co.subscriptions = append(co.subscriptions, ocsSubscription, ocsClientSubscription, rookSubscription, noobaSubscription)
+	co.subscriptions = append(co.subscriptions, ocsSubscription, rookSubscription, noobaSubscription)
 
 	return co
 }
