@@ -235,8 +235,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(
 				util.NamePredicate(VirtualMachineCrdName),
 				util.CrdCreateAndDeletePredicate(&r.Log, VirtualMachineCrdName, r.AvailableCrds[VirtualMachineCrdName]),
-			),
-			builder.WithPredicates(
 				util.NamePredicate(StorageClientCrdName),
 				util.CrdCreateAndDeletePredicate(&r.Log, StorageClientCrdName, r.AvailableCrds[StorageClientCrdName]),
 			),
