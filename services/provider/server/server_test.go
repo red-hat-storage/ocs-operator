@@ -95,6 +95,13 @@ var mockExtR = map[string]*externalResource{
 			"QuotaForConsumer": fmt.Sprintf("%+v\n", clusterResourceQuotaSpec),
 		},
 	},
+	"ocs-ceph-csi-config": {
+		Name: "ocs-ceph-csi-config",
+		Kind: "ConfigMap",
+		Data: map[string]string{
+			"CSI_ENABLE_OMAP_GENERATOR": "false",
+		},
+	},
 	"noobaa-remote-join-secret": {
 		Name: "noobaa-remote-join-secret",
 		Kind: "Secret",

@@ -27,6 +27,10 @@ import (
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 )
 
+const (
+	OcsClientPeerConfigMapName = "ocs-client-peer-mapping"
+)
+
 // StorageClusterPeerReconciler reconciles a StorageClusterPeer object
 // nolint:revive
 type StorageClusterPeerReconciler struct {

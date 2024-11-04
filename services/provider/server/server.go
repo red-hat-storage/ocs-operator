@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
 	"math"
 	"net"
 	"slices"
@@ -224,10 +225,20 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, err
 		}
 
+		clientMappingConfig, err := s.getPeerClientMapping(ctx)
+		if err != nil {
+			return nil, err
+		}
+		clientIsMapped := false
+		if clientMappingConfig != nil && clientMappingConfig[req.StorageConsumerUUID] != "" {
+			clientIsMapped = true
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumerObj,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+			clientIsMapped,
 		)
 
 		klog.Infof("successfully returned the config details to the consumer.")
@@ -417,6 +428,24 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		})
 
 	}
+
+	//Enable CSI-OMAP is storageClusterPeer is present
+	clientMappingConfig, err := s.getPeerClientMapping(ctx)
+	if err != nil {
+		return nil, err
+	}
+	clientIsMapped := false
+	if clientMappingConfig != nil && clientMappingConfig[string(consumerResource.UID)] != "" {
+		clientIsMapped = true
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: "ocs-ceph-csi-config",
+		Kind: "ConfigMap",
+		Data: mustMarshal(map[string]string{
+			"CSI_ENABLE_OMAP_GENERATOR": strconv.FormatBool(clientIsMapped),
+		}),
+	})
 
 	// Fetch noobaa remote secret and management address and append to extResources
 	consumerName := consumerResource.Name
@@ -874,10 +903,19 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, err
 	}
 
+	clientMappingConfig, err := s.getPeerClientMapping(ctx)
+	if err != nil {
+		return nil, err
+	}
+	clientIsMapped := false
+	if clientMappingConfig != nil && clientMappingConfig[req.StorageConsumerUUID] != "" {
+		clientIsMapped = true
+	}
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+		clientIsMapped,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -886,11 +924,12 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	}, nil
 }
 
-func getDesiredClientConfigHash(channelName string, storageConsumer *ocsv1alpha1.StorageConsumer, encryptionInTransit bool) string {
+func getDesiredClientConfigHash(channelName string, storageConsumer *ocsv1alpha1.StorageConsumer, encryptionInTransit bool, enableOmap bool) string {
 	var arr = []any{
 		channelName,
 		storageConsumer.Spec.StorageQuotaInGiB,
 		encryptionInTransit,
+		enableOmap,
 	}
 	return util.CalculateMD5Hash(arr)
 }
@@ -908,6 +947,17 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
 	}
 	return subscription.Spec.Channel, nil
+}
+
+func (s *OCSProviderServer) getPeerClientMapping(ctx context.Context) (map[string]string, error) {
+	clientMappingConfig := &corev1.ConfigMap{}
+	clientMappingConfig.Name = storageclusterpeer.OcsClientPeerConfigMapName
+	clientMappingConfig.Namespace = s.namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(clientMappingConfig), clientMappingConfig)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return nil, fmt.Errorf("failed to list storage cluster peers. %v", err)
+	}
+	return clientMappingConfig.Data, nil
 }
 
 func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
