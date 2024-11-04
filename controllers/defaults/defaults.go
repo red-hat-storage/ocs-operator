@@ -19,6 +19,11 @@ const (
 	// KubeMinorTopologySpreadConstraints is the minimum minor kube version to support TSC
 	// used along with KubeMajorTSC for version comparison
 	KubeMinorTopologySpreadConstraints = "19"
+	// This annotation is used by both StorageCluster and StorageClass to specify whether
+	// the key rotation feature is enabled. Users can add this annotation to StorageCluster
+	// with a value of "false" to disable key rotation. When present, this annotation is then
+	// propagated to the associated StorageClasses.
+	KeyRotationEnableAnnotation = "keyrotation.csiaddons.openshift.io/enable"
 )
 
 var (
