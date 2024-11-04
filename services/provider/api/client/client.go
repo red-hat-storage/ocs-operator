@@ -243,3 +243,35 @@ func (cc *OCSProviderClient) RequestMaintenanceMode(ctx context.Context, consume
 
 	return cc.Client.RequestMaintenanceMode(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) GetStorageClientsInfo(ctx context.Context, storageClusterUID string, clientIDs []string) (*pb.StorageClientsInfoResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("connection to Peer OCS is closed")
+	}
+
+	req := &pb.StorageClientsInfoRequest{
+		StorageClusterUID: storageClusterUID,
+		ClientIDs:         clientIDs,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetStorageClientsInfo(apiCtx, req)
+}
+
+func (cc *OCSProviderClient) GetBlockPoolsInfo(ctx context.Context, storageClusterUID string, blockPoolNames []string) (*pb.BlockPoolsInfoResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("connection to Peer OCS is closed")
+	}
+
+	req := &pb.BlockPoolsInfoRequest{
+		StorageClusterUID: storageClusterUID,
+		BlockPoolNames:    blockPoolNames,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetBlockPoolsInfo(apiCtx, req)
+}
