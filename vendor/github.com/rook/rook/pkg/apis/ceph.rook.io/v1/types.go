@@ -406,6 +406,20 @@ type MonitoringSpec struct {
 	// Interval determines prometheus scrape interval
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
+
+	// Ceph exporter configuration
+	// +optional
+	Exporter *CephExporterSpec `json:"exporter,omitempty"`
+}
+
+type CephExporterSpec struct {
+	// Only performance counters greater than or equal to this option are fetched
+	// +kubebuilder:default=5
+	PerfCountersPrioLimit int64 `json:"perfCountersPrioLimit,omitempty"`
+
+	// Time to wait before sending requests again to exporter server (seconds)
+	// +kubebuilder:default=5
+	StatsPeriodSeconds int64 `json:"statsPeriodSeconds,omitempty"`
 }
 
 // ClusterStatus represents the status of a Ceph cluster
@@ -1517,15 +1531,78 @@ type ObjectStoreSpec struct {
 type ObjectSharedPoolsSpec struct {
 	// The metadata pool used for creating RADOS namespaces in the object store
 	// +kubebuilder:validation:XValidation:message="object store shared metadata pool is immutable",rule="self == oldSelf"
-	MetadataPoolName string `json:"metadataPoolName"`
+	// +optional
+	MetadataPoolName string `json:"metadataPoolName,omitempty"`
 
 	// The data pool used for creating RADOS namespaces in the object store
 	// +kubebuilder:validation:XValidation:message="object store shared data pool is immutable",rule="self == oldSelf"
-	DataPoolName string `json:"dataPoolName"`
+	// +optional
+	DataPoolName string `json:"dataPoolName,omitempty"`
 
 	// Whether the RADOS namespaces should be preserved on deletion of the object store
 	// +optional
 	PreserveRadosNamespaceDataOnDelete bool `json:"preserveRadosNamespaceDataOnDelete"`
+
+	// PoolPlacements control which Pools are associated with a particular RGW bucket.
+	// Once PoolPlacements are defined, RGW client will be able to associate pool
+	// with ObjectStore bucket by providing "<LocationConstraint>" during s3 bucket creation
+	// or "X-Storage-Policy" header during swift container creation.
+	// See: https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets
+	// PoolPlacement with name: "default" will be used as a default pool if no option
+	// is provided during bucket creation.
+	// If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
+	// If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.
+	// +optional
+	PoolPlacements []PoolPlacementSpec `json:"poolPlacements,omitempty"`
+}
+
+type PoolPlacementSpec struct {
+	// Pool placement name. Name can be arbitrary. Placement with name "default" will be used as default.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
+	Name string `json:"name"`
+
+	// Sets given placement as default. Only one placement in the list can be marked as default.
+	Default bool `json:"default"`
+
+	// The metadata pool used to store ObjectStore bucket index.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	MetadataPoolName string `json:"metadataPoolName"`
+
+	// The data pool used to store ObjectStore objects data.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	DataPoolName string `json:"dataPoolName"`
+
+	// The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
+	// If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+	// +optional
+	DataNonECPoolName string `json:"dataNonECPoolName,omitempty"`
+
+	// StorageClasses can be selected by user to override dataPoolName during object creation.
+	// Each placement has default STANDARD StorageClass pointing to dataPoolName.
+	// This list allows defining additional StorageClasses on top of default STANDARD storage class.
+	// +optional
+	StorageClasses []PlacementStorageClassSpec `json:"storageClasses,omitempty"`
+}
+
+type PlacementStorageClassSpec struct {
+	// Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
+	// however most clients/libs insist on AWS names so it is recommended to use
+	// one of the valid x-amz-storage-class values for better compatibility:
+	// REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+	// See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._/-]+$`
+	Name string `json:"name"`
+
+	// DataPoolName is the data pool used to store ObjectStore objects data.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	DataPoolName string `json:"dataPoolName"`
 }
 
 // ObjectHealthCheckSpec represents the health check of an object store
@@ -1789,7 +1866,6 @@ type ObjectStoreHostingSpec struct {
 	// If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
 	// wildcard itself in the list of hostnames.
 	// E.g., use "mystore.example.com" instead of "*.mystore.example.com".
-	// The feature is supported only for Ceph v18 and later versions.
 	// +optional
 	DNSNames []string `json:"dnsNames,omitempty"`
 }
@@ -1911,7 +1987,7 @@ type ObjectUserCapSpec struct {
 	Info string `json:"info,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
-	// Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api
+	// Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api
 	AMZCache string `json:"amz-cache,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
@@ -2019,7 +2095,7 @@ type CephObjectZoneGroupList struct {
 
 // ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup
 type ObjectZoneGroupSpec struct {
-	//The display name for the ceph users
+	// The display name for the ceph users
 	Realm string `json:"realm"`
 }
 
@@ -2050,14 +2126,16 @@ type CephObjectZoneList struct {
 
 // ObjectZoneSpec represent the spec of an ObjectZone
 type ObjectZoneSpec struct {
-	//The display name for the ceph users
+	// The display name for the ceph users
 	ZoneGroup string `json:"zoneGroup"`
 
 	// The metadata pool settings
+	// +optional
 	// +nullable
 	MetadataPool PoolSpec `json:"metadataPool"`
 
 	// The data pool settings
+	// +optional
 	// +nullable
 	DataPool PoolSpec `json:"dataPool"`
 
@@ -2553,7 +2631,7 @@ type NetworkSpec struct {
 	// other network providers.
 	//
 	// Valid keys are "public" and "cluster". Refer to Ceph networking documentation for more:
-	// https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/
+	// https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/
 	//
 	// Refer to Multus network annotation documentation for help selecting values:
 	// https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation
@@ -2957,6 +3035,9 @@ type StorageScopeSpec struct {
 	// +optional
 	UseAllNodes bool `json:"useAllNodes,omitempty"`
 	// +optional
+	// Whether to always schedule OSDs on a node even if the node is not currently scheduleable or ready
+	ScheduleAlways bool `json:"scheduleAlways,omitempty"`
+	// +optional
 	OnlyApplyOSDPlacement bool `json:"onlyApplyOSDPlacement,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
@@ -3265,6 +3346,29 @@ type CephBlockPoolRadosNamespaceList struct {
 	Items           []CephBlockPoolRadosNamespace `json:"items"`
 }
 
+// RadosNamespaceMirroring represents the mirroring configuration of CephBlockPoolRadosNamespace
+type RadosNamespaceMirroring struct {
+	// RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool
+	// +optional
+	RemoteNamespace *string `json:"remoteNamespace"`
+	// Mode is the mirroring mode; either pool or image
+	// +kubebuilder:validation:Enum="";pool;image
+	Mode RadosNamespaceMirroringMode `json:"mode"`
+	// SnapshotSchedules is the scheduling of snapshot for mirrored images
+	// +optional
+	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+}
+
+// RadosNamespaceMirroringMode represents the mode of the RadosNamespace
+type RadosNamespaceMirroringMode string
+
+const (
+	// RadosNamespaceMirroringModePool represents the pool mode
+	RadosNamespaceMirroringModePool RadosNamespaceMirroringMode = "pool"
+	// RadosNamespaceMirroringModeImage represents the image mode
+	RadosNamespaceMirroringModeImage RadosNamespaceMirroringMode = "image"
+)
+
 // CephBlockPoolRadosNamespaceSpec represents the specification of a CephBlockPool Rados Namespace
 type CephBlockPoolRadosNamespaceSpec struct {
 	// The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.
@@ -3275,6 +3379,9 @@ type CephBlockPoolRadosNamespaceSpec struct {
 	// the CephBlockPool CR.
 	// +kubebuilder:validation:XValidation:message="blockPoolName is immutable",rule="self == oldSelf"
 	BlockPoolName string `json:"blockPoolName"`
+	// Mirroring configuration of CephBlockPoolRadosNamespace
+	// +optional
+	Mirroring *RadosNamespaceMirroring `json:"mirroring,omitempty"`
 }
 
 // CephBlockPoolRadosNamespaceStatus represents the Status of Ceph BlockPool

@@ -17,11 +17,11 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.1
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.3
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.0.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240827070548-002966de315a
-	github.com/onsi/ginkgo/v2 v2.20.1
-	github.com/onsi/gomega v1.34.1
+	github.com/onsi/ginkgo/v2 v2.20.2
+	github.com/onsi/gomega v1.34.2
 	github.com/openshift/api v0.0.0-20240828125535-01b3675ba7b3
 	github.com/openshift/build-machinery-go v0.0.0-20240419090851-af9c868bcf52
 	github.com/openshift/client-go v0.0.0-20240528061634-b054aa794d87
@@ -34,7 +34,7 @@ require (
 	github.com/red-hat-storage/ocs-client-operator v0.0.0-20240731100835-31192d2c370e
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240731064750-930a78b89d84
 	github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000
-	github.com/rook/rook/pkg/apis v0.0.0-20240828225153-88eab510dd2b
+	github.com/rook/rook/pkg/apis v0.0.0-20241101201743-bebe5bd4020d
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.28.0
@@ -42,10 +42,10 @@ require (
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.5.1
-	k8s.io/api v0.31.0
+	k8s.io/api v0.31.2
 	k8s.io/apiextensions-apiserver v0.31.0
-	k8s.io/apimachinery v0.31.0
-	k8s.io/client-go v0.31.0
+	k8s.io/apimachinery v0.31.2
+	k8s.io/client-go v0.31.2
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240821151609-f90d01438635
 	open-cluster-management.io/api v0.13.0
@@ -56,7 +56,7 @@ require (
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containernetworking/cni v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -83,7 +83,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
+	github.com/google/pprof v0.0.0-20240827171923-fa2c70bbbfe5 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
@@ -93,7 +93,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.6 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-5 // indirect
-	github.com/hashicorp/vault/api v1.14.0 // indirect
+	github.com/hashicorp/vault/api v1.15.0 // indirect
 	github.com/hashicorp/vault/api/auth/approle v0.7.0 // indirect
 	github.com/hashicorp/vault/api/auth/kubernetes v0.7.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
