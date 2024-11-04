@@ -385,6 +385,11 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 							Key:      string(consumerResource.UID),
 							Operator: metav1.LabelSelectorOpDoesNotExist,
 						},
+						{
+							Key:      "kubernetes.io/metadata.name",
+							Operator: metav1.LabelSelectorOpNotIn,
+							Values:   []string{"default"},
+						},
 					},
 				},
 			},
