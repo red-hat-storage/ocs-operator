@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -58,6 +59,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = configv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add configv1 scheme")
+	}
+	err = appsv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add appsv1 scheme")
 	}
 
 	return scheme

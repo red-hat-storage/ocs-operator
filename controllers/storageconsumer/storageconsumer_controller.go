@@ -22,12 +22,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"k8s.io/utils/ptr"
 	"strings"
 
-	"github.com/go-logr/logr"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+
+	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,9 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -51,6 +53,7 @@ const (
 	StorageProfileLabel           = "ocs.openshift.io/storageprofile"
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
+	MaintenanceModeAnnotation     = "ocs.openshift.io/maintenanceMode"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -61,14 +64,16 @@ type StorageConsumerReconciler struct {
 
 	ctx             context.Context
 	storageConsumer *ocsv1alpha1.StorageConsumer
-	namespace       string
-	noobaaAccount   *nbv1.NooBaaAccount
+	//storageConsumerList *ocsv1alpha1.StorageConsumerList
+	namespace     string
+	noobaaAccount *nbv1.NooBaaAccount
 }
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaaaccounts,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
@@ -167,6 +172,10 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 			r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateReady
 		}
 
+		if err := r.reconcileMaintenanceMode(); err != nil {
+			return reconcile.Result{}, err
+		}
+
 	} else {
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
 	}
@@ -235,6 +244,15 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
+	rbdMirrorPredicate := builder.WithPredicates(
+		predicate.NewPredicateFuncs(
+			func(client client.Object) bool {
+				return client.GetLabels()["app"] == "rook-ceph-rbd-mirror"
+			},
+		),
+		predicate.GenerationChangedPredicate{},
+	)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(
 			predicate.GenerationChangedPredicate{},
@@ -245,6 +263,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&rookCephv1.CephBlockPool{},
 			enqueueStorageConsumerRequest,
 		).
+		Watches(&appsv1.Deployment{}, enqueueStorageConsumerRequest, rbdMirrorPredicate).
 		Complete(r)
 }
 
@@ -264,4 +283,53 @@ func GenerateHashForCephClient(storageConsumerName, cephUserType string) string 
 	}
 	name := md5.Sum([]byte(cephClient))
 	return hex.EncodeToString(name[:16])
+}
+
+func (r *StorageConsumerReconciler) reconcileMaintenanceMode() error {
+	rbdMirrorDeployments := &appsv1.DeploymentList{}
+	err := r.List(
+		r.ctx,
+		rbdMirrorDeployments,
+		client.InNamespace(r.storageConsumer.Namespace),
+		client.MatchingLabels{"app": "rook-ceph-rbd-mirror"},
+		client.Limit(1),
+	)
+	if err != nil {
+		return err
+	}
+	if len(rbdMirrorDeployments.Items) == 0 {
+		return nil
+	}
+
+	replicas := int32(1)
+	enableMaintenanceMode, err := r.enableMaintenanceMode()
+	if err != nil {
+		return err
+	}
+	if enableMaintenanceMode {
+		replicas = 0
+	}
+
+	rbdMirrorDeployment := &rbdMirrorDeployments.Items[0]
+	rbdMirrorDeployment.Spec.Replicas = ptr.To(replicas)
+	err = r.Update(r.ctx, rbdMirrorDeployment)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *StorageConsumerReconciler) enableMaintenanceMode() (bool, error) {
+	storageConsumerList := &ocsv1alpha1.StorageConsumerList{}
+	err := r.List(r.ctx, storageConsumerList, client.InNamespace(r.storageConsumer.Namespace))
+	if err != nil {
+		return false, err
+	}
+	for i := range storageConsumerList.Items {
+		if _, ok := storageConsumerList.Items[i].GetAnnotations()[MaintenanceModeAnnotation]; ok {
+			return true, nil
+		}
+	}
+	return false, nil
 }
