@@ -11,6 +11,7 @@ import (
 
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -23,16 +24,16 @@ var unitToGib = map[string]uint{
 	"Pi": 1024 * 1024,
 }
 
-func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client, namespace string) {
 	switch r.Method {
 	case "POST":
-		handlePost(w, r, tokenLifetimeInHours)
+		handlePost(w, r, tokenLifetimeInHours, cl, namespace)
 	default:
 		handleUnsupportedMethod(w, r)
 	}
 }
 
-func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client, namespace string) {
 	var storageQuotaInGiB *uint
 	// When ContentLength is 0 that means request body is empty and
 	// storage quota is unlimited
@@ -59,7 +60,13 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 		storageQuotaInGiB = ptr.To(unitAsGiB * quota.Value)
 	}
 
-	if onboardingToken, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB); err != nil {
+	storageCluster, err := util.GetStorageClusterInNamespace(r.Context(), cl, namespace)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if onboardingToken, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB, storageCluster.UID); err != nil {
 		klog.Errorf("failed to get onboarding token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)

@@ -8,23 +8,31 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
 
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	onboardingPrivateKeyFilePath = "/etc/private-key/key"
 )
 
-func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int) {
+func HandleMessage(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client, namespace string) {
 	switch r.Method {
 	case "POST":
-		handlePost(w, r, tokenLifetimeInHours)
+		handlePost(w, r, tokenLifetimeInHours, cl, namespace)
 	default:
 		handleUnsupportedMethod(w, r)
 	}
 }
 
-func handlePost(w http.ResponseWriter, _ *http.Request, tokenLifetimeInHours int) {
-	if onboardingToken, err := util.GeneratePeerOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath); err != nil {
+func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int, cl client.Client, namespace string) {
+
+	storageCluster, err := util.GetStorageClusterInNamespace(r.Context(), cl, namespace)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if onboardingToken, err := util.GeneratePeerOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageCluster.UID); err != nil {
 		klog.Errorf("failed to get onboarding token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)

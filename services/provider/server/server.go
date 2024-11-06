@@ -49,7 +49,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 const (
@@ -74,7 +73,12 @@ type OCSProviderServer struct {
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
-	client, err := newClient()
+	scheme, err := newScheme()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new scheme. %v", err)
+	}
+
+	client, err := util.NewK8sClient(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client. %v", err)
 	}
@@ -121,6 +125,19 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get storageCluster. %v", err)
+	}
+
+	if storageCluster.UID != onboardingTicket.StorageCluster {
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket storageCluster not match existing storageCluster.")
+	}
+
+	if !storageCluster.Spec.AllowRemoteStorageConsumers {
+		return nil, status.Errorf(codes.PermissionDenied, "onboarding remote storageConsumer(s) is not allowed.")
+	}
+
 	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
 
 	if onboardingTicket.SubjectRole != services.ClientRole {
@@ -195,7 +212,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 		}
 
-		storageCluster, err := s.getStorageCluster(ctx)
+		storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +267,7 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 	}
 }
 
-func newClient() (client.Client, error) {
+func newScheme() (*runtime.Scheme, error) {
 	scheme := runtime.NewScheme()
 	err := ocsv1alpha1.AddToScheme(scheme)
 	if err != nil {
@@ -277,19 +294,9 @@ func newClient() (client.Client, error) {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
 	}
 
-	config, err := config.GetConfig()
-	if err != nil {
-		klog.Error(err, "failed to get rest.config")
-		return nil, err
-	}
-	client, err := client.New(config, client.Options{Scheme: scheme})
-	if err != nil {
-		klog.Error(err, "failed to create controller-runtime client")
-		return nil, err
-	}
-
-	return client, nil
+	return scheme, nil
 }
+
 func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
 	var extR []*pb.ExternalResource
 
@@ -762,7 +769,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
 			}
 
-			storageCluster, err := s.getStorageCluster(ctx)
+			storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 			if err != nil {
 				return nil, err
 			}
@@ -855,7 +862,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
-	storageCluster, err := s.getStorageCluster(ctx)
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -894,34 +901,6 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
 	}
 	return subscription.Spec.Channel, nil
-}
-
-func (s *OCSProviderServer) getStorageCluster(ctx context.Context) (*ocsv1.StorageCluster, error) {
-	scList := &ocsv1.StorageClusterList{}
-	if err := s.client.List(ctx, scList, client.InNamespace(s.namespace)); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list storage clusters: %v", err)
-	}
-
-	var foundSc *ocsv1.StorageCluster
-	for i := range scList.Items {
-		sc := &scList.Items[i]
-		if sc.Status.Phase == util.PhaseIgnored {
-			continue // Skip Ignored storage cluster
-		}
-		if sc.Spec.AllowRemoteStorageConsumers {
-			if foundSc != nil {
-				// This means we have already found one storage cluster, so this is a second one
-				return nil, status.Errorf(codes.FailedPrecondition, "multiple provider storage clusters found")
-			}
-			foundSc = sc
-		}
-	}
-
-	if foundSc == nil {
-		return nil, status.Errorf(codes.NotFound, "no provider storage cluster found")
-	}
-
-	return foundSc, nil
 }
 
 func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
