@@ -66,10 +66,11 @@ const (
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
-	client                client.Client
-	consumerManager       *ocsConsumerManager
-	storageRequestManager *storageRequestManager
-	namespace             string
+	client                    client.Client
+	consumerManager           *ocsConsumerManager
+	storageRequestManager     *storageRequestManager
+	storageClusterPeerManager *storageClusterPeerManager
+	namespace                 string
 }
 
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
@@ -93,11 +94,17 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
 	}
 
+	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
+	}
+
 	return &OCSProviderServer{
-		client:                client,
-		consumerManager:       consumerManager,
-		storageRequestManager: storageRequestManager,
-		namespace:             namespace,
+		client:                    client,
+		consumerManager:           consumerManager,
+		storageRequestManager:     storageRequestManager,
+		storageClusterPeerManager: storageClusterPeerManager,
+		namespace:                 namespace,
 	}, nil
 }
 
@@ -141,7 +148,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
 
 	if onboardingTicket.SubjectRole != services.ClientRole {
-		err := fmt.Errorf("unsupported ticket role for consumer %q, found %s, expected %s", req.ConsumerName, onboardingTicket.SubjectRole, services.ClientRole)
+		err := fmt.Errorf("invalid onboarding ticket for %q, expecting role %s found role %s", req.ConsumerName, services.ClientRole, onboardingTicket.SubjectRole)
 		klog.Error(err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -925,6 +932,37 @@ func extractMonitorIps(data string) ([]string, error) {
 	return ips, nil
 }
 
-func (s *OCSProviderServer) PeerStorageCluster(_ context.Context, _ *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
+func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
+
+	pubKey, err := s.getOnboardingValidationKey(ctx)
+	if err != nil {
+		klog.Errorf("failed to get public key to validate peer onboarding ticket %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to validate peer onboarding ticket")
+	}
+
+	onboardingToken, err := decodeAndValidateTicket(req.OnboardingToken, pubKey)
+	if err != nil {
+		klog.Errorf("Invalid onboarding token. %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid onboarding ticket")
+	}
+
+	if onboardingToken.SubjectRole != services.PeerRole {
+		err := fmt.Errorf("invalid onboarding ticket for %q, expecting role %s found role %s", req.StorageClusterUID, services.PeerRole, onboardingToken.SubjectRole)
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
+	}
+
+	klog.Infof("Found StorageClusterPeer %s for PeerStorageCluster", storageClusterPeer.Name)
+
+	if storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePending && storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePeered {
+		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
+	}
+
 	return &pb.PeerStorageClusterResponse{}, nil
 }
