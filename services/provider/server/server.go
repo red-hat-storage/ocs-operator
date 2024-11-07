@@ -318,15 +318,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
 	}
 
-	extR = append(extR, &pb.ExternalResource{
-		Name: monConfigMap,
-		Kind: "ConfigMap",
-		Data: mustMarshal(map[string]string{
-			"data":     configmap.Data["data"], // IP Address of all mon's
-			"maxMonId": "0",
-			"mapping":  "{}",
-		})})
-
 	monIps, err := extractMonitorIps(configmap.Data["data"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
