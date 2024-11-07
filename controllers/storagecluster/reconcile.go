@@ -4,6 +4,7 @@ import (
 	"context"
 	error1 "errors"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 	"time"
 
@@ -403,6 +404,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		return reconcile.Result{}, nil
 	}
 
+	if res, err := r.ownStorageClusterPeersInNamespace(instance); err != nil || !res.IsZero() {
+		return reconcile.Result{}, err
+	}
+
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
@@ -786,6 +791,29 @@ func (r *StorageClusterReconciler) isStorageClusterNotIgnored(
 	}
 
 	return true
+}
+
+func (r *StorageClusterReconciler) ownStorageClusterPeersInNamespace(instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	storageClusterPeerList := &ocsv1.StorageClusterPeerList{}
+	err := r.Client.List(r.ctx, storageClusterPeerList, client.InNamespace(instance.Namespace))
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to list storageClusterPeer: %w", err)
+	}
+	for i := range storageClusterPeerList.Items {
+		scp := &storageClusterPeerList.Items[i]
+		lenOwners := len(scp.OwnerReferences)
+		err := controllerutil.SetOwnerReference(instance, scp, r.Scheme)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to set owner reference on StorageClusterPeer %v: %w", scp.Name, err)
+		}
+		if lenOwners != len(scp.OwnerReferences) {
+			err = r.Client.Update(r.ctx, scp)
+			if err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to persist StorageCluster owner ref on StorageClusterPeer %v: %w", scp.Name, err)
+			}
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
 // Checks whether a string is contained within a slice

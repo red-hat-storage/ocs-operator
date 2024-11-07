@@ -26,8 +26,10 @@ import (
 type StorageClusterPeerState string
 
 const (
-	StorageClusterPeerStatePending StorageClusterPeerState = "Pending"
-	StorageClusterPeerStatePeered  StorageClusterPeerState = "Peered"
+	StorageClusterPeerStateInitializing StorageClusterPeerState = "Initializing"
+	StorageClusterPeerStatePending      StorageClusterPeerState = "Pending"
+	StorageClusterPeerStatePeered       StorageClusterPeerState = "Peered"
+	StorageClusterPeerStateFailed       StorageClusterPeerState = "Failed"
 )
 
 type PeerInfo struct {
