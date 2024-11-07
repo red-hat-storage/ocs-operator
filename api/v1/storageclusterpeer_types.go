@@ -47,7 +47,7 @@ type StorageClusterPeerSpec struct {
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer
 type StorageClusterPeerStatus struct {
 	State    StorageClusterPeerState `json:"state,omitempty"`
-	PeerInfo PeerInfo                `json:"peerInfo"`
+	PeerInfo *PeerInfo               `json:"peerInfo"`
 }
 
 //+kubebuilder:object:root=true
