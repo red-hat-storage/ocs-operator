@@ -1,4 +1,4 @@
-# Table of Contents
+# Table of Contentss
 
 - [OpenShift Container Storage Operator](#openshift-container-storage-operator)
 - [Deploying pre-built images](#deploying-pre-built-images)
