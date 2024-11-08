@@ -60,6 +60,7 @@ message OnboardConsumerRequest{
 message OnboardConsumerResponse{
     // K8s UID (UUID) of the consumer cluster
     string storageConsumerUUID = 1;
+    bool enforceCSIHostNW = 2;
 }
 
 
