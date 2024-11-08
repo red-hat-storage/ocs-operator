@@ -107,6 +107,9 @@ message StorageConfigResponse{
     string desiredConfigHash = 2;
 
     SystemAttributes systemAttributes = 3;
+
+    // Contains host network setting for csi controller plugins
+    bool csiCtrlPluginHostNW = 4;
 }
 
 
