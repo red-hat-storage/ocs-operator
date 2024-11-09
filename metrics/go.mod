@@ -31,7 +31,7 @@ require (
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240731064750-930a78b89d84
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-20240731064750-930a78b89d84
 	github.com/rook/rook v1.15.0-beta.0.0.20240819063246-893ea7f6d6a1
-	github.com/rook/rook/pkg/apis v0.0.0-20241101201743-bebe5bd4020d
+	github.com/rook/rook/pkg/apis v0.0.0-20241108175750-a100ae3d8c05
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
