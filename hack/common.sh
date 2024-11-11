@@ -49,7 +49,7 @@ OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 # We are using rook dowsntream image now, i.e, red-hat-storage/rook code
 # and we should continue to use dowsntream image only due to few
 # downstream only changes present in rook downstream fork.
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vrelease-4.17-91cc5780b"
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-c455c6812"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20240901"
 LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v18.2.0"
@@ -92,7 +92,7 @@ CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.9.1"
 CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:release-4.17-fb535da"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-5595a28"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20240901"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:release-4.17-91cc5780b"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-c455c6812"
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"
 
 OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
