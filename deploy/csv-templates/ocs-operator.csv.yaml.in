@@ -515,6 +515,12 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - create
         serviceAccountName: ux-backend-server
       deployments:
       - name: ocs-operator
