@@ -680,7 +680,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	if err = s.client.List(ctx, scp, client.InNamespace(s.namespace)); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get StorageClusterPeerList. %v", err)
 	}
-	replicationEnabled := len(scp.Items) > 1
+	replicationEnabled := len(scp.Items) > 0
 	var replicationID string
 	if replicationEnabled {
 		replicationID = util.CalculateMD5Hash(req.StorageClaimName)
