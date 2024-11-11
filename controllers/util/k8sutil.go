@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strings"
 
@@ -200,4 +201,14 @@ func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
 	}
 
 	return k8sClient, nil
+}
+
+func FindOwnerRefByKind(obj client.Object, kind string) *v1.OwnerReference {
+	owners := obj.GetOwnerReferences()
+	for i := range owners {
+		if owners[i].Kind == kind {
+			return &owners[i]
+		}
+	}
+	return nil
 }
