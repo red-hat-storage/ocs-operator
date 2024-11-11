@@ -59,15 +59,13 @@ type StorageConsumerReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	ctx                     context.Context
-	storageConsumer         *ocsv1alpha1.StorageConsumer
-	cephClientHealthChecker *rookCephv1.CephClient
-	namespace               string
-	noobaaAccount           *nbv1.NooBaaAccount
+	ctx             context.Context
+	storageConsumer *ocsv1alpha1.StorageConsumer
+	namespace       string
+	noobaaAccount   *nbv1.NooBaaAccount
 }
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaaaccounts,verbs=get;list;watch;create;update;delete
@@ -130,10 +128,6 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 	r.storageConsumer.Name = request.Name
 	r.storageConsumer.Namespace = r.namespace
 
-	r.cephClientHealthChecker = &rookCephv1.CephClient{}
-	r.cephClientHealthChecker.Name = GenerateHashForCephClient(r.storageConsumer.Name, "global")
-	r.cephClientHealthChecker.Namespace = r.namespace
-
 	r.noobaaAccount = &nbv1.NooBaaAccount{}
 	r.noobaaAccount.Name = r.storageConsumer.Name
 	r.noobaaAccount.Namespace = r.storageConsumer.Namespace
@@ -151,9 +145,6 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
 
-		if err := r.reconcileCephClientHealthChecker(); err != nil {
-			return reconcile.Result{}, err
-		}
 		// A provider cluster already has a NooBaa system and does not require a NooBaa account
 		// to connect to a remote cluster, unlike client clusters.
 		// A NooBaa account only needs to be created if the storage consumer is for a client cluster.
@@ -181,47 +172,6 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func (r *StorageConsumerReconciler) reconcileCephClientHealthChecker() error {
-
-	desired := &rookCephv1.CephClient{
-		Spec: rookCephv1.ClientSpec{
-			Caps: map[string]string{
-				"mgr": "allow command config",
-				"mon": "allow r, allow command quorum_status, allow command version",
-			},
-		},
-	}
-
-	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientHealthChecker, func() error {
-		if err := r.own(r.cephClientHealthChecker); err != nil {
-			return err
-		}
-
-		addStorageRelatedAnnotations(r.cephClientHealthChecker, r.storageConsumer.Name, "global", "healthchecker")
-		r.cephClientHealthChecker.Spec = desired.Spec
-		return nil
-	})
-
-	if err != nil {
-		r.Log.Error(
-			err,
-			"Failed to update CephClient.",
-			"CephClient",
-			klog.KRef(r.cephClientHealthChecker.Namespace, r.cephClientHealthChecker.Name),
-		)
-		return err
-	}
-
-	phase := ""
-	if r.cephClientHealthChecker.Status != nil {
-		phase = string(r.cephClientHealthChecker.Status.Phase)
-	}
-
-	r.setCephResourceStatus(r.cephClientHealthChecker.Name, "CephClient", phase, nil)
-
-	return nil
 }
 
 func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
@@ -289,7 +239,6 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(
 			predicate.GenerationChangedPredicate{},
 		)).
-		Owns(&rookCephv1.CephClient{}).
 		Owns(&nbv1.NooBaaAccount{}).
 		// Watch non-owned resources cephBlockPool
 		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
@@ -315,16 +264,4 @@ func GenerateHashForCephClient(storageConsumerName, cephUserType string) string 
 	}
 	name := md5.Sum([]byte(cephClient))
 	return hex.EncodeToString(name[:16])
-}
-
-func addStorageRelatedAnnotations(obj client.Object, storageConsumerName, storageRequest, cephUserType string) {
-	annotations := obj.GetAnnotations()
-	if annotations == nil {
-		annotations = map[string]string{}
-		obj.SetAnnotations(annotations)
-	}
-
-	annotations[StorageConsumerAnnotation] = storageConsumerName
-	annotations[StorageRequestAnnotation] = storageRequest
-	annotations[StorageCephUserTypeAnnotation] = cephUserType
 }

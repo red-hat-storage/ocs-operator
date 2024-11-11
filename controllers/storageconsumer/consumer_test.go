@@ -26,8 +26,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -49,10 +47,6 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 		assert.Fail(t, "failed to add ocsv1alpha1 scheme")
 	}
 
-	err = rookCephv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add rookCephv1 scheme")
-	}
 	err = routev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add routev1 scheme")
@@ -69,19 +63,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
-func TestCephName(t *testing.T) {
+func TestNoobaaAccount(t *testing.T) {
 	var r StorageConsumerReconciler
 	ctx := context.TODO()
-	r.cephClientHealthChecker = &rookCephv1.CephClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "healthchecker",
-		},
-		Status: &rookCephv1.CephClientStatus{
-			Phase: rookCephv1.ConditionType(util.PhaseReady),
-		},
-	}
 	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(r.cephClientHealthChecker).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	r.Client = client
 	r.Scheme = scheme
 	r.Log = log.Log.WithName("controller_storagecluster_test")
@@ -94,21 +80,6 @@ func TestCephName(t *testing.T) {
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			CephResources: []*ocsv1alpha1.CephResourcesSpec{
-				{
-					Kind:  "CephClient",
-					Name:  "healthchecker",
-					Phase: "Ready",
-				},
-				{
-					Kind:  "CephClient",
-					Name:  "rbd",
-					Phase: "Ready",
-				},
-				{
-					Kind:  "CephClient",
-					Name:  "cephfs",
-					Phase: "Ready",
-				},
 				{
 					Kind:  "NooBaaAccount",
 					Name:  "consumer-acc",
@@ -143,11 +114,6 @@ func TestCephName(t *testing.T) {
 
 	want := []*ocsv1alpha1.CephResourcesSpec{
 		{
-			Kind:  "CephClient",
-			Name:  "healthchecker",
-			Phase: "Ready",
-		},
-		{
 			Kind:  "NooBaaAccount",
 			Name:  "consumer-acc",
 			Phase: "Ready",
@@ -156,15 +122,7 @@ func TestCephName(t *testing.T) {
 	assert.Equal(t, r.storageConsumer.Status.CephResources, want)
 
 	// When StorageConsumer cr status in Error state
-	r.cephClientHealthChecker = &rookCephv1.CephClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "healthchecker",
-		},
-		Status: &rookCephv1.CephClientStatus{
-			Phase: rookCephv1.ConditionType(util.PhaseError),
-		},
-	}
-	client = fake.NewClientBuilder().WithScheme(scheme).WithObjects(r.cephClientHealthChecker).Build()
+	client = fake.NewClientBuilder().WithScheme(scheme).Build()
 	r.Client = client
 
 	r.storageConsumer = &ocsv1alpha1.StorageConsumer{
@@ -176,21 +134,6 @@ func TestCephName(t *testing.T) {
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			CephResources: []*ocsv1alpha1.CephResourcesSpec{
-				{
-					Kind:  "CephClient",
-					Name:  "rbd",
-					Phase: "Error",
-				},
-				{
-					Kind:  "CephClient",
-					Name:  "cephfs",
-					Phase: "Ready",
-				},
-				{
-					Kind:  "CephClient",
-					Name:  "healthchecker",
-					Phase: "Error",
-				},
 				{
 					Kind:  "NooBaaAccount",
 					Name:  "consumer-acc",
@@ -221,11 +164,6 @@ func TestCephName(t *testing.T) {
 	assert.NoError(t, err)
 
 	want = []*ocsv1alpha1.CephResourcesSpec{
-		{
-			Kind:  "CephClient",
-			Name:  "healthchecker",
-			Phase: "Error",
-		},
 		{
 			Kind:  "NooBaaAccount",
 			Name:  "consumer-acc",
