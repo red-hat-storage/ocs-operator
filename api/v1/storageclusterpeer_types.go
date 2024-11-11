@@ -17,57 +17,37 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-type NamespacedName struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
 
-// RemoteClusterSpec specifies the spec required for the remote cluster
-type RemoteClusterSpec struct {
-	// ApiEndpoint is the URI of the ODF api server
-	ApiEndpoint string `json:"apiEndpoint"`
+type StorageClusterPeerState string
 
-	// OnboardingTicket holds an identity information required by the local ODF cluster to onboard.
-	OnboardingTicket string `json:"onboardingTicket"`
+const (
+	StorageClusterPeerStatePending StorageClusterPeerState = "Pending"
+	StorageClusterPeerStatePeered  StorageClusterPeerState = "Peered"
+)
 
-	// StorageClusterName holds the namespacedName of the Remote ODF Cluster
-	StorageClusterName NamespacedName `json:"storageClusterName"`
-}
-
-// LocalClusterSpec specifies the spec required for the local cluster
-type LocalClusterSpec struct {
-	// Name holds the name of the local ODF cluster
-	Name corev1.LocalObjectReference `json:"name"`
-}
-
-// BlockPoolMirroringSpec enables setting up of mirroring for blockPools in the same namespace.
-type BlockPoolMirroringSpec struct {
-	// Selector is used to select blockPools by label
-	Selector metav1.LabelSelector `json:"selector"`
+type PeerInfo struct {
+	StorageClusterUid string `json:"storageClusterUid,omitempty"`
 }
 
 // StorageClusterPeerSpec defines the desired state of StorageClusterPeer
 type StorageClusterPeerSpec struct {
 
-	// RemoteCluster specifies the spec required for the remote cluster
-	RemoteCluster RemoteClusterSpec `json:"remoteCluster"`
+	// ApiEndpoint is the URI of the ODF api server
+	ApiEndpoint string `json:"apiEndpoint"`
 
-	// LocalCluster specifies the spec required for the local cluster
-	LocalCluster LocalClusterSpec `json:"localCluster"`
-
-	// BlockPoolMirroring indicates ceph block mirroring between block pool on the local and remote clusters
-	//+optional
-	BlockPoolMirroring *BlockPoolMirroringSpec `json:"blockPoolMirroring,omitempty"`
+	// OnboardingToken holds an identity information required by the local ODF cluster to onboard.
+	OnboardingToken string `json:"onboardingToken"`
 }
 
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer
 type StorageClusterPeerStatus struct {
+	State    StorageClusterPeerState `json:"state,omitempty"`
+	PeerInfo *PeerInfo               `json:"peerInfo"`
 }
 
 //+kubebuilder:object:root=true

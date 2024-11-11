@@ -197,7 +197,4 @@ message PeerStorageClusterRequest{
 }
 
 // PeerStorageClusterResponse holds the response for OnboardStorageClusterPeer API request
-message PeerStorageClusterResponse{
-    // storageClusterUID is the k8s UID of the remote StorageCluster
-    string storageClusterUID = 1;
-}
+message PeerStorageClusterResponse{}

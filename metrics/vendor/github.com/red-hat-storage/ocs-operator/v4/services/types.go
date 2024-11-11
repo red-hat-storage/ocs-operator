@@ -1,5 +1,7 @@
 package services
 
+import "k8s.io/apimachinery/pkg/types"
+
 type OnboardingSubjectRole string
 
 const (
@@ -12,4 +14,5 @@ type OnboardingTicket struct {
 	ExpirationDate    int64                 `json:"expirationDate,string"`
 	SubjectRole       OnboardingSubjectRole `json:"subjectRole"`
 	StorageQuotaInGiB *uint                 `json:"storageQuotaInGiB,omitempty"`
+	StorageCluster    types.UID             `json:"storageCluster"`
 }
