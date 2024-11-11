@@ -48,6 +48,7 @@ import (
 const (
 	storageRequestFinalizer    = "ocs.openshift.io.storagerequest"
 	forceDeletionAnnotationKey = "rook.io/force-deletion"
+	blockPoolNameLabel         = "ocs.openshift.io/cephblockpool-name"
 )
 
 // StorageRequestReconciler reconciles a StorageRequest object
@@ -367,6 +368,9 @@ func (r *StorageRequestReconciler) reconcileRadosNamespace() error {
 		if blockPoolName == "" {
 			blockPoolName = fmt.Sprintf("%s-cephblockpool", r.storageCluster.Name)
 		}
+		// add a blockpool name in the label so UI can watch for the rados namespace
+		// that belongs to the particular blockpool
+		addLabel(r.cephRadosNamespace, blockPoolNameLabel, blockPoolName)
 		r.cephRadosNamespace.Spec = rookCephv1.CephBlockPoolRadosNamespaceSpec{
 			BlockPoolName: blockPoolName,
 		}
