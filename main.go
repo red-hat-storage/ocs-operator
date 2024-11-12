@@ -58,6 +58,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/ocsinitialization"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
@@ -232,6 +233,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageClusterPeer")
+		os.Exit(1)
+	}
+	if err = (&mirroring.MirroringReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Mirroring")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
