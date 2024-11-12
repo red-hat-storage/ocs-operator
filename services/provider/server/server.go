@@ -175,7 +175,13 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		storageConsumerUUID = string(storageConsumer.UID)
 	}
 
-	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
+	enforceHostNWCSI := false
+	addressRanges := rookCephv1.AddressRangesSpec{}
+	if storageCluster.Spec.HostNetwork && storageCluster.Spec.Network.AddressRanges != &addressRanges {
+		enforceHostNWCSI = true
+	}
+
+	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID, EnforceCSIHostNW: enforceHostNWCSI}, nil
 }
 
 // AcknowledgeOnboarding acknowledge the onboarding is complete
