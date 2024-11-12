@@ -9,8 +9,11 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/expandstorage"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/clienttokens"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	storagev1 "k8s.io/api/storage/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -76,6 +79,12 @@ func main() {
 	if err := ocsv1.AddToScheme(scheme); err != nil {
 		klog.Exitf("failed to add ocsv1 to scheme. %v", err)
 	}
+	if err := cephv1.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add cephv1 to scheme. %v", err)
+	}
+	if err := storagev1.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add storagev1 to scheme. %v", err)
+	}
 
 	cl, err := util.NewK8sClient(scheme)
 	if err != nil {
@@ -94,6 +103,10 @@ func main() {
 	})
 	http.HandleFunc("/onboarding/peer-tokens", func(w http.ResponseWriter, r *http.Request) {
 		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl, namespace)
+	})
+
+	http.HandleFunc("/expandstorage", func(w http.ResponseWriter, r *http.Request) {
+		expandstorage.HandleMessage(w, r, cl, namespace)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)

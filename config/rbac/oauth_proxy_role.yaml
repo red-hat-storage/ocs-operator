@@ -11,3 +11,9 @@ rules:
   resources:
   - subjectaccessreviews
   verbs: ["create"]
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - create
