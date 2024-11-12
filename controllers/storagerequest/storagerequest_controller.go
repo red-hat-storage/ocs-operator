@@ -371,9 +371,7 @@ func (r *StorageRequestReconciler) reconcileRadosNamespace() error {
 		// add a blockpool name in the label so UI can watch for the rados namespace
 		// that belongs to the particular blockpool
 		addLabel(r.cephRadosNamespace, blockPoolNameLabel, blockPoolName)
-		r.cephRadosNamespace.Spec = rookCephv1.CephBlockPoolRadosNamespaceSpec{
-			BlockPoolName: blockPoolName,
-		}
+		r.cephRadosNamespace.Spec.BlockPoolName = blockPoolName
 		return nil
 	})
 

@@ -21,9 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"google.golang.org/grpc/codes"
 	"strings"
-	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	providerClient "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client"
@@ -31,6 +29,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 
 	"github.com/go-logr/logr"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,7 +55,11 @@ type StorageClusterPeerReconciler struct {
 func (r *StorageClusterPeerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageClusterPeer{}).
-		Watches(&ocsv1.StorageCluster{}, &handler.EnqueueRequestForObject{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(
+			&ocsv1.StorageCluster{},
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Complete(r)
 }
 
@@ -160,7 +163,7 @@ func (r *StorageClusterPeerReconciler) reconcileStates(storageClusterPeer *ocsv1
 		storageClusterPeer.Status.PeerInfo = &ocsv1.PeerInfo{StorageClusterUid: string(ticketData.StorageCluster)}
 	}
 
-	ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, time.Second*10)
+	ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
 	if err != nil {
 		storageClusterPeer.Status.State = ocsv1.StorageClusterPeerStateFailed
 		return ctrl.Result{}, fmt.Errorf("failed to create a new provider client: %v", err)
