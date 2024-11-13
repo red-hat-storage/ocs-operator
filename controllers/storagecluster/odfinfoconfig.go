@@ -177,7 +177,7 @@ func getConnectedClients(r *StorageClusterReconciler, storageCluster *ocsv1.Stor
 		newConnectedClient := ocsv1a1.ConnectedClient{
 			Name:      name,
 			ClusterID: clusterID,
-			ClientID:  string(storageConsumer.UID),
+			ClientID:  storageConsumer.Status.Client.ID,
 		}
 		connectedClients = append(connectedClients, newConnectedClient)
 	}
