@@ -140,7 +140,9 @@ rules:
   - monitoring.coreos.com
   resources:
   - alertmanagers
+  - k8s
   - prometheuses
+  - prometheuses/api
   - servicemonitors
   verbs:
   - create
