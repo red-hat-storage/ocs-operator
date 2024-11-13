@@ -178,6 +178,8 @@ message ReportStatusRequest{
     string clientName = 6;
     // storageQuotaUtilizationRatio is the ratio of utilized quota of connected client
     double storageQuotaUtilizationRatio = 7;
+    // clientID is the k8s UID of storageClient
+    string clientID = 8;
 
 }
 

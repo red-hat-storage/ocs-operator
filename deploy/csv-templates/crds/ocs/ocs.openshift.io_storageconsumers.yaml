@@ -76,6 +76,9 @@ spec:
               client:
                 description: Information of storage client received from consumer
                 properties:
+                  clientId:
+                    description: ID is the k8s UID of connected storageclient
+                    type: string
                   clusterId:
                     description: ClusterID is the id of the openshift cluster
                     type: string

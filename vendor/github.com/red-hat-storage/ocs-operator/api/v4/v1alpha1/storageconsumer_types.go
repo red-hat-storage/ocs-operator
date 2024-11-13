@@ -94,6 +94,10 @@ type ClientStatus struct {
 	// StorageQuotaUtilizationRatio is the ratio of utilized quota of connected client
 	// +optional
 	StorageQuotaUtilizationRatio float64 `json:"storageQuotaUtilizationRatio,omitempty"`
+
+	// ID is the k8s UID of connected storageclient
+	// +optional
+	ID string `json:"clientId,omitempty"`
 }
 
 //+kubebuilder:object:root=true
