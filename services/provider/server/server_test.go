@@ -49,9 +49,9 @@ var clusterResourceQuotaSpec = &quotav1.ClusterResourceQuotaSpec{
 		},
 	},
 	Quota: corev1.ResourceQuotaSpec{
-		Hard: corev1.ResourceList{"requests.storage": *resource.NewScaledQuantity(
-			int64(consumerResource.Spec.StorageQuotaInGiB),
-			resource.Giga,
+		Hard: corev1.ResourceList{"requests.storage": *resource.NewQuantity(
+			int64(consumerResource.Spec.StorageQuotaInGiB)*oneGibInBytes,
+			resource.BinarySI,
 		)},
 	},
 }
@@ -337,8 +337,9 @@ func TestGetExternalResources(t *testing.T) {
 			var clusterResourceQuotaSpec quotav1.ClusterResourceQuotaSpec
 			err = json.Unmarshal([]byte(extResource.Data), &clusterResourceQuotaSpec)
 			assert.NoError(t, err)
-			quantity, _ := resource.ParseQuantity("10240G")
-			assert.Equal(t, clusterResourceQuotaSpec.Quota.Hard["requests.storage"], quantity)
+			expected := resource.NewQuantity(int64(10240)*oneGibInBytes, resource.BinarySI)
+			actual := clusterResourceQuotaSpec.Quota.Hard["requests.storage"]
+			assert.Equal(t, actual.Value(), expected.Value())
 		} else if extResource.Kind == "Noobaa" {
 			var extNoobaaSpec, mockNoobaaSpec nbv1.NooBaaSpec
 			err = json.Unmarshal(extResource.Data, &extNoobaaSpec)
