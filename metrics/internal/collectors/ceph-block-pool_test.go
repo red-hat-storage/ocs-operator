@@ -24,7 +24,11 @@ var (
 			Name:      "mockCephBlockPool-1",
 			Namespace: "openshift-storage",
 		},
-		Spec:   cephv1.NamedBlockPoolSpec{},
+		Spec: cephv1.NamedBlockPoolSpec{
+			PoolSpec: cephv1.PoolSpec{
+				Mirroring: cephv1.MirroringSpec{Enabled: true},
+			},
+		},
 		Status: &cephv1.CephBlockPoolStatus{},
 	}
 	mockCephBlockPool2 = cephv1.CephBlockPool{
@@ -34,6 +38,19 @@ var (
 		},
 		Spec:   cephv1.NamedBlockPoolSpec{},
 		Status: &cephv1.CephBlockPoolStatus{},
+	}
+	mockCephBlockPoolRadosNamespace1 = cephv1.CephBlockPoolRadosNamespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mockCephBlockPoolRadosNamespace",
+			Namespace: "openshift-storage",
+		},
+		Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
+			BlockPoolName: "mockCephBlockPool-1",
+			Mirroring: &cephv1.RadosNamespaceMirroring{
+				Mode: cephv1.RadosNamespaceMirroringModePool,
+			},
+		},
+		Status: &cephv1.CephBlockPoolRadosNamespaceStatus{},
 	}
 )
 
@@ -131,25 +148,25 @@ func TestCollectPoolMirroringImageHealth(t *testing.T) {
 	objOk := mockCephBlockPool1.DeepCopy()
 	objOk.Name = objOk.Name + "ok"
 	objOk.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{PoolMirroringStatus: cephv1.PoolMirroringStatus{Summary: &cephv1.PoolMirroringStatusSummarySpec{ImageHealth: "OK"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "OK"}}},
 	}
 
 	objUnknown := mockCephBlockPool1.DeepCopy()
 	objUnknown.Name = objUnknown.Name + "unknown"
 	objUnknown.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{PoolMirroringStatus: cephv1.PoolMirroringStatus{Summary: &cephv1.PoolMirroringStatusSummarySpec{ImageHealth: "UNKNOWN"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "UNKNOWN"}}},
 	}
 
 	objWarning := mockCephBlockPool1.DeepCopy()
 	objWarning.Name = objWarning.Name + "warning"
 	objWarning.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{PoolMirroringStatus: cephv1.PoolMirroringStatus{Summary: &cephv1.PoolMirroringStatusSummarySpec{ImageHealth: "WARNING"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "WARNING"}}},
 	}
 
 	objError := mockCephBlockPool1.DeepCopy()
 	objError.Name = objError.Name + "error"
 	objError.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{PoolMirroringStatus: cephv1.PoolMirroringStatus{Summary: &cephv1.PoolMirroringStatusSummarySpec{ImageHealth: "ERROR"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "ERROR"}}},
 	}
 
 	tests := Tests{
@@ -203,11 +220,12 @@ func TestCollectPoolMirroringImageHealth(t *testing.T) {
 					}
 				} else if *label.Name == "namespace" {
 					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
+				} else if *label.Name == "rados_namespace" {
+					assert.Contains(t, defaultRadosNamespace, *label.Value)
 				}
 			}
 		}
 	}
-
 }
 
 func TestCollectPoolMirroringStatus(t *testing.T) {
@@ -277,9 +295,201 @@ func TestCollectPoolMirroringStatus(t *testing.T) {
 					}
 				} else if *label.Name == "namespace" {
 					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
+				} else if *label.Name == "rados_namespace" {
+					assert.Contains(t, defaultRadosNamespace, *label.Value)
 				}
 			}
 		}
 	}
 
+}
+
+func TestCollectRadosNamespaceMirroringImageHealth(t *testing.T) {
+	mockOpts.StopCh = make(chan struct{})
+	defer close(mockOpts.StopCh)
+
+	cephBlockPoolCollector := getMockCephBlockPoolCollector(t, mockOpts)
+
+	objOk := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objOk.Name = objOk.Name + "ok"
+	objOk.Status = &cephv1.CephBlockPoolRadosNamespaceStatus{
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "OK"},
+			},
+		},
+	}
+
+	objUnknown := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objUnknown.Name = objUnknown.Name + "unknown"
+	objUnknown.Status = &cephv1.CephBlockPoolRadosNamespaceStatus{
+
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "UNKNOWN"},
+			},
+		},
+	}
+
+	objWarning := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objWarning.Name = objWarning.Name + "warning"
+	objWarning.Status = &cephv1.CephBlockPoolRadosNamespaceStatus{
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "WARNING"},
+			},
+		},
+	}
+
+	objError := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objError.Name = objError.Name + "error"
+	objError.Status = &cephv1.CephBlockPoolRadosNamespaceStatus{
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "ERROR"},
+			},
+		},
+	}
+
+	tests := Tests{
+		{
+			name: "Collect RadosNamespace mirroring image health metrics",
+			args: args{
+				objects: []runtime.Object{
+					objOk,
+					objUnknown,
+					objWarning,
+					objError,
+				},
+			},
+		},
+		{
+			name: "Empty RadosNamespace",
+			args: args{
+				objects: []runtime.Object{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		ch := make(chan prometheus.Metric)
+		metric := dto.Metric{}
+		go func() {
+			var radosNamespaces []*cephv1.CephBlockPoolRadosNamespace
+			for _, obj := range tt.args.objects {
+				radosNamespaces = append(radosNamespaces, obj.(*cephv1.CephBlockPoolRadosNamespace))
+			}
+			cephBlockPoolCollector.collectMirroringImageHealthRadosNamespace(radosNamespaces, ch)
+			close(ch)
+		}()
+
+		for m := range ch {
+			assert.Contains(t, m.Desc().String(), "image_health")
+			metric.Reset()
+			err := m.Write(&metric)
+			assert.Nil(t, err)
+			labels := metric.GetLabel()
+			for _, label := range labels {
+				if *label.Name == "rados_namespace" {
+					if *label.Value == objOk.Spec.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(0))
+					} else if *label.Value == objUnknown.Spec.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(1))
+					} else if *label.Value == objWarning.Spec.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(2))
+					} else if *label.Value == objError.Spec.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(3))
+					}
+				} else if *label.Name == "namespace" {
+					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
+				} else if *label.Name == "name" {
+					assert.Equal(t, *label.Value, objOk.Spec.BlockPoolName)
+				}
+			}
+		}
+	}
+}
+
+func TestCollectRadosNamespaceMirroringStatus(t *testing.T) {
+	mockOpts.StopCh = make(chan struct{})
+	defer close(mockOpts.StopCh)
+
+	cephBlockPoolCollector := getMockCephBlockPoolCollector(t, mockOpts)
+
+	objPoolMode := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objPoolMode.Name = objPoolMode.Name + "pool"
+	objPoolMode.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
+		Mirroring: &cephv1.RadosNamespaceMirroring{
+			Mode: cephv1.RadosNamespaceMirroringModePool,
+		},
+	}
+
+	objImageMode := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objImageMode.Name = objImageMode.Name + "image"
+	objImageMode.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
+		Mirroring: &cephv1.RadosNamespaceMirroring{
+			Mode: cephv1.RadosNamespaceMirroringModeImage,
+		},
+	}
+	objDisabled := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objDisabled.Name = objDisabled.Name + "disabled"
+	objDisabled.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
+		Mirroring: &cephv1.RadosNamespaceMirroring{
+			Mode: "",
+		},
+	}
+	tests := Tests{
+		{
+			name: "Collect RadosNamespace mirroring status",
+			args: args{
+				objects: []runtime.Object{
+					objPoolMode,
+					objImageMode,
+					objDisabled,
+				},
+			},
+		},
+		{
+			name: "Empty RadosNamespace",
+			args: args{
+				objects: []runtime.Object{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		ch := make(chan prometheus.Metric)
+		metric := dto.Metric{}
+		go func() {
+			var radosNamespaces []*cephv1.CephBlockPoolRadosNamespace
+			for _, obj := range tt.args.objects {
+				radosNamespaces = append(radosNamespaces, obj.(*cephv1.CephBlockPoolRadosNamespace))
+			}
+			cephBlockPoolCollector.collectMirroringStatusRadosNamespace(radosNamespaces, ch)
+			close(ch)
+		}()
+
+		for m := range ch {
+			assert.Contains(t, m.Desc().String(), "status")
+			metric.Reset()
+			err := m.Write(&metric)
+			assert.Nil(t, err)
+			labels := metric.GetLabel()
+			for _, label := range labels {
+				if *label.Name == "rados_namespace" {
+					if *label.Value == objPoolMode.Spec.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(1))
+					} else if *label.Value == objImageMode.Spec.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(1))
+					} else if *label.Value == objDisabled.Spec.Name {
+						assert.Equal(t, *metric.Gauge.Value, float64(0))
+					}
+				} else if *label.Name == "namespace" {
+					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
+				} else if *label.Name == "rados_namespace" {
+					assert.Contains(t, objImageMode.Spec.BlockPoolName, *label.Value)
+				}
+			}
+		}
+	}
 }
