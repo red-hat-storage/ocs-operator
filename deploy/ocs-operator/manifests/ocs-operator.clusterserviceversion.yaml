@@ -498,6 +498,7 @@ spec:
           - delete
           - get
           - list
+          - update
           - watch
         - apiGroups:
           - template.openshift.io

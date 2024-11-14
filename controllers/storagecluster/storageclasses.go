@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -198,6 +199,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 			}
 		}
 
+		scRecreated := false
 		existing := &storagev1.StorageClass{}
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 
@@ -230,6 +232,20 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				err = r.Client.Create(context.TODO(), sc)
 				if err != nil {
 					r.Log.Info("Failed to create StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
+					return err
+				}
+				scRecreated = true
+			}
+			if !scRecreated {
+				// Delete existing key rotation annotation and set it on sc only when it is false
+				delete(existing.Annotations, defaults.KeyRotationEnableAnnotation)
+				if krState := sc.GetAnnotations()[defaults.KeyRotationEnableAnnotation]; krState == "false" {
+					util.AddAnnotation(existing, defaults.KeyRotationEnableAnnotation, krState)
+				}
+
+				err = r.Client.Update(context.TODO(), existing)
+				if err != nil {
+					r.Log.Error(err, "Failed to update annotations on the StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 					return err
 				}
 			}
@@ -314,6 +330,9 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	if initData.Spec.ManagedResources.CephBlockPools.DefaultStorageClass {
 		scc.storageClass.Annotations[defaultStorageClassAnnotation] = "true"
 	}
+	if initData.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false" {
+		util.AddAnnotation(scc.storageClass, defaults.KeyRotationEnableAnnotation, "false")
+	}
 	return scc
 }
 
@@ -336,7 +355,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	volumeBindingWaitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
-	return StorageClassConfiguration{
+	scc := StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateNameForNonResilientCephBlockPoolSC(initData),
@@ -366,6 +385,10 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 		},
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
+	if initData.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false" {
+		util.AddAnnotation(scc.storageClass, defaults.KeyRotationEnableAnnotation, "false")
+	}
+	return scc
 }
 
 // newCephNFSStorageClassConfiguration generates configuration options for a Ceph NFS StorageClass.
