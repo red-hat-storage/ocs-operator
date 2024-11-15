@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -30,8 +31,8 @@ const (
 )
 
 var (
-	rbdDriverName    = storageclassDriverNamePrefix + ".rbd.csi.ceph.com"
-	cephFSDriverName = storageclassDriverNamePrefix + ".cephfs.csi.ceph.com"
+	RbdDriverName    = storageclassDriverNamePrefix + ".rbd.csi.ceph.com"
+	CephFSDriverName = storageclassDriverNamePrefix + ".cephfs.csi.ceph.com"
 	nfsDriverName    = storageclassDriverNamePrefix + ".nfs.csi.ceph.com"
 	obcDriverName    = storageclassDriverNamePrefix + ".ceph.rook.io/bucket"
 )
@@ -108,7 +109,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		sc := scc.storageClass
 
 		switch {
-		case (strings.Contains(sc.Name, "-ceph-rbd") || (strings.Contains(sc.Provisioner, rbdDriverName)) && !strings.Contains(sc.Name, "-ceph-non-resilient-rbd")) && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-ceph-rbd") || (strings.Contains(sc.Provisioner, RbdDriverName)) && !strings.Contains(sc.Name, "-ceph-non-resilient-rbd")) && !scc.isClusterExternal:
 			// wait for CephBlockPool to be ready
 			cephBlockPool := cephv1.CephBlockPool{}
 			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: namespace}
@@ -170,7 +171,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-		case (strings.Contains(sc.Name, "-cephfs") || strings.Contains(sc.Provisioner, cephFSDriverName)) && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-cephfs") || strings.Contains(sc.Provisioner, CephFSDriverName)) && !scc.isClusterExternal:
 			// wait for CephFilesystem to be ready
 			cephFilesystem := cephv1.CephFilesystem{}
 			key := types.NamespacedName{Name: sc.Parameters["fsName"], Namespace: namespace}
@@ -198,6 +199,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 			}
 		}
 
+		scRecreated := false
 		existing := &storagev1.StorageClass{}
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
 
@@ -232,6 +234,20 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 					r.Log.Info("Failed to create StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
 					return err
 				}
+				scRecreated = true
+			}
+			if !scRecreated {
+				// Delete existing key rotation annotation and set it on sc only when it is false
+				delete(existing.Annotations, defaults.KeyRotationEnableAnnotation)
+				if krState := sc.GetAnnotations()[defaults.KeyRotationEnableAnnotation]; krState == "false" {
+					util.AddAnnotation(existing, defaults.KeyRotationEnableAnnotation, krState)
+				}
+
+				err = r.Client.Update(context.TODO(), existing)
+				if err != nil {
+					r.Log.Error(err, "Failed to update annotations on the StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
+					return err
+				}
 			}
 		}
 	}
@@ -254,7 +270,7 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 					"description": "Provides RWO and RWX Filesystem volumes",
 				},
 			},
-			Provisioner:   cephFSDriverName,
+			Provisioner:   CephFSDriverName,
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
@@ -289,7 +305,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 					"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 				},
 			},
-			Provisioner:   rbdDriverName,
+			Provisioner:   RbdDriverName,
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
@@ -314,6 +330,9 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	if initData.Spec.ManagedResources.CephBlockPools.DefaultStorageClass {
 		scc.storageClass.Annotations[defaultStorageClassAnnotation] = "true"
 	}
+	if initData.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false" {
+		util.AddAnnotation(scc.storageClass, defaults.KeyRotationEnableAnnotation, "false")
+	}
 	return scc
 }
 
@@ -336,7 +355,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion := true
 	volumeBindingWaitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
-	return StorageClassConfiguration{
+	scc := StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateNameForNonResilientCephBlockPoolSC(initData),
@@ -345,7 +364,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 					"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 				},
 			},
-			Provisioner:       rbdDriverName,
+			Provisioner:       RbdDriverName,
 			ReclaimPolicy:     &persistentVolumeReclaimDelete,
 			VolumeBindingMode: &volumeBindingWaitForFirstConsumer,
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
@@ -366,6 +385,10 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 		},
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
+	if initData.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false" {
+		util.AddAnnotation(scc.storageClass, defaults.KeyRotationEnableAnnotation, "false")
+	}
+	return scc
 }
 
 // newCephNFSStorageClassConfiguration generates configuration options for a Ceph NFS StorageClass.

@@ -218,6 +218,7 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
 	consumerObj.Status.Client.ClusterID = status.GetClusterID()
 	consumerObj.Status.Client.Name = status.GetClientName()
+	consumerObj.Status.Client.ID = status.GetClientID()
 	consumerObj.Status.Client.ClusterName = status.GetClusterName()
 	consumerObj.Status.Client.StorageQuotaUtilizationRatio = status.GetStorageQuotaUtilizationRatio()
 

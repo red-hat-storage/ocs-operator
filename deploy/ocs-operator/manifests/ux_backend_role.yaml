@@ -21,3 +21,10 @@ rules:
   verbs:
   - get
   - list
+  - update
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephblockpools
+  verbs:
+  - create

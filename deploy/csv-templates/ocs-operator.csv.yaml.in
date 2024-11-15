@@ -489,6 +489,7 @@ spec:
           - delete
           - get
           - list
+          - update
           - watch
         - apiGroups:
           - template.openshift.io
@@ -513,6 +514,12 @@ spec:
           - authorization.k8s.io
           resources:
           - subjectaccessreviews
+          verbs:
+          - create
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
           verbs:
           - create
         serviceAccountName: ux-backend-server

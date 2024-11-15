@@ -116,7 +116,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephnfses;cephobjectstores;cephobjectstoreusers;cephrbdmirrors;cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaas,verbs=get;list;watch;create;update;delete
-// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=watch;create;delete;get;list
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=watch;create;update;delete;get;list
 // +kubebuilder:rbac:groups=core,resources=pods;services;serviceaccounts;endpoints;persistentvolumes;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=get;list;watch;create;update;delete
