@@ -61,6 +61,7 @@ const (
 	ramenDRStorageIDKey     = "ramendr.openshift.io/storageID"
 	ramenDRReplicationIDKey = "ramendr.openshift.io/replicationid"
 	ramenDRFlattenModeKey   = "replication.storage.openshift.io/flatten-mode"
+	oneGibInBytes           = 1024 * 1024 * 1024
 )
 
 const (
@@ -407,9 +408,9 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				},
 			},
 			Quota: corev1.ResourceQuotaSpec{
-				Hard: corev1.ResourceList{"requests.storage": *resource.NewScaledQuantity(
-					int64(consumerResource.Spec.StorageQuotaInGiB),
-					resource.Giga,
+				Hard: corev1.ResourceList{"requests.storage": *resource.NewQuantity(
+					int64(consumerResource.Spec.StorageQuotaInGiB)*oneGibInBytes,
+					resource.BinarySI,
 				)},
 			},
 		}
