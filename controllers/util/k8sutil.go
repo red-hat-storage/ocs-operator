@@ -52,6 +52,8 @@ const (
 
 	OdfInfoNamespacedNameClaimName      = "odfinfo.odf.openshift.io"
 	ExitCodeThatShouldRestartTheProcess = 42
+
+	BlockPoolMirroringTargetIDAnnotation = "ocs.openshift.io/mirroring-target-id"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)

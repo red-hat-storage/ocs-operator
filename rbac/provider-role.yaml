@@ -16,6 +16,7 @@ rules:
     resources:
       - cephfilesystemsubvolumegroups
       - cephblockpoolradosnamespaces
+      - cephblockpools
     verbs:
       - get
       - list
