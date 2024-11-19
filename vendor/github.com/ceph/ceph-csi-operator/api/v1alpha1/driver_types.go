@@ -33,8 +33,10 @@ const (
 	MonthlyPeriod PeriodicityType = "monthly"
 )
 
+// +kubebuilder:validation:XValidation:message="Either maxLogSize or periodicity must be set",rule="(has(self.maxLogSize)) || (has(self.periodicity))"
 type LogRotationSpec struct {
 	// MaxFiles is the number of logrtoate files
+	// Default to 7
 	//+kubebuilder:validation:Optional
 	MaxFiles int `json:"maxFiles,omitempty"`
 
@@ -48,6 +50,7 @@ type LogRotationSpec struct {
 	Periodicity PeriodicityType `json:"periodicity,omitempty"`
 
 	// LogHostPath is the prefix directory path for the csi log files
+	// Default to /var/lib/cephcsi
 	//+kubebuilder:validation:Optional
 	LogHostPath string `json:"logHostPath,omitempty"`
 }
@@ -210,6 +213,11 @@ type ControllerPluginSpec struct {
 	// Embedded common pods spec
 	PodCommonSpec `json:",inline"`
 
+	// DeploymentStrategy describes how to replace existing pods with new ones
+	// Default value is RollingUpdate with MaxUnavailable and MaxSurege as 25% (kubernetes default)
+	//+kubebuilder:validation:Optional
+	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
+
 	// Set replicas for controller plugin's deployment. Defaults to 2
 	//+kubebuilder:validation:Optional
 	//+kubebuilder:validation:Minimum:=1
@@ -299,8 +307,8 @@ type DriverSpec struct {
 
 	// OMAP generator will generate the omap mapping between the PV name and the RBD image.
 	// Need to be enabled when we are using rbd mirroring feature.
-	// By default OMAP generator sidecar is deployed with Csi controller plugin pod, to disable
-	// it set it to false.
+	// By default OMAP generator sidecar is not deployed with Csi controller plugin pod, to enable
+	// it set it to true.
 	//+kubebuilder:validation:Optional
 	GenerateOMapInfo *bool `json:"generateOMapInfo,omitempty"`
 

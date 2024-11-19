@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	"math"
 	"net"
 	"slices"
@@ -21,7 +22,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/blang/semver/v4"
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -62,11 +62,8 @@ const (
 	ramenDRReplicationIDKey = "ramendr.openshift.io/replicationid"
 	ramenDRFlattenModeKey   = "replication.storage.openshift.io/flatten-mode"
 	oneGibInBytes           = 1024 * 1024 * 1024
-)
-
-const (
-	monConfigMap = "rook-ceph-mon-endpoints"
-	monSecret    = "rook-ceph-mon"
+	monConfigMap            = "rook-ceph-mon-endpoints"
+	monSecret               = "rook-ceph-mon"
 )
 
 type OCSProviderServer struct {
@@ -421,6 +418,45 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			Data: mustMarshal(clusterResourceQuotaSpec),
 		})
 
+	}
+
+	cbpList := &rookCephv1.CephBlockPoolList{}
+	err = s.client.List(ctx, cbpList, client.InNamespace(s.namespace))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
+	}
+	blockPoolMapping := []csiopv1a1.BlockPoolIdPair{}
+	for i := range cbpList.Items {
+		cephBlockPool := &cbpList.Items[i]
+		remoteBlockPoolID := cephBlockPool.GetAnnotations()[util.BlockPoolMirroringTargetIDAnnotation]
+		if remoteBlockPoolID != "" {
+			localBlockPoolID := strconv.Itoa(cephBlockPool.Status.PoolID)
+			blockPoolMapping = append(
+				blockPoolMapping,
+				csiopv1a1.BlockPoolIdPair{localBlockPoolID, remoteBlockPoolID},
+			)
+		}
+	}
+
+	if len(blockPoolMapping) > 0 {
+		// This is an assumption and should go away when deprecating the StorageClaim API
+		// The current proposal is to read the clientProfile name from the storageConsumer status and
+		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
+		clientName := consumerResource.Status.Client.Name
+		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
+		extR = append(extR, &pb.ExternalResource{
+			Name: consumerResource.Status.Client.Name,
+			Kind: "ClientProfileMapping",
+			Data: mustMarshal(&csiopv1a1.ClientProfileMappingSpec{
+				Mappings: []csiopv1a1.MappingsSpec{
+					{
+						LocalClientProfile:  clientProfileName,
+						RemoteClientProfile: clientProfileName,
+						BlockPoolIdMapping:  blockPoolMapping,
+					},
+				},
+			}),
+		})
 	}
 
 	// Fetch noobaa remote secret and management address and append to extResources
