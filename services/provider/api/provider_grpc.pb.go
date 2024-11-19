@@ -39,6 +39,7 @@ type OCSProviderClient interface {
 	ReportStatus(ctx context.Context, in *ReportStatusRequest, opts ...grpc.CallOption) (*ReportStatusResponse, error)
 	// PeerStorageCluster RPC call to Peer the local Storage Cluster to the remote
 	PeerStorageCluster(ctx context.Context, in *PeerStorageClusterRequest, opts ...grpc.CallOption) (*PeerStorageClusterResponse, error)
+	RequestMaintenanceMode(ctx context.Context, in *RequestMaintenanceModeRequest, opts ...grpc.CallOption) (*RequestMaintenanceModeResponse, error)
 }
 
 type oCSProviderClient struct {
@@ -130,6 +131,15 @@ func (c *oCSProviderClient) PeerStorageCluster(ctx context.Context, in *PeerStor
 	return out, nil
 }
 
+func (c *oCSProviderClient) RequestMaintenanceMode(ctx context.Context, in *RequestMaintenanceModeRequest, opts ...grpc.CallOption) (*RequestMaintenanceModeResponse, error) {
+	out := new(RequestMaintenanceModeResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/RequestMaintenanceMode", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OCSProviderServer is the server API for OCSProvider service.
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
@@ -155,6 +165,7 @@ type OCSProviderServer interface {
 	ReportStatus(context.Context, *ReportStatusRequest) (*ReportStatusResponse, error)
 	// PeerStorageCluster RPC call to Peer the local Storage Cluster to the remote
 	PeerStorageCluster(context.Context, *PeerStorageClusterRequest) (*PeerStorageClusterResponse, error)
+	RequestMaintenanceMode(context.Context, *RequestMaintenanceModeRequest) (*RequestMaintenanceModeResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
 
@@ -188,6 +199,9 @@ func (UnimplementedOCSProviderServer) ReportStatus(context.Context, *ReportStatu
 }
 func (UnimplementedOCSProviderServer) PeerStorageCluster(context.Context, *PeerStorageClusterRequest) (*PeerStorageClusterResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PeerStorageCluster not implemented")
+}
+func (UnimplementedOCSProviderServer) RequestMaintenanceMode(context.Context, *RequestMaintenanceModeRequest) (*RequestMaintenanceModeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestMaintenanceMode not implemented")
 }
 func (UnimplementedOCSProviderServer) mustEmbedUnimplementedOCSProviderServer() {}
 
@@ -364,6 +378,24 @@ func _OCSProvider_PeerStorageCluster_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OCSProvider_RequestMaintenanceMode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestMaintenanceModeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).RequestMaintenanceMode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/RequestMaintenanceMode",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).RequestMaintenanceMode(ctx, req.(*RequestMaintenanceModeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OCSProvider_ServiceDesc is the grpc.ServiceDesc for OCSProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -406,6 +438,10 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PeerStorageCluster",
 			Handler:    _OCSProvider_PeerStorageCluster_Handler,
+		},
+		{
+			MethodName: "RequestMaintenanceMode",
+			Handler:    _OCSProvider_RequestMaintenanceMode_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
