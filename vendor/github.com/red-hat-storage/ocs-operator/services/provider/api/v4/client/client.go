@@ -227,3 +227,19 @@ func (cc *OCSProviderClient) PeerStorageCluster(ctx context.Context, onboardingT
 
 	return cc.Client.PeerStorageCluster(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) RequestMaintenanceMode(ctx context.Context, consumerUUID string, enable bool) (*pb.RequestMaintenanceModeResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.RequestMaintenanceModeRequest{
+		StorageConsumerUUID: consumerUUID,
+		Enable:              enable,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.RequestMaintenanceMode(apiCtx, req)
+}
