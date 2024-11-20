@@ -97,49 +97,49 @@ spec:
         severity: critical
     - alert: OdfPoolMirroringImageHealth
       annotations:
-        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} and rados namespace {{ $labels.rados_namespace }} are in
           Unknown state for more than 1m. Mirroring might not work as expected in
           namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Unknown
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} and rados namespace {{ $labels.rados_namespace }} are in Unknown
           state in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
           }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
       for: 1m
       labels:
         mirroring_image_status: unknown
         severity: warning
     - alert: OdfPoolMirroringImageHealth
       annotations:
-        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} and rados namespace {{ $labels.rados_namespace }} are in
           Warning state for more than 1m. Mirroring might not work as expected in
           namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Warning
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} and rados namespace {{ $labels.rados_namespace }} are in Warning
           state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: warning
         storage_type: ceph
-      expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
-      for: 1m
-      labels:
-        mirroring_image_status: warning
-        severity: warning
+        expr: |
+          (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
+        for: 1m
+        labels:
+          mirroring_image_status: warning
+          severity: warning
     - alert: OdfPoolMirroringImageHealth
       annotations:
-        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in
+        description: Mirroring image(s) (PV) in the pool {{ $labels.name }} and rados namespace {{ $labels.rados_namespace }} are in
           Error state for more than 10s. Mirroring is not working as expected in namespace:cluster
           {{ $labels.namespace }}:{{ $labels.managedBy }}.
-        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} are in Error
+        message: Mirroring image(s) (PV) in the pool {{ $labels.name }} and rados namespace {{ $labels.rados_namespace }} are in Error
           state for cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: error
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy) group_left() (max by(namespace, managedBy) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
       for: 10s
       labels:
         mirroring_image_status: error
@@ -407,13 +407,19 @@ spec:
     - alert: MDSCPUUsageHigh
       annotations:
         description: |-
-          Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage.
-          Please consider increasing the CPU request for the {{ $labels.pod }} pod as described in the runbook.
+          Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
+          {{if query "rate(ceph_mds_request[6h]) >= 1000"}} and cannot cope
+          up with the current rate of mds requests. Please consider Horizontal
+          scaling, by adding another MDS pod{{else}}. Please consider Vertical
+          scaling, by adding more resources to the existing MDS pod{{end}}.
+          Please see 'runbook_url' for more details.
         message: Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
-        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHigh.md
+        runbook_url: '{{if query "rate(ceph_mds_request[6h]) >= 1000"}}https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHighNeedsHorizontalScaling.md
+        {{else}}https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHighNeedsVerticalScaling.md
+        {{end}}'
         severity_level: warning
       expr: |
-        pod:container_cpu_usage:sum{pod=~"rook-ceph-mds.*"}/ on(pod) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-mds.*"} > 0.67
+        label_replace(pod:container_cpu_usage:sum{pod=~"rook-ceph-mds.*"}/ on(pod, namespace) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-mds.*"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") + on (ceph_daemon, namespace) group_left(managedBy) (0 * (ceph_mds_metadata ==1)) > 0.67
       for: 6h
       labels:
         severity: warning
