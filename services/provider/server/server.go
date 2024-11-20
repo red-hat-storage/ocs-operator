@@ -226,17 +226,28 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, err
 		}
 
+		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumerObj,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+			inMaintenanceMode,
 		)
 
 		klog.Infof("successfully returned the config details to the consumer.")
 		return &pb.StorageConfigResponse{
-			ExternalResource:  conString,
-			DesiredConfigHash: desiredClientConfigHash,
-		}, nil
+				ExternalResource:  conString,
+				DesiredConfigHash: desiredClientConfigHash,
+				SystemAttributes: &pb.SystemAttributes{
+					SystemInMaintenanceMode: inMaintenanceMode,
+				},
+			},
+			nil
 	}
 
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
@@ -987,10 +998,17 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, err
 	}
 
+	inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+		inMaintenanceMode,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -999,13 +1017,8 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	}, nil
 }
 
-func getDesiredClientConfigHash(channelName string, storageConsumer *ocsv1alpha1.StorageConsumer, encryptionInTransit bool) string {
-	var arr = []any{
-		channelName,
-		storageConsumer.Spec.StorageQuotaInGiB,
-		encryptionInTransit,
-	}
-	return util.CalculateMD5Hash(arr)
+func getDesiredClientConfigHash(parts ...any) string {
+	return util.CalculateMD5Hash(parts)
 }
 
 func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
@@ -1078,4 +1091,35 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 	}
 
 	return &pb.PeerStorageClusterResponse{}, nil
+}
+
+func (s *OCSProviderServer) RequestMaintenanceMode(ctx context.Context, req *pb.RequestMaintenanceModeRequest) (*pb.RequestMaintenanceModeResponse, error) {
+	// Get storage consumer resource using UUID
+	if req.Enable {
+		err := s.consumerManager.AddAnnotation(ctx, req.StorageConsumerUUID, util.RequestMaintenanceModeAnnotation, "")
+		if err != nil {
+			klog.Error(err)
+			return nil, fmt.Errorf("failed to request Maintenance Mode for storageConsumer")
+		}
+	} else {
+		err := s.consumerManager.RemoveAnnotation(ctx, req.StorageConsumerUUID, util.RequestMaintenanceModeAnnotation)
+		if err != nil {
+			klog.Error(err)
+			return nil, fmt.Errorf("failed to disable Maintenance Mode for storageConsumer")
+		}
+	}
+
+	return &pb.RequestMaintenanceModeResponse{}, nil
+}
+
+func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {
+	// found - false, not found - true
+	cephRBDMirrors := &rookCephv1.CephRBDMirror{}
+	cephRBDMirrors.Name = util.CephRBDMirrorName
+	cephRBDMirrors.Namespace = s.namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(cephRBDMirrors), cephRBDMirrors)
+	if client.IgnoreNotFound(err) != nil {
+		return false, err
+	}
+	return kerrors.IsNotFound(err), nil
 }

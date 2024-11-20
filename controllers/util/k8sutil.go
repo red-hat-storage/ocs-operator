@@ -54,6 +54,8 @@ const (
 	ExitCodeThatShouldRestartTheProcess = 42
 
 	BlockPoolMirroringTargetIDAnnotation = "ocs.openshift.io/mirroring-target-id"
+	RequestMaintenanceModeAnnotation     = "ocs.openshift.io/request-maintenance-mode"
+	CephRBDMirrorName                    = "cephrbdmirror"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
