@@ -7,15 +7,18 @@ import (
 	"strconv"
 	"testing"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
-	quotav1 "github.com/openshift/api/quota/v1"
-	routev1 "github.com/openshift/api/route/v1"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	quotav1 "github.com/openshift/api/quota/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -661,9 +664,14 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			"ceph-rbd-volumereplicationclass": {
 				Name: "ceph-rbd",
 				Kind: "VolumeReplicationClass",
-				Data: map[string]string{
-					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-					"mirroringMode": "snapshot",
+				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
+					Parameters: map[string]string{
+						"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+						"mirroringMode":      "snapshot",
+						"schedulingInterval": "5m",
+						"clusterID":          "03fa88943ffe9c61edd453f583b37e79",
+					},
+					Provisioner: util.RbdDriverName,
 				},
 				Labels: map[string]string{
 					"ramendr.openshift.io/replicationid": "block-pool-claim",
@@ -676,10 +684,15 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			"ceph-rbd-flatten-volumereplicationclass": {
 				Name: "ceph-rbd-flatten",
 				Kind: "VolumeReplicationClass",
-				Data: map[string]string{
-					"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-					"mirroringMode": "snapshot",
-					"flattenMode":   "force",
+				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
+					Parameters: map[string]string{
+						"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+						"mirroringMode":      "snapshot",
+						"flattenMode":        "force",
+						"schedulingInterval": "5m",
+						"clusterID":          "03fa88943ffe9c61edd453f583b37e79",
+					},
+					Provisioner: util.RbdDriverName,
 				},
 				Labels: map[string]string{
 					"replication.storage.openshift.io/flatten-mode": "force",
