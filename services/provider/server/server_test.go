@@ -666,7 +666,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"mirroringMode": "snapshot",
 				},
 				Labels: map[string]string{
-					"ramendr.openshift.io/replicationid": "",
+					"ramendr.openshift.io/replicationid": "block-pool-claim",
 					"ramendr.openshift.io/storageID":     "8d40b6be71600457b5dec219d2ce2d4c",
 				},
 				Annotations: map[string]string{
@@ -683,7 +683,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				},
 				Labels: map[string]string{
 					"replication.storage.openshift.io/flatten-mode": "force",
-					"ramendr.openshift.io/replicationid":            "",
+					"ramendr.openshift.io/replicationid":            "block-pool-claim",
 					"ramendr.openshift.io/storageID":                "8d40b6be71600457b5dec219d2ce2d4c",
 				},
 				Annotations: map[string]string{},
