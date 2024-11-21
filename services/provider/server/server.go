@@ -681,10 +681,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 		return nil, status.Errorf(codes.Internal, "failed to get StorageClusterPeerList. %v", err)
 	}
 	replicationEnabled := len(scp.Items) > 0
-	var replicationID string
-	if replicationEnabled {
-		replicationID = util.CalculateMD5Hash(req.StorageClaimName)
-	}
+	replicationID := req.StorageClaimName
 
 	var extR []*pb.ExternalResource
 
