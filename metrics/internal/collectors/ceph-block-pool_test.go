@@ -148,25 +148,49 @@ func TestCollectPoolMirroringImageHealth(t *testing.T) {
 	objOk := mockCephBlockPool1.DeepCopy()
 	objOk.Name = objOk.Name + "ok"
 	objOk.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "OK"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{
+					ImageHealth: "OK",
+				},
+			},
+		},
 	}
 
 	objUnknown := mockCephBlockPool1.DeepCopy()
 	objUnknown.Name = objUnknown.Name + "unknown"
 	objUnknown.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "UNKNOWN"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{
+					ImageHealth: "UNKNOWN",
+				},
+			},
+		},
 	}
 
 	objWarning := mockCephBlockPool1.DeepCopy()
 	objWarning.Name = objWarning.Name + "warning"
 	objWarning.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "WARNING"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{
+					ImageHealth: "WARNING",
+				},
+			},
+		},
 	}
 
 	objError := mockCephBlockPool1.DeepCopy()
 	objError.Name = objError.Name + "error"
 	objError.Status = &cephv1.CephBlockPoolStatus{
-		MirroringStatus: &cephv1.MirroringStatusSpec{MirroringStatus: cephv1.MirroringStatus{Summary: &cephv1.MirroringStatusSummarySpec{ImageHealth: "ERROR"}}},
+		MirroringStatus: &cephv1.MirroringStatusSpec{
+			MirroringStatus: cephv1.MirroringStatus{
+				Summary: &cephv1.MirroringStatusSummarySpec{
+					ImageHealth: "ERROR",
+				},
+			},
+		},
 	}
 
 	tests := Tests{

@@ -43,6 +43,9 @@ service OCSProvider {
   rpc PeerStorageCluster(PeerStorageClusterRequest)
   returns (PeerStorageClusterResponse) {}
 
+  rpc RequestMaintenanceMode(RequestMaintenanceModeRequest)
+  returns (RequestMaintenanceModeResponse) {}
+
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -84,12 +87,18 @@ message ExternalResource {
     map<string, string> Annotations = 5;
 }
 
+message SystemAttributes {
+  bool SystemInMaintenanceMode = 1;
+}
+
 // StorageConfigResponse holds the response for the GetStorageConfig API request
 message StorageConfigResponse{
     // ExternalResource holds the configuration data of external storage cluster
     repeated ExternalResource externalResource = 1;
     // Contains hash of desired config
     string desiredConfigHash = 2;
+
+    SystemAttributes systemAttributes = 3;
 }
 
 
@@ -187,7 +196,6 @@ message ReportStatusResponse{
     string desiredClientOperatorChannel = 1;
     // Contains hash of desired config
     string desiredConfigHash = 2;
-    
 }
 
 // PeerStorageClusterRequest holds the required information to Peer to remote StorageCluster
@@ -200,3 +208,12 @@ message PeerStorageClusterRequest{
 
 // PeerStorageClusterResponse holds the response for OnboardStorageClusterPeer API request
 message PeerStorageClusterResponse{}
+
+message RequestMaintenanceModeRequest{
+  // K8s UID (UUID) of the consumer cluster.
+  string storageConsumerUUID = 1;
+
+  bool enable = 2;
+}
+
+message RequestMaintenanceModeResponse{}

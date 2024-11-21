@@ -17,6 +17,7 @@ rules:
       - cephfilesystemsubvolumegroups
       - cephblockpoolradosnamespaces
       - cephblockpools
+      - cephrbdmirrors
     verbs:
       - get
       - list

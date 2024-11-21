@@ -8,6 +8,8 @@ import (
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -226,5 +228,45 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
 	}
 	klog.Infof("successfully updated Status for StorageConsumer %v", consumerObj.Name)
+	return nil
+}
+
+func (c *ocsConsumerManager) AddAnnotation(ctx context.Context, id string, annotation, value string) error {
+	consumerObj, err := c.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if util.AddAnnotation(consumerObj, annotation, value) {
+		if err = c.client.Update(ctx, consumerObj); err != nil {
+			return fmt.Errorf(
+				"failed to add annotation %s to StorageConsumer %v: %v",
+				annotation,
+				consumerObj.Name,
+				err,
+			)
+		}
+	}
+	return nil
+}
+
+func (c *ocsConsumerManager) RemoveAnnotation(ctx context.Context, id string, annotation string) error {
+	consumerObj, err := c.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	_, hasAnnotation := consumerObj.GetAnnotations()[annotation]
+	if hasAnnotation {
+		delete(consumerObj.GetAnnotations(), annotation)
+		if err = c.client.Update(ctx, consumerObj); err != nil {
+			return fmt.Errorf(
+				"failed to remove annotation %s from StorageConsumer %v: %v",
+				annotation,
+				consumerObj.Name,
+				err,
+			)
+		}
+	}
 	return nil
 }

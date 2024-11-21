@@ -2583,7 +2583,7 @@ spec:
                       other network providers.
 
                       Valid keys are "public" and "cluster". Refer to Ceph networking documentation for more:
-                      https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/
+                      https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/
 
                       Refer to Multus network annotation documentation for help selecting values:
                       https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation
