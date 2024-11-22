@@ -58,12 +58,13 @@ const (
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
 	notAvailable              = "N/A"
 
-	ramenDRStorageIDKey     = "ramendr.openshift.io/storageID"
-	ramenDRReplicationIDKey = "ramendr.openshift.io/replicationid"
-	ramenDRFlattenModeKey   = "replication.storage.openshift.io/flatten-mode"
-	oneGibInBytes           = 1024 * 1024 * 1024
-	monConfigMap            = "rook-ceph-mon-endpoints"
-	monSecret               = "rook-ceph-mon"
+	ramenDRStorageIDKey              = "ramendr.openshift.io/storageID"
+	ramenDRReplicationIDKey          = "ramendr.openshift.io/replicationid"
+	ramenDRFlattenModeKey            = "replication.storage.openshift.io/flatten-mode"
+	oneGibInBytes                    = 1024 * 1024 * 1024
+	monConfigMap                     = "rook-ceph-mon-endpoints"
+	monSecret                        = "rook-ceph-mon"
+	volumeReplicationClass5mSchedule = "5m"
 )
 
 type OCSProviderServer struct {
@@ -816,14 +817,14 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					}),
 					Labels: getExternalResourceLabels("VolumeGroupSnapshotClass", mirroringEnabled, false, replicationID, storageID)},
 				&pb.ExternalResource{
-					Name: "ceph-rbd",
+					Name: fmt.Sprintf("rbd-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
 					Kind: "VolumeReplicationClass",
 					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
 						Parameters: map[string]string{
 							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
 							"mirroringMode": "snapshot",
 							// This is a temporary fix till we get the replication schedule to ocs-operator
-							"schedulingInterval": "5m",
+							"schedulingInterval": volumeReplicationClass5mSchedule,
 							"clusterID":          clientProfile,
 						},
 						Provisioner: util.RbdDriverName,
@@ -834,7 +835,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					},
 				},
 				&pb.ExternalResource{
-					Name: "ceph-rbd-flatten",
+					Name: fmt.Sprintf("rbd-flatten-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
 					Kind: "VolumeReplicationClass",
 					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
 						Parameters: map[string]string{
@@ -842,7 +843,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 							"mirroringMode": "snapshot",
 							"flattenMode":   "force",
 							// This is a temporary fix till we get the replication schedule to ocs-operator
-							"schedulingInterval": "5m",
+							"schedulingInterval": volumeReplicationClass5mSchedule,
 							"clusterID":          clientProfile,
 						},
 						Provisioner: util.RbdDriverName,

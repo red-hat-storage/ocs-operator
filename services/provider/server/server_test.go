@@ -661,8 +661,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"ramendr.openshift.io/storageID": "8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
-			"ceph-rbd-volumereplicationclass": {
-				Name: "ceph-rbd",
+			"rbd-volumereplicationclass-1625360775": {
+				Name: "rbd-volumereplicationclass-1625360775",
 				Kind: "VolumeReplicationClass",
 				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
 					Parameters: map[string]string{
@@ -681,8 +681,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"replication.storage.openshift.io/is-default-class": "true",
 				},
 			},
-			"ceph-rbd-flatten-volumereplicationclass": {
-				Name: "ceph-rbd-flatten",
+			"rbd-flatten-volumereplicationclass-1625360775": {
+				Name: "rbd-flatten-volumereplicationclass-1625360775",
 				Kind: "VolumeReplicationClass",
 				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
 					Parameters: map[string]string{
@@ -1103,8 +1103,6 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
 			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
-		} else if extResource.Kind == "VolumeReplicationClass" {
-			name = fmt.Sprintf("%s-volumereplicationclass", name)
 		} else if extResource.Kind == "ClientProfile" {
 			name = fmt.Sprintf("%s-clientprofile", name)
 		}
