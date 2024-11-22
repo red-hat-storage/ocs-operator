@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	"math"
 	"net"
 	"slices"
@@ -19,12 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/utils/ptr"
-
-	"github.com/blang/semver/v4"
-	quotav1 "github.com/openshift/api/quota/v1"
-	routev1 "github.com/openshift/api/route/v1"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
@@ -32,11 +25,15 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	quotav1 "github.com/openshift/api/quota/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -45,9 +42,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -731,6 +731,8 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	replicationEnabled := len(scp.Items) > 0
 	replicationID := req.StorageClaimName
 
+	clientProfile := util.CalculateMD5Hash(req.StorageClaimName)
+
 	var extR []*pb.ExternalResource
 
 	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
@@ -816,9 +818,15 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				&pb.ExternalResource{
 					Name: "ceph-rbd",
 					Kind: "VolumeReplicationClass",
-					Data: mustMarshal(map[string]string{
-						"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
-						"mirroringMode": "snapshot",
+					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
+						Parameters: map[string]string{
+							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+							"mirroringMode": "snapshot",
+							// This is a temporary fix till we get the replication schedule to ocs-operator
+							"schedulingInterval": "5m",
+							"clusterID":          clientProfile,
+						},
+						Provisioner: util.RbdDriverName,
 					}),
 					Labels: getExternalResourceLabels("VolumeReplicationClass", mirroringEnabled, false, replicationID, storageID),
 					Annotations: map[string]string{
@@ -828,10 +836,16 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				&pb.ExternalResource{
 					Name: "ceph-rbd-flatten",
 					Kind: "VolumeReplicationClass",
-					Data: mustMarshal(map[string]string{
-						"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
-						"mirroringMode": "snapshot",
-						"flattenMode":   "force",
+					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
+						Parameters: map[string]string{
+							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+							"mirroringMode": "snapshot",
+							"flattenMode":   "force",
+							// This is a temporary fix till we get the replication schedule to ocs-operator
+							"schedulingInterval": "5m",
+							"clusterID":          clientProfile,
+						},
+						Provisioner: util.RbdDriverName,
 					}),
 					Labels:      getExternalResourceLabels("VolumeReplicationClass", mirroringEnabled, true, replicationID, storageID),
 					Annotations: map[string]string{},

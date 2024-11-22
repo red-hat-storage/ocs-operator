@@ -25,16 +25,6 @@ import (
 const (
 	storageClassSkippedError      = "some StorageClasses were skipped while waiting for pre-requisites to be met"
 	defaultStorageClassAnnotation = "storageclass.kubernetes.io/is-default-class"
-
-	//storage class driver name prefix
-	storageclassDriverNamePrefix = "openshift-storage"
-)
-
-var (
-	RbdDriverName    = storageclassDriverNamePrefix + ".rbd.csi.ceph.com"
-	CephFSDriverName = storageclassDriverNamePrefix + ".cephfs.csi.ceph.com"
-	nfsDriverName    = storageclassDriverNamePrefix + ".nfs.csi.ceph.com"
-	obcDriverName    = storageclassDriverNamePrefix + ".ceph.rook.io/bucket"
 )
 
 // StorageClassConfiguration provides configuration options for a StorageClass.
@@ -109,7 +99,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 		sc := scc.storageClass
 
 		switch {
-		case (strings.Contains(sc.Name, "-ceph-rbd") || (strings.Contains(sc.Provisioner, RbdDriverName)) && !strings.Contains(sc.Name, "-ceph-non-resilient-rbd")) && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-ceph-rbd") || (strings.Contains(sc.Provisioner, util.RbdDriverName)) && !strings.Contains(sc.Name, "-ceph-non-resilient-rbd")) && !scc.isClusterExternal:
 			// wait for CephBlockPool to be ready
 			cephBlockPool := cephv1.CephBlockPool{}
 			key := types.NamespacedName{Name: sc.Parameters["pool"], Namespace: namespace}
@@ -171,7 +161,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-		case (strings.Contains(sc.Name, "-cephfs") || strings.Contains(sc.Provisioner, CephFSDriverName)) && !scc.isClusterExternal:
+		case (strings.Contains(sc.Name, "-cephfs") || strings.Contains(sc.Provisioner, util.CephFSDriverName)) && !scc.isClusterExternal:
 			// wait for CephFilesystem to be ready
 			cephFilesystem := cephv1.CephFilesystem{}
 			key := types.NamespacedName{Name: sc.Parameters["fsName"], Namespace: namespace}
@@ -184,7 +174,7 @@ func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfi
 				skippedSC = append(skippedSC, sc.Name)
 				continue
 			}
-		case strings.Contains(sc.Name, "-nfs") || strings.Contains(sc.Provisioner, nfsDriverName):
+		case strings.Contains(sc.Name, "-nfs") || strings.Contains(sc.Provisioner, util.NfsDriverName):
 			// wait for CephNFS to be ready
 			cephNFS := cephv1.CephNFS{}
 			key := types.NamespacedName{Name: sc.Parameters["nfsCluster"], Namespace: namespace}
@@ -270,7 +260,7 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 					"description": "Provides RWO and RWX Filesystem volumes",
 				},
 			},
-			Provisioner:   CephFSDriverName,
+			Provisioner:   util.CephFSDriverName,
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
@@ -305,7 +295,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 					"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 				},
 			},
-			Provisioner:   RbdDriverName,
+			Provisioner:   util.RbdDriverName,
 			ReclaimPolicy: &persistentVolumeReclaimDelete,
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
@@ -364,7 +354,7 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 					"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 				},
 			},
-			Provisioner:       RbdDriverName,
+			Provisioner:       util.RbdDriverName,
 			ReclaimPolicy:     &persistentVolumeReclaimDelete,
 			VolumeBindingMode: &volumeBindingWaitForFirstConsumer,
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
@@ -403,7 +393,7 @@ func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 					"description": "Provides RWO and RWX Filesystem volumes",
 				},
 			},
-			Provisioner:          nfsDriverName,
+			Provisioner:          util.NfsDriverName,
 			ReclaimPolicy:        &persistentVolumeReclaimDelete,
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
@@ -449,7 +439,7 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 					"description": "Provides Object Bucket Claims (OBCs)",
 				},
 			},
-			Provisioner:   obcDriverName,
+			Provisioner:   util.ObcDriverName,
 			ReclaimPolicy: &reclaimPolicy,
 			Parameters: map[string]string{
 				"objectStoreNamespace": initData.Namespace,
