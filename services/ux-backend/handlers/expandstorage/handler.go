@@ -7,8 +7,9 @@ import (
 	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	storagecluster "github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -188,7 +189,7 @@ func createCephBlockPoolStorageClass(w http.ResponseWriter, r *http.Request, cli
 				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 			},
 		},
-		Provisioner:       storagecluster.RbdDriverName,
+		Provisioner:       util.RbdDriverName,
 		ReclaimPolicy:     (*corev1.PersistentVolumeReclaimPolicy)(&reclaimPolicy),
 		VolumeBindingMode: (*storagev1.VolumeBindingMode)(&volumeBindingMode),
 		// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
@@ -260,7 +261,7 @@ func createCephFilesystemStorageClass(w http.ResponseWriter, r *http.Request, cl
 				"description": "Provides RWO and RWX Filesystem volumes",
 			},
 		},
-		Provisioner:       storagecluster.CephFSDriverName,
+		Provisioner:       util.CephFSDriverName,
 		ReclaimPolicy:     (*corev1.PersistentVolumeReclaimPolicy)(&reclaimPolicy),
 		VolumeBindingMode: (*storagev1.VolumeBindingMode)(&volumeBindingMode),
 		// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes

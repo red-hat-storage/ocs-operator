@@ -116,26 +116,12 @@ func findNamedResourceFromArray(extArr []ExternalResource, name string) (Externa
 	return ExternalResource{}, fmt.Errorf("Unable to retrieve %q external resource", name)
 }
 
-func (r *StorageClusterReconciler) externalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
+func (r *StorageClusterReconciler) getExternalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
 	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
 	if err != nil {
 		return "", err
 	}
 	return sha512sum(found.Data[externalClusterDetailsKey])
-}
-
-func (r *StorageClusterReconciler) sameExternalSecretData(instance *ocsv1.StorageCluster) bool {
-	extSecretChecksum, err := r.externalSecretDataChecksum(instance)
-	if err != nil {
-		return false
-	}
-	// if the 'ExternalSecretHash' and fetched hash are same, then return true
-	if instance.Status.ExternalSecretHash == extSecretChecksum {
-		return true
-	}
-	// at this point the checksums are different, so update it
-	instance.Status.ExternalSecretHash = extSecretChecksum
-	return false
 }
 
 // retrieveSecret function retrieves the secret object with the specified name
@@ -263,7 +249,14 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 	}
 	externalOCSResources[instance.UID] = data
 
-	if r.sameExternalSecretData(instance) {
+	extSecretChecksum, err := r.getExternalSecretDataChecksum(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to get checksum of external secret data.")
+		return reconcile.Result{}, err
+	}
+
+	// if the 'ExternalSecretHash' and fetched hash are same, then return
+	if instance.Status.ExternalSecretHash == extSecretChecksum {
 		return reconcile.Result{}, nil
 	}
 
@@ -272,6 +265,9 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 		r.Log.Error(err, "Could not create ExternalStorageClusterResource.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		return reconcile.Result{}, err
 	}
+
+	// external resources are successfully created, update the checksums in the status
+	instance.Status.ExternalSecretHash = extSecretChecksum
 	return reconcile.Result{}, nil
 }
 

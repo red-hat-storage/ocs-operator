@@ -13,6 +13,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20241119082218-62dc94e55c32
 	github.com/ceph/ceph-csi/api v0.0.0-20241119113434-d457840d2183
+	github.com/csi-addons/kubernetes-csi-addons v0.10.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
