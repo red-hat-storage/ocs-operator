@@ -46,7 +46,7 @@ import (
 const (
 	// internalKey is a special key for storage-client-mapping to establish mirroring between blockPools for internal mode
 	internalKey        = "internal"
-	mirroringFinalizer = "mirroring.ocs.openshift.io"
+	mirroringFinalizer = "ocs.openshift.io/mirroring"
 	clientIDIndexName  = "clientID"
 )
 
@@ -429,7 +429,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 	ocsClient *providerClient.OCSProviderClient,
 	clientMappingConfig *corev1.ConfigMap,
 	storageClusterPeer *ocsv1.StorageClusterPeer,
-	disableMirroring bool,
+	shouldMirror bool,
 ) bool {
 	/*
 		Algorithm:
@@ -520,13 +520,13 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			remoteClientID := clientMappingConfig.Data[consumer.Status.Client.ID]
 			remoteNamespace := remoteNamespaceByClientID[remoteClientID]
 			_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
-				if remoteNamespace == "" || disableMirroring {
-					rns.Spec.Mirroring = nil
-				} else {
+				if remoteNamespace != "" && shouldMirror {
 					rns.Spec.Mirroring = &rookCephv1.RadosNamespaceMirroring{
 						RemoteNamespace: ptr.To(remoteNamespace),
 						Mode:            "image",
 					}
+				} else {
+					rns.Spec.Mirroring = nil
 				}
 				return nil
 			})
