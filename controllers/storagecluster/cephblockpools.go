@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -149,6 +150,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "metadata")
+		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
@@ -197,6 +199,8 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
+		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
+
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
 	if err != nil {

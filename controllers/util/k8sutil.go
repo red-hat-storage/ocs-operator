@@ -3,16 +3,18 @@ package util
 import (
 	"context"
 	"fmt"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strings"
+	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
 	"github.com/go-logr/logr"
 	configv1 "github.com/openshift/api/config/v1"
+	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,15 +49,20 @@ const (
 	EnableNFSKey                = "ROOK_CSI_ENABLE_NFS"
 	DisableCSIDriverKey         = "ROOK_CSI_DISABLE_DRIVER"
 
-	// This is the name for the OwnerUID FieldIndex
-	OwnerUIDIndexName = "ownerUID"
+	// This is the name for the FieldIndex
+	OwnerUIDIndexName   = "ownerUID"
+	AnnotationIndexName = "annotation"
 
 	OdfInfoNamespacedNameClaimName      = "odfinfo.odf.openshift.io"
 	ExitCodeThatShouldRestartTheProcess = 42
 
+	//ForbidMirroringLabel is used to forbid mirroring for ceph resources such as CephBlockPool
+	ForbidMirroringLabel                 = "ocs.openshift.io/forbid-mirroring"
 	BlockPoolMirroringTargetIDAnnotation = "ocs.openshift.io/mirroring-target-id"
 	RequestMaintenanceModeAnnotation     = "ocs.openshift.io/request-maintenance-mode"
 	CephRBDMirrorName                    = "cephrbdmirror"
+	OcsClientTimeout                     = 10 * time.Second
+	StorageClientMappingConfigName       = "storage-client-mapping"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
@@ -165,6 +172,10 @@ func OwnersIndexFieldFunc(obj client.Object) []string {
 		owners = append(owners, string(refs[i].UID))
 	}
 	return owners
+}
+
+func AnnotationIndexFieldFunc(obj client.Object) []string {
+	return maps.Keys(obj.GetAnnotations())
 }
 
 func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
