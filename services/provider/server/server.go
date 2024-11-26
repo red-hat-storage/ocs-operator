@@ -65,6 +65,7 @@ const (
 	monConfigMap                     = "rook-ceph-mon-endpoints"
 	monSecret                        = "rook-ceph-mon"
 	volumeReplicationClass5mSchedule = "5m"
+	mirroringTokenKey                = "rbdMirrorBootstrapPeerSecretName"
 )
 
 type OCSProviderServer struct {
@@ -1122,6 +1123,136 @@ func (s *OCSProviderServer) RequestMaintenanceMode(ctx context.Context, req *pb.
 	}
 
 	return &pb.RequestMaintenanceModeResponse{}, nil
+}
+
+func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.StorageClientsInfoRequest) (*pb.StorageClientsInfoResponse, error) {
+	klog.Infof("GetStorageClientsInfo called with request: %s", req)
+
+	response := &pb.StorageClientsInfoResponse{}
+	for i := range req.ClientIDs {
+		consumer, err := s.consumerManager.GetByClientID(ctx, req.ClientIDs[i])
+		if err != nil {
+			klog.Errorf("failed to get consumer with client id %v: %v", req.ClientIDs[i], err)
+			response.Errors = append(response.Errors,
+				&pb.StorageClientInfoError{
+					ClientID: req.ClientIDs[i],
+					Code:     pb.ErrorCode_Internal,
+					Message:  "failed loading client information",
+				},
+			)
+		}
+		if consumer == nil {
+			klog.Infof("no consumer found with client id %v", req.ClientIDs[i])
+			continue
+		}
+
+		owner := util.FindOwnerRefByKind(consumer, "StorageCluster")
+		if owner == nil {
+			klog.Infof("no owner found for consumer %v", req.ClientIDs[i])
+			continue
+		}
+
+		if owner.UID != types.UID(req.StorageClusterUID) {
+			klog.Infof("storageCluster specified on the req does not own the client %v", req.ClientIDs[i])
+			continue
+		}
+
+		rnsList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
+		err = s.client.List(
+			ctx,
+			rnsList,
+			client.InNamespace(s.namespace),
+			client.MatchingLabels{controllers.StorageConsumerNameLabel: consumer.Name},
+			client.Limit(2),
+		)
+		if err != nil {
+			response.Errors = append(response.Errors,
+				&pb.StorageClientInfoError{
+					ClientID: req.ClientIDs[i],
+					Code:     pb.ErrorCode_Internal,
+					Message:  "failed loading client information",
+				},
+			)
+			klog.Error(err)
+			continue
+		}
+		if len(rnsList.Items) > 1 {
+			response.Errors = append(response.Errors,
+				&pb.StorageClientInfoError{
+					ClientID: req.ClientIDs[i],
+					Code:     pb.ErrorCode_Internal,
+					Message:  "failed loading client information",
+				},
+			)
+			klog.Errorf("invalid number of radosnamespace found for the Client %v", req.ClientIDs[i])
+			continue
+		}
+		clientInfo := &pb.ClientInfo{ClientID: req.ClientIDs[i]}
+		if len(rnsList.Items) == 1 {
+			clientInfo.RadosNamespace = rnsList.Items[0].Name
+		}
+		response.ClientsInfo = append(response.ClientsInfo, clientInfo)
+	}
+
+	return response, nil
+}
+
+func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.BlockPoolsInfoRequest) (*pb.BlockPoolsInfoResponse, error) {
+	klog.Infof("GetBlockPoolsInfo called with request: %s", req)
+
+	response := &pb.BlockPoolsInfoResponse{}
+	for i := range req.BlockPoolNames {
+		cephBlockPool := &rookCephv1.CephBlockPool{}
+		cephBlockPool.Name = req.BlockPoolNames[i]
+		cephBlockPool.Namespace = s.namespace
+		err := s.client.Get(ctx, client.ObjectKeyFromObject(cephBlockPool), cephBlockPool)
+		if kerrors.IsNotFound(err) {
+			klog.Infof("blockpool %v not found", cephBlockPool.Name)
+			continue
+		} else if err != nil {
+			klog.Errorf("failed to get blockpool %v: %v", cephBlockPool.Name, err)
+			response.Errors = append(response.Errors,
+				&pb.BlockPoolInfoError{
+					BlockPoolName: cephBlockPool.Name,
+					Code:          pb.ErrorCode_Internal,
+					Message:       "failed loading block pool information",
+				},
+			)
+		}
+
+		var mirroringToken string
+		if cephBlockPool.Spec.Mirroring.Enabled &&
+			cephBlockPool.Status.Info != nil &&
+			cephBlockPool.Status.Info[mirroringTokenKey] != "" {
+			secret := &corev1.Secret{}
+			secret.Name = cephBlockPool.Status.Info[mirroringTokenKey]
+			secret.Namespace = s.namespace
+			err := s.client.Get(ctx, client.ObjectKeyFromObject(secret), secret)
+			if kerrors.IsNotFound(err) {
+				klog.Infof("bootstrap secret %v for blockpool %v not found", secret.Name, cephBlockPool.Name)
+				continue
+			} else if err != nil {
+				errMsg := fmt.Sprintf(
+					"failed to get bootstrap secret %s for CephBlockPool %s: %v",
+					cephBlockPool.Status.Info[mirroringTokenKey],
+					cephBlockPool.Name,
+					err,
+				)
+				klog.Error(errMsg)
+				continue
+			}
+			mirroringToken = string(secret.Data["token"])
+		}
+
+		response.BlockPoolsInfo = append(response.BlockPoolsInfo, &pb.BlockPoolInfo{
+			BlockPoolName:  cephBlockPool.Name,
+			MirroringToken: mirroringToken,
+			BlockPoolID:    strconv.Itoa(cephBlockPool.Status.PoolID),
+		})
+
+	}
+
+	return response, nil
 }
 
 func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {

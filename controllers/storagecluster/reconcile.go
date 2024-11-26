@@ -408,6 +408,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		return reconcile.Result{}, err
 	}
 
+	if res, err := r.ownStorageConsumersInNamespace(instance); err != nil || !res.IsZero() {
+		return reconcile.Result{}, err
+	}
+
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
@@ -810,6 +814,29 @@ func (r *StorageClusterReconciler) ownStorageClusterPeersInNamespace(instance *o
 			err = r.Client.Update(r.ctx, scp)
 			if err != nil {
 				return reconcile.Result{}, fmt.Errorf("failed to persist StorageCluster owner ref on StorageClusterPeer %v: %w", scp.Name, err)
+			}
+		}
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *StorageClusterReconciler) ownStorageConsumersInNamespace(instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	storageConsumerList := &ocsv1alpha1.StorageConsumerList{}
+	err := r.Client.List(r.ctx, storageConsumerList, client.InNamespace(instance.Namespace))
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to list storageConsumer: %w", err)
+	}
+	for i := range storageConsumerList.Items {
+		scp := &storageConsumerList.Items[i]
+		lenOwners := len(scp.OwnerReferences)
+		err := controllerutil.SetOwnerReference(instance, scp, r.Scheme)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to set owner reference on storageConsumer %v: %w", scp.Name, err)
+		}
+		if lenOwners != len(scp.OwnerReferences) {
+			err = r.Client.Update(r.ctx, scp)
+			if err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to persist StorageCluster owner ref on storageConsumer %v: %w", scp.Name, err)
 			}
 		}
 	}

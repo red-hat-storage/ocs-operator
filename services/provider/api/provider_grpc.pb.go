@@ -40,6 +40,10 @@ type OCSProviderClient interface {
 	// PeerStorageCluster RPC call to Peer the local Storage Cluster to the remote
 	PeerStorageCluster(ctx context.Context, in *PeerStorageClusterRequest, opts ...grpc.CallOption) (*PeerStorageClusterResponse, error)
 	RequestMaintenanceMode(ctx context.Context, in *RequestMaintenanceModeRequest, opts ...grpc.CallOption) (*RequestMaintenanceModeResponse, error)
+	// GetStorageClientsInfo RPC call to get StorageClientInfo for Peer Storage Client
+	GetStorageClientsInfo(ctx context.Context, in *StorageClientsInfoRequest, opts ...grpc.CallOption) (*StorageClientsInfoResponse, error)
+	// GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
+	GetBlockPoolsInfo(ctx context.Context, in *BlockPoolsInfoRequest, opts ...grpc.CallOption) (*BlockPoolsInfoResponse, error)
 }
 
 type oCSProviderClient struct {
@@ -140,6 +144,24 @@ func (c *oCSProviderClient) RequestMaintenanceMode(ctx context.Context, in *Requ
 	return out, nil
 }
 
+func (c *oCSProviderClient) GetStorageClientsInfo(ctx context.Context, in *StorageClientsInfoRequest, opts ...grpc.CallOption) (*StorageClientsInfoResponse, error) {
+	out := new(StorageClientsInfoResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/GetStorageClientsInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oCSProviderClient) GetBlockPoolsInfo(ctx context.Context, in *BlockPoolsInfoRequest, opts ...grpc.CallOption) (*BlockPoolsInfoResponse, error) {
+	out := new(BlockPoolsInfoResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/GetBlockPoolsInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OCSProviderServer is the server API for OCSProvider service.
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
@@ -166,6 +188,10 @@ type OCSProviderServer interface {
 	// PeerStorageCluster RPC call to Peer the local Storage Cluster to the remote
 	PeerStorageCluster(context.Context, *PeerStorageClusterRequest) (*PeerStorageClusterResponse, error)
 	RequestMaintenanceMode(context.Context, *RequestMaintenanceModeRequest) (*RequestMaintenanceModeResponse, error)
+	// GetStorageClientsInfo RPC call to get StorageClientInfo for Peer Storage Client
+	GetStorageClientsInfo(context.Context, *StorageClientsInfoRequest) (*StorageClientsInfoResponse, error)
+	// GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
+	GetBlockPoolsInfo(context.Context, *BlockPoolsInfoRequest) (*BlockPoolsInfoResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
 
@@ -202,6 +228,12 @@ func (UnimplementedOCSProviderServer) PeerStorageCluster(context.Context, *PeerS
 }
 func (UnimplementedOCSProviderServer) RequestMaintenanceMode(context.Context, *RequestMaintenanceModeRequest) (*RequestMaintenanceModeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestMaintenanceMode not implemented")
+}
+func (UnimplementedOCSProviderServer) GetStorageClientsInfo(context.Context, *StorageClientsInfoRequest) (*StorageClientsInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStorageClientsInfo not implemented")
+}
+func (UnimplementedOCSProviderServer) GetBlockPoolsInfo(context.Context, *BlockPoolsInfoRequest) (*BlockPoolsInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlockPoolsInfo not implemented")
 }
 func (UnimplementedOCSProviderServer) mustEmbedUnimplementedOCSProviderServer() {}
 
@@ -396,6 +428,42 @@ func _OCSProvider_RequestMaintenanceMode_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OCSProvider_GetStorageClientsInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorageClientsInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).GetStorageClientsInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/GetStorageClientsInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).GetStorageClientsInfo(ctx, req.(*StorageClientsInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OCSProvider_GetBlockPoolsInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlockPoolsInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).GetBlockPoolsInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/GetBlockPoolsInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).GetBlockPoolsInfo(ctx, req.(*BlockPoolsInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OCSProvider_ServiceDesc is the grpc.ServiceDesc for OCSProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -442,6 +510,14 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestMaintenanceMode",
 			Handler:    _OCSProvider_RequestMaintenanceMode_Handler,
+		},
+		{
+			MethodName: "GetStorageClientsInfo",
+			Handler:    _OCSProvider_GetStorageClientsInfo_Handler,
+		},
+		{
+			MethodName: "GetBlockPoolsInfo",
+			Handler:    _OCSProvider_GetBlockPoolsInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

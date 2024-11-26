@@ -270,3 +270,18 @@ func (c *ocsConsumerManager) RemoveAnnotation(ctx context.Context, id string, an
 	}
 	return nil
 }
+
+func (c *ocsConsumerManager) GetByClientID(ctx context.Context, clientID string) (*ocsv1alpha1.StorageConsumer, error) {
+	consumerObjList := &ocsv1alpha1.StorageConsumerList{}
+	err := c.client.List(ctx, consumerObjList, client.InNamespace(c.namespace))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list storageConsumer objects: %v", err)
+	}
+	for i := range consumerObjList.Items {
+		consumer := consumerObjList.Items[i]
+		if consumer.Status.Client.ID == clientID {
+			return &consumer, nil
+		}
+	}
+	return nil, nil
+}
