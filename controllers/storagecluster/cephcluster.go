@@ -461,6 +461,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
+				"mgr":     getPlacement(sc, "mgr"),
 				"mon":     getPlacement(sc, "mon"),
 				"arbiter": getPlacement(sc, "arbiter"),
 			},
@@ -768,7 +769,6 @@ func getMonCount(sc *ocsv1.StorageCluster) int {
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
 func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
-	topologyMap := sc.Status.NodeTopologies
 
 	var storageClassDeviceSets []rookCephv1.StorageClassDeviceSet
 
@@ -781,24 +781,12 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 		portable := ds.Portable
 
 		topologyKey := ds.TopologyKey
-		topologyKeyValues := []string{}
+		if topologyKey == "" {
+			topologyKey = sc.Status.FailureDomainKey
+		}
 
 		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil && ds.Placement.TopologySpreadConstraints == nil
 		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil && ds.PreparePlacement.TopologySpreadConstraints == nil
-
-		if noPlacement {
-			if topologyKey == "" {
-				topologyKey = getFailureDomain(sc)
-			}
-
-			if topologyKey == "host" {
-				portable = false
-			}
-
-			if topologyMap != nil {
-				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
-			}
-		}
 
 		count, replica := countAndReplicaOf(&ds)
 		for i := 0; i < replica; i++ {
@@ -812,37 +800,28 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 				if noPreparePlacement {
 					in := getPlacement(sc, "osd-prepare")
 					(&in).DeepCopyInto(&preparePlacement)
-				}
-
-				if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
-					// Hard constraints are set in OSD placement for portable volumes with rack failure domain
-					// domain as there is no node affinity in PVs. This restricts the movement of OSDs
-					// between failure domain.
-					if portable && !strings.Contains(topologyKey, "zone") {
-						addStrictFailureDomainTSC(&placement, topologyKey)
-					}
-					// If topologyKey is not host, append additional topology spread constraint to the
-					// default preparePlacement. This serves even distribution at the host level
-					// within a failure domain (zone/rack).
-					if noPreparePlacement {
-						if topologyKey != corev1.LabelHostname {
-							addStrictFailureDomainTSC(&preparePlacement, topologyKey)
-						} else {
-							preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
-						}
-					}
-				}
-
-				if !noPreparePlacement {
+				} else {
 					preparePlacement = ds.PreparePlacement
 				}
-			} else if !noPlacement && noPreparePlacement {
-				preparePlacement = ds.Placement
-				placement = ds.Placement
 			} else {
-				preparePlacement = ds.PreparePlacement
 				placement = ds.Placement
+				if noPreparePlacement {
+					preparePlacement = ds.Placement
+				} else {
+					preparePlacement = ds.PreparePlacement
+				}
 			}
+
+			// for osd & osd-prepare we always need to add TSCs if not present, to ensure their even distribution
+			if len(placement.TopologySpreadConstraints) == 0 {
+				placement.TopologySpreadConstraints = defaults.DaemonPlacements["osd"].TopologySpreadConstraints
+			}
+			if len(preparePlacement.TopologySpreadConstraints) == 0 {
+				preparePlacement.TopologySpreadConstraints = defaults.DaemonPlacements["osd-prepare"].TopologySpreadConstraints
+			}
+			// Add another TSC which is a hard constraint which restricts the movement of OSDs between failure domains
+			addStrictFailureDomainTSC(&placement, topologyKey)
+			addStrictFailureDomainTSC(&preparePlacement, topologyKey)
 
 			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
 			crushDeviceClass := ds.DeviceType
