@@ -96,6 +96,7 @@ message ExternalResource {
 
 message SystemAttributes {
   bool SystemInMaintenanceMode = 1;
+  bool MirrorEnabled = 2;
 }
 
 // StorageConfigResponse holds the response for the GetStorageConfig API request
