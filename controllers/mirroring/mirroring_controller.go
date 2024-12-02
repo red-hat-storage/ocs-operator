@@ -16,7 +16,6 @@ package mirroring
 import (
 	"context"
 	"fmt"
-	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"golang.org/x/exp/maps"
 	"k8s.io/utils/ptr"
 	"slices"
@@ -25,6 +24,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	providerClient "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client"
+	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
@@ -119,7 +119,12 @@ func (r *MirroringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&ocsv1alpha1.StorageConsumer{},
 			enqueueConfigMapRequest,
-			generationChangePredicate,
+			builder.WithPredicates(
+				predicate.Or(
+					predicate.AnnotationChangedPredicate{},
+					predicate.GenerationChangedPredicate{},
+				),
+			),
 		).
 		Watches(
 			&rookCephv1.CephBlockPool{},
