@@ -234,11 +234,18 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
 		}
 
+		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumerObj)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumerObj,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
+			isConsumerMirrorEnabled,
 		)
 
 		klog.Infof("successfully returned the config details to the consumer.")
@@ -247,6 +254,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 				DesiredConfigHash: desiredClientConfigHash,
 				SystemAttributes: &pb.SystemAttributes{
 					SystemInMaintenanceMode: inMaintenanceMode,
+					MirrorEnabled:           isConsumerMirrorEnabled,
 				},
 			},
 			nil
@@ -1017,11 +1025,18 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
 	}
 
+	isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, storageConsumer)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
+		isConsumerMirrorEnabled,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -1265,4 +1280,16 @@ func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool
 		return false, err
 	}
 	return kerrors.IsNotFound(err), nil
+}
+
+func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (bool, error) {
+	clientMappingConfig := &corev1.ConfigMap{}
+	clientMappingConfig.Name = util.StorageClientMappingConfigName
+	clientMappingConfig.Name = s.namespace
+
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(clientMappingConfig), clientMappingConfig); err != nil {
+		return false, client.IgnoreNotFound(err)
+	}
+
+	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
 }
