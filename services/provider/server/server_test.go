@@ -625,6 +625,9 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			"ceph-rbd-storageclass": {
 				Name: "ceph-rbd",
 				Kind: "StorageClass",
+				Labels: map[string]string{
+					"ramendr.openshift.io/storageid": "8d40b6be71600457b5dec219d2ce2d4c",
+				},
 				Data: map[string]string{
 					"clusterID":                 serverNamespace,
 					"pool":                      "cephblockpool",
@@ -636,34 +639,39 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-8d40b6be71600457b5dec219d2ce2d4c",
 					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
-				Labels: map[string]string{
-					"ramendr.openshift.io/storageID": "8d40b6be71600457b5dec219d2ce2d4c",
-				},
 			},
 			"ceph-rbd-volumesnapshotclass": {
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
-				Data: map[string]string{
-					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-				},
 				Labels: map[string]string{
 
-					"ramendr.openshift.io/storageID": "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/storageid": "8d40b6be71600457b5dec219d2ce2d4c",
+				},
+				Data: map[string]string{
+					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
 			"ceph-rbd-volumegroupsnapshotclass": {
 				Name: "ceph-rbd",
 				Kind: "VolumeGroupSnapshotClass",
+				Labels: map[string]string{
+					"ramendr.openshift.io/storageid": "8d40b6be71600457b5dec219d2ce2d4c",
+				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
-				},
-				Labels: map[string]string{
-					"ramendr.openshift.io/storageID": "8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
 			"rbd-volumereplicationclass-1625360775": {
 				Name: "rbd-volumereplicationclass-1625360775",
 				Kind: "VolumeReplicationClass",
+				Labels: map[string]string{
+					"ramendr.openshift.io/replicationid":    "block-pool-claim",
+					"ramendr.openshift.io/storageid":        "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/maintenancemodes": "Failover",
+				},
+				Annotations: map[string]string{
+					"replication.storage.openshift.io/is-default-class": "true",
+				},
 				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
 					Parameters: map[string]string{
 						"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
@@ -673,17 +681,16 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					},
 					Provisioner: util.RbdDriverName,
 				},
-				Labels: map[string]string{
-					"ramendr.openshift.io/replicationid": "block-pool-claim",
-					"ramendr.openshift.io/storageID":     "8d40b6be71600457b5dec219d2ce2d4c",
-				},
-				Annotations: map[string]string{
-					"replication.storage.openshift.io/is-default-class": "true",
-				},
 			},
 			"rbd-flatten-volumereplicationclass-1625360775": {
 				Name: "rbd-flatten-volumereplicationclass-1625360775",
 				Kind: "VolumeReplicationClass",
+				Labels: map[string]string{
+					"replication.storage.openshift.io/flatten-mode": "force",
+					"ramendr.openshift.io/replicationid":            "block-pool-claim",
+					"ramendr.openshift.io/storageid":                "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/maintenancemodes":         "Failover",
+				},
 				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
 					Parameters: map[string]string{
 						"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
@@ -694,12 +701,6 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					},
 					Provisioner: util.RbdDriverName,
 				},
-				Labels: map[string]string{
-					"replication.storage.openshift.io/flatten-mode": "force",
-					"ramendr.openshift.io/replicationid":            "block-pool-claim",
-					"ramendr.openshift.io/storageID":                "8d40b6be71600457b5dec219d2ce2d4c",
-				},
-				Annotations: map[string]string{},
 			},
 			"ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c": {
 				Name: "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
@@ -732,6 +733,9 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 			"cephfs-storageclass": {
 				Name: "cephfs",
 				Kind: "StorageClass",
+				Labels: map[string]string{
+					"ramendr.openshift.io/storageid": "0e8555e6556f70d23a61675af44e880c",
+				},
 				Data: map[string]string{
 					"clusterID":          "8d26c7378c1b0ec9c2455d1c3601c4cd",
 					"fsName":             "myfs",
@@ -741,24 +745,27 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/node-stage-secret-name":        "ceph-client-node-0e8555e6556f70d23a61675af44e880c",
 					"csi.storage.k8s.io/controller-expand-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
-				Labels: map[string]string{},
 			},
 			"cephfs-volumesnapshotclass": {
 				Name: "cephfs",
 				Kind: "VolumeSnapshotClass",
+				Labels: map[string]string{
+					"ramendr.openshift.io/storageid": "0e8555e6556f70d23a61675af44e880c",
+				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
-				Labels: map[string]string{},
 			},
 
 			"cephfs-volumegroupsnapshotclass": {
 				Name: "cephfs",
 				Kind: "VolumeGroupSnapshotClass",
+				Labels: map[string]string{
+					"ramendr.openshift.io/storageid": "0e8555e6556f70d23a61675af44e880c",
+				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
-				Labels: map[string]string{},
 			},
 			"ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c": {
 				Name: "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
