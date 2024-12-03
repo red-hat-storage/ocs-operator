@@ -56,6 +56,7 @@ const (
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
 	notAvailable              = "N/A"
+	oneGibInBytes             = 1024 * 1024 * 1024
 )
 
 const (
@@ -370,9 +371,9 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				},
 			},
 			Quota: corev1.ResourceQuotaSpec{
-				Hard: corev1.ResourceList{"requests.storage": *resource.NewScaledQuantity(
-					int64(consumerResource.Spec.StorageQuotaInGiB),
-					resource.Giga,
+				Hard: corev1.ResourceList{"requests.storage": *resource.NewQuantity(
+					int64(consumerResource.Spec.StorageQuotaInGiB)*oneGibInBytes,
+					resource.BinarySI,
 				)},
 			},
 		}
