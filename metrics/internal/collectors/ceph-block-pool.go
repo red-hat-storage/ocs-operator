@@ -205,10 +205,9 @@ func (c *CephBlockPoolCollector) collectMirroringImageHealthRadosNamespace(rados
 	for _, radosNamespace := range radosNamespace {
 		var imageHealth string
 
-		if !(radosNamespace.Spec.Mirroring.Mode == cephv1.RadosNamespaceMirroringModePool || radosNamespace.Spec.Mirroring.Mode == cephv1.RadosNamespaceMirroringModeImage) {
+		if radosNamespace.Spec.Mirroring == nil {
 			continue
 		}
-
 		mirroringStatus := radosNamespace.Status.MirroringStatus
 		if mirroringStatus == nil || mirroringStatus.Summary == nil || len(strings.TrimSpace(mirroringStatus.Summary.ImageHealth)) == 0 {
 			klog.Errorf("Mirroring is enabled on CephBlockPoolRadosNamespace %q but image health status is not available.", radosNamespace.Name)
@@ -244,19 +243,17 @@ func (c *CephBlockPoolCollector) collectMirroringImageHealthRadosNamespace(rados
 
 func (c *CephBlockPoolCollector) collectMirroringStatusRadosNamespace(radosNamespace []*cephv1.CephBlockPoolRadosNamespace, ch chan<- prometheus.Metric) {
 	for _, cephBlockPool := range radosNamespace {
-		switch cephBlockPool.Spec.Mirroring.Mode {
-		case cephv1.RadosNamespaceMirroringModePool:
-			fallthrough
-		case cephv1.RadosNamespaceMirroringModeImage:
+		if cephBlockPool.Spec.Mirroring != nil {
 			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
 				prometheus.GaugeValue, 1,
 				cephBlockPool.Spec.BlockPoolName,
 				cephBlockPool.Namespace, cephBlockPool.Name)
-		default:
+		} else {
 			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
 				prometheus.GaugeValue, 0,
 				cephBlockPool.Spec.BlockPoolName,
 				cephBlockPool.Namespace, cephBlockPool.Name)
+
 		}
 	}
 }
