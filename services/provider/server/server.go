@@ -58,9 +58,10 @@ const (
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
 	notAvailable              = "N/A"
 
-	ramenDRStorageIDKey              = "ramendr.openshift.io/storageID"
-	ramenDRReplicationIDKey          = "ramendr.openshift.io/replicationid"
-	ramenDRFlattenModeKey            = "replication.storage.openshift.io/flatten-mode"
+	ramenDRStorageIDLabelKey         = "ramendr.openshift.io/storageid"
+	ramenDRReplicationIDLabelKey     = "ramendr.openshift.io/replicationid"
+	ramenDRFlattenModeLabelKey       = "replication.storage.openshift.io/flatten-mode"
+	ramenMaintenanceModeLabelKey     = "ramendr.openshift.io/maintenancemodes"
 	oneGibInBytes                    = 1024 * 1024 * 1024
 	monConfigMap                     = "rook-ceph-mon-endpoints"
 	monSecret                        = "rook-ceph-mon"
@@ -733,14 +734,6 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 		}
 	}
 
-	// fetch storage cluster peer to indicate whether replication is enabled
-	scp := &ocsv1.StorageClusterPeerList{}
-	if err = s.client.List(ctx, scp, client.InNamespace(s.namespace)); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get StorageClusterPeerList. %v", err)
-	}
-	replicationEnabled := len(scp.Items) > 0
-	replicationID := req.StorageClaimName
-
 	clientProfile := util.CalculateMD5Hash(req.StorageClaimName)
 
 	var extR []*pb.ExternalResource
@@ -748,6 +741,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
 	// SID for RamenDR
 	storageID := storageRequestHash
+	replicationID := req.StorageClaimName
 
 	for _, cephRes := range storageRequest.Status.CephResources {
 		switch cephRes.Kind {
@@ -785,7 +779,6 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", cephRes.Name, err)
 			}
-			mirroringEnabled := rns.Spec.Mirroring != nil
 			provisionerSecretName := storageClaimCephCsiSecretName("provisioner", storageRequestHash)
 			nodeSecretName := storageClaimCephCsiSecretName("node", storageRequestHash)
 			rbdStorageClassData := map[string]string{
@@ -806,28 +799,44 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 
 			extR = append(extR,
 				&pb.ExternalResource{
-					Name:   "ceph-rbd",
-					Kind:   "StorageClass",
-					Data:   mustMarshal(rbdStorageClassData),
-					Labels: getExternalResourceLabels("StorageClass", mirroringEnabled, false, replicationID, storageID),
+					Name: "ceph-rbd",
+					Kind: "StorageClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: storageID,
+					},
+					Data: mustMarshal(rbdStorageClassData),
 				},
 				&pb.ExternalResource{
 					Name: "ceph-rbd",
 					Kind: "VolumeSnapshotClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: storageID,
+					},
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
 					}),
-					Labels: getExternalResourceLabels("VolumeSnapshotClass", mirroringEnabled, false, replicationID, storageID)},
+				},
 				&pb.ExternalResource{
 					Name: "ceph-rbd",
 					Kind: "VolumeGroupSnapshotClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: storageID,
+					},
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
 					}),
-					Labels: getExternalResourceLabels("VolumeGroupSnapshotClass", mirroringEnabled, false, replicationID, storageID)},
+				},
 				&pb.ExternalResource{
 					Name: fmt.Sprintf("rbd-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
 					Kind: "VolumeReplicationClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey:     storageID,
+						ramenDRReplicationIDLabelKey: replicationID,
+						ramenMaintenanceModeLabelKey: "Failover",
+					},
+					Annotations: map[string]string{
+						"replication.storage.openshift.io/is-default-class": "true",
+					},
 					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
 						Parameters: map[string]string{
 							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
@@ -838,14 +847,16 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 						},
 						Provisioner: util.RbdDriverName,
 					}),
-					Labels: getExternalResourceLabels("VolumeReplicationClass", mirroringEnabled, false, replicationID, storageID),
-					Annotations: map[string]string{
-						"replication.storage.openshift.io/is-default-class": "true",
-					},
 				},
 				&pb.ExternalResource{
 					Name: fmt.Sprintf("rbd-flatten-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
 					Kind: "VolumeReplicationClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey:     storageID,
+						ramenDRReplicationIDLabelKey: replicationID,
+						ramenMaintenanceModeLabelKey: "Failover",
+						ramenDRFlattenModeLabelKey:   "force",
+					},
 					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
 						Parameters: map[string]string{
 							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
@@ -857,8 +868,6 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 						},
 						Provisioner: util.RbdDriverName,
 					}),
-					Labels:      getExternalResourceLabels("VolumeReplicationClass", mirroringEnabled, true, replicationID, storageID),
-					Annotations: map[string]string{},
 				},
 				&pb.ExternalResource{
 					Kind: "ClientProfile",
@@ -904,10 +913,12 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 
 			extR = append(extR,
 				&pb.ExternalResource{
-					Name:   "cephfs",
-					Kind:   "StorageClass",
-					Data:   mustMarshal(cephfsStorageClassData),
-					Labels: getExternalResourceLabels("StorageClass", replicationEnabled, false, replicationID, storageID),
+					Name: "cephfs",
+					Kind: "StorageClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: storageID,
+					},
+					Data: mustMarshal(cephfsStorageClassData),
 				},
 				&pb.ExternalResource{
 					Name: cephRes.Name,
@@ -918,18 +929,22 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				&pb.ExternalResource{
 					Name: "cephfs",
 					Kind: "VolumeSnapshotClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: storageID,
+					},
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
 					}),
-					Labels: getExternalResourceLabels("VolumeSnapshotClass", replicationEnabled, false, replicationID, storageID),
 				},
 				&pb.ExternalResource{
 					Name: "cephfs",
 					Kind: "VolumeGroupSnapshotClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: storageID,
+					},
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
 					}),
-					Labels: getExternalResourceLabels("VolumeGroupSnapshotClass", replicationEnabled, false, replicationID, storageID),
 				},
 				&pb.ExternalResource{
 					Kind: "ClientProfile",
@@ -947,33 +962,6 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
 	return &pb.StorageClaimConfigResponse{ExternalResource: extR}, nil
 
-}
-
-func getExternalResourceLabels(kind string, isMirroringReplicationEnabled bool, isFlattenMode bool,
-	replicationID string, storageID string) map[string]string {
-	labels := make(map[string]string)
-	switch kind {
-	case "VolumeReplicationClass", "VolumeGroupReplicationClass":
-		if isMirroringReplicationEnabled {
-			labels[ramenDRReplicationIDKey] = replicationID
-			if isFlattenMode {
-				labels[ramenDRFlattenModeKey] = "force"
-			}
-			labels[ramenDRStorageIDKey] = storageID
-		}
-	case "VolumeSnapshotClass", "VolumeGroupSnapshotClass":
-		if isMirroringReplicationEnabled {
-			labels[ramenDRStorageIDKey] = storageID
-		}
-	case "StorageClass":
-		if isMirroringReplicationEnabled {
-			labels[ramenDRStorageIDKey] = storageID
-		}
-
-	default:
-		panic(fmt.Sprintf("unknown storage class kind %q", kind))
-	}
-	return labels
 }
 
 // ReportStatus rpc call to check if a consumer can reach to the provider.
