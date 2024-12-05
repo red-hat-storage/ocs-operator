@@ -45,9 +45,10 @@ import (
 
 const (
 	// internalKey is a special key for storage-client-mapping to establish mirroring between blockPools for internal mode
-	internalKey        = "internal"
-	mirroringFinalizer = "ocs.openshift.io/mirroring"
-	clientIDIndexName  = "clientID"
+	internalKey                     = "internal"
+	mirroringFinalizer              = "ocs.openshift.io/mirroring"
+	clientIDIndexName               = "clientID"
+	storageClusterPeerAnnotationKey = "ocs.openshift.io/storage-cluster-peer"
 )
 
 // MirroringReconciler reconciles a Mirroring fields for Ceph Object(s)
@@ -184,20 +185,18 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 	}
 
 	// Fetch the StorageClusterPeer instance
-	storageClusterPeerList := &ocsv1.StorageClusterPeerList{}
-	if err := r.list(
-		storageClusterPeerList,
-		client.InNamespace(clientMappingConfig.Namespace),
-		client.Limit(2),
-	); err != nil {
+	if clientMappingConfig.GetAnnotations()[storageClusterPeerAnnotationKey] == "" {
+		return ctrl.Result{}, fmt.Errorf("storageClusterPeer reference not found")
+	}
+
+	storageClusterPeer := &ocsv1.StorageClusterPeer{}
+	storageClusterPeer.Name = clientMappingConfig.GetAnnotations()[storageClusterPeerAnnotationKey]
+	storageClusterPeer.Namespace = clientMappingConfig.Namespace
+
+	if err := r.get(storageClusterPeer); err != nil {
 		r.log.Error(err, "Failed to get StorageClusterPeer.")
 		return ctrl.Result{}, err
 	}
-	if len(storageClusterPeerList.Items) != 1 {
-		return ctrl.Result{}, fmt.Errorf("expected 1 StorageClusterPeer but got %d", len(storageClusterPeerList.Items))
-	}
-
-	storageClusterPeer := &storageClusterPeerList.Items[0]
 
 	if storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePeered ||
 		storageClusterPeer.Status.PeerInfo == nil ||
