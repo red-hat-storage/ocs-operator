@@ -233,12 +233,18 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&extv1.CustomResourceDefinition{},
 			enqueueStorageClusterRequest,
 			builder.WithPredicates(
-				util.NamePredicate(VirtualMachineCrdName),
-				util.CrdCreateAndDeletePredicate(&r.Log, VirtualMachineCrdName, r.AvailableCrds[VirtualMachineCrdName]),
-			),
-			builder.WithPredicates(
-				util.NamePredicate(StorageClientCrdName),
-				util.CrdCreateAndDeletePredicate(&r.Log, StorageClientCrdName, r.AvailableCrds[StorageClientCrdName]),
+				predicate.Or(
+					util.NamePredicate(VirtualMachineCrdName),
+					util.NamePredicate(StorageClientCrdName),
+				),
+				util.EventTypePredicate(
+					// the values in the below map are filled before controller watches are setup and these conditions
+					// will just be evaluated to a boolean by the time builder completes setting up watches.
+					!r.AvailableCrds[VirtualMachineCrdName] || !r.AvailableCrds[StorageClientCrdName],
+					false,
+					true,
+					false,
+				),
 			),
 			builder.OnlyMetadata,
 		).
