@@ -9,10 +9,8 @@ import (
 
 	nadclientset "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,14 +33,7 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 	var isFound bool
 	namespace := sc.Namespace
 
-	tolerations := []corev1.Toleration{{
-		Key:      defaults.NodeTolerationKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
-
-	tolerations = append(tolerations, getPlacement(sc, "toolbox").Tolerations...)
+	tolerations := getPlacement(sc, "toolbox").Tolerations
 
 	nodeAffinity := getPlacement(sc, "toolbox").NodeAffinity
 

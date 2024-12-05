@@ -11,56 +11,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// getPlacement returns placement configuration for ceph components with appropriate topology
+// getPlacement returns placement configuration for specified component
 func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
-	placement := rookCephv1.Placement{}
-	in, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]
-	if ok {
-		(&in).DeepCopyInto(&placement)
-	} else {
-		in := defaults.DaemonPlacements[component]
-		(&in).DeepCopyInto(&placement)
-		// label rook_file_system is added to the mds pod using rook operator
-		if component == "mds" {
-			placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc)),
-				},
-			}
-		}
-	}
+	// Fetch placement spec specified for the component from the StorageCluster CR
+	placement := sc.Spec.Placement[rookCephv1.KeyType(component)]
 
-	// ignore default PodAntiAffinity mon placement when arbiter is enabled
-	if component == "mon" && arbiterEnabled(sc) {
-		placement.PodAntiAffinity = &corev1.PodAntiAffinity{}
-	}
-
-	if component == "arbiter" {
-		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
-			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
-				Key:      "node-role.kubernetes.io/master",
-				Operator: corev1.TolerationOpExists,
-				Effect:   corev1.TaintEffectNoSchedule,
-			})
-		}
-		return placement
-	}
-
-	// if provider-server placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.APIServerKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
-	}
-
-	// if metrics-exporter placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.MetricsExporterKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
-	}
-
-	// If no placement is specified for the given component and the
-	// StorageCluster has no label selector, set the default node
-	// affinity.
+	// If no node affinity is specified for the given component and the StorageCluster has no label selector
+	// Set the default node affinity.
 	if placement.NodeAffinity == nil && sc.Spec.LabelSelector == nil {
 		placement.NodeAffinity = defaults.DefaultNodeAffinity
 	}
@@ -74,24 +31,29 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		}
 	}
 
-	topologyMap := sc.Status.NodeTopologies
-	if topologyMap == nil {
-		return placement
+	// Add the ocs toleration to the placement of any component
+	placement.Tolerations = append(placement.Tolerations, defaults.GetOcsToleration())
+
+	// Add the master node toleration to the placement of the arbiter component if it is not disabled
+	if component == "arbiter" {
+		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
+			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
+				Key:      "node-role.kubernetes.io/master",
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoSchedule,
+			})
+		}
 	}
 
-	topologyKey := getFailureDomain(sc)
-	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-	if component == "mon" || component == "mds" || component == "rgw" {
-		if placement.PodAntiAffinity != nil {
-			if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[i].PodAffinityTerm.TopologyKey = topologyKey
-				}
-			}
-			if placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i].TopologyKey = topologyKey
-				}
+	// for these ceph-daemons we always need to add topology spread constraints if not present, to ensure their even distribution
+	if component == "mgr" || component == "mon" || component == "osd" || component == "osd-prepare" || component == "mds" || component == "rgw" || component == "nfs" {
+		if len(placement.TopologySpreadConstraints) == 0 {
+			placement.TopologySpreadConstraints = defaults.DaemonPlacements[component].TopologySpreadConstraints
+		}
+		// if the topology key is empty, set it to the failure domain key of the cluster
+		for i := range placement.TopologySpreadConstraints {
+			if placement.TopologySpreadConstraints[i].TopologyKey == "" {
+				placement.TopologySpreadConstraints[i].TopologyKey = sc.Status.FailureDomainKey
 			}
 		}
 	}
