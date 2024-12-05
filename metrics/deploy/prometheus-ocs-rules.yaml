@@ -122,12 +122,12 @@ spec:
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OdfPoolMirroringImageHealth.md
         severity_level: warning
         storage_type: ceph
-        expr: |
-          (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
-        for: 1m
-        labels:
-          mirroring_image_status: warning
-          severity: warning
+      expr: |
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
+      for: 1m
+      labels:
+        mirroring_image_status: warning
+        severity: warning
     - alert: OdfPoolMirroringImageHealth
       annotations:
         description: Mirroring image(s) (PV) in the pool {{ $labels.name }} and rados namespace {{ $labels.rados_namespace }} are in
