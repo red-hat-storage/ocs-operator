@@ -1,10 +1,8 @@
 package util
 
 import (
-	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -81,25 +79,23 @@ func NamePredicate(name string) predicate.Predicate {
 	})
 }
 
-func CrdCreateAndDeletePredicate(log *logr.Logger, crdName string, crdExists bool) predicate.Predicate {
+// EventTypePredicate return a predicate to filter events based on their
+// respective event type. This helper allows for the selection of multiple
+// types resulting in a predicate that can filter in more than a single event
+// type
+func EventTypePredicate(create, update, del, generic bool) predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool {
-			if !crdExists {
-				log.Info(fmt.Sprintf("CustomResourceDefinition %s was Created.", crdName))
-			}
-			return !crdExists
-		},
-		DeleteFunc: func(_ event.DeleteEvent) bool {
-			if crdExists {
-				log.Info(fmt.Sprintf("CustomResourceDefinition %s was Deleted.", crdName))
-			}
-			return crdExists
+			return create
 		},
 		UpdateFunc: func(_ event.UpdateEvent) bool {
-			return false
+			return update
+		},
+		DeleteFunc: func(_ event.DeleteEvent) bool {
+			return del
 		},
 		GenericFunc: func(_ event.GenericEvent) bool {
-			return false
+			return generic
 		},
 	}
 }

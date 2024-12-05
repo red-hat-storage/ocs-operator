@@ -355,7 +355,12 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			enqueueOCSInit,
 			builder.WithPredicates(
 				util.NamePredicate(ClusterClaimCrdName),
-				util.CrdCreateAndDeletePredicate(&r.Log, ClusterClaimCrdName, r.AvailableCrds[ClusterClaimCrdName]),
+				util.EventTypePredicate(
+					!r.AvailableCrds[ClusterClaimCrdName],
+					false,
+					true,
+					false,
+				),
 			),
 			builder.OnlyMetadata,
 		)
