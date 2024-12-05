@@ -52,6 +52,16 @@ var (
 		},
 		Status: &cephv1.CephBlockPoolRadosNamespaceStatus{},
 	}
+	mockCephBlockPoolRadosNamespace2 = cephv1.CephBlockPoolRadosNamespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mockCephBlockPoolRadosNamespace",
+			Namespace: "openshift-storage",
+		},
+		Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
+			BlockPoolName: "mockCephBlockPool-1",
+		},
+		Status: &cephv1.CephBlockPoolRadosNamespaceStatus{},
+	}
 )
 
 func (c *CephBlockPoolCollector) GetInformer() cache.SharedIndexInformer {
@@ -375,6 +385,9 @@ func TestCollectRadosNamespaceMirroringImageHealth(t *testing.T) {
 		},
 	}
 
+	objNil := mockCephBlockPoolRadosNamespace2.DeepCopy()
+	objNil.Name = objError.Name + "nil"
+
 	tests := Tests{
 		{
 			name: "Collect RadosNamespace mirroring image health metrics",
@@ -384,6 +397,7 @@ func TestCollectRadosNamespaceMirroringImageHealth(t *testing.T) {
 					objUnknown,
 					objWarning,
 					objError,
+					objNil,
 				},
 			},
 		},
@@ -455,13 +469,9 @@ func TestCollectRadosNamespaceMirroringStatus(t *testing.T) {
 			Mode: cephv1.RadosNamespaceMirroringModeImage,
 		},
 	}
-	objDisabled := mockCephBlockPoolRadosNamespace1.DeepCopy()
+	objDisabled := mockCephBlockPoolRadosNamespace2.DeepCopy()
 	objDisabled.Name = objDisabled.Name + "disabled"
-	objDisabled.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
-		Mirroring: &cephv1.RadosNamespaceMirroring{
-			Mode: "",
-		},
-	}
+	objDisabled.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{Mirroring: nil}
 	tests := Tests{
 		{
 			name: "Collect RadosNamespace mirroring status",
