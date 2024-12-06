@@ -783,21 +783,21 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 		topologyKey := ds.TopologyKey
 		topologyKeyValues := []string{}
 
-		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil && ds.Placement.TopologySpreadConstraints == nil
-		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil && ds.PreparePlacement.TopologySpreadConstraints == nil
+		noPlacementTsc := ds.Placement.TopologySpreadConstraints == nil
+		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil && noPlacementTsc
+		noPreparePlacementTsc := ds.PreparePlacement.TopologySpreadConstraints == nil
+		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil && noPreparePlacementTsc
 
-		if noPlacement {
-			if topologyKey == "" {
-				topologyKey = getFailureDomain(sc)
-			}
+		if topologyKey == "" {
+			topologyKey = getFailureDomain(sc)
+		}
 
-			if topologyKey == "host" {
-				portable = false
-			}
+		if topologyKey == "host" {
+			portable = false
+		}
 
-			if topologyMap != nil {
-				topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
-			}
+		if topologyMap != nil {
+			topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
 		}
 
 		count, replica := countAndReplicaOf(&ds)
@@ -812,28 +812,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 				if noPreparePlacement {
 					in := getPlacement(sc, "osd-prepare")
 					(&in).DeepCopyInto(&preparePlacement)
-				}
-
-				if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
-					// Hard constraints are set in OSD placement for portable volumes with rack failure domain
-					// domain as there is no node affinity in PVs. This restricts the movement of OSDs
-					// between failure domain.
-					if portable && !strings.Contains(topologyKey, "zone") {
-						addStrictFailureDomainTSC(&placement, topologyKey)
-					}
-					// If topologyKey is not host, append additional topology spread constraint to the
-					// default preparePlacement. This serves even distribution at the host level
-					// within a failure domain (zone/rack).
-					if noPreparePlacement {
-						if topologyKey != corev1.LabelHostname {
-							addStrictFailureDomainTSC(&preparePlacement, topologyKey)
-						} else {
-							preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
-						}
-					}
-				}
-
-				if !noPreparePlacement {
+				} else {
 					preparePlacement = ds.PreparePlacement
 				}
 			} else if !noPlacement && noPreparePlacement {
@@ -842,6 +821,33 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			} else {
 				preparePlacement = ds.PreparePlacement
 				placement = ds.Placement
+			}
+
+			// Add default TSCs if not set to ensure even distribution of OSDs across nodes
+			if len(placement.TopologySpreadConstraints) == 0 {
+				placement.TopologySpreadConstraints = append(placement.TopologySpreadConstraints, defaults.DaemonPlacements["osd"].TopologySpreadConstraints...)
+			}
+			if len(preparePlacement.TopologySpreadConstraints) == 0 {
+				preparePlacement.TopologySpreadConstraints = append(preparePlacement.TopologySpreadConstraints, defaults.DaemonPlacements["osd-prepare"].TopologySpreadConstraints...)
+			}
+
+			if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
+				// Hard constraints are set in OSD placement for portable volumes with rack failure domain
+				// domain as there is no node affinity in PVs. This restricts the movement of OSDs
+				// between failure domain.
+				if noPlacementTsc && portable && !strings.Contains(topologyKey, "zone") {
+					addStrictFailureDomainTSC(&placement, topologyKey)
+				}
+				// If topologyKey is not host, append additional topology spread constraint to the
+				// default preparePlacement. This serves even distribution at the host level
+				// within a failure domain (zone/rack).
+				if noPlacementTsc && noPreparePlacementTsc {
+					if topologyKey != corev1.LabelHostname {
+						addStrictFailureDomainTSC(&preparePlacement, topologyKey)
+					} else {
+						preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+					}
+				}
 			}
 
 			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
