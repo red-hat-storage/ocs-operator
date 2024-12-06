@@ -269,7 +269,7 @@ func createCephFilesystemStorageClass(w http.ResponseWriter, r *http.Request, cl
 		Parameters: map[string]string{
 			"clusterID": namespace,
 			"fsName":    filesystemName,
-			"pool":      poolName,
+			"pool":      fmt.Sprintf("%s-%s", filesystemName, poolName),
 			"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
