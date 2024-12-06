@@ -238,7 +238,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumerObj)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+			return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
 		}
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
@@ -1016,7 +1016,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, storageConsumer)
 	if err != nil {
 		klog.Error(err)
-		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
 	}
 
 	desiredClientConfigHash := getDesiredClientConfigHash(
@@ -1273,7 +1273,7 @@ func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool
 func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (bool, error) {
 	clientMappingConfig := &corev1.ConfigMap{}
 	clientMappingConfig.Name = util.StorageClientMappingConfigName
-	clientMappingConfig.Name = s.namespace
+	clientMappingConfig.Namespace = s.namespace
 
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(clientMappingConfig), clientMappingConfig); err != nil {
 		return false, client.IgnoreNotFound(err)
