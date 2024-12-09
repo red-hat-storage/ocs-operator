@@ -235,11 +235,13 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
 		}
 
-		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumerObj)
+		mirroredClientID, err := s.getMirroredClientID(ctx, consumerObj)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+			return nil, fmt.Errorf("failed to get mirrored client id. %v", err)
 		}
+
+		isConsumerMirrorEnabled := mirroredClientID != ""
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
@@ -460,20 +462,20 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		}
 	}
 
-	if len(blockPoolMapping) > 0 {
-		// This is an assumption and should go away when deprecating the StorageClaim API
-		// The current proposal is to read the clientProfile name from the storageConsumer status and
-		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
-		clientName := consumerResource.Status.Client.Name
-		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
+	mirroredClientID, err := s.getMirroredClientID(ctx, consumerResource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mirrored client id. %v", err)
+	}
+
+	if len(blockPoolMapping) > 0 && mirroredClientID != "" {
 		extR = append(extR, &pb.ExternalResource{
 			Name: consumerResource.Status.Client.Name,
 			Kind: "ClientProfileMapping",
 			Data: mustMarshal(&csiopv1a1.ClientProfileMappingSpec{
 				Mappings: []csiopv1a1.MappingsSpec{
 					{
-						LocalClientProfile:  clientProfileName,
-						RemoteClientProfile: clientProfileName,
+						LocalClientProfile:  consumerResource.Status.Client.ID,
+						RemoteClientProfile: mirroredClientID,
 						BlockPoolIdMapping:  blockPoolMapping,
 					},
 				},
@@ -1013,11 +1015,13 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
 	}
 
-	isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, storageConsumer)
+	mirroredClientID, err := s.getMirroredClientID(ctx, storageConsumer)
 	if err != nil {
 		klog.Error(err)
-		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+		return nil, fmt.Errorf("failed to get mirrored client id. %v", err)
 	}
+
+	isConsumerMirrorEnabled := mirroredClientID != ""
 
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
@@ -1270,14 +1274,14 @@ func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool
 	return kerrors.IsNotFound(err), nil
 }
 
-func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (bool, error) {
+func (s *OCSProviderServer) getMirroredClientID(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (string, error) {
 	clientMappingConfig := &corev1.ConfigMap{}
 	clientMappingConfig.Name = util.StorageClientMappingConfigName
 	clientMappingConfig.Namespace = s.namespace
 
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(clientMappingConfig), clientMappingConfig); err != nil {
-		return false, client.IgnoreNotFound(err)
+		return "", client.IgnoreNotFound(err)
 	}
 
-	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
+	return clientMappingConfig.Data[consumer.Status.Client.ID], nil
 }
