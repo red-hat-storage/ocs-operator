@@ -461,19 +461,18 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	}
 
 	if len(blockPoolMapping) > 0 {
-		// This is an assumption and should go away when deprecating the StorageClaim API
-		// The current proposal is to read the clientProfile name from the storageConsumer status and
-		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
-		clientName := consumerResource.Status.Client.Name
-		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
+		remoteClientID, err := s.getMirroredClientID(ctx, consumerResource)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get mirrored client id. %v", err)
+		}
 		extR = append(extR, &pb.ExternalResource{
 			Name: consumerResource.Status.Client.Name,
 			Kind: "ClientProfileMapping",
 			Data: mustMarshal(&csiopv1a1.ClientProfileMappingSpec{
 				Mappings: []csiopv1a1.MappingsSpec{
 					{
-						LocalClientProfile:  clientProfileName,
-						RemoteClientProfile: clientProfileName,
+						LocalClientProfile:  consumerResource.Status.Client.ID,
+						RemoteClientProfile: remoteClientID,
 						BlockPoolIdMapping:  blockPoolMapping,
 					},
 				},
@@ -1280,4 +1279,16 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	}
 
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
+}
+
+func (s *OCSProviderServer) getMirroredClientID(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (string, error) {
+	clientMappingConfig := &corev1.ConfigMap{}
+	clientMappingConfig.Name = util.StorageClientMappingConfigName
+	clientMappingConfig.Namespace = s.namespace
+
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(clientMappingConfig), clientMappingConfig); err != nil {
+		return "", client.IgnoreNotFound(err)
+	}
+
+	return clientMappingConfig.Data[consumer.Status.Client.ID], nil
 }
