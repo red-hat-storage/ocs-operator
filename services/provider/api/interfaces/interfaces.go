@@ -6,11 +6,6 @@ type StorageClientStatus interface {
 	// no client is using it
 	GetPlatformVersion() string
 	GetOperatorVersion() string
-	GetClusterID() string
-	GetClusterName() string
-	GetClientName() string
-	GetClientID() string
-	GetStorageQuotaUtilizationRatio() float64
 
 	SetPlatformVersion(string) StorageClientStatus
 	SetOperatorVersion(string) StorageClientStatus
