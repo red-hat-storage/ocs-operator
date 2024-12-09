@@ -246,6 +246,10 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					false,
 				),
 			),
+			builder.WithPredicates(
+				util.NamePredicate(VolumeGroupSnapshotClassCrdName),
+				util.CrdCreateAndDeletePredicate(&r.Log, VolumeGroupSnapshotClassCrdName, r.AvailableCrds[VolumeGroupSnapshotClassCrdName]),
+			),
 			builder.OnlyMetadata,
 		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
