@@ -219,8 +219,9 @@ github.com/klauspost/compress/zstd/internal/xxhash
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api
-# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.0.0
+# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
 ## explicit; go 1.22.0
+github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1
 github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1
 # github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 ## explicit; go 1.13
