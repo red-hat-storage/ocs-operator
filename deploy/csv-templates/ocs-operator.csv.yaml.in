@@ -306,6 +306,17 @@ spec:
           verbs:
           - get
         - apiGroups:
+          - groupsnapshot.storage.k8s.io
+          resources:
+          - volumegroupsnapshotclasses
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - k8s.cni.cncf.io
           resources:
           - network-attachment-definitions
