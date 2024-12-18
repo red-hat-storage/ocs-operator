@@ -17,33 +17,18 @@ import (
 
 func TestCephFileSystem(t *testing.T) {
 	var cases = []struct {
-		label                  string
-		createRuntimeObjects   bool
-		remoteStorageConsumers bool
+		label                string
+		createRuntimeObjects bool
 	}{
 		{
-			label:                  "Not in provider mode",
-			createRuntimeObjects:   false,
-			remoteStorageConsumers: false,
-		},
-		{
-			label:                  "In provider mode",
-			createRuntimeObjects:   false,
-			remoteStorageConsumers: true,
+			label:                "Not in provider mode",
+			createRuntimeObjects: false,
 		},
 	}
-	spList := getMockStorageProfiles()
-
 	for _, c := range cases {
 		var objects []client.Object
 
-		providerModeSpec := &api.StorageClusterSpec{
-			AllowRemoteStorageConsumers:  c.remoteStorageConsumers,
-			ProviderAPIServerServiceType: "",
-		}
-
-		t, reconcilerOCSInit, cr, requestOCSInit, _ := initStorageClusterResourceCreateUpdateTestProviderMode(
-			t, objects, providerModeSpec, spList, c.remoteStorageConsumers)
+		t, reconcilerOCSInit, cr, requestOCSInit := initStorageClusterResourceCreateUpdateTestProviderMode(t, objects)
 		if c.createRuntimeObjects {
 			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
 		}

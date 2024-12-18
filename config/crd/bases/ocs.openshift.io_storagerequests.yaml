@@ -68,12 +68,6 @@ spec:
                   description: CephResourcesSpec hold details of created ceph resources
                     required for external storage
                   properties:
-                    cephClients:
-                      additionalProperties:
-                        type: string
-                      description: CephClients holds the name of CephClients mapped
-                        to the created ceph resource
-                      type: object
                     kind:
                       description: Kind describes the kind of created ceph resource
                       type: string

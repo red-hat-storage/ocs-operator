@@ -53,8 +53,6 @@ type CephResourcesSpec struct {
 	Name string `json:"name,omitempty"`
 	// Phase describes the phase of created ceph resource
 	Phase string `json:"status,omitempty"`
-	// CephClients holds the name of CephClients mapped to the created ceph resource
-	CephClients map[string]string `json:"cephClients,omitempty"`
 }
 
 // StorageConsumerStatus defines the observed state of StorageConsumer

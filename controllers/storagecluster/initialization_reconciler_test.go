@@ -149,13 +149,9 @@ func createUpdateRuntimeObjects(t *testing.T) []client.Object {
 	return updateRTObjects
 }
 
-func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtimeObjs []client.Object,
-	customSpec *api.StorageClusterSpec, storageProfiles *api.StorageProfileList, remoteConsumers bool) (*testing.T, StorageClusterReconciler,
-	*api.StorageCluster, reconcile.Request, []reconcile.Request) {
+func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtimeObjs []client.Object) (
+	*testing.T, StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
-	if customSpec != nil {
-		_ = mergo.Merge(&cr.Spec, customSpec)
-	}
 	requestOCSInit := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -176,24 +172,6 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, tbd)
 	}
 
-	if remoteConsumers {
-
-		clientConfigMap := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
-		}
-
-		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, clientConfigMap)
-
-		util.AddAnnotation(cr, "ocs.openshift.io/deployment-mode", "provider")
-	}
-
-	// Unpacks StorageProfile list to runtime objects array
-	var storageProfileRuntimeObjects []runtime.Object
-	for _, sp := range storageProfiles.Items {
-		storageProfileRuntimeObjects = append(storageProfileRuntimeObjects, &sp)
-	}
-	rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, storageProfileRuntimeObjects...)
-
 	reconciler := createFakeInitializationStorageClusterReconciler(t, rtObjsToCreateReconciler...)
 
 	_ = reconciler.Client.Create(context.TODO(), cr)
@@ -201,22 +179,6 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 		_ = reconciler.Client.Create(context.TODO(), rtObj)
 	}
 
-	var requestsStorageProfiles []reconcile.Request
-	for _, sp := range storageProfiles.Items {
-		requestSP := reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      sp.Name,
-				Namespace: cr.Namespace,
-			},
-		}
-		_ = reconciler.Client.Create(context.TODO(), &sp)
-		requestsStorageProfiles = append(requestsStorageProfiles, requestSP)
-		requests = append(requests, requestSP)
-
-	}
-
-	spList := &api.StorageProfileList{}
-	_ = reconciler.Client.List(context.TODO(), spList)
 	for _, request := range requests {
 		err := os.Setenv("OPERATOR_NAMESPACE", request.Namespace)
 		assert.NoError(t, err)
@@ -227,7 +189,7 @@ func initStorageClusterResourceCreateUpdateTestProviderMode(t *testing.T, runtim
 		assert.NoError(t, err)
 	}
 
-	return t, reconciler, cr, requestOCSInit, requestsStorageProfiles
+	return t, reconciler, cr, requestOCSInit
 }
 
 func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []client.Object,
@@ -380,6 +342,10 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		},
 	}
 
+	clientConfigMap := &v1.ConfigMap{}
+	clientConfigMap.Name = ocsClientConfigMapName
+	clientConfigMap.Namespace = sc.Namespace
+
 	statusSubresourceObjs := []client.Object{sc}
 	var runtimeObjects []runtime.Object
 
@@ -398,6 +364,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		mockNodeList.DeepCopy(),
 		cbp,
 		cfs,
+		clientConfigMap,
 		cnfs,
 		cnfsbp,
 		cnfssvc,
@@ -410,7 +377,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		ocsProviderServiceDeployment,
 		ocsProviderService,
 		createVirtualMachineCRD(),
-		createStorageClientCRD(),
+		CreateStorageClientCRD(),
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjects...).WithStatusSubresource(statusSubresourceObjs...).Build()
 
