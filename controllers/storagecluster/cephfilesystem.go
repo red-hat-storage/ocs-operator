@@ -136,13 +136,9 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 				return reconcile.Result{}, err
 			}
 		}
-		// create default csi subvolumegroup for the filesystem
-		// skip for the ocs provider mode
-		if !instance.Spec.AllowRemoteStorageConsumers {
-			err = r.createDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace, cephFilesystem.ObjectMeta.OwnerReferences)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
+		err = r.createDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace, cephFilesystem.ObjectMeta.OwnerReferences)
+		if err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -241,15 +237,11 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 			return reconcile.Result{}, fmt.Errorf("uninstall: Unable to retrieve CephFileSystem %v: %v", cephFilesystem.Name, err)
 		}
 
-		// delete csi subvolume group for particular filesystem
-		// skip for the ocs provider mode
-		if !sc.Spec.AllowRemoteStorageConsumers {
-			cephSVGName := generateNameForCephSubvolumeGroup(cephFilesystem.Name)
-			err = r.deleteDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace)
-			if err != nil {
-				r.Log.Error(err, "Uninstall: unable to delete subvolumegroup", "subvolumegroup", klog.KRef(cephFilesystem.Namespace, cephSVGName))
-				return reconcile.Result{}, err
-			}
+		cephSVGName := generateNameForCephSubvolumeGroup(cephFilesystem.Name)
+		err = r.deleteDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace)
+		if err != nil {
+			r.Log.Error(err, "Uninstall: unable to delete subvolumegroup", "subvolumegroup", klog.KRef(cephFilesystem.Namespace, cephSVGName))
+			return reconcile.Result{}, err
 		}
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting cephFilesystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))

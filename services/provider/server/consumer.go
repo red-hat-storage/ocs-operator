@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -53,6 +56,43 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 		nameByTicket: nameByTicket,
 		nameByUID:    nameByUID,
 	}, nil
+}
+
+// getStorageRequestHash generates a hash for a StorageRequest based
+// on the MD5 hash of the StorageClaim name and storageConsumer UUID.
+func getStorageRequestHash(consumerUUID, storageClaimName string) string {
+	s := struct {
+		StorageConsumerUUID string `json:"storageConsumerUUID"`
+		StorageClaimName    string `json:"storageClaimName"`
+	}{
+		consumerUUID,
+		storageClaimName,
+	}
+
+	requestName, err := json.Marshal(s)
+	if err != nil {
+		klog.Errorf("failed to marshal a name for a storage class request based on %v. %v", s, err)
+		panic("failed to marshal storage class request name")
+	}
+	md5Sum := md5.Sum(requestName)
+	return hex.EncodeToString(md5Sum[:16])
+}
+
+// getStorageRequestName generates a name for a StorageRequest resource.
+func getStorageRequestName(consumerUUID, storageClaimName string) string {
+	return fmt.Sprintf("storagerequest-%s", getStorageRequestHash(consumerUUID, storageClaimName))
+}
+
+func (c *ocsConsumerManager) GetRequest(ctx context.Context, consumerUUID, storageClaimName string) (*ocsv1alpha1.StorageRequest, error) {
+	generatedRequestName := getStorageRequestName(consumerUUID, storageClaimName)
+	storageRequestObj := &ocsv1alpha1.StorageRequest{}
+	err := c.client.Get(ctx, types.NamespacedName{Name: generatedRequestName, Namespace: c.namespace}, storageRequestObj)
+	if err != nil {
+		klog.Errorf("failed to get a StorageRequest named %q for consumer %q and request %q. %v", generatedRequestName, consumerUUID, storageClaimName, err)
+		return nil, err
+	}
+
+	return storageRequestObj, nil
 }
 
 // Create creates a new storageConsumer resource, updates the consumer cache and returns the storageConsumer UID

@@ -134,3 +134,7 @@ func IsClusterOrDeviceSetEncrypted(sc *ocsv1.StorageCluster) bool {
 
 	return false
 }
+
+func GenerateCephClientSecretName(storageType, userType, storageClusterUid string) string {
+	return fmt.Sprintf("%s-%s-%s", storageType, userType, storageClusterUid)
+}

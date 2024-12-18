@@ -91,10 +91,6 @@ type StorageClusterSpec struct {
 	// the effective usable storage capacity.
 	OverprovisionControl []OverprovisionControlSpec `json:"overprovisionControl,omitempty"`
 
-	// AllowRemoteStorageConsumers Indicates that the OCS cluster should deploy the needed
-	// components to enable connections from remote consumers.
-	AllowRemoteStorageConsumers bool `json:"allowRemoteStorageConsumers,omitempty"`
-
 	// ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
 	// The supported values are NodePort or LoadBalancer. The default ServiceType is NodePort if the value is empty.
 	// This will only be used when AllowRemoteStorageConsumers is set to true

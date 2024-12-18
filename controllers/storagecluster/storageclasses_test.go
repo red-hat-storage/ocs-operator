@@ -80,7 +80,7 @@ var (
 			},
 		}
 	}
-	createStorageClientCRD = func() *extv1.CustomResourceDefinition {
+	CreateStorageClientCRD = func() *extv1.CustomResourceDefinition {
 		pluralName := "storageclients"
 		return &extv1.CustomResourceDefinition{
 			TypeMeta: metav1.TypeMeta{

@@ -265,13 +265,13 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
-				"clusterID": initData.Namespace,
+				"clusterID": string(initData.UID),
 				"fsName":    fmt.Sprintf("%s-cephfilesystem", initData.Name),
-				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-name":            util.GenerateCephClientSecretName("cephfs", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
-				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
+				"csi.storage.k8s.io/node-stage-secret-name":             util.GenerateCephClientSecretName("cephfs", "node", string(initData.UID)),
 				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
-				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-name":      util.GenerateCephClientSecretName("cephfs", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
@@ -300,16 +300,16 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
-				"clusterID":                 initData.Namespace,
+				"clusterID":                 string(initData.UID),
 				"pool":                      generateNameForCephBlockPool(initData),
 				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 				"csi.storage.k8s.io/fstype": "ext4",
 				"imageFormat":               "2",
-				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-name":            util.GenerateCephClientSecretName("rbd", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
-				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
+				"csi.storage.k8s.io/node-stage-secret-name":             util.GenerateCephClientSecretName("rbd", "node", string(initData.UID)),
 				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
-				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-name":      util.GenerateCephClientSecretName("rbd", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
@@ -360,16 +360,16 @@ func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.Stora
 			// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
-				"clusterID":                 initData.Namespace,
+				"clusterID":                 string(initData.UID),
 				"topologyConstrainedPools":  getTopologyConstrainedPools(initData),
 				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 				"csi.storage.k8s.io/fstype": "ext4",
 				"imageFormat":               "2",
-				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-name":            util.GenerateCephClientSecretName("rbd", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
-				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
+				"csi.storage.k8s.io/node-stage-secret-name":             util.GenerateCephClientSecretName("rbd", "node", string(initData.UID)),
 				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
-				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-rbd-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-name":      util.GenerateCephClientSecretName("rbd", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
@@ -397,16 +397,16 @@ func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 			ReclaimPolicy:        &persistentVolumeReclaimDelete,
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
-				"clusterID":        initData.Namespace,
+				"clusterID":        string(initData.UID),
 				"nfsCluster":       generateNameForCephNFS(initData),
 				"fsName":           generateNameForCephFilesystem(initData),
 				"server":           generateNameForNFSService(initData),
 				"volumeNamePrefix": "nfs-export-",
-				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/provisioner-secret-name":            util.GenerateCephClientSecretName("cephfs", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/provisioner-secret-namespace":       initData.Namespace,
-				"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
+				"csi.storage.k8s.io/node-stage-secret-name":             util.GenerateCephClientSecretName("cephfs", "node", string(initData.UID)),
 				"csi.storage.k8s.io/node-stage-secret-namespace":        initData.Namespace,
-				"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-cephfs-provisioner",
+				"csi.storage.k8s.io/controller-expand-secret-name":      util.GenerateCephClientSecretName("cephfs", "provisioner", string(initData.UID)),
 				"csi.storage.k8s.io/controller-expand-secret-namespace": initData.Namespace,
 			},
 		},
@@ -461,12 +461,9 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 		newCephBlockPoolStorageClassConfiguration(initData),
 	}
 
-	// when allowing consumers, creation of storage classes should only be done via storagerequests
-	if !initData.Spec.AllowRemoteStorageConsumers {
-		// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
-		if r.AvailableCrds[VirtualMachineCrdName] {
-			ret = append(ret, newCephBlockPoolVirtualizationStorageClassConfiguration(initData))
-		}
+	// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
+	if r.AvailableCrds[VirtualMachineCrdName] {
+		ret = append(ret, newCephBlockPoolVirtualizationStorageClassConfiguration(initData))
 	}
 
 	if initData.Spec.ManagedResources.CephNonResilientPools.Enable {

@@ -204,111 +204,6 @@ var mockDeviceSets = []api.StorageDeviceSet{
 	},
 }
 
-func getMockStorageProfiles() *api.StorageProfileList {
-	const pgAutoscaleMode = "pg_autoscale_mode"
-	const pgNum = "pg_num"
-	const pgpNum = "pgp_num"
-	const namespace = ""
-	const kind = "StorageProfile"
-	const apiVersion = "ocs.openshift.io/v1"
-	spfast := &api.StorageProfile{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       kind,
-			APIVersion: apiVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fast-performance",
-			Namespace: namespace,
-		},
-		Spec: api.StorageProfileSpec{
-			DeviceClass: "fast",
-			BlockPoolConfiguration: api.BlockPoolConfigurationSpec{
-				Parameters: map[string]string{
-					pgAutoscaleMode: "on",
-					pgNum:           "128",
-					pgpNum:          "128",
-				},
-			},
-			SharedFilesystemConfiguration: api.SharedFilesystemConfigurationSpec{
-				Parameters: map[string]string{
-					pgAutoscaleMode: "on",
-					pgNum:           "128",
-					pgpNum:          "128",
-				},
-			},
-		},
-	}
-	spmed := &api.StorageProfile{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       kind,
-			APIVersion: apiVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "med-performance",
-			Namespace: namespace,
-		},
-		Spec: api.StorageProfileSpec{
-			DeviceClass: "med",
-			BlockPoolConfiguration: api.BlockPoolConfigurationSpec{
-				Parameters: map[string]string{
-					pgAutoscaleMode: "on",
-					pgNum:           "128",
-					pgpNum:          "128",
-				},
-			},
-			SharedFilesystemConfiguration: api.SharedFilesystemConfigurationSpec{
-				Parameters: map[string]string{
-					pgAutoscaleMode: "on",
-					pgNum:           "128",
-					pgpNum:          "128",
-				},
-			},
-		},
-	}
-	spslow := &api.StorageProfile{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       kind,
-			APIVersion: apiVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "slow-performance",
-			Namespace: namespace,
-		},
-		Spec: api.StorageProfileSpec{
-			DeviceClass: "slow",
-			BlockPoolConfiguration: api.BlockPoolConfigurationSpec{
-				Parameters: map[string]string{
-					pgAutoscaleMode: "on",
-					pgNum:           "128",
-					pgpNum:          "128",
-				},
-			},
-			SharedFilesystemConfiguration: api.SharedFilesystemConfigurationSpec{
-				Parameters: map[string]string{
-					pgAutoscaleMode: "on",
-					pgNum:           "128",
-					pgpNum:          "128",
-				},
-			},
-		},
-	}
-	spblankdeviceclass := &api.StorageProfile{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       kind,
-			APIVersion: apiVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "blank-performance",
-			Namespace: namespace,
-		},
-		Spec: api.StorageProfileSpec{
-			DeviceClass: "",
-		},
-	}
-	storageProfiles := &api.StorageProfileList{Items: []api.StorageProfile{*spmed, *spslow, *spfast, *spblankdeviceclass}}
-	return storageProfiles
-}
-
 var mockNodeList = &corev1.NodeList{
 	TypeMeta: metav1.TypeMeta{
 		Kind: "NodeList",
@@ -1110,7 +1005,7 @@ func assertExpectedCondition(t *testing.T, conditions []conditionsv1.Condition) 
 	}
 	for cType, status := range expectedConditions {
 		found := assertCondition(conditions, cType, status)
-		assert.True(t, found, "expected status condition not found", cType, status)
+		assert.True(t, found, "expected status condition not found", string(cType), string(status))
 	}
 }
 
@@ -1188,7 +1083,11 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 	}
 
-	obj = append(obj, cbp, cfs, rookCephMonSecret, csv, ocsProviderService, ocsProviderServiceDeployment, ocsProviderServiceSecret)
+	clientConfigMap := &corev1.ConfigMap{}
+	clientConfigMap.Name = ocsClientConfigMapName
+	clientConfigMap.Namespace = namespace
+
+	obj = append(obj, cbp, cfs, rookCephMonSecret, csv, ocsProviderService, clientConfigMap, ocsProviderServiceDeployment, ocsProviderServiceSecret, CreateStorageClientCRD())
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	clusters, err := statusutil.GetClusters(context.TODO(), client)
@@ -1208,7 +1107,9 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	frecorder := record.NewFakeRecorder(1024)
 	reporter := statusutil.NewEventReporter(frecorder)
 
-	availCrds := map[string]bool{}
+	availCrds := map[string]bool{
+		StorageClientCrdName: true,
+	}
 
 	return StorageClusterReconciler{
 		recorder:          reporter,

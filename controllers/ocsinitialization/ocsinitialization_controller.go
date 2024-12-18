@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -502,6 +501,7 @@ func (r *OCSInitializationReconciler) getCsiTolerations(csiTolerationKey string)
 // When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
 func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
 
+<<<<<<< HEAD
 	allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
 		return sc.Spec.AllowRemoteStorageConsumers
 	})
@@ -520,6 +520,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
 		util.EnableCephfsKey:             enableCephfsVal,
 		util.DisableCSIDriverKey:         strconv.FormatBool(allowConsumers),
+		util.DisableCSIDriverKey:         strconv.FormatBool(true),
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{

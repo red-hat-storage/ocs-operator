@@ -348,17 +348,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if instance.GetDeletionTimestamp().IsZero() {
-		var instanceUpdateRequired bool
-		// Setting an annotation on the storagecluster allows to only look at metadata for finding the configured mode rather than parsing the spec
-		if instance.Spec.AllowRemoteStorageConsumers && util.AddAnnotation(instance, "ocs.openshift.io/deployment-mode", "provider") {
-			instanceUpdateRequired = true
-		}
 		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			r.Log.Info("Finalizer not found for StorageCluster. Adding finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
-			instanceUpdateRequired = true
-		}
-		if instanceUpdateRequired {
 			if err := r.Client.Update(r.ctx, instance); err != nil {
 				r.Log.Info("Failed to update StorageCluster", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return reconcile.Result{}, err
@@ -505,7 +497,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		}
 	}
 	// Process resource profiles only if the cluster is not external or provider mode or noobaa standalone, and if the resource profile has changed
-	if !(instance.Spec.ExternalStorage.Enable || instance.Spec.AllowRemoteStorageConsumers || r.IsNoobaaStandalone) &&
+	if !(instance.Spec.ExternalStorage.Enable || r.IsNoobaaStandalone) &&
 		(instance.Spec.ResourceProfile != instance.Status.LastAppliedResourceProfile) {
 		err := r.ensureResourceProfileChangeApplied(instance)
 		if err != nil {
@@ -547,15 +539,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				notUpgradeableReasons = append(notUpgradeableReasons, "NotReady")
 				notUpgradeableMessages = append(notUpgradeableMessages, "StorageCluster is not ready")
 			}
-			// check operator upgradeability based on connected clients
-			if instance.Spec.AllowRemoteStorageConsumers {
-				if count, err := getUnsupportedClientsCount(r, instance.Namespace); err != nil {
-					notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
-					notUpgradeableMessages = append(notUpgradeableMessages, "Unable to determine status of connected ODF Clients")
-				} else if count != 0 {
-					notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
-					notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
-				}
+			if count, err := getUnsupportedClientsCount(r, instance.Namespace); err != nil {
+				notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
+				notUpgradeableMessages = append(notUpgradeableMessages, "Unable to determine status of connected ODF Clients")
+			} else if count != 0 {
+				notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
+				notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
 			}
 			if len(notUpgradeableMessages) > 0 {
 				// we are not upgradeable

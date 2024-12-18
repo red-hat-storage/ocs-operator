@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto"
+	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -29,6 +30,7 @@ import (
 	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -41,6 +43,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,7 +76,6 @@ type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
 	client                    client.Client
 	consumerManager           *ocsConsumerManager
-	storageRequestManager     *storageRequestManager
 	storageClusterPeerManager *storageClusterPeerManager
 	namespace                 string
 }
@@ -94,11 +96,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageRequestManager, err := newStorageRequestManager(client, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
-	}
-
 	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
@@ -107,7 +104,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 	return &OCSProviderServer{
 		client:                    client,
 		consumerManager:           consumerManager,
-		storageRequestManager:     storageRequestManager,
 		storageClusterPeerManager: storageClusterPeerManager,
 		namespace:                 namespace,
 	}, nil
@@ -144,10 +140,6 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 
 	if storageCluster.UID != onboardingTicket.StorageCluster {
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket storageCluster not match existing storageCluster.")
-	}
-
-	if !storageCluster.Spec.AllowRemoteStorageConsumers {
-		return nil, status.Errorf(codes.PermissionDenied, "onboarding remote storageConsumer(s) is not allowed.")
 	}
 
 	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
@@ -214,7 +206,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	case ocsv1alpha1.StorageConsumerStateDeleting:
 		return nil, status.Errorf(codes.NotFound, "storageConsumer is already in deleting phase")
 	case ocsv1alpha1.StorageConsumerStateReady:
-		conString, err := s.getExternalResources(ctx, consumerObj)
+		extResources, err := s.getExternalResources(ctx, consumerObj)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
 		}
@@ -251,7 +243,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 		klog.Infof("successfully returned the config details to the consumer.")
 		return &pb.StorageConfigResponse{
-				ExternalResource:  conString,
+				ExternalResource:  extResources,
 				DesiredConfigHash: desiredClientConfigHash,
 				SystemAttributes: &pb.SystemAttributes{
 					SystemInMaintenanceMode: inMaintenanceMode,
@@ -331,89 +323,28 @@ func newScheme() (*runtime.Scheme, error) {
 func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
 	var extR []*pb.ExternalResource
 
-	// Configmap with mon endpoints
+	// cephconnection, aka monitor endpoints
 	configmap := &v1.ConfigMap{}
-	err := s.client.Get(ctx, types.NamespacedName{Name: monConfigMap, Namespace: s.namespace}, configmap)
+	configmap.Name = monConfigMap
+	configmap.Namespace = s.namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(configmap), configmap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
 	}
-
 	if configmap.Data["data"] == "" {
 		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
 	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: monConfigMap,
-		Kind: "ConfigMap",
-		Data: mustMarshal(map[string]string{
-			"data":     configmap.Data["data"], // IP Address of all mon's
-			"maxMonId": "0",
-			"mapping":  "{}",
-		})})
-
 	monIps, err := extractMonitorIps(configmap.Data["data"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
 	}
-
 	extR = append(extR, &pb.ExternalResource{
 		Kind: "CephConnection",
 		Name: "monitor-endpoints",
 		Data: mustMarshal(&csiopv1a1.CephConnectionSpec{Monitors: monIps}),
 	})
 
-	scMon := &v1.Secret{}
-	// Secret storing cluster mon.admin key, fsid and name
-	err = s.client.Get(ctx, types.NamespacedName{Name: monSecret, Namespace: s.namespace}, scMon)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s secret. %v", monSecret, err)
-	}
-
-	fsid := string(scMon.Data["fsid"])
-	if fsid == "" {
-		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
-	}
-
-	// Get mgr pod hostIP
-	podList := &corev1.PodList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(s.namespace),
-		client.MatchingLabels(map[string]string{"app": "rook-ceph-mgr"}),
-	}
-	err = s.client.List(ctx, podList, listOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pod with rook-ceph-mgr label. %v", err)
-	}
-	if len(podList.Items) == 0 {
-		return nil, fmt.Errorf("no pods available with rook-ceph-mgr label")
-	}
-
-	mgrPod := &podList.Items[0]
-	var port int32 = -1
-
-	for i := range mgrPod.Spec.Containers {
-		container := &mgrPod.Spec.Containers[i]
-		if container.Name == "mgr" {
-			for j := range container.Ports {
-				if container.Ports[j].Name == "http-metrics" {
-					port = container.Ports[j].ContainerPort
-				}
-			}
-		}
-	}
-
-	if port < 0 {
-		return nil, fmt.Errorf("mgr pod port is empty")
-	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: "monitoring-endpoint",
-		Kind: "CephCluster",
-		Data: mustMarshal(map[string]string{
-			"MonitoringEndpoint": mgrPod.Status.HostIP,
-			"MonitoringPort":     strconv.Itoa(int(port)),
-		})})
-
+	// storage resource quota
 	if consumerResource.Spec.StorageQuotaInGiB > 0 {
 		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
 			Selector: quotav1.ClusterResourceQuotaSelector{
@@ -433,15 +364,14 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				)},
 			},
 		}
-
 		extR = append(extR, &pb.ExternalResource{
 			Name: "QuotaForConsumer",
 			Kind: "ClusterResourceQuota",
 			Data: mustMarshal(clusterResourceQuotaSpec),
 		})
-
 	}
 
+	// block pool clientprofile mapping
 	cbpList := &rookCephv1.CephBlockPoolList{}
 	err = s.client.List(ctx, cbpList, client.InNamespace(s.namespace))
 	if err != nil {
@@ -459,21 +389,19 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			)
 		}
 	}
-
+	clientProfileNameForDr := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", consumerResource.Status.Client.Name))
 	if len(blockPoolMapping) > 0 {
 		// This is an assumption and should go away when deprecating the StorageClaim API
 		// The current proposal is to read the clientProfile name from the storageConsumer status and
 		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
-		clientName := consumerResource.Status.Client.Name
-		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
 		extR = append(extR, &pb.ExternalResource{
 			Name: consumerResource.Status.Client.Name,
 			Kind: "ClientProfileMapping",
 			Data: mustMarshal(&csiopv1a1.ClientProfileMappingSpec{
 				Mappings: []csiopv1a1.MappingsSpec{
 					{
-						LocalClientProfile:  clientProfileName,
-						RemoteClientProfile: clientProfileName,
+						LocalClientProfile:  clientProfileNameForDr,
+						RemoteClientProfile: clientProfileNameForDr,
 						BlockPoolIdMapping:  blockPoolMapping,
 					},
 				},
@@ -486,7 +414,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	noobaaOperatorSecret := &v1.Secret{}
 	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumerName)
 	noobaaOperatorSecret.Namespace = s.namespace
-
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); err != nil {
 		if kerrors.IsNotFound(err) {
 			// ignoring because it is a provider cluster and the noobaa secret does not exist
@@ -495,23 +422,19 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		}
 		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
 	}
-
 	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
 	if !ok || len(authToken) == 0 {
 		return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
 	}
-
 	noobaMgmtRoute := &routev1.Route{}
 	noobaMgmtRoute.Name = "noobaa-mgmt"
 	noobaMgmtRoute.Namespace = s.namespace
-
 	if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
 		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
 	}
 	if len(noobaMgmtRoute.Status.Ingress) == 0 {
 		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
 	}
-
 	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
 	if noobaaMgmtAddress == "" {
 		return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
@@ -524,7 +447,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			"mgmt_addr":  noobaaMgmtAddress,
 		}),
 	})
-
 	extR = append(extR, &pb.ExternalResource{
 		Name: "noobaa-remote",
 		Kind: "Noobaa",
@@ -534,6 +456,334 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			},
 		}),
 	})
+
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
+	}
+	rbdScName := fmt.Sprintf("%s-ceph-rbd", storageCluster.Name)
+	rbdRequestHash := getStorageRequestHash(string(consumerResource.UID), rbdScName)
+	cephFsScName := fmt.Sprintf("%s-cephfs", storageCluster.Name)
+	cephFsRequestHash := getStorageRequestHash(string(consumerResource.UID), cephFsScName)
+	clientProfile := &csiopv1a1.ClientProfile{}
+	clientProfile.Name = string(storageCluster.UID)
+	clientProfileMapping := &csiopv1a1.ClientProfileMapping{}
+	clientProfileMapping.Name = string(storageCluster.UID)
+	internalMappingRequired := false
+	for _, cephRes := range consumerResource.Status.CephResources {
+		switch cephRes.Kind {
+		case "CephClient":
+			cephClient := &rookCephv1.CephClient{}
+			cephClient.Name = cephRes.Name
+			cephClient.Namespace = s.namespace
+			if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephClient), cephClient); err != nil {
+				return nil, status.Errorf(codes.Internal, err.Error())
+			}
+
+			cephUserSecret := &v1.Secret{}
+			if cephClient.Status != nil &&
+				cephClient.Status.Info["secretName"] != "" {
+				cephUserSecret.Name = cephClient.Status.Info["secretName"]
+			}
+			if cephUserSecret.Name == "" {
+				return nil, status.Errorf(codes.Internal, "failed to find cephclient secret name")
+			}
+			cephUserSecret.Namespace = s.namespace
+			if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephUserSecret), cephUserSecret); err != nil {
+				return nil, status.Errorf(codes.Internal, err.Error())
+			}
+
+			transferSecretName := cephClient.GetAnnotations()[controllers.CephClientSecretNameAnnotationkey]
+			if transferSecretName == "" {
+				return nil, status.Errorf(codes.Internal, "name for transfer cephclient secret is not set")
+			}
+			idProp := "userID"
+			keyProp := "userKey"
+			if _, exist := cephClient.Spec.Caps["mds"]; exist {
+				idProp = "adminID"
+				keyProp = "adminKey"
+			}
+			extR = append(extR, &pb.ExternalResource{
+				Name: transferSecretName,
+				Kind: "Secret",
+				Data: mustMarshal(map[string]string{
+					idProp:  cephRes.Name,
+					keyProp: string(cephUserSecret.Data[cephRes.Name]),
+				}),
+			})
+
+		case "CephBlockPoolRadosNamespace":
+			// TODO: when distribution of storageclasses is implemented this whole logic needs to be changed
+			var transferOwner bool
+			rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+			rns.Name = cephRes.Name
+			rns.Namespace = s.namespace
+			blockPoolName := ""
+			if strings.HasSuffix(rns.Name, controllers.ImplicitRnsAnnotationValue) {
+				blockPoolName = strings.TrimSuffix(rns.Name, controllers.ImplicitRnsAnnotationValue)
+				transferOwner = true
+			} else if err := s.client.Get(ctx, client.ObjectKeyFromObject(rns), rns); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", cephRes.Name, err)
+			} else {
+				blockPoolName = rns.Spec.BlockPoolName
+			}
+			provisionerSecretName := util.GenerateCephClientSecretName("rbd", "provisioner", string(storageCluster.UID))
+			nodeSecretName := util.GenerateCephClientSecretName("rbd", "node", string(storageCluster.UID))
+			rbdStorageClassData := map[string]string{
+				"clusterID":                 clientProfile.Name,
+				"pool":                      blockPoolName,
+				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+				"csi.storage.k8s.io/fstype": "ext4",
+				"imageFormat":               "2",
+				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
+			}
+			vscName := ""
+			vgscName := ""
+			if transferOwner {
+				vscName = fmt.Sprintf("%s-rbdplugin-snapclass", storageCluster.Name)
+				// based on outstanding https://github.com/red-hat-storage/ocs-operator/pull/2859
+				vgscName = fmt.Sprintf("%s-rbdplugin-groupsnapclass", storageCluster.Name)
+				// with this, storageclasses with clusterid as "openshift-storage" uses
+				// the clientprofile with name storageclusteruid which will not have any radosnamespace
+				// TODO: need to handle read affinity
+				// upgraded internal cluster
+				internalMappingRequired = true
+			} else {
+				clientProfile.Spec.Rbd = &csiopv1a1.RbdConfigSpec{
+					RadosNamespace: rns.Name,
+				}
+				vscName = storageCluster.Name
+				vgscName = storageCluster.Name
+				if !strings.HasSuffix(rns.Name, consumerResource.Status.Client.ClusterID) {
+					// upgraded provider cluster
+					clientProfileMapping.Spec.Mappings = append(
+						clientProfileMapping.Spec.Mappings,
+						csiopv1a1.MappingsSpec{
+							LocalClientProfile:  getMD5Hash(rbdScName),
+							RemoteClientProfile: clientProfile.Name,
+						},
+					)
+				}
+			}
+
+			storageClass := &storagev1.StorageClass{}
+			storageClass.Name = rbdScName
+			storageClass.Provisioner = util.RbdDriverName
+			storageClass.ReclaimPolicy = ptr.To(corev1.PersistentVolumeReclaimDelete)
+			storageClass.AllowVolumeExpansion = ptr.To(true)
+			storageClass.Parameters = rbdStorageClassData
+			extR = append(extR, &pb.ExternalResource{
+				Name: rbdScName,
+				Kind: "StorageClass",
+				Labels: map[string]string{
+					ramenDRStorageIDLabelKey: rbdRequestHash,
+				},
+				Data: mustMarshal(storageClass),
+			})
+
+			snapClass := &snapapi.VolumeSnapshotClass{}
+			snapClass.Name = vscName
+			// TODO: there seems to be a bit of difference w/ internal mode
+			snapClass.Driver = util.RbdDriverName
+			snapClass.DeletionPolicy = snapapi.VolumeSnapshotContentDelete
+			snapClass.Parameters = map[string]string{
+				"clusterID": clientProfile.Name,
+				"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
+			}
+			extR = append(extR, &pb.ExternalResource{
+				Name: vscName,
+				Kind: "VolumeSnapshotClass",
+				Labels: map[string]string{
+					ramenDRStorageIDLabelKey: rbdRequestHash,
+				},
+				Data: mustMarshal(snapClass),
+			})
+
+			extR = append(extR,
+				&pb.ExternalResource{
+					Name: vgscName,
+					Kind: "VolumeGroupSnapshotClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: rbdRequestHash,
+					},
+					Data: mustMarshal(map[string]string{
+						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
+					}),
+				},
+				&pb.ExternalResource{
+					Name: fmt.Sprintf("rbd-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
+					Kind: "VolumeReplicationClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey:     rbdRequestHash,
+						ramenDRReplicationIDLabelKey: rbdScName,
+						ramenMaintenanceModeLabelKey: "Failover",
+					},
+					Annotations: map[string]string{
+						"replication.storage.openshift.io/is-default-class": "true",
+					},
+					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
+						Parameters: map[string]string{
+							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+							"mirroringMode": "snapshot",
+							// This is a temporary fix till we get the replication schedule to ocs-operator
+							"schedulingInterval": volumeReplicationClass5mSchedule,
+							"clusterID":          clientProfileNameForDr,
+						},
+						Provisioner: util.RbdDriverName,
+					}),
+				},
+				&pb.ExternalResource{
+					Name: fmt.Sprintf("rbd-flatten-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
+					Kind: "VolumeReplicationClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey:     rbdRequestHash,
+						ramenDRReplicationIDLabelKey: rbdScName,
+						ramenMaintenanceModeLabelKey: "Failover",
+						ramenDRFlattenModeLabelKey:   "force",
+					},
+					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
+						Parameters: map[string]string{
+							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+							"mirroringMode": "snapshot",
+							"flattenMode":   "force",
+							// This is a temporary fix till we get the replication schedule to ocs-operator
+							"schedulingInterval": volumeReplicationClass5mSchedule,
+							"clusterID":          clientProfileNameForDr,
+						},
+						Provisioner: util.RbdDriverName,
+					}),
+				},
+			)
+
+		case "CephFilesystemSubVolumeGroup":
+			// TODO: when distribution of storageclasses is implemented this whole logic needs to be changed
+			var transferOwner bool
+			svg := &rookCephv1.CephFilesystemSubVolumeGroup{}
+			svg.Name = cephRes.Name
+			svg.Namespace = s.namespace
+			if svg.Name == fmt.Sprintf("%s-%s", storageCluster.Name, controllers.DefaultSubvolumeGroupName) {
+				transferOwner = true
+			}
+			if err := s.client.Get(ctx, client.ObjectKeyFromObject(svg), svg); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s cephFilesystemSubVolumeGroup. %v", cephRes.Name, err)
+			}
+			provisionerSecretName := util.GenerateCephClientSecretName("cephfs", "provisioner", string(storageCluster.UID))
+			nodeSecretName := util.GenerateCephClientSecretName("cephfs", "node", string(storageCluster.UID))
+			cephfsStorageClassData := map[string]string{
+				"clusterID": clientProfile.Name,
+				"fsName":    svg.Spec.FilesystemName,
+				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
+			}
+			var kernelMountOptions map[string]string
+			for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
+				if kernelMountOptions == nil {
+					kernelMountOptions = map[string]string{}
+				}
+				parts := strings.Split(option, "=")
+				kernelMountOptions[parts[0]] = parts[1]
+			}
+			vscName := ""
+			vgscName := ""
+			if transferOwner {
+				vscName = fmt.Sprintf("%s-cephfsplugin-snapclass", storageCluster.Name)
+				// based on outstanding https://github.com/red-hat-storage/ocs-operator/pull/2859
+				vgscName = fmt.Sprintf("%s-cephfsplugin-groupsnapclass", storageCluster.Name)
+				// with this, storageclasses with clusterid as "openshift-storage" uses
+				// the clientprofile with name storageclusteruid which has correct svg mapped
+				// TODO: need to handle read affinity
+				// upgraded internal cluster
+				internalMappingRequired = true
+			} else {
+				clientProfile.Spec.CephFs = &csiopv1a1.CephFsConfigSpec{
+					SubVolumeGroup:     svg.Name,
+					KernelMountOptions: kernelMountOptions,
+				}
+				vscName = storageCluster.Name
+				vgscName = storageCluster.Name
+				if !strings.HasSuffix(svg.Name, consumerResource.Status.Client.ClusterID) {
+					// upgraded provider cluster
+					clientProfileMapping.Spec.Mappings = append(
+						clientProfileMapping.Spec.Mappings,
+						csiopv1a1.MappingsSpec{
+							LocalClientProfile:  getMD5Hash(cephFsScName),
+							RemoteClientProfile: clientProfile.Name,
+						},
+					)
+				}
+			}
+
+			storageClass := &storagev1.StorageClass{}
+			storageClass.Name = cephFsScName
+			storageClass.Provisioner = util.CephFSDriverName
+			storageClass.ReclaimPolicy = ptr.To(corev1.PersistentVolumeReclaimDelete)
+			storageClass.AllowVolumeExpansion = ptr.To(true)
+			storageClass.Parameters = cephfsStorageClassData
+			extR = append(extR, &pb.ExternalResource{
+				Name: cephFsScName,
+				Kind: "StorageClass",
+				Labels: map[string]string{
+					ramenDRStorageIDLabelKey: cephFsRequestHash,
+				},
+				Data: mustMarshal(storageClass),
+			})
+
+			snapClass := &snapapi.VolumeSnapshotClass{}
+			snapClass.Name = vscName
+			// TODO: there seems to be a bit of difference w/ internal mode
+			snapClass.Driver = util.CephFSDriverName
+			snapClass.DeletionPolicy = snapapi.VolumeSnapshotContentDelete
+			snapClass.Parameters = map[string]string{
+				"clusterID": clientProfile.Name,
+				"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
+			}
+			extR = append(extR, &pb.ExternalResource{
+				Name: vscName,
+				Kind: "VolumeSnapshotClass",
+				Labels: map[string]string{
+					ramenDRStorageIDLabelKey: cephFsRequestHash,
+				},
+				Data: mustMarshal(snapClass),
+			})
+
+			extR = append(extR,
+				&pb.ExternalResource{
+					Name: vgscName,
+					Kind: "VolumeGroupSnapshotClass",
+					Labels: map[string]string{
+						ramenDRStorageIDLabelKey: cephFsRequestHash,
+					},
+					Data: mustMarshal(map[string]string{
+						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
+					}),
+				},
+			)
+		}
+	}
+	extR = append(extR, &pb.ExternalResource{
+		Name: clientProfile.Name,
+		Kind: "ClientProfile",
+		Data: mustMarshal(&clientProfile.Spec),
+	})
+	if internalMappingRequired {
+		clientProfileMapping.Spec.Mappings = append(
+			clientProfileMapping.Spec.Mappings,
+			csiopv1a1.MappingsSpec{
+				LocalClientProfile:  storageCluster.Namespace,
+				RemoteClientProfile: clientProfile.Name,
+			},
+		)
+	}
+	if len(clientProfileMapping.Spec.Mappings) > 0 {
+		extR = append(extR, &pb.ExternalResource{
+			Name: clientProfileMapping.Name,
+			Kind: "ClientProfileMapping",
+			Data: mustMarshal(&clientProfileMapping.Spec),
+		})
+	}
 	return extR, nil
 }
 
@@ -657,30 +907,13 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
-	// Get storage consumer resource using UUID
-	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	// this is only here for backward compatibility as we expect no existing older client
+	// wants to fulfill claims as current provider deprecated storagerequests
+	_, err := s.consumerManager.GetRequest(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	klog.Infof("Found StorageConsumer %q (%q)", consumerObj.Name, req.StorageConsumerUUID)
-
-	var storageType string
-	switch req.StorageType {
-	case pb.FulfillStorageClaimRequest_BLOCK:
-		storageType = "block"
-	case pb.FulfillStorageClaimRequest_SHAREDFILE:
-		storageType = "sharedfile"
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown storage type, %s", storageType)
-	}
-
-	err = s.storageRequestManager.Create(ctx, consumerObj, req.StorageClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to fulfill storage class claim for %q. %v", req.StorageConsumerUUID, err)
-		klog.Error(errMsg)
-		if kerrors.IsAlreadyExists(err) {
-			return nil, status.Error(codes.AlreadyExists, errMsg)
+		errMsg := fmt.Sprintf("failed to get storage claim config %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
+		if kerrors.IsNotFound(err) {
+			return nil, status.Error(codes.NotFound, errMsg)
 		}
 		return nil, status.Error(codes.Internal, errMsg)
 	}
@@ -691,13 +924,8 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 // RevokeStorageClaim RPC call to delete the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
-	err := s.storageRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClaimName)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to revoke storage class claim %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
-		klog.Error(errMsg)
-		return nil, status.Error(codes.Internal, errMsg)
-	}
-
+	// client cluster want to stop using storageclasses and data on the backend can be removed
+	// TODO: this should be transferred into removal of storageclasses and corresponding data
 	return &pb.RevokeStorageClaimResponse{}, nil
 }
 
@@ -707,7 +935,7 @@ func storageClaimCephCsiSecretName(secretType, suffix string) string {
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
-	storageRequest, err := s.storageRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClaimName)
+	storageRequest, err := s.consumerManager.GetRequest(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to get storage class claim config %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
 		if kerrors.IsNotFound(err) {
@@ -1280,4 +1508,9 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	}
 
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
+}
+
+func getMD5Hash(text string) string {
+	hash := md5.Sum([]byte(text))
+	return hex.EncodeToString(hash[:])
 }
