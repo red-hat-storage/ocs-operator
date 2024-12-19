@@ -414,48 +414,45 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	noobaaOperatorSecret := &v1.Secret{}
 	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumerName)
 	noobaaOperatorSecret.Namespace = s.namespace
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); err != nil {
-		if kerrors.IsNotFound(err) {
-			// ignoring because it is a provider cluster and the noobaa secret does not exist
-			return extR, nil
-
-		}
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); client.IgnoreNotFound(err) != nil {
 		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
 	}
-	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
-	if !ok || len(authToken) == 0 {
-		return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+	if noobaaOperatorSecret.UID != "" {
+		authToken, ok := noobaaOperatorSecret.Data["auth_token"]
+		if !ok || len(authToken) == 0 {
+			return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+		}
+		noobaMgmtRoute := &routev1.Route{}
+		noobaMgmtRoute.Name = "noobaa-mgmt"
+		noobaMgmtRoute.Namespace = s.namespace
+		if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
+			return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
+		}
+		if noobaMgmtRoute.Status.Ingress == nil || len(noobaMgmtRoute.Status.Ingress) == 0 {
+			return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
+		}
+		noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
+		if noobaaMgmtAddress == "" {
+			return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
+		}
+		extR = append(extR, &pb.ExternalResource{
+			Name: "noobaa-remote-join-secret",
+			Kind: "Secret",
+			Data: mustMarshal(map[string]string{
+				"auth_token": string(authToken),
+				"mgmt_addr":  noobaaMgmtAddress,
+			}),
+		})
+		extR = append(extR, &pb.ExternalResource{
+			Name: "noobaa-remote",
+			Kind: "Noobaa",
+			Data: mustMarshal(&nbv1.NooBaaSpec{
+				JoinSecret: &v1.SecretReference{
+					Name: "noobaa-remote-join-secret",
+				},
+			}),
+		})
 	}
-	noobaMgmtRoute := &routev1.Route{}
-	noobaMgmtRoute.Name = "noobaa-mgmt"
-	noobaMgmtRoute.Namespace = s.namespace
-	if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
-		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
-	}
-	if len(noobaMgmtRoute.Status.Ingress) == 0 {
-		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
-	}
-	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
-	if noobaaMgmtAddress == "" {
-		return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
-	}
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote-join-secret",
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"auth_token": string(authToken),
-			"mgmt_addr":  noobaaMgmtAddress,
-		}),
-	})
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
-		Kind: "Noobaa",
-		Data: mustMarshal(&nbv1.NooBaaSpec{
-			JoinSecret: &v1.SecretReference{
-				Name: "noobaa-remote-join-secret",
-			},
-		}),
-	})
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
