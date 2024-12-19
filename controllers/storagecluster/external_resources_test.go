@@ -571,6 +571,7 @@ func TestErasureCodedExternalResources(t *testing.T) {
 			},
 		},
 	}
+	cr.UID = "temp"
 	externalResource := []ExternalResource{
 		{
 			Name: "ceph-rbd",

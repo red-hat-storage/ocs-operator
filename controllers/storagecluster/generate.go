@@ -127,7 +127,11 @@ func generateNameForSnapshotClassSecret(instance *ocsv1.StorageCluster, snapshot
 			}
 		}
 	}
-	return fmt.Sprintf("rook-csi-%s-provisioner", snapshotType)
+	return util.GenerateCephClientSecretName(
+		string(snapshotType),
+		"provisioner",
+		string(instance.UID),
+	)
 }
 
 func generateNameForCephRbdMirror(initData *ocsv1.StorageCluster) string {
