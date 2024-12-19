@@ -422,7 +422,7 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace() error {
 
 func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup() error {
 	cephFs := &rookCephv1.CephFilesystem{}
-	cephFs.Name = r.storageClusterName
+	cephFs.Name = fmt.Sprintf("%s-%s", r.storageClusterName, "cephfilesystem")
 	cephFs.Namespace = r.OperatorNamespace
 	if err := r.get(cephFs); err != nil {
 		return fmt.Errorf("failed to get CephFilesystem: %v", err)
@@ -447,6 +447,10 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup() erro
 	r.cephFilesystemSubVolumeGroup.Namespace = r.OperatorNamespace
 	if strings.HasSuffix(r.cephFilesystemSubVolumeGroup.Name, DefaultSubvolumeGroupName) {
 		defaultSvgExist = true
+		// we need status of svg
+		if err := r.get(r.cephFilesystemSubVolumeGroup); err != nil {
+			return err
+		}
 	} else {
 		if !strings.HasSuffix(r.cephFilesystemSubVolumeGroup.Name, r.cephClientSuffix) {
 			// svg was created in provider mode
@@ -522,9 +526,9 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup() erro
 	}
 	r.setCephResourceStatus(r.cephClientCephFsProvisioner.Name, "CephClient", phase)
 
-	r.cephClientCephFsNode.Namespace = r.OperatorNamespace
 	r.cephClientCephFsNode = &rookCephv1.CephClient{}
 	r.cephClientCephFsNode.Name = generateClientName("cephfs", "node", r.cephClientSuffix)
+	r.cephClientCephFsNode.Namespace = r.OperatorNamespace
 	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.cephClientCephFsNode, func() error {
 		if err := r.own(r.cephClientCephFsNode); err != nil {
 			return err
