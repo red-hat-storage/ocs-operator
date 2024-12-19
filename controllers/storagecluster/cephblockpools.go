@@ -94,12 +94,14 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
-		if storageCluster.Spec.Mirroring != nil {
-			if storageCluster.Spec.Mirroring.Enabled {
+		// Since provider mode handles mirroring, we only need to handle for internal mode
+		if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
+			if storageCluster.Spec.Mirroring != nil && storageCluster.Spec.Mirroring.Enabled {
 				cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
 				cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
 				cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
 			} else {
+				// If mirroring is not enabled or is nil, disable it. This is to ensure that the pool mirroring does not remain enabled during further reconciliations
 				cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
 			}
 		}
@@ -257,12 +259,14 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 			}
 			cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
-			if storageCluster.Spec.Mirroring != nil {
-				if storageCluster.Spec.Mirroring.Enabled {
+			// Since provider mode handles mirroring, we only need to handle for internal mode
+			if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
+				if storageCluster.Spec.Mirroring != nil && storageCluster.Spec.Mirroring.Enabled {
 					cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
 					cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
 					cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
 				} else {
+					// If mirroring is not enabled or is nil, disable it. This is to ensure that the pool mirroring does not remain enabled during further reconciliations
 					cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
 				}
 			}
