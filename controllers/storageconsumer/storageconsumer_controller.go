@@ -469,6 +469,11 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup() erro
 			}
 			// we are not tracking the data pool as it was same in both internal and provider mode
 			r.cephFilesystemSubVolumeGroup.Spec.FilesystemName = cephFs.Name
+			if existingSvgName != "" {
+				r.cephFilesystemSubVolumeGroup.Spec.Name = existingSvgName
+			} else {
+				r.cephFilesystemSubVolumeGroup.Spec.Name = r.cephFilesystemSubVolumeGroup.Name
+			}
 			return nil
 		}); err != nil {
 			return err
