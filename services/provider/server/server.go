@@ -696,7 +696,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 				internalMappingRequired = true
 			} else {
 				clientProfile.Spec.CephFs = &csiopv1a1.CephFsConfigSpec{
-					SubVolumeGroup:     svg.Name,
+					SubVolumeGroup:     svg.Spec.Name,
 					KernelMountOptions: kernelMountOptions,
 				}
 				vscName = storageCluster.Name
