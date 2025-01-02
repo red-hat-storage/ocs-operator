@@ -369,19 +369,6 @@ spec:
         severity: info
   - name: ceph-daemon-performance-alerts.rules
     rules:
-    - alert: MDSCacheUsageHigh
-      annotations:
-        description: MDS cache usage for the daemon {{ $labels.ceph_daemon }} has
-          exceeded above 95% of the requested value. Increase the memory request for
-          {{ $labels.ceph_daemon }} pod.
-        message: High MDS cache usage for the daemon {{ $labels.ceph_daemon }}.
-        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCacheUsageHigh.md
-        severity_level: error
-      expr: |
-        (ceph_mds_mem_rss * 1000) / on(ceph_daemon) group_left(job)(label_replace(kube_pod_container_resource_requests{container="mds", resource="memory"}, "ceph_daemon", "mds.$1", "pod", "rook-ceph-mds-(.*)-(.*)") * .5) > .95
-      for: 5m
-      labels:
-        severity: critical
     - alert: OSDCPULoadHigh
       annotations:
         description: CPU usage for osd on pod {{ $labels.pod }} has exceeded 80%.
