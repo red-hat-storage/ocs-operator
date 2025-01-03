@@ -402,8 +402,8 @@ spec:
           scaling, by adding more resources to the existing MDS pod{{end}}.
           Please see 'runbook_url' for more details.
         message: Ceph metadata server pod ({{ $labels.pod }}) has high cpu usage
-        runbook_url: '{{if query "rate(ceph_mds_request[6h]) >= 1000"}}https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHighNeedsHorizontalScaling.md
-        {{else}}https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCpuUsageHighNeedsVerticalScaling.md
+        runbook_url: '{{if query "rate(ceph_mds_request[6h]) >= 1000"}}https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCPUUsageHighNeedsHorizontalScaling.md
+        {{else}}https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephMdsCPUUsageHighNeedsVerticalScaling.md
         {{end}}'
         severity_level: warning
       expr: |
