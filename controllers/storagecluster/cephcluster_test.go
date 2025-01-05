@@ -1539,6 +1539,77 @@ func TestEnsureUpgradeReliabilityParams(t *testing.T) {
 	assert.Equal(t, 45*time.Minute, expected.Spec.DisruptionManagement.OSDMaintenanceTimeout)
 }
 
+func TestHealthCheckConfiguration(t *testing.T) {
+	sc := &ocsv1.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	interval := metav1.Duration{
+		Duration: 20 * time.Second,
+	}
+	mockProbeSpec := &rookCephv1.ProbeSpec{
+		Disabled: false,
+		Probe: &corev1.Probe{
+			InitialDelaySeconds: 10,
+			TimeoutSeconds:      5,
+		},
+	}
+	probeMap := make(map[rookCephv1.KeyType]*rookCephv1.ProbeSpec)
+	probeMap["abc"] = mockProbeSpec
+
+	sc.Spec.ManagedResources.CephCluster.HealthCheck = &rookCephv1.CephClusterHealthCheckSpec{
+		DaemonHealth: rookCephv1.DaemonHealthSpec{
+			Status: rookCephv1.HealthCheckSpec{
+				Timeout:  "11",
+				Disabled: false,
+				Interval: &interval,
+			},
+			Monitor: rookCephv1.HealthCheckSpec{
+				Timeout:  "22",
+				Disabled: true,
+				Interval: &interval,
+			},
+			ObjectStorageDaemon: rookCephv1.HealthCheckSpec{
+				Timeout:  "33",
+				Disabled: false,
+				Interval: &interval,
+			},
+		},
+		StartupProbe:  probeMap,
+		LivenessProbe: probeMap,
+	}
+	expected := newCephCluster(sc, "", nil, log)
+
+	assert.Equal(t, "11", expected.Spec.HealthCheck.DaemonHealth.Status.Timeout)
+	assert.Equal(t, false, expected.Spec.HealthCheck.DaemonHealth.Status.Disabled)
+	assert.Equal(t, &interval, expected.Spec.HealthCheck.DaemonHealth.Status.Interval)
+
+	assert.Equal(t, "22", expected.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
+	assert.Equal(t, true, expected.Spec.HealthCheck.DaemonHealth.Monitor.Disabled)
+	assert.Equal(t, &interval, expected.Spec.HealthCheck.DaemonHealth.Monitor.Interval)
+
+	assert.Equal(t, "33", expected.Spec.HealthCheck.DaemonHealth.ObjectStorageDaemon.Timeout)
+	assert.Equal(t, false, expected.Spec.HealthCheck.DaemonHealth.ObjectStorageDaemon.Disabled)
+	assert.Equal(t, &interval, expected.Spec.HealthCheck.DaemonHealth.ObjectStorageDaemon.Interval)
+
+	compareProbeMaps(t, probeMap, expected.Spec.HealthCheck.LivenessProbe)
+	compareProbeMaps(t, probeMap, expected.Spec.HealthCheck.StartupProbe)
+
+}
+
+// Helper function to compare two maps
+func compareProbeMaps(t *testing.T, map1, map2 map[rookCephv1.KeyType]*rookCephv1.ProbeSpec) {
+	assert.Equal(t, len(map1), len(map2))
+
+	for key, value1 := range map1 {
+		value2, exists := map2[key]
+		assert.Assert(t, exists, "Key %v not found in map2", key)
+
+		// Compare the actual ProbeSpec values
+		assert.Equal(t, value1.Disabled, value2.Disabled)
+		assert.Equal(t, value1.Probe.InitialDelaySeconds, value2.Probe.InitialDelaySeconds)
+		assert.Equal(t, value1.Probe.TimeoutSeconds, value2.Probe.TimeoutSeconds)
+	}
+}
+
 func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 	cases := []struct {
 		label                 string
