@@ -15,11 +15,13 @@ package mirroring
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"golang.org/x/exp/maps"
-	"k8s.io/utils/ptr"
 	"slices"
 	"time"
+
+	"golang.org/x/exp/maps"
+	"k8s.io/utils/ptr"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -337,7 +339,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 			for i := range response.Errors {
 				resp := response.Errors[i]
 				r.log.Error(
-					fmt.Errorf(resp.Message),
+					errors.New(resp.Message),
 					"failed to get BlockPoolsInfo",
 					"CephBlockPool",
 					resp.BlockPoolName,
@@ -494,7 +496,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			for i := range response.Errors {
 				resp := response.Errors[i]
 				r.log.Error(
-					fmt.Errorf(resp.Message),
+					errors.New(resp.Message),
 					"failed to get StorageClientsInfo",
 					"CephBlockPool",
 					resp.ClientID,

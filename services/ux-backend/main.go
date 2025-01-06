@@ -27,14 +27,17 @@ type serverConfig struct {
 }
 
 func readEnvVar[T any](envVarName string, defaultValue T, parser func(str string) (T, error)) (T, error) {
-	if str := os.Getenv(envVarName); str == "" {
+	str := os.Getenv(envVarName)
+	if str == "" {
 		klog.Infof("no user-defined %s provided, defaulting to %v", envVarName, defaultValue)
 		return defaultValue, nil
-	} else if value, err := parser(str); err != nil {
-		return *new(T), fmt.Errorf("malformed user-defined %s value %s: %v", envVarName, str, err)
-	} else {
-		return value, nil
 	}
+
+	value, err := parser(str)
+	if err != nil {
+		return *new(T), fmt.Errorf("malformed user-defined %s value %s: %v", envVarName, str, err)
+	}
+	return value, nil
 }
 
 func loadAndValidateServerConfig() (*serverConfig, error) {

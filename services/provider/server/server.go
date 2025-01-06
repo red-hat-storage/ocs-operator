@@ -508,7 +508,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
 		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
 	}
-	if noobaMgmtRoute.Status.Ingress == nil || len(noobaMgmtRoute.Status.Ingress) == 0 {
+	if len(noobaMgmtRoute.Status.Ingress) == 0 {
 		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
 	}
 
@@ -660,7 +660,7 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 	// Get storage consumer resource using UUID
 	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	klog.Infof("Found StorageConsumer %q (%q)", consumerObj.Name, req.StorageConsumerUUID)
@@ -695,7 +695,7 @@ func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.Revo
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to revoke storage class claim %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
 		klog.Error(errMsg)
-		return nil, status.Errorf(codes.Internal, errMsg)
+		return nil, status.Error(codes.Internal, errMsg)
 	}
 
 	return &pb.RevokeStorageClaimResponse{}, nil
