@@ -608,9 +608,8 @@ func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) st
 		return "topology.rook.io/rack"
 	} else if failuredomain == "hostname" || failuredomain == "host" {
 		return "kubernetes.io/hostname"
-	} else {
-		return ""
 	}
+	return ""
 }
 
 func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
