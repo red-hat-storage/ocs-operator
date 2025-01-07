@@ -20,9 +20,6 @@ import (
 	"slices"
 	"time"
 
-	"golang.org/x/exp/maps"
-	"k8s.io/utils/ptr"
-
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	providerClient "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client"
@@ -31,10 +28,12 @@ import (
 
 	"github.com/go-logr/logr"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -211,13 +210,15 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 		return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
 	}
 
+	errorOccurred := false
+
 	ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create a new provider client: %v", err)
+		r.log.Error(err, "failed to create a new provider client")
+		errorOccurred = true
+	} else if ocsClient != nil {
+		defer ocsClient.Close()
 	}
-	defer ocsClient.Close()
-
-	errorOccurred := false
 
 	if errored := r.reconcileRbdMirror(clientMappingConfig, shouldMirror); errored {
 		errorOccurred = true
@@ -323,7 +324,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 		blockPoolByName[cephBlockPool.Name] = cephBlockPool
 	}
 
-	if len(blockPoolByName) > 0 {
+	if len(blockPoolByName) > 0 && ocsClient != nil {
 		// fetch BlockPoolsInfo
 		response, err := ocsClient.GetBlockPoolsInfo(
 			r.ctx,
@@ -481,7 +482,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 		peerClientIDs = append(peerClientIDs, peerClientID)
 	}
 
-	if len(peerClientIDs) > 0 {
+	if len(peerClientIDs) > 0 && ocsClient != nil {
 		response, err := ocsClient.GetStorageClientsInfo(
 			r.ctx,
 			storageClusterPeer.Status.PeerInfo.StorageClusterUid,
