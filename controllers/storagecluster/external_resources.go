@@ -25,15 +25,15 @@ import (
 )
 
 const (
-	externalClusterDetailsSecret          = "rook-ceph-external-cluster-details"
-	externalClusterDetailsKey             = "external_cluster_details"
-	cephFsStorageClassName                = "cephfs"
-	cephRbdStorageClassName               = "ceph-rbd"
-	cephRbdRadosNamespaceStorageClassName = "ceph-rbd-rados-namespace"
-	cephRbdTopologyStorageClassName       = "ceph-rbd-topology"
-	cephRgwStorageClassName               = "ceph-rgw"
-	externalCephRgwEndpointKey            = "endpoint"
-	cephRgwTLSSecretKey                   = "ceph-rgw-tls-cert"
+	externalClusterDetailsSecret                = "rook-ceph-external-cluster-details"
+	externalClusterDetailsKey                   = "external_cluster_details"
+	cephFsStorageClassName                      = "cephfs"
+	cephRbdStorageClassName                     = "ceph-rbd"
+	cephRbdRadosNamespaceStorageClassNamePrefix = "ceph-rbd-rados-namespace"
+	cephRbdTopologyStorageClassName             = "ceph-rbd-topology"
+	cephRgwStorageClassName                     = "ceph-rgw"
+	externalCephRgwEndpointKey                  = "endpoint"
+	cephRgwTLSSecretKey                         = "ceph-rgw-tls-cert"
 )
 
 const (
@@ -375,7 +375,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
 				scc = newCephBlockPoolStorageClassConfiguration(instance)
-			} else if d.Name == cephRbdRadosNamespaceStorageClassName {
+			} else if strings.HasPrefix(d.Name, cephRbdRadosNamespaceStorageClassNamePrefix) { // ceph-rbd-rados-namespace-<radosNamespaceName>
 				scc = newCephBlockPoolStorageClassConfiguration(instance)
 				// update the storageclass name to rados storagesclass name
 				scc.storageClass.Name = fmt.Sprintf("%s-%s", instance.Name, d.Name)
