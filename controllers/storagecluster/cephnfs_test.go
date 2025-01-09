@@ -72,3 +72,13 @@ func assertCephNFSService(t *testing.T, reconciler StorageClusterReconciler, cr 
 	assert.Equal(t, expectedAf[0].ObjectMeta.Name, actualNFSService.ObjectMeta.Name)
 	assert.Equal(t, expectedAf[0].Spec, actualNFSService.Spec)
 }
+
+func TestNfsLogLevelParam(t *testing.T) {
+	var objects []client.Object
+	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
+	cr.Spec.NFS = &api.NFSSpec{
+		LogLevel: "NIV_DEBUG",
+	}
+	expectedAf, _ := reconciler.newCephNFSInstances(cr)
+	assert.Equal(t, "NIV_DEBUG", expectedAf[0].Spec.Server.LogLevel)
+}
