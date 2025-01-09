@@ -79,6 +79,12 @@ func NamePredicate(name string) predicate.Predicate {
 	})
 }
 
+func NamespacePredicate(namespace string) predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetNamespace() == namespace
+	})
+}
+
 // EventTypePredicate return a predicate to filter events based on their
 // respective event type. This helper allows for the selection of multiple
 // types resulting in a predicate that can filter in more than a single event
