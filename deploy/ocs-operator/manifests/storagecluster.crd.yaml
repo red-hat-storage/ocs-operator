@@ -2618,6 +2618,13 @@ spec:
                   enable:
                     description: Enable specifies whether to enable NFS.
                     type: boolean
+                  logLevel:
+                    description: |-
+                      LogLevel set logging level
+                      Log levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG | NIV_FULL_DEBUG | NB_LOG_LEVEL
+                    type: string
+                  reconcileStrategy:
+                    type: string
                   storageClassName:
                     description: StorageClassName specifies the name of the storage
                       class created for NFS
