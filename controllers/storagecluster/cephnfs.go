@@ -36,6 +36,7 @@ func (r *StorageClusterReconciler) newCephNFSInstances(initData *ocsv1.StorageCl
 					// set high PriorityClassName for the NFS pods, since this will block io for
 					// pods using NFS volumes.
 					PriorityClassName: openshiftUserCritical,
+					LogLevel:          initData.Spec.NFS.LogLevel,
 				},
 			},
 		},
@@ -55,7 +56,10 @@ func (obj *ocsCephNFS) ensureCreated(r *StorageClusterReconciler, instance *ocsv
 	if instance.Spec.NFS == nil || !instance.Spec.NFS.Enable {
 		return reconcile.Result{}, nil
 	}
-
+	reconcileStrategy := ReconcileStrategy(instance.Spec.NFS.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return reconcile.Result{}, nil
+	}
 	cephNFSes, err := r.newCephNFSInstances(instance)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -74,6 +78,9 @@ func (obj *ocsCephNFS) ensureCreated(r *StorageClusterReconciler, instance *ocsv
 			r.Log.Info("Restoring original CephNFS.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
 			existingCephNFS.ObjectMeta.OwnerReferences = cephNFS.ObjectMeta.OwnerReferences
 			existingCephNFS.Spec = cephNFS.Spec
+			if instance.Spec.NFS.LogLevel != "" {
+				existingCephNFS.Spec.Server.LogLevel = instance.Spec.NFS.LogLevel
+			}
 			err = r.Client.Update(ctxTODO, &existingCephNFS)
 			if err != nil {
 				r.Log.Error(err, "Unable to update CephNFS.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
@@ -98,6 +105,9 @@ func (obj *ocsCephNFS) ensureCreated(r *StorageClusterReconciler, instance *ocsv
 
 // ensureDeleted deletes the CephNFS resource owned by the StorageCluster
 func (obj *ocsCephNFS) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
+	if sc.Spec.NFS == nil || !sc.Spec.NFS.Enable {
+		return reconcile.Result{}, nil
+	}
 	ctxTODO := context.TODO()
 	foundCephNFS := &cephv1.CephNFS{}
 	cephNFSes, err := r.newCephNFSInstances(sc)
