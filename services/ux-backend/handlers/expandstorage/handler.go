@@ -115,6 +115,7 @@ func updateStorageCluster(w http.ResponseWriter, r *http.Request, client client.
 		Portable:    false,
 		Encrypted:   &enableEncryption,
 		DeviceClass: storageClassForOSDs,
+		DeviceType:  "SSD",
 		DataPVCTemplate: corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},
