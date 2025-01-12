@@ -489,7 +489,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	sc1.Spec.StorageDeviceSets = mockDeviceSets
 	sc1.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
 		Labels: map[string]ocsv1.TopologyLabelValues{
-			zoneTopologyLabel: []string{
+			corev1.LabelZoneFailureDomainStable: []string{
 				"zone1",
 				"zone2",
 			},
@@ -501,7 +501,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	sc2.Spec.StorageDeviceSets = mockDeviceSets
 	sc2.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
 		Labels: map[string]ocsv1.TopologyLabelValues{
-			zoneTopologyLabel: []string{
+			corev1.LabelZoneFailureDomainStable: []string{
 				"zone1",
 				"zone2",
 				"zone3",
@@ -514,7 +514,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	sc3.Spec.StorageDeviceSets = mockDeviceSets
 	sc3.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
 		Labels: map[string]ocsv1.TopologyLabelValues{
-			zoneTopologyLabel: []string{
+			corev1.LabelZoneFailureDomainStable: []string{
 				"zone1",
 				"zone2",
 				"zone3",
@@ -572,6 +572,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 	for _, c := range cases {
 		t.Logf("Case: %s\n", c.label)
+		setFailureDomain(c.sc)
 		actual := newStorageClassDeviceSets(c.sc)
 		assert.Equal(t, defaults.DeviceSetReplica, len(actual))
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
@@ -607,8 +608,8 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 			if c.topologyKey == "rack" {
 				assert.Equal(t, defaults.RackTopologyKey, topologyKey)
-			} else if len(c.sc.Status.NodeTopologies.Labels[zoneTopologyLabel]) >= defaults.DeviceSetReplica {
-				assert.Equal(t, zoneTopologyLabel, topologyKey)
+			} else if len(c.sc.Status.NodeTopologies.Labels[corev1.LabelZoneFailureDomainStable]) >= defaults.DeviceSetReplica {
+				assert.Equal(t, corev1.LabelZoneFailureDomainStable, topologyKey)
 			} else {
 				assert.Equal(t, hostnameLabel, topologyKey)
 			}
@@ -765,7 +766,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 	sc1.Spec.StorageDeviceSets = getMockDeviceSets("mock", 1, 4, true)
 	sc1.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
 		Labels: map[string]ocsv1.TopologyLabelValues{
-			zoneTopologyLabel: []string{
+			corev1.LabelZoneFailureDomainStable: []string{
 				"zone1",
 				"zone2",
 			},
@@ -773,7 +774,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 		ArbiterLocation: "zone3",
 	}
 	sc1.Status.FailureDomain = "zone"
-	sc1.Status.FailureDomainKey = zoneTopologyLabel
+	sc1.Status.FailureDomainKey = corev1.LabelZoneFailureDomainStable
 	sc1.Status.FailureDomainValues = []string{"zone1", "zone2"}
 
 	sc2 := &ocsv1.StorageCluster{}
@@ -783,11 +784,11 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 	}
 	sc2.Spec.StorageDeviceSets = getMockDeviceSets("mock", 1, 6, true)
 	sc2.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
-		Labels:          map[string]ocsv1.TopologyLabelValues{zoneTopologyLabel: []string{"zone1", "zone2"}},
+		Labels:          map[string]ocsv1.TopologyLabelValues{corev1.LabelZoneFailureDomainStable: []string{"zone1", "zone2"}},
 		ArbiterLocation: "zone3",
 	}
 	sc2.Status.FailureDomain = "zone"
-	sc2.Status.FailureDomainKey = zoneTopologyLabel
+	sc2.Status.FailureDomainKey = corev1.LabelZoneFailureDomainStable
 	sc2.Status.FailureDomainValues = []string{"zone1", "zone2"}
 
 	cases := []struct {
@@ -798,12 +799,12 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 		{
 			label:       "case 1",
 			sc:          sc1,
-			topologyKey: zoneTopologyLabel,
+			topologyKey: corev1.LabelZoneFailureDomainStable,
 		},
 		{
 			label:       "case 2",
 			sc:          sc2,
-			topologyKey: zoneTopologyLabel,
+			topologyKey: corev1.LabelZoneFailureDomainStable,
 		},
 	}
 
