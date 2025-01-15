@@ -500,7 +500,13 @@ type DeviceClasses struct {
 // OSDStatus represents OSD status of the ceph Cluster
 type OSDStatus struct {
 	// StoreType is a mapping between the OSD backend stores and number of OSDs using these stores
-	StoreType map[string]int `json:"storeType,omitempty"`
+	StoreType       map[string]int  `json:"storeType,omitempty"`
+	MigrationStatus MigrationStatus `json:"migrationStatus,omitempty"`
+}
+
+// MigrationStatus status represents the current status of any OSD migration.
+type MigrationStatus struct {
+	Pending int `json:"pending,omitempty"`
 }
 
 // ClusterVersion represents the version of a Ceph Cluster
@@ -1168,11 +1174,15 @@ type CephFilesystemList struct {
 type FilesystemSpec struct {
 	// The metadata pool settings
 	// +nullable
-	MetadataPool PoolSpec `json:"metadataPool"`
+	MetadataPool NamedPoolSpec `json:"metadataPool"`
 
 	// The data pool settings, with optional predefined pool name.
 	// +nullable
 	DataPools []NamedPoolSpec `json:"dataPools"`
+
+	// Preserve pool names as specified
+	// +optional
+	PreservePoolNames bool `json:"preservePoolNames,omitempty"`
 
 	// Preserve pools on filesystem deletion
 	// +optional
@@ -1707,6 +1717,11 @@ type GatewaySpec struct {
 	// +nullable
 	Service *RGWServiceSpec `json:"service,omitempty"`
 
+	// Enable enhanced operation Logs for S3 in a sidecar named ops-log
+	// +optional
+	// +nullable
+	OpsLogSidecar *OpsLogSidecar `json:"opsLogSidecar,omitempty"`
+
 	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
@@ -1724,6 +1739,29 @@ type GatewaySpec struct {
 	// Example: for an additional mount at subPath `ldap`, mounted from a secret that has key
 	// `bindpass.secret`, the file would reside at `/var/rgw/ldap/bindpass.secret`.
 	AdditionalVolumeMounts AdditionalVolumeMounts `json:"additionalVolumeMounts,omitempty"`
+
+	// RgwConfig sets Ceph RGW config values for the gateway clients that serve this object store.
+	// Values are modified at runtime without RGW restart.
+	// This feature is intended for advanced users. It allows breaking configurations to be easily
+	// applied. Use with caution.
+	// +nullable
+	// +optional
+	RgwConfig map[string]string `json:"rgwConfig,omitempty"`
+
+	// RgwCommandFlags sets Ceph RGW config values for the gateway clients that serve this object
+	// store. Values are modified at RGW startup, resulting in RGW pod restarts.
+	// This feature is intended for advanced users. It allows breaking configurations to be easily
+	// applied. Use with caution.
+	// +nullable
+	// +optional
+	RgwCommandFlags map[string]string `json:"rgwCommandFlags,omitempty"`
+}
+
+// RGWLoggingSpec is intended to extend the s3/swift logging for client operations
+type OpsLogSidecar struct {
+	// Resources represents the way to specify resource requirements for the ops-log sidecar
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // EndpointAddress is a tuple that describes a single IP address or host name. This is a subset of
@@ -1741,6 +1779,14 @@ type EndpointAddress struct {
 
 // ProtocolSpec represents a Ceph Object Store protocol specification
 type ProtocolSpec struct {
+	// Represents RGW 'rgw_enable_apis' config option. See: https://docs.ceph.com/en/reef/radosgw/config-ref/#confval-rgw_enable_apis
+	// If no value provided then all APIs will be enabled: s3, s3website, swift, swift_auth, admin, sts, iam, notifications
+	// If enabled APIs are set, all remaining APIs will be disabled.
+	// This option overrides S3.Enabled value.
+	// +optional
+	// +nullable
+	EnableAPIs []ObjectStoreAPI `json:"enableAPIs,omitempty"`
+
 	// The spec for S3
 	// +optional
 	// +nullable
@@ -1752,8 +1798,12 @@ type ProtocolSpec struct {
 	Swift *SwiftSpec `json:"swift"`
 }
 
+// +kubebuilder:validation:Enum=s3;s3website;swift;swift_auth;admin;sts;iam;notifications
+type ObjectStoreAPI string
+
 // S3Spec represents Ceph Object Store specification for the S3 API
 type S3Spec struct {
+	// Deprecated: use protocol.enableAPIs instead.
 	// Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
 	// +nullable
 	// +optional
@@ -3051,6 +3101,9 @@ type StorageScopeSpec struct {
 	// +nullable
 	// +optional
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
+	// Migration handles the OSD migration
+	// +optional
+	Migration Migration `json:"migration,omitempty"`
 	// +optional
 	Store OSDStore `json:"store,omitempty"`
 	// +optional
@@ -3087,6 +3140,15 @@ type StorageScopeSpec struct {
 	// The default is false since data rebalancing can cause temporary cluster slowdown.
 	// +optional
 	AllowOsdCrushWeightUpdate bool `json:"allowOsdCrushWeightUpdate,omitempty"`
+}
+
+// Migration handles the OSD migration
+type Migration struct {
+	// A user confirmation to migrate the OSDs. It destroys each OSD one at a time, cleans up the backing disk
+	// and prepares OSD with same ID on that disk
+	// +optional
+	// +kubebuilder:validation:Pattern=`^$|^yes-really-migrate-osds$`
+	Confirmation string `json:"confirmation,omitempty"`
 }
 
 // OSDStore is the backend storage type used for creating the OSDs
