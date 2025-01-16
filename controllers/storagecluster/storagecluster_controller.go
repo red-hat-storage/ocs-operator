@@ -234,7 +234,15 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			enqueueStorageClusterRequest,
 		).
-		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate))
+		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate)).
+		Watches(
+			&corev1.ConfigMap{},
+			enqueueStorageClusterRequest,
+			builder.WithPredicates(
+				util.NamePredicate(OdfInfoConfigMapName),
+				util.NamespacePredicate(r.OperatorNamespace),
+			),
+		)
 
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		build.Owns(&nbv1.NooBaa{}, builder.WithPredicates(noobaaIgnoreTimeUpdatePredicate))

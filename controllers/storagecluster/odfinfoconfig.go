@@ -11,13 +11,13 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -58,11 +58,6 @@ func (obj *odfInfoConfig) ensureCreated(r *StorageClusterReconciler, storageClus
 	mutex.Lock()
 	defer mutex.Unlock()
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, odfInfoConfigMap, func() error {
-		// Note: purposely setting OwnerRef instead of ControllerRef, which alongside MatchEveryOwner
-		// sent in to OwnsOptions in the ConfigMap Owns, guarantees relevant events will be triggered
-		if err = controllerutil.SetOwnerReference(storageCluster, odfInfoConfigMap, r.Scheme); err != nil {
-			return err
-		}
 		r.Log.Info("Creating or updating odf-info config map", odfInfoMapKind, client.ObjectKeyFromObject(odfInfoConfigMap))
 		odfInfoKey := obj.getOdfInfoKeyName(storageCluster)
 
