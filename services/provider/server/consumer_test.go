@@ -8,6 +8,7 @@ import (
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	providerClient "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -217,7 +218,8 @@ func TestUpdateConsumerStatus(t *testing.T) {
 	fields := providerClient.NewStorageClientStatus().
 		SetPlatformVersion("1.0.0").
 		SetOperatorVersion("1.0.0")
-	err = consumerManager.UpdateConsumerStatus(ctx, "uid1", fields)
+	status := fields.(*pb.ReportStatusRequest)
+	err = consumerManager.UpdateConsumerStatus(ctx, "uid1", status)
 	assert.NoError(t, err)
 
 	c1, err := consumerManager.Get(ctx, "uid1")
