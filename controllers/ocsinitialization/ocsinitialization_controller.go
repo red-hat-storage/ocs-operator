@@ -14,6 +14,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/templates"
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	"github.com/go-logr/logr"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
@@ -78,7 +79,7 @@ type OCSInitializationReconciler struct {
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;create;update
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=get;create;update
-// +kubebuilder:rbac:groups="monitoring.coreos.com",resources={alertmanagers,prometheuses},verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="monitoring.coreos.com",resources={alertmanagers,prometheuses,k8s,prometheuses/api},verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;list;watch;update;patch;create;delete
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch;delete;update;patch
 // +kubebuilder:rbac:groups=cluster.open-cluster-management.io,resources=clusterclaims,verbs=get;list;watch;create;update
@@ -243,6 +244,12 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		err = r.reconcilePrometheusService(instance)
 		if err != nil {
 			r.Log.Error(err, "Failed to ensure prometheus service")
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcileK8sServiceMonitorCRB(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to ensure K8s service monitor role bindings")
 			return reconcile.Result{}, err
 		}
 
@@ -775,6 +782,35 @@ func (r *OCSInitializationReconciler) reconcilePrometheus(initialData *ocsv1.OCS
 		return err
 	}
 	r.Log.Info("Prometheus instance creation succeeded", "Name", prometheus.Name)
+
+	return nil
+}
+func (r *OCSInitializationReconciler) reconcileK8sServiceMonitorCRB(initialData *ocsv1.OCSInitialization) error {
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "k8s-metrics-sm-prometheus-k8s",
+		},
+	}
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, crb, func() error {
+		crb.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     "cluster-monitoring-view",
+		}
+		subject := rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      "prometheus-k8s",
+			Namespace: initialData.Namespace,
+		}
+		crb.Subjects = append(crb.Subjects, subject)
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update K8s service monitor Cluster Role Binding")
+		return err
+	}
+	r.Log.Info("K8s cluster role binding creation succeeded", "Name", crb.Name)
 
 	return nil
 }

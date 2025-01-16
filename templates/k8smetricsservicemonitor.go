@@ -52,8 +52,10 @@ var K8sMetricsServiceMonitorSpecTemplate = promv1.ServiceMonitorSpec{
 			},
 			TLSConfig: &promv1.TLSConfig{
 				SafeTLSConfig: promv1.SafeTLSConfig{
-					InsecureSkipVerify: ptr.To(true),
+					InsecureSkipVerify: ptr.To(false),
+					ServerName:         ptr.To("prometheus-k8s.openshift-monitoring.svc"),
 				},
+				CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt",
 			},
 			Params:          params,
 			BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
