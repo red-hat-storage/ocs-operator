@@ -14,10 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
-)
-
 var unitToGib = map[string]uint{
 	"Gi": 1,
 	"Ti": 1024,
@@ -37,13 +33,13 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 	var storageQuotaInGiB *uint
 	// When ContentLength is 0 that means request body is empty and
 	// storage quota is unlimited
-	var err error
+
 	if r.ContentLength != 0 {
 		var quota = struct {
 			Value uint   `json:"value"`
 			Unit  string `json:"unit"`
 		}{}
-		if err = json.NewDecoder(r.Body).Decode(&quota); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&quota); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -66,7 +62,19 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 		return
 	}
 
-	if onboardingToken, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB, storageCluster.UID); err != nil {
+	klog.Info("Loading onboarding validation private Key")
+	privateKey, err := util.LoadOnboardingValidationPrivateKey(r.Context(), cl, namespace)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed loading onboarding validation private key: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if onboardingToken, err := util.GenerateClientOnboardingToken(
+		tokenLifetimeInHours,
+		privateKey,
+		storageQuotaInGiB,
+		storageCluster.UID,
+	); err != nil {
 		klog.Errorf("failed to get onboarding token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)
