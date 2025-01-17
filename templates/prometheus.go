@@ -78,6 +78,12 @@ var PrometheusSpecTemplate = promv1.PrometheusSpec{
 				},
 			},
 		},
+		Tolerations: []corev1.Toleration{{
+			Key:      defaults.NodeTolerationKey,
+			Operator: corev1.TolerationOpEqual,
+			Value:    "true",
+			Effect:   corev1.TaintEffectNoSchedule,
+		}},
 	},
 	RuleSelector:   &ruleSelector,
 	EnableAdminAPI: false,
