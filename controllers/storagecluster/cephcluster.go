@@ -271,6 +271,14 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Update OSD store to `bluestore`
 	cephCluster.Spec.Storage.Store = updateOSDStore(found.Spec.Storage.Store)
 
+	// confirm OSD migration if encryption is enabled as day-2 operation
+	if isEncrptionSettingUpdated(sc.Spec.Encryption.ClusterWide, found.Spec.Storage.StorageClassDeviceSets) {
+		cephCluster.Spec.Storage.Migration.Confirmation = "yes-really-migrate-osds"
+	} else {
+		// keeping the same expected state in the corresponding reconcile once encryption is enabled
+		cephCluster.Spec.Storage.Migration.Confirmation = found.Spec.Storage.Migration.Confirmation
+	}
+
 	// Add it to the list of RelatedObjects if found
 	objectRef, err := reference.GetReference(r.Scheme, found)
 	if err != nil {
@@ -1398,4 +1406,15 @@ func determineDefaultCephDeviceClass(foundDeviceClasses []rookCephv1.DeviceClass
 	}
 	// if no device classes are found in status return empty string
 	return ""
+}
+
+// isEncrptionSettingUpdated checks whether encryption was enabled or disabled by comparing the clusterWide encryption setting
+// of the new storageCluster CR with the encryption setting on the StorageClassDeviceSets of the existing cephCluster CR.
+func isEncrptionSettingUpdated(clusterWideEncrytion bool, existingDeviceSet []rookCephv1.StorageClassDeviceSet) bool {
+	for i := range existingDeviceSet {
+		if existingDeviceSet[i].Encrypted != clusterWideEncrytion {
+			return true
+		}
+	}
+	return false
 }

@@ -1675,3 +1675,24 @@ func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 		assert.Equal(t, c.expectedDeviceClass, actual)
 	}
 }
+
+func TestIsEncrptionSettingUpdated(t *testing.T) {
+	newStorageClassDeviceSet := []rookCephv1.StorageClassDeviceSet{
+		{
+			Name:      "set1",
+			Encrypted: false,
+		},
+		{
+			Name:      "set2",
+			Encrypted: false,
+		},
+	}
+
+	// encryption setting has changed
+	actualResult := isEncrptionSettingUpdated(true, newStorageClassDeviceSet)
+	assert.Equal(t, true, actualResult)
+
+	// encryption setting has not changed
+	actualResult = isEncrptionSettingUpdated(false, newStorageClassDeviceSet)
+	assert.Equal(t, false, actualResult)
+}
