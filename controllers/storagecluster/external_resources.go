@@ -36,11 +36,6 @@ const (
 	cephRgwTLSSecretKey                         = "ceph-rgw-tls-cert"
 )
 
-const (
-	rookCephOperatorConfigName = "rook-ceph-operator-config"
-	rookEnableCephFSCSIKey     = "ROOK_CSI_ENABLE_CEPHFS"
-)
-
 // store the name of the rados-namespace
 var radosNamespaceName string
 
@@ -58,29 +53,6 @@ type ExternalResource struct {
 }
 
 type ocsExternalResources struct{}
-
-// setRookCSICephFS function enables or disables the 'ROOK_CSI_ENABLE_CEPHFS' key
-func (r *StorageClusterReconciler) setRookCSICephFS(
-	enableDisableFlag bool, instance *ocsv1.StorageCluster) error {
-	rookCephOperatorConfig := &corev1.ConfigMap{}
-	err := r.Client.Get(context.TODO(),
-		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: instance.ObjectMeta.Namespace},
-		rookCephOperatorConfig)
-	if err != nil {
-		r.Log.Error(err, "Unable to get RookCeph ConfigMap.", "RookCephConfigMap", klog.KRef(instance.Namespace, rookCephOperatorConfigName))
-		return err
-	}
-	enableDisableFlagStr := fmt.Sprintf("%v", enableDisableFlag)
-	if rookCephOperatorConfig.Data == nil {
-		rookCephOperatorConfig.Data = map[string]string{}
-	}
-	// if the current state of 'ROOK_CSI_ENABLE_CEPHFS' flag is same, just return
-	if rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] == enableDisableFlagStr {
-		return nil
-	}
-	rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] = enableDisableFlagStr
-	return r.Client.Update(context.TODO(), rookCephOperatorConfig)
-}
 
 func checkEndpointReachable(endpoint string, timeout time.Duration) error {
 	rxp := regexp.MustCompile(`^http[s]?://`)
@@ -288,8 +260,6 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		Kind:       instance.Kind,
 		Name:       instance.Name,
 	}
-	// this flag sets the 'ROOK_CSI_ENABLE_CEPHFS' flag
-	enableRookCSICephFS := false
 	// this stores only the StorageClasses specified in the Secret
 	availableSCCs := []StorageClassConfiguration{}
 
@@ -372,7 +342,6 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			var err error
 			if d.Name == cephFsStorageClassName {
 				scc = newCephFilesystemStorageClassConfiguration(instance)
-				enableRookCSICephFS = true
 			} else if d.Name == cephRbdStorageClassName {
 				scc = newCephBlockPoolStorageClassConfiguration(instance)
 			} else if strings.HasPrefix(d.Name, cephRbdRadosNamespaceStorageClassNamePrefix) { // ceph-rbd-rados-namespace-<radosNamespaceName>
@@ -418,11 +387,6 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	err = r.createStorageClasses(availableSCCs, instance.Namespace)
 	if err != nil {
 		r.Log.Error(err, "Failed to create needed StorageClasses.")
-		return err
-	}
-
-	if err = r.setRookCSICephFS(enableRookCSICephFS, instance); err != nil {
-		r.Log.Error(err, "Failed to set RookEnableCephFSCSIKey to EnableRookCSICephFS.", "RookEnableCephFSCSIKey", rookEnableCephFSCSIKey, "EnableRookCSICephFS", enableRookCSICephFS)
 		return err
 	}
 

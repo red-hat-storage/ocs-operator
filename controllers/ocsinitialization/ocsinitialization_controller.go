@@ -445,6 +445,9 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 			return err // nolint:revive
 		}
 
+		// TODO: remove this in the next release, look at commit msg for more info
+		delete(rookCephOperatorConfig.Data, "ROOK_CSI_ENABLE_CEPHFS")
+
 		return nil
 	})
 
