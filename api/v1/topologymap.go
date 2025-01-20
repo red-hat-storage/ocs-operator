@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"strings"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // NewNodeTopologyMap returns an initialized NodeTopologyMap
@@ -61,18 +61,31 @@ func (m *NodeTopologyMap) Add(topologyKey string, value string) {
 	m.Labels[topologyKey] = append(m.Labels[topologyKey], value)
 }
 
-// GetKeyValues returns a node label matching the topologyKey and all values
-// for that label across all storage nodes
+// GetKeyValues returns a node label matching the supported topologyKey and all values
+// for that label across all storage nodes.
 func (m *NodeTopologyMap) GetKeyValues(topologyKey string) (string, []string) {
 	values := []string{}
 
+	// Supported failure domain labels
+	supportedLabels := map[string]string{
+		"rack":     "topology.rook.io/rack",
+		"hostname": corev1.LabelHostname,
+		"zone":     corev1.LabelZoneFailureDomainStable,
+	}
+
+	// Get the specific label based on the topologyKey
+	expectedLabel, exists := supportedLabels[topologyKey]
+	if !exists {
+		return "", values // Return empty if the topologyKey is unsupported
+	}
+
+	// Match the expected label and fetch the values
 	for label, labelValues := range m.Labels {
-		if strings.Contains(label, topologyKey) {
-			topologyKey = label
+		if label == expectedLabel {
 			values = labelValues
-			break
+			return label, values
 		}
 	}
 
-	return topologyKey, values
+	return "", values // Return empty if no match is found
 }

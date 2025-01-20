@@ -381,7 +381,7 @@ func TestGetPlacement(t *testing.T) {
 											},
 										},
 									},
-									TopologyKey: zoneTopologyLabel,
+									TopologyKey: corev1.LabelZoneFailureDomainStable,
 								},
 							},
 						},
@@ -402,7 +402,7 @@ func TestGetPlacement(t *testing.T) {
 										},
 									},
 								},
-								TopologyKey: zoneTopologyLabel,
+								TopologyKey: corev1.LabelZoneFailureDomainStable,
 							},
 						},
 					},
@@ -410,7 +410,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 			topologyMap: &ocsv1.NodeTopologyMap{
 				Labels: map[string]ocsv1.TopologyLabelValues{
-					zoneTopologyLabel: []string{
+					corev1.LabelZoneFailureDomainStable: []string{
 						"zone1",
 						"zone2",
 						"zone3",
@@ -497,7 +497,9 @@ func TestGetPlacement(t *testing.T) {
 		sc.Spec.Placement = c.placements
 		sc.Spec.LabelSelector = c.labelSelector
 		sc.Status.NodeTopologies = c.topologyMap
-
+		if c.topologyMap != nil {
+			setFailureDomain(sc)
+		}
 		expectedPlacement := c.expectedPlacements["all"]
 		actualPlacement = getPlacement(sc, "all")
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
