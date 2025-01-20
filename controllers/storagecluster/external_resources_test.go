@@ -86,18 +86,6 @@ func TestEnsureExternalStorageClusterResources(t *testing.T) {
 	assertExpectedExternalResources(t, reconciler)
 }
 
-func newRookCephOperatorConfig(namespace string) *corev1.ConfigMap {
-	config := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      rookCephOperatorConfigName,
-			Namespace: namespace,
-		},
-	}
-	data := make(map[string]string)
-	config.Data = data
-	return config
-}
-
 func createExternalCephClusterSecret(extResources []ExternalResource) (*corev1.Secret, error) {
 	jsonBlob, err := json.Marshal(extResources)
 	if err != nil {
@@ -156,9 +144,8 @@ func createExternalClusterReconcilerFromCustomResources(
 	if err != nil {
 		t.Fatalf("failed to create external secret: %v", err)
 	}
-	rookCephConfig := newRookCephOperatorConfig("")
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	clientObjs := []client.Object{cr, externalSecret, rookCephConfig}
+	clientObjs := []client.Object{cr, externalSecret}
 	for _, obj := range clientObjs {
 		if err = reconciler.Client.Create(context.TODO(), obj); err != nil {
 			t.Fatalf("failed to create a needed runtime object: %v", err)
@@ -292,14 +279,12 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 		expectedRookCephConfigVal string
 	}{
 		{
-			label:                     "RemoveRGW",
-			resourceToBeRemoved:       "ceph-rgw",
-			expectedRookCephConfigVal: "true",
+			label:               "RemoveRGW",
+			resourceToBeRemoved: "ceph-rgw",
 		},
 		{
-			label:                     "RemoveCephFS",
-			resourceToBeRemoved:       "cephfs",
-			expectedRookCephConfigVal: "false",
+			label:               "RemoveCephFS",
+			resourceToBeRemoved: "cephfs",
 		},
 	}
 
@@ -314,32 +299,10 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 			assertExpectedExternalResources(t, reconciler)
 			// make sure we are missing the provided resource
 			assertMissingExternalResource(t, reconciler, testParam.resourceToBeRemoved)
-			// make sure that we have expected rook ceph config value
-			assertRookCephOperatorConfigValue(t, reconciler, testParam.expectedRookCephConfigVal)
 			// make sure about the availability of 'CephObjectStore' according to the resource removed
 			assertCephObjectStore(t, reconciler, testParam.resourceToBeRemoved)
 		})
 	}
-}
-
-func assertRookCephOperatorConfigValue(t *testing.T, reconciler StorageClusterReconciler, checkValue string) {
-	request := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      "ocsinit",
-			Namespace: "",
-		},
-	}
-	sc := &api.StorageCluster{}
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, sc)
-	assert.NoError(t, err)
-	rookCephOperatorConfig := &corev1.ConfigMap{}
-	err = reconciler.Client.Get(context.TODO(),
-		types.NamespacedName{Name: rookCephOperatorConfigName, Namespace: sc.ObjectMeta.Namespace},
-		rookCephOperatorConfig)
-	assert.NoErrorf(t, err, "Unable to get '%s' config", rookCephOperatorConfigName)
-	assert.Truef(t,
-		rookCephOperatorConfig.Data[rookEnableCephFSCSIKey] == checkValue,
-		"'%s' key is supposed to be '%s'", rookEnableCephFSCSIKey, checkValue)
 }
 
 func assertMissingExternalResource(t *testing.T, reconciler StorageClusterReconciler, resourceName string) {
