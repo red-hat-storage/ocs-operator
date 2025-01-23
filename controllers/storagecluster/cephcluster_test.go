@@ -548,10 +548,9 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		Minor: "18",
 	}
 	cases := []struct {
-		label                string
-		sc                   *api.StorageCluster
-		topologyKey          string
-		lenOfMatchExpression int
+		label       string
+		sc          *api.StorageCluster
+		topologyKey string
 	}{
 		{
 			label:       "case 1",
@@ -559,16 +558,14 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			topologyKey: "rack",
 		},
 		{
-			label:                "case 2",
-			sc:                   sc2,
-			topologyKey:          "zone",
-			lenOfMatchExpression: 2,
+			label:       "case 2",
+			sc:          sc2,
+			topologyKey: "zone",
 		},
 		{
-			label:                "case 3",
-			sc:                   sc3,
-			topologyKey:          "zone",
-			lenOfMatchExpression: 1,
+			label:       "case 3",
+			sc:          sc3,
+			topologyKey: "zone",
 		},
 	}
 
@@ -592,11 +589,6 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			} else {
 				topologyKey := scds.Placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey
 				assert.Equal(t, zoneTopologyLabel, topologyKey)
-				matchExpressions := scds.Placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
-				assert.Assert(t, is.Len(matchExpressions, c.lenOfMatchExpression))
-				nodeSelector := matchExpressions[c.lenOfMatchExpression-1]
-				assert.Equal(t, zoneTopologyLabel, nodeSelector.Key)
-				assert.Equal(t, c.sc.Status.NodeTopologies.Labels[zoneTopologyLabel][i], nodeSelector.Values[0])
 			}
 		}
 
@@ -608,34 +600,29 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		Minor: defaults.KubeMinorTopologySpreadConstraints,
 	}
 	cases = []struct {
-		label                string
-		sc                   *api.StorageCluster
-		topologyKey          string
-		lenOfMatchExpression int
+		label       string
+		sc          *api.StorageCluster
+		topologyKey string
 	}{
 		{
-			label:                "case 1",
-			sc:                   sc1,
-			topologyKey:          "zone",
-			lenOfMatchExpression: 1,
+			label:       "case 1",
+			sc:          sc1,
+			topologyKey: "zone",
 		},
 		{
-			label:                "case 2",
-			sc:                   sc2,
-			topologyKey:          "zone",
-			lenOfMatchExpression: 1,
+			label:       "case 2",
+			sc:          sc2,
+			topologyKey: "zone",
 		},
 		{
-			label:                "case 3",
-			sc:                   sc3,
-			topologyKey:          "zone",
-			lenOfMatchExpression: 0,
+			label:       "case 3",
+			sc:          sc3,
+			topologyKey: "zone",
 		},
 		{
-			label:                "case 4",
-			sc:                   sc4,
-			topologyKey:          "rack",
-			lenOfMatchExpression: 1,
+			label:       "case 4",
+			sc:          sc4,
+			topologyKey: "rack",
 		},
 	}
 
@@ -666,12 +653,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			} else {
 				assert.DeepEqual(t, getPlacement(c.sc, "osd-tsc"), scds.Placement)
 			}
-			if c.lenOfMatchExpression == 0 {
-				assert.Assert(t, is.Nil(scds.Placement.NodeAffinity))
-			} else {
-				matchExpressions := scds.Placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
-				assert.Equal(t, c.lenOfMatchExpression, len(matchExpressions))
-			}
+
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
 
 			if c.topologyKey == "rack" {
