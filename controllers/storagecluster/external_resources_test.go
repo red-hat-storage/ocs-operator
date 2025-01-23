@@ -243,17 +243,17 @@ func assertExpectedExternalResources(t *testing.T, reconciler StorageClusterReco
 // removeNamedResourceFromArray removes the first resource with 'Name' == 'name'
 func removeNamedResourceFromArray(extArr []ExternalResource, name string) []ExternalResource {
 	extArrLen := len(extArr)
-	var indx int
-	for indx = 0; indx < extArrLen; indx++ {
-		extRsrc := extArr[indx]
+	var i int
+	for i = 0; i < extArrLen; i++ {
+		extRsrc := extArr[i]
 		if extRsrc.Name == name {
 			break
 		}
 	}
 	var newExtArr []ExternalResource
-	newExtArr = append(newExtArr, extArr[:indx]...)
-	if indx < extArrLen {
-		newExtArr = append(newExtArr, extArr[indx+1:]...)
+	newExtArr = append(newExtArr, extArr[:i]...)
+	if i < extArrLen {
+		newExtArr = append(newExtArr, extArr[i+1:]...)
 	}
 	return newExtArr
 }
