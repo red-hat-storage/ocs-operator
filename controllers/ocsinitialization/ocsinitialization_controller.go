@@ -506,12 +506,19 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		return sc.Spec.AllowRemoteStorageConsumers
 	})
 
+	enableCephfsVal, err := r.getEnableCephfsKeyValue()
+	if err != nil {
+		r.Log.Error(err, "Failed to get enableCephfsKeyValue")
+		return err
+	}
+
 	ocsOperatorConfigData := map[string]string{
 		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
 		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!(len(r.clusters.GetStorageClusters()) > 1)),
 		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
+		util.EnableCephfsKey:             enableCephfsVal,
 		util.DisableCSIDriverKey:         strconv.FormatBool(allowConsumers),
 	}
 
@@ -601,6 +608,24 @@ func (r *OCSInitializationReconciler) getEnableNFSKeyValue() string {
 	}
 
 	return "false"
+}
+
+func (r *OCSInitializationReconciler) getEnableCephfsKeyValue() (string, error) {
+
+	// list all storage classes and check if any of them is using cephfs
+	storageClasses := &storagev1.StorageClassList{}
+	if err := r.Client.List(r.ctx, storageClasses); err != nil {
+		r.Log.Error(err, "Failed to list storage classes")
+		return "", err
+	}
+
+	for _, sc := range storageClasses.Items {
+		if strings.HasSuffix(sc.Provisioner, "cephfs.csi.ceph.com") {
+			return "true", nil
+		}
+	}
+
+	return "false", nil
 }
 
 func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) string {
