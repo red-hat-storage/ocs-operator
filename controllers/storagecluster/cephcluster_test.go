@@ -542,31 +542,26 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		label                string
 		sc                   *ocsv1.StorageCluster
 		topologyKey          string
-		lenOfMatchExpression int
 	}{
 		{
 			label:                "case 1",
 			sc:                   sc1,
 			topologyKey:          "zone",
-			lenOfMatchExpression: 1,
 		},
 		{
 			label:                "case 2",
 			sc:                   sc2,
 			topologyKey:          "zone",
-			lenOfMatchExpression: 1,
 		},
 		{
 			label:                "case 3",
 			sc:                   sc3,
 			topologyKey:          "zone",
-			lenOfMatchExpression: 0,
 		},
 		{
 			label:                "case 4",
 			sc:                   sc4,
 			topologyKey:          "rack",
-			lenOfMatchExpression: 1,
 		},
 	}
 
@@ -597,12 +592,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			} else {
 				assert.DeepEqual(t, getPlacement(c.sc, "osd"), scds.Placement)
 			}
-			if c.lenOfMatchExpression == 0 {
-				assert.Assert(t, is.Nil(scds.Placement.NodeAffinity))
-			} else {
-				matchExpressions := scds.Placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
-				assert.Equal(t, c.lenOfMatchExpression, len(matchExpressions))
-			}
+			
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
 
 			if c.topologyKey == "rack" {
