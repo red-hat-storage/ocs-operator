@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -118,6 +119,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = extensionsv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add extensionsv1 scheme")
+	}
+
+	err = storagev1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add storagev1 scheme")
 	}
 
 	return scheme
