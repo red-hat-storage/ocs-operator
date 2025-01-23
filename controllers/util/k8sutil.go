@@ -48,6 +48,7 @@ const (
 	TopologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
 	EnableNFSKey                = "ROOK_CSI_ENABLE_NFS"
 	DisableCSIDriverKey         = "ROOK_CSI_DISABLE_DRIVER"
+	EnableCephfsKey             = "ROOK_CSI_ENABLE_CEPHFS"
 
 	// This is the name for the FieldIndex
 	OwnerUIDIndexName   = "ownerUID"
