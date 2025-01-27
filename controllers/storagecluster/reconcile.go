@@ -78,6 +78,8 @@ const (
 	VirtualMachineCrdName = "virtualmachines.kubevirt.io"
 
 	StorageClientCrdName = "storageclients.ocs.openshift.io"
+
+	VolumeGroupSnapshotClassCrdName = "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -124,6 +126,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors;prometheusrules,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;watch;create;update;delete
+// +kubebuilder:rbac:groups=groupsnapshot.storage.k8s.io,resources=volumegroupsnapshotclasses,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update
@@ -151,7 +154,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.ctx = ctrllog.IntoContext(ctx, r.Log)
 
-	for _, crdName := range []string{VirtualMachineCrdName, StorageClientCrdName} {
+	for _, crdName := range []string{VirtualMachineCrdName, StorageClientCrdName, VolumeGroupSnapshotClassCrdName} {
 		crd := &metav1.PartialObjectMetadata{}
 		crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
 		crd.Name = crdName
@@ -440,6 +443,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsStorageClass{},
 				&ocsNoobaaSystem{},
 				&ocsSnapshotClass{},
+				&ocsGroupSnapshotClass{},
 				&ocsJobTemplates{},
 				&ocsCephRbdMirrors{},
 				&odfInfoConfig{},
@@ -459,6 +463,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsStorageQuota{},
 			&ocsCephCluster{},
 			&ocsSnapshotClass{},
+			&ocsGroupSnapshotClass{},
 			&ocsNoobaaSystem{},
 			&odfInfoConfig{},
 		}
