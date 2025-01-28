@@ -81,7 +81,7 @@ func main() {
 		klog.Exitf("failed to delete public secret: %v", err)
 	}
 
-	err = controllerutil.SetOwnerReference(storageCluster, privateSecret, cl.Scheme())
+	err = controllerutil.SetControllerReference(storageCluster, privateSecret, cl.Scheme())
 	if err != nil {
 		klog.Exitf("failed to set owner reference for private secret: %v", err)
 	}
@@ -95,7 +95,7 @@ func main() {
 		klog.Exitf("failed to create private secret: %v", err)
 	}
 
-	err = controllerutil.SetOwnerReference(storageCluster, publicSecret, cl.Scheme())
+	err = controllerutil.SetControllerReference(storageCluster, publicSecret, cl.Scheme())
 	if err != nil {
 		klog.Exitf("failed to set owner reference for public secret: %v", err)
 	}
