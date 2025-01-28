@@ -80,6 +80,10 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		if pool.PoolSpec.FailureDomain == "" {
 			pool.PoolSpec.FailureDomain = defaultPoolSpec.FailureDomain
 		}
+		// Set default parameters if not specified
+		if pool.PoolSpec.Parameters == nil {
+			pool.PoolSpec.Parameters = defaultPoolSpec.Parameters
+		}
 	}
 
 	// set device class for metadata pool from the default data pool
@@ -290,5 +294,6 @@ func generateDefaultPoolSpec(sc *ocsv1.StorageCluster) cephv1.PoolSpec {
 		EnableCrushUpdates: true,
 		Replicated:         generateCephReplicatedSpec(sc, "data"),
 		FailureDomain:      sc.Status.FailureDomain,
+		Parameters:         map[string]string{"bulk": "true"},
 	}
 }
