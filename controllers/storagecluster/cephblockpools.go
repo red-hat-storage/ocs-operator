@@ -93,6 +93,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
+		cephBlockPool.Spec.PoolSpec.Parameters = map[string]string{"bulk": "true"}
 
 		// Since provider mode handles mirroring, we only need to handle for internal mode
 		if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
@@ -201,6 +202,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
 		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
+		cephBlockPool.Spec.PoolSpec.Parameters = map[string]string{"bulk": "true"}
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -252,6 +254,7 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 			cephBlockPool.Spec.PoolSpec.Parameters = map[string]string{
 				"pg_num":  "16",
 				"pgp_num": "16",
+				"bulk":    "true",
 			}
 			cephBlockPool.Spec.PoolSpec.Replicated = cephv1.ReplicatedSpec{
 				Size:                   1,
