@@ -91,7 +91,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
 		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
+		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data", "block")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
 		// Since provider mode handles mirroring, we only need to handle for internal mode
@@ -151,7 +151,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
 		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "metadata")
+		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "metadata", "block")
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -199,7 +199,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
 		cephBlockPool.Spec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
+		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data", "nfs-block")
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 

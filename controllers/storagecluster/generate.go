@@ -136,14 +136,32 @@ func generateNameForCephRbdMirror(initData *ocsv1.StorageCluster) string {
 
 // generateCephReplicatedSpec returns the ReplicatedSpec for the cephCluster
 // based on the StorageCluster configuration
-func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string) cephv1.ReplicatedSpec {
+func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string, storageType string) cephv1.ReplicatedSpec {
 	crs := cephv1.ReplicatedSpec{}
 
 	crs.Size = getCephPoolReplicatedSize(initData)
 	crs.ReplicasPerFailureDomain = uint(getReplicasPerFailureDomain(initData))
-	//lint:ignore ST1017 required to compare it directly
-	if "data" == poolType {
-		crs.TargetSizeRatio = .49
+	if poolType == "data" {
+		defaultTargetSizeRatio := 0.49
+		var definedSize float64
+
+		switch storageType {
+		case "block":
+			definedSize = initData.Spec.ManagedResources.CephBlockPools.PoolSpec.Replicated.TargetSizeRatio
+		case "file":
+			definedSize = initData.Spec.ManagedResources.CephFilesystems.DataPoolSpec.Replicated.TargetSizeRatio
+		case "object":
+			definedSize = initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec.Replicated.TargetSizeRatio
+		default:
+			// Handle unexpected storageType
+			definedSize = defaultTargetSizeRatio
+		}
+
+		if definedSize != 0.0 {
+			crs.TargetSizeRatio = definedSize
+		} else {
+			crs.TargetSizeRatio = defaultTargetSizeRatio
+		}
 	}
 
 	return crs

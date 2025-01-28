@@ -172,13 +172,13 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					DeviceClass:        initData.Status.DefaultCephDeviceClass,
 					EnableCrushUpdates: true,
 					FailureDomain:      initData.Status.FailureDomain,
-					Replicated:         generateCephReplicatedSpec(initData, "data"),
+					Replicated:         generateCephReplicatedSpec(initData, "data", "object"),
 				},
 				MetadataPool: cephv1.PoolSpec{
 					DeviceClass:        initData.Status.DefaultCephDeviceClass,
 					EnableCrushUpdates: true,
 					FailureDomain:      initData.Status.FailureDomain,
-					Replicated:         generateCephReplicatedSpec(initData, "metadata"),
+					Replicated:         generateCephReplicatedSpec(initData, "metadata", "object"),
 				},
 				Gateway: cephv1.GatewaySpec{
 					Port:       80,
