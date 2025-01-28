@@ -31,7 +31,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.NamedPoolSpec{
 				PoolSpec: cephv1.PoolSpec{
-					Replicated:    generateCephReplicatedSpec(initStorageCluster, "metadata"),
+					Replicated:    generateCephReplicatedSpec(initStorageCluster, "metadata", "file"),
 					FailureDomain: initStorageCluster.Status.FailureDomain,
 				}},
 			MetadataServer: cephv1.MetadataServerSpec{
@@ -288,7 +288,7 @@ func generateDefaultPoolSpec(sc *ocsv1.StorageCluster) cephv1.PoolSpec {
 	return cephv1.PoolSpec{
 		DeviceClass:        sc.Status.DefaultCephDeviceClass,
 		EnableCrushUpdates: true,
-		Replicated:         generateCephReplicatedSpec(sc, "data"),
+		Replicated:         generateCephReplicatedSpec(sc, "data", "file"),
 		FailureDomain:      sc.Status.FailureDomain,
 	}
 }
