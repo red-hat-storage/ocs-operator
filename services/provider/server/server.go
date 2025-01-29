@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto"
+	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -734,7 +735,8 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 		}
 	}
 
-	clientProfile := util.CalculateMD5Hash(req.StorageClaimName)
+	clientProfilemd5Sum := md5.Sum([]byte(req.StorageClaimName))
+	clientProfile := hex.EncodeToString(clientProfilemd5Sum[:])
 
 	var extR []*pb.ExternalResource
 
@@ -817,13 +819,15 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					}),
 				},
 				&pb.ExternalResource{
-					Name: "ceph-rbd",
+					Name: fmt.Sprintf("%s-groupsnapclass", req.StorageClaimName),
 					Kind: "VolumeGroupSnapshotClass",
 					Labels: map[string]string{
 						ramenDRStorageIDLabelKey: storageID,
 					},
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
+						"clusterID": clientProfile,
+						"pool":      rns.Spec.BlockPoolName,
 					}),
 				},
 				&pb.ExternalResource{
@@ -937,13 +941,15 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					}),
 				},
 				&pb.ExternalResource{
-					Name: "cephfs",
+					Name: fmt.Sprintf("%s-groupsnapclass", req.StorageClaimName),
 					Kind: "VolumeGroupSnapshotClass",
 					Labels: map[string]string{
 						ramenDRStorageIDLabelKey: storageID,
 					},
 					Data: mustMarshal(map[string]string{
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
+						"fsName":    subVolumeGroup.Spec.FilesystemName,
+						"clusterID": clientProfile,
 					}),
 				},
 				&pb.ExternalResource{
