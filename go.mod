@@ -21,7 +21,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.5
-	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.0.0
+	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20241112075542-b62bb7eb535d
 	github.com/onsi/ginkgo/v2 v2.21.0
 	github.com/onsi/gomega v1.35.1
