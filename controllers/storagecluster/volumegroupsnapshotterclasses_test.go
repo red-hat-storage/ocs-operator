@@ -17,8 +17,8 @@ func TestVolumeGroupSnapshotterClasses(t *testing.T) {
 
 func assertVolumeGroupSnapshotterClasses(t *testing.T, reconciler StorageClusterReconciler,
 	request reconcile.Request) {
-	rbdVSCName := "ocsinit-rbdplugin-groupsnapclass"
-	cephfsVSCName := "ocsinit-cephfsplugin-groupsnapclass"
+	rbdVSCName := "ocsinit-ceph-rbd-groupsnapclass"
+	cephfsVSCName := "ocsinit-cephfs-groupsnapclass"
 	vscNames := []string{cephfsVSCName, rbdVSCName}
 	for _, eachVSCName := range vscNames {
 		actualVSC := &groupsnapapi.VolumeGroupSnapshotClass{
