@@ -42,18 +42,12 @@ var (
 		},
 
 		"osd": {
-			Tolerations: []corev1.Toleration{
-				getOcsToleration(),
-			},
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector}),
 			},
 		},
 
 		"osd-prepare": {
-			Tolerations: []corev1.Toleration{
-				getOcsToleration(),
-			},
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector, osdPrepareLabelSelector}),
 			},
