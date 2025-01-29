@@ -539,29 +539,29 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 	sc3.Spec.LabelSelector = &emptyLabelSelector
 
 	cases := []struct {
-		label                string
-		sc                   *ocsv1.StorageCluster
-		topologyKey          string
+		label       string
+		sc          *ocsv1.StorageCluster
+		topologyKey string
 	}{
 		{
-			label:                "case 1",
-			sc:                   sc1,
-			topologyKey:          "zone",
+			label:       "case 1",
+			sc:          sc1,
+			topologyKey: "zone",
 		},
 		{
-			label:                "case 2",
-			sc:                   sc2,
-			topologyKey:          "zone",
+			label:       "case 2",
+			sc:          sc2,
+			topologyKey: "zone",
 		},
 		{
-			label:                "case 3",
-			sc:                   sc3,
-			topologyKey:          "zone",
+			label:       "case 3",
+			sc:          sc3,
+			topologyKey: "zone",
 		},
 		{
-			label:                "case 4",
-			sc:                   sc4,
-			topologyKey:          "rack",
+			label:       "case 4",
+			sc:          sc4,
+			topologyKey: "rack",
 		},
 	}
 
@@ -592,7 +592,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 			} else {
 				assert.DeepEqual(t, getPlacement(c.sc, "osd"), scds.Placement)
 			}
-			
+
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
 
 			if c.topologyKey == "rack" {
