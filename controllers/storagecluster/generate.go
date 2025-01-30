@@ -103,7 +103,10 @@ func generateNameForSnapshotClass(initData *ocsv1.StorageCluster, snapshotType S
 }
 
 func generateNameForGroupSnapshotClass(initData *ocsv1.StorageCluster, groupSnapshotType groupSnapshotterType) string {
-	return fmt.Sprintf("%s-%splugin-groupsnapclass", initData.Name, groupSnapshotType)
+	if groupSnapshotType == rbdGroupSnapshotter {
+		return fmt.Sprintf("%s-ceph-%s-groupsnapclass", initData.Name, groupSnapshotType)
+	}
+	return fmt.Sprintf("%s-%s-groupsnapclass", initData.Name, groupSnapshotType)
 }
 
 func generateNameForSnapshotClassDriver(snapshotType SnapshotterType) string {
