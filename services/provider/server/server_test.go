@@ -651,14 +651,16 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 				},
 			},
-			"ceph-rbd-volumegroupsnapshotclass": {
-				Name: "ceph-rbd",
+			"groupsnapclass": {
+				Name: "block-pool-claim-groupsnapclass",
 				Kind: "VolumeGroupSnapshotClass",
 				Labels: map[string]string{
 					"ramendr.openshift.io/storageid": "8d40b6be71600457b5dec219d2ce2d4c",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
+					"clusterID": "ddc427cbb7c588e1c404cb05cfe6d07b",
+					"pool":      "cephblockpool",
 				},
 			},
 			"rbd-volumereplicationclass-1625360775": {
@@ -677,7 +679,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 						"replication.storage.openshift.io/replication-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
 						"mirroringMode":      "snapshot",
 						"schedulingInterval": "5m",
-						"clusterID":          "03fa88943ffe9c61edd453f583b37e79",
+						"clusterID":          "ddc427cbb7c588e1c404cb05cfe6d07b",
 					},
 					Provisioner: util.RbdDriverName,
 				},
@@ -697,7 +699,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 						"mirroringMode":      "snapshot",
 						"flattenMode":        "force",
 						"schedulingInterval": "5m",
-						"clusterID":          "03fa88943ffe9c61edd453f583b37e79",
+						"clusterID":          "ddc427cbb7c588e1c404cb05cfe6d07b",
 					},
 					Provisioner: util.RbdDriverName,
 				},
@@ -756,15 +758,16 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
 				},
 			},
-
-			"cephfs-volumegroupsnapshotclass": {
-				Name: "cephfs",
+			"groupsnapclass": {
+				Name: "shared-filesystem-claim-groupsnapclass",
 				Kind: "VolumeGroupSnapshotClass",
 				Labels: map[string]string{
 					"ramendr.openshift.io/storageid": "0e8555e6556f70d23a61675af44e880c",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
+					"clusterID": "2bebeaaed3a6b5df66f79f8129a11585",
+					"fsName":    "myfs",
 				},
 			},
 			"ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c": {
@@ -1109,7 +1112,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
-			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+			name = "groupsnapclass"
 		} else if extResource.Kind == "ClientProfile" {
 			name = fmt.Sprintf("%s-clientprofile", name)
 		}
@@ -1142,7 +1145,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		} else if extResource.Kind == "StorageClass" {
 			name = fmt.Sprintf("%s-storageclass", name)
 		} else if extResource.Kind == "VolumeGroupSnapshotClass" {
-			name = fmt.Sprintf("%s-volumegroupsnapshotclass", name)
+			name = "groupsnapclass"
 		} else if extResource.Kind == "VolumeReplicationClass" {
 			name = fmt.Sprintf("%s-volumereplicationclass", name)
 		} else if extResource.Kind == "ClientProfile" {
