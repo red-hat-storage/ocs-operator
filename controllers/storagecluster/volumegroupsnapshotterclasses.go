@@ -31,8 +31,7 @@ const (
 type GroupSnapshotClassConfiguration struct {
 	groupSnapshotClass *groupsnapapi.VolumeGroupSnapshotClass
 	reconcileStrategy  ReconcileStrategy
-	// The disable field is added to control the disabling of VolumeGroupSnapshotClass when an API or other mechanism for disabling is introduced.
-	disable bool
+	disable            bool
 }
 
 func newVolumeGroupSnapshotClass(instance *ocsv1.StorageCluster, groupSnaphotType groupSnapshotterType) *groupsnapapi.VolumeGroupSnapshotClass {
@@ -57,6 +56,7 @@ func newCephFilesystemGroupSnapshotClassConfiguration(instance *ocsv1.StorageClu
 	return GroupSnapshotClassConfiguration{
 		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, cephfsGroupSnapshotter),
 		reconcileStrategy:  ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
+		disable:            instance.Spec.AllowRemoteStorageConsumers,
 	}
 }
 
@@ -64,6 +64,7 @@ func newCephBlockPoolGroupSnapshotClassConfiguration(instance *ocsv1.StorageClus
 	return GroupSnapshotClassConfiguration{
 		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, rbdGroupSnapshotter),
 		reconcileStrategy:  ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
+		disable:            instance.Spec.AllowRemoteStorageConsumers,
 	}
 }
 
