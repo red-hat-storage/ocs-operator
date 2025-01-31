@@ -1,29 +1,32 @@
 # Table of Contents
 
-- [OpenShift Container Storage Operator](#openshift-container-storage-operator)
-- [Deploying pre-built images](#deploying-pre-built-images)
-  - [Prerequisites](#prerequisites)
-  - [Dedicated nodes](#dedicated-nodes)
-  - [Installation](#installation)
-- [Development](#development)
-  - [Tools](#tools)
-  - [Build](#build)
-    1. [OCS Operator](#ocs-operator)
-    2. [OCS Metric Exporter](#ocs-metric-exporter)
-    3. [OCS Operator Bundle](#ocs-operator-bundle)
-    4. [OCS Operator Catalog](#ocs-operator-catalog)
-  - [Deploying development builds](#deploying-development-builds)
-- [Initial Configuration](#initial-configuration)
-  - [Modifying Initial Configuration](#modifying-initial-configuration)
-- [Functional Tests](#functional-tests)
-  - [Prerequisites for running Functional Tests](#prerequisites-for-running-functional-tests)
-  - [Running functional test](#running-functional-test)
-  - [Functional test phases](#functional-test-phases)
-  - [Developing Functional Tests](#developing-functional-tests)
-  - [Running a single test](#running-a-single-test)
-  - [Debugging Functional Test Failures](#debugging-functional-test-failures)
-    - [Functional test stdout log](#functional-test-stdout-log)
-    - [PROW artifacts](#prow-artifacts)
+- [Table of Contents](#table-of-contents)
+  - [OpenShift Container Storage Operator](#openshift-container-storage-operator)
+  - [Deploying pre-built images](#deploying-pre-built-images)
+    - [Prerequisites](#prerequisites)
+    - [Dedicated nodes](#dedicated-nodes)
+    - [Installation](#installation)
+      - [Option 1: Using `make install`](#option-1-using-make-install)
+      - [Option 2: Using Pre-Built YAML](#option-2-using-pre-built-yaml)
+  - [Development](#development)
+    - [Tools](#tools)
+    - [Build](#build)
+      - [OCS Operator](#ocs-operator)
+      - [OCS Metric Exporter](#ocs-metric-exporter)
+      - [OCS Operator Bundle](#ocs-operator-bundle)
+      - [OCS Operator Catalog](#ocs-operator-catalog)
+    - [Deploying development builds](#deploying-development-builds)
+  - [Initial Configuration](#initial-configuration)
+    - [Modifying Initial Configuration](#modifying-initial-configuration)
+  - [Functional Tests](#functional-tests)
+    - [Prerequisites for running Functional Tests](#prerequisites-for-running-functional-tests)
+    - [Running functional test](#running-functional-test)
+    - [Functional test phases](#functional-test-phases)
+    - [Developing Functional Tests](#developing-functional-tests)
+    - [Running a single test](#running-a-single-test)
+    - [Debugging Functional Test Failures](#debugging-functional-test-failures)
+      - [Functional test stdout log](#functional-test-stdout-log)
+      - [PROW artifacts](#prow-artifacts)
 
 ## OpenShift Container Storage Operator
 
@@ -63,6 +66,37 @@ $ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
 
 The OCS operator can be installed into an OpenShift cluster using Operator Lifecycle Manager (OLM).
 
+#### Option 1: Using `make install`
+If you have a development environment or private image and want to install the OCS operator, follow the steps below:
+
+1.Label Worker Nodes:  
+OCS Operator will install its components only on nodes labeled for OCS.
+```console
+oc label nodes <NodeName1> cluster.ocs.openshift.io/openshift-storage=''
+oc label nodes <NodeName2> cluster.ocs.openshift.io/openshift-storage=''
+oc label nodes <NodeName3> cluster.ocs.openshift.io/openshift-storage=''
+```
+
+2.Set Environment Variables:  
+Define the required variables for your private image:
+```console
+export REGISTRY_NAMESPACE=<your-registry-namespace>
+export IMAGE_TAG=<your-image-tag>
+```
+
+3.Run the following command:
+
+```console
+make install
+```
+
+4.Verify Installation:  
+Once the make install process completes, verify the status of the ClusterServiceVersion (CSV):
+```console
+oc get csv -n openshift-storage
+```
+
+#### Option 2: Using Pre-Built YAML
 For quick install using pre-built container images, deploy the [deploy-olm.yaml](deploy/deploy-with-olm.yaml) manifest.
 
 ```console
