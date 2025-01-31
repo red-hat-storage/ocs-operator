@@ -4,9 +4,10 @@ import (
 	"context"
 	error1 "errors"
 	"fmt"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -455,9 +456,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		// for external cluster, we have a different set of ensure functions
 		// preserve list order
 		objs = []resourceManager{
+			&ocsCephCluster{},
 			&ocsExternalResources{},
 			&ocsStorageQuota{},
-			&ocsCephCluster{},
 			&ocsSnapshotClass{},
 			&ocsNoobaaSystem{},
 			&odfInfoConfig{},

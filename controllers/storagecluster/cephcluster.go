@@ -144,6 +144,14 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 	// Define a new CephCluster object
 	if sc.Spec.ExternalStorage.Enable {
+
+		data, err := r.retrieveExternalSecretData(sc)
+		if err != nil {
+			r.Log.Error(err, "Failed to retrieve external secret resources.")
+			return reconcile.Result{}, err
+		}
+		externalOCSResources[sc.UID] = data
+
 		extRArr, ok := externalOCSResources[sc.UID]
 		if !ok {
 			return reconcile.Result{}, fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
