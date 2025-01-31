@@ -48,6 +48,11 @@ const (
 	diskSpeedFast    diskSpeed = "fast"
 )
 
+const (
+	poolTypeData     = "data"
+	poolTypeMetadata = "metadata"
+)
+
 type knownDiskType struct {
 	speed            diskSpeed
 	provisioner      StorageClassProvisionerType
