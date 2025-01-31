@@ -88,10 +88,30 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 	}
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
-		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
-		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
-		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
+		// Pass the poolSpec from the storageCluster CR
+		// Set default values in the poolSpec if necessary
+		cephBlockPool.Spec.PoolSpec = storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
+
+		poolSpec := &cephBlockPool.Spec.PoolSpec
+		if poolSpec.DeviceClass == "" {
+			poolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
+		}
+		poolSpec.EnableCrushUpdates = true
+		if poolSpec.FailureDomain == "" {
+			poolSpec.FailureDomain = getFailureDomain(storageCluster)
+		}
+		// Set default replication settings if necessary
+		// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
+		defaultReplicatedSpec := generateCephReplicatedSpec(storageCluster, poolTypeData)
+		if poolSpec.Replicated.Size == 0 || arbiterEnabled(storageCluster) {
+			poolSpec.Replicated.Size = defaultReplicatedSpec.Size
+		}
+		if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(storageCluster) {
+			poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
+		}
+		if poolSpec.Replicated.TargetSizeRatio == 0.0 {
+			poolSpec.Replicated.TargetSizeRatio = defaultReplicatedSpec.TargetSizeRatio
+		}
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
 		// Since provider mode handles mirroring, we only need to handle for internal mode
@@ -151,7 +171,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
 		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "metadata")
+		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, poolTypeMetadata)
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -199,7 +219,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
 		cephBlockPool.Spec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
+		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, poolTypeMetadata)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
