@@ -173,6 +173,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					EnableCrushUpdates: true,
 					FailureDomain:      initData.Status.FailureDomain,
 					Replicated:         generateCephReplicatedSpec(initData, "data"),
+					Parameters:         map[string]string{"bulk": "true"},
 				},
 				MetadataPool: cephv1.PoolSpec{
 					DeviceClass:        initData.Status.DefaultCephDeviceClass,
