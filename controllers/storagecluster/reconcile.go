@@ -459,9 +459,9 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		// for external cluster, we have a different set of ensure functions
 		// preserve list order
 		objs = []resourceManager{
+			&ocsCephCluster{},
 			&ocsExternalResources{},
 			&ocsStorageQuota{},
-			&ocsCephCluster{},
 			&ocsSnapshotClass{},
 			&ocsGroupSnapshotClass{},
 			&ocsNoobaaSystem{},
