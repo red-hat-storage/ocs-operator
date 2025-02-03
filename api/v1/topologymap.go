@@ -68,9 +68,9 @@ func (m *NodeTopologyMap) GetKeyValues(topologyKey string) (string, []string) {
 
 	// Supported failure domain labels
 	supportedLabels := map[string]string{
-		"rack":     "topology.rook.io/rack",
-		"hostname": corev1.LabelHostname,
-		"zone":     corev1.LabelZoneFailureDomainStable,
+		"rack": "topology.rook.io/rack",
+		"host": corev1.LabelHostname,
+		"zone": corev1.LabelZoneFailureDomainStable,
 	}
 
 	// Get the specific label based on the topologyKey
