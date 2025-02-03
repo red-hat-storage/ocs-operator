@@ -61,7 +61,7 @@ func newCephFilesystemSnapshotClassConfiguration(instance *ocsv1.StorageCluster)
 	return SnapshotClassConfiguration{
 		snapshotClass:     newVolumeSnapshotClass(instance, cephfsSnapshotter),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
-		disable:           instance.Spec.ManagedResources.CephFilesystems.DisableSnapshotClass,
+		disable:           instance.Spec.ManagedResources.CephFilesystems.DisableSnapshotClass || instance.Spec.AllowRemoteStorageConsumers,
 	}
 }
 
@@ -69,7 +69,7 @@ func newCephBlockPoolSnapshotClassConfiguration(instance *ocsv1.StorageCluster) 
 	return SnapshotClassConfiguration{
 		snapshotClass:     newVolumeSnapshotClass(instance, rbdSnapshotter),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
-		disable:           instance.Spec.ManagedResources.CephBlockPools.DisableSnapshotClass,
+		disable:           instance.Spec.ManagedResources.CephBlockPools.DisableSnapshotClass || instance.Spec.AllowRemoteStorageConsumers,
 	}
 }
 
