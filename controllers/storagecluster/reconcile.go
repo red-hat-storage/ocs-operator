@@ -416,6 +416,13 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		return reconcile.Result{}, err
 	}
 
+	if instance.Spec.ExternalStorage.Enable {
+		if err := r.setExternalOCSResourcesData(instance); err != nil {
+			r.Log.Error(err, "Failed to set the externalOCSResources cache")
+			return reconcile.Result{}, err
+		}
+	}
+
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)
 	r.conditions = nil
