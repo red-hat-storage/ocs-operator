@@ -214,13 +214,6 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	// rhcs external mode
-	data, err := r.retrieveExternalSecretData(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to retrieve external secret resources.")
-		return reconcile.Result{}, err
-	}
-	externalOCSResources[instance.UID] = data
-
 	extSecretChecksum, err := r.getExternalSecretDataChecksum(instance)
 	if err != nil {
 		r.Log.Error(err, "Failed to get checksum of external secret data.")
@@ -246,6 +239,20 @@ func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, inst
 // ensureDeleted is dummy func for the ocsExternalResources
 func (obj *ocsExternalResources) ensureDeleted(_ *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
+}
+
+// setExternalOCSResourcesData retrieves data from the secret and stores it in the externalOCSResources global variable.
+func (r *StorageClusterReconciler) setExternalOCSResourcesData(instance *ocsv1.StorageCluster) error {
+
+	data, err := r.retrieveExternalSecretData(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to retrieve external secret resources.")
+		return err
+	}
+
+	externalOCSResources[instance.UID] = data
+
+	return nil
 }
 
 // createExternalStorageClusterResources creates external cluster resources
