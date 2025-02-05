@@ -28,14 +28,6 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: openshift.io
-  group: ocs
-  kind: StorageProfile
-  path: github.com/red-hat-storage/ocs-operator/api/v4/v1
-  version: v1
-- api:
-    crdVersion: v1
-    namespaced: true
   controller: true
   domain: openshift.io
   group: ocs
