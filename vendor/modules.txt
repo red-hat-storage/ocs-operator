@@ -177,8 +177,8 @@ github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-retryablehttp v0.7.4
-## explicit; go 1.13
+# github.com/hashicorp/go-retryablehttp v0.7.7
+## explicit; go 1.19
 github.com/hashicorp/go-retryablehttp
 # github.com/hashicorp/go-rootcerts v1.0.2
 ## explicit; go 1.12
@@ -477,8 +477,8 @@ golang.org/x/net/trace
 ## explicit; go 1.18
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.13.0
-## explicit; go 1.17
+# golang.org/x/sys v0.20.0
+## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
