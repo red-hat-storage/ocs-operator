@@ -44,11 +44,6 @@ spec:
       kind: StorageConsumer
       name: storageconsumers.ocs.openshift.io
       version: v1alpha1
-    - description: StorageProfile is the Schema for the storageprofiles API
-      displayName: Storage Profile
-      kind: StorageProfile
-      name: storageprofiles.ocs.openshift.io
-      version: v1
     - description: StorageRequest is the Schema for the StorageRequests API
       displayName: Storage Request
       kind: StorageRequest
