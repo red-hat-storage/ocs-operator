@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"os"
 	"strings"
 	"time"
@@ -201,6 +202,20 @@ func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespa
 	}
 
 	return &storageClusterList.Items[0], nil
+}
+
+func GetCephClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*rookCephv1.CephCluster, error) {
+	cephClusterList := &rookCephv1.CephClusterList{}
+	err := cl.List(ctx, cephClusterList, client.InNamespace(namespace), client.Limit(1))
+	if err != nil {
+		return nil, fmt.Errorf("unable to list cephCluster(s) in namespace %s: %v", namespace, err)
+	}
+
+	if len(cephClusterList.Items) == 0 {
+		return nil, fmt.Errorf("no cephCluster found in namespace %s", namespace)
+	}
+
+	return &cephClusterList.Items[0], nil
 }
 
 func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
