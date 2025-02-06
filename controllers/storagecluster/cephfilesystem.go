@@ -31,7 +31,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.NamedPoolSpec{
 				PoolSpec: cephv1.PoolSpec{
-					Replicated:    generateCephReplicatedSpec(initStorageCluster, "metadata"),
+					Replicated:    generateCephReplicatedSpec(initStorageCluster, poolTypeMetadata),
 					FailureDomain: initStorageCluster.Status.FailureDomain,
 				}},
 			MetadataServer: cephv1.MetadataServerSpec{
@@ -67,10 +67,11 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		// Set EnableCrushUpdates to always be true
 		pool.PoolSpec.EnableCrushUpdates = true
 		// Set default replication settings if not specified
-		if pool.PoolSpec.Replicated.Size == 0 {
+		// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
+		if pool.PoolSpec.Replicated.Size == 0 || arbiterEnabled(initStorageCluster) {
 			pool.PoolSpec.Replicated.Size = defaultPoolSpec.Replicated.Size
 		}
-		if pool.PoolSpec.Replicated.ReplicasPerFailureDomain == 0 {
+		if pool.PoolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(initStorageCluster) {
 			pool.PoolSpec.Replicated.ReplicasPerFailureDomain = defaultPoolSpec.Replicated.ReplicasPerFailureDomain
 		}
 		if pool.PoolSpec.Replicated.TargetSizeRatio == 0 {
