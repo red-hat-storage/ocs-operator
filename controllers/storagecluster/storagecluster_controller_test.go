@@ -1063,6 +1063,9 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 			"fsid": []byte(cephFSID),
 		},
 	}
+	clientConfigMap := &corev1.ConfigMap{}
+	clientConfigMap.Name = ocsClientConfigMapName
+	clientConfigMap.Namespace = namespace
 
 	os.Setenv(providerAPIServerImage, "fake-image")
 	os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
@@ -1084,7 +1087,18 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 	}
 
-	obj = append(obj, cbp, cfs, rookCephMonSecret, csv, ocsProviderService, ocsProviderServiceDeployment, ocsProviderServiceSecret)
+	obj = append(
+		obj,
+		createStorageClientCRD(),
+		cbp,
+		cfs,
+		rookCephMonSecret,
+		csv,
+		clientConfigMap,
+		ocsProviderService,
+		ocsProviderServiceDeployment,
+		ocsProviderServiceSecret,
+	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	clusters, err := statusutil.GetClusters(context.TODO(), client)
@@ -1104,7 +1118,9 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	frecorder := record.NewFakeRecorder(1024)
 	reporter := statusutil.NewEventReporter(frecorder)
 
-	availCrds := map[string]bool{}
+	availCrds := map[string]bool{
+		StorageClientCrdName: true,
+	}
 
 	return StorageClusterReconciler{
 		recorder:          reporter,
