@@ -30,11 +30,6 @@ var _ resourceManager = &storageClient{}
 
 func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if !storagecluster.Spec.AllowRemoteStorageConsumers {
-		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
-		return s.ensureDeleted(r, storagecluster)
-	}
-
 	if !r.AvailableCrds[StorageClientCrdName] {
 		return reconcile.Result{}, fmt.Errorf("StorageClient CRD is not available")
 	}
