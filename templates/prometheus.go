@@ -2,6 +2,7 @@ package templates
 
 import (
 	"fmt"
+	"os"
 
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -29,9 +30,8 @@ var PrometheusSpecTemplate = promv1.PrometheusSpec{
 		ListenLocal:            true,
 		Resources:              defaults.MonitoringResources["prometheus"],
 		Containers: []corev1.Container{{
-			Name: "kube-rbac-proxy",
-			// Tech-debt to include kube-rbac-proxy image from environment
-			Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0",
+			Name:  "kube-rbac-proxy",
+			Image: os.Getenv("KUBE_RBAC_PROXY_IMAGE"),
 			Args: []string{
 				fmt.Sprintf("--secure-listen-address=0.0.0.0:%d", KubeRBACProxyPortNumber),
 				"--upstream=http://127.0.0.1:9090/",
