@@ -137,6 +137,13 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 		return "", err
 	}
 
+	annotation := map[string]string{}
+	for key, value := range storageCluster.GetAnnotations() {
+		if strings.Contains(key, "ocs.openshift.io") {
+			annotation[key] = value
+		}
+	}
+
 	data := ocsv1a1.OdfInfoData{
 		Version:           ocsVersion,
 		DeploymentType:    odfDeploymentType,
@@ -147,6 +154,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 			StorageProviderEndpoint: storageCluster.Status.StorageProviderEndpoint,
 			CephClusterFSID:         cephFSId,
 			StorageClusterUID:       string(storageCluster.UID),
+			Annotations:             annotation,
 		},
 	}
 	yamlData, err := yaml.Marshal(data)

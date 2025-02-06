@@ -18,6 +18,8 @@ package v1alpha1
 
 import "k8s.io/apimachinery/pkg/types"
 
+const ApiServerExportedAddressAnnotationName = "ocs.openshift.io/api-server-exported-address"
+
 // ConnectedClient describes the connected clients of the storage cluster key
 type ConnectedClient struct {
 	Name      string `yaml:"name"`
@@ -31,6 +33,7 @@ type InfoStorageCluster struct {
 	StorageProviderEndpoint string               `yaml:"storageProviderEndpoint"`
 	CephClusterFSID         string               `yaml:"cephClusterFSID"`
 	StorageClusterUID       string               `yaml:"storageClusterUID"`
+	Annotations             map[string]string    `yaml:"annotations"`
 }
 
 // OdfInfoData describes odf-info CM's data
