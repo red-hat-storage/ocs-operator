@@ -88,10 +88,12 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 	}
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
-		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
-		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
-		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
+		// Pass the poolSpec from the storageCluster CR
+
+		cephBlockPool.Spec.PoolSpec = storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
+
+		// Set default values in the poolSpec as necessary
+		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
 		// Since provider mode handles mirroring, we only need to handle for internal mode
@@ -151,7 +153,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
 		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "metadata")
+		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, poolTypeMetadata)
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -199,7 +201,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
 		cephBlockPool.Spec.EnableCrushUpdates = true
 		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, "data")
+		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, poolTypeMetadata)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 

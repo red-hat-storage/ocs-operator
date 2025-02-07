@@ -48,6 +48,11 @@ const (
 	diskSpeedFast    diskSpeed = "fast"
 )
 
+const (
+	poolTypeData     = "data"
+	poolTypeMetadata = "metadata"
+)
+
 type knownDiskType struct {
 	speed            diskSpeed
 	provisioner      StorageClassProvisionerType
@@ -1417,4 +1422,27 @@ func isEncrptionSettingUpdated(clusterWideEncrytion bool, existingDeviceSet []ro
 		}
 	}
 	return false
+}
+
+// setDefaultDataPoolSpec sets the common pool spec for all data pools as necessary
+func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
+	poolSpec.EnableCrushUpdates = true
+	if poolSpec.DeviceClass == "" {
+		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
+	}
+	if poolSpec.FailureDomain == "" {
+		poolSpec.FailureDomain = getFailureDomain(sc)
+	}
+	// Set default replication settings if necessary
+	// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
+	defaultReplicatedSpec := generateCephReplicatedSpec(sc, poolTypeData)
+	if poolSpec.Replicated.Size == 0 || arbiterEnabled(sc) {
+		poolSpec.Replicated.Size = defaultReplicatedSpec.Size
+	}
+	if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(sc) {
+		poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
+	}
+	if poolSpec.Replicated.TargetSizeRatio == 0.0 {
+		poolSpec.Replicated.TargetSizeRatio = defaultReplicatedSpec.TargetSizeRatio
+	}
 }
