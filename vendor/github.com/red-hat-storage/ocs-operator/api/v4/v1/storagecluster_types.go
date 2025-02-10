@@ -127,16 +127,6 @@ type CSIDriverSpec struct {
 	ReadAffinity *rookCephv1.ReadAffinitySpec `json:"readAffinity,omitempty"`
 }
 
-type SharedFilesystemConfigurationSpec struct {
-	// +kubebuilder:validation:Optional
-	Parameters map[string]string `json:"parameters,omitempty"`
-}
-
-type BlockPoolConfigurationSpec struct {
-	// +kubebuilder:validation:Optional
-	Parameters map[string]string `json:"parameters,omitempty"`
-}
-
 // BackingStorageClass defines the backing storageclass for StorageDeviceSet
 type BackingStorageClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`

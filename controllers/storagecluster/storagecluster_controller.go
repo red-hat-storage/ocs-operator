@@ -251,7 +251,6 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
 		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
-		Watches(&ocsv1.StorageProfile{}, enqueueStorageClusterRequest).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate)).
 		Watches(&ocsv1.StorageClusterPeer{}, enqueueStorageClusterRequest, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(

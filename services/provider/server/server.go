@@ -1077,7 +1077,28 @@ func extractMonitorIps(data string) ([]string, error) {
 	}
 	// sorting here removes any positional change which reduces spurious reconciles
 	slices.Sort(ips)
+
+	// Rook does not update the rook-ceph-mon-endpoint ConfigMap until mons failover
+	// Starting from 4.18, RequireMsgr2 is always enabled, and encryption in transit is allowed on existing clusters.
+	// So, we need to replace the msgr1 port with msgr2 port.
+	replaceMsgr1PortWithMsgr2(ips)
+
 	return ips, nil
+}
+
+func replaceMsgr1PortWithMsgr2(ips []string) {
+	const (
+		// msgr2port is the listening port of the messenger v2 protocol
+		msgr2port = "3300"
+		// msgr1port is the listening port of the messenger v1 protocol
+		msgr1port = "6789"
+	)
+
+	for i, ip := range ips {
+		if strings.HasSuffix(ip, msgr1port) {
+			ips[i] = strings.TrimSuffix(ip, msgr1port) + msgr2port
+		}
+	}
 }
 
 func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
