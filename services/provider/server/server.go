@@ -1279,8 +1279,3 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
 }
-
-func getMD5Hash(text string) string {
-	hash := md5.Sum([]byte(text))
-	return hex.EncodeToString(hash[:])
-}
