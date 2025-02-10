@@ -74,7 +74,6 @@ type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
 	client                    client.Client
 	consumerManager           *ocsConsumerManager
-	storageRequestManager     *storageRequestManager
 	storageClusterPeerManager *storageClusterPeerManager
 	namespace                 string
 }
@@ -95,11 +94,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageRequestManager, err := newStorageRequestManager(client, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
-	}
-
 	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
@@ -108,7 +102,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 	return &OCSProviderServer{
 		client:                    client,
 		consumerManager:           consumerManager,
-		storageRequestManager:     storageRequestManager,
 		storageClusterPeerManager: storageClusterPeerManager,
 		namespace:                 namespace,
 	}, nil
@@ -658,30 +651,13 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
-	// Get storage consumer resource using UUID
-	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	// this is only here for backward compatibility as we expect no existing older client
+	// wants to fulfill claims as current provider deprecated storagerequests
+	_, err := s.consumerManager.GetRequest(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	klog.Infof("Found StorageConsumer %q (%q)", consumerObj.Name, req.StorageConsumerUUID)
-
-	var storageType string
-	switch req.StorageType {
-	case pb.FulfillStorageClaimRequest_BLOCK:
-		storageType = "block"
-	case pb.FulfillStorageClaimRequest_SHAREDFILE:
-		storageType = "sharedfile"
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown storage type, %s", storageType)
-	}
-
-	err = s.storageRequestManager.Create(ctx, consumerObj, req.StorageClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to fulfill storage class claim for %q. %v", req.StorageConsumerUUID, err)
-		klog.Error(errMsg)
-		if kerrors.IsAlreadyExists(err) {
-			return nil, status.Error(codes.AlreadyExists, errMsg)
+		errMsg := fmt.Sprintf("failed to get storageclaim config %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
+		if kerrors.IsNotFound(err) {
+			return nil, status.Error(codes.NotFound, errMsg)
 		}
 		return nil, status.Error(codes.Internal, errMsg)
 	}
@@ -692,13 +668,8 @@ func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.Ful
 // RevokeStorageClaim RPC call to delete the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
-	err := s.storageRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClaimName)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to revoke storage class claim %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
-		klog.Error(errMsg)
-		return nil, status.Error(codes.Internal, errMsg)
-	}
-
+	// client cluster want to stop using storageclasses and data on the backend can be removed
+	// TODO: this should be transferred into removal of storageclasses and corresponding data
 	return &pb.RevokeStorageClaimResponse{}, nil
 }
 
@@ -708,7 +679,7 @@ func storageClaimCephCsiSecretName(secretType, suffix string) string {
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
-	storageRequest, err := s.storageRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClaimName)
+	storageRequest, err := s.consumerManager.GetRequest(ctx, req.StorageConsumerUUID, req.StorageClaimName)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to get storage class claim config %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
 		if kerrors.IsNotFound(err) {
@@ -1307,4 +1278,9 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	}
 
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
+}
+
+func getMD5Hash(text string) string {
+	hash := md5.Sum([]byte(text))
+	return hex.EncodeToString(hash[:])
 }
