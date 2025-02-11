@@ -68,11 +68,14 @@ var noobaaSpec = &nbv1.NooBaaSpec{
 	JoinSecret: &v1.SecretReference{
 		Name: "noobaa-remote-join-secret",
 	},
+	CleanupPolicy: nbv1.CleanupPolicySpec{
+		AllowNoobaaDeletion: true,
+	},
 }
 
 var joinSecret = map[string]string{
 	"auth_token": "authToken",
-	"mgmt_addr":  "noobaaMgmtAddress",
+	"mgmt_addr":  "https://noobaaMgmtAddress:443",
 }
 
 var mockExtR = map[string]*externalResource{
@@ -106,8 +109,8 @@ var mockExtR = map[string]*externalResource{
 		Kind: "Secret",
 		Data: joinSecret,
 	},
-	"noobaa-remote": {
-		Name: "noobaa-remote",
+	"noobaa": {
+		Name: "noobaa",
 		Kind: "Noobaa",
 		Data: noobaaSpec,
 	},
