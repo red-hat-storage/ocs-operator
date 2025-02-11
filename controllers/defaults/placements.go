@@ -69,7 +69,7 @@ var (
 				getOcsToleration(),
 			},
 			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 					// left the selector value empty as it will be updated later in the getPlacement()
 				},
 			},
