@@ -741,8 +741,12 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	var extR []*pb.ExternalResource
 
 	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
-	// SID for RamenDR
-	storageID := storageRequestHash
+
+	cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
+	}
+
 	replicationID := req.StorageClaimName
 
 	for _, cephRes := range storageRequest.Status.CephResources {
@@ -798,6 +802,18 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				rbdStorageClassData["encrypted"] = "true"
 				rbdStorageClassData["encryptionKMSID"] = storageRequest.Spec.EncryptionMethod
 			}
+
+			blockPool := &rookCephv1.CephBlockPool{}
+			err = s.client.Get(ctx, types.NamespacedName{Name: rns.Spec.BlockPoolName, Namespace: s.namespace}, blockPool)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPool. %v", blockPool.Name, err)
+			}
+
+			// SID for RamenDR
+			storageID := calculateCephRbdStorageID(
+				cephCluster.Status.CephStatus.FSID,
+				strconv.Itoa(blockPool.Status.PoolID),
+				rns.Name)
 
 			extR = append(extR,
 				&pb.ExternalResource{
@@ -914,6 +930,13 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				parts := strings.Split(option, "=")
 				kernelMountOptions[parts[0]] = parts[1]
 			}
+
+			// SID for RamenDR
+			storageID := calculateCephFsStorageID(
+				cephCluster.Status.CephStatus.FSID,
+				subVolumeGroup.Spec.FilesystemName,
+				subVolumeGroup.Name,
+			)
 
 			extR = append(extR,
 				&pb.ExternalResource{
@@ -1307,4 +1330,12 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	}
 
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
+}
+
+func calculateCephRbdStorageID(cephfsid, poolID, radosnamespacename string) string {
+	return util.CalculateMD5Hash([3]string{cephfsid, poolID, radosnamespacename})
+}
+
+func calculateCephFsStorageID(cephfsid, fileSystemName, subVolumeGroupName string) string {
+	return util.CalculateMD5Hash([3]string{cephfsid, fileSystemName, subVolumeGroupName})
 }
