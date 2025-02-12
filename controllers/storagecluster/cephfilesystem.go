@@ -31,7 +31,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.NamedPoolSpec{
 				PoolSpec: cephv1.PoolSpec{
-					Replicated:    generateCephReplicatedSpec(initStorageCluster, "metadata"),
+					Replicated:    generateCephReplicatedSpec(initStorageCluster, poolTypeMetadata),
 					FailureDomain: initStorageCluster.Status.FailureDomain,
 				}},
 			MetadataServer: cephv1.MetadataServerSpec{
@@ -56,30 +56,10 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 	// Append additional pools from specified additional data pools
 	ret.Spec.DataPools = append(ret.Spec.DataPools, initStorageCluster.Spec.ManagedResources.CephFilesystems.AdditionalDataPools...)
 
-	// Iterate over each pool and set default values if necessary
-	defaultPoolSpec := generateDefaultPoolSpec(initStorageCluster)
 	for i := range ret.Spec.DataPools {
-		pool := &ret.Spec.DataPools[i]
-		// Set default device class if not specified
-		if pool.PoolSpec.DeviceClass == "" {
-			pool.PoolSpec.DeviceClass = defaultPoolSpec.DeviceClass
-		}
-		// Set EnableCrushUpdates to always be true
-		pool.PoolSpec.EnableCrushUpdates = true
-		// Set default replication settings if not specified
-		if pool.PoolSpec.Replicated.Size == 0 {
-			pool.PoolSpec.Replicated.Size = defaultPoolSpec.Replicated.Size
-		}
-		if pool.PoolSpec.Replicated.ReplicasPerFailureDomain == 0 {
-			pool.PoolSpec.Replicated.ReplicasPerFailureDomain = defaultPoolSpec.Replicated.ReplicasPerFailureDomain
-		}
-		if pool.PoolSpec.Replicated.TargetSizeRatio == 0 {
-			pool.PoolSpec.Replicated.TargetSizeRatio = defaultPoolSpec.Replicated.TargetSizeRatio
-		}
-		// Set default failure domain if not specified
-		if pool.PoolSpec.FailureDomain == "" {
-			pool.PoolSpec.FailureDomain = defaultPoolSpec.FailureDomain
-		}
+		poolSpec := &ret.Spec.DataPools[i].PoolSpec
+		// Set default values in the poolSpec as necessary
+		setDefaultDataPoolSpec(poolSpec, initStorageCluster)
 	}
 
 	// set device class for metadata pool from the default data pool
@@ -281,14 +261,4 @@ func getActiveMetadataServers(sc *ocsv1.StorageCluster) int {
 	}
 
 	return defaults.CephFSActiveMetadataServers
-}
-
-// Define a function to generate default pool specifications
-func generateDefaultPoolSpec(sc *ocsv1.StorageCluster) cephv1.PoolSpec {
-	return cephv1.PoolSpec{
-		DeviceClass:        sc.Status.DefaultCephDeviceClass,
-		EnableCrushUpdates: true,
-		Replicated:         generateCephReplicatedSpec(sc, "data"),
-		FailureDomain:      sc.Status.FailureDomain,
-	}
 }

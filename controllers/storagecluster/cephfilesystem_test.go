@@ -125,7 +125,13 @@ func TestCephFileSystemDataPools(t *testing.T) {
 	mocksc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(mocksc)
 	mocksc.Status.FailureDomain = "zone"
-	defaultPoolSpec := generateDefaultPoolSpec(mocksc)
+	defaultPoolSpec := cephv1.PoolSpec{
+		EnableCrushUpdates: true,
+		DeviceClass:        mocksc.Status.DefaultCephDeviceClass,
+		FailureDomain:      getFailureDomain(mocksc),
+		Replicated:         generateCephReplicatedSpec(mocksc, poolTypeData),
+	}
+
 	var cases = []struct {
 		label             string
 		sc                *api.StorageCluster
