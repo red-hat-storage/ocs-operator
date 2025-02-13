@@ -645,10 +645,6 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 						Name: "ux-backend-server",
 						VolumeMounts: []corev1.VolumeMount{
 							{
-								Name:      "onboarding-private-key",
-								MountPath: "/etc/private-key",
-							},
-							{
 								Name:      "ux-cert-secret",
 								MountPath: "/etc/tls/private",
 							},
@@ -724,15 +720,6 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 					},
 				},
 				Volumes: []corev1.Volume{
-					{
-						Name: "onboarding-private-key",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: "onboarding-private-key",
-								Optional:   ptr.To(true),
-							},
-						},
-					},
 					{
 						Name: "ux-proxy-secret",
 						VolumeSource: corev1.VolumeSource{
