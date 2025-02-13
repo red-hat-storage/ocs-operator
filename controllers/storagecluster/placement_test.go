@@ -364,21 +364,18 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
 					PodAntiAffinity: &corev1.PodAntiAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 							{
-								Weight: 100,
-								PodAffinityTerm: corev1.PodAffinityTerm{
-									LabelSelector: &metav1.LabelSelector{
-										MatchExpressions: []metav1.LabelSelectorRequirement{
-											{
-												Key:      "rook_file_system",
-												Operator: metav1.LabelSelectorOpIn,
-												Values:   []string{"storage-test-cephfilesystem"},
-											},
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{
+										{
+											Key:      "rook_file_system",
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"storage-test-cephfilesystem"},
 										},
 									},
-									TopologyKey: corev1.LabelZoneFailureDomainStable,
 								},
+								TopologyKey: corev1.LabelZoneFailureDomainStable,
 							},
 						},
 					},
@@ -503,18 +500,18 @@ func TestGetPlacement(t *testing.T) {
 
 		expectedPlacement = c.expectedPlacements["mds"]
 		testPodAffinity := &corev1.PodAntiAffinity{
-			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-				defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc)),
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc)).PodAffinityTerm,
 			},
 		}
 		if expectedPlacement.PodAntiAffinity != nil {
 			topologyKeys := ""
-			if len(expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0 {
-				topologyKeys = expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey
+			if len(expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 {
+				topologyKeys = expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey
 			}
-			expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = testPodAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = testPodAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 			if topologyKeys != "" {
-				expectedPlacement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].PodAffinityTerm.TopologyKey = topologyKeys
+				expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey = topologyKeys
 			}
 		}
 		actualPlacement = getPlacement(sc, "mds")
