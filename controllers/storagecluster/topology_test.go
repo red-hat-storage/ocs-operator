@@ -562,30 +562,62 @@ func TestReconcileNodeTopologyMapFailure(t *testing.T) {
 
 func TestFailureDomain(t *testing.T) {
 	testcases := []struct {
-		label                 string
-		storageCluster        *ocsv1.StorageCluster
-		NodeTopologyMap       *ocsv1.NodeTopologyMap
-		expectedFailureDomain string
+		label                       string
+		storageCluster              *ocsv1.StorageCluster
+		NodeTopologyMap             *ocsv1.NodeTopologyMap
+		expectedFailureDomain       string
+		expectedFailureDomainKey    string
+		expectedFailureDomainValues []string
 	}{
 		{
 			label: "Case 1", // storagecluster has predefined failure domain of `zone`
 			storageCluster: &ocsv1.StorageCluster{
 				Status: ocsv1.StorageClusterStatus{
-					FailureDomain:  "zone",
-					NodeTopologies: ocsv1.NewNodeTopologyMap(),
+					FailureDomain: "zone",
+					NodeTopologies: &ocsv1.NodeTopologyMap{
+						Labels: map[string]ocsv1.TopologyLabelValues{
+							corev1.LabelZoneFailureDomainStable: []string{
+								"zone1",
+								"zone2",
+								"zone3",
+							},
+							"zone1": []string{
+								"aaa",
+								"bbb",
+								"ccc",
+							},
+						},
+					},
 				},
 			},
-			expectedFailureDomain: "zone",
+			expectedFailureDomain:       "zone",
+			expectedFailureDomainKey:    corev1.LabelZoneFailureDomainStable,
+			expectedFailureDomainValues: []string{"zone1", "zone2", "zone3"},
 		},
 		{
 			label: "Case 2", // storagecluster has predefined failure domain of `rack`
 			storageCluster: &ocsv1.StorageCluster{
 				Status: ocsv1.StorageClusterStatus{
-					FailureDomain:  "rack",
-					NodeTopologies: ocsv1.NewNodeTopologyMap(),
+					FailureDomain: "rack",
+					NodeTopologies: &ocsv1.NodeTopologyMap{
+						Labels: map[string]ocsv1.TopologyLabelValues{
+							"rack": []string{
+								"aaa",
+								"bbb",
+								"ccc",
+							},
+							"topology.rook.io/rack": []string{
+								"rack1",
+								"rack2",
+								"rack3",
+							},
+						},
+					},
 				},
 			},
-			expectedFailureDomain: "rack",
+			expectedFailureDomain:       "rack",
+			expectedFailureDomainKey:    "topology.rook.io/rack",
+			expectedFailureDomainValues: []string{"rack1", "rack2", "rack3"},
 		},
 		{
 			label: "Case 3", // storagecluster with three or more zone topology labels
@@ -593,7 +625,7 @@ func TestFailureDomain(t *testing.T) {
 				Status: ocsv1.StorageClusterStatus{
 					NodeTopologies: &ocsv1.NodeTopologyMap{
 						Labels: map[string]ocsv1.TopologyLabelValues{
-							zoneTopologyLabel: []string{
+							corev1.LabelZoneFailureDomainStable: []string{
 								"zone1",
 								"zone2",
 								"zone3",
@@ -602,7 +634,9 @@ func TestFailureDomain(t *testing.T) {
 					},
 				},
 			},
-			expectedFailureDomain: "zone",
+			expectedFailureDomain:       "zone",
+			expectedFailureDomainKey:    corev1.LabelZoneFailureDomainStable,
+			expectedFailureDomainValues: []string{"zone1", "zone2", "zone3"},
 		},
 		{
 			label: "Case 4", // storagecluster with less than three zone topology labels
@@ -610,7 +644,7 @@ func TestFailureDomain(t *testing.T) {
 				Status: ocsv1.StorageClusterStatus{
 					NodeTopologies: &ocsv1.NodeTopologyMap{
 						Labels: map[string]ocsv1.TopologyLabelValues{
-							zoneTopologyLabel: []string{
+							"topology.rook.io/rack": []string{
 								"zone1",
 								"zone2",
 							},
@@ -618,17 +652,32 @@ func TestFailureDomain(t *testing.T) {
 					},
 				},
 			},
-			expectedFailureDomain: "rack",
+			expectedFailureDomain:       "rack",
+			expectedFailureDomainKey:    "topology.rook.io/rack",
+			expectedFailureDomainValues: []string{"zone1", "zone2"},
 		},
 		{
 			label: "Case 5", // storagecluster has predefined failure domain of `host`
 			storageCluster: &ocsv1.StorageCluster{
 				Status: ocsv1.StorageClusterStatus{
-					FailureDomain:  "host",
-					NodeTopologies: ocsv1.NewNodeTopologyMap(),
+					FailureDomain: "host",
+					NodeTopologies: &ocsv1.NodeTopologyMap{
+						Labels: map[string]ocsv1.TopologyLabelValues{
+							"host": []string{
+								"aa",
+								"bb",
+							},
+							corev1.LabelHostname: []string{
+								"host1",
+								"host2",
+							},
+						},
+					},
 				},
 			},
-			expectedFailureDomain: "host",
+			expectedFailureDomain:       "host",
+			expectedFailureDomainKey:    corev1.LabelHostname,
+			expectedFailureDomainValues: []string{"host1", "host2"},
 		},
 		{
 			label: "Case 6", // storagecluster with FlexibleScaling enabled
@@ -640,7 +689,9 @@ func TestFailureDomain(t *testing.T) {
 					NodeTopologies: ocsv1.NewNodeTopologyMap(),
 				},
 			},
-			expectedFailureDomain: "host",
+			expectedFailureDomain:       "host",
+			expectedFailureDomainKey:    "",
+			expectedFailureDomainValues: []string{},
 		},
 		{
 			label: "Case 7", // storagecluster has predefined failure domain of `zone` and newer labels have been added to the nodes
@@ -658,14 +709,20 @@ func TestFailureDomain(t *testing.T) {
 					},
 				},
 			},
-			expectedFailureDomain: "zone",
+			expectedFailureDomain:       "zone",
+			expectedFailureDomainKey:    corev1.LabelZoneFailureDomainStable,
+			expectedFailureDomainValues: []string{"zone1", "zone2", "zone3"},
 		},
 	}
 
 	for _, tc := range testcases {
 		setFailureDomain(tc.storageCluster)
 		failureDomain := getFailureDomain(tc.storageCluster)
+		failureDomainKey, failureDomainValues := tc.storageCluster.Status.NodeTopologies.GetKeyValues(failureDomain)
 		assert.Equalf(t, tc.expectedFailureDomain, failureDomain, "[%s]: failed to get correct failure domain", tc.label)
+		assert.Equalf(t, tc.expectedFailureDomainKey, failureDomainKey, "[%s]: failed to get correct failure domain key", tc.label)
+		assert.Equalf(t, tc.expectedFailureDomainValues, failureDomainValues, "[%s]: failed to get correct failure domain values", tc.label)
+
 	}
 }
 
