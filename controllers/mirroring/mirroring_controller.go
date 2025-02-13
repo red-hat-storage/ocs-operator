@@ -355,7 +355,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 				cephBlockPool := blockPoolByName[blockPoolName]
 
 				mirroringToken := response.BlockPoolsInfo[i].MirroringToken
-				secretName := fmt.Sprintf("rbd-mirroring-token-%s", util.CalculateMD5Hash(blockPoolName))
+				secretName := GetMirroringSecretName(blockPoolName)
 				if mirroringToken != "" {
 					mirroringSecret := &corev1.Secret{}
 					mirroringSecret.Name = secretName
@@ -569,4 +569,8 @@ func (r *MirroringReconciler) delete(obj client.Object, opts ...client.DeleteOpt
 
 func (r *MirroringReconciler) own(owner *corev1.ConfigMap, obj client.Object) error {
 	return controllerutil.SetControllerReference(owner, obj, r.Scheme)
+}
+
+func GetMirroringSecretName(blockPoolName string) string {
+	return fmt.Sprintf("rbd-mirroring-token-%s", util.CalculateMD5Hash(blockPoolName))
 }

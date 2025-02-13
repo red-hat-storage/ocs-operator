@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"crypto"
 	"crypto/md5"
@@ -22,6 +23,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
@@ -741,9 +743,11 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 	var extR []*pb.ExternalResource
 
 	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
-	// SID for RamenDR
-	storageID := storageRequestHash
-	replicationID := req.StorageClaimName
+
+	cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, cephRes := range storageRequest.Status.CephResources {
 		switch cephRes.Kind {
@@ -799,6 +803,89 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				rbdStorageClassData["encryptionKMSID"] = storageRequest.Spec.EncryptionMethod
 			}
 
+			blockPool := &rookCephv1.CephBlockPool{}
+			err = s.client.Get(ctx, types.NamespacedName{Name: rns.Spec.BlockPoolName, Namespace: s.namespace}, blockPool)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPool. %v", blockPool.Name, err)
+			}
+
+			// SID for RamenDR
+			storageID := calculateCephRbdStorageID(
+				cephCluster.Status.CephStatus.FSID,
+				strconv.Itoa(blockPool.Status.PoolID),
+				rns.Name,
+			)
+
+			peerPoolID := blockPool.GetAnnotations()[util.BlockPoolMirroringTargetIDAnnotation]
+			radosNamespace := cmp.Or(rns.Spec.Mirroring, &rookCephv1.RadosNamespaceMirroring{}).RemoteNamespace
+			if peerPoolID != "" && radosNamespace != nil {
+				peerCephfsid, err := getPeerCephFSID(
+					ctx,
+					s.client,
+					mirroring.GetMirroringSecretName(blockPool.Name),
+					blockPool.Namespace,
+				)
+				if err != nil {
+					klog.Errorf("failed to get peer Ceph FSIS. %v", err)
+				}
+
+				peerStorageID := calculateCephRbdStorageID(
+					peerCephfsid,
+					peerPoolID,
+					*radosNamespace,
+				)
+
+				storageIDs := []string{storageID, peerStorageID}
+				slices.Sort(storageIDs)
+				replicationID := util.CalculateMD5Hash(storageIDs)
+
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name: fmt.Sprintf("rbd-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
+						Kind: "VolumeReplicationClass",
+						Labels: map[string]string{
+							ramenDRStorageIDLabelKey:     storageID,
+							ramenDRReplicationIDLabelKey: replicationID,
+							ramenMaintenanceModeLabelKey: "Failover",
+						},
+						Annotations: map[string]string{
+							"replication.storage.openshift.io/is-default-class": "true",
+						},
+						Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
+							Parameters: map[string]string{
+								"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+								"mirroringMode": "snapshot",
+								// This is a temporary fix till we get the replication schedule to ocs-operator
+								"schedulingInterval": volumeReplicationClass5mSchedule,
+								"clusterID":          clientProfile,
+							},
+							Provisioner: util.RbdDriverName,
+						}),
+					},
+					&pb.ExternalResource{
+						Name: fmt.Sprintf("rbd-flatten-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
+						Kind: "VolumeReplicationClass",
+						Labels: map[string]string{
+							ramenDRStorageIDLabelKey:     storageID,
+							ramenDRReplicationIDLabelKey: replicationID,
+							ramenMaintenanceModeLabelKey: "Failover",
+							ramenDRFlattenModeLabelKey:   "force",
+						},
+						Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
+							Parameters: map[string]string{
+								"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
+								"mirroringMode": "snapshot",
+								"flattenMode":   "force",
+								// This is a temporary fix till we get the replication schedule to ocs-operator
+								"schedulingInterval": volumeReplicationClass5mSchedule,
+								"clusterID":          clientProfile,
+							},
+							Provisioner: util.RbdDriverName,
+						}),
+					},
+				)
+			}
+
 			extR = append(extR,
 				&pb.ExternalResource{
 					Name: "ceph-rbd",
@@ -828,49 +915,6 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
 						"clusterID": clientProfile,
 						"pool":      rns.Spec.BlockPoolName,
-					}),
-				},
-				&pb.ExternalResource{
-					Name: fmt.Sprintf("rbd-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
-					Kind: "VolumeReplicationClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey:     storageID,
-						ramenDRReplicationIDLabelKey: replicationID,
-						ramenMaintenanceModeLabelKey: "Failover",
-					},
-					Annotations: map[string]string{
-						"replication.storage.openshift.io/is-default-class": "true",
-					},
-					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
-						Parameters: map[string]string{
-							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
-							"mirroringMode": "snapshot",
-							// This is a temporary fix till we get the replication schedule to ocs-operator
-							"schedulingInterval": volumeReplicationClass5mSchedule,
-							"clusterID":          clientProfile,
-						},
-						Provisioner: util.RbdDriverName,
-					}),
-				},
-				&pb.ExternalResource{
-					Name: fmt.Sprintf("rbd-flatten-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
-					Kind: "VolumeReplicationClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey:     storageID,
-						ramenDRReplicationIDLabelKey: replicationID,
-						ramenMaintenanceModeLabelKey: "Failover",
-						ramenDRFlattenModeLabelKey:   "force",
-					},
-					Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
-						Parameters: map[string]string{
-							"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
-							"mirroringMode": "snapshot",
-							"flattenMode":   "force",
-							// This is a temporary fix till we get the replication schedule to ocs-operator
-							"schedulingInterval": volumeReplicationClass5mSchedule,
-							"clusterID":          clientProfile,
-						},
-						Provisioner: util.RbdDriverName,
 					}),
 				},
 				&pb.ExternalResource{
@@ -914,6 +958,13 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 				parts := strings.Split(option, "=")
 				kernelMountOptions[parts[0]] = parts[1]
 			}
+
+			// SID for RamenDR
+			storageID := calculateCephFsStorageID(
+				cephCluster.Status.CephStatus.FSID,
+				subVolumeGroup.Spec.FilesystemName,
+				subVolumeGroup.Name,
+			)
 
 			extR = append(extR,
 				&pb.ExternalResource{
@@ -1307,4 +1358,34 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	}
 
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
+}
+
+func calculateCephRbdStorageID(cephfsid, poolID, radosnamespacename string) string {
+	return util.CalculateMD5Hash([3]string{cephfsid, poolID, radosnamespacename})
+}
+
+func calculateCephFsStorageID(cephfsid, fileSystemName, subVolumeGroupName string) string {
+	return util.CalculateMD5Hash([3]string{cephfsid, fileSystemName, subVolumeGroupName})
+}
+
+func getPeerCephFSID(ctx context.Context, cl client.Client, secretName, namespace string) (string, error) {
+	secret := &corev1.Secret{}
+	secret.Name = secretName
+	secret.Namespace = namespace
+	err := cl.Get(ctx, client.ObjectKeyFromObject(secret), secret)
+	if err != nil {
+		return "", err
+	}
+	decodeString, err := base64.StdEncoding.DecodeString(string(secret.Data["token"]))
+	if err != nil {
+		return "", err
+	}
+	token := struct {
+		FSID string `json:"fsid"`
+	}{}
+	err = json.Unmarshal(decodeString, &token)
+	if err != nil {
+		return "", err
+	}
+	return token.FSID, nil
 }
