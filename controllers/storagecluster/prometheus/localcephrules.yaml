@@ -187,6 +187,18 @@ spec:
       for: 1m
       labels:
         severity: critical
+    - alert: CephOSDDown
+      annotations:
+        description: Ceph OSD(s) is/are down, please check the ceph-osd daemons and take corrective measures. Please see runbook URL for more details
+        message: An OSD has been marked down
+        severity_level: warning
+        storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDDown.md
+      expr: |
+        ceph_health_detail{name="OSD_DOWN"} == 1
+      for: 5m
+      labels:
+        severity: warning
     - alert: CephOSDSlowOps
       annotations:
         description: '{{ $value }} Ceph OSD requests are taking too long to process. Please check ceph status to find out the cause.'

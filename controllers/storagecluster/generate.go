@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	storagev1 "k8s.io/api/storage/v1"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
@@ -73,6 +75,36 @@ func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 		return initData.Spec.ManagedResources.CephBlockPools.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-rbd", initData.Name)
+}
+
+func (r *StorageClusterReconciler) generateNameForExternalModeCephBlockPoolSC(nb *nbv1.NooBaa) (string, error) {
+	var storageClassName string
+
+	if nb.Spec.DBStorageClass != nil {
+		storageClassName = *nb.Spec.DBStorageClass
+	} else {
+		// list all storage classes and pick the first one
+		// whose provisioner suffix matches with `rbd.csi.ceph.com` suffix
+		storageClasses := &storagev1.StorageClassList{}
+		err := r.Client.List(r.ctx, storageClasses)
+		if err != nil {
+			r.Log.Error(err, "Failed to list storage classes")
+			return "", err
+		}
+
+		for _, sc := range storageClasses.Items {
+			if strings.HasSuffix(sc.Provisioner, "rbd.csi.ceph.com") {
+				storageClassName = sc.Name
+				break
+			}
+		}
+	}
+
+	if storageClassName == "" {
+		return "", fmt.Errorf("no storage class found with provisioner suffix `rbd.csi.ceph.com`")
+	}
+
+	return storageClassName, nil
 }
 
 func generateNameForCephBlockPoolVirtualizationSC(initData *ocsv1.StorageCluster) string {

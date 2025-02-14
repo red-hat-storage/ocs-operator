@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/utils/ptr"
 	"reflect"
 	"strconv"
 	"testing"
@@ -673,7 +674,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "ceph-rbd",
 				Kind: "StorageClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/storageid": "854666c7477123fb05f20bf615e69a46",
 				},
 				Data: map[string]string{
 					"clusterID":                 serverNamespace,
@@ -691,8 +692,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
 				Labels: map[string]string{
-
-					"ramendr.openshift.io/storageid": "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/storageid": "854666c7477123fb05f20bf615e69a46",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
@@ -702,7 +702,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "block-pool-claim-groupsnapclass",
 				Kind: "VolumeGroupSnapshotClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/storageid": "854666c7477123fb05f20bf615e69a46",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
@@ -714,8 +714,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "rbd-volumereplicationclass-1625360775",
 				Kind: "VolumeReplicationClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/replicationid":    "block-pool-claim",
-					"ramendr.openshift.io/storageid":        "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/replicationid":    "a06c234d29cb35b6fe45fb3d7c8dd8a6",
+					"ramendr.openshift.io/storageid":        "854666c7477123fb05f20bf615e69a46",
 					"ramendr.openshift.io/maintenancemodes": "Failover",
 				},
 				Annotations: map[string]string{
@@ -736,8 +736,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Kind: "VolumeReplicationClass",
 				Labels: map[string]string{
 					"replication.storage.openshift.io/flatten-mode": "force",
-					"ramendr.openshift.io/replicationid":            "block-pool-claim",
-					"ramendr.openshift.io/storageid":                "8d40b6be71600457b5dec219d2ce2d4c",
+					"ramendr.openshift.io/replicationid":            "a06c234d29cb35b6fe45fb3d7c8dd8a6",
+					"ramendr.openshift.io/storageid":                "854666c7477123fb05f20bf615e69a46",
 					"ramendr.openshift.io/maintenancemodes":         "Failover",
 				},
 				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
@@ -783,7 +783,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "cephfs",
 				Kind: "StorageClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "0e8555e6556f70d23a61675af44e880c",
+					"ramendr.openshift.io/storageid": "5b53ada3302d6e0d1025a7948ce45ba5",
 				},
 				Data: map[string]string{
 					"clusterID":          "8d26c7378c1b0ec9c2455d1c3601c4cd",
@@ -799,7 +799,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "cephfs",
 				Kind: "VolumeSnapshotClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "0e8555e6556f70d23a61675af44e880c",
+					"ramendr.openshift.io/storageid": "5b53ada3302d6e0d1025a7948ce45ba5",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
@@ -809,7 +809,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "shared-filesystem-claim-groupsnapclass",
 				Kind: "VolumeGroupSnapshotClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "0e8555e6556f70d23a61675af44e880c",
+					"ramendr.openshift.io/storageid": "5b53ada3302d6e0d1025a7948ce45ba5",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
@@ -956,6 +956,17 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				AllowRemoteStorageConsumers: true,
 			},
 		}
+		cephCluster = &rookCephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "mock-storage-cluster-cephcluster",
+				Namespace: serverNamespace,
+			},
+			Status: rookCephv1.ClusterStatus{
+				CephStatus: &rookCephv1.CephStatus{
+					FSID: "my-fsid",
+				},
+			},
+		}
 	)
 
 	ctx := context.TODO()
@@ -967,6 +978,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		claimResourceCreating,
 		claimResourceFailed,
 		storageClustersResource,
+		cephCluster,
 	}
 
 	// Create a fake client to mock API calls.
@@ -1124,7 +1136,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		Spec: rookCephv1.CephBlockPoolRadosNamespaceSpec{
 			BlockPoolName: "cephblockpool",
 			Mirroring: &rookCephv1.RadosNamespaceMirroring{
-				Mode: "pool",
+				Mode:            "pool",
+				RemoteNamespace: ptr.To("peer-remote"),
 			},
 		},
 	}
@@ -1134,13 +1147,38 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cephblockpool",
 			Namespace: server.namespace,
+			Annotations: map[string]string{
+				"ocs.openshift.io/mirroring-target-id": "3",
+			},
 		},
 		Spec: rookCephv1.NamedBlockPoolSpec{
 			PoolSpec: rookCephv1.PoolSpec{
-				Mirroring: rookCephv1.MirroringSpec{Enabled: false},
-			}},
+				Mirroring: rookCephv1.MirroringSpec{
+					Enabled: false,
+					Peers: &rookCephv1.MirroringPeerSpec{
+						SecretNames: []string{
+							"mirroring-token",
+						},
+					},
+				},
+			},
+		},
+		Status: &rookCephv1.CephBlockPoolStatus{
+			PoolID: 1,
+		},
 	}
 	assert.NoError(t, client.Create(ctx, cephBlockPool))
+
+	mirroringToken := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mirroring-token",
+			Namespace: server.namespace,
+		},
+		Data: map[string][]byte{
+			"token": []byte("eyJmc2lkIjoiZjk1NGYwNGItM2M1Yi00MWMxLWFkODUtNjEzNzA3ZDBjZDllIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFDYUZJNW5ZRVJrR0JBQWQzLzVQS1V3RFVuTXkxbHBMSEh2ZXc9PSIsIm1vbl9ob3N0IjoidjI6MTAuMC4xMzUuMTY5OjMzMDAvMCx2MjoxMC4wLjE1Ny4xNTY6MzMwMC8wLHYyOjEwLjAuMTcyLjExMjozMzAwLzAiLCJuYW1lc3BhY2UiOiJvcGVuc2hpZnQtc3RvcmFnZSJ9"),
+		},
+	}
+	assert.NoError(t, client.Create(ctx, mirroringToken))
 
 	// get the storage class request config for block pool
 	req := pb.StorageClaimConfigRequest{
