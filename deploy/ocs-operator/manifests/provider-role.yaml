@@ -18,6 +18,7 @@ rules:
       - cephblockpoolradosnamespaces
       - cephblockpools
       - cephrbdmirrors
+      - cephclusters
     verbs:
       - get
       - list
