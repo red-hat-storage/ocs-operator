@@ -4,7 +4,7 @@ set -e
 
 source hack/common.sh
 
-OPERATOR_SDK_DL_URL="https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_${GOHOSTOS}_${GOHOSTARCH}"
+OPERATOR_SDK_DL_URL="https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_${HOST_OS}_${HOST_ARCH}"
 
 mkdir -p "${LOCALBIN}"
 
