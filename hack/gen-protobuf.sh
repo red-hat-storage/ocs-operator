@@ -6,15 +6,15 @@ source hack/common.sh
 
 mkdir -p "${LOCALBIN}" "${GRPC_BIN}" "${PROTO_GOOGLE}"
 
-if [[ ${GOHOSTOS} == "linux" ]]; then
+if [[ ${HOST_OS} == "linux" ]]; then
 	PROTOC_OS="linux"
-elif [[ ${GOHOSTOS} == "darwin" ]]; then
+elif [[ ${HOST_OS} == "darwin" ]]; then
 	PROTOC_OS="osx"
 fi
 
-if [[ ${GOHOSTARCH} == "amd64" ]]; then
+if [[ ${HOST_ARCH} == "amd64" ]]; then
 	PROTOC_ARCH="x86_64"
-elif [[ ${GOHOSTARCH} == "arm64" ]]; then
+elif [[ ${HOST_ARCH} == "arm64" ]]; then
 	PROTOC_ARCH="aarch_64"
 fi
 

@@ -6,13 +6,13 @@ source hack/common.sh
 
 mkdir -p "${LOCALBIN}"
 
-if [[ ${GOHOSTARCH} == "amd64" ]]; then
+if [[ ${HOST_ARCH} == "amd64" ]]; then
         SHELLCHECK_ARCH="x86_64"
-elif [[ ${GOHOSTARCH} == "arm64" ]]; then
+elif [[ ${HOST_ARCH} == "arm64" ]]; then
         SHELLCHECK_ARCH="aarch64"
 fi
 
-SHELLCHECK_TAR="shellcheck-${SHELLCHECK_VERSION}.${GOHOSTOS}.${SHELLCHECK_ARCH}.tar.gz"
+SHELLCHECK_TAR="shellcheck-${SHELLCHECK_VERSION}.${HOST_OS}.${SHELLCHECK_ARCH}.tar.gz"
 SHELLCHECK_DL_URL="https://github.com/vscode-shellcheck/shellcheck-binaries/releases/download/${SHELLCHECK_VERSION}/${SHELLCHECK_TAR}"
 
 #install shellcheck
