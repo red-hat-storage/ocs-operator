@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"reflect"
 	"strconv"
 	"testing"
+
+	"k8s.io/utils/ptr"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -76,6 +78,14 @@ var joinSecret = map[string]string{
 	"mgmt_addr":  "noobaaMgmtAddress",
 }
 
+var nbProviderStatus = &nbv1.NooBaaStatus{
+	Phase: nbv1.SystemPhaseReady,
+	Services: &nbv1.ServicesStatus{
+		ServiceS3: nbv1.ServiceStatus{
+			NodePorts: []string{"noobaaS3Endpoint"},
+		},
+	},
+}
 var mockExtR = map[string]*externalResource{
 	"rook-ceph-mon-endpoints": {
 		Name: "rook-ceph-mon-endpoints",
@@ -116,6 +126,11 @@ var mockExtR = map[string]*externalResource{
 		Name: "monitor-endpoints",
 		Kind: "CephConnection",
 		Data: &csiopv1a1.CephConnectionSpec{Monitors: []string{"10.99.45.27:3300"}},
+	},
+	"s3-endpoint-proxy": {
+		Name: "s3-endpoint-proxy",
+		Kind: "Service",
+		Data: v1.ServiceSpec{Type: corev1.ServiceTypeExternalName, ExternalName: "noobaaS3Endpoint", Ports: []v1.ServicePort{{Port: 443, TargetPort: intstr.FromInt(443)}}},
 	},
 }
 
@@ -281,6 +296,12 @@ func TestGetExternalResources(t *testing.T) {
 	ocsSubscription.Namespace = serverNamespace
 	ocsSubscription.Spec = ocsSubscriptionSpec
 	assert.NoError(t, client.Create(ctx, ocsSubscription))
+
+	noobaa := &nbv1.NooBaa{}
+	noobaa.Name = "noobaa"
+	noobaa.Namespace = serverNamespace
+	noobaa.Status = *nbProviderStatus
+	assert.NoError(t, client.Create(ctx, noobaa))
 
 	storageCluster := &ocsv1.StorageCluster{
 		Spec: ocsv1.StorageClusterSpec{
