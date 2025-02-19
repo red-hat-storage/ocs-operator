@@ -34,6 +34,7 @@ import (
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
+	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -52,6 +53,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -316,6 +318,10 @@ func newScheme() (*runtime.Scheme, error) {
 	err = routev1.AddToScheme(scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
+	}
+	err = nbapis.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
 	}
 
 	return scheme, nil
@@ -919,6 +925,15 @@ func (s *OCSProviderServer) appendNoobaaExternalResources(
 		return extR, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
 	}
 
+	accessKeyID, ok := noobaaOperatorSecret.Data["AWS_ACCESS_KEY_ID"]
+	if !ok || len(accessKeyID) == 0 {
+		return nil, fmt.Errorf("accessKeyID not found in %s secret", noobaaOperatorSecret.Name)
+	}
+	secretAccessKey, ok := noobaaOperatorSecret.Data["AWS_SECRET_ACCESS_KEY"]
+	if !ok || len(secretAccessKey) == 0 {
+		return nil, fmt.Errorf("secretAccessKey not found in %s secret", noobaaOperatorSecret.Name)
+	}
+
 	noobaMgmtRoute := &routev1.Route{}
 	noobaMgmtRoute.Name = "noobaa-mgmt"
 	noobaMgmtRoute.Namespace = s.namespace
@@ -937,18 +952,116 @@ func (s *OCSProviderServer) appendNoobaaExternalResources(
 	extR = append(extR, &pb.ExternalResource{
 		Name: "noobaa-remote-join-secret",
 		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"auth_token": string(authToken),
-			"mgmt_addr":  noobaaMgmtAddress,
+		Data: mustMarshal(map[string][]byte{
+			"auth_token":            authToken,
+			"mgmt_addr":             []byte(fmt.Sprintf("https://%s:443", noobaaMgmtAddress)),
+			"AWS_ACCESS_KEY_ID":     accessKeyID,
+			"AWS_SECRET_ACCESS_KEY": secretAccessKey,
 		}),
 	})
 
 	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
+		Name: "noobaa",
 		Kind: "Noobaa",
 		Data: mustMarshal(&nbv1.NooBaaSpec{
 			JoinSecret: &v1.SecretReference{
 				Name: "noobaa-remote-join-secret",
+			},
+		}),
+	})
+
+	nb := &nbv1.NooBaa{}
+	nb.Name = "noobaa"
+	nb.Namespace = s.namespace
+
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(nb), nb); err != nil {
+		return nil, fmt.Errorf("failed to get noobaa %v", err)
+	}
+	if nb.Status.Phase != nbv1.SystemPhaseReady {
+		// Noobaa system is not yet ready
+		return extR, nil
+	}
+	nbS3Endpoint := nb.Status.Services.ServiceS3.NodePorts[0]
+	endpointWithoutScheme := strings.TrimPrefix(nbS3Endpoint, "https://")
+	parts := strings.Split(endpointWithoutScheme, ":")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid S3 endpoint format: %s", nbS3Endpoint)
+	}
+
+	s3IP := parts[0]
+	s3Port, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid S3 port format: %s", parts[1])
+	}
+
+	s3HttpService := &v1.Service{}
+	s3HttpService.Name = "s3"
+	s3HttpService.Namespace = s.namespace
+	if err = s.client.Get(ctx, client.ObjectKeyFromObject(s3HttpService), s3HttpService); err != nil {
+		return nil, fmt.Errorf("failed to get s3 services %v", s3HttpService)
+	}
+
+	var s3HttpNodePort int32 = -1
+	for _, port := range s3HttpService.Spec.Ports {
+		if port.Name == "s3" {
+			s3HttpNodePort = port.NodePort
+			break
+		}
+	}
+
+	if s3HttpNodePort == -1 {
+		return nil, fmt.Errorf("no node port found for s3 service with port name 's3'")
+	}
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: "s3-endpoint-proxy",
+		Kind: "ServiceSpec",
+		Annotations: map[string]string{
+			"service.beta.openshift.io/serving-cert-secret-name": "s3-endpoint-proxy-serving-cert",
+		},
+		Data: mustMarshal(&v1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []v1.ServicePort{
+				{
+					Port:       443,
+					TargetPort: intstr.FromInt(s3Port),
+					Protocol:   corev1.ProtocolTCP,
+					Name:       "s3-https",
+				},
+				{
+					Port:       80,
+					TargetPort: intstr.FromInt32(s3HttpNodePort),
+					Protocol:   corev1.ProtocolTCP,
+					Name:       "s3",
+				},
+			},
+		},
+		)})
+
+	extR = append(extR, &pb.ExternalResource{
+		Name: "s3-endpoint-proxy",
+		Kind: "Endpoints",
+		Data: mustMarshal(&v1.Endpoints{
+			Subsets: []v1.EndpointSubset{
+				{
+					Addresses: []v1.EndpointAddress{
+						{
+							IP: s3IP,
+						},
+					},
+					Ports: []v1.EndpointPort{
+						{
+							Name:     "s3-https",
+							Port:     int32(s3Port),
+							Protocol: corev1.ProtocolTCP,
+						},
+						{
+							Name:     "s3",
+							Port:     int32(s3HttpNodePort),
+							Protocol: corev1.ProtocolTCP,
+						},
+					},
+				},
 			},
 		}),
 	})

@@ -683,6 +683,7 @@ func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
 		}
 		// TODO: query the name of backing store during runtime
 		noobaaAccount.Spec.DefaultResource = "noobaa-default-backing-store"
+		noobaaAccount.Spec.AllowBucketCreate = true
 		// the following annotation will enable noobaa-operator to create a auth_token secret based on this account
 		util.AddAnnotation(noobaaAccount, "remote-operator", "true")
 		return nil
