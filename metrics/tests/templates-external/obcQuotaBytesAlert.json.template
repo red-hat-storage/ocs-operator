@@ -1,0 +1,98 @@
+{
+    "evaluation_interval": "10s",
+    "tests": [
+        {
+            "name": "ObcQuotaBytesAlert",
+            "alert_rule_test": [
+                {
+                    "alertname": "ObcQuotaBytesAlert",
+                    "eval_time": "15s"
+                },
+                {
+                    "alertname": "ObcQuotaBytesAlert",
+                    "eval_time": "50s",
+                    "exp_alerts": [
+                        {
+                            "exp_annotations": {
+                                "description": "ObjectBucketClaim my_obc_1 has crossed 80% of the size limit set by the quota(bytes) and will become read-only on reaching the quota limit in namespace:cluster openshift-storage:ocs-storagesystem. Increase the quota in the my_obc_1 OBC custom resource.",
+                                "message": "OBC has crossed 80% of the quota(bytes) in namespace:cluster openshift-storage:ocs-storagesystem.",
+                                "severity_level": "warning",
+                                "storage_type": "RGW",
+                                "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ObcQuotaBytesAlert.md"
+                            },
+                            "exp_labels": {
+                                "objectbucket": "my_ob_1",
+                                "objectbucketclaim": "my_obc_1",
+                                "severity": "warning",
+                                "namespace": "openshift-storage",
+                                "managedBy": "ocs-storagesystem"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "alertname": "ObcQuotaBytesAlert",
+                    "eval_time": "120s"
+                }
+            ],
+            "input_series": [
+                {
+                    "series": "ocs_objectbucketclaim_info{namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\", objectbucket=\"my_ob_1\", objectbucketclaim=\"my_obc_1\"}",
+                    "values": "1x15"
+                },
+                {
+                    "series": "ocs_objectbucket_used_bytes{namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\", objectbucket=\"my_ob_1\", objectbucketclaim=\"my_obc_1\"}",
+                    "values": "5000x3 325000x7 4000x5"
+                },
+                {
+                    "series": "ocs_objectbucket_max_bytes{namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\", objectbucket=\"my_ob_1\", objectbucketclaim=\"my_obc_1\"}",
+                    "values": "400300x15"
+                }
+            ],
+            "interval": "10s",
+            "promql_expr_test": [
+                {
+                    "eval_time": "15s",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_objectbucket_used_bytes{namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\", objectbucket=\"my_ob_1\", objectbucketclaim=\"my_obc_1\"}",
+                            "value": 5000
+                        }
+                    ],
+                    "expr": "ocs_objectbucket_used_bytes"
+                },
+                {
+                    "eval_time": "50s",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_objectbucket_used_bytes{namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\", objectbucket=\"my_ob_1\", objectbucketclaim=\"my_obc_1\"}",
+                            "value": 325000
+                        }
+                    ],
+                    "expr": "ocs_objectbucket_used_bytes"
+                },
+                {
+                    "eval_time": "130s",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_objectbucket_used_bytes{namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\", objectbucket=\"my_ob_1\", objectbucketclaim=\"my_obc_1\"}",
+                            "value": 4000
+                        }
+                    ],
+                    "expr": "ocs_objectbucket_used_bytes"
+                },
+                {
+                    "eval_time": "15s",
+                    "exp_samples": [
+                        {
+                            "labels": "ocs_objectbucket_max_bytes{namespace=\"openshift-storage\", managedBy=\"ocs-storagesystem\", objectbucket=\"my_ob_1\", objectbucketclaim=\"my_obc_1\"}",
+                            "value": 400300
+                        }
+                    ],
+                    "expr": "ocs_objectbucket_max_bytes"
+                }
+            ]
+        }
+    ]
+}
+
