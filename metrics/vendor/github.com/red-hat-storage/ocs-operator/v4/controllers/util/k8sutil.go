@@ -50,6 +50,7 @@ const (
 	EnableNFSKey                = "ROOK_CSI_ENABLE_NFS"
 	DisableCSIDriverKey         = "ROOK_CSI_DISABLE_DRIVER"
 	EnableCephfsKey             = "ROOK_CSI_ENABLE_CEPHFS"
+	CsiDisableHolderPodsKey     = "CSI_DISABLE_HOLDER_PODS"
 
 	// This is the name for the FieldIndex
 	OwnerUIDIndexName   = "ownerUID"
