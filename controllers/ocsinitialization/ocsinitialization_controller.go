@@ -520,6 +520,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
 		util.EnableCephfsKey:             enableCephfsVal,
 		util.DisableCSIDriverKey:         strconv.FormatBool(allowConsumers),
+		util.CsiDisableHolderPodsKey:     "",
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{
