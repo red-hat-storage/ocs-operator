@@ -94,6 +94,13 @@ var (
 	testSkipPrometheusRules = false
 )
 
+var deletedSucceededPodsWithDuplicateTolerations bool
+
+const (
+	osdPrepareLabelSelector     = "rook-ceph-osd-prepare"
+	osdKeyRotationLabelSelector = "rook-ceph-osd-key-rotation"
+)
+
 func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 	return sc.Spec.Arbiter.Enable
 }
@@ -112,6 +119,24 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return reconcile.Result{}, fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
+	}
+
+	// The deletion function needs to run only once successfully on the cluster
+	if !deletedSucceededPodsWithDuplicateTolerations && !sc.Spec.ExternalStorage.Enable {
+		// delete the osd-prepare job completed pods
+		err = r.deleteSucceededPodsWithDuplicateTolerations(map[string]string{"app": osdPrepareLabelSelector}, sc.Namespace)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		// if cluster wide encryption is true, delete the osd-key-rotation cronjob completed pods
+		if sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide {
+			err = r.deleteSucceededPodsWithDuplicateTolerations(map[string]string{"app": osdKeyRotationLabelSelector}, sc.Namespace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		// after successful deletion set the value to true to check & prevent repeat rerun
+		deletedSucceededPodsWithDuplicateTolerations = true
 	}
 
 	for i, ds := range sc.Spec.StorageDeviceSets {
@@ -1395,4 +1420,24 @@ func determineDefaultCephDeviceClass(foundDeviceClasses []rookCephv1.DeviceClass
 		}
 	}
 	return determinedDeviceClass
+}
+
+// deleteSucceededPodsWithDuplicateTolerations deletes the succeeded pods of the given app name which have duplicate tolerations
+func (r *StorageClusterReconciler) deleteSucceededPodsWithDuplicateTolerations(labelSelector map[string]string, namespace string) error {
+	podList, err := statusutil.GetPodsWithLabels(r.ctx, r.Client, namespace, labelSelector)
+	if err != nil {
+		return err
+	}
+	for _, pod := range podList.Items {
+		if pod.Status.Phase == corev1.PodSucceeded {
+			if statusutil.HasDuplicateTolerations(pod.Spec.Tolerations) {
+				r.Log.Info("Deleting pod with duplicate tolerations", "pod", pod.Name)
+				err = r.Client.Delete(r.ctx, &pod)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
