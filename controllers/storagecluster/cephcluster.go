@@ -1364,25 +1364,35 @@ func getOsdCount(sc *ocsv1.StorageCluster, serverVersion *version.Info) int {
 }
 
 func determineDefaultCephDeviceClass(foundDeviceClasses []rookCephv1.DeviceClasses, isReplica1 bool, replica1DeviceClasses []string) string {
+	determinedDeviceClass := DeviceTypeSSD
 	// If device classes are found in status
 	if len(foundDeviceClasses) != 0 {
-		// If replica-1 is not enabled return the first device class
+		// If replica-1 is not enabled choose the first device class
 		if !isReplica1 {
-			return foundDeviceClasses[0].Name
-		}
-		// If replica-1 is enabled return the first one that is not a replica1 device class
-		if len(foundDeviceClasses) != 0 {
+			determinedDeviceClass = foundDeviceClasses[0].Name
+		} else { // If replica-1 is enabled choose the first one that is not a replica1 device class
 			replica1DeviceClassMap := make(map[string]bool)
 			for _, deviceClass := range replica1DeviceClasses {
 				replica1DeviceClassMap[deviceClass] = true
 			}
 			for _, deviceClass := range foundDeviceClasses {
 				if found := replica1DeviceClassMap[deviceClass.Name]; !found {
-					return deviceClass.Name
+					determinedDeviceClass = deviceClass.Name
+					break
+				}
+			}
+		}
+
+		// If the chosen class is "hdd", replace it with "ssd" if it exists.
+		// This is to handle conflict in clusters where hdd devices have been replaced with ssd
+		if determinedDeviceClass == DeviceTypeHDD {
+			for _, deviceClass := range foundDeviceClasses {
+				if deviceClass.Name == DeviceTypeSSD {
+					determinedDeviceClass = deviceClass.Name
+					break
 				}
 			}
 		}
 	}
-	// By default return "ssd"
-	return "ssd"
+	return determinedDeviceClass
 }
