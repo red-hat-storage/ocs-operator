@@ -43,12 +43,14 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	admrv1 "k8s.io/api/admissionregistration/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -58,10 +60,12 @@ import (
 	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/ocsinitialization"
@@ -161,6 +165,7 @@ func main() {
 		setupLog.Info("Cluster is not running on OpenShift.")
 	}
 
+	ocsMutatingWebhookSelector := fields.SelectorFromSet(fields.Set{"metadata.name": storagecluster.OcsMutatingWebhookConfigName})
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                  scheme,
@@ -169,7 +174,19 @@ func main() {
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "ab76f4c9.openshift.io",
 		LeaderElectionNamespace: operatorNamespace,
-		Cache:                   cache.Options{DefaultNamespaces: defaultNamespaces},
+		Cache: cache.Options{
+			DefaultNamespaces: defaultNamespaces,
+			ByObject: map[client.Object]cache.ByObject{
+				&admrv1.MutatingWebhookConfiguration{}: {
+					// only cache our mutating webhook
+					Field: ocsMutatingWebhookSelector,
+				},
+			},
+		},
+		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
+			Port:    storagecluster.WebhookServiceTargetPort,
+			CertDir: "/etc/tls/private",
+		}),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: ocs-operator-webhook-cert-secret
+  name: ocs-operator-webhook-server
+# should be in sync with controllers/storagecluster/webhook.go
+spec:
+  ports:
+  - name: ocs-operator-webhook
+    port: 443
+    protocol: TCP
+    targetPort: 7443
+  selector:
+    name: ocs-operator
+  type: ClusterIP
