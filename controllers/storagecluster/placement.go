@@ -22,10 +22,20 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		(&in).DeepCopyInto(&placement)
 		// label rook_file_system is added to the mds pod using rook operator
 		if component == "mds" {
-			placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc)),
-				},
+			// if active MDS number is more than 1 then Preferred and if it is 1 then Required pod anti-affinity is set
+			mdsWeightedPodAffinity := defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc))
+			if sc.Spec.ManagedResources.CephFilesystems.ActiveMetadataServers > 1 {
+				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+						mdsWeightedPodAffinity,
+					},
+				}
+			} else {
+				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+						mdsWeightedPodAffinity.PodAffinityTerm,
+					},
+				}
 			}
 		}
 	}
