@@ -375,6 +375,14 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 						errorOccurred = true
 						continue
 					}
+				} else {
+					// Mirroring Token is generated only after mirroring is enabled. If both sides reconcile at the
+					// same time the mirroring token won't be fetched. Hence, re-queuing to avoid this
+					r.log.Error(
+						fmt.Errorf("peer's CephBlockPool mirroring token is not generated"),
+						"Re-queuing as peer's CephBlockPool mirroring token is not generated",
+					)
+					errorOccurred = true
 				}
 
 				// We need to enable mirroring for the blockPool, else the mirroring secret will not be generated

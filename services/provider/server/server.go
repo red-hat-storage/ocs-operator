@@ -826,7 +826,7 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 					blockPool.Namespace,
 				)
 				if err != nil {
-					klog.Errorf("failed to get peer Ceph FSIS. %v", err)
+					klog.Errorf("failed to get peer Ceph FSID. %v", err)
 				}
 
 				peerStorageID := calculateCephRbdStorageID(
