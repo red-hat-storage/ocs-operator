@@ -157,7 +157,15 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	placement := getPlacement(sc, component)
 
 	nb.Spec.Tolerations = placement.Tolerations
-	nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
+
+	if !r.IsNoobaaStandalone || ok {
+		// Add affinity if not in noobaa-standalone mode or if placement is specified
+		nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
+	} else if nb.Spec.Affinity != nil {
+		// Clear the affinity if it was set previously to handle upgrades
+		nb.Spec.Affinity = nil
+	}
+
 	nb.Spec.DBVolumeResources = &dBVolumeResources
 	nb.Spec.Image = &r.images.NooBaaCore
 	nb.Spec.DBImage = &r.images.NooBaaDB
