@@ -248,18 +248,25 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 		}
 
 		_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
-			cephBlockPool.Spec.PoolSpec.DeviceClass = failureDomainValue
-			cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
-			cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-			cephBlockPool.Spec.PoolSpec.Parameters = map[string]string{
-				"pg_num":  "16",
-				"pgp_num": "16",
+			poolSpec := &cephBlockPool.Spec.PoolSpec
+			poolSpec.DeviceClass = failureDomainValue
+			poolSpec.EnableCrushUpdates = true
+			poolSpec.FailureDomain = getFailureDomain(storageCluster)
+			poolSpec.Parameters = storageCluster.Spec.ManagedResources.CephNonResilientPools.Parameters
+			if poolSpec.Parameters == nil {
+				poolSpec.Parameters = make(map[string]string)
 			}
-			cephBlockPool.Spec.PoolSpec.Replicated = cephv1.ReplicatedSpec{
+			if _, ok := poolSpec.Parameters["pg_num"]; !ok {
+				poolSpec.Parameters["pg_num"] = "16"
+			}
+			if _, ok := poolSpec.Parameters["pgp_num"]; !ok {
+				poolSpec.Parameters["pgp_num"] = "16"
+			}
+			poolSpec.Replicated = cephv1.ReplicatedSpec{
 				Size:                   1,
 				RequireSafeReplicaSize: false,
 			}
-			cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
+			poolSpec.EnableRBDStats = true
 
 			// Since provider mode handles mirroring, we only need to handle for internal mode
 			if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
