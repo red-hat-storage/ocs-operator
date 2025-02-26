@@ -54,7 +54,10 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	// StorageCluster has no label selector, set the default node
 	// affinity.
 	if placement.NodeAffinity == nil && sc.Spec.LabelSelector == nil {
-		placement.NodeAffinity = defaults.DefaultNodeAffinity
+		// Don't add node affinity again for these rook-ceph daemons as it is already added via the "all" key
+		if component != "mgr" && component != "mon" && component != "osd" && component != "osd=tsc " && component != "osd-prepare" && component != "osd-prepare-tsc" {
+			placement.NodeAffinity = defaults.DefaultNodeAffinity
+		}
 	}
 
 	// If the StorageCluster specifies a label selector, append it to the

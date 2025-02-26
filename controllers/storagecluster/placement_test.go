@@ -178,7 +178,6 @@ func TestGetPlacement(t *testing.T) {
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					NodeAffinity:    defaults.DefaultNodeAffinity,
 					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
 				},
 				"mds": {
@@ -197,9 +196,7 @@ func TestGetPlacement(t *testing.T) {
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 				},
-				"mon": {
-					NodeAffinity: defaults.DefaultNodeAffinity,
-				},
+				"mon": {},
 				"mds": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 				},
@@ -324,7 +321,6 @@ func TestGetPlacement(t *testing.T) {
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					NodeAffinity:    defaults.DefaultNodeAffinity,
 					PodAntiAffinity: customMONPlacement.PodAntiAffinity,
 				},
 				"mds": {
@@ -390,7 +386,6 @@ func TestGetPlacement(t *testing.T) {
 				},
 
 				"mon": {
-					NodeAffinity: defaults.DefaultNodeAffinity,
 					PodAntiAffinity: &corev1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 							{
@@ -430,7 +425,6 @@ func TestGetPlacement(t *testing.T) {
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					NodeAffinity:    defaults.DefaultNodeAffinity,
 					PodAntiAffinity: &corev1.PodAntiAffinity{},
 				},
 				"mds": {
@@ -476,7 +470,6 @@ func TestGetPlacement(t *testing.T) {
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					NodeAffinity: defaults.DefaultNodeAffinity,
 					Tolerations: []corev1.Toleration{
 						getOcsToleration(),
 					},
