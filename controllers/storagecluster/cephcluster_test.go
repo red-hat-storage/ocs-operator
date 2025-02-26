@@ -1706,6 +1706,76 @@ func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 			},
 			expectedDeviceClass: "gold",
 		},
+		{
+			label: "Case 10: Replica 1 is not enabled, both hdd & ssd are in status, with hdd coming 1st",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "hdd",
+				},
+				{
+					Name: "ssd",
+				},
+			},
+			expectedDeviceClass: "ssd",
+		},
+		{
+			label: "Case 11: Replica 1 is not enabled, hdd with few other device classes are in status with hdd coming 1st",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "hdd",
+				},
+				{
+					Name: "gold",
+				},
+				{
+					Name: "silver",
+				},
+			},
+			expectedDeviceClass: "hdd",
+		},
+		{
+			label: "Case 12: Replica 1 is enabled, both hdd & ssd are in status along with replica-1 deviceclasses, with hdd coming 1st",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "hdd",
+				},
+				{
+					Name: "zone1",
+				},
+				{
+					Name: "zone2",
+				},
+				{
+					Name: "zone3",
+				},
+				{
+					Name: "ssd",
+				},
+			},
+			isReplica1:            true,
+			replica1DeviceClasses: []string{"zone1", "zone2", "zone3"},
+			expectedDeviceClass:   "ssd",
+		},
+		{
+			label: "Case 13: Replica 1 is enabled, hdd is in status along with replica-1 deviceclasses",
+			foundDeviceClasses: []rookCephv1.DeviceClasses{
+				{
+					Name: "zone1",
+				},
+				{
+					Name: "zone2",
+				},
+				{
+					Name: "zone3",
+				},
+				{
+					Name: "hdd",
+				},
+			},
+			isReplica1:            true,
+			replica1DeviceClasses: []string{"zone1", "zone2", "zone3"},
+			expectedDeviceClass:   "hdd",
+		},
 	}
 
 	for _, c := range cases {
