@@ -258,8 +258,11 @@ type ManageCephNonResilientPools struct {
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName string `json:"storageClassName,omitempty"`
-	// ReconcileStrategy and other related fields are not used for now
-	// They can be added once the feature goes to GA
+	// Parameters is a list of properties to enable on the non-resilient cephBlockPools
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	// +nullable
+	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
 // ManageCephFilesystems defines how to reconcile CephFilesystems
