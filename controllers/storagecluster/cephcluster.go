@@ -23,13 +23,11 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
@@ -92,52 +90,10 @@ var (
 	testSkipPrometheusRules = false
 )
 
+var deletedSucceededPodsWithDuplicateTolerations bool
+
 func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 	return sc.Spec.Arbiter.Enable
-}
-
-func (r *StorageClusterReconciler) deleteJobsWithDuplicateTolerations(sc *ocsv1.StorageCluster) error {
-	// delete the osd prepare jobs which are completed and have duplicate placements
-	jobName := "rook-ceph-osd-prepare"
-	listOpts := &client.ListOptions{
-		Namespace: sc.Namespace,
-		LabelSelector: labels.SelectorFromSet(map[string]string{
-			"app": jobName,
-		}),
-	}
-
-	jobs := &batchv1.JobList{}
-	// list all the prepare jobs
-	err := r.Client.List(r.ctx, jobs, listOpts)
-	if err != nil {
-		r.Log.Error(err, "failed to list OSD prepare pod jobs")
-		return err
-	}
-
-	// filter out the completed jobs
-	for _, job := range jobs.Items {
-		if job.Status.Succeeded == 1 {
-			// filter the jobs that has duplicated tolerations
-			tolerations := job.Spec.Template.Spec.Tolerations
-
-			duplicate := make(map[corev1.Toleration]bool)
-			for _, toleration := range tolerations {
-				if duplicate[toleration] {
-					r.Log.Info("deleting completed OSD prepare jobs with duplicate tolerations", "name", klog.KRef(job.Namespace, job.Name))
-					deletePolicy := metav1.DeletePropagationForeground
-					err := r.Client.Delete(r.ctx, &job, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
-					if err != nil {
-						r.Log.Error(err, "failed to delete OSD prepare pod job", "name", klog.KRef(job.Namespace, job.Name))
-						return err
-					}
-					break
-				}
-				duplicate[toleration] = true
-			}
-		}
-	}
-
-	return nil
 }
 
 // ensureCreated ensures that a CephCluster resource exists with its Spec in
@@ -156,13 +112,22 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
 	}
 
-	// TODO: remove the fix in the next release 4.19
-	// as it is needed only for the upgrade to 4.18
-	if !sc.Spec.ExternalStorage.Enable {
-		err = r.deleteJobsWithDuplicateTolerations(sc)
+	// The deletion function needs to run only once successfully on the cluster
+	if !deletedSucceededPodsWithDuplicateTolerations && !sc.Spec.ExternalStorage.Enable {
+		// delete the osd-prepare job completed pods
+		err = r.deleteSucceededPodsWithDuplicateTolerations(map[string]string{"app": "rook-ceph-osd-prepare"}, sc.Namespace)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+		// if cluster wide or deviceSet encryption is true, delete the osd-key-rotation cronjob completed pods
+		if util.IsClusterOrDeviceSetEncrypted(sc) {
+			err = r.deleteSucceededPodsWithDuplicateTolerations(map[string]string{"app": "rook-ceph-osd-key-rotation"}, sc.Namespace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		// after successful deletion set the value to true to check & prevent repeat rerun
+		deletedSucceededPodsWithDuplicateTolerations = true
 	}
 
 	for i, ds := range sc.Spec.StorageDeviceSets {
@@ -1453,4 +1418,24 @@ func determineDefaultCephDeviceClass(foundDeviceClasses []rookCephv1.DeviceClass
 	}
 	// if no device classes are found in status return empty string
 	return ""
+}
+
+// deleteSucceededPodsWithDuplicateTolerations deletes the succeeded pods of the given app name which have duplicate tolerations
+func (r *StorageClusterReconciler) deleteSucceededPodsWithDuplicateTolerations(labelSelector map[string]string, namespace string) error {
+	podList, err := statusutil.GetPodsWithLabels(r.ctx, r.Client, namespace, labelSelector)
+	if err != nil {
+		return err
+	}
+	for _, pod := range podList.Items {
+		if pod.Status.Phase == corev1.PodSucceeded {
+			if statusutil.HasDuplicateTolerations(pod.Spec.Tolerations) {
+				r.Log.Info("Deleting pod with duplicate tolerations", "pod", pod.Name)
+				err = r.Client.Delete(r.ctx, &pod)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
