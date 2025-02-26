@@ -1902,6 +1902,14 @@ spec:
                         type: integer
                       enable:
                         type: boolean
+                      parameters:
+                        additionalProperties:
+                          type: string
+                        description: Parameters is a list of properties to enable
+                          on the non-resilient cephBlockPools
+                        nullable: true
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
                       resources:
                         description: ResourceRequirements (requests/limits) for the
                           devices
