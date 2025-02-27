@@ -334,6 +334,7 @@ func newScheme() (*runtime.Scheme, error) {
 func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
 	var extR []*pb.ExternalResource
 
+	// CephConnection
 	// Configmap with mon endpoints
 	configmap := &v1.ConfigMap{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: monConfigMap, Namespace: s.namespace}, configmap)
@@ -345,15 +346,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
 	}
 
-	extR = append(extR, &pb.ExternalResource{
-		Name: monConfigMap,
-		Kind: "ConfigMap",
-		Data: mustMarshal(map[string]string{
-			"data":     configmap.Data["data"], // IP Address of all mon's
-			"maxMonId": "0",
-			"mapping":  "{}",
-		})})
-
 	monIps, err := extractMonitorIps(configmap.Data["data"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
@@ -361,61 +353,9 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 
 	extR = append(extR, &pb.ExternalResource{
 		Kind: "CephConnection",
-		Name: "monitor-endpoints",
+		Name: consumerResource.Status.Client.Name,
 		Data: mustMarshal(&csiopv1a1.CephConnectionSpec{Monitors: monIps}),
 	})
-
-	scMon := &v1.Secret{}
-	// Secret storing cluster mon.admin key, fsid and name
-	err = s.client.Get(ctx, types.NamespacedName{Name: monSecret, Namespace: s.namespace}, scMon)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s secret. %v", monSecret, err)
-	}
-
-	fsid := string(scMon.Data["fsid"])
-	if fsid == "" {
-		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
-	}
-
-	// Get mgr pod hostIP
-	podList := &corev1.PodList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(s.namespace),
-		client.MatchingLabels(map[string]string{"app": "rook-ceph-mgr"}),
-	}
-	err = s.client.List(ctx, podList, listOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pod with rook-ceph-mgr label. %v", err)
-	}
-	if len(podList.Items) == 0 {
-		return nil, fmt.Errorf("no pods available with rook-ceph-mgr label")
-	}
-
-	mgrPod := &podList.Items[0]
-	var port int32 = -1
-
-	for i := range mgrPod.Spec.Containers {
-		container := &mgrPod.Spec.Containers[i]
-		if container.Name == "mgr" {
-			for j := range container.Ports {
-				if container.Ports[j].Name == "http-metrics" {
-					port = container.Ports[j].ContainerPort
-				}
-			}
-		}
-	}
-
-	if port < 0 {
-		return nil, fmt.Errorf("mgr pod port is empty")
-	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: "monitoring-endpoint",
-		Kind: "CephCluster",
-		Data: mustMarshal(map[string]string{
-			"MonitoringEndpoint": mgrPod.Status.HostIP,
-			"MonitoringPort":     strconv.Itoa(int(port)),
-		})})
 
 	if consumerResource.Spec.StorageQuotaInGiB > 0 {
 		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
@@ -484,59 +424,57 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		})
 	}
 
+	// Noobaa Configuration
 	// Fetch noobaa remote secret and management address and append to extResources
-	consumerName := consumerResource.Name
 	noobaaOperatorSecret := &v1.Secret{}
-	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumerName)
+	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumerResource.Name)
 	noobaaOperatorSecret.Namespace = s.namespace
 
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); err != nil {
-		if kerrors.IsNotFound(err) {
-			// ignoring because it is a provider cluster and the noobaa secret does not exist
-			return extR, nil
-
-		}
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); client.IgnoreNotFound(err) != nil {
 		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
 	}
 
-	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
-	if !ok || len(authToken) == 0 {
-		return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+	if !kerrors.IsNotFound(err) {
+		authToken, ok := noobaaOperatorSecret.Data["auth_token"]
+		if !ok || len(authToken) == 0 {
+			return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+		}
+
+		noobaMgmtRoute := &routev1.Route{}
+		noobaMgmtRoute.Name = "noobaa-mgmt"
+		noobaMgmtRoute.Namespace = s.namespace
+
+		if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
+			return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
+		}
+		if len(noobaMgmtRoute.Status.Ingress) == 0 {
+			return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
+		}
+
+		noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
+		if noobaaMgmtAddress == "" {
+			return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
+		}
+		extR = append(extR, &pb.ExternalResource{
+			Name: "noobaa-remote-join-secret",
+			Kind: "Secret",
+			Data: mustMarshal(map[string]string{
+				"auth_token": string(authToken),
+				"mgmt_addr":  noobaaMgmtAddress,
+			}),
+		})
+
+		extR = append(extR, &pb.ExternalResource{
+			Name: "noobaa-remote",
+			Kind: "Noobaa",
+			Data: mustMarshal(&nbv1.NooBaaSpec{
+				JoinSecret: &v1.SecretReference{
+					Name: "noobaa-remote-join-secret",
+				},
+			}),
+		})
 	}
 
-	noobaMgmtRoute := &routev1.Route{}
-	noobaMgmtRoute.Name = "noobaa-mgmt"
-	noobaMgmtRoute.Namespace = s.namespace
-
-	if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
-		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
-	}
-	if len(noobaMgmtRoute.Status.Ingress) == 0 {
-		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
-	}
-
-	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
-	if noobaaMgmtAddress == "" {
-		return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
-	}
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote-join-secret",
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"auth_token": string(authToken),
-			"mgmt_addr":  noobaaMgmtAddress,
-		}),
-	})
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
-		Kind: "Noobaa",
-		Data: mustMarshal(&nbv1.NooBaaSpec{
-			JoinSecret: &v1.SecretReference{
-				Name: "noobaa-remote-join-secret",
-			},
-		}),
-	})
 	return extR, nil
 }
 
