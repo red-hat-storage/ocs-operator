@@ -435,7 +435,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
 func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	cephCluster := &rookCephv1.CephCluster{}
-	cephClusterName := generateNameForCephCluster(sc)
+	cephClusterName := statusutil.GenerateNameForCephCluster(sc)
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephClusterName, Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -455,7 +455,7 @@ func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: statusutil.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: CephCluster is deleted.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
@@ -492,7 +492,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 
 	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephCluster(sc),
+			Name:      statusutil.GenerateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -731,7 +731,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 
 	externalCephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephCluster(sc),
+			Name:      statusutil.GenerateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -782,8 +782,6 @@ func getReplicasPerFailureDomain(sc *ocsv1.StorageCluster) int {
 	return defaults.ReplicasPerFailureDomain
 }
 
-// getCephPoolReplicatedSize returns the default replica per cluster count for a
-// StorageCluster type
 func getCephPoolReplicatedSize(sc *ocsv1.StorageCluster) uint {
 	if arbiterEnabled(sc) {
 		return uint(4)
@@ -1563,4 +1561,16 @@ func preserveBulkFlagParameter(existingParameters map[string]string, updatedPara
 			(*updatedParameters)["bulk"] = bulk
 		}
 	}
+}
+
+func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string) rookCephv1.ReplicatedSpec {
+	crs := rookCephv1.ReplicatedSpec{}
+
+	crs.Size = getCephPoolReplicatedSize(initData)
+	crs.ReplicasPerFailureDomain = uint(getReplicasPerFailureDomain(initData))
+	if poolType == poolTypeData {
+		crs.TargetSizeRatio = .49
+	}
+
+	return crs
 }

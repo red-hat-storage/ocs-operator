@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	quotav1 "github.com/openshift/api/quota/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	quotav1 "github.com/openshift/api/quota/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -23,7 +25,7 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	for _, opc := range sc.Spec.OverprovisionControl {
 		hardLimit := opc.Capacity
 		storageQuota := &quotav1.ClusterResourceQuota{
-			ObjectMeta: metav1.ObjectMeta{Name: generateStorageQuotaName(opc.StorageClassName, opc.QuotaName)},
+			ObjectMeta: metav1.ObjectMeta{Name: util.GenerateStorageQuotaName(opc.StorageClassName, opc.QuotaName)},
 			Spec: quotav1.ClusterResourceQuotaSpec{
 				Selector: opc.Selector,
 				Quota: corev1.ResourceQuotaSpec{
@@ -64,7 +66,7 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 // ensureDeleted deletes all ClusterResourceQuota resources associated with StorageCluster
 func (obj *ocsStorageQuota) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	for _, opc := range sc.Spec.OverprovisionControl {
-		quotaName := generateStorageQuotaName(opc.StorageClassName, opc.QuotaName)
+		quotaName := util.GenerateStorageQuotaName(opc.StorageClassName, opc.QuotaName)
 		currentQuota := &quotav1.ClusterResourceQuota{}
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: quotaName}, currentQuota)
 		if err == nil {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/openshift/api/config/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -17,7 +16,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -110,7 +108,7 @@ func assertCephClusterCleanupPolicy(
 	var err error
 
 	cephCluster := &cephv1.CephCluster{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	assert.NoError(t, err)
 
 	// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
@@ -119,107 +117,6 @@ func assertCephClusterCleanupPolicy(
 
 	assert.Equal(t, CleanupPolicyConfirmation, cephCluster.Spec.CleanupPolicy.Confirmation)
 	assert.Equal(t, AllowUninstallWithVolumes, cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes)
-}
-
-func TestDeleteStorageClasses(t *testing.T) {
-	testList := []struct {
-		label              string
-		storageClassExists bool
-	}{
-		{
-			label:              "case 1", // verify storage classes are present and delete them
-			storageClassExists: true,
-		},
-		{
-			label:              "case 2", // verify storage classes does not exist and delete should not get error out
-			storageClassExists: false,
-		},
-	}
-
-	for _, obj := range testList {
-		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
-		assertTestDeleteStorageClasses(t, reconciler, sc, obj.storageClassExists)
-	}
-}
-
-func assertTestDeleteStorageClasses(t *testing.T, reconciler StorageClusterReconciler,
-	sc *ocsv1.StorageCluster, storageClassExists bool) {
-
-	var obj ocsStorageClass
-	if !storageClassExists {
-		_, err := obj.ensureDeleted(&reconciler, sc)
-		assert.NoError(t, err)
-	}
-
-	sccs, err := reconciler.newStorageClassConfigurations(sc)
-	assert.NoError(t, err)
-
-	for _, scc := range sccs {
-		existing := storagev1.StorageClass{}
-		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: scc.storageClass.Name}, &existing)
-		assert.Equal(t, !storageClassExists, errors.IsNotFound(err))
-	}
-
-	_, err = obj.ensureDeleted(&reconciler, sc)
-	assert.NoError(t, err)
-
-	for _, scc := range sccs {
-		existing := storagev1.StorageClass{}
-		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: scc.storageClass.Name}, &existing)
-		assert.True(t, errors.IsNotFound(err))
-	}
-}
-
-func TestDeleteSnapshotClasses(t *testing.T) {
-
-	testList := []struct {
-		label               string
-		SnapshotClassExists bool
-	}{
-		{
-			label:               "case 1", // verify SnapshotClass are present and delete them
-			SnapshotClassExists: true,
-		},
-		{
-			label:               "case 2", // verify SnapshotClass does not exist and delete should not get error out
-			SnapshotClassExists: false,
-		},
-	}
-
-	for _, obj := range testList {
-		t, reconciler, sc, _ := initStorageClusterResourceCreateUpdateTest(t, nil, nil)
-		assertTestDeleteStorageClasses(t, reconciler, sc, obj.SnapshotClassExists)
-	}
-}
-
-//lint:ignore U1000 will be used in future
-func assertTestDeleteSnapshotClasses(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, SnapshotClassExists bool) {
-
-	var obj ocsSnapshotClass
-
-	if !SnapshotClassExists {
-		_, err := obj.ensureCreated(&reconciler, sc)
-		assert.NoError(t, err)
-	}
-
-	vsscs := newSnapshotClassConfigurations(sc)
-
-	for _, vssc := range vsscs {
-		existing := snapapi.VolumeSnapshotClass{}
-		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: vssc.snapshotClass.Name}, &existing)
-		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
-	}
-
-	_, err := obj.ensureCreated(&reconciler, sc)
-	assert.NoError(t, err)
-
-	for _, vssc := range vsscs {
-		existing := snapapi.VolumeSnapshotClass{}
-		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: vssc.snapshotClass.Name}, &existing)
-		assert.Equal(t, !SnapshotClassExists, errors.IsNotFound(err))
-		assert.True(t, errors.IsNotFound(err))
-	}
 }
 
 func TestDeleteNodeAffinityKeyFromNodes(t *testing.T) {
@@ -413,7 +310,7 @@ func assertTestDeleteCephCluster(
 
 	cephCluster := &cephv1.CephCluster{}
 	err := reconciler.Client.Get(context.TODO(), types.NamespacedName{
-		Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+		Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 
 	if cephClusterExist {
 		assert.NoError(t, err)
@@ -426,7 +323,7 @@ func assertTestDeleteCephCluster(
 
 	cephCluster = &cephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
-		Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+		Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	assert.True(t, errors.IsNotFound(err))
 }
 
@@ -519,7 +416,7 @@ func assertTestDeleteCephBlockPools(
 
 	var obj ocsCephBlockPools
 
-	cephBlockPools := []string{generateNameForCephBlockPool(sc)}
+	cephBlockPools := []string{util.GenerateNameForCephBlockPool(sc.Name)}
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
@@ -554,12 +451,12 @@ func getFakeCephObjectStoreUser() []cephv1.CephObjectStoreUser {
 	return []cephv1.CephObjectStoreUser{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephObjectStoreUser(sc),
+				Name:      util.GenerateNameForCephObjectStoreUser(sc),
 				Namespace: sc.Namespace,
 			},
 			Spec: cephv1.ObjectStoreUserSpec{
 				DisplayName: sc.Name,
-				Store:       generateNameForCephObjectStore(sc),
+				Store:       util.GenerateNameForCephObjectStore(sc),
 			},
 		},
 		{
@@ -569,7 +466,7 @@ func getFakeCephObjectStoreUser() []cephv1.CephObjectStoreUser {
 			},
 			Spec: cephv1.ObjectStoreUserSpec{
 				DisplayName: sc.Name,
-				Store:       generateNameForCephObjectStore(sc),
+				Store:       util.GenerateNameForCephObjectStore(sc),
 			},
 		},
 	}
@@ -647,7 +544,7 @@ func getFakeCephObjectStore() *cephv1.CephObjectStore {
 
 	return &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephObjectStore(sc),
+			Name:      util.GenerateNameForCephObjectStore(sc),
 			Namespace: sc.Namespace,
 		},
 		Spec: cephv1.ObjectStoreSpec{

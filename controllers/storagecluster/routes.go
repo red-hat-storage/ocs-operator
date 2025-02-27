@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	routev1 "github.com/openshift/api/route/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -142,7 +144,7 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 	ret := []*routev1.Route{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephObjectStore(initData),
+				Name:      util.GenerateNameForCephObjectStore(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: routev1.RouteSpec{
@@ -164,7 +166,7 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephObjectStore(initData) + "-secure",
+				Name:      util.GenerateNameForCephObjectStore(initData) + "-secure",
 				Namespace: initData.Namespace,
 			},
 			Spec: routev1.RouteSpec{
@@ -198,5 +200,5 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 
 // generateNameForCephObjectStoreService is temporary - we should ideally get this name from rook
 func generateNameForCephObjectStoreService(initData *ocsv1.StorageCluster) string {
-	return fmt.Sprintf("%s-%s", "rook-ceph-rgw", generateNameForCephObjectStore(initData))
+	return fmt.Sprintf("%s-%s", "rook-ceph-rgw", util.GenerateNameForCephObjectStore(initData))
 }

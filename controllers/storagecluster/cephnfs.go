@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -25,7 +27,7 @@ func (r *StorageClusterReconciler) newCephNFSInstances(initData *ocsv1.StorageCl
 	ret := []*cephv1.CephNFS{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephNFS(initData),
+				Name:      util.GenerateNameForCephNFS(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.NFSGaneshaSpec{
@@ -161,7 +163,7 @@ func (r *StorageClusterReconciler) newNFSServices(initData *ocsv1.StorageCluster
 	ret := []*v1.Service{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForNFSService(initData),
+				Name:      util.GenerateNameForNFSService(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: v1.ServiceSpec{
@@ -177,7 +179,7 @@ func (r *StorageClusterReconciler) newNFSServices(initData *ocsv1.StorageCluster
 				},
 				Selector: map[string]string{
 					"app":      "rook-ceph-nfs",
-					"ceph_nfs": generateNameForCephNFS(initData),
+					"ceph_nfs": util.GenerateNameForCephNFS(initData),
 				},
 				SessionAffinity: "ClientIP",
 			},
@@ -201,7 +203,7 @@ func (r *StorageClusterReconciler) newNFSMetricsServiceMonitors(initData *ocsv1.
 	ret := []*monitoringv1.ServiceMonitor{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForNFSServiceMonitor(initData),
+				Name:      util.GenerateNameForNFSServiceMonitor(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: monitoringv1.ServiceMonitorSpec{

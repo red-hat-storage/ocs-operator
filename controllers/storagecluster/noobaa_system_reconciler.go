@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
@@ -12,6 +13,7 @@ import (
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,23 +50,23 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	if !r.IsNoobaaStandalone {
 		// find cephCluster
 		foundCeph := &rookCephv1.CephCluster{}
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: statusutil.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
-			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 			return reconcile.Result{}, err
 		}
 		if !sc.Spec.ExternalStorage.Enable {
 			if foundCeph.Status.State != rookCephv1.ClusterStateCreated {
-				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
 		} else {
 			if foundCeph.Status.State != rookCephv1.ClusterStateConnected {
-				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
 		}
@@ -142,10 +144,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	util.AddAnnotation(nb, "MulticloudObjectGatewayProviderMode", "true")
 
 	if !r.IsNoobaaStandalone {
-		storageClassName := generateNameForCephBlockPoolSC(sc)
+		storageClassName := util.GenerateNameForCephBlockPoolSC(sc)
 
 		if sc.Spec.ExternalStorage.Enable {
-			externalStorageClassName, err := r.generateNameForExternalModeCephBlockPoolSC(nb)
+			externalStorageClassName, err := r.GenerateNameForExternalModeCephBlockPoolSC(nb)
 			if err != nil {
 				return err
 			}
@@ -337,4 +339,34 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 		}
 	}
 	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
+}
+
+func (r *StorageClusterReconciler) GenerateNameForExternalModeCephBlockPoolSC(nb *nbv1.NooBaa) (string, error) {
+	var storageClassName string
+
+	if nb.Spec.DBStorageClass != nil {
+		storageClassName = *nb.Spec.DBStorageClass
+	} else {
+		// list all storage classes and pick the first one
+		// whose provisioner suffix matches with `rbd.csi.ceph.com` suffix
+		storageClasses := &storagev1.StorageClassList{}
+		err := r.Client.List(r.ctx, storageClasses)
+		if err != nil {
+			r.Log.Error(err, "Failed to list storage classes")
+			return "", err
+		}
+
+		for _, sc := range storageClasses.Items {
+			if strings.HasSuffix(sc.Provisioner, "rbd.csi.ceph.com") {
+				storageClassName = sc.Name
+				break
+			}
+		}
+	}
+
+	if storageClassName == "" {
+		return "", fmt.Errorf("no storage class found with provisioner suffix `rbd.csi.ceph.com`")
+	}
+
+	return storageClassName, nil
 }

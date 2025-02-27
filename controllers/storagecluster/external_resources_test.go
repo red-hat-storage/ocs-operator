@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"math/rand"
 	"net"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -181,7 +184,7 @@ func assertExpectedExternalResources(t *testing.T, reconciler StorageClusterReco
 		case "CephCluster":
 			actual := &cephv1.CephCluster{}
 			err := reconciler.Client.Get(context.TODO(),
-				types.NamespacedName{Name: generateNameForCephCluster(sc)}, actual)
+				types.NamespacedName{Name: util.GenerateNameForCephCluster(sc)}, actual)
 			assert.NoError(t, err)
 			assert.True(t, actual.Spec.Monitoring.Enabled, "Expecting 'Monitoring' to be enabled")
 			if uint16Port, err := strconv.ParseUint(expected.Data["MonitoringPort"], 10, 16); err == nil {
@@ -538,7 +541,7 @@ func TestErasureCodedExternalResources(t *testing.T) {
 			Name: "ceph-rbd",
 			Kind: "StorageClass",
 			Data: map[string]string{
-				"pool": generateNameForCephBlockPool(cr),
+				"pool": util.GenerateNameForCephBlockPool(cr.Name),
 			},
 		},
 		{
@@ -553,7 +556,22 @@ func TestErasureCodedExternalResources(t *testing.T) {
 
 	for _, extR := range externalResource {
 		t.Run(extR.Name, func(t *testing.T) {
-			actualSC := newCephBlockPoolStorageClassConfiguration(cr)
+			actualSC := StorageClassConfiguration{
+				storageClass: util.NewDefaultRbdStorageClass(
+					cr.Namespace,
+					util.GenerateNameForCephBlockPool(cr.Name),
+					"rook-csi-rbd-provisioner",
+					"rook-csi-rbd-node",
+					cr.Namespace,
+					"",
+					"",
+					cr.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
+					cr.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
+					false,
+				),
+				isClusterExternal: true,
+				reconcileStrategy: ReconcileStrategy(cr.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
+			}
 			// To override the values for external cluster
 			for k, v := range extR.Data {
 				actualSC.storageClass.Parameters[k] = v
