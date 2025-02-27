@@ -275,6 +275,8 @@ type ManageCephFilesystems struct {
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName string `json:"storageClassName,omitempty"`
+	// MetadataPoolSpec specifies the pool specification for the default cephFS metadata pool
+	MetadataPoolSpec rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
 	// DataPoolSpec specifies the pool specification for the default cephfs data pool
 	DataPoolSpec rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
 	// AdditionalDataPools specifies list of additional named cephfs data pools
@@ -292,6 +294,8 @@ type ManageCephObjectStores struct {
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName string `json:"storageClassName,omitempty"`
+	// MetadataPoolSpec specifies the pool specification for the default cephObjectStore metadata pool
+	MetadataPoolSpec rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
 	// DataPoolSpec specifies the pool specification for the default cephObjectStore data pool
 	DataPoolSpec rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
 }

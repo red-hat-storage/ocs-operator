@@ -1483,6 +1483,26 @@ func isEncrptionSettingUpdated(clusterWideEncrytion bool, existingDeviceSet []ro
 	return false
 }
 
+// setDefaultMetadataPoolSpec sets the common pool spec for all metadata pools as necessary
+func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
+	poolSpec.EnableCrushUpdates = true
+	if poolSpec.DeviceClass == "" {
+		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
+	}
+	if poolSpec.FailureDomain == "" {
+		poolSpec.FailureDomain = getFailureDomain(sc)
+	}
+	// Set default replication settings if necessary
+	// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
+	defaultReplicatedSpec := generateCephReplicatedSpec(sc, poolTypeMetadata)
+	if poolSpec.Replicated.Size == 0 || arbiterEnabled(sc) {
+		poolSpec.Replicated.Size = defaultReplicatedSpec.Size
+	}
+	if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(sc) {
+		poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
+	}
+}
+
 // setDefaultDataPoolSpec sets the common pool spec for all data pools as necessary
 func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
 	poolSpec.EnableCrushUpdates = true

@@ -30,10 +30,8 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		},
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.NamedPoolSpec{
-				PoolSpec: cephv1.PoolSpec{
-					Replicated:    generateCephReplicatedSpec(initStorageCluster, poolTypeMetadata),
-					FailureDomain: initStorageCluster.Status.FailureDomain,
-				}},
+				PoolSpec: initStorageCluster.Spec.ManagedResources.CephFilesystems.MetadataPoolSpec, // Pass the poolSpec from the storageCluster CR
+			},
 			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount:   int32(getActiveMetadataServers(initStorageCluster)),
 				ActiveStandby: true,
@@ -55,16 +53,14 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 
 	// Append additional pools from specified additional data pools
 	ret.Spec.DataPools = append(ret.Spec.DataPools, initStorageCluster.Spec.ManagedResources.CephFilesystems.AdditionalDataPools...)
-
 	for i := range ret.Spec.DataPools {
 		poolSpec := &ret.Spec.DataPools[i].PoolSpec
 		// Set default values in the poolSpec as necessary
 		setDefaultDataPoolSpec(poolSpec, initStorageCluster)
 	}
 
-	// set device class for metadata pool from the default data pool
-	ret.Spec.MetadataPool.DeviceClass = ret.Spec.DataPools[0].PoolSpec.DeviceClass
-	ret.Spec.MetadataPool.EnableCrushUpdates = true
+	// Set default values in the metadata pool spec as necessary
+	setDefaultDataPoolSpec(&ret.Spec.MetadataPool.PoolSpec, initStorageCluster)
 
 	err := controllerutil.SetControllerReference(initStorageCluster, ret, r.Scheme)
 	if err != nil {
