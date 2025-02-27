@@ -286,9 +286,10 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		mutateStorageClassEndpoint,
 		&ctrlwebhook.Admission{
 			Handler: &webhook.StorageClassAdmission{
-				Client:  mgr.GetClient(),
-				Decoder: admission.NewDecoder(mgr.GetScheme()),
-				Log:     mgr.GetLogger().WithName("webhook.storageclass"),
+				Client:    mgr.GetClient(),
+				Namespace: r.OperatorNamespace,
+				Decoder:   admission.NewDecoder(mgr.GetScheme()),
+				Log:       mgr.GetLogger().WithName("webhook.storageclass"),
 			},
 		},
 	)
