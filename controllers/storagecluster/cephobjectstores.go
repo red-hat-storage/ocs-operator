@@ -168,13 +168,8 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			},
 			Spec: cephv1.ObjectStoreSpec{
 				PreservePoolsOnDelete: false,
-				DataPool:              initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec, // Pass the poolSpec from the storageCluster CR
-				MetadataPool: cephv1.PoolSpec{
-					DeviceClass:        initData.Status.DefaultCephDeviceClass,
-					EnableCrushUpdates: true,
-					FailureDomain:      initData.Status.FailureDomain,
-					Replicated:         generateCephReplicatedSpec(initData, poolTypeMetadata),
-				},
+				DataPool:              initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec,     // Pass the poolSpec from the storageCluster CR
+				MetadataPool:          initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec, // Pass the poolSpec from the storageCluster CR
 				Gateway: cephv1.GatewaySpec{
 					Port:       80,
 					SecurePort: 443,
@@ -204,8 +199,11 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			obj.Spec.Gateway.HostNetwork = initData.Spec.ManagedResources.CephObjectStores.HostNetwork
 		}
 
-		// Set default values in the poolSpec as necessary
+		// Set default values in the data pool spec as necessary
 		setDefaultDataPoolSpec(&obj.Spec.DataPool, initData)
+
+		// Set default values in the metadata pool spec as necessary
+		setDefaultMetadataPoolSpec(&obj.Spec.MetadataPool, initData)
 
 		// if kmsConfig is not 'nil', add the KMS details to ObjectStore spec
 		if kmsConfigMap != nil {
