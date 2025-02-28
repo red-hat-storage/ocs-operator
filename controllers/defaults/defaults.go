@@ -24,6 +24,13 @@ const (
 	// with a value of "false" to disable key rotation. When present, this annotation is then
 	// propagated to the associated StorageClasses.
 	KeyRotationEnableAnnotation = "keyrotation.csiaddons.openshift.io/enable"
+	// Identifies storageconsumer is serving local or remote remote client
+	StorageConsumerTypeAnnotation = "ocs.openshift.io/storageconsumer-type"
+	StorageConsumerTypeLocal      = "local"
+	// Identifies storageconsumer was upgraded from internal or provider mode
+	StorageConsumerOldModeAnnotation = "ocs.openshift.io/storageconsumer-old-mode"
+	StorageConsumerOldModeInternal   = "internal"
+	StorageConsumerOldModeProvider   = "provider"
 )
 
 var (
