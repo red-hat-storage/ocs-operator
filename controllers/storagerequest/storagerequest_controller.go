@@ -24,6 +24,7 @@ import (
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -306,6 +307,13 @@ func (r *StorageRequestReconciler) reconcilePhases() (reconcile.Result, error) {
 			return reconcile.Result{}, err
 		}
 
+		// TODO: OldModeAnnotation should be removed after convergence
+		updateConsumer := util.AddAnnotation(
+			r.storageConsumer,
+			defaults.StorageConsumerOldModeAnnotation,
+			defaults.StorageConsumerOldModeProvider,
+		)
+
 		if r.StorageRequest.Spec.Type == "block" {
 
 			if err := r.reconcileCephClientRBDProvisioner(); err != nil {
@@ -343,6 +351,25 @@ func (r *StorageRequestReconciler) reconcilePhases() (reconcile.Result, error) {
 
 		if cephResourcesReady {
 			r.StorageRequest.Status.Phase = v1alpha1.StorageRequestReady
+		}
+
+		clusterID := util.GetClusterID(r.ctx, r.Client, &r.log)
+		if clusterID != "" {
+			if strings.HasSuffix(r.storageConsumer.Name, clusterID) {
+				updateConsumer = util.AddAnnotation(
+					r.storageConsumer,
+					defaults.StorageConsumerTypeAnnotation,
+					defaults.StorageConsumerTypeLocal,
+				) || updateConsumer
+			}
+		} else {
+			return reconcile.Result{}, fmt.Errorf("failed to get cluster id")
+		}
+
+		if updateConsumer {
+			if err := r.update(r.storageConsumer); err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 
 	} else {
