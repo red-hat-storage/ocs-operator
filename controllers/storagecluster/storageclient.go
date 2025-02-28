@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	tokenLifetimeInHours         = 48
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
+	tokenLifetimeInHours = 48
 
 	ocsClientConfigMapName = "ocs-client-operator-config"
 	manageNoobaaSubKey     = "manageNoobaaSubscription"
@@ -47,7 +46,11 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	storageClient.Name = storagecluster.Name
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
-			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil, storagecluster.UID)
+			privateKey, err := util.LoadOnboardingValidationPrivateKey(r.ctx, r.Client, r.OperatorNamespace)
+			if err != nil {
+				return fmt.Errorf("unable to get Parsed Private Key: %v", err)
+			}
+			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, privateKey, nil, storagecluster.UID)
 			if err != nil {
 				return fmt.Errorf("unable to generate onboarding token: %v", err)
 			}
