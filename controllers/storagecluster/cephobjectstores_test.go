@@ -47,6 +47,13 @@ func TestCephObjectStores(t *testing.T) {
 
 func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil)
+	expectedCos[0].Spec.MetadataPool.Parameters = map[string]string{
+		"bulk": "true",
+	}
+	expectedCos[0].Spec.DataPool.Parameters = map[string]string{
+		"bulk": "true",
+	}
+
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{

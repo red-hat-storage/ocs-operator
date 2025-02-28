@@ -159,6 +159,9 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 				FailureDomain:      getFailureDomain(cr),
 				Replicated:         generateCephReplicatedSpec(cr, poolTypeData),
 				EnableRBDStats:     true,
+				Parameters: map[string]string{
+					"bulk": "true",
+				},
 			},
 		},
 	}
