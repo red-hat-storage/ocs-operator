@@ -11,10 +11,10 @@ spec:
   - name: ceph.rules
     rules:
     - expr: |
-        kube_node_status_condition{condition="Ready",job="kube-state-metrics",status="true"} * on (node) group_right() max by (node, namespace) (label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"node","$1","exported_instance","(.*)"))
+        kube_node_status_condition{condition="Ready",job="kube-state-metrics",status="true"} * on (node) group_right() max by (node, namespace) (label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"node","$1","instance","(.*)"))
       record: cluster:ceph_node_down:join_kube
     - expr: |
-        avg by (namespace) (topk by (ceph_daemon, namespace) (1, label_replace(label_replace(ceph_disk_occupation{job="rook-ceph-mgr"}, "instance", "$1", "exported_instance", "(.*)"), "device", "$1", "device", "/dev/(.*)")) * on(instance, device) group_right(ceph_daemon, namespace) topk by (instance, device, namespace) (1,(irate(node_disk_read_time_seconds_total[1m]) + irate(node_disk_write_time_seconds_total[1m]) / (clamp_min(irate(node_disk_reads_completed_total[1m]), 1) + irate(node_disk_writes_completed_total[1m])))))
+        avg by (namespace) (topk by (ceph_daemon, namespace) (1, label_replace(ceph_disk_occupation{job="rook-ceph-mgr"}, "device", "$1", "device", "/dev/(.*)")) * on(instance, device) group_right(ceph_daemon, namespace) topk by (instance, device, namespace) (1,(irate(node_disk_read_time_seconds_total[1m]) + irate(node_disk_write_time_seconds_total[1m]) / (clamp_min(irate(node_disk_reads_completed_total[1m]), 1) + irate(node_disk_writes_completed_total[1m])))))
       record: cluster:ceph_disk_latency:join_ceph_node_disk_irate1m
   - name: telemeter.rules
     rules:
@@ -171,7 +171,7 @@ spec:
         storage_type: ceph
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDDiskNotResponding.md
       expr: |
-        label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace, managedBy) group_left(host, device) label_replace(ceph_disk_occupation{job=~"rook-ceph-mgr|rook-ceph-mgr-external"},"host","$1","exported_instance","(.*)")
+        label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace, managedBy) group_left(host, device) label_replace(ceph_disk_occupation{job=~"rook-ceph-mgr|rook-ceph-mgr-external"},"host","$1","instance","(.*)")
       for: 15m
       labels:
         severity: critical
@@ -183,7 +183,7 @@ spec:
         storage_type: ceph
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephOSDDiskUnavailable.md
       expr: |
-        label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace, managedBy) group_left(host, device) label_replace(ceph_disk_occupation{job=~"rook-ceph-mgr|rook-ceph-mgr-external"},"host","$1","exported_instance","(.*)")
+        label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace, managedBy) group_left(host, device) label_replace(ceph_disk_occupation{job=~"rook-ceph-mgr|rook-ceph-mgr-external"},"host","$1","instance","(.*)")
       for: 1m
       labels:
         severity: critical
