@@ -1525,3 +1525,25 @@ func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageClus
 		poolSpec.Replicated.TargetSizeRatio = defaultReplicatedSpec.TargetSizeRatio
 	}
 }
+
+// setBulkFlagParameter sets the bulk flag if unset in the given poolSpec parameters
+func setBulkFlagParameter(parameters *map[string]string) {
+	if _, exists := (*parameters)["bulk"]; !exists {
+		if *parameters == nil {
+			*parameters = make(map[string]string)
+		}
+		(*parameters)["bulk"] = "true"
+	}
+}
+
+// preserveBulkFlagParameter preserves the "bulk" key if it exists in the existing parameters but is missing in the updated parameters
+func preserveBulkFlagParameter(existingParameters map[string]string, updatedParameters *map[string]string) {
+	if bulk, exists := existingParameters["bulk"]; exists {
+		if _, exists := (*updatedParameters)["bulk"]; !exists {
+			if *updatedParameters == nil {
+				*updatedParameters = make(map[string]string)
+			}
+			(*updatedParameters)["bulk"] = bulk
+		}
+	}
+}
