@@ -42,7 +42,24 @@ type StorageConsumerSpec struct {
 	Enable bool `json:"enable,omitempty"`
 	// StorageQuotaInGiB describes quota for the consumer
 	// +optional
-	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
+	StorageQuotaInGiB          int                            `json:"storageQuotaInGiB,omitempty"`
+	RadosNamespace             string                         `json:"radosNamespace,omitempty"`
+	SubVolumeGroup             string                         `json:"subVolumeGroup,omitempty"`
+	StorageClasses             []StorageClassSpec             `json:"storageClasses,omitempty"`
+	VolumeSnapshotClasses      []VolumeSnapshotClassSpec      `json:"volumeSnapshotClasses,omitempty"`
+	VolumeGroupSnapshotClasses []VolumeGroupSnapshotClassSpec `json:"volumeGroupSnapshotClasses,omitempty"`
+}
+
+type StorageClassSpec struct {
+	Name string `json:"name,omitempty"`
+}
+
+type VolumeSnapshotClassSpec struct {
+	Name string `json:"name,omitempty"`
+}
+
+type VolumeGroupSnapshotClassSpec struct {
+	Name string `json:"name,omitempty"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage
