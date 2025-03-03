@@ -298,11 +298,16 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		},
 	}
 
+	clientConfigMap := &v1.ConfigMap{}
+	clientConfigMap.Name = ocsClientConfigMapName
+	clientConfigMap.Namespace = sc.Namespace
+
 	obj = append(
 		obj,
 		mockNodeList.DeepCopy(),
 		cbp,
 		cfs,
+		clientConfigMap,
 		cnfs,
 		cnfsbp,
 		cnfssvc,
