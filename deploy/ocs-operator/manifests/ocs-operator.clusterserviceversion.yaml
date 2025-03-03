@@ -227,10 +227,8 @@ spec:
           resources:
           - cephblockpoolradosnamespaces
           - cephblockpools
-          - cephclients
           - cephclusters
           - cephfilesystems
-          - cephfilesystemsubvolumegroups
           - cephnfses
           - cephobjectstores
           - cephobjectstoreusers
@@ -491,7 +489,6 @@ spec:
           - create
           - delete
           - get
-          - list
           - update
           - watch
         - apiGroups:
