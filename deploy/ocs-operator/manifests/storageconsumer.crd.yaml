@@ -43,24 +43,36 @@ spec:
                 description: Enable flag ignores a reconcile if set to false
                 type: boolean
               radosNamespace:
+                maxLength: 512
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               storageClasses:
                 items:
                   properties:
                     name:
                       type: string
+                  required:
+                  - name
                   type: object
                 type: array
               storageQuotaInGiB:
                 description: StorageQuotaInGiB describes quota for the consumer
                 type: integer
               subVolumeGroup:
+                maxLength: 512
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               volumeGroupSnapshotClasses:
                 items:
                   properties:
                     name:
                       type: string
+                  required:
+                  - name
                   type: object
                 type: array
               volumeSnapshotClasses:
@@ -68,9 +80,16 @@ spec:
                   properties:
                     name:
                       type: string
+                  required:
+                  - name
                   type: object
                 type: array
             type: object
+            x-kubernetes-validations:
+            - message: Value is required once set
+              rule: '!has(oldSelf.RadosNamespace) || has(self.RadosNamespace)'
+            - message: Value is required once set
+              rule: '!has(oldSelf.SubVolumeGroup) || has(self.SubVolumeGroup)'
           status:
             description: StorageConsumerStatus defines the observed state of StorageConsumer
             properties:
