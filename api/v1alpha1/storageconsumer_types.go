@@ -37,29 +37,37 @@ const (
 )
 
 // StorageConsumerSpec defines the desired state of StorageConsumer
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.RadosNamespace) || has(self.RadosNamespace)", message="Value is required once set"
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.SubVolumeGroup) || has(self.SubVolumeGroup)", message="Value is required once set"
 type StorageConsumerSpec struct {
 	// Enable flag ignores a reconcile if set to false
 	Enable bool `json:"enable,omitempty"`
 	// StorageQuotaInGiB describes quota for the consumer
 	// +optional
-	StorageQuotaInGiB          int                            `json:"storageQuotaInGiB,omitempty"`
-	RadosNamespace             string                         `json:"radosNamespace,omitempty"`
-	SubVolumeGroup             string                         `json:"subVolumeGroup,omitempty"`
+	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=512
+	RadosNamespace string `json:"radosNamespace"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=512
+	SubVolumeGroup             string                         `json:"subVolumeGroup"`
 	StorageClasses             []StorageClassSpec             `json:"storageClasses,omitempty"`
 	VolumeSnapshotClasses      []VolumeSnapshotClassSpec      `json:"volumeSnapshotClasses,omitempty"`
 	VolumeGroupSnapshotClasses []VolumeGroupSnapshotClassSpec `json:"volumeGroupSnapshotClasses,omitempty"`
 }
 
 type StorageClassSpec struct {
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 type VolumeSnapshotClassSpec struct {
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 type VolumeGroupSnapshotClassSpec struct {
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage
