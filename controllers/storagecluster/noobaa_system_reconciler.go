@@ -139,9 +139,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		"app": "noobaa",
 	}
 
-	if sc.Spec.AllowRemoteStorageConsumers {
-		util.AddAnnotation(nb, "MulticloudObjectGatewayProviderMode", "true")
-	}
+	util.AddAnnotation(nb, "MulticloudObjectGatewayProviderMode", "true")
 
 	if !r.IsNoobaaStandalone {
 		storageClassName := generateNameForCephBlockPoolSC(sc)

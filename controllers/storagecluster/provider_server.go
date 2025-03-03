@@ -58,15 +58,6 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 }
 
 func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-
-	// We do not check instance.Spec.AllowRemoteStorageConsumers because provider can disable this functionality
-	// and we need to delete the resources even the flag is not enabled (uninstall case).
-
-	// This func is directly called by the ensureCreated if the flag is disabled and deletes the resource
-	// Which means we do not need to call ensureDeleted while reconciling unless we are uninstalling
-
-	// NOTE: Do not add the check
-
 	if err := r.verifyNoStorageConsumerExist(instance); err != nil {
 		return reconcile.Result{}, err
 	}
