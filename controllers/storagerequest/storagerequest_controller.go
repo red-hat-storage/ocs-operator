@@ -353,17 +353,19 @@ func (r *StorageRequestReconciler) reconcilePhases() (reconcile.Result, error) {
 			r.StorageRequest.Status.Phase = v1alpha1.StorageRequestReady
 		}
 
+		// in provider mode, storageconsumer has clusterid as it's suffix and
+		// that clusterid matches the cluster we are on then this storageconsumer
+		// represents local connected client
 		clusterID := util.GetClusterID(r.ctx, r.Client, &r.log)
-		if clusterID != "" {
-			if strings.HasSuffix(r.storageConsumer.Name, clusterID) {
-				updateConsumer = util.AddAnnotation(
-					r.storageConsumer,
-					defaults.StorageConsumerTypeAnnotation,
-					defaults.StorageConsumerTypeLocal,
-				) || updateConsumer
-			}
-		} else {
+		if clusterID == "" {
 			return reconcile.Result{}, fmt.Errorf("failed to get cluster id")
+		}
+		if strings.HasSuffix(r.storageConsumer.Name, clusterID) {
+			updateConsumer = util.AddAnnotation(
+				r.storageConsumer,
+				defaults.StorageConsumerTypeAnnotation,
+				defaults.StorageConsumerTypeLocal,
+			) || updateConsumer
 		}
 
 		if updateConsumer {

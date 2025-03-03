@@ -13,9 +13,12 @@ type storageConsumer struct{}
 
 var _ resourceManager = &storageConsumer{}
 
-const localStorageConsumerName = "storageconsumer-local"
+const localStorageConsumerName = "local"
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+	if storageCluster.Spec.AllowRemoteStorageConsumers {
+		return ctrl.Result{}, nil
+	}
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = localStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
