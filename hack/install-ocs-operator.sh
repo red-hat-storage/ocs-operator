@@ -16,7 +16,7 @@ fi
 
 
 # Ensure ocs-operator-config configmap for rook to come up before ocs-operator
-cat <<EOF | oc create -f -
+cat <<EOF | oc apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -28,13 +28,15 @@ data:
   CSI_ENABLE_TOPOLOGY: "test"
   CSI_TOPOLOGY_DOMAIN_LABELS: "test"
   ROOK_CSI_ENABLE_NFS: "false"
-  ROOK_CSI_DISABLE_DRIVER: "false"
-  ROOK_CSI_ENABLE_CEPHFS: "true"
+  ROOK_CSI_DISABLE_DRIVER: "true"
+  ROOK_CSI_ENABLE_CEPHFS: "false"
 EOF
 
 "$OPERATOR_SDK" run bundle "$ROOK_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$CEPH_CSI_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
+"$OPERATOR_SDK" run bundle "$CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$NOOBAA_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
+"$OPERATOR_SDK" run bundle "$OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 
 oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment \
