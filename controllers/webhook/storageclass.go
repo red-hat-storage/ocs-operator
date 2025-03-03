@@ -90,8 +90,9 @@ func (s *StorageClassAdmission) Handle(ctx context.Context, req admission.Reques
 	if storageClass.Parameters["csi.storage.k8s.io/provisioner-secret-name"] != "" {
 		patches = append(patches, jsonpatch.JsonPatchOperation{
 			Operation: "add",
-			Path:      "/parameters/csi.storage.k8s.io~1provisioner-secret-name",
-			Value:     provisionerSecretName,
+			// forward slash (/) in json key should be replaced with (~1) as per RFC6901
+			Path:  "/parameters/csi.storage.k8s.io~1provisioner-secret-name",
+			Value: provisionerSecretName,
 		})
 		s.Log.Info("populating provisioner secret name in storageclass parameters section")
 	}
