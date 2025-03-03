@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	nadscheme "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/scheme"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
@@ -62,6 +63,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/ocsinitialization"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageautoscaling"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
@@ -242,6 +244,16 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Mirroring")
+		os.Exit(1)
+	}
+	if err = (&storageautoscaling.StorageAutoscalerReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		OperatorNamespace: operatorNamespace,
+		Log:               ctrl.Log.WithName("controllers").WithName("storageAutoScaling"),
+		RequeueTime:       10 * time.Minute,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageAutoscaler")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
