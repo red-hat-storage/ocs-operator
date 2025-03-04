@@ -331,6 +331,14 @@ spec:
         - apiGroups:
           - monitoring.coreos.com
           resources:
+          - '*'
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
           - alertmanagers
           - prometheuses
           - servicemonitors
