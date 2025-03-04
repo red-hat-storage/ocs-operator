@@ -140,6 +140,11 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			r.Log.Info("Restoring original CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 			existing.ObjectMeta.OwnerReferences = cephObjectStore.ObjectMeta.OwnerReferences
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
+
+			// Ensures the bulk flag set during new pool creation is not removed during updates.
+			preserveBulkFlagParameter(existing.Spec.MetadataPool.Parameters, &cephObjectStore.Spec.MetadataPool.Parameters)
+			preserveBulkFlagParameter(existing.Spec.DataPool.Parameters, &cephObjectStore.Spec.DataPool.Parameters)
+
 			err = r.Client.Update(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to update CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
@@ -147,6 +152,11 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
+
+			// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
+			setBulkFlagParameter(&cephObjectStore.Spec.MetadataPool.Parameters)
+			setBulkFlagParameter(&cephObjectStore.Spec.DataPool.Parameters)
+
 			err = r.Client.Create(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to create CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
