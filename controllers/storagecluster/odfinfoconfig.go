@@ -10,7 +10,7 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

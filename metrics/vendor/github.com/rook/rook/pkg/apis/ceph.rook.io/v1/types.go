@@ -626,6 +626,13 @@ type MonSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	VolumeClaimTemplate *VolumeClaimTemplate `json:"volumeClaimTemplate,omitempty"`
+	// ExternalMonIDs - optional list of monitor IDs which are deployed externally and not managed by Rook.
+	// If set, Rook will not remove mons with given IDs from quorum.
+	// This parameter is used only for local Rook cluster running in normal mode
+	// and will be ignored if external or stretched mode is used.
+	// leading
+	// +optional
+	ExternalMonIDs []string `json:"externalMonIDs,omitempty"`
 }
 
 // VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.
@@ -1747,6 +1754,14 @@ type GatewaySpec struct {
 	// +nullable
 	// +optional
 	RgwConfig map[string]string `json:"rgwConfig,omitempty"`
+
+	// RgwConfigFromSecret works exactly like RgwConfig but takes config value from Secret Key reference.
+	// Values are modified at runtime without RGW restart.
+	// This feature is intended for advanced users. It allows breaking configurations to be easily
+	// applied. Use with caution.
+	// +nullable
+	// +optional
+	RgwConfigFromSecret map[string]v1.SecretKeySelector `json:"rgwConfigFromSecret,omitempty"`
 
 	// RgwCommandFlags sets Ceph RGW config values for the gateway clients that serve this object
 	// store. Values are modified at RGW startup, resulting in RGW pod restarts.

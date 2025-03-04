@@ -36,6 +36,28 @@ const (
 	ConditionValidated = "Validated"
 )
 
+// These are valid messages for various conditions and states of volume replication.
+const (
+	MessagePromoted           = "is promoted to primary and replicating to secondary"
+	MessageHealthy            = "is healthy"
+	MessageNotResyncing       = "is not resyncing"
+	MessageValidated          = "is validated and met all prerequisites"
+	MessageFailedPromoted     = "failed to promote"
+	MessageFailedDemoted      = "failed to demote"
+	MessageFailedPreCondition = "failed to meet prerequisite"
+	MessageDemoted            = "is demoted to secondary"
+	MessageDegraded           = "is degraded"
+	MessageResyncTriggered    = "is resyncing changes from primary to secondary"
+	MessageResyncFailed       = "failed to resync"
+)
+
+type Source string
+
+const (
+	Volume      Source = "volume"
+	VolumeGroup Source = "volume group"
+)
+
 // These are valid conditions.
 
 const (
