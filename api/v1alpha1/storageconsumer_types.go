@@ -37,12 +37,37 @@ const (
 )
 
 // StorageConsumerSpec defines the desired state of StorageConsumer
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.RadosNamespace) || has(self.RadosNamespace)", message="Value is required once set"
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.SubVolumeGroup) || has(self.SubVolumeGroup)", message="Value is required once set"
 type StorageConsumerSpec struct {
 	// Enable flag ignores a reconcile if set to false
 	Enable bool `json:"enable,omitempty"`
 	// StorageQuotaInGiB describes quota for the consumer
 	// +optional
 	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=512
+	RadosNamespace string `json:"radosNamespace"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=512
+	SubVolumeGroup             string                         `json:"subVolumeGroup"`
+	StorageClasses             []StorageClassSpec             `json:"storageClasses,omitempty"`
+	VolumeSnapshotClasses      []VolumeSnapshotClassSpec      `json:"volumeSnapshotClasses,omitempty"`
+	VolumeGroupSnapshotClasses []VolumeGroupSnapshotClassSpec `json:"volumeGroupSnapshotClasses,omitempty"`
+}
+
+type StorageClassSpec struct {
+	Name string `json:"name"`
+}
+
+type VolumeSnapshotClassSpec struct {
+	Name string `json:"name"`
+}
+
+type VolumeGroupSnapshotClassSpec struct {
+	Name string `json:"name"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage
@@ -62,11 +87,15 @@ type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
 	State StorageConsumerState `json:"state,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
+	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future."
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
 	// Information of storage client received from consumer
-	Client ClientStatus `json:"client,omitempty"`
+	Client               ClientStatus       `json:"client,omitempty"`
+	RadosNamespace       RadosNamespaceSpec `json:"radosNamespace,omitempty"`
+	CephFsSubVolumeGroup SubVolumeGroupSpec `json:"cephFsSubVolumeGroup,omitempty"`
+	CephCsiClientProfile ClientProfileSpec  `json:"cephCsiClientProfile,omitempty"`
 }
 
 // ClientStatus is the information pushed from connected storage client
@@ -98,6 +127,18 @@ type ClientStatus struct {
 	// ID is the k8s UID of connected storageclient
 	// +optional
 	ID string `json:"clientId,omitempty"`
+}
+
+type RadosNamespaceSpec struct {
+	Name string `json:"name"`
+}
+
+type SubVolumeGroupSpec struct {
+	Name string `json:"name"`
+}
+
+type ClientProfileSpec struct {
+	Name string `json:"name"`
 }
 
 //+kubebuilder:object:root=true
