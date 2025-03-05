@@ -93,6 +93,20 @@ spec:
           status:
             description: StorageConsumerStatus defines the observed state of StorageConsumer
             properties:
+              cephCsiClientProfile:
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              cephFsSubVolumeGroup:
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
               cephResources:
                 description: CephResources provide details of created ceph resources
                   required for external storage
@@ -147,6 +161,13 @@ spec:
                 description: Timestamp of last heartbeat received from consumer
                 format: date-time
                 type: string
+              radosNamespace:
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
               state:
                 description: State describes the state of StorageConsumer
                 type: string
