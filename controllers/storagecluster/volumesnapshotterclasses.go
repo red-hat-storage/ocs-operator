@@ -36,7 +36,6 @@ const (
 type SnapshotClassConfiguration struct {
 	snapshotClass     *snapapi.VolumeSnapshotClass
 	reconcileStrategy ReconcileStrategy
-	disable           bool
 }
 
 // newVolumeSnapshotClass returns a new VolumeSnapshotter class backed by provided snapshotter type
@@ -61,7 +60,6 @@ func newCephFilesystemSnapshotClassConfiguration(instance *ocsv1.StorageCluster)
 	return SnapshotClassConfiguration{
 		snapshotClass:     newVolumeSnapshotClass(instance, cephfsSnapshotter),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
-		disable:           instance.Spec.ManagedResources.CephFilesystems.DisableSnapshotClass || instance.Spec.AllowRemoteStorageConsumers,
 	}
 }
 
@@ -69,7 +67,6 @@ func newCephBlockPoolSnapshotClassConfiguration(instance *ocsv1.StorageCluster) 
 	return SnapshotClassConfiguration{
 		snapshotClass:     newVolumeSnapshotClass(instance, rbdSnapshotter),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
-		disable:           instance.Spec.ManagedResources.CephBlockPools.DisableSnapshotClass || instance.Spec.AllowRemoteStorageConsumers,
 	}
 }
 
@@ -94,7 +91,7 @@ func newSnapshotClassConfigurations(instance *ocsv1.StorageCluster) []SnapshotCl
 func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassConfiguration) error {
 
 	for _, vscc := range vsccs {
-		if vscc.reconcileStrategy == ReconcileStrategyIgnore || vscc.disable {
+		if vscc.reconcileStrategy == ReconcileStrategyIgnore {
 			continue
 		}
 

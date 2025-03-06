@@ -31,7 +31,6 @@ const (
 type StorageClassConfiguration struct {
 	storageClass      *storagev1.StorageClass
 	reconcileStrategy ReconcileStrategy
-	disable           bool
 	isClusterExternal bool
 }
 
@@ -93,7 +92,7 @@ func (obj *ocsStorageClass) ensureDeleted(r *StorageClusterReconciler, instance 
 func (r *StorageClusterReconciler) createStorageClasses(sccs []StorageClassConfiguration, namespace string) error {
 	var skippedSC []string
 	for _, scc := range sccs {
-		if scc.reconcileStrategy == ReconcileStrategyIgnore || scc.disable {
+		if scc.reconcileStrategy == ReconcileStrategyIgnore {
 			continue
 		}
 		sc := scc.storageClass
@@ -276,7 +275,6 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 			},
 		},
 		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
-		disable:           managementSpec.DisableStorageClass,
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
 }
@@ -314,7 +312,6 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 			},
 		},
 		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
-		disable:           managementSpec.DisableStorageClass,
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
 	if initData.Spec.ManagedResources.CephBlockPools.DefaultStorageClass {
@@ -448,7 +445,6 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 			},
 		},
 		reconcileStrategy: ReconcileStrategy(managementSpec.ReconcileStrategy),
-		disable:           managementSpec.DisableStorageClass,
 		isClusterExternal: initData.Spec.ExternalStorage.Enable,
 	}
 }
