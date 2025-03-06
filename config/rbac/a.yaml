@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-global-access27
+rules:
+  # - apiGroups: [""]
+  #   resources: ["services", "pods", "endpoints", "pods/proxy"]
+  #   verbs: ["get,list,watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["prometheuses/api"]
+    verbs: ["get"]
+  # - apiGroups: ["monitoring.coreos.com"]
+  #   resources: ["*"]
+  #   verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-global-access-binding27
+subjects:
+  - kind: ServiceAccount
+    name: ocs-operator
+    namespace: openshift-storage
+roleRef:
+  kind: ClusterRole
+  name: prometheus-global-access27
+  apiGroup: rbac.authorization.k8s.io
