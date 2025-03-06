@@ -24,6 +24,10 @@ const (
 	// with a value of "false" to disable key rotation. When present, this annotation is then
 	// propagated to the associated StorageClasses.
 	KeyRotationEnableAnnotation = "keyrotation.csiaddons.openshift.io/enable"
+	// Identifies storageconsumer was upgraded from internal or provider mode
+	StorageConsumerBackwardCompatibleAnnotation   = "ocs.openshift.io/storageconsumer-4.18-backward-compatible-mode"
+	StorageConsumerBackwardCompatibleModeInternal = "internal"
+	StorageConsumerBackwardCompatibleModeProvider = "provider"
 )
 
 var (
