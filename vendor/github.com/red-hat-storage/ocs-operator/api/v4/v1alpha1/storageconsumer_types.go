@@ -42,7 +42,22 @@ type StorageConsumerSpec struct {
 	Enable bool `json:"enable,omitempty"`
 	// StorageQuotaInGiB describes quota for the consumer
 	// +optional
-	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
+	StorageQuotaInGiB          int                            `json:"storageQuotaInGiB,omitempty"`
+	StorageClasses             []StorageClassSpec             `json:"storageClasses,omitempty"`
+	VolumeSnapshotClasses      []VolumeSnapshotClassSpec      `json:"volumeSnapshotClasses,omitempty"`
+	VolumeGroupSnapshotClasses []VolumeGroupSnapshotClassSpec `json:"volumeGroupSnapshotClasses,omitempty"`
+}
+
+type StorageClassSpec struct {
+	Name string `json:"name"`
+}
+
+type VolumeSnapshotClassSpec struct {
+	Name string `json:"name"`
+}
+
+type VolumeGroupSnapshotClassSpec struct {
+	Name string `json:"name"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage
@@ -62,11 +77,15 @@ type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
 	State StorageConsumerState `json:"state,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
+	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future."
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
 	// Information of storage client received from consumer
-	Client ClientStatus `json:"client,omitempty"`
+	Client                ClientStatus          `json:"client,omitempty"`
+	RadosNamespace        RadosNamespaceStatus  `json:"radosNamespace,omitempty"`
+	CephFsSubVolumeGroup  SubVolumeGroupStatus  `json:"cephFsSubVolumeGroup,omitempty"`
+	CephCsiClientProfiles []ClientProfileStatus `json:"cephCsiClientProfile,omitempty"`
 }
 
 // ClientStatus is the information pushed from connected storage client
@@ -98,6 +117,18 @@ type ClientStatus struct {
 	// ID is the k8s UID of connected storageclient
 	// +optional
 	ID string `json:"clientId,omitempty"`
+}
+
+type RadosNamespaceStatus struct {
+	Name string `json:"name"`
+}
+
+type SubVolumeGroupStatus struct {
+	Name string `json:"name"`
+}
+
+type ClientProfileStatus struct {
+	Name string `json:"name"`
 }
 
 //+kubebuilder:object:root=true
