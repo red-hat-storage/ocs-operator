@@ -13,8 +13,9 @@ import (
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	prometheusconfig "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
-	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -46,11 +47,11 @@ func (r *StorageAutoscalerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	storageAutoscalerReconcilerController := ctrl.NewControllerManagedBy(mgr).
 		// todo: change configmap type to storageautoscaler
-		For(&corev1.Secret{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&ocsv1.StorageAutoScaler{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		// watch for generic events to trigger the reconcile
 		WatchesRawSource(source.Channel(r.Event,
 			&handler.EnqueueRequestForObject{},
-			// TODO add a predicate to filter the events
+			// TODO: add a predicate to filter the events
 		))
 
 	return storageAutoscalerReconcilerController.Complete(r)
@@ -65,7 +66,7 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, req reconci
 
 	// print the sync map
 	r.SyncMap.Range(func(key, value interface{}) bool {
-		r.Log.Info("sync map", "key", key, "value", value)
+		r.Log.Info("main function sync map", "key", key.(string), "value", value.(float64))
 		return true
 	})
 
@@ -82,7 +83,7 @@ func (r *StorageAutoscalerReconciler) scrapeMetricsPeriodically() {
 			r.Log.Info("context cancelled, stopping scraping metrics")
 			return
 
-		case <-time.After(10 * time.Minute):
+		case <-time.After(r.RequeueTime):
 			r.Log.Info("scraping metrics")
 			metrics, err := r.scrapeMetrics()
 			if err != nil {
@@ -92,7 +93,7 @@ func (r *StorageAutoscalerReconciler) scrapeMetricsPeriodically() {
 			r.Log.Info("update sync map")
 			r.updateSyncMap(metrics)
 			r.Log.Info("send a signal to reconcile using generic event")
-			r.Event <- event.GenericEvent{}
+			r.sendGenericEvent()
 		}
 	}
 }
@@ -139,7 +140,7 @@ func (r *StorageAutoscalerReconciler) scrapeMetrics() (model.Vector, error) {
 	// scrape the metrics
 	scraper := prometheusv1.NewAPI(prometheusClient)
 	osdUsageQuery := "(ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes))"
-	result, warnings, err := scraper.Query(r.ctx, osdUsageQuery, time.Now(), prometheusv1.WithTimeout(10*time.Second))
+	result, warnings, err := scraper.Query(context.Background(), osdUsageQuery, time.Now(), prometheusv1.WithTimeout(10*time.Second))
 	if err != nil {
 		r.Log.Error(err, "failed to query prometheus")
 		return nil, err
@@ -160,6 +161,7 @@ func (r *StorageAutoscalerReconciler) scrapeMetrics() (model.Vector, error) {
 // update the sync map with the highest value of osd usage per device class
 func (r *StorageAutoscalerReconciler) updateSyncMap(metrics model.Vector) {
 	// create a map of device class to highest osd usage
+	// todo currently assuming a single storage cluster
 	deviceClassUsage := make(map[string]float64)
 	for _, osd := range metrics {
 		deviceClass := osd.Metric["device_class"]
@@ -176,4 +178,22 @@ func (r *StorageAutoscalerReconciler) updateSyncMap(metrics model.Vector) {
 	for deviceClass, usage := range deviceClassUsage {
 		r.SyncMap.Store(deviceClass, usage)
 	}
+}
+
+func (r *StorageAutoscalerReconciler) sendGenericEvent() {
+	// send a generic event to trigger the reconcile
+	r.SyncMap.Range(func(key, value interface{}) bool {
+		r.Event <- event.GenericEvent{
+			Object: &ocsv1.StorageAutoScaler{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "openshift-storage",
+					Name:      key.(string),
+				},
+				Spec: ocsv1.StorageAutoScalerSpec{
+					DeviceClass: key.(string),
+				},
+			},
+		}
+		return true
+	})
 }

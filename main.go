@@ -253,7 +253,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
 		Log:               ctrl.Log.WithName("controllers").WithName("storageAutoScaling"),
-		RequeueTime:       10 * time.Minute,
+		RequeueTime:       30 * time.Second,
 		SyncMap:           sync.Map{},
 		Event:             make(chan event.GenericEvent),
 	}).SetupWithManager(mgr); err != nil {
