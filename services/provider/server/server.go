@@ -248,14 +248,22 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			isConsumerMirrorEnabled,
 		)
 
+		systemAtteributes := &pb.SystemAttributes{
+			SystemInMaintenanceMode: inMaintenanceMode,
+			MirrorEnabled:           isConsumerMirrorEnabled,
+			DesiredRbdDriver:        &pb.RbdDriverRequirements{},
+			DesiredCephFsDriver:     &pb.CephFsDriverRequirements{},
+		}
+
+		if storageCluster.Spec.NFS != nil && storageCluster.Spec.NFS.Enable {
+			systemAtteributes.DesiredNfsDriver = &pb.NfsDriverRequirements{}
+		}
+
 		klog.Infof("successfully returned the config details to the consumer.")
 		return &pb.StorageConfigResponse{
 				ExternalResource:  conString,
 				DesiredConfigHash: desiredClientConfigHash,
-				SystemAttributes: &pb.SystemAttributes{
-					SystemInMaintenanceMode: inMaintenanceMode,
-					MirrorEnabled:           isConsumerMirrorEnabled,
-				},
+				SystemAttributes:  systemAtteributes,
 			},
 			nil
 	}
@@ -1068,12 +1076,15 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
 	}
 
+	isNfsEnabled := storageCluster.Spec.NFS.Enable
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
+		isNfsEnabled,
 	)
 
 	return &pb.ReportStatusResponse{
