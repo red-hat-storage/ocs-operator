@@ -135,6 +135,33 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 	}
 
+	// get the consumer corresponding to this ticket
+	storageConsumerList := &ocsv1alpha1.StorageConsumerList{}
+	if err := s.client.List(ctx, storageConsumerList, client.InNamespace(s.namespace)); err != nil {
+		klog.Errorf("failed to get storageconsumers in the namespace: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get storageconsumers. %v", err)
+	} else if len(storageConsumerList.Items) < 1 {
+		return nil, status.Errorf(codes.FailedPrecondition, "no storageconsumers exist in the namespace")
+	}
+
+	consumerName := ""
+	for idx := range storageConsumerList.Items {
+		consumer := &storageConsumerList.Items[idx]
+		secret := &corev1.Secret{}
+		secret.Name = consumer.Name
+		secret.Namespace = s.namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(secret), secret); client.IgnoreNotFound(err) != nil {
+			klog.Errorf("failed to list secrets in the namespace. %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to list secrets in the namespace. %v", err)
+		}
+		if secret.UID != "" && string(secret.Data["ticket"]) == req.OnboardingTicket {
+			consumerName = consumer.Name
+		}
+	}
+	if consumerName == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "no storageConsumer found for supplied onboarding ticket")
+	}
+
 	onboardingTicket, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey)
 	if err != nil {
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
@@ -161,22 +188,17 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(storageQuotaInGiB))
+	storageConsumerUUID, err := s.consumerManager.OnboardClient(ctx, consumerName, req, int(storageQuotaInGiB))
 	if err != nil {
-		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
-			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-
-		storageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)
-		}
-
-		if storageConsumer.Spec.Enable {
-			err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", req.ConsumerName)
-			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-		storageConsumerUUID = string(storageConsumer.UID)
+		return nil, status.Errorf(codes.Internal, "failed to onboard on storageConsumer resource. %v", err)
+	}
+	storageConsumer, err := s.consumerManager.Get(ctx, storageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get storageConsumer. %v", err)
+	}
+	if storageConsumer.Spec.Enable {
+		err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", storageConsumer.Name)
+		return nil, status.Errorf(codes.AlreadyExists, "failed to onboard on storageConsumer resources. %v", err)
 	}
 
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil

@@ -55,44 +55,31 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 	}, nil
 }
 
-// Create creates a new storageConsumer resource, updates the consumer cache and returns the storageConsumer UID
-func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageClientOnboarding, storageQuotaInGiB int) (string, error) {
+func (c *ocsConsumerManager) OnboardClient(ctx context.Context, consumerName string, onboard ifaces.StorageClientOnboarding, storageQuotaInGiB int) (string, error) {
 	ticket := onboard.GetOnboardingTicket()
-	name := onboard.GetConsumerName()
 	c.mutex.RLock()
-	if _, ok := c.nameByTicket[ticket]; ok {
+	if name, ok := c.nameByTicket[ticket]; ok && name != consumerName {
 		c.mutex.RUnlock()
 		klog.Warning("onboarding ticket already in use")
 		return "", errTicketAlreadyExists
 	}
 	c.mutex.RUnlock()
 
-	consumerObj := &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.namespace,
-			Annotations: map[string]string{
-				TicketAnnotation: ticket,
-			},
-		},
-		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Enable:            false,
-			StorageQuotaInGiB: storageQuotaInGiB,
-		},
-		Status: ocsv1alpha1.StorageConsumerStatus{
-			Client: ocsv1alpha1.ClientStatus{
-				OperatorVersion: onboard.GetClientOperatorVersion(),
-			},
-		},
+	consumerObj := &ocsv1alpha1.StorageConsumer{}
+	consumerObj.Name = consumerName
+	consumerObj.Namespace = c.namespace
+	if err := c.client.Get(ctx, client.ObjectKeyFromObject(consumerObj), consumerObj); err != nil {
+		klog.Errorf("failed to get storageConsumer %q. %v", consumerObj.Name, err)
+		return "", err
 	}
-
-	err := c.client.Create(ctx, consumerObj)
-	if err != nil {
-		if kerrors.IsAlreadyExists(err) {
-			klog.Warningf("storageConsumer %q already exists", name)
+	consumerCopy := &ocsv1alpha1.StorageConsumer{}
+	consumerObj.DeepCopyInto(consumerCopy)
+	if util.AddAnnotation(consumerCopy, TicketAnnotation, ticket) {
+		// patch here avoids roundtrip from client as we aren't backed by any reconciler
+		if err := c.client.Patch(ctx, consumerObj, client.MergeFrom(consumerCopy)); err != nil {
+			klog.Errorf("failed to add ticket annotation to storageConsumer %q. %v", consumerObj.Name, err)
 			return "", err
 		}
-		return "", fmt.Errorf("failed to create storageConsumer resource %q. %v", consumerObj.Name, err)
 	}
 
 	c.mutex.Lock()
@@ -100,7 +87,7 @@ func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageC
 	c.nameByTicket[ticket] = consumerObj.Name
 	c.mutex.Unlock()
 
-	klog.Infof("successfully created storageConsumer resource %q", name)
+	klog.Infof("successfully onboarded on storageConsumer resource %q", consumerName)
 
 	return string(consumerObj.UID), nil
 }
