@@ -32,6 +32,7 @@ import (
 	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -49,6 +50,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -327,6 +329,10 @@ func newScheme() (*runtime.Scheme, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
 	}
+	err = nbapis.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
+	}
 
 	return scheme, nil
 }
@@ -537,6 +543,35 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			},
 		}),
 	})
+
+	nb := &nbv1.NooBaa{}
+	nb.Name = "noobaa"
+	nb.Namespace = s.namespace
+
+	if err = s.client.Get(ctx, client.ObjectKeyFromObject(nb), nb); err != nil {
+		return nil, fmt.Errorf("failed to get noobaa %v", err)
+	}
+	if nb.Status.Phase != nbv1.SystemPhaseReady {
+		// Noobaa system is not yet ready
+		return extR, nil
+	}
+	nbS3Endpoint := nb.Status.Services.ServiceS3.NodePorts[0]
+	extR = append(extR, &pb.ExternalResource{
+		Name: "s3-endpoint-proxy",
+		Kind: "Service",
+		Data: mustMarshal(&v1.ServiceSpec{
+			Type:         corev1.ServiceTypeExternalName,
+			ExternalName: nbS3Endpoint,
+			Ports: []v1.ServicePort{
+				{
+					Port:       443,
+					TargetPort: intstr.FromInt(443),
+				},
+			},
+		},
+		),
+	})
+	// TODO: configure S3 certificates
 	return extR, nil
 }
 

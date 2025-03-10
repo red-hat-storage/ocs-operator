@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	routev1 "github.com/openshift/api/route/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -67,8 +68,11 @@ func newFakeClient(t *testing.T, obj ...client.Object) client.Client {
 	err = opv1a1.AddToScheme(scheme)
 	assert.NoError(t, err, "failed to add opv1a1 scheme")
 
+	err = nbapis.AddToScheme(scheme)
+	assert.NoError(t, err, "failed to add opv1a1 scheme")
+
 	err = routev1.AddToScheme(scheme)
-	assert.NoError(t, err, "failed to add routev1 scheme")
+	assert.NoError(t, err, "failed to add nbapis scheme")
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(obj...).
