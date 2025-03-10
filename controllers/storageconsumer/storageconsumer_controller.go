@@ -23,11 +23,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,6 +47,8 @@ import (
 )
 
 const (
+	tokenLifetimeInHours          = 48
+	onboardingPrivateKeyFilePath  = "/etc/private-key/key"
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
 	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
@@ -135,9 +139,48 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
 
+	secret := &corev1.Secret{}
+	secret.Name = r.storageConsumer.Name
+	secret.Namespace = r.storageConsumer.Namespace
+	if err := r.get(secret); client.IgnoreNotFound(err) != nil {
+		return reconcile.Result{}, err
+	}
+
 	if !r.storageConsumer.Spec.Enable {
+		if secret.UID == "" {
+			if err := r.own(secret); err != nil {
+				return reconcile.Result{}, err
+			}
+			storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, r.namespace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil, storageCluster.UID)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			secret.Data = map[string][]byte{
+				"ticket": []byte(token),
+			}
+			util.AddAnnotation(
+				secret,
+				"token-expiry-utc",
+				time.Now().
+					Add(tokenLifetimeInHours*time.Hour).
+					UTC().String(),
+			)
+			if err := r.Create(r.ctx, secret); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDisabled
 		return reconcile.Result{}, nil
+	}
+
+	if secret.UID != "" {
+		if err := r.Delete(r.ctx, secret); client.IgnoreNotFound(err) != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
@@ -240,6 +283,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			predicate.GenerationChangedPredicate{},
 		)).
 		Owns(&nbv1.NooBaaAccount{}).
+		Owns(&corev1.Secret{}).
 		// Watch non-owned resources cephBlockPool
 		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
 		Watches(&rookCephv1.CephBlockPool{},
