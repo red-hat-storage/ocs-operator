@@ -31,6 +31,15 @@ resources:
   controller: true
   domain: openshift.io
   group: ocs
+  kind: StorageAutoScaler
+  path: github.com/red-hat-storage/ocs-operator/api/v4/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift.io
+  group: ocs
   kind: StorageConsumer
   path: github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
   version: v1alpha1
