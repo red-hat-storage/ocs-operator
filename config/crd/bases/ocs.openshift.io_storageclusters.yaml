@@ -5138,7 +5138,6 @@ spec:
                 description: |-
                   ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
                   The supported values are NodePort or LoadBalancer. The default ServiceType is NodePort if the value is empty.
-                  This will only be used when AllowRemoteStorageConsumers is set to true
                 type: string
               resourceProfile:
                 description: |-
