@@ -32,13 +32,17 @@ Implement auto storage scale CR per device class of a specific Storagecluster.
         phase: (NotStarted | InProgress | Succeeded | Failed)
         error:
             message: ""
-        lastExpansionStartTime: (always set after a new expansion is started)
-        lastExpansionCompletionTime: (only set on success)
-        startOsdSize: 2TiB
-        expectedOsdSize: 4TiB
-        startOsdCount: 3​
-        expectedOsdCount: 3
+            timestamp: <time>
         storageCapacityLimitReached: false
+        lastExpansion:
+            startTime: (always set after a new expansion is started)
+            completionTime: (only set on success)
+            startOsdSize: 2TiB
+            expectedOsdSize: 4TiB
+            startOsdCount: 3​
+            expectedOsdCount: 3
+            startStorageCapacity: 6TiB
+            expectedStorageCapacity: 12TiB
     ```
 
 - Watch prometheus periodically every 10 mins and depending on the Osd fill percentage, reconcile the StorageAutoScaling CR.
@@ -70,37 +74,39 @@ Controller:
 
 2) If the expansion is not in progress set the status `phase` to `NotStarted` 
    
-3) If an expansion is in progress(expectedOsdSize!=startOsdSize || expectedOsdCount!=startOsdCount), check the progress and then requeue each 1 minute until the expansion is completed successfully(jump to step 10).
+3) If an expansion is in progress(expectedOsdSize!=startOsdSize || expectedOsdCount!=startOsdCount), check the progress and then requeue each 1 minute until the expansion is completed successfully(jump to step 11).
    
-4) If the highest osd percentage reported in the sync map is more than osdScalingThresholdPercent(70%) means reaching osd nearfull, scaling is needed.
+4) If the LSO storageclass is detected in the storageClassDeviceSet, raise a warning and do not recocnile further.
    
-5) If scaling is needed calculate the `expectedOsdSize` and `expectedOsdCount`.
+5) If the highest osd percentage reported in the sync map is more than osdScalingThresholdPercent(70%) means reaching osd nearfull, scaling is needed.
+
+6) If scaling is needed calculate the `expectedOsdSize` and `expectedOsdCount`.
        
     1)  If the Osd size is less than maxOsdSize(default:8Tib), do vertical scaling by doubling the each osd sizes for that device class.
             
     2)  If the Osd size is equal to maxOsdSize(default:8Tib), do a horizontal scaling, by adding 1 osd of maxOsdSize(default:8Tib) on each `storageDeviceSet`.
    
-6) Calculate the `expectedStorageCapacity` based on expected size and count.
+7) Calculate the `expectedStorageCapacity` based on expected size and count.
    
-7) Check if the `storageCapacityLimit` > `expectedStorageCapacity`.
+8) Check if the `storageCapacityLimit` > `expectedStorageCapacity`.
         
     1) If yes, Update `phase` to `InProgress`  and `lastExpansionStartTime` as `current-time` on the `StorageAutoScaling` CR which need scaling.
         
     2) If no, don't reconcile further and the set the `storageCapacityLimitReached` as true in the status.
 
-8)  Update the status, set the `expectedOsdSize` and `expectedOsdCount` to reflect the new expected value and also set `startOsdSize` and `startOsdCount` with current storagecluster values.
+9)  Update the status, set the `expectedOsdSize` and `expectedOsdCount` to reflect the new expected value and also set `startOsdSize` and `startOsdCount` with current storagecluster values.
    
-9)  Scale by patching the Storagecluster, with all the device sets update needed at the same time.
+10) Scale by patching the Storagecluster, with all the device sets update needed at the same time.
 
-10) Verify and Alert:
+11) Verify and Alert:
    
-   1) Verify the Storagecluster whether the new osds are added or scaled in size, for all the device sets.
- 
-   2) If the scaling is successful will update the status of the `StorageAutoScaling` CR with `lastExpansionCompletionTime` and `phase` and also osd count and size.
-   
-   3) If the auto scale is not completed, it will do a requeue every 1 min and, change the phase to `failed` if scaling not `Succeeded` with in timeoutSeconds(default:1800) interval.
+    1) Verify the Storagecluster whether the new osds are added or scaled in size, for all the device sets.
     
-   4) Alert the user if the phase changes to `Succeeded` or `Failed`, alerting will be implemented with ocs-metrics-exporter. 
+    2) If the scaling is successful will update the status of the `StorageAutoScaling` CR with `lastExpansionCompletionTime` and `phase` and also osd count and size.
+    
+    3) If the auto scale is not completed, it will do a requeue every 1 min and, change the phase to `failed` if scaling not `Succeeded` with in timeoutSeconds(default:1800) interval.
+    
+    4) Alert the user if the phase changes to `Succeeded` or `Failed`, alerting will be implemented with ocs-metrics-exporter. 
 
 ### InProgress state:
 
