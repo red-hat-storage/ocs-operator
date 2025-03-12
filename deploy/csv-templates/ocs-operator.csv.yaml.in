@@ -325,6 +325,14 @@ spec:
           - watch
         - apiGroups:
           - monitoring.coreos.com
+          resourceNames:
+          - k8s
+          resources:
+          - prometheuses/api
+          verbs:
+          - get
+        - apiGroups:
+          - monitoring.coreos.com
           resources:
           - prometheusrules
           verbs:
