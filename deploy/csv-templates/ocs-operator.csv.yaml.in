@@ -121,11 +121,6 @@ spec:
       kind: StorageConsumer
       name: storageconsumers.ocs.openshift.io
       version: v1alpha1
-    - description: StorageRequest is the Schema for the StorageRequests API
-      displayName: Storage Request
-      kind: StorageRequest
-      name: storagerequests.ocs.openshift.io
-      version: v1alpha1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
 
@@ -213,10 +208,8 @@ spec:
           resources:
           - cephblockpoolradosnamespaces
           - cephblockpools
-          - cephclients
           - cephclusters
           - cephfilesystems
-          - cephfilesystemsubvolumegroups
           - cephnfses
           - cephobjectstores
           - cephobjectstoreusers
@@ -361,7 +354,6 @@ spec:
           - '*'
           - storageclusterpeers
           - storageconsumers
-          - storagerequests
           verbs:
           - create
           - delete
@@ -381,7 +373,6 @@ spec:
           resources:
           - storageclusterpeers/status
           - storageconsumers/status
-          - storagerequests/status
           verbs:
           - get
           - patch
@@ -479,7 +470,6 @@ spec:
           - create
           - delete
           - get
-          - list
           - update
           - watch
         - apiGroups:

@@ -57,10 +57,8 @@ rules:
   resources:
   - cephblockpoolradosnamespaces
   - cephblockpools
-  - cephclients
   - cephclusters
   - cephfilesystems
-  - cephfilesystemsubvolumegroups
   - cephnfses
   - cephobjectstores
   - cephobjectstoreusers
@@ -205,7 +203,6 @@ rules:
   - '*'
   - storageclusterpeers
   - storageconsumers
-  - storagerequests
   verbs:
   - create
   - delete
@@ -225,7 +222,6 @@ rules:
   resources:
   - storageclusterpeers/status
   - storageconsumers/status
-  - storagerequests/status
   verbs:
   - get
   - patch
@@ -323,7 +319,6 @@ rules:
   - create
   - delete
   - get
-  - list
   - update
   - watch
 - apiGroups:

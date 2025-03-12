@@ -65,7 +65,6 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagerequest"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	// +kubebuilder:scaffold:imports
 )
@@ -221,15 +220,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&storagerequest.StorageRequestReconciler{
-		Cache:             mgr.GetCache(),
-		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
-		OperatorNamespace: operatorNamespace,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StorageRequest")
-		os.Exit(1)
-	}
 	if err = (&storageclusterpeer.StorageClusterPeerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
