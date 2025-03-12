@@ -867,7 +867,11 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 			},
 			{
 				APIGroups: []string{"ocs.openshift.io"},
-				Resources: []string{"storageconsumers", "storageclusters"},
+				Resources: []string{
+					"storageconsumers",
+					"storageclusters",
+					"storageautoscalers",
+				},
 				Verbs:     []string{"get", "list", "watch"},
 			},
 		}
