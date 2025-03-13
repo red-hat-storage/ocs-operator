@@ -42,6 +42,11 @@ type ocsProviderServer struct{}
 
 func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
+	if !instance.Spec.AllowRemoteStorageConsumers {
+		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
+		return o.ensureDeleted(r, instance)
+	}
+
 	if res, err := o.createService(r, instance); err != nil || !res.IsZero() {
 		return res, err
 	}
