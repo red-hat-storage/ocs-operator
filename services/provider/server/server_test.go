@@ -674,7 +674,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "ceph-rbd",
 				Kind: "StorageClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "854666c7477123fb05f20bf615e69a46",
+					"ramendr.openshift.io/storageid": "81c6f9b775f8e42a6385731bef34660c",
 				},
 				Data: map[string]string{
 					"clusterID":                 serverNamespace,
@@ -692,7 +692,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "ceph-rbd",
 				Kind: "VolumeSnapshotClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "854666c7477123fb05f20bf615e69a46",
+					"ramendr.openshift.io/storageid": "81c6f9b775f8e42a6385731bef34660c",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
@@ -702,7 +702,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "block-pool-claim-groupsnapclass",
 				Kind: "VolumeGroupSnapshotClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "854666c7477123fb05f20bf615e69a46",
+					"ramendr.openshift.io/storageid": "81c6f9b775f8e42a6385731bef34660c",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-8d40b6be71600457b5dec219d2ce2d4c",
@@ -714,8 +714,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "rbd-volumereplicationclass-1625360775",
 				Kind: "VolumeReplicationClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/replicationid":    "a06c234d29cb35b6fe45fb3d7c8dd8a6",
-					"ramendr.openshift.io/storageid":        "854666c7477123fb05f20bf615e69a46",
+					"ramendr.openshift.io/replicationid":    "ba2d6f44937c9188f80ae27b4df63f97",
+					"ramendr.openshift.io/storageid":        "81c6f9b775f8e42a6385731bef34660c",
 					"ramendr.openshift.io/maintenancemodes": "Failover",
 				},
 				Annotations: map[string]string{
@@ -736,8 +736,8 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Kind: "VolumeReplicationClass",
 				Labels: map[string]string{
 					"replication.storage.openshift.io/flatten-mode": "force",
-					"ramendr.openshift.io/replicationid":            "a06c234d29cb35b6fe45fb3d7c8dd8a6",
-					"ramendr.openshift.io/storageid":                "854666c7477123fb05f20bf615e69a46",
+					"ramendr.openshift.io/replicationid":            "ba2d6f44937c9188f80ae27b4df63f97",
+					"ramendr.openshift.io/storageid":                "81c6f9b775f8e42a6385731bef34660c",
 					"ramendr.openshift.io/maintenancemodes":         "Failover",
 				},
 				Data: &replicationv1alpha1.VolumeReplicationClassSpec{
@@ -783,7 +783,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "cephfs",
 				Kind: "StorageClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "5b53ada3302d6e0d1025a7948ce45ba5",
+					"ramendr.openshift.io/storageid": "4e662de1967f8b5099a72f8994bad72d",
 				},
 				Data: map[string]string{
 					"clusterID":          "8d26c7378c1b0ec9c2455d1c3601c4cd",
@@ -799,7 +799,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "cephfs",
 				Kind: "VolumeSnapshotClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "5b53ada3302d6e0d1025a7948ce45ba5",
+					"ramendr.openshift.io/storageid": "4e662de1967f8b5099a72f8994bad72d",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
@@ -809,7 +809,7 @@ func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 				Name: "shared-filesystem-claim-groupsnapclass",
 				Kind: "VolumeGroupSnapshotClass",
 				Labels: map[string]string{
-					"ramendr.openshift.io/storageid": "5b53ada3302d6e0d1025a7948ce45ba5",
+					"ramendr.openshift.io/storageid": "4e662de1967f8b5099a72f8994bad72d",
 				},
 				Data: map[string]string{
 					"csi.storage.k8s.io/group-snapshotter-secret-name": "ceph-client-provisioner-0e8555e6556f70d23a61675af44e880c",
