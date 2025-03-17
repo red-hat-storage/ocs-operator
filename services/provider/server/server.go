@@ -812,13 +812,11 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 			// SID for RamenDR
 			storageID := calculateCephRbdStorageID(
 				cephCluster.Status.CephStatus.FSID,
-				strconv.Itoa(blockPool.Status.PoolID),
 				rns.Name,
 			)
 
-			peerPoolID := blockPool.GetAnnotations()[util.BlockPoolMirroringTargetIDAnnotation]
 			radosNamespace := cmp.Or(rns.Spec.Mirroring, &rookCephv1.RadosNamespaceMirroring{}).RemoteNamespace
-			if peerPoolID != "" && radosNamespace != nil {
+			if radosNamespace != nil {
 				peerCephfsid, err := getPeerCephFSID(
 					ctx,
 					s.client,
@@ -831,7 +829,6 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 
 				peerStorageID := calculateCephRbdStorageID(
 					peerCephfsid,
-					peerPoolID,
 					*radosNamespace,
 				)
 
@@ -962,7 +959,6 @@ func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.S
 			// SID for RamenDR
 			storageID := calculateCephFsStorageID(
 				cephCluster.Status.CephStatus.FSID,
-				subVolumeGroup.Spec.FilesystemName,
 				subVolumeGroup.Name,
 			)
 
@@ -1360,12 +1356,12 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
 }
 
-func calculateCephRbdStorageID(cephfsid, poolID, radosnamespacename string) string {
-	return util.CalculateMD5Hash([3]string{cephfsid, poolID, radosnamespacename})
+func calculateCephRbdStorageID(cephfsid, radosnamespacename string) string {
+	return util.CalculateMD5Hash([2]string{cephfsid, radosnamespacename})
 }
 
-func calculateCephFsStorageID(cephfsid, fileSystemName, subVolumeGroupName string) string {
-	return util.CalculateMD5Hash([3]string{cephfsid, fileSystemName, subVolumeGroupName})
+func calculateCephFsStorageID(cephfsid, subVolumeGroupName string) string {
+	return util.CalculateMD5Hash([2]string{cephfsid, subVolumeGroupName})
 }
 
 func getPeerCephFSID(ctx context.Context, cl client.Client, secretName, namespace string) (string, error) {
