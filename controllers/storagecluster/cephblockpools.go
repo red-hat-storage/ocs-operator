@@ -19,29 +19,6 @@ import (
 
 type ocsCephBlockPools struct{}
 
-// ensures that peer cluster secret exists and adds it to CephBlockPool
-func (o *ocsCephBlockPools) addPeerSecretsToCephBlockPool(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster, poolName, poolNamespace string) *cephv1.MirroringPeerSpec {
-	mirroringPeerSpec := &cephv1.MirroringPeerSpec{}
-	secretNames := []string{}
-
-	if len(storageCluster.Spec.Mirroring.PeerSecretNames) == 0 {
-		err := fmt.Errorf("mirroring is enabled but peerSecretNames is not provided")
-		r.Log.Error(err, "Unable to add cluster peer token to CephBlockPool.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
-		return mirroringPeerSpec
-	}
-	for _, secretName := range storageCluster.Spec.Mirroring.PeerSecretNames {
-		_, err := r.retrieveSecret(secretName, storageCluster)
-		if err != nil {
-			r.Log.Error(err, "Peer cluster token could not be retrieved using secretname.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
-			return mirroringPeerSpec
-		}
-		secretNames = append(secretNames, secretName)
-	}
-
-	mirroringPeerSpec.SecretNames = secretNames
-	return mirroringPeerSpec
-}
-
 func (o *ocsCephBlockPools) deleteCephBlockPool(r *StorageClusterReconciler, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
 	// if deletion timestamp is set, wait till block pool is deleted
 	if cephBlockPool.DeletionTimestamp != nil {
@@ -106,17 +83,6 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		// Ensures the bulk flag set during new pool creation is not removed during updates.
 		preserveBulkFlagParameter(existingPoolSpec.Parameters, &cephBlockPool.Spec.PoolSpec.Parameters)
 
-		// Since provider mode handles mirroring, we only need to handle for internal mode
-		if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
-			if storageCluster.Spec.Mirroring != nil && storageCluster.Spec.Mirroring.Enabled {
-				cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
-				cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
-				cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
-			} else {
-				// If mirroring is not enabled or is nil, disable it. This is to ensure that the pool mirroring does not remain enabled during further reconciliations
-				cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
-			}
-		}
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
 	if err != nil {
@@ -289,17 +255,6 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 			}
 			poolSpec.EnableRBDStats = true
 
-			// Since provider mode handles mirroring, we only need to handle for internal mode
-			if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
-				if storageCluster.Spec.Mirroring != nil && storageCluster.Spec.Mirroring.Enabled {
-					cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
-					cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
-					cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
-				} else {
-					// If mirroring is not enabled or is nil, disable it. This is to ensure that the pool mirroring does not remain enabled during further reconciliations
-					cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
-				}
-			}
 			return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 		})
 		if err != nil {

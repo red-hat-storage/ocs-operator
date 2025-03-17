@@ -46,66 +46,6 @@ func TestCephBlockPools(t *testing.T) {
 	}
 }
 
-func TestInjectingPeerTokenToCephBlockPool(t *testing.T) {
-	//cases for testing
-	var cases = []struct {
-		label                string
-		createRuntimeObjects bool
-		spec                 *api.StorageClusterSpec
-	}{
-		{
-			label:                "test-injecting-peer-token-to-cephblockpool",
-			createRuntimeObjects: false,
-			spec: &api.StorageClusterSpec{
-				Mirroring: &api.MirroringSpec{
-					Enabled:         true,
-					PeerSecretNames: []string{testPeerSecretName},
-				},
-			},
-		},
-		{
-			label:                "test-injecting-empty-peer-token-to-cephblockpool",
-			createRuntimeObjects: false,
-			spec: &api.StorageClusterSpec{
-				Mirroring: &api.MirroringSpec{
-					Enabled:         true,
-					PeerSecretNames: []string{},
-				},
-			},
-		},
-		{
-			label:                "test-injecting-invalid-peer-token-cephblockpool",
-			createRuntimeObjects: false,
-			spec: &api.StorageClusterSpec{
-				Mirroring: &api.MirroringSpec{
-					Enabled:         true,
-					PeerSecretNames: []string{"wrong-secret-name"},
-				},
-			},
-		},
-	}
-
-	obj := &ocsCephBlockPools{}
-
-	for _, c := range cases {
-		cr := getInitData(c.spec)
-		request := reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      "ocsinit",
-				Namespace: "",
-			},
-		}
-		reconciler := createReconcilerFromCustomResources(t, cr)
-		_, err := obj.ensureCreated(&reconciler, cr)
-		assert.NoError(t, err)
-		if c.label == "test-injecting-peer-token-to-cephblockpool" {
-			assertCephBlockPools(t, reconciler, cr, request, true, true)
-		} else {
-			assertCephBlockPools(t, reconciler, cr, request, true, false)
-		}
-	}
-}
-
 func getInitData(customSpec *api.StorageClusterSpec) *api.StorageCluster {
 	cr := createDefaultStorageCluster()
 	if customSpec != nil {
