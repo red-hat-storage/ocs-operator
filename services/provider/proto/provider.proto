@@ -239,6 +239,7 @@ message ClientInfo{
   // For each client we are going to have the same radosnamespace,
   // assumption based on existing supported feature set and plan for converged mode
   string radosNamespace = 2;
+  string rbdStorageID = 3;
 }
 
 enum ErrorCode{
