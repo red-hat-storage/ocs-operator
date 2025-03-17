@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/imdario/mergo"
 	configv1 "github.com/openshift/api/config/v1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -11,6 +12,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -47,6 +50,13 @@ func TestCephObjectStores(t *testing.T) {
 
 func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil)
+	expectedCos[0].Spec.MetadataPool.Parameters = map[string]string{
+		"bulk": "true",
+	}
+	expectedCos[0].Spec.DataPool.Parameters = map[string]string{
+		"bulk": "true",
+	}
+
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{
@@ -121,5 +131,251 @@ func TestGetCephObjectStoreGatewayInstances(t *testing.T) {
 		t.Logf("Case: %s\n", c.label)
 		actualCephObjectStoreGatewayInstances := getCephObjectStoreGatewayInstances(c.sc)
 		assert.Equal(t, c.expectedCephObjectStoreGatewayInstances, actualCephObjectStoreGatewayInstances)
+	}
+}
+
+func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
+	var cases = []struct {
+		description          string
+		existingStore        *cephv1.CephObjectStore
+		storageClusterSpec   *api.StorageClusterSpec
+		expectedMetadataBulk string
+		expectedDataBulk     string
+	}{
+		{
+			description:          "case 1: New object store creation - bulk flag should be set automatically for both pools",
+			expectedMetadataBulk: "true",
+			expectedDataBulk:     "true",
+		},
+		{
+			description: "case 2: New object store creation, CR specifies bulk flag false - should respect CR setting",
+			storageClusterSpec: &api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						MetadataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "false",
+							},
+						},
+						DataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "false",
+							},
+						},
+					},
+				},
+			},
+			expectedMetadataBulk: "false",
+			expectedDataBulk:     "false",
+		},
+		{
+			description: "case 3: Existing object store with bulk flags - should preserve flags",
+			existingStore: &cephv1.CephObjectStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "ocsinit-cephobjectstore",
+				},
+				Spec: cephv1.ObjectStoreSpec{
+					MetadataPool: cephv1.PoolSpec{
+						Parameters: map[string]string{
+							"bulk": "true",
+						},
+					},
+					DataPool: cephv1.PoolSpec{
+						Parameters: map[string]string{
+							"bulk": "true",
+						},
+					},
+				},
+			},
+			expectedMetadataBulk: "true",
+			expectedDataBulk:     "true",
+		},
+		{
+			description: "case 4: Existing object store without bulk flags - should not set flags",
+			existingStore: &cephv1.CephObjectStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "ocsinit-cephobjectstore",
+				},
+				Spec: cephv1.ObjectStoreSpec{
+					MetadataPool: cephv1.PoolSpec{},
+					DataPool:     cephv1.PoolSpec{},
+				},
+			},
+			expectedMetadataBulk: "",
+			expectedDataBulk:     "",
+		},
+		{
+			description: "case 5: Existing object store without bulk flags - CR specifies bulk flags - should respect CR setting",
+			existingStore: &cephv1.CephObjectStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "ocsinit-cephobjectstore",
+				},
+				Spec: cephv1.ObjectStoreSpec{
+					MetadataPool: cephv1.PoolSpec{},
+					DataPool:     cephv1.PoolSpec{},
+				},
+			},
+			storageClusterSpec: &api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						MetadataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "true",
+							},
+						},
+						DataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "true",
+							},
+						},
+					},
+				},
+			},
+			expectedMetadataBulk: "true",
+			expectedDataBulk:     "true",
+		},
+		{
+			description: "case 6: New object store creation - only metadata pool bulk flag should be set",
+			storageClusterSpec: &api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						MetadataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "true",
+							},
+						},
+						DataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "false",
+							},
+						},
+					},
+				},
+			},
+			expectedMetadataBulk: "true",
+			expectedDataBulk:     "false",
+		},
+		{
+			description: "case 7: New object store creation - only data pool bulk flag should be set",
+			storageClusterSpec: &api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						MetadataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "false",
+							},
+						},
+						DataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "true",
+							},
+						},
+					},
+				},
+			},
+			expectedMetadataBulk: "false",
+			expectedDataBulk:     "true",
+		},
+		{
+			description: "case 8: Existing object store - preserve metadata pool bulk flag, set data pool bulk flag",
+			existingStore: &cephv1.CephObjectStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "ocsinit-cephobjectstore",
+				},
+				Spec: cephv1.ObjectStoreSpec{
+					MetadataPool: cephv1.PoolSpec{
+						Parameters: map[string]string{
+							"bulk": "true",
+						},
+					},
+					DataPool: cephv1.PoolSpec{},
+				},
+			},
+			storageClusterSpec: &api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						DataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "true",
+							},
+						},
+					},
+				},
+			},
+			expectedMetadataBulk: "true",
+			expectedDataBulk:     "true",
+		},
+		{
+			description: "case 9: Existing object store - preserve data pool bulk flag, set metadata pool bulk flag",
+			existingStore: &cephv1.CephObjectStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "ocsinit-cephobjectstore",
+				},
+				Spec: cephv1.ObjectStoreSpec{
+					MetadataPool: cephv1.PoolSpec{},
+					DataPool: cephv1.PoolSpec{
+						Parameters: map[string]string{
+							"bulk": "true",
+						},
+					},
+				},
+			},
+			storageClusterSpec: &api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						MetadataPoolSpec: cephv1.PoolSpec{
+							Parameters: map[string]string{
+								"bulk": "true",
+							},
+						},
+					},
+				},
+			},
+			expectedMetadataBulk: "true",
+			expectedDataBulk:     "true",
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Running %s", c.description)
+		var objects []runtime.Object
+		reconciler := createFakeStorageClusterReconciler(t, objects...)
+		cr := createDefaultStorageCluster()
+		if c.storageClusterSpec != nil {
+			_ = mergo.Merge(&cr.Spec, c.storageClusterSpec)
+		}
+		err := reconciler.Client.Create(context.TODO(), cr)
+		assert.NoError(t, err)
+
+		if c.existingStore != nil {
+			err := reconciler.Client.Create(context.TODO(), c.existingStore)
+			assert.NoError(t, err)
+		}
+
+		obj := &ocsCephObjectStores{}
+		_, err = obj.ensureCreated(&reconciler, cr)
+		assert.NoError(t, err)
+
+		actualStore := &cephv1.CephObjectStore{}
+		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: "ocsinit-cephobjectstore"}, actualStore)
+		assert.NoError(t, err)
+
+		// Check metadata pool bulk flag
+		metadataBulkValue, metadataExists := actualStore.Spec.MetadataPool.Parameters["bulk"]
+		if c.expectedMetadataBulk == "" {
+			assert.False(t, metadataExists, "metadata pool bulk parameter should not exist")
+		} else {
+			assert.True(t, metadataExists, "metadata pool bulk parameter should exist")
+			assert.Equal(t, c.expectedMetadataBulk, metadataBulkValue, "metadata pool bulk parameter value mismatch")
+		}
+
+		// Check data pool bulk flag
+		dataBulkValue, dataExists := actualStore.Spec.DataPool.Parameters["bulk"]
+		if c.expectedDataBulk == "" {
+			assert.False(t, dataExists, "data pool bulk parameter should not exist")
+		} else {
+			assert.True(t, dataExists, "data pool bulk parameter should exist")
+			assert.Equal(t, c.expectedDataBulk, dataBulkValue, "data pool bulk parameter value mismatch")
+		}
 	}
 }
