@@ -25,6 +25,7 @@ const (
 	rookOverrideConfigMapName = "rook-config-override"
 	globalSectionKey          = "global"
 	publicNetworkKey          = "public_network"
+	targetPgPerOSDKey         = "mon_target_pg_per_osd"
 )
 
 var (
@@ -66,6 +67,30 @@ func (obj *ocsCephConfig) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 		Data: rookConfigOverrideData,
 	}
 	_, err := ctrl.CreateOrUpdate(context.Background(), r.Client, rookConfigOverrideCM, func() error {
+		// mon_target_pg_per_osd=200 added only during new CM creation, as setting it on existing clusters can cause data movement.
+		if rookConfigOverrideCM.ObjectMeta.CreationTimestamp.IsZero() {
+			updatedConfig, err := updateRookConfig(rookConfigOverrideData["config"], globalSectionKey, targetPgPerOSDKey, "200")
+			if err != nil {
+				return err
+			}
+			rookConfigOverrideData["config"] = updatedConfig
+		} else {
+			// Ensure  if mon_target_pg_per_osd=200 added during new CM creation is not removed during updates.
+			if configData, exists := rookConfigOverrideCM.Data["config"]; exists && configData != "" {
+				cfg, err := ini.Load([]byte(configData))
+				if err != nil {
+					return fmt.Errorf("failed to parse existing config: %w", err)
+				}
+				if val := cfg.Section(globalSectionKey).Key(targetPgPerOSDKey).String(); val != "" {
+					updatedConfig, err := updateRookConfig(rookConfigOverrideData["config"], globalSectionKey, targetPgPerOSDKey, val)
+					if err != nil {
+						return fmt.Errorf("failed to update Rook config during update: %w", err)
+					}
+					rookConfigOverrideData["config"] = updatedConfig
+				}
+			}
+		}
+
 		if !reflect.DeepEqual(rookConfigOverrideCM.Data, rookConfigOverrideData) {
 			r.Log.Info("updating rook config override configmap", "ConfigMap", klog.KRef(sc.Namespace, rookOverrideConfigMapName))
 			rookConfigOverrideCM.Data = rookConfigOverrideData
