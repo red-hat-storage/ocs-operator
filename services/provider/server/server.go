@@ -24,6 +24,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
@@ -44,6 +45,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -408,6 +410,123 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			),
 		},
 	)
+
+	cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// SID for RamenDR
+	rbdStorageID := calculateCephRbdStorageID(
+		cephCluster.Status.CephStatus.FSID,
+		radosNamespace,
+	)
+	rbdProvisionerSecretName := consumerConfigMap.Data["rbd-provisioner-secret"]
+	rbdNodeSecretName := consumerConfigMap.Data["rbd-node-secret"]
+
+	// SID for RamenDR
+	cephFsStorageID := calculateCephFsStorageID(
+		cephCluster.Status.CephStatus.FSID,
+		svgName,
+	)
+	cephFsProvisionerSecretName := consumerConfigMap.Data["cephFs-provisioner-secret"]
+	cephFsNodeSecretName := consumerConfigMap.Data["cephFs-node-secret"]
+
+	for i := 0; i < len(consumerResource.Spec.StorageClasses); i++ {
+		storageClassName := consumerResource.Spec.StorageClasses[i].Name
+
+		provisioner := ""
+		annotations := map[string]string{}
+		labels := map[string]string{}
+		parameters := map[string]string{}
+
+		//TODO: keyRotation and defaultStorageClass annotation
+		if storageClassName == storagecluster.GenerateNameForCephBlockPoolSC(storageCluster) {
+			provisioner = util.RbdDriverName
+			annotations = map[string]string{
+				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
+			}
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID":                 rbdClientProfileName,
+				"pool":                      storagecluster.GenerateNameForCephBlockPool(storageCluster),
+				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+				"csi.storage.k8s.io/fstype": "ext4",
+				"imageFormat":               "2",
+				"csi.storage.k8s.io/provisioner-secret-name":       rbdProvisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        rbdNodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": rbdProvisionerSecretName,
+			}
+		} else if storageClassName == storagecluster.GenerateNameForCephBlockPoolVirtualizationSC(storageCluster) {
+			provisioner = util.RbdDriverName
+			annotations = map[string]string{
+				"description": "Provides RWO and RWX Block volumes suitable for Virtual Machine disks",
+				"reclaimspace.csiaddons.openshift.io/schedule":   "@weekly",
+				"storageclass.kubevirt.io/is-default-virt-class": "true",
+			}
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID":                 rbdClientProfileName,
+				"pool":                      storagecluster.GenerateNameForCephBlockPool(storageCluster),
+				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+				"csi.storage.k8s.io/fstype": "ext4",
+				"imageFormat":               "2",
+				"mounter":                   "rbd",
+				"mapOptions":                "krbd:rxbounce",
+				"csi.storage.k8s.io/provisioner-secret-name":       rbdProvisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        rbdNodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": rbdProvisionerSecretName,
+			}
+		} else if storageClassName == storagecluster.GenerateNameForCephFilesystemSC(storageCluster) {
+			provisioner = util.CephFSDriverName
+			annotations = map[string]string{
+				"description": "Provides RWO and RWX Filesystem volumes",
+			}
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: cephFsStorageID,
+			}
+			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
+			subVolumeGroup.Name = svgName
+			subVolumeGroup.Namespace = consumerResource.Namespace
+			err := s.client.Get(ctx, client.ObjectKeyFromObject(subVolumeGroup), subVolumeGroup)
+			if err != nil {
+				return nil, err
+			}
+			parameters = map[string]string{
+				"clusterID":          cephfsClientProfileName,
+				"subvolumegroupname": svgName,
+				"fsName":             subVolumeGroup.Spec.FilesystemName,
+				"pool":               subVolumeGroup.GetLabels()[ocsv1alpha1.CephFileSystemDataPoolLabel],
+				"csi.storage.k8s.io/provisioner-secret-name":       cephFsProvisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        cephFsNodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": cephFsProvisionerSecretName,
+			}
+		}
+		//TODO: Day-2 storageClasses
+
+		extR = append(extR,
+			&pb.ExternalResource{
+				Name: storageClassName,
+				Kind: "StorageClass",
+				Data: mustMarshal(&storagev1.StorageClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        storageClassName,
+						Annotations: annotations,
+						Labels:      labels,
+					},
+					ReclaimPolicy:        ptr.To(corev1.PersistentVolumeReclaimDelete),
+					AllowVolumeExpansion: ptr.To(true),
+					Provisioner:          provisioner,
+					Parameters:           parameters,
+				}),
+			},
+		)
+	}
 
 	if consumerResource.Spec.StorageQuotaInGiB > 0 {
 		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{

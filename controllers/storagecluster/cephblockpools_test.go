@@ -86,7 +86,7 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	expectedCbp := cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephBlockPool(cr),
+			Name:      GenerateNameForCephBlockPool(cr),
 			Namespace: cr.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{

@@ -255,7 +255,7 @@ func newCephFilesystemStorageClassConfiguration(initData *ocsv1.StorageCluster) 
 	return StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: generateNameForCephFilesystemSC(initData),
+				Name: GenerateNameForCephFilesystemSC(initData),
 				Annotations: map[string]string{
 					"description": "Provides RWO and RWX Filesystem volumes",
 				},
@@ -289,7 +289,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	scc := StorageClassConfiguration{
 		storageClass: &storagev1.StorageClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: generateNameForCephBlockPoolSC(initData),
+				Name: GenerateNameForCephBlockPoolSC(initData),
 				Annotations: map[string]string{
 					"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 					"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
@@ -301,7 +301,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 			AllowVolumeExpansion: &allowVolumeExpansion,
 			Parameters: map[string]string{
 				"clusterID":                 initData.Namespace,
-				"pool":                      generateNameForCephBlockPool(initData),
+				"pool":                      GenerateNameForCephBlockPool(initData),
 				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 				"csi.storage.k8s.io/fstype": "ext4",
 				"imageFormat":               "2",
@@ -330,7 +330,7 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	virtualizationStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
 	meta := &virtualizationStorageClassConfig.storageClass.ObjectMeta
-	meta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
+	meta.Name = GenerateNameForCephBlockPoolVirtualizationSC(initData)
 	meta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
 	meta.Annotations["storageclass.kubevirt.io/is-default-virt-class"] = "true"
 	// remove the default storageClass annotation as it's not meant for the virtualization storageClass

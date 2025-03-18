@@ -44,7 +44,7 @@ func generateNameForCephObjectStoreUser(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephobjectstoreuser", initData.Name)
 }
 
-func generateNameForCephBlockPool(initData *ocsv1.StorageCluster) string {
+func GenerateNameForCephBlockPool(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephblockpool", initData.Name)
 }
 
@@ -63,14 +63,14 @@ func generateNameForCephRgwSC(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-ceph-rgw", initData.Name)
 }
 
-func generateNameForCephFilesystemSC(initData *ocsv1.StorageCluster) string {
+func GenerateNameForCephFilesystemSC(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.ManagedResources.CephFilesystems.StorageClassName != "" {
 		return initData.Spec.ManagedResources.CephFilesystems.StorageClassName
 	}
 	return fmt.Sprintf("%s-cephfs", initData.Name)
 }
 
-func generateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+func GenerateNameForCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.ManagedResources.CephBlockPools.StorageClassName != "" {
 		return initData.Spec.ManagedResources.CephBlockPools.StorageClassName
 	}
@@ -107,7 +107,7 @@ func (r *StorageClusterReconciler) generateNameForExternalModeCephBlockPoolSC(nb
 	return storageClassName, nil
 }
 
-func generateNameForCephBlockPoolVirtualizationSC(initData *ocsv1.StorageCluster) string {
+func GenerateNameForCephBlockPoolVirtualizationSC(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.ManagedResources.CephBlockPools.VirtualizationStorageClassName != "" {
 		return initData.Spec.ManagedResources.CephBlockPools.VirtualizationStorageClassName
 	}
@@ -147,7 +147,7 @@ func generateNameForSnapshotClassDriver(snapshotType SnapshotterType) string {
 
 func setParameterBasedOnSnapshotterType(instance *ocsv1.StorageCluster, groupSnapshotType groupSnapshotterType) (string, string) {
 	if groupSnapshotType == rbdGroupSnapshotter {
-		return "pool", generateNameForCephBlockPool(instance)
+		return "pool", GenerateNameForCephBlockPool(instance)
 	}
 	return "fsName", generateNameForCephFilesystem(instance)
 }

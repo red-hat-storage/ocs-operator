@@ -519,7 +519,7 @@ func assertTestDeleteCephBlockPools(
 
 	var obj ocsCephBlockPools
 
-	cephBlockPools := []string{generateNameForCephBlockPool(sc)}
+	cephBlockPools := []string{GenerateNameForCephBlockPool(sc)}
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
