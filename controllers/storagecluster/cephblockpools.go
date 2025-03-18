@@ -92,7 +92,9 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		// Pass the poolSpec from the storageCluster CR
 
 		existingPoolSpec := cephBlockPool.Spec.PoolSpec
-		cephBlockPool.Spec.PoolSpec = storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
+		if storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec != nil {
+			cephBlockPool.Spec.PoolSpec = *storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
+		}
 
 		// Set default values in the poolSpec as necessary
 		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
