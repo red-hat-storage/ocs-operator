@@ -895,7 +895,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 				placement = ds.Placement
 			}
 
-			// Add default TSCs if not set to ensure even distribution of OSDs across nodes
+			// Add default TSCs if not set to ensure even distribution of OSDs across nodes
 			if len(placement.TopologySpreadConstraints) == 0 {
 				placement.TopologySpreadConstraints = append(placement.TopologySpreadConstraints, defaults.DaemonPlacements["osd"].TopologySpreadConstraints...)
 			}
@@ -986,9 +986,14 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 		for _, failureDomainValue := range sc.Status.FailureDomainValues {
 			ds := rookCephv1.StorageClassDeviceSet{}
 			ds.Name = failureDomainValue
-			ds.Count = sc.Spec.ManagedResources.CephNonResilientPools.Count
-			ds.Resources = sc.Spec.ManagedResources.CephNonResilientPools.Resources
-			if ds.Resources.Requests == nil && ds.Resources.Limits == nil {
+			if sc.Spec.ManagedResources.CephNonResilientPools.Count == 0 {
+				ds.Count = 1
+			} else {
+				ds.Count = sc.Spec.ManagedResources.CephNonResilientPools.Count
+			}
+			if sc.Spec.ManagedResources.CephNonResilientPools.Resources != nil {
+				ds.Resources = *sc.Spec.ManagedResources.CephNonResilientPools.Resources
+			} else {
 				ds.Resources = defaults.GetProfileDaemonResources("osd", sc)
 			}
 			// passing on existing defaults from existing devcicesets
@@ -997,7 +1002,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			annotations := map[string]string{
 				"crushDeviceClass": failureDomainValue,
 			}
-			if !reflect.DeepEqual(sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate, corev1.PersistentVolumeClaim{}) {
+			if sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate != nil {
 				ds.VolumeClaimTemplates = []rookCephv1.VolumeClaimTemplate{{
 					ObjectMeta: sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate.ObjectMeta,
 					Spec:       sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate.Spec,
