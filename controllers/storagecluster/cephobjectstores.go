@@ -178,8 +178,18 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			},
 			Spec: cephv1.ObjectStoreSpec{
 				PreservePoolsOnDelete: false,
-				DataPool:              initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec,     // Pass the poolSpec from the storageCluster CR
-				MetadataPool:          initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec, // Pass the poolSpec from the storageCluster CR
+				DataPool: func() cephv1.PoolSpec {
+					if initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec != nil {
+						return *initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec
+					}
+					return cephv1.PoolSpec{}
+				}(),
+				MetadataPool: func() cephv1.PoolSpec {
+					if initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec != nil {
+						return *initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec
+					}
+					return cephv1.PoolSpec{}
+				}(),
 				Gateway: cephv1.GatewaySpec{
 					Port:       80,
 					SecurePort: 443,

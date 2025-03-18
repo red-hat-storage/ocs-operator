@@ -154,7 +154,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				Spec: api.StorageClusterSpec{
 					ManagedResources: api.ManagedResourcesSpec{
 						CephFilesystems: api.ManageCephFilesystems{
-							DataPoolSpec: cephv1.PoolSpec{
+							DataPoolSpec: &cephv1.PoolSpec{
 								DeviceClass: "gold",
 								Replicated: cephv1.ReplicatedSpec{
 									Size:            2,
@@ -274,7 +274,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				Spec: api.StorageClusterSpec{
 					ManagedResources: api.ManagedResourcesSpec{
 						CephFilesystems: api.ManageCephFilesystems{
-							DataPoolSpec: cephv1.PoolSpec{
+							DataPoolSpec: &cephv1.PoolSpec{
 								DeviceClass: "gold",
 								Replicated: cephv1.ReplicatedSpec{
 									TargetSizeRatio: 0.1,
@@ -379,12 +379,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -463,12 +463,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -484,12 +484,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -505,12 +505,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -545,7 +545,7 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -580,7 +580,7 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},

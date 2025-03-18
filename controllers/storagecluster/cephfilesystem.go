@@ -30,7 +30,12 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		},
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.NamedPoolSpec{
-				PoolSpec: initStorageCluster.Spec.ManagedResources.CephFilesystems.MetadataPoolSpec, // Pass the poolSpec from the storageCluster CR
+				PoolSpec: func() cephv1.PoolSpec {
+					if initStorageCluster.Spec.ManagedResources.CephFilesystems.MetadataPoolSpec != nil {
+						return *initStorageCluster.Spec.ManagedResources.CephFilesystems.MetadataPoolSpec
+					}
+					return cephv1.PoolSpec{}
+				}(),
 			},
 			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount:   int32(getActiveMetadataServers(initStorageCluster)),
@@ -50,7 +55,12 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 	// Use the specified poolSpec, if it is unset then the default poolSpec will be used
 	ret.Spec.DataPools = []cephv1.NamedPoolSpec{
 		{
-			PoolSpec: initStorageCluster.Spec.ManagedResources.CephFilesystems.DataPoolSpec,
+			PoolSpec: func() cephv1.PoolSpec {
+				if initStorageCluster.Spec.ManagedResources.CephFilesystems.DataPoolSpec != nil {
+					return *initStorageCluster.Spec.ManagedResources.CephFilesystems.DataPoolSpec
+				}
+				return cephv1.PoolSpec{}
+			}(),
 		},
 	}
 

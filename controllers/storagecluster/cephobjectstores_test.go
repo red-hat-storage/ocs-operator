@@ -152,12 +152,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -218,12 +218,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -239,12 +239,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -260,12 +260,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -294,7 +294,7 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -323,7 +323,7 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},

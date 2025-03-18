@@ -177,7 +177,7 @@ func TestBulkFlagBehaviorCephBlockPool(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephBlockPools: api.ManageCephBlockPools{
-						PoolSpec: cephv1.PoolSpec{
+						PoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -231,7 +231,7 @@ func TestBulkFlagBehaviorCephBlockPool(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephBlockPools: api.ManageCephBlockPools{
-						PoolSpec: cephv1.PoolSpec{
+						PoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
