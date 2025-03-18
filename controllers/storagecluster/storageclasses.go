@@ -399,7 +399,7 @@ func newCephNFSStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 			Parameters: map[string]string{
 				"clusterID":        initData.Namespace,
 				"nfsCluster":       generateNameForCephNFS(initData),
-				"fsName":           generateNameForCephFilesystem(initData),
+				"fsName":           GenerateNameForCephFilesystem(initData),
 				"server":           generateNameForNFSService(initData),
 				"volumeNamePrefix": "nfs-export-",
 				"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",

@@ -19,8 +19,8 @@ type groupSnapshotterType string
 type ocsGroupSnapshotClass struct{}
 
 const (
-	rbdGroupSnapshotter    groupSnapshotterType = "rbd"
-	cephfsGroupSnapshotter groupSnapshotterType = "cephfs"
+	RbdGroupSnapshotter    groupSnapshotterType = "rbd"
+	CephfsGroupSnapshotter groupSnapshotterType = "cephfs"
 )
 
 const (
@@ -38,7 +38,7 @@ func newVolumeGroupSnapshotClass(instance *ocsv1.StorageCluster, groupSnaphotTyp
 	paramKey, paramValue := setParameterBasedOnSnapshotterType(instance, groupSnaphotType)
 	groupSnapClass := &groupsnapapi.VolumeGroupSnapshotClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: generateNameForGroupSnapshotClass(instance, groupSnaphotType),
+			Name: GenerateNameForGroupSnapshotClass(instance, groupSnaphotType),
 		},
 		Driver: generateNameForSnapshotClassDriver(SnapshotterType(groupSnaphotType)),
 		Parameters: map[string]string{
@@ -54,7 +54,7 @@ func newVolumeGroupSnapshotClass(instance *ocsv1.StorageCluster, groupSnaphotTyp
 
 func newCephFilesystemGroupSnapshotClassConfiguration(instance *ocsv1.StorageCluster) GroupSnapshotClassConfiguration {
 	return GroupSnapshotClassConfiguration{
-		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, cephfsGroupSnapshotter),
+		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, CephfsGroupSnapshotter),
 		reconcileStrategy:  ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
 		disable:            instance.Spec.AllowRemoteStorageConsumers,
 	}
@@ -62,7 +62,7 @@ func newCephFilesystemGroupSnapshotClassConfiguration(instance *ocsv1.StorageClu
 
 func newCephBlockPoolGroupSnapshotClassConfiguration(instance *ocsv1.StorageCluster) GroupSnapshotClassConfiguration {
 	return GroupSnapshotClassConfiguration{
-		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, rbdGroupSnapshotter),
+		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, RbdGroupSnapshotter),
 		reconcileStrategy:  ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
 		disable:            instance.Spec.AllowRemoteStorageConsumers,
 	}

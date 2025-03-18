@@ -33,6 +33,8 @@ import (
 	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -523,6 +525,98 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 					AllowVolumeExpansion: ptr.To(true),
 					Provisioner:          provisioner,
 					Parameters:           parameters,
+				}),
+			},
+		)
+	}
+
+	for i := 0; i < len(consumerResource.Spec.VolumeSnapshotClasses); i++ {
+		snapshotClassName := consumerResource.Spec.VolumeSnapshotClasses[i].Name
+
+		provisioner := ""
+		labels := map[string]string{}
+		parameters := map[string]string{}
+
+		if snapshotClassName == storagecluster.GenerateNameForSnapshotClass(storageCluster, storagecluster.RbdSnapshotter) {
+			provisioner = util.RbdDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": rbdClientProfileName,
+				"csi.storage.k8s.io/snapshotter-secret-name": rbdProvisionerSecretName,
+			}
+		} else if snapshotClassName == storagecluster.GenerateNameForSnapshotClass(storageCluster, storagecluster.CephfsSnapshotter) {
+			provisioner = util.CephFSDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: cephFsStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": cephfsClientProfileName,
+				"csi.storage.k8s.io/snapshotter-secret-name": cephFsProvisionerSecretName,
+			}
+		}
+		//TODO: Day-2 snapshotclass and nfsSnapshot
+
+		extR = append(extR,
+			&pb.ExternalResource{
+				Name:   snapshotClassName,
+				Kind:   "VolumeSnapshotClass",
+				Labels: labels,
+				Data: mustMarshal(&snapapi.VolumeSnapshotClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: snapshotClassName,
+					},
+					Driver:         provisioner,
+					Parameters:     parameters,
+					DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+				}),
+			},
+		)
+	}
+
+	for i := 0; i < len(consumerResource.Spec.VolumeGroupSnapshotClasses); i++ {
+		groupSnapshotClassName := consumerResource.Spec.VolumeGroupSnapshotClasses[i].Name
+
+		provisioner := ""
+		labels := map[string]string{}
+		parameters := map[string]string{}
+
+		if groupSnapshotClassName == storagecluster.GenerateNameForGroupSnapshotClass(storageCluster, storagecluster.RbdGroupSnapshotter) {
+			provisioner = util.RbdDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": rbdClientProfileName,
+				"csi.storage.k8s.io/group-snapshotter-secret-name": rbdProvisionerSecretName,
+				"pool": storagecluster.GenerateNameForCephBlockPool(storageCluster),
+			}
+		} else if groupSnapshotClassName == storagecluster.GenerateNameForGroupSnapshotClass(storageCluster, storagecluster.CephfsGroupSnapshotter) {
+			provisioner = util.CephFSDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: cephFsStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": cephfsClientProfileName,
+				"csi.storage.k8s.io/group-snapshotter-secret-name": cephFsProvisionerSecretName,
+				"fsName": storagecluster.GenerateNameForCephFilesystem(storageCluster),
+			}
+		}
+		//TODO: Day-2 groupSnapshotclass and nfsSnapshot
+
+		extR = append(extR,
+			&pb.ExternalResource{
+				Name:   groupSnapshotClassName,
+				Kind:   "VolumeGroupSnapshotClass",
+				Labels: labels,
+				Data: mustMarshal(&groupsnapapi.VolumeGroupSnapshotClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: groupSnapshotClassName,
+					},
+					Driver:         provisioner,
+					Parameters:     parameters,
+					DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 				}),
 			},
 		)
