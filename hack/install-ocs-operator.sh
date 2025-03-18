@@ -29,6 +29,7 @@ data:
   CSI_TOPOLOGY_DOMAIN_LABELS: "test"
   ROOK_CSI_ENABLE_NFS: "false"
   ROOK_CSI_DISABLE_DRIVER: "false"
+  ROOK_CSI_ENABLE_CEPHFS: "true"
 EOF
 
 "$OPERATOR_SDK" run bundle "$ROOK_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
