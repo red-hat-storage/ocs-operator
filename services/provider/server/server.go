@@ -357,6 +357,58 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		Data: mustMarshal(&csiopv1a1.CephConnectionSpec{Monitors: monIps}),
 	})
 
+	consumerConfigMap := &v1.ConfigMap{}
+	consumerConfigMap.Name = consumerResource.Status.ResourceNameMappingConfigMap.Name
+	consumerConfigMap.Namespace = consumerResource.Namespace
+	err = s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
+	}
+
+	// ClientProfile
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
+	}
+	var kernelMountOptions map[string]string
+	for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
+		if kernelMountOptions == nil {
+			kernelMountOptions = map[string]string{}
+		}
+		parts := strings.Split(option, "=")
+		kernelMountOptions[parts[0]] = parts[1]
+	}
+	rbdClientProfileName := consumerConfigMap.Data["rbd-client-profile"]
+	cephfsClientProfileName := consumerConfigMap.Data["cephfs-client-profile"]
+	radosNamespace := consumerConfigMap.Data["rados-namespace-name"]
+	svgName := consumerConfigMap.Data["svg-name"]
+	extR = append(extR,
+		&pb.ExternalResource{
+			Kind: "ClientProfile",
+			Name: rbdClientProfileName,
+			Data: mustMarshal(
+				&csiopv1a1.ClientProfileSpec{
+					Rbd: &csiopv1a1.RbdConfigSpec{
+						RadosNamespace: radosNamespace,
+					},
+				},
+			),
+		},
+		&pb.ExternalResource{
+			Kind: "ClientProfile",
+			Name: cephfsClientProfileName,
+			Data: mustMarshal(
+				&csiopv1a1.ClientProfileSpec{
+					CephFs: &csiopv1a1.CephFsConfigSpec{
+						SubVolumeGroup:     svgName,
+						KernelMountOptions: kernelMountOptions,
+						RadosNamespace:     ptr.To(svgName),
+					},
+				},
+			),
+		},
+	)
+
 	if consumerResource.Spec.StorageQuotaInGiB > 0 {
 		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
 			Selector: quotav1.ClusterResourceQuotaSelector{
