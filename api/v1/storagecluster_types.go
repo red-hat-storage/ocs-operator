@@ -240,7 +240,7 @@ type ManageCephBlockPools struct {
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	VirtualizationStorageClassName string `json:"virtualizationStorageClassName,omitempty"`
 	// PoolSpec specifies the pool specification for the default cephBlockPool
-	PoolSpec rookCephv1.PoolSpec `json:"poolSpec,omitempty"`
+	PoolSpec *rookCephv1.PoolSpec `json:"poolSpec,omitempty"`
 }
 
 // ManageCephNonResilientPools defines how to reconcile ceph non-resilient pools
@@ -276,9 +276,9 @@ type ManageCephFilesystems struct {
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName string `json:"storageClassName,omitempty"`
 	// MetadataPoolSpec specifies the pool specification for the default cephFS metadata pool
-	MetadataPoolSpec rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
+	MetadataPoolSpec *rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
 	// DataPoolSpec specifies the pool specification for the default cephfs data pool
-	DataPoolSpec rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
+	DataPoolSpec *rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
 	// AdditionalDataPools specifies list of additional named cephfs data pools
 	AdditionalDataPools []rookCephv1.NamedPoolSpec `json:"additionalDataPools,omitempty"`
 }
@@ -295,9 +295,9 @@ type ManageCephObjectStores struct {
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	StorageClassName string `json:"storageClassName,omitempty"`
 	// MetadataPoolSpec specifies the pool specification for the default cephObjectStore metadata pool
-	MetadataPoolSpec rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
+	MetadataPoolSpec *rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
 	// DataPoolSpec specifies the pool specification for the default cephObjectStore data pool
-	DataPoolSpec rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
+	DataPoolSpec *rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
