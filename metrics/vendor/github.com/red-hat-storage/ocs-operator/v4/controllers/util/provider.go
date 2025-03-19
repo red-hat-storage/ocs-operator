@@ -19,6 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const (
+	ProviderCertsMountPoint = "/mnt/cert"
+)
+
 // GenerateClientOnboardingToken generates a ocs-client token valid for a duration of "tokenLifetimeInHours".
 // The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
 // The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.

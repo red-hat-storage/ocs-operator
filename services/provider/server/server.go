@@ -60,7 +60,6 @@ import (
 
 const (
 	TicketAnnotation          = "ocs.openshift.io/provider-onboarding-ticket"
-	ProviderCertsMountPoint   = "/mnt/cert"
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
 	notAvailable              = "N/A"
@@ -286,8 +285,8 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 		klog.Fatalf("failed to listen: %v", err)
 	}
 
-	certFile := ProviderCertsMountPoint + "/tls.crt"
-	keyFile := ProviderCertsMountPoint + "/tls.key"
+	certFile := util.ProviderCertsMountPoint + "/tls.crt"
+	keyFile := util.ProviderCertsMountPoint + "/tls.key"
 	creds, sslErr := credentials.NewServerTLSFromFile(certFile, keyFile)
 	if sslErr != nil {
 		klog.Fatalf("Failed loading certificates: %v", sslErr)
