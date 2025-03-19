@@ -440,6 +440,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsStorageQuota{},
 				&ocsCephConfig{},
 				&ocsCephCluster{},
+				&storageConsumer{},
 				&ocsCephBlockPools{},
 				&ocsCephFilesystems{},
 				&ocsCephNFS{},
