@@ -30,10 +30,8 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 		},
 		Spec: cephv1.FilesystemSpec{
 			MetadataPool: cephv1.NamedPoolSpec{
-				PoolSpec: cephv1.PoolSpec{
-					Replicated:    generateCephReplicatedSpec(initStorageCluster, poolTypeMetadata),
-					FailureDomain: initStorageCluster.Status.FailureDomain,
-				}},
+				PoolSpec: initStorageCluster.Spec.ManagedResources.CephFilesystems.MetadataPoolSpec, // Pass the poolSpec from the storageCluster CR
+			},
 			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount:   int32(getActiveMetadataServers(initStorageCluster)),
 				ActiveStandby: true,
@@ -42,6 +40,9 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 				// set PriorityClassName for the MDS pods
 				PriorityClassName: openshiftUserCritical,
 				Labels:            cephv1.Labels{defaults.ODFResourceProfileKey: initStorageCluster.Spec.ResourceProfile},
+				LivenessProbe: &cephv1.ProbeSpec{
+					Disabled: true,
+				},
 			},
 		},
 	}
@@ -55,16 +56,14 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 
 	// Append additional pools from specified additional data pools
 	ret.Spec.DataPools = append(ret.Spec.DataPools, initStorageCluster.Spec.ManagedResources.CephFilesystems.AdditionalDataPools...)
-
 	for i := range ret.Spec.DataPools {
 		poolSpec := &ret.Spec.DataPools[i].PoolSpec
 		// Set default values in the poolSpec as necessary
 		setDefaultDataPoolSpec(poolSpec, initStorageCluster)
 	}
 
-	// set device class for metadata pool from the default data pool
-	ret.Spec.MetadataPool.DeviceClass = ret.Spec.DataPools[0].PoolSpec.DeviceClass
-	ret.Spec.MetadataPool.EnableCrushUpdates = true
+	// Set default values in the metadata pool spec as necessary
+	setDefaultDataPoolSpec(&ret.Spec.MetadataPool.PoolSpec, initStorageCluster)
 
 	err := controllerutil.SetControllerReference(initStorageCluster, ret, r.Scheme)
 	if err != nil {
@@ -102,6 +101,13 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 
 			r.Log.Info("Restoring original CephFilesystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 			existing.ObjectMeta.OwnerReferences = cephFilesystem.ObjectMeta.OwnerReferences
+
+			// Ensures the bulk flag set during new pool creation is not removed during updates.
+			preserveBulkFlagParameter(existing.Spec.MetadataPool.PoolSpec.Parameters, &cephFilesystem.Spec.MetadataPool.PoolSpec.Parameters)
+			for i := range existing.Spec.DataPools {
+				preserveBulkFlagParameter(existing.Spec.DataPools[i].PoolSpec.Parameters, &cephFilesystem.Spec.DataPools[i].PoolSpec.Parameters)
+			}
+
 			existing.Spec = cephFilesystem.Spec
 			err = r.Client.Update(context.TODO(), &existing)
 			if err != nil {
@@ -110,6 +116,13 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
+
+			// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
+			setBulkFlagParameter(&cephFilesystem.Spec.MetadataPool.PoolSpec.Parameters)
+			for i := range cephFilesystem.Spec.DataPools {
+				setBulkFlagParameter(&cephFilesystem.Spec.DataPools[i].PoolSpec.Parameters)
+			}
+
 			err = r.Client.Create(context.TODO(), cephFilesystem)
 			if err != nil {
 				r.Log.Error(err, "Unable to create CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))

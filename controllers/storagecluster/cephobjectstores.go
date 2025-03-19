@@ -140,6 +140,11 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			r.Log.Info("Restoring original CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 			existing.ObjectMeta.OwnerReferences = cephObjectStore.ObjectMeta.OwnerReferences
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
+
+			// Ensures the bulk flag set during new pool creation is not removed during updates.
+			preserveBulkFlagParameter(existing.Spec.MetadataPool.Parameters, &cephObjectStore.Spec.MetadataPool.Parameters)
+			preserveBulkFlagParameter(existing.Spec.DataPool.Parameters, &cephObjectStore.Spec.DataPool.Parameters)
+
 			err = r.Client.Update(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to update CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
@@ -147,6 +152,11 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
+
+			// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
+			setBulkFlagParameter(&cephObjectStore.Spec.MetadataPool.Parameters)
+			setBulkFlagParameter(&cephObjectStore.Spec.DataPool.Parameters)
+
 			err = r.Client.Create(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to create CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
@@ -168,13 +178,8 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			},
 			Spec: cephv1.ObjectStoreSpec{
 				PreservePoolsOnDelete: false,
-				DataPool:              initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec, // Pass the poolSpec from the storageCluster CR
-				MetadataPool: cephv1.PoolSpec{
-					DeviceClass:        initData.Status.DefaultCephDeviceClass,
-					EnableCrushUpdates: true,
-					FailureDomain:      initData.Status.FailureDomain,
-					Replicated:         generateCephReplicatedSpec(initData, poolTypeMetadata),
-				},
+				DataPool:              initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec,     // Pass the poolSpec from the storageCluster CR
+				MetadataPool:          initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec, // Pass the poolSpec from the storageCluster CR
 				Gateway: cephv1.GatewaySpec{
 					Port:       80,
 					SecurePort: 443,
@@ -204,8 +209,11 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			obj.Spec.Gateway.HostNetwork = initData.Spec.ManagedResources.CephObjectStores.HostNetwork
 		}
 
-		// Set default values in the poolSpec as necessary
+		// Set default values in the data pool spec as necessary
 		setDefaultDataPoolSpec(&obj.Spec.DataPool, initData)
+
+		// Set default values in the metadata pool spec as necessary
+		setDefaultMetadataPoolSpec(&obj.Spec.MetadataPool, initData)
 
 		// if kmsConfig is not 'nil', add the KMS details to ObjectStore spec
 		if kmsConfigMap != nil {

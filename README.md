@@ -8,10 +8,10 @@
 - [Development](#development)
   - [Tools](#tools)
   - [Build](#build)
-    1. [OCS Operator](#ocs-operator)
-    2. [OCS Metric Exporter](#ocs-metric-exporter)
-    3. [OCS Operator Bundle](#ocs-operator-bundle)
-    4. [OCS Operator Catalog](#ocs-operator-catalog)
+    - [OCS Operator](#ocs-operator)
+    - [OCS Metric Exporter](#ocs-metric-exporter)
+    - [OCS Operator Bundle](#ocs-operator-bundle)
+    - [OCS Operator Catalog](#ocs-operator-catalog)
   - [Deploying development builds](#deploying-development-builds)
 - [Initial Configuration](#initial-configuration)
   - [Modifying Initial Configuration](#modifying-initial-configuration)
@@ -61,7 +61,44 @@ $ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
 
 ### Installation
 
+
 The OCS operator can be installed into an OpenShift cluster using Operator Lifecycle Manager (OLM).
+
+#### Option 1: Using `make install`  
+
+If you have a development environment or private image and want to install the OCS operator, follow the steps below:
+
+- Label Worker Nodes:  
+  OCS Operator will install its components only on nodes labeled for OCS.
+
+  ```console
+  oc label nodes <NodeName1> cluster.ocs.openshift.io/openshift-storage=''
+  oc label nodes <NodeName2> cluster.ocs.openshift.io/openshift-storage=''
+  oc label nodes <NodeName3> cluster.ocs.openshift.io/openshift-storage=''
+  ```
+
+- Set Environment Variables:  
+  Define the required variables for your private image:
+
+  ```console
+  export REGISTRY_NAMESPACE=<your-registry-namespace>
+  export IMAGE_TAG=<your-image-tag>
+  ```
+
+- Run the following command:
+
+  ```console
+  make install
+  ```
+
+- Verify Installation:    
+  Once the make install process completes, verify the status of the ClusterServiceVersion (CSV):
+
+  ```console
+  oc get csv -n openshift-storage
+  ```
+
+#### Option 2: Using Pre-Built YAML
 
 For quick install using pre-built container images, deploy the [deploy-olm.yaml](deploy/deploy-with-olm.yaml) manifest.
 
@@ -363,3 +400,4 @@ there look at the top right hand corner for the `artifacts` link. That will
 bring you to a directory tree. Follow the `artifacts/` directory to the
 `ocs-operator-bundle-e2e-aws/` directory. There you can find logs and information
 pertaining to objects in the cluster.
+

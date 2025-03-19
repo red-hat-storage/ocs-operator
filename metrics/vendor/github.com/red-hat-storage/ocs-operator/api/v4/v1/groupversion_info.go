@@ -44,6 +44,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&OCSInitialization{}, &OCSInitializationList{},
 		&StorageCluster{}, &StorageClusterList{},
 		&StorageClusterPeer{}, &StorageClusterPeerList{},
+		&StorageAutoScaler{}, &StorageAutoScalerList{},
 	)
 	metav1.AddToGroupVersion(scheme, GroupVersion)
 	return nil

@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"fmt"
+	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -17,29 +18,6 @@ import (
 )
 
 type ocsCephBlockPools struct{}
-
-// ensures that peer cluster secret exists and adds it to CephBlockPool
-func (o *ocsCephBlockPools) addPeerSecretsToCephBlockPool(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster, poolName, poolNamespace string) *cephv1.MirroringPeerSpec {
-	mirroringPeerSpec := &cephv1.MirroringPeerSpec{}
-	secretNames := []string{}
-
-	if len(storageCluster.Spec.Mirroring.PeerSecretNames) == 0 {
-		err := fmt.Errorf("mirroring is enabled but peerSecretNames is not provided")
-		r.Log.Error(err, "Unable to add cluster peer token to CephBlockPool.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
-		return mirroringPeerSpec
-	}
-	for _, secretName := range storageCluster.Spec.Mirroring.PeerSecretNames {
-		_, err := r.retrieveSecret(secretName, storageCluster)
-		if err != nil {
-			r.Log.Error(err, "Peer cluster token could not be retrieved using secretname.", "CephBlockPool", klog.KRef(poolNamespace, poolName))
-			return mirroringPeerSpec
-		}
-		secretNames = append(secretNames, secretName)
-	}
-
-	mirroringPeerSpec.SecretNames = secretNames
-	return mirroringPeerSpec
-}
 
 func (o *ocsCephBlockPools) deleteCephBlockPool(r *StorageClusterReconciler, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
 	// if deletion timestamp is set, wait till block pool is deleted
@@ -90,23 +68,21 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		// Pass the poolSpec from the storageCluster CR
 
+		existingPoolSpec := cephBlockPool.Spec.PoolSpec
 		cephBlockPool.Spec.PoolSpec = storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
 
 		// Set default values in the poolSpec as necessary
 		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
-		// Since provider mode handles mirroring, we only need to handle for internal mode
-		if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
-			if storageCluster.Spec.Mirroring != nil && storageCluster.Spec.Mirroring.Enabled {
-				cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
-				cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
-				cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
-			} else {
-				// If mirroring is not enabled or is nil, disable it. This is to ensure that the pool mirroring does not remain enabled during further reconciliations
-				cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
-			}
+		// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
+		if cephBlockPool.CreationTimestamp.IsZero() {
+			setBulkFlagParameter(&cephBlockPool.Spec.PoolSpec.Parameters)
 		}
+
+		// Ensures the bulk flag set during new pool creation is not removed during updates.
+		preserveBulkFlagParameter(existingPoolSpec.Parameters, &cephBlockPool.Spec.PoolSpec.Parameters)
+
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
 	if err != nil {
@@ -150,10 +126,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".mgr"
-		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
-		cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
-		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, poolTypeMetadata)
+		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -198,10 +171,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".nfs"
-		cephBlockPool.Spec.PoolSpec.DeviceClass = storageCluster.Status.DefaultCephDeviceClass
-		cephBlockPool.Spec.EnableCrushUpdates = true
-		cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-		cephBlockPool.Spec.PoolSpec.Replicated = generateCephReplicatedSpec(storageCluster, poolTypeMetadata)
+		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
@@ -248,30 +218,43 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 		}
 
 		_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
-			cephBlockPool.Spec.PoolSpec.DeviceClass = failureDomainValue
-			cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = true
-			cephBlockPool.Spec.PoolSpec.FailureDomain = getFailureDomain(storageCluster)
-			cephBlockPool.Spec.PoolSpec.Parameters = map[string]string{
-				"pg_num":  "16",
-				"pgp_num": "16",
+			poolSpec := &cephBlockPool.Spec.PoolSpec
+			poolSpec.DeviceClass = failureDomainValue
+			poolSpec.EnableCrushUpdates = true
+			poolSpec.FailureDomain = getFailureDomain(storageCluster)
+			existingParameters := poolSpec.Parameters
+			poolSpec.Parameters = storageCluster.Spec.ManagedResources.CephNonResilientPools.Parameters
+			if poolSpec.Parameters == nil {
+				poolSpec.Parameters = make(map[string]string)
 			}
-			cephBlockPool.Spec.PoolSpec.Replicated = cephv1.ReplicatedSpec{
+
+			// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
+			if cephBlockPool.CreationTimestamp.IsZero() {
+				setBulkFlagParameter(&poolSpec.Parameters)
+			}
+
+			// Ensures the bulk flag set during new pool creation is not removed during updates.
+			preserveBulkFlagParameter(existingParameters, &poolSpec.Parameters)
+
+			// set the pg_num & pgp_num parameters only when bulk flag is not set or false
+			if bulk, ok := poolSpec.Parameters["bulk"]; !ok {
+				b, err := strconv.ParseBool(bulk)
+				if err != nil || !b {
+					if _, ok := poolSpec.Parameters["pg_num"]; !ok {
+						poolSpec.Parameters["pg_num"] = "16"
+					}
+					if _, ok := poolSpec.Parameters["pgp_num"]; !ok {
+						poolSpec.Parameters["pgp_num"] = "16"
+					}
+				}
+			}
+
+			poolSpec.Replicated = cephv1.ReplicatedSpec{
 				Size:                   1,
 				RequireSafeReplicaSize: false,
 			}
-			cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
+			poolSpec.EnableRBDStats = true
 
-			// Since provider mode handles mirroring, we only need to handle for internal mode
-			if storageCluster.Annotations["ocs.openshift.io/deployment-mode"] != "provider" {
-				if storageCluster.Spec.Mirroring != nil && storageCluster.Spec.Mirroring.Enabled {
-					cephBlockPool.Spec.PoolSpec.Mirroring.Enabled = true
-					cephBlockPool.Spec.PoolSpec.Mirroring.Mode = "image"
-					cephBlockPool.Spec.PoolSpec.Mirroring.Peers = o.addPeerSecretsToCephBlockPool(r, storageCluster, cephBlockPool.Name, cephBlockPool.Namespace)
-				} else {
-					// If mirroring is not enabled or is nil, disable it. This is to ensure that the pool mirroring does not remain enabled during further reconciliations
-					cephBlockPool.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{Enabled: false}
-				}
-			}
 			return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 		})
 		if err != nil {

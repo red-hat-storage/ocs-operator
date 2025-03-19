@@ -3,10 +3,10 @@
 # shellcheck disable=SC2034
 # disable unused variable warnings
 
-GOOS="${GOOS:-linux}"
-GOARCH="${GOARCH:-amd64}"
-GOHOSTOS="$(go env GOHOSTOS)"
-GOHOSTARCH="$(go env GOHOSTARCH)"
+TARGET_OS="${TARGET_OS:-linux}"
+TARGET_ARCH="${TARGET_ARCH:-amd64}"
+HOST_OS="$(go env GOHOSTOS)"
+HOST_ARCH="$(go env GOHOSTARCH)"
 
 GO_LINT_IMG_LOCATION="${GO_LINT_IMG_LOCATION:-golangci/golangci-lint}"
 GO_LINT_IMG_TAG="${GO_LINT_IMG_TAG:-v1.49.0}"

@@ -6,11 +6,9 @@ WORKDIR /workspace
 
 COPY . .
 
-ARG GOOS=linux
-ARG GOARCH=amd64
 ARG LDFLAGS
 
-RUN GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o metrics-exporter main.go
+RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o metrics-exporter main.go
 
 # Build stage 2
 

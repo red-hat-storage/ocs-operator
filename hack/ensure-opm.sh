@@ -4,7 +4,7 @@ set -e
 
 source hack/common.sh
 
-OPM_DL_URL="https://github.com/operator-framework/operator-registry/releases/download/${OPM_VERSION}/${GOHOSTOS}-${GOHOSTARCH}-opm"
+OPM_DL_URL="https://github.com/operator-framework/operator-registry/releases/download/${OPM_VERSION}/${HOST_OS}-${HOST_ARCH}-opm"
 mkdir -p "${LOCALBIN}"
 
 if [ ! -x "${OPM}" ]; then
