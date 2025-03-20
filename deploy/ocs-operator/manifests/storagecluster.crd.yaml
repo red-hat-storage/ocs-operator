@@ -4,6 +4,8 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
+  labels:
+    odf.openshift.io/is-storage-system: "true"
   name: storageclusters.ocs.openshift.io
 spec:
   group: ocs.openshift.io
