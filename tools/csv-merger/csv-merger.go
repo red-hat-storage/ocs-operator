@@ -580,6 +580,15 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 			if err != nil {
 				panic(err)
 			}
+
+			// add labels on crds which act as a storagesystem
+			if crd.Name == "storageclusters.ocs.openshift.io" {
+				if crd.Labels == nil {
+					crd.Labels = map[string]string{}
+				}
+				crd.Labels["odf.openshift.io/is-storage-system"] = "true"
+			}
+
 			if crd.Spec.Names.Singular == "" {
 				// filters out empty entries caused by starting file with '---' separator
 				continue

@@ -9,7 +9,9 @@ resources:
 - bases/ocs.openshift.io_storageclusterpeers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
-# patchesStrategicMerge:
+patchesStrategicMerge:
+- patches/label_in_storageclusters.yaml
+
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
 #- patches/webhook_in_ocsinitializations.yaml
