@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,6 +44,29 @@ type StorageConsumerSpec struct {
 	// StorageQuotaInGiB describes quota for the consumer
 	// +optional
 	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
+	// +optional
+	ResourcesConfigMapRef corev1.LocalObjectReference `json:"resourcesConfigMapRef,omitempty"`
+	// +optional
+	StorageClasses []StorageClassSpec `json:"storageClasses,omitempty"`
+	// +optional
+	VolumeSnapshotClasses []VolumeSnapshotClassSpec `json:"volumeSnapshotClasses,omitempty"`
+	// +optional
+	VolumeGroupSnapshotClasses []VolumeGroupSnapshotClassSpec `json:"volumeGroupSnapshotClasses,omitempty"`
+}
+
+type StorageClassSpec struct {
+	// +required
+	Name string `json:"name"`
+}
+
+type VolumeSnapshotClassSpec struct {
+	// +required
+	Name string `json:"name"`
+}
+
+type VolumeGroupSnapshotClassSpec struct {
+	// +required
+	Name string `json:"name"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage
@@ -62,11 +86,14 @@ type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
 	State StorageConsumerState `json:"state,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
+	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future."
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
 	// Information of storage client received from consumer
-	Client ClientStatus `json:"client,omitempty"`
+	Client                   ClientStatus                `json:"client,omitempty"`
+	ResourcesConfigMapRef    corev1.LocalObjectReference `json:"resourcesConfigMapRef,omitempty"`
+	OnboardingTicketSecreRef corev1.LocalObjectReference `json:"onboardingTicketSecretRef,omitempty"`
 }
 
 // ClientStatus is the information pushed from connected storage client
