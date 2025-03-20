@@ -42,7 +42,7 @@ spec:
               enable:
                 description: Enable flag ignores a reconcile if set to false
                 type: boolean
-              resourcesConfigMapRef:
+              resourceNameMappingConfigMap:
                 description: |-
                   LocalObjectReference contains enough information to let you locate the
                   referenced object inside the same namespace.
@@ -146,7 +146,7 @@ spec:
                 description: Timestamp of last heartbeat received from consumer
                 format: date-time
                 type: string
-              onboardingTicketSecretRef:
+              onboardingTicketSecret:
                 description: |-
                   LocalObjectReference contains enough information to let you locate the
                   referenced object inside the same namespace.
@@ -162,7 +162,7 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
-              resourcesConfigMapRef:
+              resourceNameMappingConfigMap:
                 description: |-
                   LocalObjectReference contains enough information to let you locate the
                   referenced object inside the same namespace.

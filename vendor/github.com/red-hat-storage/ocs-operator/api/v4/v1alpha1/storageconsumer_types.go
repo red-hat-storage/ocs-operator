@@ -45,7 +45,7 @@ type StorageConsumerSpec struct {
 	// +optional
 	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
 	// +optional
-	ResourcesConfigMapRef corev1.LocalObjectReference `json:"resourcesConfigMapRef,omitempty"`
+	ResourceNameMappingConfigMap corev1.LocalObjectReference `json:"resourceNameMappingConfigMap,omitempty"`
 	// +optional
 	StorageClasses []StorageClassSpec `json:"storageClasses,omitempty"`
 	// +optional
@@ -91,9 +91,9 @@ type StorageConsumerStatus struct {
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
 	// Information of storage client received from consumer
-	Client                   ClientStatus                `json:"client,omitempty"`
-	ResourcesConfigMapRef    corev1.LocalObjectReference `json:"resourcesConfigMapRef,omitempty"`
-	OnboardingTicketSecreRef corev1.LocalObjectReference `json:"onboardingTicketSecretRef,omitempty"`
+	Client                       ClientStatus                `json:"client,omitempty"`
+	ResourceNameMappingConfigMap corev1.LocalObjectReference `json:"resourceNameMappingConfigMap,omitempty"`
+	OnboardingTicketSecret       corev1.LocalObjectReference `json:"onboardingTicketSecret,omitempty"`
 }
 
 // ClientStatus is the information pushed from connected storage client
