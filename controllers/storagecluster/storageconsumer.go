@@ -42,6 +42,9 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 	if err := r.Get(r.ctx, client.ObjectKeyFromObject(cephCluster), cephCluster); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get ceph cluster %s: %v", cephCluster.Name, err)
 	}
+	if cephCluster.Status.CephStatus == nil {
+		return ctrl.Result{}, fmt.Errorf("ceph fsid is not populated in cephcluster cr status")
+	}
 	cephClusterFsid := cephCluster.Status.CephStatus.FSID
 	if cephClusterFsid == "" {
 		return ctrl.Result{}, fmt.Errorf("cephcluster fsid is empty")
