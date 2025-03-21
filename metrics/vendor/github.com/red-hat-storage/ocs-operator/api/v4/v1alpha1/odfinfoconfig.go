@@ -38,9 +38,8 @@ type InfoStorageCluster struct {
 
 // OdfInfoData describes odf-info CM's data
 type OdfInfoData struct {
-	Version           string             `yaml:"version"`
-	DeploymentType    string             `yaml:"deploymentType"`
-	Clients           []ConnectedClient  `yaml:"clients"`
-	StorageCluster    InfoStorageCluster `yaml:"storageCluster"`
-	StorageSystemName string             `yaml:"storageSystemName"`
+	Version        string             `yaml:"version"`
+	DeploymentType string             `yaml:"deploymentType"`
+	Clients        []ConnectedClient  `yaml:"clients"`
+	StorageCluster InfoStorageCluster `yaml:"storageCluster"`
 }
