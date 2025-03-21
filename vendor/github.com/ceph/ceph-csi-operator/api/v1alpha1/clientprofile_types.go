@@ -31,10 +31,15 @@ type CephFsConfigSpec struct {
 
 	//+kubebuilder:validation:Optional
 	FuseMountOptions map[string]string `json:"fuseMountOptions,omitempty"`
+
+	//+kubebuilder:validation:XValidation:rule="self == oldSelf",message="field is immutable"
+	//+kubebuilder:validation:Optional
+	RadosNamespace *string `json:"radosNamespace,omitempty"`
 }
 
 // RbdConfigSpec defines the desired RBD configuration
 type RbdConfigSpec struct {
+	//+kubebuilder:validation:XValidation:rule="self == oldSelf",message="field is immutable"
 	//+kubebuilder:validation:Optional
 	RadosNamespace string `json:"radosNamespace,omitempty"`
 }

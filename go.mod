@@ -13,7 +13,7 @@ replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./se
 require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20250226123017-6e1c39c697cb
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20250320090334-2f603f71f459
 	github.com/ceph/ceph-csi/api v0.0.0-20250303134928-a80295bf8fd4
 	github.com/csi-addons/kubernetes-csi-addons v0.12.0
 	github.com/go-logr/logr v1.4.2
