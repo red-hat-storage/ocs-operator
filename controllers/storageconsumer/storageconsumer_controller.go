@@ -23,11 +23,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,18 +41,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/google/uuid"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
+	tokenLifetimeInHours          = 48
+	onboardingPrivateKeyFilePath  = "/etc/private-key/key"
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
 	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
 	StorageProfileLabel           = "ocs.openshift.io/storageprofile"
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
+	TicketAnnotation              = "ocs.openshift.io/onboarding-token-id"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -134,10 +140,8 @@ func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
-
-	if !r.storageConsumer.Spec.Enable {
-		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDisabled
-		return reconcile.Result{}, nil
+	if err := r.reconcileOnboardingSecret(); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
@@ -172,6 +176,72 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *StorageConsumerReconciler) reconcileOnboardingSecret() error {
+	secret := &corev1.Secret{}
+	secret.Name = fmt.Sprintf("onboarding-token-%d", util.FnvHash(string(r.storageConsumer.UID)))
+	secret.Namespace = r.storageConsumer.Namespace
+	if err := r.get(secret); client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("failed to get secret %s: %v", secret.Name, err)
+	}
+
+	if !r.storageConsumer.Spec.Enable {
+		// if not enabled, ensure secret presence
+		if secret.UID == "" {
+			if err := r.own(secret); err != nil {
+				return err
+			}
+			storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, r.namespace)
+			if err != nil {
+				return err
+			}
+			salt := uuid.New().String()
+			token, err := util.GenerateClientOnboardingToken(
+				tokenLifetimeInHours,
+				onboardingPrivateKeyFilePath,
+				nil,
+				storageCluster.UID,
+				salt,
+			)
+			if err != nil {
+				return err
+			}
+			secret.Data = map[string][]byte{
+				"ticket": []byte(token),
+			}
+			util.AddAnnotation(secret, "token-expiry-utc", time.Now().Add(tokenLifetimeInHours*time.Hour).UTC().String())
+			// as salt is random we are annotating it on secret as well to read later if we fail to annotate consumer in current reconcile
+			util.AddAnnotation(secret, TicketAnnotation, salt)
+			r.Log.Info("creating secret containing onboarding token for", "StorageConsumer", r.storageConsumer.Name, "Secret", secret.Name)
+			if err := r.Create(r.ctx, secret); err != nil {
+				return err
+			}
+			// annotating on consumer helps us validate the identity during onboard
+			util.AddAnnotation(r.storageConsumer, TicketAnnotation, salt)
+			if err := r.Update(r.ctx, r.storageConsumer); err != nil {
+				return fmt.Errorf("failed to add ticket reference to storageconsumer %s: %v", r.storageConsumer.Name, err)
+			}
+		} else if r.storageConsumer.GetAnnotations()[TicketAnnotation] == "" {
+			// annotation ought to exist on the secret as we place it during creation which is resistant against cache latency
+			util.AddAnnotation(r.storageConsumer, TicketAnnotation, secret.GetAnnotations()[TicketAnnotation])
+			if err := r.Update(r.ctx, r.storageConsumer); err != nil {
+				return fmt.Errorf("failed to add ticket reference to storageconsumer %s: %v", r.storageConsumer.Name, err)
+			}
+		}
+		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDisabled
+		r.storageConsumer.Status.OnboardingTicketSecret = corev1.LocalObjectReference{
+			Name: secret.Name,
+		}
+		return nil
+	} else if secret.UID != "" {
+		// if enabled, ensure secret absence
+		r.storageConsumer.Status.OnboardingTicketSecret = corev1.LocalObjectReference{}
+		if err := r.Delete(r.ctx, secret); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
@@ -220,6 +290,11 @@ func (r *StorageConsumerReconciler) own(resource metav1.Object) error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	ctx := context.Background()
+	if err := mgr.GetCache().IndexField(ctx, &corev1.Secret{}, util.OwnerUIDIndexName, util.OwnersIndexFieldFunc); err != nil {
+		return fmt.Errorf("unable to set up FieldIndexer for Secret's owner uid: %v", err)
+	}
+
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
 			labels := obj.GetLabels()
@@ -240,6 +315,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			predicate.GenerationChangedPredicate{},
 		)).
 		Owns(&nbv1.NooBaaAccount{}).
+		Owns(&corev1.Secret{}).
 		// Watch non-owned resources cephBlockPool
 		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
 		Watches(&rookCephv1.CephBlockPool{},

@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -17,16 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	errTicketAlreadyExists = errors.New("onboarding ticket already used by another storageConsumer")
-)
-
 type ocsConsumerManager struct {
-	client       client.Client
-	namespace    string
-	nameByTicket map[string]string
-	nameByUID    map[types.UID]string
-	mutex        sync.RWMutex
+	client         client.Client
+	namespace      string
+	nameByTicketID map[string]string
+	nameByUID      map[types.UID]string
+	mutex          sync.RWMutex
 }
 
 func newConsumerManager(ctx context.Context, cl client.Client, namespace string) (*ocsConsumerManager, error) {
@@ -36,72 +31,58 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 		return nil, fmt.Errorf("failed to list storage consumers. %v", err)
 	}
 
-	nameByTicket := map[string]string{}
+	nameByTicketID := map[string]string{}
 	nameByUID := map[types.UID]string{}
 
 	for _, consumer := range consumers.Items {
 		nameByUID[consumer.UID] = consumer.Name
 
 		if ticket, ok := consumer.GetAnnotations()[TicketAnnotation]; ok {
-			nameByTicket[ticket] = consumer.Name
+			nameByTicketID[ticket] = consumer.Name
 		}
 	}
 
 	return &ocsConsumerManager{
-		client:       cl,
-		namespace:    namespace,
-		nameByTicket: nameByTicket,
-		nameByUID:    nameByUID,
+		client:         cl,
+		namespace:      namespace,
+		nameByTicketID: nameByTicketID,
+		nameByUID:      nameByUID,
 	}, nil
 }
 
-// Create creates a new storageConsumer resource, updates the consumer cache and returns the storageConsumer UID
-func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageClientOnboarding, storageQuotaInGiB int) (string, error) {
-	ticket := onboard.GetOnboardingTicket()
-	name := onboard.GetConsumerName()
+func (c *ocsConsumerManager) OnboardClient(ctx context.Context, consumerName string, storageQuotaInGiB int) (string, error) {
+	// get the storageconsumer
+	consumerObj := &ocsv1alpha1.StorageConsumer{}
+	consumerObj.Name = consumerName
+	consumerObj.Namespace = c.namespace
+	if err := c.client.Get(ctx, client.ObjectKeyFromObject(consumerObj), consumerObj); err != nil {
+		klog.Errorf("failed to get storageConsumer %q. %v", consumerObj.Name, err)
+		return "", err
+	}
+	// verify the token doesn't belong to any other storageconsumer
+	tokenSalt := consumerObj.GetAnnotations()[TicketAnnotation]
 	c.mutex.RLock()
-	if _, ok := c.nameByTicket[ticket]; ok {
+	if _, ok := c.nameByTicketID[tokenSalt]; ok {
 		c.mutex.RUnlock()
 		klog.Warning("onboarding ticket already in use")
-		return "", errTicketAlreadyExists
+		return "", fmt.Errorf("token doesn't refer to the storageconsumer which created the onboarding secret")
 	}
 	c.mutex.RUnlock()
-
-	consumerObj := &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.namespace,
-			Annotations: map[string]string{
-				TicketAnnotation: ticket,
-			},
-		},
-		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Enable:            false,
-			StorageQuotaInGiB: storageQuotaInGiB,
-		},
-		Status: ocsv1alpha1.StorageConsumerStatus{
-			Client: ocsv1alpha1.ClientStatus{
-				OperatorVersion: onboard.GetClientOperatorVersion(),
-			},
-		},
+	// enable the spec and persist the change
+	consumerCopy := &ocsv1alpha1.StorageConsumer{}
+	consumerObj.DeepCopyInto(consumerCopy)
+	consumerObj.Spec.Enable = true
+	// patch here avoids roundtrip from client as we aren't backed by any reconciler
+	if err := c.client.Patch(ctx, consumerObj, client.MergeFrom(consumerCopy)); err != nil {
+		klog.Errorf("failed to add ticket annotation to storageConsumer %q. %v", consumerObj.Name, err)
+		return "", err
 	}
-
-	err := c.client.Create(ctx, consumerObj)
-	if err != nil {
-		if kerrors.IsAlreadyExists(err) {
-			klog.Warningf("storageConsumer %q already exists", name)
-			return "", err
-		}
-		return "", fmt.Errorf("failed to create storageConsumer resource %q. %v", consumerObj.Name, err)
-	}
-
+	// store details in our cache
 	c.mutex.Lock()
 	c.nameByUID[consumerObj.UID] = consumerObj.Name
-	c.nameByTicket[ticket] = consumerObj.Name
+	c.nameByTicketID[tokenSalt] = consumerObj.Name
 	c.mutex.Unlock()
-
-	klog.Infof("successfully created storageConsumer resource %q", name)
-
+	klog.Infof("successfully onboarded on storageConsumer resource %q", consumerName)
 	return string(consumerObj.UID), nil
 }
 

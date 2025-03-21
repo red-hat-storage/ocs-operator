@@ -9,6 +9,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers"
 
+	"github.com/google/uuid"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -66,7 +67,13 @@ func handlePost(w http.ResponseWriter, r *http.Request, tokenLifetimeInHours int
 		return
 	}
 
-	if onboardingToken, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, storageQuotaInGiB, storageCluster.UID); err != nil {
+	if onboardingToken, err := util.GenerateClientOnboardingToken(
+		tokenLifetimeInHours,
+		onboardingPrivateKeyFilePath,
+		storageQuotaInGiB,
+		storageCluster.UID,
+		uuid.New().String(),
+	); err != nil {
 		klog.Errorf("failed to get onboarding token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", handlers.ContentTypeTextPlain)

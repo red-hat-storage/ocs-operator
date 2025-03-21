@@ -9,6 +9,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +48,13 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	storageClient.Name = storagecluster.Name
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
-			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil, storagecluster.UID)
+			token, err := util.GenerateClientOnboardingToken(
+				tokenLifetimeInHours,
+				onboardingPrivateKeyFilePath,
+				nil,
+				storagecluster.UID,
+				uuid.New().String(),
+			)
 			if err != nil {
 				return fmt.Errorf("unable to generate onboarding token: %v", err)
 			}
