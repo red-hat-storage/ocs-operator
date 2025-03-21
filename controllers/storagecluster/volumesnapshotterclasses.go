@@ -21,9 +21,9 @@ type SnapshotterType string
 type ocsSnapshotClass struct{}
 
 const (
-	rbdSnapshotter    SnapshotterType = "rbd"
-	cephfsSnapshotter SnapshotterType = "cephfs"
-	nfsSnapshotter    SnapshotterType = "nfs"
+	RbdSnapshotter    SnapshotterType = "rbd"
+	CephfsSnapshotter SnapshotterType = "cephfs"
+	NfsSnapshotter    SnapshotterType = "nfs"
 )
 
 // secret name and namespace for snapshotter class
@@ -43,7 +43,7 @@ type SnapshotClassConfiguration struct {
 func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType SnapshotterType) *snapapi.VolumeSnapshotClass {
 	retSC := &snapapi.VolumeSnapshotClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: generateNameForSnapshotClass(instance, snapShotterType),
+			Name: GenerateNameForSnapshotClass(instance, snapShotterType),
 		},
 		Driver: generateNameForSnapshotClassDriver(snapShotterType),
 		Parameters: map[string]string{
@@ -58,21 +58,21 @@ func newVolumeSnapshotClass(instance *ocsv1.StorageCluster, snapShotterType Snap
 
 func newCephFilesystemSnapshotClassConfiguration(instance *ocsv1.StorageCluster) SnapshotClassConfiguration {
 	return SnapshotClassConfiguration{
-		snapshotClass:     newVolumeSnapshotClass(instance, cephfsSnapshotter),
+		snapshotClass:     newVolumeSnapshotClass(instance, CephfsSnapshotter),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
 	}
 }
 
 func newCephBlockPoolSnapshotClassConfiguration(instance *ocsv1.StorageCluster) SnapshotClassConfiguration {
 	return SnapshotClassConfiguration{
-		snapshotClass:     newVolumeSnapshotClass(instance, rbdSnapshotter),
+		snapshotClass:     newVolumeSnapshotClass(instance, RbdSnapshotter),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
 	}
 }
 
 func newCephNetworkFilesystemSnapshotClassConfiguration(instance *ocsv1.StorageCluster) SnapshotClassConfiguration {
 	return SnapshotClassConfiguration{
-		snapshotClass: newVolumeSnapshotClass(instance, nfsSnapshotter),
+		snapshotClass: newVolumeSnapshotClass(instance, NfsSnapshotter),
 	}
 }
 

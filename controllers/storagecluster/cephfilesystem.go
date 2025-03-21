@@ -25,7 +25,7 @@ const defaultSubvolumeGroupName = "csi"
 func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
 	ret := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephFilesystem(initStorageCluster),
+			Name:      GenerateNameForCephFilesystem(initStorageCluster),
 			Namespace: initStorageCluster.Namespace,
 		},
 		Spec: cephv1.FilesystemSpec{

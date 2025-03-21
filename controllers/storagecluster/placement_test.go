@@ -501,7 +501,7 @@ func TestGetPlacement(t *testing.T) {
 		expectedPlacement = c.expectedPlacements["mds"]
 		testPodAffinity := &corev1.PodAntiAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-				defaults.GetMdsWeightedPodAffinityTerm(100, generateNameForCephFilesystem(sc)).PodAffinityTerm,
+				defaults.GetMdsWeightedPodAffinityTerm(100, GenerateNameForCephFilesystem(sc)).PodAffinityTerm,
 			},
 		}
 		if expectedPlacement.PodAntiAffinity != nil {

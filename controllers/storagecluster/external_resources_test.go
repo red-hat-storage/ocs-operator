@@ -538,7 +538,7 @@ func TestErasureCodedExternalResources(t *testing.T) {
 			Name: "ceph-rbd",
 			Kind: "StorageClass",
 			Data: map[string]string{
-				"pool": generateNameForCephBlockPool(cr),
+				"pool": GenerateNameForCephBlockPool(cr),
 			},
 		},
 		{

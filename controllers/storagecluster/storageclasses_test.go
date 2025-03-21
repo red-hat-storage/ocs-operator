@@ -163,12 +163,12 @@ func testStorageClasses(t *testing.T, pvEncryption bool, customSpec *api.Storage
 
 func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	pvEncryption := cr.Spec.Encryption.StorageClass && cr.Spec.Encryption.KeyManagementService.Enable
-	scNameCephfs := generateNameForCephFilesystemSC(cr)
+	scNameCephfs := GenerateNameForCephFilesystemSC(cr)
 	scNameNfs := generateNameForCephNetworkFilesystemSC(cr)
-	scNameRbd := generateNameForCephBlockPoolSC(cr)
+	scNameRbd := GenerateNameForCephBlockPoolSC(cr)
 	scNameEncryptedRbd := generateNameForEncryptedCephBlockPoolSC(cr)
 	scNameRgw := generateNameForCephRgwSC(cr)
-	scNameVirt := generateNameForCephBlockPoolVirtualizationSC(cr)
+	scNameVirt := GenerateNameForCephBlockPoolVirtualizationSC(cr)
 
 	actual := map[string]*storagev1.StorageClass{
 		scNameCephfs:       {},

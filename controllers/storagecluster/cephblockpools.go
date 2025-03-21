@@ -40,7 +40,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 
 	cephBlockPool := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephBlockPool(storageCluster),
+			Name:      GenerateNameForCephBlockPool(storageCluster),
 			Namespace: storageCluster.Namespace,
 		},
 	}

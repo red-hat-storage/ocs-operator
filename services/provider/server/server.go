@@ -24,6 +24,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
@@ -32,6 +33,8 @@ import (
 	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -44,6 +47,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +60,6 @@ import (
 
 const (
 	TicketAnnotation          = "ocs.openshift.io/provider-onboarding-ticket"
-	ProviderCertsMountPoint   = "/mnt/cert"
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
 	notAvailable              = "N/A"
@@ -282,8 +285,8 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 		klog.Fatalf("failed to listen: %v", err)
 	}
 
-	certFile := ProviderCertsMountPoint + "/tls.crt"
-	keyFile := ProviderCertsMountPoint + "/tls.key"
+	certFile := util.ProviderCertsMountPoint + "/tls.crt"
+	keyFile := util.ProviderCertsMountPoint + "/tls.key"
 	creds, sslErr := credentials.NewServerTLSFromFile(certFile, keyFile)
 	if sslErr != nil {
 		klog.Fatalf("Failed loading certificates: %v", sslErr)
@@ -334,6 +337,7 @@ func newScheme() (*runtime.Scheme, error) {
 func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
 	var extR []*pb.ExternalResource
 
+	// CephConnection
 	// Configmap with mon endpoints
 	configmap := &v1.ConfigMap{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: monConfigMap, Namespace: s.namespace}, configmap)
@@ -345,15 +349,6 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
 	}
 
-	extR = append(extR, &pb.ExternalResource{
-		Name: monConfigMap,
-		Kind: "ConfigMap",
-		Data: mustMarshal(map[string]string{
-			"data":     configmap.Data["data"], // IP Address of all mon's
-			"maxMonId": "0",
-			"mapping":  "{}",
-		})})
-
 	monIps, err := extractMonitorIps(configmap.Data["data"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
@@ -361,61 +356,270 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 
 	extR = append(extR, &pb.ExternalResource{
 		Kind: "CephConnection",
-		Name: "monitor-endpoints",
+		Name: consumerResource.Status.Client.Name,
 		Data: mustMarshal(&csiopv1a1.CephConnectionSpec{Monitors: monIps}),
 	})
 
-	scMon := &v1.Secret{}
-	// Secret storing cluster mon.admin key, fsid and name
-	err = s.client.Get(ctx, types.NamespacedName{Name: monSecret, Namespace: s.namespace}, scMon)
+	consumerConfigMap := &v1.ConfigMap{}
+	consumerConfigMap.Name = consumerResource.Status.ResourceNameMappingConfigMap.Name
+	consumerConfigMap.Namespace = consumerResource.Namespace
+	err = s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get %s secret. %v", monSecret, err)
+		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
 	}
 
-	fsid := string(scMon.Data["fsid"])
-	if fsid == "" {
-		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
-	}
-
-	// Get mgr pod hostIP
-	podList := &corev1.PodList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(s.namespace),
-		client.MatchingLabels(map[string]string{"app": "rook-ceph-mgr"}),
-	}
-	err = s.client.List(ctx, podList, listOpts...)
+	// ClientProfile
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list pod with rook-ceph-mgr label. %v", err)
+		return nil, err
 	}
-	if len(podList.Items) == 0 {
-		return nil, fmt.Errorf("no pods available with rook-ceph-mgr label")
+	var kernelMountOptions map[string]string
+	for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
+		if kernelMountOptions == nil {
+			kernelMountOptions = map[string]string{}
+		}
+		parts := strings.Split(option, "=")
+		kernelMountOptions[parts[0]] = parts[1]
+	}
+	rbdClientProfileName := consumerConfigMap.Data["rbd-client-profile"]
+	cephfsClientProfileName := consumerConfigMap.Data["cephfs-client-profile"]
+	radosNamespace := consumerConfigMap.Data["rados-namespace-name"]
+	svgName := consumerConfigMap.Data["svg-name"]
+	extR = append(extR,
+		&pb.ExternalResource{
+			Kind: "ClientProfile",
+			Name: rbdClientProfileName,
+			Data: mustMarshal(
+				&csiopv1a1.ClientProfileSpec{
+					Rbd: &csiopv1a1.RbdConfigSpec{
+						RadosNamespace: radosNamespace,
+					},
+				},
+			),
+		},
+		&pb.ExternalResource{
+			Kind: "ClientProfile",
+			Name: cephfsClientProfileName,
+			Data: mustMarshal(
+				&csiopv1a1.ClientProfileSpec{
+					CephFs: &csiopv1a1.CephFsConfigSpec{
+						SubVolumeGroup:     svgName,
+						KernelMountOptions: kernelMountOptions,
+						RadosNamespace:     ptr.To(svgName),
+					},
+				},
+			),
+		},
+	)
+
+	cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
 	}
 
-	mgrPod := &podList.Items[0]
-	var port int32 = -1
+	// SID for RamenDR
+	rbdStorageID := calculateCephRbdStorageID(
+		cephCluster.Status.CephStatus.FSID,
+		radosNamespace,
+	)
+	rbdProvisionerSecretName := consumerConfigMap.Data["rbd-provisioner-secret"]
+	rbdNodeSecretName := consumerConfigMap.Data["rbd-node-secret"]
 
-	for i := range mgrPod.Spec.Containers {
-		container := &mgrPod.Spec.Containers[i]
-		if container.Name == "mgr" {
-			for j := range container.Ports {
-				if container.Ports[j].Name == "http-metrics" {
-					port = container.Ports[j].ContainerPort
-				}
+	// SID for RamenDR
+	cephFsStorageID := calculateCephFsStorageID(
+		cephCluster.Status.CephStatus.FSID,
+		svgName,
+	)
+	cephFsProvisionerSecretName := consumerConfigMap.Data["cephFs-provisioner-secret"]
+	cephFsNodeSecretName := consumerConfigMap.Data["cephFs-node-secret"]
+
+	for i := 0; i < len(consumerResource.Spec.StorageClasses); i++ {
+		storageClassName := consumerResource.Spec.StorageClasses[i].Name
+
+		provisioner := ""
+		annotations := map[string]string{}
+		labels := map[string]string{}
+		parameters := map[string]string{}
+
+		//TODO: keyRotation and defaultStorageClass annotation
+		if storageClassName == storagecluster.GenerateNameForCephBlockPoolSC(storageCluster) {
+			provisioner = util.RbdDriverName
+			annotations = map[string]string{
+				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
+			}
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID":                 rbdClientProfileName,
+				"pool":                      storagecluster.GenerateNameForCephBlockPool(storageCluster),
+				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+				"csi.storage.k8s.io/fstype": "ext4",
+				"imageFormat":               "2",
+				"csi.storage.k8s.io/provisioner-secret-name":       rbdProvisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        rbdNodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": rbdProvisionerSecretName,
+			}
+		} else if storageClassName == storagecluster.GenerateNameForCephBlockPoolVirtualizationSC(storageCluster) {
+			provisioner = util.RbdDriverName
+			annotations = map[string]string{
+				"description": "Provides RWO and RWX Block volumes suitable for Virtual Machine disks",
+				"reclaimspace.csiaddons.openshift.io/schedule":   "@weekly",
+				"storageclass.kubevirt.io/is-default-virt-class": "true",
+			}
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID":                 rbdClientProfileName,
+				"pool":                      storagecluster.GenerateNameForCephBlockPool(storageCluster),
+				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+				"csi.storage.k8s.io/fstype": "ext4",
+				"imageFormat":               "2",
+				"mounter":                   "rbd",
+				"mapOptions":                "krbd:rxbounce",
+				"csi.storage.k8s.io/provisioner-secret-name":       rbdProvisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        rbdNodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": rbdProvisionerSecretName,
+			}
+		} else if storageClassName == storagecluster.GenerateNameForCephFilesystemSC(storageCluster) {
+			provisioner = util.CephFSDriverName
+			annotations = map[string]string{
+				"description": "Provides RWO and RWX Filesystem volumes",
+			}
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: cephFsStorageID,
+			}
+			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
+			subVolumeGroup.Name = svgName
+			subVolumeGroup.Namespace = consumerResource.Namespace
+			err := s.client.Get(ctx, client.ObjectKeyFromObject(subVolumeGroup), subVolumeGroup)
+			if err != nil {
+				return nil, err
+			}
+			parameters = map[string]string{
+				"clusterID":          cephfsClientProfileName,
+				"subvolumegroupname": svgName,
+				"fsName":             subVolumeGroup.Spec.FilesystemName,
+				"pool":               subVolumeGroup.GetLabels()[ocsv1alpha1.CephFileSystemDataPoolLabel],
+				"csi.storage.k8s.io/provisioner-secret-name":       cephFsProvisionerSecretName,
+				"csi.storage.k8s.io/node-stage-secret-name":        cephFsNodeSecretName,
+				"csi.storage.k8s.io/controller-expand-secret-name": cephFsProvisionerSecretName,
 			}
 		}
+		//TODO: Day-2 storageClasses
+
+		extR = append(extR,
+			&pb.ExternalResource{
+				Name: storageClassName,
+				Kind: "StorageClass",
+				Data: mustMarshal(&storagev1.StorageClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        storageClassName,
+						Annotations: annotations,
+						Labels:      labels,
+					},
+					ReclaimPolicy:        ptr.To(corev1.PersistentVolumeReclaimDelete),
+					AllowVolumeExpansion: ptr.To(true),
+					Provisioner:          provisioner,
+					Parameters:           parameters,
+				}),
+			},
+		)
 	}
 
-	if port < 0 {
-		return nil, fmt.Errorf("mgr pod port is empty")
+	for i := 0; i < len(consumerResource.Spec.VolumeSnapshotClasses); i++ {
+		snapshotClassName := consumerResource.Spec.VolumeSnapshotClasses[i].Name
+
+		provisioner := ""
+		labels := map[string]string{}
+		parameters := map[string]string{}
+
+		if snapshotClassName == storagecluster.GenerateNameForSnapshotClass(storageCluster, storagecluster.RbdSnapshotter) {
+			provisioner = util.RbdDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": rbdClientProfileName,
+				"csi.storage.k8s.io/snapshotter-secret-name": rbdProvisionerSecretName,
+			}
+		} else if snapshotClassName == storagecluster.GenerateNameForSnapshotClass(storageCluster, storagecluster.CephfsSnapshotter) {
+			provisioner = util.CephFSDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: cephFsStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": cephfsClientProfileName,
+				"csi.storage.k8s.io/snapshotter-secret-name": cephFsProvisionerSecretName,
+			}
+		}
+		//TODO: Day-2 snapshotclass and nfsSnapshot
+
+		extR = append(extR,
+			&pb.ExternalResource{
+				Name:   snapshotClassName,
+				Kind:   "VolumeSnapshotClass",
+				Labels: labels,
+				Data: mustMarshal(&snapapi.VolumeSnapshotClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: snapshotClassName,
+					},
+					Driver:         provisioner,
+					Parameters:     parameters,
+					DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+				}),
+			},
+		)
 	}
 
-	extR = append(extR, &pb.ExternalResource{
-		Name: "monitoring-endpoint",
-		Kind: "CephCluster",
-		Data: mustMarshal(map[string]string{
-			"MonitoringEndpoint": mgrPod.Status.HostIP,
-			"MonitoringPort":     strconv.Itoa(int(port)),
-		})})
+	for i := 0; i < len(consumerResource.Spec.VolumeGroupSnapshotClasses); i++ {
+		groupSnapshotClassName := consumerResource.Spec.VolumeGroupSnapshotClasses[i].Name
+
+		provisioner := ""
+		labels := map[string]string{}
+		parameters := map[string]string{}
+
+		if groupSnapshotClassName == storagecluster.GenerateNameForGroupSnapshotClass(storageCluster, storagecluster.RbdGroupSnapshotter) {
+			provisioner = util.RbdDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: rbdStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": rbdClientProfileName,
+				"csi.storage.k8s.io/group-snapshotter-secret-name": rbdProvisionerSecretName,
+				"pool": storagecluster.GenerateNameForCephBlockPool(storageCluster),
+			}
+		} else if groupSnapshotClassName == storagecluster.GenerateNameForGroupSnapshotClass(storageCluster, storagecluster.CephfsGroupSnapshotter) {
+			provisioner = util.CephFSDriverName
+			labels = map[string]string{
+				ramenDRStorageIDLabelKey: cephFsStorageID,
+			}
+			parameters = map[string]string{
+				"clusterID": cephfsClientProfileName,
+				"csi.storage.k8s.io/group-snapshotter-secret-name": cephFsProvisionerSecretName,
+				"fsName": storagecluster.GenerateNameForCephFilesystem(storageCluster),
+			}
+		}
+		//TODO: Day-2 groupSnapshotclass and nfsSnapshot
+
+		extR = append(extR,
+			&pb.ExternalResource{
+				Name:   groupSnapshotClassName,
+				Kind:   "VolumeGroupSnapshotClass",
+				Labels: labels,
+				Data: mustMarshal(&groupsnapapi.VolumeGroupSnapshotClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: groupSnapshotClassName,
+					},
+					Driver:         provisioner,
+					Parameters:     parameters,
+					DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+				}),
+			},
+		)
+	}
 
 	if consumerResource.Spec.StorageQuotaInGiB > 0 {
 		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
@@ -484,59 +688,57 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		})
 	}
 
+	// Noobaa Configuration
 	// Fetch noobaa remote secret and management address and append to extResources
-	consumerName := consumerResource.Name
 	noobaaOperatorSecret := &v1.Secret{}
-	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumerName)
+	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumerResource.Name)
 	noobaaOperatorSecret.Namespace = s.namespace
 
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); err != nil {
-		if kerrors.IsNotFound(err) {
-			// ignoring because it is a provider cluster and the noobaa secret does not exist
-			return extR, nil
-
-		}
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); client.IgnoreNotFound(err) != nil {
 		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
 	}
 
-	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
-	if !ok || len(authToken) == 0 {
-		return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+	if !kerrors.IsNotFound(err) {
+		authToken, ok := noobaaOperatorSecret.Data["auth_token"]
+		if !ok || len(authToken) == 0 {
+			return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+		}
+
+		noobaMgmtRoute := &routev1.Route{}
+		noobaMgmtRoute.Name = "noobaa-mgmt"
+		noobaMgmtRoute.Namespace = s.namespace
+
+		if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
+			return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
+		}
+		if len(noobaMgmtRoute.Status.Ingress) == 0 {
+			return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
+		}
+
+		noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
+		if noobaaMgmtAddress == "" {
+			return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
+		}
+		extR = append(extR, &pb.ExternalResource{
+			Name: "noobaa-remote-join-secret",
+			Kind: "Secret",
+			Data: mustMarshal(map[string]string{
+				"auth_token": string(authToken),
+				"mgmt_addr":  noobaaMgmtAddress,
+			}),
+		})
+
+		extR = append(extR, &pb.ExternalResource{
+			Name: "noobaa-remote",
+			Kind: "Noobaa",
+			Data: mustMarshal(&nbv1.NooBaaSpec{
+				JoinSecret: &v1.SecretReference{
+					Name: "noobaa-remote-join-secret",
+				},
+			}),
+		})
 	}
 
-	noobaMgmtRoute := &routev1.Route{}
-	noobaMgmtRoute.Name = "noobaa-mgmt"
-	noobaMgmtRoute.Namespace = s.namespace
-
-	if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
-		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
-	}
-	if len(noobaMgmtRoute.Status.Ingress) == 0 {
-		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
-	}
-
-	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
-	if noobaaMgmtAddress == "" {
-		return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
-	}
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote-join-secret",
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"auth_token": string(authToken),
-			"mgmt_addr":  noobaaMgmtAddress,
-		}),
-	})
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
-		Kind: "Noobaa",
-		Data: mustMarshal(&nbv1.NooBaaSpec{
-			JoinSecret: &v1.SecretReference{
-				Name: "noobaa-remote-join-secret",
-			},
-		}),
-	})
 	return extR, nil
 }
 

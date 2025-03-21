@@ -144,7 +144,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	}
 
 	if !r.IsNoobaaStandalone {
-		storageClassName := generateNameForCephBlockPoolSC(sc)
+		storageClassName := GenerateNameForCephBlockPoolSC(sc)
 
 		if sc.Spec.ExternalStorage.Enable {
 			externalStorageClassName, err := r.generateNameForExternalModeCephBlockPoolSC(nb)
