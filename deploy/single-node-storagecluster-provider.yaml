@@ -52,12 +52,8 @@ spec:
     # reconcileStrategy: ignore
     disableLoadBalancerService: true
   managedResources:
-    cephBlockPools:
-      disableSnapshotClass: true
-      disableStorageClass: true
-    cephFilesystems:
-      disableSnapshotClass: true
-      disableStorageClass: true
+    cephBlockPools: {}
+    cephFilesystems: {}
     cephObjectStores:
       hostNetwork: false
     cephCluster: {}
