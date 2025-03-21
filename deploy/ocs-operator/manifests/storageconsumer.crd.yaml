@@ -79,6 +79,15 @@ spec:
                   - name
                   type: object
                 type: array
+              volumeReplicationClasses:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               volumeSnapshotClasses:
                 items:
                   properties:
