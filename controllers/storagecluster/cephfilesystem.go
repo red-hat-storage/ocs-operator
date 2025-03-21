@@ -6,6 +6,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,13 +140,11 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 				return reconcile.Result{}, err
 			}
 		}
+
 		// create default csi subvolumegroup for the filesystem
-		// skip for the ocs provider mode
-		if !instance.Spec.AllowRemoteStorageConsumers {
-			err = r.createDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace, cephFilesystem.ObjectMeta.OwnerReferences)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
+		err = r.createDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace, cephFilesystem.ObjectMeta.OwnerReferences)
+		if err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -245,15 +244,13 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 		}
 
 		// delete csi subvolume group for particular filesystem
-		// skip for the ocs provider mode
-		if !sc.Spec.AllowRemoteStorageConsumers {
-			cephSVGName := generateNameForCephSubvolumeGroup(cephFilesystem.Name)
-			err = r.deleteDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace)
-			if err != nil {
-				r.Log.Error(err, "Uninstall: unable to delete subvolumegroup", "subvolumegroup", klog.KRef(cephFilesystem.Namespace, cephSVGName))
-				return reconcile.Result{}, err
-			}
+		cephSVGName := generateNameForCephSubvolumeGroup(cephFilesystem.Name)
+		err = r.deleteDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace)
+		if err != nil {
+			r.Log.Error(err, "Uninstall: unable to delete subvolumegroup", "subvolumegroup", klog.KRef(cephFilesystem.Namespace, cephSVGName))
+			return reconcile.Result{}, err
 		}
+
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting cephFilesystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))
 			err = r.Client.Delete(r.ctx, foundCephFilesystem)

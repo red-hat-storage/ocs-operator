@@ -88,8 +88,9 @@ FILE_BASED_CATALOG_FULL_IMAGE_NAME="${FILE_BASED_CATALOG_FULL_IMAGE_NAME:-${DEFA
 METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:-${DEFAULT_METRICS_EXPORTER_FULL_IMAGE_NAME}}"
 UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_UX_BACKEND_OAUTH_FULL_IMAGE_NAME}}"
 
+CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.11.0"
 CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-0ac7669"
-OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-5595a28"
+OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:fb2adf6"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250317"
 ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-ab4f1ba58"
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"

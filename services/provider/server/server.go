@@ -149,10 +149,6 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket storageCluster not match existing storageCluster.")
 	}
 
-	if !storageCluster.Spec.AllowRemoteStorageConsumers {
-		return nil, status.Errorf(codes.PermissionDenied, "onboarding remote storageConsumer(s) is not allowed.")
-	}
-
 	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
 
 	if onboardingTicket.SubjectRole != services.ClientRole {

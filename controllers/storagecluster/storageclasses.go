@@ -457,12 +457,10 @@ func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1
 		newCephBlockPoolStorageClassConfiguration(initData),
 	}
 
-	// when allowing consumers, creation of storage classes should only be done via storagerequests
-	if !initData.Spec.AllowRemoteStorageConsumers {
-		// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
-		if r.AvailableCrds[VirtualMachineCrdName] {
-			ret = append(ret, newCephBlockPoolVirtualizationStorageClassConfiguration(initData))
-		}
+	//TODO: will be removed when we start handling kubevirt class through provider-client communication
+	// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
+	if r.AvailableCrds[VirtualMachineCrdName] {
+		ret = append(ret, newCephBlockPoolVirtualizationStorageClassConfiguration(initData))
 	}
 
 	if initData.Spec.ManagedResources.CephNonResilientPools.Enable {
