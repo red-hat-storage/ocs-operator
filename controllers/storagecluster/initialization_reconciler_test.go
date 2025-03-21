@@ -195,6 +195,15 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
+
+	cv := &configv1.ClusterVersion{}
+	cv.Name = "version"
+	cv.Spec = configv1.ClusterVersionSpec{ClusterID: "12345"}
+
+	cc := &cephv1.CephCluster{}
+	cc.Name = "ocsinit-cephcluster"
+	cc.Status.CephStatus = &cephv1.CephStatus{FSID: cephFSID}
+
 	cfs := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfilesystem",
@@ -302,6 +311,8 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 	obj = append(
 		obj,
 		mockNodeList.DeepCopy(),
+		cv,
+		cc,
 		cbp,
 		cfs,
 		cnfs,

@@ -24,6 +24,7 @@ var (
 )
 
 func TestCephBlockPools(t *testing.T) {
+	testSkipPrometheusRules = true
 	//cases for testing
 	var cases = []struct {
 		label                string
