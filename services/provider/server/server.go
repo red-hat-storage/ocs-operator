@@ -55,7 +55,7 @@ import (
 )
 
 const (
-	TicketAnnotation          = "ocs.openshift.io/provider-onboarding-ticket"
+	TicketAnnotation          = controllers.TicketAnnotation
 	ProviderCertsMountPoint   = "/mnt/cert"
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
@@ -140,6 +140,28 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
+
+	// get the consumer corresponding to this ticket
+	storageConsumerList := &ocsv1alpha1.StorageConsumerList{}
+	if err := s.client.List(ctx, storageConsumerList, client.InNamespace(s.namespace)); err != nil {
+		klog.Errorf("failed to get storageconsumers in the namespace: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get storageconsumers. %v", err)
+	} else if len(storageConsumerList.Items) < 1 {
+		return nil, status.Errorf(codes.FailedPrecondition, "no storageconsumers exist in the namespace")
+	}
+
+	consumerName := ""
+	for idx := range storageConsumerList.Items {
+		consumer := &storageConsumerList.Items[idx]
+		if consumer.GetAnnotations()[TicketAnnotation] == onboardingTicket.ID {
+			consumerName = consumer.Name
+			break
+		}
+	}
+	if consumerName == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "no storageConsumer found for supplied onboarding ticket")
+	}
+
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get storageCluster. %v", err)
@@ -161,37 +183,16 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(storageQuotaInGiB))
+	storageConsumerUUID, err := s.consumerManager.OnboardClient(ctx, consumerName, int(storageQuotaInGiB))
 	if err != nil {
-		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
-			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-
-		storageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)
-		}
-
-		if storageConsumer.Spec.Enable {
-			err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", req.ConsumerName)
-			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-		storageConsumerUUID = string(storageConsumer.UID)
+		return nil, status.Errorf(codes.Internal, "failed to onboard on storageConsumer resource. %v", err)
 	}
-
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
 }
 
 // AcknowledgeOnboarding acknowledge the onboarding is complete
 func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
-
-	if err := s.consumerManager.EnableStorageConsumer(ctx, req.StorageConsumerUUID); err != nil {
-		if kerrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "storageConsumer not found. %v", err)
-		}
-		return nil, status.Errorf(codes.Internal, "Failed to update the storageConsumer. %v", err)
-	}
-	return &pb.AcknowledgeOnboardingResponse{}, nil
+	return nil, status.Errorf(codes.Unimplemented, "Not expecting a two step onboarding process")
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
