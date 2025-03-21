@@ -74,12 +74,6 @@ var mockStorageCluster = &api.StorageCluster{
 			CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 		},
 		Finalizers: []string{storageClusterFinalizer},
-		OwnerReferences: []metav1.OwnerReference{{
-			APIVersion: "v1",
-			Kind:       "StorageSystem",
-			Name:       "storage-test",
-		},
-		},
 	},
 	Spec: api.StorageClusterSpec{
 		Monitoring: &api.MonitoringSpec{

@@ -115,8 +115,7 @@ func createExternalClusterReconcilerFromCustomResources(
 				UninstallModeAnnotation: string(UninstallModeGraceful),
 				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 			},
-			Finalizers:      []string{storageClusterFinalizer},
-			OwnerReferences: []metav1.OwnerReference{{Name: "storage-test", Kind: "StorageSystem", APIVersion: "v1"}},
+			Finalizers: []string{storageClusterFinalizer},
 		},
 		Spec: api.StorageClusterSpec{
 			ExternalStorage: api.ExternalStorageClusterSpec{

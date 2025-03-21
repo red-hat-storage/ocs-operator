@@ -25,55 +25,27 @@ func TestOdfInfoConfig(t *testing.T) {
 	testTable := []struct {
 		label                        string
 		expectedPublicNetworkValue   string
-		storageSystemOwnerRef        metav1.OwnerReference
 		ocsVersion                   string
 		deploymentType               string
 		storageClusterNamespacedName types.NamespacedName
 		cephClusterFSID              string
 		numConnectedClients          int
-		shouldFail                   bool
 	}{
 		{
-			label: "Case #1: Green path no StorageConsumers",
-			storageSystemOwnerRef: metav1.OwnerReference{
-				Name:       "storage-test",
-				Kind:       "StorageSystem",
-				APIVersion: "v1",
-			},
+			label:                        "Case #1: Green path no StorageConsumers",
 			ocsVersion:                   ocsversion.Version,
 			deploymentType:               odfDeploymentTypeInternal,
 			storageClusterNamespacedName: types.NamespacedName{Name: "storage-test", Namespace: namespace},
 			cephClusterFSID:              cephFSID,
 			numConnectedClients:          0,
-			shouldFail:                   false,
 		},
 		{
-			label: "Case #2: Green path with StorageConsumer",
-			storageSystemOwnerRef: metav1.OwnerReference{
-				Name:       "storage-test",
-				Kind:       "StorageSystem",
-				APIVersion: "v1",
-			},
+			label:                        "Case #2: Green path with StorageConsumer",
 			ocsVersion:                   ocsversion.Version,
 			deploymentType:               odfDeploymentTypeInternal,
 			storageClusterNamespacedName: types.NamespacedName{Name: "storage-test", Namespace: namespace},
 			cephClusterFSID:              cephFSID,
 			numConnectedClients:          1,
-			shouldFail:                   false,
-		},
-		{
-			label:                 "Case #3: StorageCluster has blank StorageSystem owner ref",
-			storageSystemOwnerRef: metav1.OwnerReference{},
-			shouldFail:            true,
-		},
-		{
-			label: "Case #4: StorageCluster has no owner ref of kind StorageSystem",
-			storageSystemOwnerRef: metav1.OwnerReference{
-				Name:       "storage-test",
-				APIVersion: "v1",
-			},
-			storageClusterNamespacedName: types.NamespacedName{Name: "storage-test", Namespace: namespace},
-			shouldFail:                   true,
 		},
 	}
 
@@ -92,8 +64,7 @@ func TestOdfInfoConfig(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      testCase.storageClusterNamespacedName.Name,
 				Namespace: testCase.storageClusterNamespacedName.Namespace,
-				OwnerReferences: []metav1.OwnerReference{
-					testCase.storageSystemOwnerRef}},
+			},
 		}
 
 		storageConsumer := &v1alpha1.StorageConsumer{}
@@ -118,13 +89,7 @@ func TestOdfInfoConfig(t *testing.T) {
 		assert.Equal(t, r.OperatorNamespace, namespace)
 		odfInfoConfigReconciler := &odfInfoConfig{}
 		_, err := odfInfoConfigReconciler.ensureCreated(&r, sc)
-		if err != nil {
-			if !testCase.shouldFail {
-				assert.NilError(t, err, "ensure created failed")
-			} else {
-				continue
-			}
-		}
+		assert.NilError(t, err)
 		// get the output
 		err = r.Client.Get(r.ctx, client.ObjectKeyFromObject(configMap), configMap)
 		assert.NilError(t, err, "expected to find configmap %q: %+v", OdfInfoConfigMapName, err)
@@ -136,7 +101,6 @@ func TestOdfInfoConfig(t *testing.T) {
 		assert.NilError(t, err, "Expected unmarshalling of OdfInfoConfig's data")
 		assert.Equal(t, odfInfoDataOfStorageClusterKey.DeploymentType, testCase.deploymentType)
 		assert.Equal(t, odfInfoDataOfStorageClusterKey.Version, testCase.ocsVersion)
-		assert.Equal(t, odfInfoDataOfStorageClusterKey.StorageSystemName, testCase.storageSystemOwnerRef.Name)
 		assert.Equal(t, odfInfoDataOfStorageClusterKey.StorageCluster.NamespacedName,
 			testCase.storageClusterNamespacedName)
 		assert.Equal(t, odfInfoDataOfStorageClusterKey.StorageCluster.CephClusterFSID, testCase.cephClusterFSID)

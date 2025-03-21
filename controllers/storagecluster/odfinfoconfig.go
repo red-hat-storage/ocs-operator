@@ -127,10 +127,6 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 	if !storageCluster.Spec.ExternalStorage.Enable {
 		odfDeploymentType = odfDeploymentTypeInternal
 	}
-	var storageSystemName string
-	if storageSystemName, err = getStorageSystemName(storageCluster); err != nil {
-		return "", err
-	}
 
 	connectedClients, err := getConnectedClients(r, storageCluster)
 	if err != nil {
@@ -146,10 +142,9 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 	}
 
 	data := ocsv1a1.OdfInfoData{
-		Version:           ocsVersion,
-		DeploymentType:    odfDeploymentType,
-		StorageSystemName: storageSystemName,
-		Clients:           connectedClients,
+		Version:        ocsVersion,
+		DeploymentType: odfDeploymentType,
+		Clients:        connectedClients,
 		StorageCluster: ocsv1a1.InfoStorageCluster{
 			NamespacedName:          client.ObjectKeyFromObject(storageCluster),
 			StorageProviderEndpoint: storageCluster.Status.StorageProviderEndpoint,
@@ -187,22 +182,6 @@ func getConnectedClients(r *StorageClusterReconciler, storageCluster *ocsv1.Stor
 	}
 
 	return connectedClients, nil
-}
-
-func getStorageSystemName(storageCluster *ocsv1.StorageCluster) (string, error) {
-	storageSystemRef := util.Find(storageCluster.OwnerReferences, func(ref *metav1.OwnerReference) bool {
-		return ref.Kind == "StorageSystem"
-	})
-	if storageSystemRef != nil {
-		return storageSystemRef.Name, nil
-	}
-
-	return "", fmt.Errorf(
-		"failed to find parent StorageSystem's name in StorageCluster %q"+
-			" ownerreferences, %v",
-		storageCluster.Name,
-		storageCluster.OwnerReferences)
-
 }
 
 func getOcsVersion(r *StorageClusterReconciler) (string, error) {
