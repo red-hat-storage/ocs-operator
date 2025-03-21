@@ -158,3 +158,77 @@ func TestDualStack(t *testing.T) {
 	}
 
 }
+
+func TestMonTargetPGPerOSD(t *testing.T) {
+	testTable := []struct {
+		label          string
+		existingConfig string
+		reconcileCount int
+		expectedValue  string
+		shouldExist    bool
+	}{
+		{
+			label:          "Fresh install - should set mon_target_pg_per_osd=200",
+			existingConfig: "",
+			reconcileCount: 2,
+			expectedValue:  "200",
+			shouldExist:    true,
+		},
+		{
+			label: "Existing cluster - should not add mon_target_pg_per_osd",
+			existingConfig: `[global]
+some_other_key = value
+`,
+			reconcileCount: 1,
+			expectedValue:  "",
+			shouldExist:    false,
+		},
+	}
+
+	for i, testCase := range testTable {
+		t.Logf("Case #%+v: %s", i+1, testCase.label)
+		r := createFakeStorageClusterReconciler(t)
+		sc := &api.StorageCluster{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "test"},
+		}
+
+		// Create existing ConfigMap if specified
+		if testCase.existingConfig != "" {
+			existingCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              rookOverrideConfigMapName,
+					Namespace:         sc.Namespace,
+					CreationTimestamp: metav1.Now(),
+				},
+				Data: map[string]string{
+					"config": testCase.existingConfig,
+				},
+			}
+			err := r.Client.Create(context.TODO(), existingCM)
+			assert.NilError(t, err, "failed to create existing configmap")
+		}
+
+		cephConfigReconciler := &ocsCephConfig{}
+		for j := 0; j < testCase.reconcileCount; j++ {
+			_, err := cephConfigReconciler.ensureCreated(&r, sc)
+			assert.NilError(t, err, "reconcile %d failed", j+1)
+
+			// Verify ConfigMap after each reconcile
+			configMap := &corev1.ConfigMap{}
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: rookOverrideConfigMapName, Namespace: sc.Namespace}, configMap)
+			assert.NilError(t, err, "expected to find configmap")
+
+			cfg, err := ini.Load([]byte(configMap.Data["config"]))
+			assert.NilError(t, err, "expected ini string to load")
+
+			sect, err := cfg.GetSection(globalSectionKey)
+			assert.NilError(t, err, "expected section to exist")
+
+			keyFound := sect.HasKey(targetPgPerOSDKey)
+			assert.Equal(t, keyFound, testCase.shouldExist, "mon_target_pg_per_osd key existence mismatch")
+			if testCase.shouldExist {
+				assert.Equal(t, sect.Key(targetPgPerOSDKey).Value(), testCase.expectedValue, "mon_target_pg_per_osd value mismatch")
+			}
+		}
+	}
+}
