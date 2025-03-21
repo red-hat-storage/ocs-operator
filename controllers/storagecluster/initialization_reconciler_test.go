@@ -45,8 +45,7 @@ func createStorageCluster(scName, failureDomainName string,
 				UninstallModeAnnotation: string(UninstallModeGraceful),
 				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 			},
-			Finalizers:      []string{storageClusterFinalizer},
-			OwnerReferences: []metav1.OwnerReference{{Name: "storage-test", Kind: "StorageSystem", APIVersion: "v1"}},
+			Finalizers: []string{storageClusterFinalizer},
 		},
 		Spec: api.StorageClusterSpec{
 			Monitoring: &api.MonitoringSpec{
