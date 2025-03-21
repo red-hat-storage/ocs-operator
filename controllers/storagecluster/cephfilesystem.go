@@ -12,14 +12,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ocsCephFilesystems struct{}
-
-const defaultSubvolumeGroupName = "csi"
 
 // newCephFilesystemInstances returns the cephFilesystem instances that should be created
 // on first run.
@@ -140,88 +137,9 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 				return reconcile.Result{}, err
 			}
 		}
-
-		// create default csi subvolumegroup for the filesystem
-		err = r.createDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace, cephFilesystem.ObjectMeta.OwnerReferences)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func (r *StorageClusterReconciler) createDefaultSubvolumeGroup(filesystemName, filesystemNamespace string, ownerReferences []metav1.OwnerReference) error {
-
-	existingsvg := &cephv1.CephFilesystemSubVolumeGroup{}
-	svgName := generateNameForCephSubvolumeGroup(filesystemName)
-	err := r.Client.Get(r.ctx, types.NamespacedName{Name: svgName, Namespace: filesystemNamespace}, existingsvg)
-	if err == nil {
-		if existingsvg.DeletionTimestamp != nil {
-			r.Log.Info("Unable to restore subvolumegroup because it is marked for deletion.", "subvolumegroup", klog.KRef(filesystemNamespace, existingsvg.Name))
-			return fmt.Errorf("failed to restore subvolumegroup %s because it is marked for deletion", existingsvg.Name)
-		}
-	}
-
-	cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            svgName,
-			Namespace:       filesystemNamespace,
-			OwnerReferences: ownerReferences,
-		},
-	}
-
-	// Default value of "distributed" option for pinning in the CephFilesystemSubVolumeGroup CR
-	defaultPinningValue := 1
-	mutateFn := func() error {
-		cephFilesystemSubVolumeGroup.Spec = cephv1.CephFilesystemSubVolumeGroupSpec{
-			Name:           defaultSubvolumeGroupName,
-			FilesystemName: filesystemName,
-			Pinning: cephv1.CephFilesystemSubVolumeGroupSpecPinning{
-				Distributed: &defaultPinningValue,
-			},
-		}
-		return nil
-	}
-	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephFilesystemSubVolumeGroup, mutateFn)
-	if err != nil {
-		r.Log.Error(err, "Could not create/update default csi cephFilesystemSubVolumeGroup.", "cephFilesystemSubVolumeGroup", klog.KRef(cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Name))
-		return err
-	}
-	return nil
-}
-
-func (r *StorageClusterReconciler) deleteDefaultSubvolumeGroup(filesystemName, filesystemNamespace string) error {
-	existingsvg := &cephv1.CephFilesystemSubVolumeGroup{}
-	svgName := generateNameForCephSubvolumeGroup(filesystemName)
-	err := r.Client.Get(r.ctx, types.NamespacedName{Name: svgName, Namespace: filesystemNamespace}, existingsvg)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			r.Log.Info("Uninstall: csi subvolumegroup not found.", "Subvolumegroup", klog.KRef(filesystemNamespace, svgName))
-			return nil
-		}
-		r.Log.Error(err, "Uninstall: Unable to retrieve subvolumegroup.", "subvolumegroup", klog.KRef(filesystemNamespace, svgName))
-		return fmt.Errorf("uninstall: Unable to retrieve csi subvolumegroup : %v", err)
-	}
-
-	if existingsvg.GetDeletionTimestamp().IsZero() {
-		r.Log.Info("Uninstall: Deleting subvolumegroup.", "subvolumegroup", klog.KRef(filesystemNamespace, existingsvg.Name))
-		err = r.Client.Delete(r.ctx, existingsvg)
-		if err != nil {
-			r.Log.Error(err, "Uninstall: Failed to delete subvolumegroup.", "subvolumegroup", klog.KRef(filesystemNamespace, existingsvg.Name))
-			return fmt.Errorf("uninstall: Failed to delete subvolumegroup %v: %v", existingsvg.Name, err)
-		}
-	}
-
-	err = r.Client.Get(r.ctx, types.NamespacedName{Name: svgName, Namespace: filesystemNamespace}, existingsvg)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			r.Log.Info("Uninstall: subvolumegroup is deleted.", "subvolumegroup", klog.KRef(filesystemNamespace, existingsvg.Name))
-			return nil
-		}
-	}
-	r.Log.Error(err, "Uninstall: Waiting for subvolumegroup to be deleted.", "subvolumegroup", klog.KRef(filesystemNamespace, existingsvg.Name))
-	return fmt.Errorf("uninstall: Waiting for subvolumegroup %v to be deleted", existingsvg.Name)
 }
 
 // ensureDeleted deletes the CephFilesystems owned by the StorageCluster
@@ -241,14 +159,6 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 			}
 			r.Log.Error(err, "Uninstall: Unable to retrieve CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 			return reconcile.Result{}, fmt.Errorf("uninstall: Unable to retrieve CephFileSystem %v: %v", cephFilesystem.Name, err)
-		}
-
-		// delete csi subvolume group for particular filesystem
-		cephSVGName := generateNameForCephSubvolumeGroup(cephFilesystem.Name)
-		err = r.deleteDefaultSubvolumeGroup(cephFilesystem.Name, cephFilesystem.Namespace)
-		if err != nil {
-			r.Log.Error(err, "Uninstall: unable to delete subvolumegroup", "subvolumegroup", klog.KRef(cephFilesystem.Namespace, cephSVGName))
-			return reconcile.Result{}, err
 		}
 
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
