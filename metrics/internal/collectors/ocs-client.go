@@ -94,3 +94,23 @@ func (s *storageClusterLister) List(selector labels.Selector) (storageclusters [
 	})
 	return storageclusters, err
 }
+
+// a generic interface with 'List' method
+type Lister[T any] interface {
+	List(labels.Selector) ([]*T, error)
+}
+
+type storageAutoScalerLister struct {
+	indexer cache.Indexer
+}
+
+func (s *storageAutoScalerLister) List(selector labels.Selector) (storageAutoScalers []*ocsv1.StorageAutoScaler, err error) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+		storageAutoScalers = append(storageAutoScalers, m.(*ocsv1.StorageAutoScaler))
+	})
+	return
+}
+
+func NewStorageAutoScalerLister(indexer cache.Indexer) Lister[ocsv1.StorageAutoScaler] {
+	return &storageAutoScalerLister{indexer: indexer}
+}
