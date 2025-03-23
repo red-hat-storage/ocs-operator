@@ -248,6 +248,11 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			isConsumerMirrorEnabled,
 		)
 
+		var csiCtrlPluginHostNW bool
+		if storageCluster.Spec.HostNetwork && storageCluster.Spec.Network.AddressRanges != nil {
+			csiCtrlPluginHostNW = true
+		}
+
 		klog.Infof("successfully returned the config details to the consumer.")
 		return &pb.StorageConfigResponse{
 				ExternalResource:  conString,
@@ -256,6 +261,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 					SystemInMaintenanceMode: inMaintenanceMode,
 					MirrorEnabled:           isConsumerMirrorEnabled,
 				},
+				CsiCtrlPluginHostNW: csiCtrlPluginHostNW,
 			},
 			nil
 	}
