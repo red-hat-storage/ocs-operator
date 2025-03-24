@@ -122,7 +122,8 @@ type StorageAutoScalerStatus struct {
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=.metadata.creationTimestamp, description="Age"
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=.status.phase,description="Current Phase"
 // +kubebuilder:printcolumn:name="DeviceClass",type=string,JSONPath=.spec.deviceClass,description="Device Class"
-// +kubebuilder:printcolumn:name="LastRunTimeStamp",type=date,JSONPath=.status.lastRunTimeStamp,description="Last Run Time Stamp"
+// +kubebuilder:printcolumn:name="LastRunStartTime",type=date,JSONPath=.status.lastExpansion.startTime,description="Last Run Start Time Stamp"
+// +kubebuilder:printcolumn:name="LastRunCompletionTime",type=date,JSONPath=.status.lastExpansion.completionTime,description="Last Run Completion Time Stamp"
 // +operator-sdk:csv:customresourcedefinitions:displayName="Storage Auto Scaling"
 
 // StorageAutoScaler represents the automatic storage scaling for storage cluster.
