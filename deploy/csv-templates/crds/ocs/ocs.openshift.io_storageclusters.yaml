@@ -5135,7 +5135,11 @@ spec:
               providerAPIServerServiceType:
                 description: |-
                   ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
-                  The supported values are NodePort or LoadBalancer. The default ServiceType is NodePort if the value is empty.
+                  The default ServiceType is derived from hostNetwork field.
+                enum:
+                - ClusterIP
+                - NodePort
+                - LoadBalancer
                 type: string
               resourceProfile:
                 description: |-
