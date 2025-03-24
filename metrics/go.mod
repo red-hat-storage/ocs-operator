@@ -31,7 +31,7 @@ require (
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20250227172543-a22914aaf7d5
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-20250227172543-a22914aaf7d5
 	github.com/rook/rook v1.16.0-alpha.0.0.20250303190112-9a5bf16247ce
-	github.com/rook/rook/pkg/apis v0.0.0-20250303190112-9a5bf16247ce
+	github.com/rook/rook/pkg/apis v0.0.0-20250331180736-9ac31019683c
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
@@ -87,7 +87,7 @@ require (
 	github.com/hashicorp/vault/api/auth/kubernetes v0.8.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.5 // indirect
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.6 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect

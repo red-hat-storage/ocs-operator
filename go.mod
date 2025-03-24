@@ -18,7 +18,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.5
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.6
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250325115430-401802f15851
 	github.com/onsi/ginkgo/v2 v2.22.2
@@ -36,7 +36,7 @@ require (
 	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20250303120608-b25fe5ab0148
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20250227172543-a22914aaf7d5
 	github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-20250227172543-a22914aaf7d5
-	github.com/rook/rook/pkg/apis v0.0.0-20250303190112-9a5bf16247ce
+	github.com/rook/rook/pkg/apis v0.0.0-20250331180736-9ac31019683c
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394

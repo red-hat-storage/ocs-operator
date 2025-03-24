@@ -6,7 +6,7 @@ require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250325115430-401802f15851
 	github.com/openshift/api v0.0.0-20250303104811-f587fb60f627
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/rook/rook/pkg/apis v0.0.0-20250303190112-9a5bf16247ce
+	github.com/rook/rook/pkg/apis v0.0.0-20250331180736-9ac31019683c
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 )
@@ -52,7 +52,7 @@ require (
 	github.com/hashicorp/vault/api/auth/kubernetes v0.8.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.5 // indirect
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.6 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1 // indirect
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0 // indirect
