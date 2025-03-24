@@ -1230,15 +1230,10 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			continue
 		}
 
-		rnsList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
-		err = s.client.List(
-			ctx,
-			rnsList,
-			client.InNamespace(s.namespace),
-			client.MatchingLabels{controllers.StorageConsumerNameLabel: consumer.Name},
-			client.Limit(2),
-		)
-		if err != nil {
+		consumerConfigMap := &corev1.ConfigMap{}
+		consumerConfigMap.Name = consumer.Status.ResourceNameMappingConfigMap.Name
+		consumerConfigMap.Namespace = consumer.Namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); err != nil {
 			response.Errors = append(response.Errors,
 				&pb.StorageClientInfoError{
 					ClientID: req.ClientIDs[i],
@@ -1249,21 +1244,12 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			klog.Error(err)
 			continue
 		}
-		if len(rnsList.Items) > 1 {
-			response.Errors = append(response.Errors,
-				&pb.StorageClientInfoError{
-					ClientID: req.ClientIDs[i],
-					Code:     pb.ErrorCode_Internal,
-					Message:  "failed loading client information",
-				},
-			)
-			klog.Errorf("invalid number of radosnamespace found for the Client %v", req.ClientIDs[i])
-			continue
-		}
 		clientInfo := &pb.ClientInfo{ClientID: req.ClientIDs[i]}
-		if len(rnsList.Items) == 1 {
-			clientInfo.RadosNamespace = rnsList.Items[0].Name
+
+		if radosNamespace := consumerConfigMap.Data["rados-namespace-name"]; radosNamespace != "" {
+			clientInfo.RadosNamespace = radosNamespace
 		}
+
 		response.ClientsInfo = append(response.ClientsInfo, clientInfo)
 	}
 
