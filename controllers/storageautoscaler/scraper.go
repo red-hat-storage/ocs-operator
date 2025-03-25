@@ -41,6 +41,15 @@ func (r *StorageAutoscalerScraper) ScrapeMetricsPeriodically(ctx context.Context
 }
 
 func (r *StorageAutoscalerScraper) enqueueGenericEventsFromMetrics(ctx context.Context) {
+	objectList, err := getStorageAutoScalerObjects(ctx, r.Client)
+	if err != nil {
+		r.Log.Error(err, "failed to get resource objects")
+		return
+	}
+	if len(objectList.Items) == 0 {
+		return
+	}
+
 	osdUsageQuery := `(ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes))`
 	metrics, err := scrapeMetrics(ctx, r.OperatorNamespace, osdUsageQuery, r.Log)
 	if err != nil {
@@ -53,11 +62,6 @@ func (r *StorageAutoscalerScraper) enqueueGenericEventsFromMetrics(ctx context.C
 	// update the sync map with the highest value of osd usage per device class
 	updateSyncMap(metrics, r.SyncMap)
 
-	objectList, err := getStorageAutoScalerObjects(ctx, r.Client)
-	if err != nil {
-		r.Log.Error(err, "failed to get resource objects")
-		return
-	}
 	filteredObjectList := filterObjectsForScaling(objectList, r.SyncMap, r.Log)
 
 	// send generic events for the filtered objects
