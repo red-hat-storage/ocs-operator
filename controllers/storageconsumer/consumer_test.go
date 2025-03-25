@@ -26,10 +26,13 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -57,6 +60,9 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	}
 	err = configv1.AddToScheme(scheme)
 	if err != nil {
+		assert.Fail(t, "failed to add configv1 scheme")
+	}
+	if err = rookcephv1.AddToScheme(scheme); err != nil {
 		assert.Fail(t, "failed to add configv1 scheme")
 	}
 
@@ -109,6 +115,26 @@ func TestNoobaaAccount(t *testing.T) {
 	}
 	err := client.Create(ctx, clusterVersionProvider)
 	assert.NoError(t, err)
+	cephCluster := &rookcephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ceph-cluster",
+		},
+		Status: rookcephv1.ClusterStatus{
+			CephStatus: &rookcephv1.CephStatus{
+				FSID: "1234",
+			},
+		},
+	}
+	err = client.Create(ctx, cephCluster)
+	assert.NoError(t, err)
+	consumerConfig := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "provider",
+			UID:  types.UID("12345"),
+		},
+	}
+	err = client.Create(ctx, consumerConfig)
+	assert.NoError(t, err)
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
 
@@ -159,6 +185,26 @@ func TestNoobaaAccount(t *testing.T) {
 		},
 	}
 	err = client.Create(ctx, clusterVersionConsumer)
+	assert.NoError(t, err)
+	cephCluster = &rookcephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ceph-cluster",
+		},
+		Status: rookcephv1.ClusterStatus{
+			CephStatus: &rookcephv1.CephStatus{
+				FSID: "1234",
+			},
+		},
+	}
+	err = client.Create(ctx, cephCluster)
+	assert.NoError(t, err)
+	consumerConfig = &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "consumer",
+			UID:  types.UID("12345"),
+		},
+	}
+	err = client.Create(ctx, consumerConfig)
 	assert.NoError(t, err)
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)

@@ -1219,11 +1219,16 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			continue
 		}
 
-		owner := util.FindOwnerRefByKind(consumer, "StorageCluster")
-		if owner == nil {
+		idx := slices.IndexFunc(consumer.OwnerReferences, func(ref metav1.OwnerReference) bool {
+			return ref.Kind == "StorageCluster"
+		})
+
+		if idx == -1 {
 			klog.Infof("no owner found for consumer %v", req.ClientIDs[i])
 			continue
 		}
+
+		owner := &consumer.OwnerReferences[idx]
 
 		if owner.UID != types.UID(req.StorageClusterUID) {
 			klog.Infof("storageCluster specified on the req does not own the client %v", req.ClientIDs[i])

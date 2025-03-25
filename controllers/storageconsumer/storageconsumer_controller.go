@@ -17,25 +17,30 @@ limitations under the License.
 package controllers
 
 import (
+	"cmp"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -145,6 +150,73 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
 
+		consumerConfigMap := &corev1.ConfigMap{}
+		consumerConfigMap.Namespace = r.namespace
+		consumerConfigMap.Name = cmp.Or(
+			r.storageConsumer.Spec.ResourceNameMappingConfigMap.Name,
+			fmt.Sprintf("storageconsumer-%v", util.FnvHash(r.storageConsumer.Name)),
+		)
+		if err := r.get(consumerConfigMap); client.IgnoreNotFound(err) != nil {
+			return reconcile.Result{}, err
+		}
+
+		var fsid string
+		if cephCluster, err := util.GetCephClusterInNamespace(r.ctx, r.Client, r.namespace); err != nil {
+			return reconcile.Result{}, err
+		} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+			return reconcile.Result{}, fmt.Errorf("waiting for Ceph FSID")
+		} else {
+			fsid = cephCluster.Status.CephStatus.FSID
+		}
+
+		if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
+			if consumerConfigMap.Data == nil {
+				consumerConfigMap.Data = map[string]string{}
+			}
+
+			defaultConsumerResourceNames := util.GetStorageConsumerDefaultResourceNames(r.storageConsumer.Name, fsid)
+			for key := range defaultConsumerResourceNames {
+				consumerConfigMap.Data[key] = cmp.Or(
+					strings.Trim(consumerConfigMap.Data[key], " "),
+					defaultConsumerResourceNames[key],
+				)
+			}
+
+			// Get config map's controller reference
+			controllerIndex := slices.IndexFunc(
+				consumerConfigMap.OwnerReferences,
+				func(ref metav1.OwnerReference) bool { return ptr.Deref(ref.Controller, false) },
+			)
+			var controllerRef *metav1.OwnerReference
+			if controllerIndex != -1 {
+				controllerRef = &consumerConfigMap.OwnerReferences[controllerIndex]
+			}
+			// If there is no controller ref, take control over the config map
+			if controllerRef == nil {
+				if err := controllerutil.SetControllerReference(
+					r.storageConsumer,
+					consumerConfigMap,
+					r.Scheme,
+				); err != nil {
+					return err
+				}
+				// If I am not the config map controller add me as an owner
+			} else if controllerRef.UID != r.storageConsumer.UID {
+				if err := controllerutil.SetOwnerReference(
+					r.storageConsumer,
+					consumerConfigMap,
+					r.Scheme,
+				); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		r.storageConsumer.Status.ResourceNameMappingConfigMap = corev1.LocalObjectReference{Name: consumerConfigMap.Name}
+
 		// A provider cluster already has a NooBaa system and does not require a NooBaa account
 		// to connect to a remote cluster, unlike client clusters.
 		// A NooBaa account only needs to be created if the storage consumer is for a client cluster.
@@ -240,6 +312,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			predicate.GenerationChangedPredicate{},
 		)).
 		Owns(&nbv1.NooBaaAccount{}).
+		Owns(&corev1.ConfigMap{}, builder.MatchEveryOwner).
 		// Watch non-owned resources cephBlockPool
 		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
 		Watches(&rookCephv1.CephBlockPool{},
