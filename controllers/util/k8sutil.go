@@ -186,6 +186,10 @@ func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) 
 	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
 }
 
+func GenerateNameForCephFilesystem(storageClusterName string) string {
+	return fmt.Sprintf("%s-cephfilesystem", storageClusterName)
+}
+
 func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*ocsv1.StorageCluster, error) {
 	storageClusterList := &ocsv1.StorageClusterList{}
 	err := cl.List(ctx, storageClusterList, client.InNamespace(namespace), client.Limit(1))
