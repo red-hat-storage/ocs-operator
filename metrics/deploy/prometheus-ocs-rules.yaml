@@ -411,3 +411,41 @@ spec:
       for: 1m
       labels:
         severity: warning
+  - name: storage-auto-scaler-alerts.rules
+    rules:
+    - alert: StorageAutoScalingFailed
+      annotations:
+        description: |-
+          StorageAutoScaler, {{ $labels.name }}, has failed for device class {{ $labels.device_class }} under storage cluster {{ $labels.storagecluster }} in the namespace {{ $labels.namespace }}.
+        message: Auto scaling failed.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageAutoScalingFailed.md
+        severity_level: warning
+      expr: |
+        ocs_storageautoscaler_phase_status == 4
+      for: 1m
+      labels:
+        severity: warning
+    - alert: StorageAutoScalingSuccessfull
+      annotations:
+        description: |-
+          StorageAutoScaler, {{ $labels.name }}, has completed the scaling successfully in the namespace {{ $labels.namespace }}.
+        message: Auto scaling completed successfully.
+        runbook_url: NA
+        severity_level: info
+      expr: |
+        ocs_storageautoscaler_phase_status == 3
+      for: 5s
+      labels:
+        severity: info
+    - alert: StorageAutoScalingCapacityReached
+      annotations:
+        description: |-
+          StorageAutoScaler, {{ $labels.name }}, has reached the maximum scaling capacity for device class {{ $labels.device_class }} under storage cluster {{ $labels.storagecluster }} in the namespace {{ $labels.namespace }}.
+        message: Storage capacity has reached its limit and further scaling is not be possible.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageAutoScalingCapacityReached.md
+        severity_level: warning
+      expr: |
+        ocs_storageautoscaler_capacity_reached > 0
+      for: 5m
+      labels:
+        severity: warning
