@@ -113,6 +113,10 @@ type ClientStatus struct {
 	// +optional
 	OperatorVersion string `json:"operatorVersion,omitempty"`
 
+	// Client Operator Namespace
+	// +optional
+	OperatorNamespace string `json:"operatorNamespace,omitempty"`
+
 	// ClusterID is the id of the openshift cluster
 	// +optional
 	ClusterID string `json:"clusterId,omitempty"`

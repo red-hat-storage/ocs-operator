@@ -15,6 +15,10 @@ func (r *ReportStatusRequest) GetOperatorVersion() string {
 	return r.GetClientOperatorVersion()
 }
 
+func (r *ReportStatusRequest) GetOperatorNamespace() string {
+	return r.GetClientOperatorNamespace()
+}
+
 func (r *ReportStatusRequest) SetPlatformVersion(version string) ifaces.StorageClientStatus {
 	r.ClientPlatformVersion = version
 	return r
@@ -47,6 +51,11 @@ func (r *ReportStatusRequest) SetClientID(clientID string) ifaces.StorageClientS
 
 func (r *ReportStatusRequest) SetStorageQuotaUtilizationRatio(storageQuotaUtilizationRatio float64) ifaces.StorageClientStatus {
 	r.StorageQuotaUtilizationRatio = storageQuotaUtilizationRatio
+	return r
+}
+
+func (r *ReportStatusRequest) SetOperatorNamespace(namespace string) ifaces.StorageClientStatus {
+	r.ClientOperatorNamespace = namespace
 	return r
 }
 

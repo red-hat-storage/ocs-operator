@@ -1,11 +1,9 @@
 package interfaces
 
 type StorageClientStatus interface {
-	// TODO: it was mistake not using full name of the field and we are just
-	// doing indirection for getters, change this interface after ensuring
-	// no client is using it
 	GetPlatformVersion() string
 	GetOperatorVersion() string
+	GetOperatorNamespace() string
 	GetClusterID() string
 	GetClusterName() string
 	GetClientName() string
@@ -14,6 +12,7 @@ type StorageClientStatus interface {
 
 	SetPlatformVersion(string) StorageClientStatus
 	SetOperatorVersion(string) StorageClientStatus
+	SetOperatorNamespace(string) StorageClientStatus
 	SetClusterID(string) StorageClientStatus
 	SetClusterName(string) StorageClientStatus
 	SetClientName(string) StorageClientStatus

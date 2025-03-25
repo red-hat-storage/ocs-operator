@@ -140,6 +140,9 @@ spec:
                   name:
                     description: Name is the name of connected storageclient
                     type: string
+                  operatorNamespace:
+                    description: Client Operator Namespace
+                    type: string
                   operatorVersion:
                     description: StorageClient Operator Version
                     type: string
