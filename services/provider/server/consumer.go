@@ -218,6 +218,7 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.LastHeartbeat = metav1.Now()
 	consumerObj.Status.Client.PlatformVersion = status.GetPlatformVersion()
 	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
+	consumerObj.Status.Client.OperatorNamespace = status.GetOperatorNamespace()
 	consumerObj.Status.Client.ClusterID = status.GetClusterID()
 	consumerObj.Status.Client.Name = status.GetClientName()
 	consumerObj.Status.Client.ID = status.GetClientID()
