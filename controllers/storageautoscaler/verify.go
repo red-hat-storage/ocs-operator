@@ -75,7 +75,7 @@ func (r *StorageAutoscalerReconciler) verifyScaling(ctx context.Context, storage
 }
 
 func (r *StorageAutoscalerReconciler) verifyVerticalScaling(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, expectedOsdSize resource.Quantity) error {
-	metrics, err := getOsdSize(ctx, r.OperatorNamespace, r.Log)
+	metrics, err := mockGetOsdSize(ctx, r.OperatorNamespace, r.Log)
 	if err != nil {
 		r.Log.Error(err, "failed to get osd size")
 		return err

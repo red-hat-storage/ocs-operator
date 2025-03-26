@@ -112,6 +112,8 @@ func scrapeMetrics(ctx context.Context, operatorNamespace string, query string, 
 	return queryMetrics(client, operatorNamespace, query, log)
 }
 
+var mockGetOsdSize = getOsdSize
+
 func getOsdSize(ctx context.Context, namespace string, log logr.Logger) (model.Vector, error) {
 	osdSizeQuery := `(ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes))`
 	metrics, err := scrapeMetrics(ctx, namespace, osdSizeQuery, log)
