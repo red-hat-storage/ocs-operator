@@ -15,7 +15,6 @@ import (
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -232,14 +231,4 @@ func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
 	}
 
 	return k8sClient, nil
-}
-
-func FindOwnerRefByKind(obj client.Object, kind string) *v1.OwnerReference {
-	owners := obj.GetOwnerReferences()
-	for i := range owners {
-		if owners[i].Kind == kind {
-			return &owners[i]
-		}
-	}
-	return nil
 }

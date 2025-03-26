@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -32,6 +33,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -117,12 +119,16 @@ func (r *StorageClusterPeerReconciler) reconcileStates(storageClusterPeer *ocsv1
 	storageCluster.Namespace = storageClusterPeer.Namespace
 
 	// Fetch StorageCluster
-	owner := util.FindOwnerRefByKind(storageClusterPeer, "StorageCluster")
+	idx := slices.IndexFunc(storageClusterPeer.OwnerReferences, func(ref metav1.OwnerReference) bool {
+		return ref.Kind == "StorageCluster"
+	})
 
-	if owner == nil {
+	if idx == -1 {
 		storageClusterPeer.Status.State = ocsv1.StorageClusterPeerStateFailed
 		return ctrl.Result{}, fmt.Errorf("failed to find StorgeCluster owning the StorageClusterPeer")
 	}
+
+	owner := &storageClusterPeer.OwnerReferences[idx]
 
 	storageCluster.Name = owner.Name
 
