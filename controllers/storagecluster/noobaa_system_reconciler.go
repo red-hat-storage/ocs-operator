@@ -104,7 +104,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	}
 	// Need to happen after the noobaa CR update was confirmed
 	sc.Status.Images.NooBaaCore.ActualImage = *nb.Spec.Image
-	sc.Status.Images.NooBaaDB.ActualImage = *nb.Spec.DBImage
+	sc.Status.Images.NooBaaDB.ActualImage = *nb.Spec.DBSpec.DBImage
 
 	objectRef, err := reference.GetReference(r.Scheme, nb)
 	if err != nil {
@@ -143,6 +143,15 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	util.AddAnnotation(nb, "MulticloudObjectGatewayProviderMode", "true")
 
+	// Set DB information inside DBSpec and not directly in NooBaaSpec
+	// DBSpec is used for deploying a posgres client, while the DB fields were used for the single DB instance.
+	// The fields in NooBaaSpec should be left unmodified, to keep the old DB up until data is imported into the new DB cluster.
+	dbMinVolumeSize := dBVolumeResources.Requests.Storage().String()
+	nb.Spec.DBSpec = &nbv1.NooBaaDBSpec{
+		DBImage:         &r.images.NooBaaDB,
+		DBMinVolumeSize: dbMinVolumeSize,
+	}
+
 	if !r.IsNoobaaStandalone {
 		storageClassName := util.GenerateNameForCephBlockPoolSC(sc)
 
@@ -154,12 +163,12 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 			storageClassName = externalStorageClassName
 		}
 
-		nb.Spec.DBStorageClass = &storageClassName
+		nb.Spec.DBSpec.DBStorageClass = &storageClassName
 		nb.Spec.PVPoolDefaultStorageClass = &storageClassName
 	}
 
 	nb.Spec.CoreResources = &coreResources
-	nb.Spec.DBResources = &dbResources
+	nb.Spec.DBSpec.DBResources = &dbResources
 
 	component := "noobaa-standalone"
 	// fallback to 'noobaa-core' if either the cluster is not standalone or if "noobaa-standalone" placement is not found
@@ -179,13 +188,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		nb.Spec.Affinity = nil
 	}
 
-	nb.Spec.DBVolumeResources = &corev1.VolumeResourceRequirements{
-		Limits:   dBVolumeResources.Limits,
-		Requests: dBVolumeResources.Requests,
-	}
 	nb.Spec.Image = &r.images.NooBaaCore
-	nb.Spec.DBImage = &r.images.NooBaaDB
-	nb.Spec.DBType = nbv1.DBTypePostgres
 
 	// Default endpoint spec.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
@@ -210,7 +213,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 		dbStorageClass := sc.Spec.MultiCloudGateway.DbStorageClassName
 		if dbStorageClass != "" {
-			nb.Spec.DBStorageClass = &dbStorageClass
+			nb.Spec.DBSpec.DBStorageClass = &dbStorageClass
 			nb.Spec.PVPoolDefaultStorageClass = &dbStorageClass
 		}
 		if sc.Spec.MultiCloudGateway.Endpoints != nil {
@@ -302,7 +305,7 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 			pvcs := &corev1.PersistentVolumeClaimList{}
 			opts := []client.ListOption{
 				client.InNamespace(sc.Namespace),
-				client.MatchingLabels(map[string]string{"noobaa-core": "noobaa"}),
+				client.MatchingLabels(map[string]string{"app": "noobaa"}),
 			}
 			err = r.Client.List(context.TODO(), pvcs, opts...)
 			if err != nil {

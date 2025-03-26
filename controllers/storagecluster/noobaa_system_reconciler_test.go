@@ -125,7 +125,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		assert.Equal(t, noobaa.Name, namespacedName.Name)
 		assert.Equal(t, noobaa.Namespace, namespacedName.Namespace)
 		if !c.isCreate {
-			assert.Equal(t, *noobaa.Spec.DBStorageClass, defaultStorageClass)
+			assert.Equal(t, *noobaa.Spec.DBSpec.DBStorageClass, defaultStorageClass)
 			assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, defaultStorageClass)
 		}
 	}
@@ -370,7 +370,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		assert.NotEmptyf(t, noobaa.Labels, "[%s] expected noobaa Labels not found", c.label)
 		assert.Equalf(t, noobaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		assert.Equal(t, *noobaa.Spec.DBStorageClass, c.dbStorageClassName)
+		assert.Equal(t, *noobaa.Spec.DBSpec.DBStorageClass, c.dbStorageClassName)
 		assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, c.dbStorageClassName)
 		noobaaplacement := getPlacement(&c.sc, "noobaa-core")
 		assert.Equal(t, noobaa.Spec.Tolerations, noobaaplacement.Tolerations)
@@ -380,7 +380,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			assert.Equalf(t, *noobaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)
 		}
 		if c.envDB != "" {
-			assert.Equalf(t, *noobaa.Spec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
+			assert.Equalf(t, *noobaa.Spec.DBSpec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
 		}
 	}
 }

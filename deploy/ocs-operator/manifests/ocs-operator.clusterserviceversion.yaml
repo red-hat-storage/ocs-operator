@@ -592,7 +592,7 @@ spec:
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v19.2.1
                 - name: NOOBAA_CORE_IMAGE
-                  value: quay.io/noobaa/noobaa-core:master-20250317
+                  value: quay.io/noobaa/noobaa-core:master-20250326
                 - name: NOOBAA_DB_IMAGE
                   value: quay.io/sclorg/postgresql-15-c9s
                 - name: PROVIDER_API_SERVER_IMAGE
