@@ -78,9 +78,12 @@ func newCephNetworkFilesystemSnapshotClassConfiguration(instance *ocsv1.StorageC
 
 // newSnapshotClassConfigurations generates configuration options for Ceph SnapshotClasses.
 func newSnapshotClassConfigurations(instance *ocsv1.StorageCluster) []SnapshotClassConfiguration {
-	vsccs := []SnapshotClassConfiguration{
-		newCephFilesystemSnapshotClassConfiguration(instance),
-		newCephBlockPoolSnapshotClassConfiguration(instance),
+	vsccs := []SnapshotClassConfiguration{}
+	if instance.Spec.ExternalStorage.Enable {
+		vsccs = append(vsccs,
+			newCephFilesystemSnapshotClassConfiguration(instance),
+			newCephBlockPoolSnapshotClassConfiguration(instance),
+		)
 	}
 	if instance.Spec.NFS != nil && instance.Spec.NFS.Enable {
 		vsccs = append(vsccs, newCephNetworkFilesystemSnapshotClassConfiguration(instance))

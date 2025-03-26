@@ -188,16 +188,16 @@ func assertStorageClasses(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	if skip {
 		if pvEncryption {
-			assert.Equal(t, len(expected), 5)
+			assert.Equal(t, len(expected), 2)
 		} else {
-			assert.Equal(t, len(expected), 4)
+			assert.Equal(t, len(expected), 1)
 		}
 	} else {
 		if pvEncryption {
-			assert.Equal(t, len(expected), 6)
+			assert.Equal(t, len(expected), 3)
 		} else {
 			// if not a cloud platform, RGW StorageClass should be created/updated
-			assert.Equal(t, len(expected), 5)
+			assert.Equal(t, len(expected), 2)
 		}
 	}
 

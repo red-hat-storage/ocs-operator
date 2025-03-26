@@ -323,20 +323,6 @@ func newCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) S
 	return scc
 }
 
-// newCephBlockPoolVirtualizationStorageClassConfiguration generates configuration options for a Ceph Block Pool StorageClass for virtualization environment.
-func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
-	virtualizationStorageClassConfig := newCephBlockPoolStorageClassConfiguration(initData)
-	meta := &virtualizationStorageClassConfig.storageClass.ObjectMeta
-	meta.Name = generateNameForCephBlockPoolVirtualizationSC(initData)
-	meta.Annotations["description"] = "Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
-	meta.Annotations["storageclass.kubevirt.io/is-default-virt-class"] = "true"
-	// remove the default storageClass annotation as it's not meant for the virtualization storageClass
-	delete(meta.Annotations, defaultStorageClassAnnotation)
-	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
-	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
-	return virtualizationStorageClassConfig
-}
-
 // newNonResilientCephBlockPoolStorageClassConfiguration generates configuration options for a Non-Resilient Ceph Block Pool StorageClass.
 func newNonResilientCephBlockPoolStorageClassConfiguration(initData *ocsv1.StorageCluster) StorageClassConfiguration {
 	persistentVolumeReclaimDelete := corev1.PersistentVolumeReclaimDelete
@@ -452,20 +438,8 @@ func newCephOBCStorageClassConfiguration(initData *ocsv1.StorageCluster) Storage
 // newStorageClassConfigurations returns the StorageClassConfiguration instances that should be created
 // on first run.
 func (r *StorageClusterReconciler) newStorageClassConfigurations(initData *ocsv1.StorageCluster) ([]StorageClassConfiguration, error) {
-	ret := []StorageClassConfiguration{
-		newCephFilesystemStorageClassConfiguration(initData),
-		newCephBlockPoolStorageClassConfiguration(initData),
-	}
+	ret := []StorageClassConfiguration{}
 
-	//TODO: will be removed when we start handling kubevirt class through provider-client communication
-	// If kubevirt crd is present, we create a specialized rbd storageclass for virtualization environment
-	if r.AvailableCrds[VirtualMachineCrdName] {
-		ret = append(ret, newCephBlockPoolVirtualizationStorageClassConfiguration(initData))
-	}
-
-	if initData.Spec.ManagedResources.CephNonResilientPools.Enable {
-		ret = append(ret, newNonResilientCephBlockPoolStorageClassConfiguration(initData))
-	}
 	if initData.Spec.NFS != nil && initData.Spec.NFS.Enable {
 		ret = append(ret, newCephNFSStorageClassConfiguration(initData))
 	}
