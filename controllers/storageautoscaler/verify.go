@@ -75,10 +75,9 @@ func (r *StorageAutoscalerReconciler) verifyScaling(ctx context.Context, storage
 }
 
 func (r *StorageAutoscalerReconciler) verifyVerticalScaling(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, expectedOsdSize resource.Quantity) error {
-	osdCountQuery := `(ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes))`
-	metrics, err := scrapeMetrics(ctx, r.OperatorNamespace, osdCountQuery, r.Log)
+	metrics, err := getOsdSize(ctx, r.OperatorNamespace, r.Log)
 	if err != nil {
-		r.Log.Error(err, "failed to scrape metrics")
+		r.Log.Error(err, "failed to get osd size")
 		return err
 	}
 
@@ -104,10 +103,9 @@ func (r *StorageAutoscalerReconciler) verifyVerticalScaling(ctx context.Context,
 }
 
 func (r *StorageAutoscalerReconciler) verifyHorizontalScaling(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, expectedOsdCount uint16) error {
-	osdCountQuery := `count by (device_class, namespace, managedBy) (ceph_osd_metadata)`
-	metrics, err := scrapeMetrics(ctx, r.OperatorNamespace, osdCountQuery, r.Log)
+	metrics, err := getOsdCount(ctx, r.OperatorNamespace, r.Log)
 	if err != nil {
-		r.Log.Error(err, "failed to scrape metrics")
+		r.Log.Error(err, "failed to get osd count")
 		return err
 	}
 

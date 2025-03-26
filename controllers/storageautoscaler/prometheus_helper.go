@@ -111,3 +111,23 @@ func scrapeMetrics(ctx context.Context, operatorNamespace string, query string, 
 	}
 	return queryMetrics(client, operatorNamespace, query, log)
 }
+
+func getOsdSize(ctx context.Context, namespace string, log logr.Logger) (model.Vector, error) {
+	osdSizeQuery := `(ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes))`
+	metrics, err := scrapeMetrics(ctx, namespace, osdSizeQuery, log)
+	if err != nil {
+		log.Error(err, "failed to scrape metrics")
+		return nil, err
+	}
+	return metrics, nil
+}
+
+func getOsdCount(ctx context.Context, namespace string, log logr.Logger) (model.Vector, error) {
+	osdCountQuery := `count by (device_class, namespace, managedBy) (ceph_osd_metadata)`
+	metrics, err := scrapeMetrics(ctx, namespace, osdCountQuery, log)
+	if err != nil {
+		log.Error(err, "failed to scrape metrics")
+		return nil, err
+	}
+	return metrics, nil
+}
