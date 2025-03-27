@@ -26,9 +26,11 @@ import (
 	"go.uber.org/multierr"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
@@ -50,6 +52,7 @@ import (
 )
 
 const (
+	onboardingPrivateKeyFilePath  = "/etc/private-key/key"
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
 	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
@@ -61,8 +64,9 @@ const (
 // StorageConsumerReconciler reconciles a StorageConsumer object
 type StorageConsumerReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log                  logr.Logger
+	Scheme               *runtime.Scheme
+	TokenLifetimeInHours int
 
 	ctx             context.Context
 	storageConsumer *ocsv1alpha1.StorageConsumer
@@ -115,9 +119,9 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 
 	// Reconcile errors have higher priority than status update errors
 	if reconcileError != nil {
-		return result, reconcileError
+		return reconcile.Result{}, reconcileError
 	} else if statusError != nil {
-		return result, statusError
+		return reconcile.Result{}, statusError
 	}
 
 	return result, nil
@@ -125,17 +129,32 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
-
-	if !r.storageConsumer.Spec.Enable {
-		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDisabled
-		return reconcile.Result{}, nil
-	}
-
-	r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
 	r.storageConsumer.Status.CephResources = []*ocsv1alpha1.CephResourcesSpec{}
+	if r.storageConsumer.Spec.Enable {
+		return r.reconcileEnabledPhases()
+	} else {
+		return r.reconcileNotEnabledPhases()
+	}
+}
 
+func (r *StorageConsumerReconciler) reconcileNotEnabledPhases() (reconcile.Result, error) {
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
+		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateNotEnabled
+		if err := r.reconcileOnboardingSecret(); err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
+	}
+	return reconcile.Result{}, nil
+}
 
+func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, error) {
+	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
+		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
+		if err := r.deleteOnboardingSecret(); err != nil {
+			return reconcile.Result{}, nil
+		}
 		consumerConfigMap := &corev1.ConfigMap{}
 		consumerConfigMap.Namespace = r.namespace
 		consumerConfigMap.Name = cmp.Or(
@@ -305,6 +324,60 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *StorageConsumerReconciler) reconcileOnboardingSecret() error {
+	secret := &corev1.Secret{}
+	secret.Name = fmt.Sprintf("onboarding-token-%s", r.storageConsumer.UID)
+	secret.Namespace = r.storageConsumer.Namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, secret, func() error {
+		if err := r.own(secret); err != nil {
+			return err
+		}
+		// do not overwrite token if already exists
+		if len(secret.Data[defaults.OnboardingTokenKey]) > 0 {
+			return nil
+		}
+		token, err := util.GenerateClientOnboardingToken(
+			r.TokenLifetimeInHours,
+			onboardingPrivateKeyFilePath,
+			r.storageConsumer.Name,
+		)
+		if err != nil {
+			return err
+		}
+		secret.StringData = map[string]string{
+			defaults.OnboardingTokenKey: token,
+		}
+		tokenExpiry := time.Now().Add(time.Duration(r.TokenLifetimeInHours) * time.Hour).UTC()
+		util.AddAnnotation(secret, "ocs.openshift.io/token-expiry", tokenExpiry.Format(time.RFC3339))
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to create/update secret %s: %v", secret.Name, err)
+	}
+	r.storageConsumer.Status.OnboardingTicketSecret = corev1.LocalObjectReference{Name: secret.Name}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) deleteOnboardingSecret() error {
+	secret := &corev1.Secret{}
+	secret.Name = fmt.Sprintf("onboarding-token-%s", r.storageConsumer.UID)
+	secret.Namespace = r.storageConsumer.Namespace
+	// once the .spec.enable is true we need to delete secret which is
+	// a direct call to k8s api server throughout the storageconsumer(s) lifecycle
+	// which adds a log to api server w/ 404 errors as a side effect.
+	// get is used to remove the side effect to the maximum possible, get hits
+	// cache first and slowly (let's say <5min, much lesser than storageconsumer lifecycle)
+	// syncs the delete event as well, from then we'll not make any delete calls.
+	if err := r.get(secret); client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("failed to get secret %s: %v", secret.Name, err)
+	} else if secret.UID != "" {
+		if err := r.Delete(r.ctx, secret); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	r.storageConsumer.Status.OnboardingTicketSecret = corev1.LocalObjectReference{}
+	return nil
 }
 
 func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
@@ -584,6 +657,7 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				predicate.GenerationChangedPredicate{},
 			),
 		).
+		Owns(&corev1.Secret{}).
 		// Watch non-owned resources
 		Watches(&rookCephv1.CephBlockPool{}, enqueueForAllStorageConsumers).
 		Watches(&rookCephv1.CephFilesystem{}, enqueueForAllStorageConsumers).

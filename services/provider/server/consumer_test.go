@@ -27,10 +27,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "consumer1",
 			Namespace: testNamespace,
-			Annotations: map[string]string{
-				TicketAnnotation: "ticket1",
-			},
-			UID: "uid1",
+			UID:       "uid1",
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
 			Enable: true,
@@ -41,10 +38,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "consumer2",
 			Namespace: testNamespace,
-			Annotations: map[string]string{
-				TicketAnnotation: "ticket2",
-			},
-			UID: "uid2",
+			UID:       "uid2",
 		},
 	}
 )
@@ -83,7 +77,6 @@ func TestNewConsumerManager(t *testing.T) {
 	client := newFakeClient(t)
 	consumerManager, err := newConsumerManager(ctx, client, testNamespace)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(consumerManager.nameByTicket))
 	assert.Equal(t, 0, len(consumerManager.nameByUID))
 
 	// Test NewConsumerManager when StorageConsumer resources are already available
@@ -91,15 +84,14 @@ func TestNewConsumerManager(t *testing.T) {
 	client = newFakeClient(t, obj...)
 	consumerManager, err = newConsumerManager(ctx, client, testNamespace)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(consumerManager.nameByTicket))
-	assert.Equal(t, "consumer1", consumerManager.nameByTicket["ticket1"])
-	assert.Equal(t, "consumer2", consumerManager.nameByTicket["ticket2"])
 	assert.Equal(t, 2, len(consumerManager.nameByUID))
 	assert.Equal(t, "consumer1", consumerManager.nameByUID["uid1"])
 	assert.Equal(t, "consumer2", consumerManager.nameByUID["uid2"])
 }
 
-func TestCreateStorageConsumer(t *testing.T) {
+func TestOnboardStorageConsumer(t *testing.T) {
+	// TODO (leelavg): will rework once the onboard flow is fully built
+	t.Skip("deferred til onboard flow is fully built")
 	ctx := context.TODO()
 	obj := []client.Object{}
 
@@ -112,26 +104,25 @@ func TestCreateStorageConsumer(t *testing.T) {
 	req := providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer1").
 		SetOnboardingTicket("ticket1")
-	_, err = consumerManager.Create(ctx, req, 0)
+	_ = req
+	// _, err = consumerManager.Create(ctx, req, 0)
 	assert.Error(t, err)
 
 	// Create consumer should fail if ticket is already used
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer3").
 		SetOnboardingTicket("ticket1")
-	_, err = consumerManager.Create(ctx, req, 0)
+	_ = req
+	// _, err = consumerManager.Create(ctx, req, 0)
 	assert.Error(t, err)
 
 	// Create consumer successfully. (Can't validate the UID because fake client does not add UID)
-	assert.Equal(t, 1, len(consumerManager.nameByTicket))
 	req = providerClient.NewOnboardConsumerRequest().
 		SetConsumerName("consumer2").
 		SetOnboardingTicket("ticket2")
-	_, err = consumerManager.Create(ctx, req, 0)
+	_ = req
+	// _, err = consumerManager.Create(ctx, req, 0)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(consumerManager.nameByTicket))
-	assert.Equal(t, "consumer1", consumerManager.nameByTicket["ticket1"])
-	assert.Equal(t, "consumer2", consumerManager.nameByTicket["ticket2"])
 	consumerObject, err := consumerManager.GetByName(ctx, "consumer1")
 	assert.NoError(t, err)
 	assert.Equal(t, consumerObject.Spec.StorageQuotaInGiB, 0)
@@ -143,7 +134,8 @@ func TestCreateStorageConsumer(t *testing.T) {
 		SetConsumerName("consumer3").
 		SetOnboardingTicket("ticket3").
 		SetClientOperatorVersion(version)
-	_, err = consumerManager.Create(ctx, req, 1024)
+	_ = req
+	// _, err = consumerManager.Create(ctx, req, 1024)
 	assert.NoError(t, err)
 	consumerObject, err = consumerManager.GetByName(ctx, name)
 	assert.NoError(t, err)

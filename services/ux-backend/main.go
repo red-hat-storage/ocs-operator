@@ -10,7 +10,6 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/expandstorage"
-	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/clienttokens"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -26,35 +25,21 @@ type serverConfig struct {
 	tlsEnabled           bool
 }
 
-func readEnvVar[T any](envVarName string, defaultValue T, parser func(str string) (T, error)) (T, error) {
-	str := os.Getenv(envVarName)
-	if str == "" {
-		klog.Infof("no user-defined %s provided, defaulting to %v", envVarName, defaultValue)
-		return defaultValue, nil
-	}
-
-	value, err := parser(str)
-	if err != nil {
-		return *new(T), fmt.Errorf("malformed user-defined %s value %s: %v", envVarName, str, err)
-	}
-	return value, nil
-}
-
 func loadAndValidateServerConfig() (*serverConfig, error) {
 	var config serverConfig
 	var err error
 
-	config.tokenLifetimeInHours, err = readEnvVar("ONBOARDING_TOKEN_LIFETIME", 48, strconv.Atoi)
+	config.tokenLifetimeInHours, err = util.ReadEnvVar("ONBOARDING_TOKEN_LIFETIME", 48, strconv.Atoi)
 	if err != nil {
 		return nil, err
 	}
 
-	config.listenPort, err = readEnvVar("UX_BACKEND_PORT", 8080, strconv.Atoi)
+	config.listenPort, err = util.ReadEnvVar("UX_BACKEND_PORT", 8080, strconv.Atoi)
 	if err != nil {
 		return nil, err
 	}
 
-	config.tlsEnabled, err = readEnvVar("TLS_ENABLED", false, strconv.ParseBool)
+	config.tlsEnabled, err = util.ReadEnvVar("TLS_ENABLED", false, strconv.ParseBool)
 	if err != nil {
 		return nil, err
 	}
@@ -94,16 +79,6 @@ func main() {
 		klog.Exitf("failed to create kube client: %v", err)
 	}
 
-	// TODO: remove '/onboarding-tokens' in the future
-	http.HandleFunc("/onboarding-tokens", func(w http.ResponseWriter, r *http.Request) {
-		// Set the Deprecation header
-		w.Header().Set("Deprecation", "true") // Standard "Deprecation" header
-		w.Header().Set("Link", "/onboarding/client-tokens; rel=\"alternate\"")
-		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl, namespace)
-	})
-	http.HandleFunc("/onboarding/client-tokens", func(w http.ResponseWriter, r *http.Request) {
-		clienttokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl, namespace)
-	})
 	http.HandleFunc("/onboarding/peer-tokens", func(w http.ResponseWriter, r *http.Request) {
 		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl, namespace)
 	})

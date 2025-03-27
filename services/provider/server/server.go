@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"math"
 	"net"
 	"slices"
 	"strconv"
@@ -23,6 +22,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -50,12 +50,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	TicketAnnotation          = "ocs.openshift.io/provider-onboarding-ticket"
 	ProviderCertsMountPoint   = "/mnt/cert"
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
@@ -140,16 +138,6 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
-	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get storageCluster. %v", err)
-	}
-
-	if storageCluster.UID != onboardingTicket.StorageCluster {
-		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket storageCluster not match existing storageCluster.")
-	}
-
-	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
 
 	if onboardingTicket.SubjectRole != services.ClientRole {
 		err := fmt.Errorf("invalid onboarding ticket for %q, expecting role %s found role %s", req.ConsumerName, services.ClientRole, onboardingTicket.SubjectRole)
@@ -157,37 +145,39 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(storageQuotaInGiB))
-	if err != nil {
-		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
-			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-
-		storageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)
-		}
-
-		if storageConsumer.Spec.Enable {
-			err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", req.ConsumerName)
-			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-		storageConsumerUUID = string(storageConsumer.UID)
+	storageConsumer := &ocsv1alpha1.StorageConsumer{}
+	storageConsumer.Name = onboardingTicket.ID
+	storageConsumer.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
+		klog.Errorf("failed to get storageconsumer referred by the supplied token: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get storageconsumer. %v", err)
+	} else if storageConsumer.Spec.Enable {
+		klog.Errorf("storageconsumer is already enabled %s", storageConsumer.Name)
+		return nil, status.Errorf(codes.InvalidArgument, "refusing to onboard onto storageconsumer with supplied token")
 	}
 
+	onboardingSecret := &corev1.Secret{}
+	onboardingSecret.Name = fmt.Sprintf("onboarding-token-%s", storageConsumer.UID)
+	onboardingSecret.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(onboardingSecret), onboardingSecret); err != nil {
+		klog.Errorf("failed to get onboarding secret corresponding to storageconsumer %s: %v", storageConsumer.Name, err)
+		return nil, status.Errorf(codes.Internal, "failed to get onboarding secret. %v", err)
+	}
+	if req.OnboardingTicket != string(onboardingSecret.Data[defaults.OnboardingTokenKey]) {
+		klog.Errorf("supplied onboarding ticket does not match storageconsumer secret")
+		return nil, status.Errorf(codes.InvalidArgument, "supplied onboarding ticket does not match mapped secret")
+	}
+
+	storageConsumerUUID, err := s.consumerManager.EnableStorageConsumer(ctx, storageConsumer)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to onboard on storageConsumer resource. %v", err)
+	}
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
 }
 
 // AcknowledgeOnboarding acknowledge the onboarding is complete
 func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
-
-	if err := s.consumerManager.EnableStorageConsumer(ctx, req.StorageConsumerUUID); err != nil {
-		if kerrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "storageConsumer not found. %v", err)
-		}
-		return nil, status.Errorf(codes.Internal, "Failed to update the storageConsumer. %v", err)
-	}
-	return &pb.AcknowledgeOnboardingResponse{}, nil
+	return nil, status.Errorf(codes.Unimplemented, "Not expecting a two step onboarding process")
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
@@ -203,8 +193,8 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 	// Verify Status
 	switch consumerObj.Status.State {
-	case ocsv1alpha1.StorageConsumerStateDisabled:
-		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer is in disabled state")
+	case ocsv1alpha1.StorageConsumerStateNotEnabled:
+		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer is in not enabled")
 	case ocsv1alpha1.StorageConsumerStateFailed:
 		// TODO: get correct error message from the storageConsumer status
 		return nil, status.Errorf(codes.Internal, "storageConsumer status failed")
@@ -621,14 +611,7 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 	}
 
 	switch ticketData.SubjectRole {
-	case services.ClientRole:
-		if ticketData.StorageQuotaInGiB != nil {
-			quota := *ticketData.StorageQuotaInGiB
-			if quota > math.MaxInt {
-				return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, quota)
-			}
-		}
-	case services.PeerRole:
+	case services.ClientRole, services.PeerRole:
 	default:
 		return nil, fmt.Errorf("invalid onboarding ticket subject role")
 	}

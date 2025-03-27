@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -78,6 +79,10 @@ import (
 var (
 	scheme   = apiruntime.NewScheme()
 	setupLog = ctrl.Log.WithName("cmd")
+)
+
+const (
+	defaultOnboardingTokenLifetimeInHours = 48
 )
 
 func init() {
@@ -217,10 +222,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	onboardingTokenLifetimeInHours, err := util.ReadEnvVar("ONBOARDING_TOKEN_LIFETIME", defaultOnboardingTokenLifetimeInHours, strconv.Atoi)
+	if err != nil {
+		onboardingTokenLifetimeInHours = defaultOnboardingTokenLifetimeInHours
+		setupLog.Info("unable to parse ONBOARDING_TOKEN_LIFETIME environment value", "error", err, "using default", onboardingTokenLifetimeInHours)
+	}
 	if err = (&controllers.StorageConsumerReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("StorageConsumer"),
-		Scheme: mgr.GetScheme(),
+		Client:               mgr.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("StorageConsumer"),
+		Scheme:               mgr.GetScheme(),
+		TokenLifetimeInHours: onboardingTokenLifetimeInHours,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumer")
 		os.Exit(1)

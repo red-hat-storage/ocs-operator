@@ -24,6 +24,8 @@ const (
 	// with a value of "false" to disable key rotation. When present, this annotation is then
 	// propagated to the associated StorageClasses.
 	KeyRotationEnableAnnotation = "keyrotation.csiaddons.openshift.io/enable"
+	// OnboardingTokenKey is the name of the field in the OnboardingSecret data
+	OnboardingTokenKey = "onboarding-token"
 )
 
 var (
