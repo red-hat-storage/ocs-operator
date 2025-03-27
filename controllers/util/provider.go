@@ -19,20 +19,15 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// GenerateClientOnboardingToken generates a ocs-client token valid for a duration of "tokenLifetimeInHours".
-// The token content is predefined and signed by the private key which'll be read from supplied "privateKeyPath".
-// The storageQuotaInGiB is optional, and it is used to limit the storage of PVC in the application cluster.
-func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, storageQuotainGib *uint, storageClusterUID types.UID) (string, error) {
+func GenerateClientOnboardingToken(tokenLifetimeInHours int, privateKeyPath string, consumerIdentifier string) (string, error) {
 	tokenExpirationDate := time.Now().
 		Add(time.Duration(tokenLifetimeInHours) * time.Hour).
 		Unix()
 
 	ticket := services.OnboardingTicket{
-		ID:                uuid.New().String(),
-		ExpirationDate:    tokenExpirationDate,
-		SubjectRole:       services.ClientRole,
-		StorageQuotaInGiB: storageQuotainGib,
-		StorageCluster:    storageClusterUID,
+		ID:             consumerIdentifier,
+		ExpirationDate: tokenExpirationDate,
+		SubjectRole:    services.ClientRole,
 	}
 
 	token, err := encodeAndSignOnboardingToken(privateKeyPath, ticket)
