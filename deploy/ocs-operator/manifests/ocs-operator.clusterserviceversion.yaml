@@ -622,6 +622,8 @@ spec:
                 volumeMounts:
                 - mountPath: /etc/private-key
                   name: onboarding-private-key
+                - mountPath: /etc/tls/private
+                  name: webhook-cert-secret
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: ocs-operator
@@ -636,6 +638,9 @@ spec:
                 secret:
                   optional: true
                   secretName: onboarding-private-key
+              - name: webhook-cert-secret
+                secret:
+                  secretName: ocs-operator-webhook-cert-secret
       - name: ux-backend-server
         spec:
           replicas: 1
