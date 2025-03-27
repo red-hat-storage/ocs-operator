@@ -22,6 +22,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -162,7 +163,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to get onboarding secret corresponding to storageconsumer %s: %v", storageConsumer.Name, err)
 		return nil, status.Errorf(codes.Internal, "failed to get onboarding secret. %v", err)
 	}
-	if req.OnboardingTicket != string(onboardingSecret.Data["ticket"]) {
+	if req.OnboardingTicket != string(onboardingSecret.Data[defaults.OnboardingTokenKey]) {
 		klog.Errorf("supplied onboarding ticket does not match storageconsumer secret")
 		return nil, status.Errorf(codes.InvalidArgument, "supplied onboarding ticket does not match mapped secret")
 	}

@@ -5,10 +5,11 @@ import (
 	"maps"
 	"strconv"
 
-	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 
+	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,7 +18,6 @@ import (
 )
 
 const (
-	onboaringTokenKey      = "onboarding-token"
 	ocsClientConfigMapName = "ocs-client-operator-config"
 	manageNoobaaSubKey     = "manageNoobaaSubscription"
 )
@@ -54,11 +54,11 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 			onboardingSecret.Namespace = storagecluster.Namespace
 			if err := r.Get(r.ctx, client.ObjectKeyFromObject(onboardingSecret), onboardingSecret); err != nil {
 				return fmt.Errorf("failed to get onboarding secret %s: %v", onboardingSecret.Name, err)
-			} else if len(onboardingSecret.Data[onboaringTokenKey]) == 0 {
+			} else if len(onboardingSecret.Data[defaults.OnboardingTokenKey]) == 0 {
 				return fmt.Errorf("no 'onboarding-token' field found in onboarding secret %s", onboardingSecret.Name)
 			}
 
-			storageClient.Spec.OnboardingTicket = string(onboardingSecret.Data["ticket"])
+			storageClient.Spec.OnboardingTicket = string(onboardingSecret.Data[defaults.OnboardingTokenKey])
 		}
 		// we could just use svcName:port however in-cluster traffic from "*.svc" is generally not proxied and
 		// we using qualified name upto ".svc" makes connection not go through any proxies.

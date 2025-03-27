@@ -30,6 +30,7 @@ import (
 
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
@@ -52,7 +53,6 @@ import (
 
 const (
 	onboardingPrivateKeyFilePath  = "/etc/private-key/key"
-	onboaringTokenKey             = "onboarding-token"
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
 	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
@@ -335,7 +335,7 @@ func (r *StorageConsumerReconciler) reconcileOnboardingSecret() error {
 			return err
 		}
 		// do not overwrite token if already exists
-		if len(secret.Data[onboaringTokenKey]) > 0 {
+		if len(secret.Data[defaults.OnboardingTokenKey]) > 0 {
 			return nil
 		}
 		token, err := util.GenerateClientOnboardingToken(
@@ -347,10 +347,10 @@ func (r *StorageConsumerReconciler) reconcileOnboardingSecret() error {
 			return err
 		}
 		secret.StringData = map[string]string{
-			onboaringTokenKey: token,
+			defaults.OnboardingTokenKey: token,
 		}
 		tokenExpiry := time.Now().Add(time.Duration(r.TokenLifetimeInHours) * time.Hour).UTC()
-		util.AddAnnotation(secret, "ocs.openshift.io/token-expiry", tokenExpiry.String())
+		util.AddAnnotation(secret, "ocs.openshift.io/token-expiry", tokenExpiry.Format(time.RFC3339))
 		return nil
 	}); err != nil {
 		return fmt.Errorf("failed to create/update secret %s: %v", secret.Name, err)
