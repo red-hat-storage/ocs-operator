@@ -7,6 +7,7 @@ resources:
 - bases/ocs.openshift.io_storageconsumers.yaml
 - bases/ocs.openshift.io_storagerequests.yaml
 - bases/ocs.openshift.io_storageclusterpeers.yaml
+- bases/ocs.openshift.io_storageautoscalers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
