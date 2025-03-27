@@ -1,0 +1,209 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+  name: storageautoscalers.ocs.openshift.io
+spec:
+  group: ocs.openshift.io
+  names:
+    kind: StorageAutoScaler
+    listKind: StorageAutoScalerList
+    plural: storageautoscalers
+    singular: storageautoscaler
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Age
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: Current Phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - description: Device Class
+      jsonPath: .spec.deviceClass
+      name: DeviceClass
+      type: string
+    - description: Last Run Start Time Stamp
+      jsonPath: .status.lastExpansion.startTime
+      name: LastRunStartTime
+      type: date
+    - description: Last Run Completion Time Stamp
+      jsonPath: .status.lastExpansion.completionTime
+      name: LastRunCompletionTime
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: StorageAutoScaler represents the automatic storage scaling for
+          storage cluster.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: StorageAutoScalerSpec defines the desired state of StorageAutoScaler
+            properties:
+              deviceClass:
+                default: ssd
+                description: DeviceClass is the name of the device class for which
+                  the storage scaling is to be done.
+                type: string
+              maxOsdSize:
+                anyOf:
+                - type: integer
+                - type: string
+                default: 8Ti
+                description: MaxOsdSize is the maximum size that Osd disk can be expanded
+                  to.
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              storageCapacityLimit:
+                anyOf:
+                - type: integer
+                - type: string
+                description: StorageCapacityLimit is the total aggregate capacity
+                  limit for the storage scaling for the specific deviceClass and storagecluster.
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              storageCluster:
+                description: StorageCluster is the name of the storage cluster for
+                  which the storage scaling is to be done.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              storageScalingThresholdPercent:
+                default: 70
+                description: |-
+                  StorageScalingThresholdPercent is the threshold percentage of the storage capacity that triggers the auto-scaling of the OSDs.
+                  Should be less than the OsdNearFullThresholdPercentage.
+                type: integer
+              timeoutSeconds:
+                default: 1800
+                description: TimeoutSeconds is the time in seconds after which the
+                  storage auto-scaler will alert the user that the scaling operation
+                  has been failed.
+                type: integer
+            required:
+            - storageCapacityLimit
+            - storageCluster
+            type: object
+          status:
+            description: StorageAutoScalerStatus defines the observed state of StorageAutoScaler
+            properties:
+              error:
+                description: Error is the error message in case the storage scaling
+                  operation has failed.
+                nullable: true
+                properties:
+                  message:
+                    description: Message is the error message in case the storage
+                      scaling operation has failed.
+                    type: string
+                  timestamp:
+                    description: Timestamp is the time stamp when the error occurred.
+                    format: date-time
+                    type: string
+                type: object
+              lastExpansion:
+                nullable: true
+                properties:
+                  completionTime:
+                    description: CompletionTime is the time stamp of the last run
+                      completion of the storage scaling
+                    format: date-time
+                    type: string
+                  expectedOsdCount:
+                    description: |-
+                      The Expected OSD count is the count that the auto-expansion has decided to set.
+                      This will be set on the storageCluster CR as the desired count of the OSDs.
+                      Used for horizontal scaling of OSDs.
+                    type: integer
+                  expectedOsdSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: |-
+                      The ExpectedOsdSize is the size that the auto-expansion has decided to set.
+                      This will be set on the storageCLuster CR as the desired size of the OSDs.
+                      Used for vertical scaling of OSDs.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  expectedStorageCapacity:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: ExpectedStorageCapacity is the expected storage capacity
+                      of the storage cluster after the expansion in progress is completed.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  startOsdCount:
+                    description: |-
+                      The start OSD count is the original count of the OSDs before the expansion in progress is completed.
+                      After the expansion is completed, this would be updated to the expected OSD count.
+                      Used for horizontal scaling of OSDs.
+                    type: integer
+                  startOsdSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: |-
+                      The start OSD size is the original size of the OSDs before the expansion in progress is completed.
+                      After the expansion is completed, this would be updated to the expected OSD size.
+                      Used for vertical scaling of OSDs.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  startStorageCapacity:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: StartStorageCapacity is the original storage capacity
+                      of the storage cluster before the expansion in progress is completed.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  startTime:
+                    description: StartTime is the time stamp of the last run start
+                      of the storage scaling
+                    format: date-time
+                    type: string
+                type: object
+              phase:
+                description: Phase describes the Phase of StorageAutoScaler
+                type: string
+              storageCapacityLimitReached:
+                description: StorageCapacityLimitReached is the flag that indicates
+                  if the storage capacity limit has been reached.
+                nullable: true
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
