@@ -243,6 +243,39 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 			); err != nil {
 				return reconcile.Result{}, err
 			}
+
+			if err := r.reconcileCephClientRBDProvisioner(
+				consumerResources.GetCsiRbdProvisionerSecretName(),
+				consumerResources.GetRbdRadosNamespaceName(),
+				consumerConfigMap,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			if err := r.reconcileCephClientRBDNode(
+				consumerResources.GetCsiRbdNodeSecretName(),
+				consumerResources.GetRbdRadosNamespaceName(),
+				consumerConfigMap,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			if err := r.reconcileCephClientCephFSProvisioner(
+				consumerResources.GetCsiCephFsProvisionerSecretName(),
+				consumerResources.GetSubVolumeGroupName(),
+				consumerConfigMap,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			if err := r.reconcileCephClientCephFSNode(
+				consumerResources.GetCsiCephFsNodeSecretName(),
+				consumerResources.GetSubVolumeGroupName(),
+				consumerConfigMap,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+
 		}
 
 		// A provider cluster already has a NooBaa system and does not require a NooBaa account
@@ -338,6 +371,124 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
 		}
 		svg.Spec.FilesystemName = cephFs.Name
 		svg.Spec.Name = subVolumeGroupName
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner(
+	cephClientName string,
+	radosNamespaceName string,
+	additionalOwner client.Object,
+) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = cephClientName
+	cephClient.Namespace = r.namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		cephClient.Spec = rookCephv1.ClientSpec{
+			Caps: map[string]string{
+				"mon": "profile rbd, allow command 'osd blocklist'",
+				"mgr": "allow rw",
+				"osd": fmt.Sprintf("profile rbd namespace=%s", radosNamespaceName),
+			},
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
+	cephClientName string,
+	radosNamespaceName string,
+	additionalOwner client.Object,
+) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = cephClientName
+	cephClient.Namespace = r.namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		cephClient.Spec = rookCephv1.ClientSpec{
+			Caps: map[string]string{
+				"mon": "profile rbd",
+				"mgr": "allow rw",
+				"osd": fmt.Sprintf("profile rbd namespace=%s", radosNamespaceName),
+			},
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
+	cephClientName string,
+	subVolumeGroupName string,
+	additionalOwner client.Object,
+) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = cephClientName
+	cephClient.Namespace = r.namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		cephClient.Spec = rookCephv1.ClientSpec{
+			Caps: map[string]string{
+				"mon": "allow r, allow command 'osd blocklist'",
+				"mgr": "allow rw",
+				"osd": "allow rw tag cephfs metadata=*",
+				"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
+			},
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
+	cephClientName string,
+	subVolumeGroupName string,
+	additionalOwner client.Object,
+) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = cephClientName
+	cephClient.Namespace = r.namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		cephClient.Spec = rookCephv1.ClientSpec{
+			Caps: map[string]string{
+				"mon": "allow r",
+				"mgr": "allow rw",
+				"osd": "allow rw tag cephfs metadata=*",
+				"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
+			},
+		}
 		return nil
 	}); err != nil {
 		return err
