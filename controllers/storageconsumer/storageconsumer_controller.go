@@ -23,18 +23,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/multierr"
 	"slices"
 	"strings"
 
-	"github.com/go-logr/logr"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	"github.com/go-logr/logr"
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,9 +46,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -67,7 +67,6 @@ type StorageConsumerReconciler struct {
 	ctx             context.Context
 	storageConsumer *ocsv1alpha1.StorageConsumer
 	namespace       string
-	noobaaAccount   *nbv1.NooBaaAccount
 }
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
@@ -86,22 +85,22 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.ctx = ctx
+	r.namespace = request.Namespace
 
-	r.Log.Info("Reconciling StorageConsumer.", "StorageConsumer", klog.KRef(request.Namespace, request.Name))
-
-	// Initialize the reconciler properties from the request
-	r.initReconciler(request)
+	r.storageConsumer = &ocsv1alpha1.StorageConsumer{}
+	r.storageConsumer.Name = request.Name
+	r.storageConsumer.Namespace = r.namespace
 
 	if err := r.get(r.storageConsumer); err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("No StorageConsumer resource.", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
+			r.Log.Info("No StorageConsumer resource.")
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		r.Log.Error(err, "Failed to retrieve StorageConsumer.", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
+		r.Log.Error(err, "Failed to retrieve StorageConsumer.")
 		return reconcile.Result{}, err
 	}
 
@@ -111,7 +110,7 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 	// Apply status changes to the StorageConsumer
 	statusError := r.Client.Status().Update(r.ctx, r.storageConsumer)
 	if statusError != nil {
-		r.Log.Info("Could not update StorageConsumer status.", "StorageConsumer", klog.KRef(r.storageConsumer.Namespace, r.storageConsumer.Name))
+		r.Log.Info("Could not update StorageConsumer status.")
 	}
 
 	// Reconcile errors have higher priority than status update errors
@@ -123,19 +122,6 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 
 	return result, nil
 
-}
-
-func (r *StorageConsumerReconciler) initReconciler(request reconcile.Request) {
-	r.ctx = context.Background()
-	r.namespace = request.Namespace
-
-	r.storageConsumer = &ocsv1alpha1.StorageConsumer{}
-	r.storageConsumer.Name = request.Name
-	r.storageConsumer.Namespace = r.namespace
-
-	r.noobaaAccount = &nbv1.NooBaaAccount{}
-	r.noobaaAccount.Name = r.storageConsumer.Name
-	r.noobaaAccount.Namespace = r.storageConsumer.Namespace
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
@@ -217,6 +203,48 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 
 		r.storageConsumer.Status.ResourceNameMappingConfigMap = corev1.LocalObjectReference{Name: consumerConfigMap.Name}
 
+		// Get config map's controller reference
+		controllerIndex := slices.IndexFunc(
+			consumerConfigMap.OwnerReferences,
+			func(ref metav1.OwnerReference) bool { return ptr.Deref(ref.Controller, false) },
+		)
+		var controllerRef *metav1.OwnerReference
+		if controllerIndex != -1 {
+			controllerRef = &consumerConfigMap.OwnerReferences[controllerIndex]
+		}
+
+		isPrimaryConsumer := controllerRef != nil && controllerRef.UID == r.storageConsumer.UID
+
+		if isPrimaryConsumer {
+			consumerResources := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+
+			idx := slices.IndexFunc(r.storageConsumer.OwnerReferences, func(ref metav1.OwnerReference) bool {
+				return ref.Kind == "StorageCluster"
+			})
+			var storageCluster *metav1.OwnerReference
+			if idx != -1 {
+				storageCluster = &r.storageConsumer.OwnerReferences[idx]
+			}
+			if storageCluster == nil {
+				return reconcile.Result{}, fmt.Errorf("failed to find StorgeCluster owning the StorageConsumer")
+			}
+
+			if err := r.reconcileCephRadosNamespace(
+				consumerResources.GetRbdRadosNamespaceName(),
+				consumerConfigMap,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			if err := r.reconcileCephFilesystemSubVolumeGroup(
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerResources.GetSubVolumeGroupName(),
+				consumerConfigMap,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
 		// A provider cluster already has a NooBaa system and does not require a NooBaa account
 		// to connect to a remote cluster, unlike client clusters.
 		// A NooBaa account only needs to be created if the storage consumer is for a client cluster.
@@ -246,24 +274,97 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	return reconcile.Result{}, nil
 }
 
+func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
+	radosNamespaceName string,
+	additionalOwner client.Object,
+) error {
+	blockPools := &rookCephv1.CephBlockPoolList{}
+	if err := r.List(r.ctx, blockPools, client.InNamespace(r.namespace)); err != nil {
+		return err
+	}
+
+	// ensure for this consumer a rados namespace is created in every blockpool
+	var combinedErr error
+	for idx := range blockPools.Items {
+		bp := &blockPools.Items[idx]
+		if bp.Name == "builtin-mgr" {
+			continue
+		}
+
+		rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+		rns.Name = fmt.Sprintf("%s-%s", bp.Name, radosNamespaceName)
+		rns.Namespace = r.namespace
+
+		if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
+			if err := controllerutil.SetControllerReference(r.storageConsumer, rns, r.Scheme); err != nil {
+				return err
+			}
+			if err := controllerutil.SetOwnerReference(additionalOwner, rns, r.Scheme); err != nil {
+				return err
+			}
+			rns.Spec.Name = radosNamespaceName
+			rns.Spec.BlockPoolName = bp.Name
+			return nil
+		}); err != nil {
+			multierr.AppendInto(&combinedErr, err)
+		}
+	}
+
+	return combinedErr
+}
+
+func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
+	cephFileSystemName string,
+	subVolumeGroupName string,
+	additionalOwner client.Object,
+) error {
+	cephFs := &rookCephv1.CephFilesystem{}
+	cephFs.Name = cephFileSystemName
+	cephFs.Namespace = r.namespace
+	if err := r.get(cephFs); err != nil {
+		return fmt.Errorf("failed to get CephFilesystem: %v", err)
+	}
+
+	svg := &rookCephv1.CephFilesystemSubVolumeGroup{}
+	svg.Name = subVolumeGroupName
+	svg.Namespace = r.namespace
+
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, svg, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, svg, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, svg, r.Scheme); err != nil {
+			return err
+		}
+		svg.Spec.FilesystemName = cephFs.Name
+		svg.Spec.Name = subVolumeGroupName
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
-	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, r.noobaaAccount, func() error {
-		if err := r.own(r.noobaaAccount); err != nil {
+	noobaaAccount := &nbv1.NooBaaAccount{}
+	noobaaAccount.Name = r.storageConsumer.Name
+	noobaaAccount.Namespace = r.storageConsumer.Namespace
+	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, noobaaAccount, func() error {
+		if err := r.own(noobaaAccount); err != nil {
 			return err
 		}
 		// TODO: query the name of backing store during runtime
-		r.noobaaAccount.Spec.DefaultResource = "noobaa-default-backing-store"
+		noobaaAccount.Spec.DefaultResource = "noobaa-default-backing-store"
 		// the following annotation will enable noobaa-operator to create a auth_token secret based on this account
-		util.AddAnnotation(r.noobaaAccount, "remote-operator", "true")
+		util.AddAnnotation(noobaaAccount, "remote-operator", "true")
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create noobaa account for storageConsumer %v: %v", r.storageConsumer.Name, err)
 	}
 
-	phase := string(r.noobaaAccount.Status.Phase)
-	r.setCephResourceStatus(r.noobaaAccount.Name, "NooBaaAccount", phase, nil)
-
+	phase := string(noobaaAccount.Status.Phase)
+	r.setCephResourceStatus(noobaaAccount.Name, "NooBaaAccount", phase, nil)
 	return nil
 }
 
@@ -292,32 +393,49 @@ func (r *StorageConsumerReconciler) own(resource metav1.Object) error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
+	enqueueForAllStorageConsumers := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
-			labels := obj.GetLabels()
-			if value, ok := labels[StorageConsumerNameLabel]; ok {
-				return []reconcile.Request{{
-					NamespacedName: types.NamespacedName{
-						Name:      value,
-						Namespace: obj.GetNamespace(),
-					},
-				}}
+			// Get the StorageConsumer objects
+			consumers := &ocsv1alpha1.StorageConsumerList{}
+			err := r.Client.List(context, consumers, &client.ListOptions{Namespace: obj.GetNamespace()})
+			if err != nil {
+				r.Log.Error(err, "Unable to list StorageConsumers")
+				return []reconcile.Request{}
 			}
-			return []reconcile.Request{}
+
+			// Return name and namespace of the StorageClusters object
+			request := make([]reconcile.Request, len(consumers.Items))
+			for i := range consumers.Items {
+				request[i] = reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(&consumers.Items[i]),
+				}
+			}
+
+			return request
 		},
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(
-			predicate.GenerationChangedPredicate{},
-		)).
+		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&nbv1.NooBaaAccount{}).
 		Owns(&corev1.ConfigMap{}, builder.MatchEveryOwner).
-		// Watch non-owned resources cephBlockPool
-		// Whenever their is new cephBockPool created to keep storageConsumer up to date.
-		Watches(&rookCephv1.CephBlockPool{},
-			enqueueStorageConsumerRequest,
+		Owns(
+			&rookCephv1.CephBlockPoolRadosNamespace{},
+			builder.MatchEveryOwner,
+			builder.WithPredicates(
+				predicate.GenerationChangedPredicate{},
+			),
 		).
+		Owns(
+			&rookCephv1.CephFilesystemSubVolumeGroup{},
+			builder.MatchEveryOwner,
+			builder.WithPredicates(
+				predicate.GenerationChangedPredicate{},
+			),
+		).
+		// Watch non-owned resources
+		Watches(&rookCephv1.CephBlockPool{}, enqueueForAllStorageConsumers).
+		Watches(&rookCephv1.CephFilesystem{}, enqueueForAllStorageConsumers).
 		Complete(r)
 }
 
