@@ -90,7 +90,7 @@ UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_
 
 CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.11.0"
 CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-0ac7669"
-OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:567f501"
+OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:3c618ad"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250317"
 ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-ab4f1ba58"
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"

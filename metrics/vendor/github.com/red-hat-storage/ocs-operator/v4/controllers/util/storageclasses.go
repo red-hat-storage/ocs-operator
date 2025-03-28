@@ -58,7 +58,7 @@ func GenerateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) str
 }
 
 func GenerateNameForCephNetworkFilesystemSC(initData *ocsv1.StorageCluster) string {
-	if initData.Spec.NFS.StorageClassName != "" {
+	if initData.Spec.NFS != nil && initData.Spec.NFS.StorageClassName != "" {
 		return initData.Spec.NFS.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-nfs", initData.Name)
