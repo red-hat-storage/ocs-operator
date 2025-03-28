@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"os"
 	"strings"
 	"time"
@@ -216,6 +217,30 @@ func GetTopologyConstrainedPools(storageCluster *ocsv1.StorageCluster) string {
 		return ""
 	}
 	return string(topologyConstrainedPoolsStr)
+}
+
+// GetKMSConfigMap function try to return a KMS ConfigMap.
+// if 'kmsValidateFunc' function is present it try to validate the retrieved config map.
+func GetKMSConfigMap(configMapName string, instance *ocsv1.StorageCluster, client client.Client) (*corev1.ConfigMap, error) {
+	// if 'KMS' is not enabled, nothing to fetch
+	if !instance.Spec.Encryption.KeyManagementService.Enable {
+		return nil, nil
+	}
+	if configMapName == "" {
+		configMapName = defaults.KMSConfigMapName
+	}
+	kmsConfigMap := corev1.ConfigMap{}
+	err := client.Get(context.TODO(),
+		types.NamespacedName{
+			Name:      configMapName,
+			Namespace: instance.ObjectMeta.Namespace,
+		},
+		&kmsConfigMap,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &kmsConfigMap, err
 }
 
 func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*ocsv1.StorageCluster, error) {

@@ -232,9 +232,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		// and KMS ConfigMap is available
 
 		if util.IsClusterOrDeviceSetEncrypted(sc) {
-			kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
+			kmsConfigMap, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, sc, r.Client)
 			if err != nil {
-				r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, KMSConfigMapName))
+				r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, defaults.KMSConfigMapName))
 				return reconcile.Result{}, err
 			}
 			if kmsConfigMap != nil {

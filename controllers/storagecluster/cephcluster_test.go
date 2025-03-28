@@ -156,7 +156,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 		KMSConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      KMSConfigMapName,
+				Name:      defaults.KMSConfigMapName,
 				Namespace: sc.Namespace,
 			},
 			Data: map[string]string{
@@ -611,7 +611,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 func createDummyKMSConfigMap(kmsProvider, kmsAddr string, kmsAuthMethod string) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{}
-	cm.Name = KMSConfigMapName
+	cm.Name = defaults.KMSConfigMapName
 	cm.Data = make(map[string]string)
 	cm.Data["KMS_PROVIDER"] = kmsProvider
 	cm.Data["KMS_SERVICE_NAME"] = "my-connection"

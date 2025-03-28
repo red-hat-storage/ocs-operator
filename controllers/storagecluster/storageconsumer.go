@@ -2,6 +2,9 @@ package storagecluster
 
 import (
 	"fmt"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -44,6 +47,45 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)},
 			{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)},
 		}
+
+		crd := &metav1.PartialObjectMetadata{}
+		crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+		crd.Name = VirtualMachineCrdName
+		if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+
+		if crd.UID != "" {
+			spec.StorageClasses = append(
+				spec.StorageClasses,
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForCephBlockPoolVirtualizationSC(storageCluster)},
+			)
+		}
+
+		if storageCluster.Spec.ManagedResources.CephNonResilientPools.Enable {
+			spec.StorageClasses = append(
+				spec.StorageClasses,
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForNonResilientCephBlockPoolSC(storageCluster)},
+			)
+		}
+
+		if storageCluster.Spec.NFS != nil && storageCluster.Spec.NFS.Enable {
+			spec.StorageClasses = append(
+				spec.StorageClasses,
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForCephNetworkFilesystemSC(storageCluster)},
+			)
+			spec.VolumeSnapshotClasses = append(
+				spec.VolumeSnapshotClasses,
+				ocsv1a1.VolumeSnapshotClassSpec{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)},
+			)
+		}
+		if storageCluster.Spec.Encryption.StorageClass && storageCluster.Spec.Encryption.KeyManagementService.Enable {
+			spec.StorageClasses = append(
+				spec.StorageClasses,
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForEncryptedCephBlockPoolSC(storageCluster)},
+			)
+		}
+
 		return nil
 	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer %s: %v", storageConsumer.Name, err)

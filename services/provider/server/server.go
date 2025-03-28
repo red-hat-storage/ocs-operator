@@ -629,6 +629,23 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 			true,
 		)
 	}
+	if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
+		kmsServiceName := kmsConfig.Data["KMS_SERVICE_NAME"]
+		scMap[util.GenerateNameForEncryptedCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				kmsServiceName,
+				drRbdStorageId,
+				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
+				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
+				true,
+			)
+		}
+	}
 	scMap[util.GenerateNameForNonResilientCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
 		return util.NewDefaultNonResilientRbdStorageClass(
 			consumerConfig.GetRbdClientProfileName(),
@@ -648,6 +665,17 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 			consumerConfig.GetCsiCephFsNodeSecretName(),
 			consumer.Status.Client.OperatorNamespace,
 			drCephFsId,
+		)
+	}
+	scMap[util.GenerateNameForCephNetworkFilesystemSC(storageCluster)] = func() *storagev1.StorageClass {
+		return util.NewDefaultNFSStorageClass(
+			consumerConfig.GetNfsClientProfileName(),
+			util.GenerateNameForCephNFS(storageCluster),
+			util.GenerateNameForCephFilesystem(storageCluster.Name),
+			util.GenerateNameForNFSService(storageCluster),
+			consumerConfig.GetCsiNfsProvisionerSecretName(),
+			consumerConfig.GetCsiNfsNodeSecretName(),
+			consumer.Status.Client.OperatorNamespace,
 		)
 	}
 	for i := 0; i < len(consumer.Spec.StorageClasses); i++ {

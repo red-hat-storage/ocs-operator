@@ -27,6 +27,8 @@ const (
 	// OnboardingTokenKey is the name of the field in the OnboardingSecret data
 	OnboardingTokenKey       = "onboarding-token"
 	LocalStorageConsumerName = "internal"
+	// KMSConfigMapName is the name configmap which has KMS config details
+	KMSConfigMapName = "ocs-kms-connection-details"
 )
 
 var (
