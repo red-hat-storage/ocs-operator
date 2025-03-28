@@ -258,6 +258,10 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 				},
 			}
 		}
+
+		if obj.Spec.Gateway.RgwReadAffinity != nil {
+			obj.Spec.Gateway.RgwReadAffinity = getRGWReadAffinity(initData)
+		}
 	}
 	return ret, nil
 }
@@ -271,4 +275,14 @@ func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int {
 		return customGatewayInstances
 	}
 	return defaults.CephObjectStoreGatewayInstances
+}
+
+func getRGWReadAffinity(sc *ocsv1.StorageCluster) *cephv1.RgwReadAffinity {
+	if sc.Status.FailureDomain == "zone" || arbiterEnabled(sc) {
+		return &cephv1.RgwReadAffinity{
+			Type:          "localize",
+			FailureDomain: sc.Status.FailureDomain,
+		}
+	}
+	return nil
 }
