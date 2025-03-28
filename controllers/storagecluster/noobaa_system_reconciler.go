@@ -248,7 +248,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	// PS: sc.Spec.Encryption.Enable field is deprecated and added for backward compatibility
 	if sc.Spec.Encryption.KeyManagementService.Enable &&
 		(util.IsClusterOrDeviceSetEncrypted(sc) || r.IsNoobaaStandalone) {
-		if kmsConfig, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client); err != nil {
+		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, sc, r.Client); err != nil {
 			return err
 		} else if kmsConfig != nil {
 			// Set default KMS_PROVIDER, if it is empty. Possible values are: vault, ibmkeyprotect, kmip.

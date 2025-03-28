@@ -3,6 +3,8 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -15,8 +17,6 @@ import (
 )
 
 const (
-	// KMSConfigMapName is the name configmap which has KMS config details
-	KMSConfigMapName = "ocs-kms-connection-details"
 	// CSIKMSConfigMapName is the name of configmap provided to the CSI Operator
 	CSIKMSConfigMapName = "csi-kms-connection-details"
 	// KMSTokenSecretName is the name of the secret which has KMS token details
@@ -63,13 +63,13 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 	getKMSConfigMapAsRuntimeObject := func(
 		sc *ocsv1.StorageCluster,
 		client client.Client) (client.Object, error) {
-		return getKMSConfigMap(KMSConfigMapName, sc, client)
+		return util.GetKMSConfigMap(defaults.KMSConfigMapName, sc, client)
 	}
 
 	getCSIKMSConfigMapAsRuntimeObject := func(
 		sc *ocsv1.StorageCluster,
 		client client.Client) (client.Object, error) {
-		return getKMSConfigMap(CSIKMSConfigMapName, sc, client)
+		return util.GetKMSConfigMap(CSIKMSConfigMapName, sc, client)
 	}
 
 	getKMSSecretTokenAsRuntimeObject := func(
@@ -85,10 +85,10 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 	}
 
 	resourceNameGetFuncMap := map[string]getKMSResourceFunc{
-		KMSConfigMapName:      getKMSConfigMapAsRuntimeObject,
-		CSIKMSConfigMapName:   getCSIKMSConfigMapAsRuntimeObject,
-		KMSTokenSecretName:    getKMSSecretTokenAsRuntimeObject,
-		CSIKMSTokenSecretName: getCSIKMSSecretTokenAsRuntimeObject,
+		defaults.KMSConfigMapName: getKMSConfigMapAsRuntimeObject,
+		CSIKMSConfigMapName:       getCSIKMSConfigMapAsRuntimeObject,
+		KMSTokenSecretName:        getKMSSecretTokenAsRuntimeObject,
+		CSIKMSTokenSecretName:     getCSIKMSSecretTokenAsRuntimeObject,
 	}
 	// collect all the errors into a single return error
 	var returnError error
@@ -131,30 +131,6 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 	}
 
 	return returnError
-}
-
-// getKMSConfigMap function try to return a KMS ConfigMap.
-// if 'kmsValidateFunc' function is present it try to validate the retrieved config map.
-func getKMSConfigMap(configMapName string, instance *ocsv1.StorageCluster, client client.Client) (*corev1.ConfigMap, error) {
-	// if 'KMS' is not enabled, nothing to fetch
-	if !instance.Spec.Encryption.KeyManagementService.Enable {
-		return nil, nil
-	}
-	if configMapName == "" {
-		configMapName = KMSConfigMapName
-	}
-	kmsConfigMap := corev1.ConfigMap{}
-	err := client.Get(context.TODO(),
-		types.NamespacedName{
-			Name:      configMapName,
-			Namespace: instance.ObjectMeta.Namespace,
-		},
-		&kmsConfigMap,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &kmsConfigMap, err
 }
 
 // getKMSSecretToken function try to return the KMS Secret Token

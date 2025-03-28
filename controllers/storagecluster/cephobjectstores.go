@@ -47,9 +47,9 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 	// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True or any of the deviceSet is encrypted
 	// and KMS ConfigMap is available
 	if util.IsClusterOrDeviceSetEncrypted(instance) {
-		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, instance, r.Client)
+		kmsConfigMap, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, instance, r.Client)
 		if err != nil {
-			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, KMSConfigMapName))
+			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, defaults.KMSConfigMapName))
 			return reconcile.Result{}, err
 		}
 		if kmsConfigMap != nil {
