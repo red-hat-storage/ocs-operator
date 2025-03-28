@@ -41,7 +41,7 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
 			localStorageConsumer := &ocsv1a1.StorageConsumer{}
-			localStorageConsumer.Name = localStorageConsumerName
+			localStorageConsumer.Name = defaults.LocalStorageConsumerName
 			localStorageConsumer.Namespace = storagecluster.Namespace
 			if err := r.Get(r.ctx, client.ObjectKeyFromObject(localStorageConsumer), localStorageConsumer); err != nil {
 				return fmt.Errorf("failed to get storageconsumer %s: %v", localStorageConsumer.Name, err)

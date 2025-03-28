@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -179,15 +180,42 @@ func AnnotationIndexFieldFunc(obj client.Object) []string {
 	return maps.Keys(obj.GetAnnotations())
 }
 
-func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
-	if initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
-		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
+func GetTopologyConstrainedPools(storageCluster *ocsv1.StorageCluster) string {
+	type topologySegment struct {
+		DomainLabel string `json:"domainLabel"`
+		DomainValue string `json:"value"`
 	}
-	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
-}
+	// TopologyConstrainedPool stores the pool name and a list of its associated topology domain values.
+	type topologyConstrainedPool struct {
+		PoolName       string            `json:"poolName"`
+		DomainSegments []topologySegment `json:"domainSegments"`
+	}
 
-func GenerateNameForCephFilesystem(storageClusterName string) string {
-	return fmt.Sprintf("%s-cephfilesystem", storageClusterName)
+	var topologyConstrainedPools []topologyConstrainedPool
+	for _, failureDomainValue := range storageCluster.Status.FailureDomainValues {
+		failureDomain := storageCluster.Status.FailureDomain
+		// Normally the label on the nodes is of the form kubernetes.io/hostname=<hostname>
+		// and the same is passed to ceph-csi through rook-ceph-opeartor-config cm.
+		// Hence, the ceph-non-resilient-rbd storageclass needs to have domainLabel set as hostname for topology constrained pools.
+		if failureDomain == "host" {
+			failureDomain = "hostname"
+		}
+		topologyConstrainedPools = append(topologyConstrainedPools, topologyConstrainedPool{
+			PoolName: GenerateNameForNonResilientCephBlockPool(storageCluster.Name, failureDomainValue),
+			DomainSegments: []topologySegment{
+				{
+					DomainLabel: failureDomain,
+					DomainValue: failureDomainValue,
+				},
+			},
+		})
+	}
+	// returning as string as parameters are of type map[string]string
+	topologyConstrainedPoolsStr, err := json.MarshalIndent(topologyConstrainedPools, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(topologyConstrainedPoolsStr)
 }
 
 func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*ocsv1.StorageCluster, error) {

@@ -6,6 +6,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -23,7 +24,7 @@ type ocsCephFilesystems struct{}
 func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster *ocsv1.StorageCluster) ([]*cephv1.CephFilesystem, error) {
 	ret := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephFilesystem(initStorageCluster),
+			Name:      util.GenerateNameForCephFilesystem(initStorageCluster.Name),
 			Namespace: initStorageCluster.Namespace,
 		},
 		Spec: cephv1.FilesystemSpec{

@@ -6,6 +6,8 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,12 +27,12 @@ func (r *StorageClusterReconciler) newCephObjectStoreUserInstances(initData *ocs
 	ret := []*cephv1.CephObjectStoreUser{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephObjectStoreUser(initData),
+				Name:      util.GenerateNameForCephObjectStoreUser(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.ObjectStoreUserSpec{
 				DisplayName: initData.Name,
-				Store:       generateNameForCephObjectStore(initData),
+				Store:       util.GenerateNameForCephObjectStore(initData),
 			},
 		},
 		{
@@ -40,7 +42,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreUserInstances(initData *ocs
 			},
 			Spec: cephv1.ObjectStoreUserSpec{
 				DisplayName: prometheusUserName,
-				Store:       generateNameForCephObjectStore(initData),
+				Store:       util.GenerateNameForCephObjectStore(initData),
 				// This user needs to read quota info from other users where actual quota is on set at the backend
 				Capabilities: &cephv1.ObjectUserCapSpec{
 					User: "read",
@@ -51,7 +53,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreUserInstances(initData *ocs
 	for _, obj := range ret {
 		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
-			r.Log.Error(err, "Unable to set Controller Reference for CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(initData.Namespace, generateNameForCephObjectStore(initData)))
+			r.Log.Error(err, "Unable to set Controller Reference for CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(initData.Namespace, util.GenerateNameForCephObjectStore(initData)))
 			return nil, err
 		}
 	}

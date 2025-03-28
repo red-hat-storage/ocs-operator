@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"os"
 	"testing"
 
@@ -30,6 +31,90 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+var (
+	createVirtualMachineCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "virtualmachines"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "kubevirt.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "kubevirt.io",
+				Scope: extv1.NamespaceScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "VirtualMachine",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
+	createStorageClientCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "storageclients"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "ocs.openshift.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "ocs.openshift.io",
+				Scope: extv1.ClusterScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "StorageClient",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1alpha1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
+	createVolumeGroupSnapshotClassCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "volumegroupsnapshotclasses"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "groupsnapshot.storage.k8s.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "groupsnapshot.storage.k8s.io",
+				Scope: extv1.ClusterScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "VolumeGroupSnapshotClass",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1beta1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
 )
 
 func createDefaultStorageCluster() *api.StorageCluster {

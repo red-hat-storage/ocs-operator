@@ -102,13 +102,13 @@ var mockStorageClusterWithArbiter = &api.StorageCluster{
 
 var mockCephCluster = &rookCephv1.CephCluster{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      generateNameForCephCluster(mockStorageCluster.DeepCopy()),
+		Name:      statusutil.GenerateNameForCephCluster(mockStorageCluster.DeepCopy()),
 		Namespace: mockStorageCluster.Namespace,
 	},
 }
 
 var mockCephClusterNamespacedName = types.NamespacedName{
-	Name:      generateNameForCephCluster(mockStorageCluster.DeepCopy()),
+	Name:      statusutil.GenerateNameForCephCluster(mockStorageCluster.DeepCopy()),
 	Namespace: mockStorageCluster.Namespace,
 }
 

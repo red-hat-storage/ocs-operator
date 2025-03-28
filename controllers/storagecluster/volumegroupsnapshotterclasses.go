@@ -4,73 +4,21 @@ import (
 	"fmt"
 	"reflect"
 
-	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
-	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type groupSnapshotterType string
-
 type ocsGroupSnapshotClass struct{}
-
-const (
-	rbdGroupSnapshotter    groupSnapshotterType = "rbd"
-	cephfsGroupSnapshotter groupSnapshotterType = "cephfs"
-)
-
-const (
-	groupSnapshotterSecretNameKey      = "csi.storage.k8s.io/group-snapshotter-secret-name"
-	groupSnapshotterSecretNamespaceKey = "csi.storage.k8s.io/group-snapshotter-secret-namespace"
-)
 
 type GroupSnapshotClassConfiguration struct {
 	groupSnapshotClass *groupsnapapi.VolumeGroupSnapshotClass
 	reconcileStrategy  ReconcileStrategy
-}
-
-func newVolumeGroupSnapshotClass(instance *ocsv1.StorageCluster, groupSnaphotType groupSnapshotterType) *groupsnapapi.VolumeGroupSnapshotClass {
-	paramKey, paramValue := setParameterBasedOnSnapshotterType(instance, groupSnaphotType)
-	groupSnapClass := &groupsnapapi.VolumeGroupSnapshotClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: generateNameForGroupSnapshotClass(instance, groupSnaphotType),
-		},
-		Driver: generateNameForSnapshotClassDriver(SnapshotterType(groupSnaphotType)),
-		Parameters: map[string]string{
-			"clusterID":                        instance.Namespace,
-			paramKey:                           paramValue,
-			groupSnapshotterSecretNameKey:      generateNameForSnapshotClassSecret(instance, SnapshotterType(groupSnaphotType)),
-			groupSnapshotterSecretNamespaceKey: instance.Namespace,
-		},
-		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
-	}
-	return groupSnapClass
-}
-
-func newCephFilesystemGroupSnapshotClassConfiguration(instance *ocsv1.StorageCluster) GroupSnapshotClassConfiguration {
-	return GroupSnapshotClassConfiguration{
-		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, cephfsGroupSnapshotter),
-		reconcileStrategy:  ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
-	}
-}
-
-func newCephBlockPoolGroupSnapshotClassConfiguration(instance *ocsv1.StorageCluster) GroupSnapshotClassConfiguration {
-	return GroupSnapshotClassConfiguration{
-		groupSnapshotClass: newVolumeGroupSnapshotClass(instance, rbdGroupSnapshotter),
-		reconcileStrategy:  ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
-	}
-}
-
-func newGroupSnapshotClassConfigurations(instance *ocsv1.StorageCluster) []GroupSnapshotClassConfiguration {
-	vsccs := []GroupSnapshotClassConfiguration{
-		newCephFilesystemGroupSnapshotClassConfiguration(instance),
-		newCephBlockPoolGroupSnapshotClassConfiguration(instance),
-	}
-	return vsccs
 }
 
 func (r *StorageClusterReconciler) createGroupSnapshotClasses(vsccs []GroupSnapshotClassConfiguration) error {
@@ -126,9 +74,35 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		return reconcile.Result{}, nil
 	}
 
-	vgsc := newGroupSnapshotClassConfigurations(instance)
+	rbdGroupSnapshotClass := GroupSnapshotClassConfiguration{
+		groupSnapshotClass: util.NewDefaultCephFsGroupSnapshotClass(
+			instance.Namespace,
+			"rook-csi-rbd-provisioner",
+			instance.Namespace,
+			util.GenerateNameForCephBlockPool(instance.Name),
+			"",
+		),
+		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
+	}
+	rbdGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance, util.RbdGroupSnapshotter)
+	cephFsGroupSnapshotClass := GroupSnapshotClassConfiguration{
+		groupSnapshotClass: util.NewDefaultCephFsGroupSnapshotClass(
+			instance.Namespace,
+			"rook-csi-cephfs-provisioner",
+			instance.Namespace,
+			util.GenerateNameForCephFilesystem(instance.Name),
+			"",
+		),
+		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
+	}
+	cephFsGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter)
 
-	err := r.createGroupSnapshotClasses(vgsc)
+	volumeGroupSnapshotClasses := []GroupSnapshotClassConfiguration{
+		rbdGroupSnapshotClass,
+		cephFsGroupSnapshotClass,
+	}
+
+	err := r.createGroupSnapshotClasses(volumeGroupSnapshotClasses)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -142,15 +116,20 @@ func (obj *ocsGroupSnapshotClass) ensureDeleted(r *StorageClusterReconciler, ins
 		return reconcile.Result{}, nil
 	}
 
-	vgscs := newGroupSnapshotClassConfigurations(instance)
-	for _, vgsc := range vgscs {
-		sc := vgsc.groupSnapshotClass
-		err := r.Client.Delete(r.ctx, sc)
+	names := []string{
+		util.GenerateNameForGroupSnapshotClass(instance, util.RbdGroupSnapshotter),
+		util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter),
+	}
+	for _, name := range names {
+		vgsc := &groupsnapapi.VolumeGroupSnapshotClass{}
+		vgsc.Name = name
+		vgsc.Namespace = instance.Namespace
+		err := r.Client.Delete(r.ctx, vgsc)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Uninstall: GroupSnapshotClass not found, nothing to do.", "GroupSnapshotClass", klog.KRef("", sc.Name))
+				r.Log.Info("Uninstall: GroupSnapshotClass not found, nothing to do.", "GroupSnapshotClass", klog.KRef("", vgsc.Name))
 			} else {
-				r.Log.Error(err, "Uninstall: Error while deleting GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", sc.Name))
+				r.Log.Error(err, "Uninstall: Error while deleting GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vgsc.Name))
 				return reconcile.Result{}, err
 			}
 		}

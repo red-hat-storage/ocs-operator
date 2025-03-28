@@ -202,6 +202,10 @@ github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versi
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1/fake
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api
+# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
+## explicit; go 1.22.0
+github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1
+github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1
 # github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 ## explicit; go 1.13
 github.com/libopenstorage/secrets
@@ -308,6 +312,7 @@ github.com/red-hat-storage/ocs-operator/api/v4/v1
 github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 # github.com/red-hat-storage/ocs-operator/v4 v4.0.0-20250227172543-a22914aaf7d5 => ../
 ## explicit; go 1.23.0
+github.com/red-hat-storage/ocs-operator/v4/controllers/defaults
 github.com/red-hat-storage/ocs-operator/v4/controllers/util
 github.com/red-hat-storage/ocs-operator/v4/services
 github.com/red-hat-storage/ocs-operator/v4/version

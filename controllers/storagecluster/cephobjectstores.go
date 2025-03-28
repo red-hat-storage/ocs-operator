@@ -173,7 +173,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 	ret := []*cephv1.CephObjectStore{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephObjectStore(initData),
+				Name:      util.GenerateNameForCephObjectStore(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.ObjectStoreSpec{
