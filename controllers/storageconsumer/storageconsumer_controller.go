@@ -279,6 +279,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				return reconcile.Result{}, err
 			}
 
+			//TODO: Verify the caps
 			if err := r.reconcileCephClientCephFSProvisioner(
 				consumerResources.GetCsiCephFsProvisionerSecretName(),
 				consumerResources.GetSubVolumeGroupName(),
@@ -301,7 +302,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		// to connect to a remote cluster, unlike client clusters.
 		// A NooBaa account only needs to be created if the storage consumer is for a client cluster.
 		clusterID := util.GetClusterID(r.ctx, r.Client, &r.Log)
-		if clusterID != "" && r.storageConsumer.Status.Client.ClusterID == clusterID {
+		if clusterID != "" && r.storageConsumer.Status.Client.ClusterID != clusterID {
 			if err := r.reconcileNoobaaAccount(); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -558,7 +559,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 			Caps: map[string]string{
 				"mon": "allow r",
 				"mgr": "allow rw",
-				"osd": "allow rw tag cephfs metadata=*",
+				"osd": "allow rw tag cephfs *=*",
 				"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 			},
 		}
