@@ -44,7 +44,7 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 			r.Log.Info(fmt.Sprintf("creating ClusterResourceQuota %s with %+v", storageQuota.Name, storageQuota.Spec.Quota.Hard))
 			err := r.Client.Create(context.TODO(), storageQuota)
 			if err != nil {
-				r.Log.Error(err, "create ClusterResourceQuota failed", storageQuota.Name)
+				r.Log.Error(err, "create ClusterResourceQuota failed", "name", storageQuota.Name)
 				return reconcile.Result{}, err
 			}
 			continue
@@ -55,7 +55,7 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 			storageQuota.Spec.DeepCopyInto(&currentQuota.Spec)
 			err = r.Client.Update(context.TODO(), currentQuota)
 			if err != nil {
-				r.Log.Error(err, "update ClusterResourceQuota failed", storageQuota.Name)
+				r.Log.Error(err, "update ClusterResourceQuota failed", "name", storageQuota.Name)
 				return reconcile.Result{}, err
 			}
 		}
@@ -73,11 +73,11 @@ func (obj *ocsStorageQuota) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 			r.Log.Info("delete ClusterResourceQuota", quotaName)
 			err = r.Client.Delete(context.TODO(), currentQuota)
 			if err != nil {
-				r.Log.Error(err, "delete ClusterResourceQuota failed", quotaName)
+				r.Log.Error(err, "delete ClusterResourceQuota failed", "name", quotaName)
 				return reconcile.Result{}, err
 			}
 		} else {
-			r.Log.Error(err, "failed to get ClusterResourceQuota", quotaName)
+			r.Log.Error(err, "failed to get ClusterResourceQuota", "name", quotaName)
 		}
 	}
 	return reconcile.Result{}, nil

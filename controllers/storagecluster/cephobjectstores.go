@@ -101,7 +101,7 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 			r.Log.Info("Uninstall: Deleting CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 			err = r.Client.Delete(context.TODO(), foundCephObjectStore)
 			if err != nil {
-				r.Log.Error(err, "Uninstall: Failed to delete CephObjectStore.", klog.KRef(foundCephObjectStore.Namespace, foundCephObjectStore.Name))
+				r.Log.Error(err, "Uninstall: Failed to delete CephObjectStore.", "name", klog.KRef(foundCephObjectStore.Namespace, foundCephObjectStore.Name))
 				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephObjectStore %v: %v", foundCephObjectStore.Name, err)
 			}
 		}

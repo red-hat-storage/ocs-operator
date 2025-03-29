@@ -1243,7 +1243,7 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 	prometheusRule.SetName(name)
 	prometheusRule.SetNamespace(sc.Namespace)
 	if err := controllerutil.SetControllerReference(sc, prometheusRule, r.Scheme); err != nil {
-		r.Log.Error(err, "Unable to set controller reference for prometheus rules.", "CephCluster")
+		r.Log.Error(err, "Unable to set controller reference for prometheus rules.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
 		return err
 	}
 	applyLabels(getCephClusterMonitoringLabels(*sc), &prometheusRule.ObjectMeta)
