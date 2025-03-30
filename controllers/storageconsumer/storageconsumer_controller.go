@@ -356,7 +356,12 @@ func (r *StorageConsumerReconciler) reconcileOnboardingSecret() error {
 	}); err != nil {
 		return fmt.Errorf("failed to create/update secret %s: %v", secret.Name, err)
 	}
-	r.storageConsumer.Status.OnboardingTicketSecret = corev1.LocalObjectReference{Name: secret.Name}
+	status := &r.storageConsumer.Status
+	if status.OnboardingTicketSecret == nil {
+		status.OnboardingTicketSecret = &corev1.LocalObjectReference{Name: secret.Name}
+	} else {
+		status.OnboardingTicketSecret.Name = secret.Name
+	}
 	return nil
 }
 
@@ -377,7 +382,7 @@ func (r *StorageConsumerReconciler) deleteOnboardingSecret() error {
 			return err
 		}
 	}
-	r.storageConsumer.Status.OnboardingTicketSecret = corev1.LocalObjectReference{}
+	r.storageConsumer.Status.OnboardingTicketSecret = nil
 	return nil
 }
 
