@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"math/rand"
 	"net"
 	"strconv"
@@ -564,10 +563,7 @@ func TestErasureCodedExternalResources(t *testing.T) {
 					"rook-csi-rbd-node",
 					cr.Namespace,
 					"",
-					"",
 					cr.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
-					cr.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
-					false,
 				),
 				isClusterExternal: true,
 				reconcileStrategy: ReconcileStrategy(cr.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),

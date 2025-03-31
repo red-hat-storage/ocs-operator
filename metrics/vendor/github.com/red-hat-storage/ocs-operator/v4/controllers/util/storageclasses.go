@@ -70,11 +70,8 @@ func NewDefaultRbdStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	encryptionServiceName,
 	drStorageID string,
-	isDefaultStorageClass,
-	disableKeyRotation,
-	virtStorageClass bool,
+	isDefaultStorageClass bool,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -106,22 +103,8 @@ func NewDefaultRbdStorageClass(
 	if isDefaultStorageClass {
 		AddAnnotation(sc, defaultStorageClassAnnotation, "true")
 	}
-	if disableKeyRotation {
-		AddAnnotation(sc, defaults.KeyRotationEnableAnnotation, "false")
-	}
-	if encryptionServiceName != "" {
-		AddAnnotation(sc, "cdi.kubevirt.io/clone-strategy", "copy")
-		sc.Parameters["encrypted"] = "true"
-		sc.Parameters["encryptionKMSID"] = encryptionServiceName
-	}
 	if drStorageID != "" {
 		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
-	}
-	if virtStorageClass {
-		AddAnnotation(sc, "description", "Provides RWO and RWX Block volumes suitable for Virtual Machine disks")
-		AddAnnotation(sc, "storageclass.kubevirt.io/is-default-virt-class", "true")
-		sc.Parameters["mounter"] = "rbd"
-		sc.Parameters["mapOptions"] = "krbd:rxbounce"
 	}
 	return sc
 }
@@ -132,17 +115,15 @@ func NewDefaultVirtRbdStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	encryptionServiceName,
 	drStorageID string,
-	isDefaultStorageClass,
-	disableKeyRotation bool,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
-				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
+				"description": "Provides RWO and RWX Block volumes suitable for Virtual Machine disks",
+				"reclaimspace.csiaddons.openshift.io/schedule":   "@weekly",
+				"storageclass.kubevirt.io/is-default-virt-class": "true",
 			},
 			Labels: map[string]string{},
 		},
@@ -155,6 +136,8 @@ func NewDefaultVirtRbdStorageClass(
 			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 			"csi.storage.k8s.io/fstype": "ext4",
 			"imageFormat":               "2",
+			"mounter":                   "rbd",
+			"mapOptions":                "krbd:rxbounce",
 			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
@@ -164,19 +147,52 @@ func NewDefaultVirtRbdStorageClass(
 		},
 	}
 
-	if isDefaultStorageClass {
-		AddAnnotation(sc, defaultStorageClassAnnotation, "true")
+	if drStorageID != "" {
+		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
+	}
+	return sc
+}
+
+func NewDefaultEncryptedRbdStorageClass(
+	clusterID,
+	poolName,
+	provisionerSecret,
+	nodeSecret,
+	namespace,
+	encryptionServiceName string,
+	disableKeyRotation bool,
+) *storagev1.StorageClass {
+
+	sc := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
+				"cdi.kubevirt.io/clone-strategy":               "copy",
+			},
+			Labels: map[string]string{},
+		},
+		ReclaimPolicy:        ptr.To(corev1.PersistentVolumeReclaimDelete),
+		AllowVolumeExpansion: ptr.To(true),
+		Provisioner:          RbdDriverName,
+		Parameters: map[string]string{
+			"clusterID":                 clusterID,
+			"pool":                      poolName,
+			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+			"csi.storage.k8s.io/fstype": "ext4",
+			"imageFormat":               "2",
+			"encrypted":                 "true",
+			"encryptionKMSID":           encryptionServiceName,
+			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
+			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
+			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
+			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
+			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+		},
 	}
 	if disableKeyRotation {
 		AddAnnotation(sc, defaults.KeyRotationEnableAnnotation, "false")
-	}
-	if encryptionServiceName != "" {
-		AddAnnotation(sc, "cdi.kubevirt.io/clone-strategy", "copy")
-		sc.Parameters["encrypted"] = "true"
-		sc.Parameters["encryptionKMSID"] = encryptionServiceName
-	}
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
 	}
 	return sc
 }
