@@ -2,6 +2,8 @@ package storagecluster
 
 import (
 	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,6 +26,20 @@ type storageConsumer struct{}
 var _ resourceManager = &storageConsumer{}
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+	consumerConfigMap := &corev1.ConfigMap{}
+	consumerConfigMap.Name = localStorageConsumerConfigMapName
+	consumerConfigMap.Namespace = storageCluster.Namespace
+	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
+		if consumerConfigMap.Data == nil {
+			consumerConfigMap.Data = map[string]string{}
+		}
+		resourceMap := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+		resourceMap.MarkNoobaaAccountNotApplicable()
+		return nil
+	}); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", localStorageConsumerConfigMapName, err)
+	}
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace

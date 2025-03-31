@@ -4,8 +4,10 @@ import (
 	"fmt"
 )
 
-// Constants for ConfigMap keys
 const (
+	ValueNotApplicable = "N/A"
+
+	// Constants for ConfigMap keys
 	rbdRadosNamespaceKey            = "rbd-rados-ns"
 	subVolumeGroupKey               = "cephfs-subvolumegroup"
 	subVolumeGroupRadosNamespaceKey = "cephfs-subvolumegroup-rados-ns"
@@ -18,6 +20,7 @@ const (
 	rbdClientProfileKey             = "csiop-rbd-client-profile"
 	cephFsClientProfileKey          = "csiop-cephfs-client-profile"
 	nfsClientProfileKey             = "csiop-nfs-client-profile"
+	noobaaAccountKey                = "noobaa-account"
 )
 
 type StorageConsumerResources interface {
@@ -34,6 +37,7 @@ type StorageConsumerResources interface {
 	GetRbdClientProfileName() string
 	GetCephFsClientProfileName() string
 	GetNfsClientProfileName() string
+	GetNoobaaAccountApplicability() string
 
 	// Setters
 	SetRbdRadosNamespaceName(string)
@@ -48,6 +52,7 @@ type StorageConsumerResources interface {
 	SetRbdClientProfileName(string)
 	SetCephFsClientProfileName(string)
 	SetNfsClientProfileName(string)
+	MarkNoobaaAccountNotApplicable()
 }
 
 type storageConsumerResourceMapWrapper struct {
@@ -107,6 +112,10 @@ func (wrapper storageConsumerResourceMapWrapper) GetNfsClientProfileName() strin
 	return wrapper.data[nfsClientProfileKey]
 }
 
+func (wrapper storageConsumerResourceMapWrapper) GetNoobaaAccountApplicability() string {
+	return wrapper.data[noobaaAccountKey]
+}
+
 // Setters
 func (wrapper storageConsumerResourceMapWrapper) SetRbdRadosNamespaceName(name string) {
 	wrapper.data[rbdRadosNamespaceKey] = name
@@ -154,6 +163,10 @@ func (wrapper storageConsumerResourceMapWrapper) SetCephFsClientProfileName(name
 
 func (wrapper storageConsumerResourceMapWrapper) SetNfsClientProfileName(name string) {
 	wrapper.data[nfsClientProfileKey] = name
+}
+
+func (wrapper storageConsumerResourceMapWrapper) MarkNoobaaAccountNotApplicable() {
+	wrapper.data[noobaaAccountKey] = ValueNotApplicable
 }
 
 func GetStorageConsumerDefaultResourceNames(storageConsumerName, fsid string) map[string]string {
