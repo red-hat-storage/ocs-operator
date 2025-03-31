@@ -165,21 +165,15 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			return reconcile.Result{}, err
 		}
 
-		var fsid string
-		if cephCluster, err := util.GetCephClusterInNamespace(r.ctx, r.Client, r.namespace); err != nil {
-			return reconcile.Result{}, err
-		} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
-			return reconcile.Result{}, fmt.Errorf("waiting for Ceph FSID")
-		} else {
-			fsid = cephCluster.Status.CephStatus.FSID
-		}
-
 		if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
 			if consumerConfigMap.Data == nil {
 				consumerConfigMap.Data = map[string]string{}
 			}
 
-			defaultConsumerResourceNames := util.GetStorageConsumerDefaultResourceNames(r.storageConsumer.Name, fsid)
+			defaultConsumerResourceNames := util.GetStorageConsumerDefaultResourceNames(
+				r.storageConsumer.Name,
+				string(r.storageConsumer.UID),
+			)
 			for key := range defaultConsumerResourceNames {
 				consumerConfigMap.Data[key] = cmp.Or(
 					strings.Trim(consumerConfigMap.Data[key], " "),
