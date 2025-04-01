@@ -20,6 +20,13 @@ const (
 	nfsClientProfileKey             = "csiop-nfs-client-profile"
 )
 
+type AvailableServices struct {
+	Rbd    bool
+	CephFs bool
+	Nfs    bool
+	Mcg    bool
+}
+
 type StorageConsumerResources interface {
 	// Getters
 	GetRbdRadosNamespaceName() string
@@ -156,20 +163,30 @@ func (wrapper storageConsumerResourceMapWrapper) SetNfsClientProfileName(name st
 	wrapper.data[nfsClientProfileKey] = name
 }
 
-func GetStorageConsumerDefaultResourceNames(storageConsumerName, storageConsumerUid string) map[string]string {
+func GetStorageConsumerDefaultResourceNames(
+	storageConsumerName,
+	storageConsumerUid string,
+	availableServices *AvailableServices,
+) map[string]string {
 	defaults := map[string]string{}
 	resourceNamesMap := WrapStorageConsumerResourceMap(defaults)
-	resourceNamesMap.SetRbdRadosNamespaceName(storageConsumerName)
-	resourceNamesMap.SetSubVolumeGroupName(storageConsumerName)
-	resourceNamesMap.SetSubVolumeGroupRadosNamespaceName(storageConsumerName)
-	resourceNamesMap.SetRbdClientProfileName(storageConsumerUid)
-	resourceNamesMap.SetCephFsClientProfileName(storageConsumerUid)
-	resourceNamesMap.SetNfsClientProfileName(storageConsumerUid)
-	resourceNamesMap.SetCsiRbdNodeSecretName(fmt.Sprintf("rbd-node-%s", storageConsumerUid))
-	resourceNamesMap.SetCsiRbdProvisionerSecretName(fmt.Sprintf("rbd-provisioner-%s", storageConsumerUid))
-	resourceNamesMap.SetCsiCephFsNodeSecretName(fmt.Sprintf("cephfs-node-%s", storageConsumerUid))
-	resourceNamesMap.SetCsiCephFsProvisionerSecretName(fmt.Sprintf("cephfs-provisioner-%s", storageConsumerUid))
-	resourceNamesMap.SetCsiNfsNodeSecretName(fmt.Sprintf("nfs-node-%s", storageConsumerUid))
-	resourceNamesMap.SetCsiNfsProvisionerSecretName(fmt.Sprintf("nfs-provisioner-%s", storageConsumerUid))
+	if availableServices.Rbd {
+		resourceNamesMap.SetRbdRadosNamespaceName(storageConsumerName)
+		resourceNamesMap.SetRbdClientProfileName(storageConsumerUid)
+		resourceNamesMap.SetCsiRbdNodeSecretName(fmt.Sprintf("rbd-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiRbdProvisionerSecretName(fmt.Sprintf("rbd-provisioner-%s", storageConsumerUid))
+	}
+	if availableServices.CephFs {
+		resourceNamesMap.SetSubVolumeGroupName(storageConsumerName)
+		resourceNamesMap.SetSubVolumeGroupRadosNamespaceName(storageConsumerName)
+		resourceNamesMap.SetCephFsClientProfileName(storageConsumerUid)
+		resourceNamesMap.SetCsiCephFsNodeSecretName(fmt.Sprintf("cephfs-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiCephFsProvisionerSecretName(fmt.Sprintf("cephfs-provisioner-%s", storageConsumerUid))
+	}
+	if availableServices.Nfs {
+		resourceNamesMap.SetNfsClientProfileName(storageConsumerUid)
+		resourceNamesMap.SetCsiNfsNodeSecretName(fmt.Sprintf("nfs-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiNfsProvisionerSecretName(fmt.Sprintf("nfs-provisioner-%s", storageConsumerUid))
+	}
 	return defaults
 }

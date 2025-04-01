@@ -381,7 +381,12 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		return nil, err
 	}
 
-	extR, err = s.appendCephClientSecretExternalResources(ctx, extR, consumerResource, consumerConfig)
+	extR, err = s.appendCephClientSecretExternalResources(
+		ctx,
+		extR,
+		consumerResource,
+		consumerConfig,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -501,41 +506,47 @@ func (s *OCSProviderServer) appendClientProfileExternalResources(
 	profileMap := make(map[string]*csiopv1a1.ClientProfileSpec)
 
 	rbdClientProfileName := consumerConfig.GetRbdClientProfileName()
-	rbdClientProfile := profileMap[rbdClientProfileName]
-	if rbdClientProfile == nil {
-		rbdClientProfile = &csiopv1a1.ClientProfileSpec{
-			CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
-		}
-		profileMap[rbdClientProfileName] = rbdClientProfile
+	if rbdClientProfileName != "" {
+		rbdClientProfile := profileMap[rbdClientProfileName]
+		if rbdClientProfile == nil {
+			rbdClientProfile = &csiopv1a1.ClientProfileSpec{
+				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+			}
+			profileMap[rbdClientProfileName] = rbdClientProfile
 
-	}
-	rbdClientProfile.Rbd = &csiopv1a1.RbdConfigSpec{
-		RadosNamespace: consumerConfig.GetRbdRadosNamespaceName(),
+		}
+		rbdClientProfile.Rbd = &csiopv1a1.RbdConfigSpec{
+			RadosNamespace: consumerConfig.GetRbdRadosNamespaceName(),
+		}
 	}
 
 	cephFsClientProfileName := consumerConfig.GetCephFsClientProfileName()
-	cephFsClientProfile := profileMap[cephFsClientProfileName]
-	if cephFsClientProfile == nil {
-		cephFsClientProfile = &csiopv1a1.ClientProfileSpec{
-			CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+	if cephFsClientProfileName != "" {
+		cephFsClientProfile := profileMap[cephFsClientProfileName]
+		if cephFsClientProfile == nil {
+			cephFsClientProfile = &csiopv1a1.ClientProfileSpec{
+				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+			}
+			profileMap[cephFsClientProfileName] = cephFsClientProfile
 		}
-		profileMap[cephFsClientProfileName] = cephFsClientProfile
-	}
-	cephFsClientProfile.CephFs = &csiopv1a1.CephFsConfigSpec{
-		SubVolumeGroup:     consumerConfig.GetSubVolumeGroupName(),
-		KernelMountOptions: kernelMountOptions,
-		RadosNamespace:     ptr.To(consumerConfig.GetSubVolumeGroupRadosNamespaceName()),
+		cephFsClientProfile.CephFs = &csiopv1a1.CephFsConfigSpec{
+			SubVolumeGroup:     consumerConfig.GetSubVolumeGroupName(),
+			KernelMountOptions: kernelMountOptions,
+			RadosNamespace:     ptr.To(consumerConfig.GetSubVolumeGroupRadosNamespaceName()),
+		}
 	}
 
 	nfsClientProfileName := consumerConfig.GetCephFsClientProfileName()
-	nfsClientProfile := profileMap[nfsClientProfileName]
-	if nfsClientProfile == nil {
-		nfsClientProfile = &csiopv1a1.ClientProfileSpec{
-			CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+	if nfsClientProfileName != "" {
+		nfsClientProfile := profileMap[nfsClientProfileName]
+		if nfsClientProfile == nil {
+			nfsClientProfile = &csiopv1a1.ClientProfileSpec{
+				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+			}
+			profileMap[nfsClientProfileName] = nfsClientProfile
 		}
-		profileMap[nfsClientProfileName] = nfsClientProfile
+		nfsClientProfile.Nfs = &csiopv1a1.NfsConfigSpec{}
 	}
-	nfsClientProfile.Nfs = &csiopv1a1.NfsConfigSpec{}
 
 	for profileName, profileSpec := range profileMap {
 		extR = append(extR, &pb.ExternalResource{
@@ -554,11 +565,24 @@ func (s *OCSProviderServer) appendCephClientSecretExternalResources(
 	consumerConfig util.StorageConsumerResources,
 ) ([]*pb.ExternalResource, error) {
 
-	cephClients := []string{
-		consumerConfig.GetCsiRbdProvisionerSecretName(),
-		consumerConfig.GetCsiRbdNodeSecretName(),
-		consumerConfig.GetCsiCephFsProvisionerSecretName(),
-		consumerConfig.GetCsiCephFsNodeSecretName(),
+	cephClients := []string{}
+	if consumerConfig.GetCsiRbdProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiRbdNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdNodeSecretName())
+	}
+	if consumerConfig.GetCsiCephFsProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiCephFsNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsNodeSecretName())
+	}
+	if consumerConfig.GetCsiNfsProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiNfsNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsNodeSecretName())
 	}
 
 	for i := range cephClients {
@@ -601,82 +625,78 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 	drCephFsId string,
 ) ([]*pb.ExternalResource, error) {
 	scMap := map[string]func() *storagev1.StorageClass{}
-	scMap[util.GenerateNameForCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
-		return util.NewDefaultRbdStorageClass(
-			consumerConfig.GetRbdClientProfileName(),
-			util.GenerateNameForCephBlockPool(storageCluster.Name),
-			consumerConfig.GetCsiRbdProvisionerSecretName(),
-			consumerConfig.GetCsiRbdNodeSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			"",
-			drRbdStorageId,
-			storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
-			storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
-			false,
-		)
-	}
-	scMap[util.GenerateNameForCephBlockPoolVirtualizationSC(storageCluster)] = func() *storagev1.StorageClass {
-		return util.NewDefaultRbdStorageClass(
-			consumerConfig.GetRbdClientProfileName(),
-			util.GenerateNameForCephBlockPool(storageCluster.Name),
-			consumerConfig.GetCsiRbdProvisionerSecretName(),
-			consumerConfig.GetCsiRbdNodeSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			"",
-			drRbdStorageId,
-			storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
-			storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
-			true,
-		)
-	}
-	if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
-		kmsServiceName := kmsConfig.Data["KMS_SERVICE_NAME"]
-		scMap[util.GenerateNameForEncryptedCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		scMap[util.GenerateNameForCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
 			return util.NewDefaultRbdStorageClass(
 				consumerConfig.GetRbdClientProfileName(),
 				util.GenerateNameForCephBlockPool(storageCluster.Name),
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumerConfig.GetCsiRbdNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				kmsServiceName,
 				drRbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
+			)
+		}
+		scMap[util.GenerateNameForCephBlockPoolVirtualizationSC(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultVirtRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+			)
+		}
+		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
+			kmsServiceName := kmsConfig.Data["KMS_SERVICE_NAME"]
+			scMap[util.GenerateNameForEncryptedCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
+				return util.NewDefaultEncryptedRbdStorageClass(
+					consumerConfig.GetRbdClientProfileName(),
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+					consumerConfig.GetCsiRbdProvisionerSecretName(),
+					consumerConfig.GetCsiRbdNodeSecretName(),
+					consumer.Status.Client.OperatorNamespace,
+					kmsServiceName,
+					storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
+				)
+			}
+		}
+		scMap[util.GenerateNameForNonResilientCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultNonResilientRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GetTopologyConstrainedPools(storageCluster),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
 				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
-				true,
 			)
 		}
 	}
-	scMap[util.GenerateNameForNonResilientCephBlockPoolSC(storageCluster)] = func() *storagev1.StorageClass {
-		return util.NewDefaultNonResilientRbdStorageClass(
-			consumerConfig.GetRbdClientProfileName(),
-			util.GetTopologyConstrainedPools(storageCluster),
-			consumerConfig.GetCsiRbdProvisionerSecretName(),
-			consumerConfig.GetCsiRbdNodeSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			drRbdStorageId,
-			storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
-		)
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		scMap[util.GenerateNameForCephFilesystemSC(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultCephFsStorageClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumerConfig.GetCsiCephFsNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drCephFsId,
+			)
+		}
 	}
-	scMap[util.GenerateNameForCephFilesystemSC(storageCluster)] = func() *storagev1.StorageClass {
-		return util.NewDefaultCephFsStorageClass(
-			consumerConfig.GetRbdClientProfileName(),
-			util.GenerateNameForCephFilesystem(storageCluster.Name),
-			consumerConfig.GetCsiCephFsProvisionerSecretName(),
-			consumerConfig.GetCsiCephFsNodeSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			drCephFsId,
-		)
-	}
-	scMap[util.GenerateNameForCephNetworkFilesystemSC(storageCluster)] = func() *storagev1.StorageClass {
-		return util.NewDefaultNFSStorageClass(
-			consumerConfig.GetNfsClientProfileName(),
-			util.GenerateNameForCephNFS(storageCluster),
-			util.GenerateNameForCephFilesystem(storageCluster.Name),
-			util.GenerateNameForNFSService(storageCluster),
-			consumerConfig.GetCsiNfsProvisionerSecretName(),
-			consumerConfig.GetCsiNfsNodeSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-		)
+	if consumerConfig.GetNfsClientProfileName() != "" {
+		scMap[util.GenerateNameForCephNetworkFilesystemSC(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultNFSStorageClass(
+				consumerConfig.GetNfsClientProfileName(),
+				util.GenerateNameForCephNFS(storageCluster),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				util.GenerateNameForNFSService(storageCluster),
+				consumerConfig.GetCsiNfsProvisionerSecretName(),
+				consumerConfig.GetCsiNfsNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+			)
+		}
 	}
 	for i := 0; i < len(consumer.Spec.StorageClasses); i++ {
 		storageClassName := consumer.Spec.StorageClasses[i].Name
@@ -704,29 +724,35 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassExternalResources(
 	drCephFsId string,
 ) ([]*pb.ExternalResource, error) {
 	vscMap := map[string]func() *snapapi.VolumeSnapshotClass{}
-	vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
-		return util.NewDefaultRbdSnapshotClass(
-			consumerConfig.GetRbdClientProfileName(),
-			consumerConfig.GetCsiRbdProvisionerSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			drRbdStorageId,
-		)
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultRbdSnapshotClass(
+				consumerConfig.GetRbdClientProfileName(),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+			)
+		}
 	}
-	vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
-		return util.NewDefaultCephFsSnapshotClass(
-			consumerConfig.GetCephFsClientProfileName(),
-			consumerConfig.GetCsiCephFsProvisionerSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			drCephFsId,
-		)
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultCephFsSnapshotClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drCephFsId,
+			)
+		}
 	}
-	vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
-		return util.NewDefaultNfsSnapshotClass(
-			consumerConfig.GetNfsClientProfileName(),
-			consumerConfig.GetCsiNfsProvisionerSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			"",
-		)
+	if consumerConfig.GetNfsClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultNfsSnapshotClass(
+				consumerConfig.GetNfsClientProfileName(),
+				consumerConfig.GetCsiNfsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				"",
+			)
+		}
 	}
 	for i := 0; i < len(consumer.Spec.VolumeSnapshotClasses); i++ {
 		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
@@ -754,23 +780,27 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
 	drCephFsId string,
 ) ([]*pb.ExternalResource, error) {
 	vgscMap := map[string]func() *groupsnapapi.VolumeGroupSnapshotClass{}
-	vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
-		return util.NewDefaultRbdGroupSnapshotClass(
-			consumerConfig.GetRbdClientProfileName(),
-			consumerConfig.GetCsiRbdProvisionerSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			util.GenerateNameForCephBlockPool(storageCluster.Name),
-			drRbdStorageId,
-		)
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+			return util.NewDefaultRbdGroupSnapshotClass(
+				consumerConfig.GetRbdClientProfileName(),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				drRbdStorageId,
+			)
+		}
 	}
-	vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
-		return util.NewDefaultCephFsGroupSnapshotClass(
-			consumerConfig.GetCephFsClientProfileName(),
-			consumerConfig.GetCsiCephFsProvisionerSecretName(),
-			consumer.Status.Client.OperatorNamespace,
-			util.GenerateNameForCephFilesystem(storageCluster.Name),
-			drCephFsId,
-		)
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+			return util.NewDefaultCephFsGroupSnapshotClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				drCephFsId,
+			)
+		}
 	}
 	for i := 0; i < len(consumer.Spec.VolumeGroupSnapshotClasses); i++ {
 		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
