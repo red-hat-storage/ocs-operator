@@ -141,6 +141,11 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			existing.ObjectMeta.OwnerReferences = cephObjectStore.ObjectMeta.OwnerReferences
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
 
+			// preserving any existing rgw ReadAffinities
+			if existing.Spec.Gateway.ReadAffinity != nil {
+				cephObjectStore.Spec.Gateway.ReadAffinity = existing.Spec.Gateway.ReadAffinity
+			}
+
 			// Ensures the bulk flag set during new pool creation is not removed during updates.
 			preserveBulkFlagParameter(existing.Spec.MetadataPool.Parameters, &cephObjectStore.Spec.MetadataPool.Parameters)
 			preserveBulkFlagParameter(existing.Spec.DataPool.Parameters, &cephObjectStore.Spec.DataPool.Parameters)
@@ -258,6 +263,12 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 				},
 			}
 		}
+
+		// set RGW readAffinity to `localize` in case of non-portable OSDs.
+		if hasNonPortableOSD(initData) {
+			obj.Spec.Gateway.ReadAffinity = &cephv1.RgwReadAffinity{Type: "localize"}
+		}
+
 	}
 	return ret, nil
 }
@@ -271,4 +282,13 @@ func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int {
 		return customGatewayInstances
 	}
 	return defaults.CephObjectStoreGatewayInstances
+}
+
+func hasNonPortableOSD(sc *ocsv1.StorageCluster) bool {
+	for _, deviceSet := range sc.Spec.StorageDeviceSets {
+		if deviceSet.Portable {
+			return false
+		}
+	}
+	return true
 }
