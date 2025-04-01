@@ -29,10 +29,6 @@ func (s *obcStorageClasses) ensureCreated(r *StorageClusterReconciler, storageCl
 	sc.Namespace = storageCluster.Namespace
 
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, sc, func() error {
-		err := controllerutil.SetControllerReference(storageCluster, sc, r.Scheme)
-		if err != nil {
-			return err
-		}
 		return nil
 	}); err != nil {
 		r.Log.Error(err, "unable to create or update the OBC StorageClass")
