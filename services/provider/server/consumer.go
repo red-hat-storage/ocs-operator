@@ -43,50 +43,6 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 	}, nil
 }
 
-// Delete deletes the storageConsumer resource using UID and updates the consumer cache
-func (c *ocsConsumerManager) Delete(ctx context.Context, id string) error {
-	uid := types.UID(id)
-	c.mutex.RLock()
-	consumerName, ok := c.nameByUID[uid]
-	if !ok {
-		klog.Warningf("no storageConsumer found with UID %q", id)
-		c.mutex.RUnlock()
-		return nil
-	}
-	c.mutex.RUnlock()
-
-	consumerObj := &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      consumerName,
-			Namespace: c.namespace,
-		},
-	}
-
-	foregroundDelete := metav1.DeletePropagationForeground
-	deleteOption := client.DeleteOptions{
-		PropagationPolicy: &foregroundDelete,
-	}
-	if err := c.client.Delete(ctx, consumerObj, &deleteOption); err != nil {
-		if kerrors.IsNotFound(err) {
-			// update uidStore
-			c.mutex.Lock()
-			delete(c.nameByUID, uid)
-			c.mutex.Unlock()
-			klog.Warningf("storageConsumer %q not found.", consumerObj.Name)
-			return nil
-		}
-		return fmt.Errorf("failed to delete storageConsumer %q. %v", consumerName, err)
-	}
-
-	c.mutex.Lock()
-	delete(c.nameByUID, uid)
-	c.mutex.Unlock()
-
-	klog.Infof("successfully deleted storageConsumer resource %q", consumerName)
-
-	return nil
-}
-
 // EnableStorageConsumer enables storageConsumer resource
 func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (string, error) {
 	consumer.Spec.Enable = true
@@ -104,6 +60,25 @@ func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, consumer
 	klog.Infof("successfully Enabled the StorageConsumer resource %q", consumer.Name)
 
 	return string(consumer.UID), nil
+}
+
+// DisableStorageConsumer disable storageConsumer resource
+func (c *ocsConsumerManager) DisableStorageConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) error {
+	consumer.Spec.Enable = false
+	// update here acts as a synchronization point even if two api calls
+	// resolves to a single storageconsumer the resourceVersion of one of
+	// the calls will not match and be dropped
+	if err := c.client.Update(ctx, consumer); err != nil {
+		klog.Errorf("Failed to disable storageConsumer %v", err)
+		return fmt.Errorf("failed to update storageConsumer resource %q. %v", consumer.Name, err)
+	}
+
+	c.mutex.Lock()
+	delete(c.nameByUID, consumer.UID)
+	c.mutex.Unlock()
+	klog.Infof("successfully Disabled the StorageConsumer resource %q", consumer.Name)
+
+	return nil
 }
 
 // GetByName returns a storageConsumer resource using the Name

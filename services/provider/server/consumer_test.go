@@ -143,33 +143,6 @@ func TestOnboardStorageConsumer(t *testing.T) {
 	assert.Equal(t, consumerObject.Spec.StorageQuotaInGiB, storageQuotaInGiB)
 }
 
-func TestDeleteStorageConsumer(t *testing.T) {
-	ctx := context.TODO()
-	obj := []client.Object{}
-
-	obj = append(obj, consumer1)
-	client := newFakeClient(t, obj...)
-	consumerManager, err := newConsumerManager(ctx, client, testNamespace)
-	assert.NoError(t, err)
-
-	// Delete consumer should ignore error if consumer is not found
-	err = consumerManager.Delete(ctx, "invalid-uid")
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(consumerManager.nameByUID))
-
-	// Delete consumer removes any stale references in the nameByUID map
-	consumerManager.nameByUID["stale-uid"] = "stale-consumer"
-	assert.Equal(t, 2, len(consumerManager.nameByUID))
-	err = consumerManager.Delete(ctx, "stale-uid")
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(consumerManager.nameByUID))
-
-	// Delete consumer successfully deletes an existing consumer
-	err = consumerManager.Delete(ctx, "uid1")
-	assert.NoError(t, err)
-	assert.Equal(t, 0, len(consumerManager.nameByUID))
-}
-
 func TestGetStorageConsumer(t *testing.T) {
 	ctx := context.TODO()
 	obj := []client.Object{}
