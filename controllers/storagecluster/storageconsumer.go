@@ -2,16 +2,17 @@ package storagecluster
 
 import (
 	"fmt"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -24,6 +25,7 @@ type storageConsumer struct{}
 var _ resourceManager = &storageConsumer{}
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
@@ -90,6 +92,37 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer %s: %v", storageConsumer.Name, err)
 	}
+	if storageConsumer.UID == "" {
+		return ctrl.Result{}, fmt.Errorf("expected storageConsumer UID to not be empty")
+	}
+
+	availableServices, err := util.GetAvailableServices(r.ctx, r.Client, storageCluster)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
+	}
+	consumerConfigMap := &corev1.ConfigMap{}
+	consumerConfigMap.Name = localStorageConsumerConfigMapName
+	consumerConfigMap.Namespace = storageCluster.Namespace
+	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
+		data := util.GetStorageConsumerDefaultResourceNames(
+			defaults.LocalStorageConsumerName,
+			string(storageConsumer.UID),
+			availableServices,
+		)
+		resourceMap := util.WrapStorageConsumerResourceMap(data)
+		resourceMap.ReplaceRbdRadosNamespaceName(util.ImplicitRbdRadosNamespaceName)
+		resourceMap.ReplaceSubVolumeGroupName("csi")
+		resourceMap.ReplaceSubVolumeGroupRadosNamespaceName("csi")
+		resourceMap.ReplaceRbdClientProfileName("openshift-storage")
+		resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
+		resourceMap.ReplaceNfsClientProfileName("openshift-storage")
+		// NB: Do we need to allow user changing/overwriting any values in this configmap?
+		consumerConfigMap.Data = data
+		return nil
+	}); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", localStorageConsumerConfigMapName, err)
+	}
+
 	return ctrl.Result{}, nil
 }
 

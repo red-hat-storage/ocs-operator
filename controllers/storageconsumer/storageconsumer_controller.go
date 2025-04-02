@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -162,7 +161,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			return reconcile.Result{}, err
 		}
 
-		availableServices, err := r.getAvailableServices(storageCluster)
+		availableServices, err := util.GetAvailableServices(r.ctx, r.Client, storageCluster)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -443,6 +442,13 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 
 		rns := &rookCephv1.CephBlockPoolRadosNamespace{}
 		rns.Name = fmt.Sprintf("%s-%s", bp.Name, radosNamespaceName)
+		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
+			rns.Name = fmt.Sprintf(
+				"%s-builtin-%s",
+				bp.Name,
+				util.ImplicitRbdRadosNamespaceName[1:len(util.ImplicitRbdRadosNamespaceName)-1],
+			)
+		}
 		rns.Namespace = r.namespace
 
 		if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
@@ -510,6 +516,9 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
+			radosNamespaceName = "''"
+		}
 		cephClient.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
 				"mon": "profile rbd, allow command 'osd blocklist'",
@@ -538,6 +547,9 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 		}
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
+		}
+		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
+			radosNamespaceName = "''"
 		}
 		cephClient.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
@@ -785,40 +797,4 @@ func GenerateHashForCephClient(storageConsumerName, cephUserType string) string 
 	}
 	name := md5.Sum([]byte(cephClient))
 	return hex.EncodeToString(name[:16])
-}
-
-func (r *StorageConsumerReconciler) getAvailableServices(storageCluster *ocsv1.StorageCluster) (*util.AvailableServices, error) {
-	availableServices := &util.AvailableServices{}
-
-	// always enable rbd because internal pools are using it
-	availableServices.Rbd = true
-
-	// cephFs - get the default filesystem
-	cephFs := &rookCephv1.CephFilesystem{}
-	cephFs.Name = util.GenerateNameForCephFilesystem(storageCluster.Name)
-	cephFs.Namespace = storageCluster.Namespace
-	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(cephFs), cephFs); client.IgnoreNotFound(err) != nil {
-		return nil, fmt.Errorf("failed to get CephFilesystem: %v", err)
-	}
-	availableServices.CephFs = cephFs.UID != ""
-
-	// nfs - get the default nfs obj
-	cephNfs := &rookCephv1.CephNFS{}
-	cephNfs.Name = util.GenerateNameForCephNFS(storageCluster)
-	cephNfs.Namespace = storageCluster.Namespace
-	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(cephNfs), cephNfs); client.IgnoreNotFound(err) != nil {
-		return nil, fmt.Errorf("failed to get CephNFS: %v", err)
-	}
-	availableServices.Nfs = cephNfs.UID != ""
-
-	// noobaa - get the default noobaa obj
-	noobaa := &nbv1.NooBaa{}
-	noobaa.Name = "noobaa"
-	noobaa.Namespace = storageCluster.Namespace
-	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(noobaa), noobaa); client.IgnoreNotFound(err) != nil {
-		return nil, fmt.Errorf("failed to get NooBaa: %v", err)
-	}
-	availableServices.Mcg = noobaa.UID != ""
-
-	return availableServices, nil
 }

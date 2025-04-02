@@ -505,6 +505,10 @@ func (s *OCSProviderServer) appendClientProfileExternalResources(
 	// same name
 	profileMap := make(map[string]*csiopv1a1.ClientProfileSpec)
 
+	rnsName := consumerConfig.GetRbdRadosNamespaceName()
+	if rnsName == util.ImplicitRbdRadosNamespaceName {
+		rnsName = ""
+	}
 	rbdClientProfileName := consumerConfig.GetRbdClientProfileName()
 	if rbdClientProfileName != "" {
 		rbdClientProfile := profileMap[rbdClientProfileName]
@@ -516,7 +520,7 @@ func (s *OCSProviderServer) appendClientProfileExternalResources(
 
 		}
 		rbdClientProfile.Rbd = &csiopv1a1.RbdConfigSpec{
-			RadosNamespace: consumerConfig.GetRbdRadosNamespaceName(),
+			RadosNamespace: rnsName,
 		}
 	}
 
@@ -698,7 +702,7 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 			)
 		}
 	}
-	for i := 0; i < len(consumer.Spec.StorageClasses); i++ {
+	for i := range consumer.Spec.StorageClasses {
 		storageClassName := consumer.Spec.StorageClasses[i].Name
 		scGen := scMap[storageClassName]
 		if scGen != nil {
@@ -754,7 +758,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassExternalResources(
 			)
 		}
 	}
-	for i := 0; i < len(consumer.Spec.VolumeSnapshotClasses); i++ {
+	for i := range consumer.Spec.VolumeSnapshotClasses {
 		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
 		vscGen := vscMap[snapshotClassName]
 		if vscGen != nil {
@@ -802,7 +806,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
 			)
 		}
 	}
-	for i := 0; i < len(consumer.Spec.VolumeGroupSnapshotClasses); i++ {
+	for i := range consumer.Spec.VolumeGroupSnapshotClasses {
 		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
 		vgscGen := vgscMap[groupSnapshotClassName]
 		if vgscGen != nil {
