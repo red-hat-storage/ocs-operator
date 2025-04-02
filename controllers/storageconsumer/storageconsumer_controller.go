@@ -482,10 +482,18 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
 	}
 
 	svg := &rookCephv1.CephFilesystemSubVolumeGroup{}
-	svg.Name = subVolumeGroupName
+	svg.Name = fmt.Sprintf("%s-%s", cephFs.Name, subVolumeGroupName)
 	svg.Namespace = r.namespace
 
 	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, svg, func() error {
+		index := slices.IndexFunc(svg.OwnerReferences, func(owner metav1.OwnerReference) bool {
+			return owner.Kind == "StorageCluster"
+		})
+		if index > -1 {
+			length := len(svg.OwnerReferences)
+			svg.OwnerReferences[index] = svg.OwnerReferences[length-1]
+			svg.OwnerReferences = svg.OwnerReferences[:length-1]
+		}
 		if err := controllerutil.SetControllerReference(r.storageConsumer, svg, r.Scheme); err != nil {
 			return err
 		}
