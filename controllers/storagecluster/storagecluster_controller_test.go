@@ -11,6 +11,7 @@ import (
 
 	opverion "github.com/operator-framework/api/pkg/lib/version"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
@@ -730,6 +731,8 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
+	// TODO (leelavg): get back after upgrade is working
+	// t.Skip("UID is not picked in reconcile even after supplying storageconsumer")
 	testSkipPrometheusRules = true
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
@@ -1022,6 +1025,16 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	scheme := createFakeScheme(t)
 	name := mockStorageClusterRequest.NamespacedName.Name
 	namespace := mockStorageClusterRequest.NamespacedName.Namespace
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.LocalStorageConsumerName,
+			Namespace: namespace,
+			UID:       "fake-uid",
+		},
+		Spec: ocsv1a1.StorageConsumerSpec{
+			Enable: true,
+		},
+	}
 	cfs := &rookCephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-cephfilesystem", name),
@@ -1086,6 +1099,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	obj = append(
 		obj,
 		createStorageClientCRD(),
+		consumer,
 		cbp,
 		cfs,
 		rookCephMonSecret,
