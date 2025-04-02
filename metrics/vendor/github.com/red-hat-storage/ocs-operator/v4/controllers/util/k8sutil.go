@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"os"
 	"strings"
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 
 	"github.com/go-logr/logr"
 	configv1 "github.com/openshift/api/config/v1"
@@ -17,12 +17,15 @@ import (
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -288,4 +291,52 @@ func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
 	}
 
 	return k8sClient, nil
+}
+
+func CreateOrReplace(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) error {
+	key := client.ObjectKeyFromObject(obj)
+	if err := c.Get(ctx, key, obj); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		if err := mutate(f, key, obj); err != nil {
+			return err
+		}
+		if err := c.Create(ctx, obj); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	existing := obj.DeepCopyObject()
+	if err := mutate(f, key, obj); err != nil {
+		return err
+	}
+
+	if equality.Semantic.DeepEqual(existing, obj) {
+		return nil
+	}
+
+	if err := c.Delete(ctx, obj); err != nil {
+		return err
+	}
+
+	// k8s doesn't allow us to create objects when resourceVersion is set, as we are DeepCopying the
+	// object, the resource version also gets copied, hence we need to set it to empty before creating it
+	obj.SetResourceVersion("")
+	if err := c.Create(ctx, obj); err != nil {
+		return err
+	}
+	return nil
+}
+
+// mutate wraps a MutateFn and applies validation to its result.
+func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) error {
+	if err := f(); err != nil {
+		return err
+	}
+	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
+		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
+	}
+	return nil
 }

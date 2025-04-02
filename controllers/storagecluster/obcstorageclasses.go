@@ -4,8 +4,9 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
+	storagev1 "k8s.io/api/storage/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 type obcStorageClasses struct{}
@@ -25,10 +26,14 @@ func (s *obcStorageClasses) ensureCreated(r *StorageClusterReconciler, storageCl
 		util.GenerateNameForCephObjectStore(storageCluster),
 	)
 
-	sc.Name = util.GenerateNameForCephRgwSC(storageCluster)
-	sc.Namespace = storageCluster.Namespace
+	storageClass := &storagev1.StorageClass{}
+	storageClass.Name = util.GenerateNameForCephRgwSC(storageCluster)
 
-	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, sc, func() error {
+	if err := util.CreateOrReplace(r.ctx, r.Client, storageClass, func() error {
+		storageClass.Parameters = sc.Parameters
+		storageClass.Provisioner = sc.Provisioner
+		storageClass.ReclaimPolicy = sc.ReclaimPolicy
+		storageClass.Annotations = sc.Annotations
 		return nil
 	}); err != nil {
 		r.Log.Error(err, "unable to create or update the OBC StorageClass")
