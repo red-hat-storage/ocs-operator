@@ -46,6 +46,7 @@ oc patch operatorhub.config.openshift.io/cluster -p='{"spec":{"sources":[{"disab
 
 oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment \
     ceph-csi-controller-manager \
+    ocs-client-operator-controller-manager \
     noobaa-operator \
     ocs-operator \
     rook-ceph-operator \
