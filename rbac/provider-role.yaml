@@ -85,3 +85,10 @@ rules:
     verbs:
       - get
       - list
+  - apiGroups:
+      - template.openshift.io
+    resources:
+      - templates
+    verbs:
+      - get
+      - list
