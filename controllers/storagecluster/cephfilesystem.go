@@ -72,7 +72,7 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 	}
 
 	// Set default values in the metadata pool spec as necessary
-	setDefaultDataPoolSpec(&ret.Spec.MetadataPool.PoolSpec, initStorageCluster)
+	setDefaultMetadataPoolSpec(&ret.Spec.MetadataPool.PoolSpec, initStorageCluster)
 
 	err := controllerutil.SetControllerReference(initStorageCluster, ret, r.Scheme)
 	if err != nil {
