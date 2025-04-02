@@ -37,6 +37,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
@@ -422,6 +423,18 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		storageCluster,
 		drRbdStorageId,
 		drCephFsId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendVolumeReplicationClassExternalResources(
+		ctx,
+		extR,
+		consumerResource,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -815,6 +828,55 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
 			//TODO: Day-2 groupSnapshotclass
 			klog.Warningf("encountered an unexpected volume group snapshot class: %s", groupSnapshotClassName)
 		}
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendVolumeReplicationClassExternalResources(
+	ctx context.Context,
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId string,
+) ([]*pb.ExternalResource, error) {
+	for i := 0; i < len(consumer.Spec.VolumeReplicationClasses); i++ {
+		replicationClassName := consumer.Spec.VolumeReplicationClasses[i].Name
+		vrcTemplate := &templatev1.Template{}
+		vrcTemplate.Name = replicationClassName
+		vrcTemplate.Namespace = consumer.Namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(vrcTemplate), vrcTemplate); client.IgnoreNotFound(err) != nil {
+			klog.Errorf("encountered an unexpected volume replication class: %s, %v", replicationClassName, err)
+			continue
+		}
+		if len(vrcTemplate.Objects) == 0 {
+			klog.Errorf("volume replication class tempate has no objects: %s", replicationClassName)
+			continue
+		}
+
+		rawObj := vrcTemplate.Objects[0].Raw
+		vrc := &replicationv1alpha1.VolumeReplicationClass{}
+		if err := json.Unmarshal(rawObj, vrc); err != nil {
+			klog.Errorf("failed to unmarshall volume replication class: %s, %v", replicationClassName, err)
+			continue
+		}
+
+		switch vrc.Spec.Provisioner {
+		case util.RbdDriverName:
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
+			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
+			util.AddLabel(vrc, ramenDRStorageIDLabelKey, drRbdStorageId)
+			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
+			//TODO: replicationID label
+		}
+
+		extR = append(extR, &pb.ExternalResource{
+			Kind: "VolumeReplicationClass",
+			Name: replicationClassName,
+			Data: mustMarshal(vrc),
+		})
+
 	}
 	return extR, nil
 }
