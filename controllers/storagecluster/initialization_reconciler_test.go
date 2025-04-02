@@ -3,11 +3,12 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"os"
 	"testing"
 
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
@@ -24,6 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -387,9 +389,14 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 	clientConfigMap.Name = ocsClientConfigMapName
 	clientConfigMap.Namespace = sc.Namespace
 
+	consumer := &ocsv1a1.StorageConsumer{}
+	consumer.Name = defaults.LocalStorageConsumerName
+	consumer.UID = "fake-uid"
+
 	obj = append(
 		obj,
 		mockNodeList.DeepCopy(),
+		consumer,
 		cbp,
 		cfs,
 		clientConfigMap,

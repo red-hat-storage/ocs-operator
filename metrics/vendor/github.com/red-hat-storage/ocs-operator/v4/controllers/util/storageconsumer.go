@@ -1,11 +1,21 @@
 package util
 
 import (
+	"context"
 	"fmt"
+
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Constants for ConfigMap keys
 const (
+	// Reserved RadosNamespaceName for internal use and their representation at different layes
+	ImplicitRbdRadosNamespaceName = "<implicit>"
+
+	// Constants for ConfigMap keys
 	rbdRadosNamespaceKey            = "rbd-rados-ns"
 	subVolumeGroupKey               = "cephfs-subvolumegroup"
 	subVolumeGroupRadosNamespaceKey = "cephfs-subvolumegroup-rados-ns"
@@ -55,6 +65,19 @@ type StorageConsumerResources interface {
 	SetRbdClientProfileName(string)
 	SetCephFsClientProfileName(string)
 	SetNfsClientProfileName(string)
+
+	ReplaceRbdRadosNamespaceName(string)
+	ReplaceSubVolumeGroupName(string)
+	ReplaceSubVolumeGroupRadosNamespaceName(string)
+	ReplaceCsiRbdProvisionerSecretName(string)
+	ReplaceCsiRbdNodeSecretName(string)
+	ReplaceCsiCephFsProvisionerSecretName(string)
+	ReplaceCsiCephFsNodeSecretName(string)
+	ReplaceCsiNfsProvisionerSecretName(string)
+	ReplaceCsiNfsNodeSecretName(string)
+	ReplaceRbdClientProfileName(string)
+	ReplaceCephFsClientProfileName(string)
+	ReplaceNfsClientProfileName(string)
 }
 
 type storageConsumerResourceMapWrapper struct {
@@ -161,6 +184,96 @@ func (wrapper storageConsumerResourceMapWrapper) SetCephFsClientProfileName(name
 
 func (wrapper storageConsumerResourceMapWrapper) SetNfsClientProfileName(name string) {
 	wrapper.data[nfsClientProfileKey] = name
+}
+
+func (wrapper storageConsumerResourceMapWrapper) replaceIfExist(key, value string) {
+	if oldValue, exist := wrapper.data[key]; exist && oldValue != value {
+		wrapper.data[key] = value
+	}
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceRbdRadosNamespaceName(name string) {
+	wrapper.replaceIfExist(rbdRadosNamespaceKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceSubVolumeGroupName(name string) {
+	wrapper.replaceIfExist(subVolumeGroupKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceSubVolumeGroupRadosNamespaceName(name string) {
+	wrapper.replaceIfExist(subVolumeGroupRadosNamespaceKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiRbdProvisionerSecretName(name string) {
+	wrapper.replaceIfExist(csiRbdProvisionerSecretKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiRbdNodeSecretName(name string) {
+	wrapper.replaceIfExist(csiRbdNodeSecretKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiCephFsProvisionerSecretName(name string) {
+	wrapper.replaceIfExist(csiCephFsProvisionerSecretKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiCephFsNodeSecretName(name string) {
+	wrapper.replaceIfExist(csiCephFsNodeSecretKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNfsProvisionerSecretName(name string) {
+	wrapper.replaceIfExist(csiNfsProvisionerSecretKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNfsNodeSecretName(name string) {
+	wrapper.replaceIfExist(csiNfsNodeSecretKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceRbdClientProfileName(name string) {
+	wrapper.replaceIfExist(rbdClientProfileKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCephFsClientProfileName(name string) {
+	wrapper.replaceIfExist(cephFsClientProfileKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceNfsClientProfileName(name string) {
+	wrapper.replaceIfExist(nfsClientProfileKey, name)
+}
+
+func GetAvailableServices(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (*AvailableServices, error) {
+	availableServices := &AvailableServices{}
+
+	// always enable rbd because internal pools are using it
+	availableServices.Rbd = true
+
+	// cephFs - get the default filesystem
+	cephFs := &rookCephv1.CephFilesystem{}
+	cephFs.Name = GenerateNameForCephFilesystem(storageCluster.Name)
+	cephFs.Namespace = storageCluster.Namespace
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(cephFs), cephFs); client.IgnoreNotFound(err) != nil {
+		return nil, fmt.Errorf("failed to get CephFilesystem: %v", err)
+	}
+	availableServices.CephFs = cephFs.UID != ""
+
+	// nfs - get the default nfs obj
+	cephNfs := &rookCephv1.CephNFS{}
+	cephNfs.Name = GenerateNameForCephNFS(storageCluster)
+	cephNfs.Namespace = storageCluster.Namespace
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(cephNfs), cephNfs); client.IgnoreNotFound(err) != nil {
+		return nil, fmt.Errorf("failed to get CephNFS: %v", err)
+	}
+	availableServices.Nfs = cephNfs.UID != ""
+
+	// noobaa - get the default noobaa obj
+	noobaa := &nbv1.NooBaa{}
+	noobaa.Name = "noobaa"
+	noobaa.Namespace = storageCluster.Namespace
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(noobaa), noobaa); client.IgnoreNotFound(err) != nil {
+		return nil, fmt.Errorf("failed to get NooBaa: %v", err)
+	}
+	availableServices.Mcg = noobaa.UID != ""
+
+	return availableServices, nil
 }
 
 func GetStorageConsumerDefaultResourceNames(

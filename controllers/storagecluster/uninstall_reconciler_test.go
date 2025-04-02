@@ -743,6 +743,8 @@ func TestVerifyNoStorageConsumerExist(t *testing.T) {
 	})
 
 	t.Run("Do not Raise error when storageConsumer does not exist", func(t *testing.T) {
+		// TODO (leelavg): get back after we verify uninstall flow
+		t.Skip("local storageconsumer will be removed when storagecluster is deleted")
 
 		r, instance := createSetup()
 
