@@ -394,7 +394,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 					)
 
 					cephBlockPool.Spec.Mirroring.Enabled = true
-					cephBlockPool.Spec.Mirroring.Mode = "image"
+					cephBlockPool.Spec.Mirroring.Mode = "init-only"
 					if mirroringToken != "" {
 						if cephBlockPool.Spec.Mirroring.Peers == nil {
 							cephBlockPool.Spec.Mirroring.Peers = &rookCephv1.MirroringPeerSpec{SecretNames: []string{}}
