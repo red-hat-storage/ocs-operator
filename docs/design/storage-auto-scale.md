@@ -23,6 +23,8 @@ Implement auto storage scale CR per device class of a specific Storagecluster.
     spec:
         storageCluster: 
             name: <storageclusterName>
+            namespace: <storageclusterNamespace>
+            uid: <storageclusterUid>
         deviceClass: ssd
         storageCapacityLimit: <capacity>
         storageScalingThresholdPercent: 70  # should be less than osd nearfull percentage 
