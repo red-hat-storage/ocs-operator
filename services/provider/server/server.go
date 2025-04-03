@@ -259,9 +259,13 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
-	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
+	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to delete storageConsumer resource with the provided UUID. %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get storageConsumer resource. %v", err)
+	}
+
+	if err := s.consumerManager.DisableStorageConsumer(ctx, consumer); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to disable storageConsumer resource with the provided UUID. %v", err)
 	}
 	return &pb.OffboardConsumerResponse{}, nil
 }
