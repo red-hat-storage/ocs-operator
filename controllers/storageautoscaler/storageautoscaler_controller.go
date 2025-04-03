@@ -94,11 +94,25 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 
 	// list the storagecluster
 	storageCluster := &ocsv1.StorageCluster{}
+	if storageAutoScaler.Spec.StorageCluster.Name == "" {
+		err = fmt.Errorf("storage cluster name is empty")
+		r.Log.Error(err, "scaling cannot be performed")
+		return reconcile.Result{}, err
+	}
 	storageClusterName := storageAutoScaler.Spec.StorageCluster.Name
 	err = r.Get(ctx, types.NamespacedName{Name: storageClusterName, Namespace: request.Namespace}, storageCluster)
 	if err != nil {
 		r.Log.Error(err, "failed to get storage cluster")
 		return reconcile.Result{}, err
+	}
+
+	// check if the storage cluster uid matches the storageautoscaler, storagecluster spec uid
+	if storageAutoScaler.Spec.StorageCluster.UID != "" {
+		if storageCluster.ObjectMeta.UID != storageAutoScaler.Spec.StorageCluster.UID {
+			err = fmt.Errorf("storage cluster uid does not match with storage autoscaler, storagecluster spec uid")
+			r.Log.Error(err, "uid did not match", "storage cluster uid", storageCluster.UID, "storage autoscaler storagecluster spec uid", storageAutoScaler.Spec.StorageCluster.UID)
+			return reconcile.Result{}, err
+		}
 	}
 
 	// list the storagecluster deviceset storageclass
