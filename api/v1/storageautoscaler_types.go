@@ -115,6 +115,8 @@ type StorageAutoScalerStatus struct {
 	// +optional
 	// +nullable
 	StorageCapacityLimitReached *bool `json:"storageCapacityLimitReached,omitempty"`
+	// CrsWithDuplicateSpecDetected is the flag that indicates if the CRs with duplicate spec have been detected.
+	CrsWithDuplicateSpecDetected *bool `json:"crsWithDuplicateSpecDetected,omitempty"`
 }
 
 // +kubebuilder:object:root=true

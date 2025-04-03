@@ -117,6 +117,10 @@ spec:
           status:
             description: StorageAutoScalerStatus defines the observed state of StorageAutoScaler
             properties:
+              crsWithDuplicateSpecDetected:
+                description: CrsWithDuplicateSpecDetected is the flag that indicates
+                  if the CRs with duplicate spec have been detected.
+                type: boolean
               error:
                 description: Error is the error message in case the storage scaling
                   operation has failed.
