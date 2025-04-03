@@ -67,6 +67,13 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
+	// if more than one storage autoscaler is present in the cluster with same device class and same storage cluster
+	// return error
+	err = r.detectDuplicateStorageAutoScaler(ctx, storageAutoScaler, request.Namespace)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// if no expansion is in-progress update the phase to "not-started"
 	if storageAutoScaler.Status.Phase == "" {
 		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
@@ -298,5 +305,33 @@ func (r *StorageAutoscalerReconciler) updateStatus(ctx context.Context, storageA
 		return err
 	}
 	r.Log.Info("storage autoscaler status updated")
+	return nil
+}
+
+func (r *StorageAutoscalerReconciler) detectDuplicateStorageAutoScaler(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, namespace string) error {
+	storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
+	err := r.List(ctx, storageAutoScalerList,
+		client.InNamespace(namespace),
+	)
+	if err != nil {
+		r.Log.Error(err, "failed to list storage autoscaler")
+		return err
+	}
+
+	for _, storageAutoScalerItem := range storageAutoScalerList.Items {
+		if storageAutoScalerItem.Name != storageAutoScaler.Name && storageAutoScalerItem.Spec.DeviceClass == storageAutoScaler.Spec.DeviceClass && storageAutoScalerItem.Spec.StorageCluster.Name == storageAutoScaler.Spec.StorageCluster.Name {
+			// update the status
+			originalStorageAutoScaler := storageAutoScaler.DeepCopy()
+			err := r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
+			if err != nil {
+				return err
+			}
+
+			err = fmt.Errorf("more than one storage autoscaler present with same device class and same storage cluster name, names are %s and %s", storageAutoScaler.Name, storageAutoScalerItem.Name)
+			r.Log.Error(err, "duplicate cr detected", "device class", storageAutoScaler.Spec.DeviceClass, "storage cluster", storageAutoScaler.Spec.StorageCluster.Name)
+			return err
+		}
+	}
+
 	return nil
 }
