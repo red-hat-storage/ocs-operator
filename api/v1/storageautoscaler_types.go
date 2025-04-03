@@ -26,7 +26,7 @@ import (
 type StorageAutoScalerSpec struct {
 	// StorageCluster is the name of the storage cluster for which the storage scaling is to be done.
 	// +kubebuilder:validation:Required
-	StorageCluster corev1.LocalObjectReference `json:"storageCluster,omitempty"`
+	StorageCluster corev1.ObjectReference `json:"storageCluster,omitempty"`
 	// DeviceClass is the name of the device class for which the storage scaling is to be done.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default="ssd"
