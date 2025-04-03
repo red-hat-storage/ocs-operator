@@ -34,6 +34,7 @@ Implement auto storage scale CR per device class of a specific Storagecluster.
             message: ""
             timestamp: <time>
         storageCapacityLimitReached: false
+        CrsWithDuplicateSpecDetected: false
         lastExpansion:
             startTime: (always set after a new expansion is started)
             completionTime: (only set on success)
