@@ -32,6 +32,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -159,6 +160,15 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, r.namespace)
 		if err != nil {
 			return reconcile.Result{}, err
+		}
+
+		clientOperatorVersion, err := semver.Parse(r.storageConsumer.Status.Client.OperatorVersion)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("malformed ClientOperatorVersion: %v", err)
+		}
+		if clientOperatorVersion.Major == 4 &&
+			clientOperatorVersion.Minor == 18 {
+			return reconcile.Result{}, nil
 		}
 
 		availableServices, err := util.GetAvailableServices(r.ctx, r.Client, storageCluster)
