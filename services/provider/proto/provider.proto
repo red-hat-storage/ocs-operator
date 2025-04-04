@@ -15,6 +15,9 @@ service OCSProvider {
   // GetStorageConfig RPC call to generate the json config for connecting to storage provider cluster
   rpc GetStorageConfig(StorageConfigRequest)
   returns (StorageConfigResponse){}
+  // GetStorageInfo RPC call to generate the json config for connecting to storage provider cluster
+  rpc GetStorageInfo(StorageConfigRequest)
+  returns (StorageConfigResponse){}
   // OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
   rpc OffboardConsumer (OffboardConsumerRequest)
   returns (OffboardConsumerResponse) {}
