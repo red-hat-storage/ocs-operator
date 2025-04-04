@@ -257,6 +257,79 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
 }
 
+// GetStorageInfo RPC call to onboard a Client to a Storage Consumer.
+func (s *OCSProviderServer) GetStorageInfo(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
+
+	// Get storage consumer resource using UUID
+	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	klog.Infof("Found storageConsumer for GetStorageConfig")
+
+	// Verify Status
+	switch consumerObj.Status.State {
+	case ocsv1alpha1.StorageConsumerStateNotEnabled:
+		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer is in not enabled")
+	case ocsv1alpha1.StorageConsumerStateFailed:
+		// TODO: get correct error message from the storageConsumer status
+		return nil, status.Errorf(codes.Internal, "storageConsumer status failed")
+	case ocsv1alpha1.StorageConsumerStateConfiguring:
+		return nil, status.Errorf(codes.Unavailable, "waiting for the rook resources to be provisioned")
+	case ocsv1alpha1.StorageConsumerStateDeleting:
+		return nil, status.Errorf(codes.NotFound, "storageConsumer is already in deleting phase")
+	case ocsv1alpha1.StorageConsumerStateReady:
+		externalResources, err := s.getExternalResources(ctx, consumerObj)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
+		}
+
+		channelName, err := s.getOCSSubscriptionChannel(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+		}
+
+		storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+		}
+
+		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumerObj)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+		}
+
+		desiredClientConfigHash := getDesiredClientConfigHash(
+			channelName,
+			consumerObj,
+			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+			inMaintenanceMode,
+			isConsumerMirrorEnabled,
+		)
+
+		klog.Infof("successfully returned the config details to the consumer.")
+		return &pb.StorageConfigResponse{
+				ExternalResource:  externalResources,
+				DesiredConfigHash: desiredClientConfigHash,
+				SystemAttributes: &pb.SystemAttributes{
+					SystemInMaintenanceMode: inMaintenanceMode,
+					MirrorEnabled:           isConsumerMirrorEnabled,
+				},
+			},
+			nil
+	}
+
+	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
+}
+
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
 	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
