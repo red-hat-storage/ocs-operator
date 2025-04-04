@@ -1468,6 +1468,15 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
+	clientOperatorVersion, err := semver.Parse(req.ClientOperatorVersion)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientOperatorVersion: %v", err)
+	}
+	if clientOperatorVersion.Major == 4 &&
+		clientOperatorVersion.Minor == 18 {
+		channelName = "stable-4.18"
+	}
+
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
 		return nil, err
