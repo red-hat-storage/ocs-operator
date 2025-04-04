@@ -1471,9 +1471,25 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer resource: %v", err)
 	}
 
-	channelName, err := s.getOCSSubscriptionChannel(ctx)
+	clientOperatorVersion, err := semver.Parse(req.ClientOperatorVersion)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientOperatorVersion: %v", err)
+	}
+
+	channelName := ""
+	adjusted := strings.EqualFold(storageConsumer.GetAnnotations()[util.Is419AdjustedAnnotationKey], "true")
+	if !adjusted && clientOperatorVersion.Major == 4 && clientOperatorVersion.Minor == 18 {
+		// TODO (leelavg): need to be removed in 4.20
+		// We have a new controller which maps the resources from 4.18 to 4.19 way of management,
+		// until the resources are mapped we don't want connected client to be upgrading, we'll
+		// relax the condition on knowing the resources are mapped in a separate PR
+		channelName = "stable-4.18"
+	} else {
+		channel, err := s.getOCSSubscriptionChannel(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+		}
+		channelName = channel
 	}
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
