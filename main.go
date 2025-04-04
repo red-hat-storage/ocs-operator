@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagerequest"
 	"os"
 	"runtime"
 	"strconv"
@@ -70,7 +71,6 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagerequest"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	// +kubebuilder:scaffold:imports
@@ -253,11 +253,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageClusterPeer")
 		os.Exit(1)
 	}
+
 	if err = (&mirroring.MirroringReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Mirroring")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.StorageConsumerUpgradeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumerUpgrade")
 		os.Exit(1)
 	}
 

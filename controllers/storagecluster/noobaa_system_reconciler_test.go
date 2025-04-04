@@ -364,7 +364,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			assert.Failf(t, "[%s] unable to set noobaa desired state", c.label)
 		}
 		if c.dbStorageClassName == "" {
-			c.dbStorageClassName = util.GenerateNameForCephBlockPoolSC(&c.sc)
+			c.dbStorageClassName = util.GenerateNameForCephBlockPoolStorageClass(&c.sc)
 		}
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
 		assert.NotEmptyf(t, noobaa.Labels, "[%s] expected noobaa Labels not found", c.label)

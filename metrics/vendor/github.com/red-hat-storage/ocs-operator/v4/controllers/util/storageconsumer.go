@@ -14,6 +14,7 @@ import (
 const (
 	// Reserved RadosNamespaceName for internal use and their representation at different layes
 	ImplicitRbdRadosNamespaceName = "<implicit>"
+	Is419AdjustedAnnotationKey    = "ocs.openshift.io/4_19-adjusted"
 
 	// Constants for ConfigMap keys
 	rbdRadosNamespaceKey            = "rbd-rados-ns"
