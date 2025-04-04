@@ -92,6 +92,22 @@ func (cc *OCSProviderClient) GetStorageConfig(ctx context.Context, consumerUUID 
 	return cc.Client.GetStorageConfig(apiCtx, req)
 }
 
+// GetStorageInfo generates the json config for connecting to storage provider cluster
+func (cc *OCSProviderClient) GetStorageInfo(ctx context.Context, consumerUUID string) (*pb.StorageConfigResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.StorageConfigRequest{
+		StorageConsumerUUID: consumerUUID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetStorageInfo(apiCtx, req)
+}
+
 // OffboardConsumer deletes the StorageConsumer CR on the storage provider cluster
 func (cc *OCSProviderClient) OffboardConsumer(ctx context.Context, consumerUUID string) (*pb.OffboardConsumerResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
