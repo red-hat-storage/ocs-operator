@@ -94,9 +94,22 @@ message ExternalResource {
     map<string, string> Annotations = 5;
 }
 
+message RbdDriverRequirements {
+  bool generateOmapInfo = 1;
+}
+
+message CephFsDriverRequirements {
+}
+
+message NfsDriverRequirements {
+}
+
 message SystemAttributes {
   bool SystemInMaintenanceMode = 1;
   bool MirrorEnabled = 2;
+  RbdDriverRequirements DesiredRbdDriver = 3;
+  CephFsDriverRequirements DesiredCephFsDriver = 4;
+  NfsDriverRequirements DesiredNfsDriver = 5;
 }
 
 // StorageConfigResponse holds the response for the GetStorageConfig API request
