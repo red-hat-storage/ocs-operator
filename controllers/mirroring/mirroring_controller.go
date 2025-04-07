@@ -23,7 +23,6 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	providerClient "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client"
-	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
@@ -31,6 +30,7 @@ import (
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -45,8 +45,6 @@ import (
 )
 
 const (
-	// internalKey is a special key for storage-client-mapping to establish mirroring between blockPools for internal mode
-	internalKey                     = "internal"
 	mirroringFinalizer              = "ocs.openshift.io/mirroring"
 	clientIDIndexName               = "clientID"
 	storageClusterPeerAnnotationKey = "ocs.openshift.io/storage-cluster-peer"
@@ -394,7 +392,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 					)
 
 					cephBlockPool.Spec.Mirroring.Enabled = true
-					cephBlockPool.Spec.Mirroring.Mode = "image"
+					cephBlockPool.Spec.Mirroring.Mode = "init-only"
 					if mirroringToken != "" {
 						if cephBlockPool.Spec.Mirroring.Peers == nil {
 							cephBlockPool.Spec.Mirroring.Peers = &rookCephv1.MirroringPeerSpec{SecretNames: []string{}}
@@ -462,10 +460,6 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 	peerClientIDs := []string{}
 	storageConsumerByName := map[string]*ocsv1alpha1.StorageConsumer{}
 	for localClientID, peerClientID := range clientMappingConfig.Data {
-		// for internal mode, we need only blockPool mirroring, hence skipping this for the special key "internal"
-		if localClientID == internalKey {
-			continue
-		}
 		// Check if the storageConsumer with the ClientID exists, this is a fancy get operation as
 		// there will be only one consumer with the clientID
 		storageConsumers := &ocsv1alpha1.StorageConsumerList{}
@@ -528,7 +522,15 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 
 		for i := range radosNamespaceList.Items {
 			rns := &radosNamespaceList.Items[i]
-			consumer := storageConsumerByName[rns.GetLabels()[controllers.StorageConsumerNameLabel]]
+			consumerIndex := slices.IndexFunc(
+				rns.OwnerReferences,
+				func(ref metav1.OwnerReference) bool { return ref.Kind == "StorageConsumer" },
+			)
+			if consumerIndex == -1 {
+				continue
+			}
+			consumerOwner := &rns.OwnerReferences[consumerIndex]
+			consumer := storageConsumerByName[consumerOwner.Name]
 			if consumer == nil || consumer.Status.Client.ID == "" {
 				continue
 			}

@@ -1644,17 +1644,19 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			continue
 		}
 
+		if !consumer.Spec.Enable {
+			klog.Infof("consumer is not yet enaled skipping %v", req.ClientIDs[i])
+			continue
+		}
+
 		idx := slices.IndexFunc(consumer.OwnerReferences, func(ref metav1.OwnerReference) bool {
 			return ref.Kind == "StorageCluster"
 		})
-
 		if idx == -1 {
 			klog.Infof("no owner found for consumer %v", req.ClientIDs[i])
 			continue
 		}
-
 		owner := &consumer.OwnerReferences[idx]
-
 		if owner.UID != types.UID(req.StorageClusterUID) {
 			klog.Infof("storageCluster specified on the req does not own the client %v", req.ClientIDs[i])
 			continue
@@ -1674,10 +1676,12 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			klog.Error(err)
 			continue
 		}
+
 		clientInfo := &pb.ClientInfo{ClientID: req.ClientIDs[i]}
 
-		if radosNamespace := consumerConfigMap.Data["rados-namespace-name"]; radosNamespace != "" {
-			clientInfo.RadosNamespace = radosNamespace
+		consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+		if consumerConfig.GetRbdRadosNamespaceName() != "" {
+			clientInfo.RadosNamespace = consumerConfig.GetRbdRadosNamespaceName()
 		}
 
 		response.ClientsInfo = append(response.ClientsInfo, clientInfo)
