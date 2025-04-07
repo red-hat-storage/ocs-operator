@@ -2,6 +2,8 @@ package util
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -275,6 +277,11 @@ func GetCephClusterInNamespace(ctx context.Context, cl client.Client, namespace 
 	}
 
 	return &cephClusterList.Items[0], nil
+}
+
+func GetClusterResourceQuotaName(name string) string {
+	hash := md5.Sum([]byte(name))
+	return fmt.Sprintf("storage-client-%s-resourceqouta", hex.EncodeToString(hash[:]))
 }
 
 func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
