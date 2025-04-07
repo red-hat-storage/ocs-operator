@@ -257,6 +257,14 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
 }
 
+// GetDesiredClientState RPC call to generate the desired state of the client
+func (s *OCSProviderServer) GetDesiredClientState(_ context.Context, _ *pb.GetDesiredClientStateRequest) (*pb.GetDesiredClientStateResponse, error) {
+
+	//TODO: Implement this in a different PR
+	return &pb.GetDesiredClientStateResponse{}, nil
+
+}
+
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
 	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)

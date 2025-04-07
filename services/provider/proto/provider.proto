@@ -15,6 +15,9 @@ service OCSProvider {
   // GetStorageConfig RPC call to generate the json config for connecting to storage provider cluster
   rpc GetStorageConfig(StorageConfigRequest)
   returns (StorageConfigResponse){}
+  // GetDesiredClientState RPC call to generate the desired state of the client
+  rpc GetDesiredClientState(GetDesiredClientStateRequest)
+  returns (GetDesiredClientStateResponse){}
   // OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
   rpc OffboardConsumer (OffboardConsumerRequest)
   returns (OffboardConsumerResponse) {}
@@ -79,6 +82,12 @@ message StorageConfigRequest{
     string storageConsumerUUID = 1;
 }
 
+// GetDesiredClientStateRequest holds the information required generate the desired state for connecting to storage consumer
+message GetDesiredClientStateRequest{
+  // K8s UID of the storage consumer
+  string storageConsumerUUID = 1;
+}
+
 
  // ExternalResource holds the configuration data of the resources in external storage cluster
 message ExternalResource {
@@ -107,6 +116,15 @@ message StorageConfigResponse{
     string desiredConfigHash = 2;
 
     SystemAttributes systemAttributes = 3;
+}
+
+// GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
+message GetDesiredClientStateResponse{
+  repeated bytes kubeResources = 1;
+  string desiredStateHash = 2;
+  string clientOperatorChannel = 3;
+  bool maintenanceMode = 4;
+  bool mirrorEnabled = 5;
 }
 
 
