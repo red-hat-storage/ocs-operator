@@ -94,6 +94,7 @@ type StorageClusterSpec struct {
 	// AllowRemoteStorageConsumers Indicates that the OCS cluster should deploy the needed
 	// components to enable connections from remote consumers.
 	// +kubebuilder:deprecatedversion:warning="AllowRemoteStorageConsumers field has been deprecated and will be ignored within the reconcile."
+	// +kubebuilder:validation:XValidation:rule="oldSelf == self",message="allowRemoteStorageConsumers is immutable"
 	AllowRemoteStorageConsumers bool `json:"allowRemoteStorageConsumers,omitempty"`
 
 	// ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
