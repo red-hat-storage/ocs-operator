@@ -32,6 +32,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -159,6 +160,23 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, r.namespace)
 		if err != nil {
 			return reconcile.Result{}, err
+		}
+
+		if r.storageConsumer.Status.Client.OperatorVersion == "" {
+			return reconcile.Result{}, fmt.Errorf("client does not expose operator version in its status")
+		}
+
+		clientOperatorVersion, err := semver.Parse(r.storageConsumer.Status.Client.OperatorVersion)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("malformed ClientOperatorVersion: %v", err)
+		}
+		if clientOperatorVersion.Major == 4 &&
+			clientOperatorVersion.Minor == 18 {
+			// TODO (leelavg): need to be removed in 4.20
+			// We have a new controller which maps the resources from 4.18 to 4.19 way of management,
+			// until the resources are mapped we don't want to reconcile consumer belonging to connected client
+			// relax the condition on knowing the resources are mapped in a separate PR
+			return reconcile.Result{}, nil
 		}
 
 		availableServices, err := util.GetAvailableServices(r.ctx, r.Client, storageCluster)

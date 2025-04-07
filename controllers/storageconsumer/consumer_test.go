@@ -95,7 +95,8 @@ func TestNoobaaAccount(t *testing.T) {
 				},
 			},
 			Client: ocsv1alpha1.ClientStatus{
-				ClusterID: "provider",
+				ClusterID:       "provider",
+				OperatorVersion: "4.19.0",
 			},
 		},
 	}
@@ -194,6 +195,9 @@ func TestNoobaaAccount(t *testing.T) {
 					Name:  "consumer",
 					Phase: "Error",
 				},
+			},
+			Client: ocsv1alpha1.ClientStatus{
+				OperatorVersion: "4.19.0",
 			},
 		},
 	}
