@@ -449,3 +449,15 @@ spec:
       for: 5m
       labels:
         severity: warning
+    - alert: StorageAutoScalerCRIsInvalid
+      annotations:
+        description: |-
+          Invalid phase detected for StorageAutoScaler {{ $labels.name }} attached with device class {{ $labels.device_class }} under storage cluster {{ $labels.storagecluster }} in the namespace {{ $labels.namespace }}.
+        message: StorageAutoScaler is in an invalid state.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageAutoScalerCRIsInvalid.md
+        severity_level: warning
+      expr: |
+        ocs_storageautoscaler_phase_status == 5
+      for: 30s
+      labels:
+        severity: warning
