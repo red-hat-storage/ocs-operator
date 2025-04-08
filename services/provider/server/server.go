@@ -37,6 +37,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
@@ -325,6 +326,10 @@ func newScheme() (*runtime.Scheme, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
 	}
+	err = templatev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add templatev1 to scheme. %v", err)
+	}
 
 	return scheme, nil
 }
@@ -432,6 +437,19 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		drCephFsId,
 	)
 	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendVolumeReplicationClassExternalResources(
+		ctx,
+		extR,
+		consumerResource,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+	)
+	if err != nil {
+		klog.Error(err)
 		return nil, err
 	}
 
@@ -827,6 +845,81 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
 			//TODO: Day-2 groupSnapshotclass
 			klog.Warningf("encountered an unexpected volume group snapshot class: %s", groupSnapshotClassName)
 		}
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendVolumeReplicationClassExternalResources(
+	ctx context.Context,
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId string,
+) ([]*pb.ExternalResource, error) {
+
+	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
+		return nil, err
+	} else if !mirrorEnabled {
+		klog.Infof("skipping distribution of VolumeReplicationClass as mirroring is not enabled for the consumer")
+		return extR, nil
+	}
+
+	//TODO: this is a ugly hack to generate the peerStorageID for generating replicationID
+	// peerStorageID should come from GetStorageClientInfo
+	peerStorageID, err := s.getPeerStorageID(ctx, storageCluster, consumer.Namespace, consumerConfig.GetRbdRadosNamespaceName())
+	if err != nil {
+		return nil, err
+	}
+
+	storageIDs := []string{drRbdStorageId, peerStorageID}
+	slices.Sort(storageIDs)
+	replicationID := util.CalculateMD5Hash(storageIDs)
+
+	for i := range consumer.Spec.VolumeReplicationClasses {
+		replicationClassName := consumer.Spec.VolumeReplicationClasses[i].Name
+		//TODO: The code is written under the assumption VRC name is exactly the same as the template name and there
+		// is 1:1 mapping between template and vrc. The restriction will be relaxed in the future
+		vrcTemplate := &templatev1.Template{}
+		vrcTemplate.Name = replicationClassName
+		vrcTemplate.Namespace = consumer.Namespace
+
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(vrcTemplate), vrcTemplate); err != nil {
+			return nil, fmt.Errorf("failed to get VolumeReplicationClass template: %s, %v", replicationClassName, err)
+		}
+
+		if len(vrcTemplate.Objects) != 1 {
+			return nil, fmt.Errorf("unexpected number of Volume Replication Class found expected 1")
+		}
+
+		vrc := &replicationv1alpha1.VolumeReplicationClass{}
+		if err := json.Unmarshal(vrcTemplate.Objects[0].Raw, vrc); err != nil {
+			return nil, fmt.Errorf("failed to unmarshall volume replication class: %s, %v", replicationClassName, err)
+
+		}
+
+		if vrc.Name != replicationClassName {
+			return nil, fmt.Errorf("volume replication class name mismatch: %s, %v", replicationClassName, vrc.Name)
+		}
+
+		switch vrc.Spec.Provisioner {
+		case util.RbdDriverName:
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
+			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
+			util.AddLabel(vrc, ramenDRStorageIDLabelKey, drRbdStorageId)
+			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
+			util.AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
+		default:
+			return nil, fmt.Errorf("unsupported Provisioner for VolumeReplicationClass")
+		}
+
+		extR = append(extR, &pb.ExternalResource{
+			Kind: "VolumeReplicationClass",
+			Name: replicationClassName,
+			Data: mustMarshal(vrc),
+		})
+
 	}
 	return extR, nil
 }
@@ -1816,4 +1909,47 @@ func getPeerCephFSID(ctx context.Context, cl client.Client, secretName, namespac
 		return "", err
 	}
 	return token.FSID, nil
+}
+
+func (s *OCSProviderServer) getPeerStorageID(ctx context.Context, storageCluster *ocsv1.StorageCluster, namespace, radosnamespace string) (string, error) {
+	blockPool := &rookCephv1.CephBlockPool{}
+	blockPool.Name = util.GenerateNameForCephBlockPool(storageCluster.Name)
+	blockPool.Namespace = namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(blockPool), blockPool); err != nil {
+		return "", fmt.Errorf("failed to get %s CephBlockPool. %v", blockPool.Name, err)
+	}
+
+	peerCephfsid, err := getPeerCephFSID(
+		ctx,
+		s.client,
+		mirroring.GetMirroringSecretName(blockPool.Name),
+		blockPool.Namespace,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to get peer Ceph FSID. %v", err)
+	}
+
+	rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+	rns.Name = fmt.Sprintf("%s-%s", blockPool.Name, radosnamespace)
+	if radosnamespace == util.ImplicitRbdRadosNamespaceName {
+		rns.Name = fmt.Sprintf(
+			"%s-builtin-%s",
+			blockPool.Name,
+			util.ImplicitRbdRadosNamespaceName[1:len(util.ImplicitRbdRadosNamespaceName)-1],
+		)
+	}
+	rns.Namespace = namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(rns), rns); err != nil {
+		return "", err
+	}
+
+	if rns.Spec.Mirroring == nil {
+		return "", fmt.Errorf("failed to get mirroring details")
+	}
+
+	peerStorageID := calculateCephRbdStorageID(
+		peerCephfsid,
+		*rns.Spec.Mirroring.RemoteNamespace,
+	)
+	return peerStorageID, nil
 }
