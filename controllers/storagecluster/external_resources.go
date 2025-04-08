@@ -372,7 +372,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 					reconcileStrategy: ReconcileStrategy(scManagedResources.CephFilesystems.ReconcileStrategy),
 					isClusterExternal: true,
 				}
-				scc.storageClass.Name = util.GenerateNameForCephFilesystemSC(instance)
+				scc.storageClass.Name = util.GenerateNameForCephFilesystemStorageClass(instance)
 			} else if d.Name == cephRbdStorageClassName {
 				scc = StorageClassConfiguration{
 					storageClass: util.NewDefaultRbdStorageClass(
@@ -387,7 +387,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 					reconcileStrategy: ReconcileStrategy(scManagedResources.CephBlockPools.ReconcileStrategy),
 					isClusterExternal: true,
 				}
-				scc.storageClass.Name = util.GenerateNameForCephBlockPoolSC(instance)
+				scc.storageClass.Name = util.GenerateNameForCephBlockPoolStorageClass(instance)
 			} else if strings.HasPrefix(d.Name, cephRbdRadosNamespaceStorageClassNamePrefix) { // ceph-rbd-rados-namespace-<radosNamespaceName>
 				scc = StorageClassConfiguration{
 					storageClass: util.NewDefaultRbdStorageClass(
@@ -448,7 +448,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 					reconcileStrategy: ReconcileStrategy(scManagedResources.CephObjectStores.ReconcileStrategy),
 					isClusterExternal: true,
 				}
-				scc.storageClass.Name = util.GenerateNameForCephRgwSC(instance)
+				scc.storageClass.Name = util.GenerateNameForCephRgwStorageClass(instance)
 			}
 
 			if scc.storageClass == nil {

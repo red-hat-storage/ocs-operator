@@ -27,7 +27,7 @@ func (s *obcStorageClasses) ensureCreated(r *StorageClusterReconciler, storageCl
 	)
 
 	storageClass := &storagev1.StorageClass{}
-	storageClass.Name = util.GenerateNameForCephRgwSC(storageCluster)
+	storageClass.Name = util.GenerateNameForCephRgwStorageClass(storageCluster)
 
 	if err := util.CreateOrReplace(r.ctx, r.Client, storageClass, func() error {
 		storageClass.Parameters = sc.Parameters

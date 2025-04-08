@@ -38,8 +38,8 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		spec.ResourceNameMappingConfigMap.Name = localStorageConsumerConfigMapName
 		spec.StorageClasses = []ocsv1a1.StorageClassSpec{
 			// TODO: after finding virt availability need to send corresponding sc
-			{Name: util.GenerateNameForCephBlockPoolSC(storageCluster)},
-			{Name: util.GenerateNameForCephFilesystemSC(storageCluster)},
+			{Name: util.GenerateNameForCephBlockPoolStorageClass(storageCluster)},
+			{Name: util.GenerateNameForCephFilesystemStorageClass(storageCluster)},
 		}
 		spec.VolumeSnapshotClasses = []ocsv1a1.VolumeSnapshotClassSpec{
 			{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)},
@@ -60,21 +60,21 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		if crd.UID != "" {
 			spec.StorageClasses = append(
 				spec.StorageClasses,
-				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForCephBlockPoolVirtualizationSC(storageCluster)},
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForCephBlockPoolVirtualizationStorageClass(storageCluster)},
 			)
 		}
 
 		if storageCluster.Spec.ManagedResources.CephNonResilientPools.Enable {
 			spec.StorageClasses = append(
 				spec.StorageClasses,
-				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForNonResilientCephBlockPoolSC(storageCluster)},
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForNonResilientCephBlockPoolStorageClass(storageCluster)},
 			)
 		}
 
 		if storageCluster.Spec.NFS != nil && storageCluster.Spec.NFS.Enable {
 			spec.StorageClasses = append(
 				spec.StorageClasses,
-				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForCephNetworkFilesystemSC(storageCluster)},
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)},
 			)
 			spec.VolumeSnapshotClasses = append(
 				spec.VolumeSnapshotClasses,
@@ -84,7 +84,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		if storageCluster.Spec.Encryption.StorageClass && storageCluster.Spec.Encryption.KeyManagementService.Enable {
 			spec.StorageClasses = append(
 				spec.StorageClasses,
-				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForEncryptedCephBlockPoolSC(storageCluster)},
+				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)},
 			)
 		}
 

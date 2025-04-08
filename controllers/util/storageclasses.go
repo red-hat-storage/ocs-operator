@@ -15,49 +15,49 @@ const (
 	ramenDRStorageIDLabelKey      = "ramendr.openshift.io/storageid"
 )
 
-func GenerateNameForCephBlockPoolSC(storageCluster *ocsv1.StorageCluster) string {
+func GenerateNameForCephBlockPoolStorageClass(storageCluster *ocsv1.StorageCluster) string {
 	if storageCluster.Spec.ManagedResources.CephBlockPools.StorageClassName != "" {
 		return storageCluster.Spec.ManagedResources.CephBlockPools.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-rbd", storageCluster.Name)
 }
 
-func GenerateNameForCephBlockPoolVirtualizationSC(storageCluster *ocsv1.StorageCluster) string {
+func GenerateNameForCephBlockPoolVirtualizationStorageClass(storageCluster *ocsv1.StorageCluster) string {
 	if storageCluster.Spec.ManagedResources.CephBlockPools.VirtualizationStorageClassName != "" {
 		return storageCluster.Spec.ManagedResources.CephBlockPools.VirtualizationStorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-rbd-virtualization", storageCluster.Name)
 }
 
-func GenerateNameForNonResilientCephBlockPoolSC(storageCluster *ocsv1.StorageCluster) string {
+func GenerateNameForNonResilientCephBlockPoolStorageClass(storageCluster *ocsv1.StorageCluster) string {
 	if storageCluster.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
 		return storageCluster.Spec.ManagedResources.CephNonResilientPools.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-non-resilient-rbd", storageCluster.Name)
 }
 
-func GenerateNameForCephFilesystemSC(storageCluster *ocsv1.StorageCluster) string {
+func GenerateNameForCephFilesystemStorageClass(storageCluster *ocsv1.StorageCluster) string {
 	if storageCluster.Spec.ManagedResources.CephFilesystems.StorageClassName != "" {
 		return storageCluster.Spec.ManagedResources.CephFilesystems.StorageClassName
 	}
 	return fmt.Sprintf("%s-cephfs", storageCluster.Name)
 }
 
-func GenerateNameForCephRgwSC(initData *ocsv1.StorageCluster) string {
+func GenerateNameForCephRgwStorageClass(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.ManagedResources.CephObjectStores.StorageClassName != "" {
 		return initData.Spec.ManagedResources.CephObjectStores.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-rgw", initData.Name)
 }
 
-func GenerateNameForEncryptedCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
+func GenerateNameForEncryptedCephBlockPoolStorageClass(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.Encryption.StorageClassName != "" {
 		return initData.Spec.Encryption.StorageClassName
 	}
 	return fmt.Sprintf("%s-ceph-rbd-encrypted", initData.Name)
 }
 
-func GenerateNameForCephNetworkFilesystemSC(initData *ocsv1.StorageCluster) string {
+func GenerateNameForCephNetworkFilesystemStorageClass(initData *ocsv1.StorageCluster) string {
 	if initData.Spec.NFS != nil && initData.Spec.NFS.StorageClassName != "" {
 		return initData.Spec.NFS.StorageClassName
 	}

@@ -560,7 +560,7 @@ func (r *OCSInitializationReconciler) getEnableTopologyKeyValue() string {
 			return "true"
 		} else if sc.Spec.ExternalStorage.Enable {
 			// In external mode, check if the non-resilient storageClass exists
-			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			scName := util.GenerateNameForNonResilientCephBlockPoolStorageClass(&sc)
 			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
 			if storageClass != nil {
 				return "true"
@@ -582,7 +582,7 @@ func (r *OCSInitializationReconciler) getTopologyDomainLabelsKeyValue() string {
 		} else if sc.Spec.ExternalStorage.Enable {
 			// In external mode, check if the non-resilient storageClass exists
 			// determine the failure domain key from the storageClass parameter
-			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			scName := util.GenerateNameForNonResilientCephBlockPoolStorageClass(&sc)
 			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
 			if storageClass != nil {
 				return getFailureDomainKeyFromStorageClassParameter(storageClass)
