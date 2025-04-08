@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"reflect"
 	"strconv"
 	"testing"
+
+	"k8s.io/utils/ptr"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -72,8 +74,67 @@ var noobaaSpec = &nbv1.NooBaaSpec{
 }
 
 var joinSecret = map[string]string{
-	"auth_token": "authToken",
-	"mgmt_addr":  "noobaaMgmtAddress",
+	"auth_token":            "authToken",
+	"mgmt_addr":             "https://noobaaMgmtAddress:443",
+	"AWS_ACCESS_KEY_ID":     "AWS_ACCESS_KEY_ID",
+	"AWS_SECRET_ACCESS_KEY": "AWS_SECRET_ACCESS_KEY",
+}
+
+var nbProviderStatus = &nbv1.NooBaaStatus{
+	Phase: nbv1.SystemPhaseReady,
+	Services: &nbv1.ServicesStatus{
+		ServiceS3: nbv1.ServiceStatus{
+			NodePorts: []string{"https://noobaaS3Endpoint:31123"},
+		},
+	},
+}
+
+var s3ServiceSpec = &v1.ServiceSpec{
+	Type: corev1.ServiceTypeClusterIP,
+	Ports: []v1.ServicePort{
+		{
+			Port:       443,
+			TargetPort: intstr.FromInt(31123),
+			Protocol:   corev1.ProtocolTCP,
+			Name:       "s3-https",
+		},
+		{
+			Port:       80,
+			TargetPort: intstr.FromInt(32478),
+			Protocol:   corev1.ProtocolTCP,
+			Name:       "s3",
+		},
+	},
+}
+var s3Endpoint = &v1.Endpoints{
+	Subsets: []v1.EndpointSubset{
+		{
+			Addresses: []v1.EndpointAddress{
+				{IP: "noobaaS3Endpoint"}},
+			Ports: []v1.EndpointPort{
+				{
+					Port:     int32(31123),
+					Protocol: corev1.ProtocolTCP,
+					Name:     "s3-https",
+				},
+				{
+					Port:     int32(32478),
+					Protocol: corev1.ProtocolTCP,
+					Name:     "s3",
+				},
+			},
+		},
+	},
+}
+var s3HttpServiceSpec = &v1.ServiceSpec{
+	Ports: []v1.ServicePort{
+		{
+			Port:     80,
+			NodePort: int32(32478),
+			Protocol: corev1.ProtocolTCP,
+			Name:     "s3",
+		},
+	},
 }
 
 var mockExtR = map[string]*externalResource{
@@ -107,8 +168,8 @@ var mockExtR = map[string]*externalResource{
 		Kind: "Secret",
 		Data: joinSecret,
 	},
-	"noobaa-remote": {
-		Name: "noobaa-remote",
+	"noobaa": {
+		Name: "noobaa",
 		Kind: "Noobaa",
 		Data: noobaaSpec,
 	},
@@ -116,6 +177,19 @@ var mockExtR = map[string]*externalResource{
 		Name: "monitor-endpoints",
 		Kind: "CephConnection",
 		Data: &csiopv1a1.CephConnectionSpec{Monitors: []string{"10.99.45.27:3300"}},
+	},
+	"s3-endpoint": {
+		Name: "s3-endpoint-proxy",
+		Kind: "Endpoints",
+		Data: s3Endpoint,
+	},
+	"s3-endpoint-proxy": {
+		Name: "s3-endpoint-proxy",
+		Kind: "ServiceSpec",
+		Data: s3ServiceSpec,
+		Annotations: map[string]string{
+			"service.beta.openshift.io/serving-cert-secret-name": "s3-endpoint-proxy-serving-cert",
+		},
 	},
 }
 
@@ -252,14 +326,18 @@ func TestGetExternalResources(t *testing.T) {
 	noobaaRemoteJoinSecretConsumer := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-account-consumer", Namespace: server.namespace},
 		Data: map[string][]byte{
-			"auth_token": []byte("authToken"),
+			"auth_token":            []byte("authToken"),
+			"AWS_ACCESS_KEY_ID":     []byte("AWS_ACCESS_KEY_ID"),
+			"AWS_SECRET_ACCESS_KEY": []byte("AWS_SECRET_ACCESS_KEY"),
 		},
 	}
 
 	noobaaRemoteJoinSecretConsumer6 := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "noobaa-account-consumer6", Namespace: server.namespace},
 		Data: map[string][]byte{
-			"auth_token": []byte("authToken"),
+			"auth_token":            []byte("authToken"),
+			"AWS_ACCESS_KEY_ID":     []byte("AWS_ACCESS_KEY_ID"),
+			"AWS_SECRET_ACCESS_KEY": []byte("AWS_SECRET_ACCESS_KEY"),
 		},
 	}
 
@@ -284,10 +362,26 @@ func TestGetExternalResources(t *testing.T) {
 	ocsSubscription.Spec = ocsSubscriptionSpec
 	assert.NoError(t, client.Create(ctx, ocsSubscription))
 
-	storageCluster := &ocsv1.StorageCluster{}
+	storageCluster := &ocsv1.StorageCluster{
+		Spec: ocsv1.StorageClusterSpec{
+			AllowRemoteStorageConsumers: true,
+		},
+	}
 	storageCluster.Name = "test-storagecluster"
 	storageCluster.Namespace = serverNamespace
 	assert.NoError(t, client.Create(ctx, storageCluster))
+
+	s3HttpService := &v1.Service{}
+	s3HttpService.Name = "s3"
+	s3HttpService.Namespace = serverNamespace
+	s3HttpService.Spec = *s3HttpServiceSpec
+	assert.NoError(t, client.Create(ctx, s3HttpService))
+
+	noobaa := &nbv1.NooBaa{}
+	noobaa.Name = "noobaa"
+	noobaa.Namespace = serverNamespace
+	noobaa.Status = *nbProviderStatus
+	assert.NoError(t, client.Create(ctx, noobaa))
 
 	// When ocsv1alpha1.StorageConsumerStateReady
 	req := pb.StorageConfigRequest{
@@ -296,31 +390,46 @@ func TestGetExternalResources(t *testing.T) {
 	storageConRes, err := server.GetStorageConfig(ctx, &req)
 	assert.NoError(t, err)
 	assert.NotNil(t, storageConRes)
-
 	for i := range storageConRes.ExternalResource {
 		extResource := storageConRes.ExternalResource[i]
 		mockResoruce, ok := mockExtR[extResource.Name]
 		assert.True(t, ok)
 
-		if extResource.Kind == "Noobaa" {
-			var extNoobaaSpec, mockNoobaaSpec nbv1.NooBaaSpec
-			err = json.Unmarshal(extResource.Data, &extNoobaaSpec)
+		switch extResource.Kind {
+		case "Service":
+			var extServiceSpec, mockServiceSpec v1.ServiceSpec
+			err = json.Unmarshal(extResource.Data, &extServiceSpec)
 			assert.NoError(t, err)
-			data, err := json.Marshal(mockResoruce.Data)
+			data, err := json.Marshal(mockExtR["s3-endpoint-proxy"].Data)
 			assert.NoError(t, err)
-			err = json.Unmarshal(data, &mockNoobaaSpec)
+			err = json.Unmarshal(data, &mockServiceSpec)
 			assert.NoError(t, err)
-			assert.Equal(t, extNoobaaSpec.JoinSecret, mockNoobaaSpec.JoinSecret)
-		} else {
+			assert.Equal(t, extResource.GetLabels(), mockResoruce.Labels)
+			assert.Equal(t, extResource.GetAnnotations(), mockResoruce.Annotations)
+			assert.Equal(t, mockServiceSpec, extServiceSpec)
+
+		case "Endpoints":
+			var extEndpoints, mockEndpoints v1.Endpoints
+			err = json.Unmarshal(extResource.Data, &extEndpoints)
+			assert.NoError(t, err)
+			data, err := json.Marshal(mockExtR["s3-endpoint"].Data)
+			assert.NoError(t, err)
+			err = json.Unmarshal(data, &mockEndpoints)
+			assert.NoError(t, err)
+			assert.Equal(t, mockEndpoints, extEndpoints)
+
+		default:
 			data, err := json.Marshal(mockResoruce.Data)
 			assert.NoError(t, err)
 			assert.Equal(t, string(extResource.Data), string(data))
-
 		}
-		assert.Equal(t, extResource.GetLabels(), mockResoruce.Labels)
-		assert.Equal(t, extResource.GetAnnotations(), mockResoruce.Annotations)
-		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		assert.Equal(t, extResource.Name, mockResoruce.Name)
+
+		if extResource.Kind != "ServiceSpec" && extResource.Kind != "Endpoints" {
+			assert.Equal(t, extResource.GetLabels(), mockResoruce.Labels)
+			assert.Equal(t, extResource.GetAnnotations(), mockResoruce.Annotations)
+			assert.Equal(t, extResource.Kind, mockResoruce.Kind)
+			assert.Equal(t, extResource.Name, mockResoruce.Name)
+		}
 	}
 
 	// When ocsv1alpha1.StorageConsumerStateReady and quota is set
@@ -352,15 +461,38 @@ func TestGetExternalResources(t *testing.T) {
 			err = json.Unmarshal(data, &mockNoobaaSpec)
 			assert.NoError(t, err)
 			assert.Equal(t, mockNoobaaSpec.JoinSecret, extNoobaaSpec.JoinSecret)
+		} else if extResource.Kind == "Endpoints" {
+			var extEndpoints, mockEndpoints v1.Endpoints
+			err = json.Unmarshal(extResource.Data, &extEndpoints)
+			assert.NoError(t, err)
+			data, err := json.Marshal(mockExtR["s3-endpoint"].Data)
+			assert.NoError(t, err)
+			err = json.Unmarshal(data, &mockEndpoints)
+			assert.NoError(t, err)
+			assert.Equal(t, mockEndpoints, extEndpoints)
+		} else if extResource.Kind == "ServiceSpec" {
+			var extServiceSpec, mockServiceSpec v1.ServiceSpec
+			err = json.Unmarshal(extResource.Data, &extServiceSpec)
+			assert.NoError(t, err)
+			data, err := json.Marshal(mockExtR["s3-endpoint-proxy"].Data)
+			assert.NoError(t, err)
+			err = json.Unmarshal(data, &mockServiceSpec)
+			assert.NoError(t, err)
+			assert.Equal(t, extResource.GetLabels(), mockResoruce.Labels)
+			assert.Equal(t, extResource.GetAnnotations(), mockResoruce.Annotations)
+			assert.Equal(t, mockServiceSpec, extServiceSpec)
 		} else {
 			data, err := json.Marshal(mockResoruce.Data)
 			assert.NoError(t, err)
 			assert.Equal(t, string(extResource.Data), string(data))
 		}
-		assert.Equal(t, extResource.GetLabels(), mockResoruce.Labels)
-		assert.Equal(t, extResource.GetAnnotations(), mockResoruce.Annotations)
-		assert.Equal(t, extResource.Kind, mockResoruce.Kind)
-		assert.Equal(t, extResource.Name, mockResoruce.Name)
+
+		if extResource.Kind != "ServiceSpec" && extResource.Kind != "Endpoints" {
+			assert.Equal(t, extResource.GetLabels(), mockResoruce.Labels)
+			assert.Equal(t, extResource.GetAnnotations(), mockResoruce.Annotations)
+			assert.Equal(t, extResource.Kind, mockResoruce.Kind)
+			assert.Equal(t, extResource.Name, mockResoruce.Name)
+		}
 	}
 
 	// When ocsv1alpha1.StorageConsumerStateReady but ceph resources is empty

@@ -85,3 +85,11 @@ rules:
     verbs:
       - get
       - list
+  - apiGroups:
+     - noobaa.io
+    resources:
+      - noobaas
+    verbs:
+      - get
+      - list
+      - watch
