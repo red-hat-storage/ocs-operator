@@ -76,8 +76,7 @@ func NewDefaultCephFsSnapshotClass(
 func NewDefaultNfsSnapshotClass(
 	clusterID,
 	provisionerSecret,
-	namespace,
-	drStorageID string,
+	namespace string,
 ) *snapapi.VolumeSnapshotClass {
 
 	sc := &snapapi.VolumeSnapshotClass{
@@ -92,9 +91,6 @@ func NewDefaultNfsSnapshotClass(
 			"csi.storage.k8s.io/snapshotter-secret-namespace": namespace,
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
-	}
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
 	}
 	return sc
 }
