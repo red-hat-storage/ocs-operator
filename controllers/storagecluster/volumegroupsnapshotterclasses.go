@@ -75,7 +75,7 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 	}
 
 	rbdGroupSnapshotClass := GroupSnapshotClassConfiguration{
-		groupSnapshotClass: util.NewDefaultCephFsGroupSnapshotClass(
+		groupSnapshotClass: util.NewDefaultRbdGroupSnapshotClass(
 			instance.Namespace,
 			"rook-csi-rbd-provisioner",
 			instance.Namespace,
