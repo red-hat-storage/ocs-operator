@@ -47,9 +47,9 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 	// ie, sc.Spec.Encryption.ClusterWide/sc.Spec.Encryption.Enable is True or any of the deviceSet is encrypted
 	// and KMS ConfigMap is available
 	if util.IsClusterOrDeviceSetEncrypted(instance) {
-		kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, instance, r.Client)
+		kmsConfigMap, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, instance, r.Client)
 		if err != nil {
-			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, KMSConfigMapName))
+			r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(instance.Namespace, defaults.KMSConfigMapName))
 			return reconcile.Result{}, err
 		}
 		if kmsConfigMap != nil {
@@ -141,6 +141,11 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			existing.ObjectMeta.OwnerReferences = cephObjectStore.ObjectMeta.OwnerReferences
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
 
+			// preserving any existing rgw ReadAffinities
+			if existing.Spec.Gateway.ReadAffinity != nil {
+				cephObjectStore.Spec.Gateway.ReadAffinity = existing.Spec.Gateway.ReadAffinity
+			}
+
 			// Ensures the bulk flag set during new pool creation is not removed during updates.
 			preserveBulkFlagParameter(existing.Spec.MetadataPool.Parameters, &cephObjectStore.Spec.MetadataPool.Parameters)
 			preserveBulkFlagParameter(existing.Spec.DataPool.Parameters, &cephObjectStore.Spec.DataPool.Parameters)
@@ -173,13 +178,23 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 	ret := []*cephv1.CephObjectStore{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephObjectStore(initData),
+				Name:      util.GenerateNameForCephObjectStore(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.ObjectStoreSpec{
 				PreservePoolsOnDelete: false,
-				DataPool:              initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec,     // Pass the poolSpec from the storageCluster CR
-				MetadataPool:          initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec, // Pass the poolSpec from the storageCluster CR
+				DataPool: func() cephv1.PoolSpec {
+					if initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec != nil {
+						return *initData.Spec.ManagedResources.CephObjectStores.DataPoolSpec
+					}
+					return cephv1.PoolSpec{}
+				}(),
+				MetadataPool: func() cephv1.PoolSpec {
+					if initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec != nil {
+						return *initData.Spec.ManagedResources.CephObjectStores.MetadataPoolSpec
+					}
+					return cephv1.PoolSpec{}
+				}(),
 				Gateway: cephv1.GatewaySpec{
 					Port:       80,
 					SecurePort: 443,
@@ -248,6 +263,12 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 				},
 			}
 		}
+
+		// set RGW readAffinity to `localize` in case of non-portable OSDs.
+		if hasNonPortableOSD(initData) {
+			obj.Spec.Gateway.ReadAffinity = &cephv1.RgwReadAffinity{Type: "localize"}
+		}
+
 	}
 	return ret, nil
 }
@@ -261,4 +282,13 @@ func getCephObjectStoreGatewayInstances(sc *ocsv1.StorageCluster) int {
 		return customGatewayInstances
 	}
 	return defaults.CephObjectStoreGatewayInstances
+}
+
+func hasNonPortableOSD(sc *ocsv1.StorageCluster) bool {
+	for _, deviceSet := range sc.Spec.StorageDeviceSets {
+		if deviceSet.Portable {
+			return false
+		}
+	}
+	return true
 }

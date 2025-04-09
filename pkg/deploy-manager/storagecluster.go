@@ -80,16 +80,18 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DefaultStorageClusterName,
 			Namespace: InstallNamespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					Name:       DefaultStorageClusterStorageSystemName,
-					Kind:       "StorageSystem",
-					APIVersion: "v1",
-					UID:        types.UID(DefaultStorageClusterStorageSystemName),
-				},
-			},
 		},
 		Spec: ocsv1.StorageClusterSpec{
+			ManagedResources: ocsv1.ManagedResourcesSpec{
+				CephBlockPools: ocsv1.ManageCephBlockPools{
+					DisableStorageClass:  true,
+					DisableSnapshotClass: true,
+				},
+				CephFilesystems: ocsv1.ManageCephFilesystems{
+					DisableStorageClass:  true,
+					DisableSnapshotClass: true,
+				},
+			},
 			ManageNodes: false,
 			MonPVCTemplate: &k8sv1.PersistentVolumeClaim{
 				Spec: k8sv1.PersistentVolumeClaimSpec{

@@ -2,12 +2,16 @@ package util
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 
 	"github.com/go-logr/logr"
 	configv1 "github.com/openshift/api/config/v1"
@@ -15,13 +19,15 @@ import (
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -180,11 +186,66 @@ func AnnotationIndexFieldFunc(obj client.Object) []string {
 	return maps.Keys(obj.GetAnnotations())
 }
 
-func GenerateNameForNonResilientCephBlockPoolSC(initData *ocsv1.StorageCluster) string {
-	if initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
-		return initData.Spec.ManagedResources.CephNonResilientPools.StorageClassName
+func GetTopologyConstrainedPools(storageCluster *ocsv1.StorageCluster) string {
+	type topologySegment struct {
+		DomainLabel string `json:"domainLabel"`
+		DomainValue string `json:"value"`
 	}
-	return fmt.Sprintf("%s-ceph-non-resilient-rbd", initData.Name)
+	// TopologyConstrainedPool stores the pool name and a list of its associated topology domain values.
+	type topologyConstrainedPool struct {
+		PoolName       string            `json:"poolName"`
+		DomainSegments []topologySegment `json:"domainSegments"`
+	}
+
+	var topologyConstrainedPools []topologyConstrainedPool
+	for _, failureDomainValue := range storageCluster.Status.FailureDomainValues {
+		failureDomain := storageCluster.Status.FailureDomain
+		// Normally the label on the nodes is of the form kubernetes.io/hostname=<hostname>
+		// and the same is passed to ceph-csi through rook-ceph-opeartor-config cm.
+		// Hence, the ceph-non-resilient-rbd storageclass needs to have domainLabel set as hostname for topology constrained pools.
+		if failureDomain == "host" {
+			failureDomain = "hostname"
+		}
+		topologyConstrainedPools = append(topologyConstrainedPools, topologyConstrainedPool{
+			PoolName: GenerateNameForNonResilientCephBlockPool(storageCluster.Name, failureDomainValue),
+			DomainSegments: []topologySegment{
+				{
+					DomainLabel: failureDomain,
+					DomainValue: failureDomainValue,
+				},
+			},
+		})
+	}
+	// returning as string as parameters are of type map[string]string
+	topologyConstrainedPoolsStr, err := json.MarshalIndent(topologyConstrainedPools, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(topologyConstrainedPoolsStr)
+}
+
+// GetKMSConfigMap function try to return a KMS ConfigMap.
+// if 'kmsValidateFunc' function is present it try to validate the retrieved config map.
+func GetKMSConfigMap(configMapName string, instance *ocsv1.StorageCluster, client client.Client) (*corev1.ConfigMap, error) {
+	// if 'KMS' is not enabled, nothing to fetch
+	if !instance.Spec.Encryption.KeyManagementService.Enable {
+		return nil, nil
+	}
+	if configMapName == "" {
+		configMapName = defaults.KMSConfigMapName
+	}
+	kmsConfigMap := corev1.ConfigMap{}
+	err := client.Get(context.TODO(),
+		types.NamespacedName{
+			Name:      configMapName,
+			Namespace: instance.ObjectMeta.Namespace,
+		},
+		&kmsConfigMap,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &kmsConfigMap, err
 }
 
 func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*ocsv1.StorageCluster, error) {
@@ -218,6 +279,11 @@ func GetCephClusterInNamespace(ctx context.Context, cl client.Client, namespace 
 	return &cephClusterList.Items[0], nil
 }
 
+func GetClusterResourceQuotaName(name string) string {
+	hash := md5.Sum([]byte(name))
+	return fmt.Sprintf("storage-client-%s-resourceqouta", hex.EncodeToString(hash[:]))
+}
+
 func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
 	klog.Info("Setting up k8s client")
 
@@ -234,12 +300,50 @@ func NewK8sClient(scheme *runtime.Scheme) (client.Client, error) {
 	return k8sClient, nil
 }
 
-func FindOwnerRefByKind(obj client.Object, kind string) *v1.OwnerReference {
-	owners := obj.GetOwnerReferences()
-	for i := range owners {
-		if owners[i].Kind == kind {
-			return &owners[i]
+func CreateOrReplace(ctx context.Context, c client.Client, obj client.Object, f controllerutil.MutateFn) error {
+	key := client.ObjectKeyFromObject(obj)
+	if err := c.Get(ctx, key, obj); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
 		}
+		if err := mutate(f, key, obj); err != nil {
+			return err
+		}
+		if err := c.Create(ctx, obj); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	existing := obj.DeepCopyObject()
+	if err := mutate(f, key, obj); err != nil {
+		return err
+	}
+
+	if equality.Semantic.DeepEqual(existing, obj) {
+		return nil
+	}
+
+	if err := c.Delete(ctx, obj); err != nil {
+		return err
+	}
+
+	// k8s doesn't allow us to create objects when resourceVersion is set, as we are DeepCopying the
+	// object, the resource version also gets copied, hence we need to set it to empty before creating it
+	obj.SetResourceVersion("")
+	if err := c.Create(ctx, obj); err != nil {
+		return err
+	}
+	return nil
+}
+
+// mutate wraps a MutateFn and applies validation to its result.
+func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) error {
+	if err := f(); err != nil {
+		return err
+	}
+	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
+		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
 	}
 	return nil
 }

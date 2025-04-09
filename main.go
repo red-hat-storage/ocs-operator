@@ -22,6 +22,9 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
+	"sync"
+	"time"
 
 	nadscheme "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/scheme"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
@@ -57,22 +60,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/ocsinitialization"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageautoscaler"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagerequest"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
 	scheme   = apiruntime.NewScheme()
 	setupLog = ctrl.Log.WithName("cmd")
+)
+
+const (
+	defaultOnboardingTokenLifetimeInHours = 48
 )
 
 func init() {
@@ -212,10 +222,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	onboardingTokenLifetimeInHours, err := util.ReadEnvVar("ONBOARDING_TOKEN_LIFETIME", defaultOnboardingTokenLifetimeInHours, strconv.Atoi)
+	if err != nil {
+		onboardingTokenLifetimeInHours = defaultOnboardingTokenLifetimeInHours
+		setupLog.Info("unable to parse ONBOARDING_TOKEN_LIFETIME environment value", "error", err, "using default", onboardingTokenLifetimeInHours)
+	}
 	if err = (&controllers.StorageConsumerReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("StorageConsumer"),
-		Scheme: mgr.GetScheme(),
+		Client:               mgr.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("StorageConsumer"),
+		Scheme:               mgr.GetScheme(),
+		TokenLifetimeInHours: onboardingTokenLifetimeInHours,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumer")
 		os.Exit(1)
@@ -237,11 +253,57 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageClusterPeer")
 		os.Exit(1)
 	}
+
 	if err = (&mirroring.MirroringReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Mirroring")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.StorageConsumerUpgradeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumerUpgrade")
+		os.Exit(1)
+	}
+
+	// shared event channel and sync map and scrapeInterval between the scraper and the reconciler
+	eventCh := make(chan event.GenericEvent)
+	syncMap := &sync.Map{}
+	scrapeInterval := 10 * time.Minute
+
+	if err = mgr.Add(
+		manager.RunnableFunc(func(ctx context.Context) error {
+			// run a go routine to scrape the metrics from prometheus periodically
+			scraper := (&storageautoscaler.StorageAutoscalerScraper{
+				Client:            mgr.GetClient(),
+				Log:               ctrl.Log.WithName("scraper").WithName("StorageAutoscalerScraper"),
+				OperatorNamespace: operatorNamespace,
+				ScrapeInterval:    scrapeInterval,
+				SyncMap:           syncMap,
+				EventCh:           eventCh,
+			})
+			scraper.ScrapeMetricsPeriodically(ctx)
+
+			return nil
+		}),
+	); err != nil {
+		setupLog.Error(err, "unable add StorageAutoscaler scraper runnable to the manager")
+		os.Exit(1)
+	}
+
+	if err = (&storageautoscaler.StorageAutoscalerReconciler{
+		Client:            mgr.GetClient(),
+		OperatorNamespace: operatorNamespace,
+		Log:               ctrl.Log.WithName("controllers").WithName("StorageAutoScaler"),
+		SyncMap:           syncMap,
+		EventCh:           eventCh,
+		ScrapeInterval:    scrapeInterval,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "StorageAutoscaler")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

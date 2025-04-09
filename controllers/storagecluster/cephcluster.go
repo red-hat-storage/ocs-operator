@@ -232,9 +232,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		// and KMS ConfigMap is available
 
 		if util.IsClusterOrDeviceSetEncrypted(sc) {
-			kmsConfigMap, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client)
+			kmsConfigMap, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, sc, r.Client)
 			if err != nil {
-				r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, KMSConfigMapName))
+				r.Log.Error(err, "Failed to procure KMS ConfigMap.", "KMSConfigMap", klog.KRef(sc.Namespace, defaults.KMSConfigMapName))
 				return reconcile.Result{}, err
 			}
 			if kmsConfigMap != nil {
@@ -435,7 +435,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
 func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	cephCluster := &rookCephv1.CephCluster{}
-	cephClusterName := generateNameForCephCluster(sc)
+	cephClusterName := statusutil.GenerateNameForCephCluster(sc)
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephClusterName, Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -455,7 +455,7 @@ func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: statusutil.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: CephCluster is deleted.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
@@ -492,7 +492,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 
 	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephCluster(sc),
+			Name:      statusutil.GenerateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -545,6 +545,18 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				rookCephv1.KeyOSD:          rookCephv1.Labels{defaults.ODFResourceProfileKey: sc.Spec.ResourceProfile},
 				rookCephv1.KeyMonitoring:   getCephClusterMonitoringLabels(*sc),
 				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
+			},
+			HealthCheck: rookCephv1.CephClusterHealthCheckSpec{
+				LivenessProbe: map[rookCephv1.KeyType]*rookCephv1.ProbeSpec{
+					rookCephv1.KeyMgr: {
+						Disabled: true,
+					},
+				},
+				StartupProbe: map[rookCephv1.KeyType]*rookCephv1.ProbeSpec{
+					rookCephv1.KeyMgr: {
+						Disabled: true,
+					},
+				},
 			},
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: util.GetReadAffinityOptions(sc),
@@ -719,7 +731,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 
 	externalCephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephCluster(sc),
+			Name:      statusutil.GenerateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -770,8 +782,6 @@ func getReplicasPerFailureDomain(sc *ocsv1.StorageCluster) int {
 	return defaults.ReplicasPerFailureDomain
 }
 
-// getCephPoolReplicatedSize returns the default replica per cluster count for a
-// StorageCluster type
 func getCephPoolReplicatedSize(sc *ocsv1.StorageCluster) uint {
 	if arbiterEnabled(sc) {
 		return uint(4)
@@ -1551,4 +1561,16 @@ func preserveBulkFlagParameter(existingParameters map[string]string, updatedPara
 			(*updatedParameters)["bulk"] = bulk
 		}
 	}
+}
+
+func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string) rookCephv1.ReplicatedSpec {
+	crs := rookCephv1.ReplicatedSpec{}
+
+	crs.Size = getCephPoolReplicatedSize(initData)
+	crs.ReplicasPerFailureDomain = uint(getReplicasPerFailureDomain(initData))
+	if poolType == poolTypeData {
+		crs.TargetSizeRatio = .49
+	}
+
+	return crs
 }

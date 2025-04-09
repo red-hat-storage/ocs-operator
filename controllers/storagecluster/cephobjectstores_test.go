@@ -152,12 +152,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -218,12 +218,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -239,12 +239,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -260,12 +260,12 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -294,7 +294,7 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -323,7 +323,7 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephObjectStores: api.ManageCephObjectStores{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -378,4 +378,100 @@ func TestBulkFlagBehaviorCephObjectStore(t *testing.T) {
 			assert.Equal(t, c.expectedDataBulk, dataBulkValue, "data pool bulk parameter value mismatch")
 		}
 	}
+}
+
+func TestCephObjectReadAffinity(t *testing.T) {
+	storageCluster := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sc",
+		},
+
+		Spec: api.StorageClusterSpec{
+			StorageDeviceSets: []api.StorageDeviceSet{
+				{
+					Name: "set-1",
+				},
+			},
+		},
+	}
+
+	// 1. No readAffinity should be set in case of portable OSDs.
+	storageCluster.Spec.StorageDeviceSets[0].Portable = true
+	reconciler := createReconcilerFromCustomResources(t, storageCluster)
+	objectStores, err := reconciler.newCephObjectStoreInstances(storageCluster, nil)
+	assert.NoError(t, err)
+	for _, objectStore := range objectStores {
+		assert.Nil(t, objectStore.Spec.Gateway.ReadAffinity)
+	}
+
+	// 2. Localize readAffinity should be set in case of non-portable OSDs.
+	storageCluster.Spec.StorageDeviceSets[0].Portable = false
+
+	objectStores, err = reconciler.newCephObjectStoreInstances(storageCluster, nil)
+	assert.NoError(t, err)
+	for _, objectStore := range objectStores {
+		assert.NotNil(t, objectStore.Spec.Gateway.ReadAffinity)
+		assert.Equal(t, "localize", objectStore.Spec.Gateway.ReadAffinity.Type)
+	}
+}
+
+func TestCephObjectStoreReadAffinityOnExistingClusters(t *testing.T) {
+	objStores := &ocsCephObjectStores{}
+	storageCluster := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sc-1",
+		},
+
+		Spec: api.StorageClusterSpec{
+			StorageDeviceSets: []api.StorageDeviceSet{
+				{
+					Name:     "set-1",
+					Portable: false,
+				},
+			},
+		},
+	}
+	reconciler := createReconcilerFromCustomResources(t, storageCluster)
+
+	// 1. Existing cephObjectStores should use localize readAffinity for non-portable OSDs.
+	newObjectStore := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sc-1-cephobjectstore",
+		},
+		Spec: cephv1.ObjectStoreSpec{},
+	}
+
+	actualObjectStore := &cephv1.CephObjectStore{}
+
+	err := reconciler.Client.Create(context.TODO(), newObjectStore)
+	assert.NoError(t, err)
+	_, err = objStores.ensureCreated(&reconciler, storageCluster)
+	assert.NoError(t, err)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: "sc-1-cephobjectstore"}, actualObjectStore)
+	assert.NoError(t, err)
+	assert.NotNil(t, actualObjectStore.Spec.Gateway.ReadAffinity)
+	assert.Equal(t, "localize", actualObjectStore.Spec.Gateway.ReadAffinity.Type)
+
+	// 2. Ensure that change in the readAffinity of existing object stores should be preserved across the reconciles
+	actualObjectStore.Spec.Gateway.ReadAffinity.Type = "balance"
+	err = reconciler.Client.Update(context.TODO(), actualObjectStore)
+	assert.NoError(t, err)
+	_, err = objStores.ensureCreated(&reconciler, storageCluster)
+	assert.NoError(t, err)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: "sc-1-cephobjectstore"}, actualObjectStore)
+	assert.NoError(t, err)
+	assert.NotNil(t, actualObjectStore.Spec.Gateway.ReadAffinity)
+	assert.Equal(t, "balance", actualObjectStore.Spec.Gateway.ReadAffinity.Type)
+
+	// 3. Ensure that change in the readAffinity of existing object stores should be preserved across the reconciles
+	actualObjectStore.Spec.Gateway.ReadAffinity.Type = "default"
+	err = reconciler.Client.Update(context.TODO(), actualObjectStore)
+	assert.NoError(t, err)
+	_, err = objStores.ensureCreated(&reconciler, storageCluster)
+	assert.NoError(t, err)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: "sc-1-cephobjectstore"}, actualObjectStore)
+	assert.NoError(t, err)
+	assert.NotNil(t, actualObjectStore.Spec.Gateway.ReadAffinity)
+	assert.Equal(t, "default", actualObjectStore.Spec.Gateway.ReadAffinity.Type)
+
 }

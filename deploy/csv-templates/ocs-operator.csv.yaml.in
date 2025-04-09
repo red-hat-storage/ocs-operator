@@ -98,6 +98,12 @@ spec:
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
       version: v1
+    - description: StorageAutoScaler represents the automatic storage scaling for
+        storage cluster.
+      displayName: Storage Auto Scaling
+      kind: StorageAutoScaler
+      name: storageautoscalers.ocs.openshift.io
+      version: v1
     - description: StorageClusterPeer is the Schema for the storageclusterpeers API
       displayName: Storage Cluster Peer
       kind: StorageClusterPeer
@@ -323,6 +329,14 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resourceNames:
+          - k8s
+          resources:
+          - prometheuses/api
+          verbs:
+          - get
         - apiGroups:
           - monitoring.coreos.com
           resources:

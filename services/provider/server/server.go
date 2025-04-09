@@ -13,8 +13,8 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"math"
 	"net"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -23,6 +23,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -32,9 +33,12 @@ import (
 	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
@@ -44,6 +48,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +60,6 @@ import (
 )
 
 const (
-	TicketAnnotation          = "ocs.openshift.io/provider-onboarding-ticket"
 	ProviderCertsMountPoint   = "/mnt/cert"
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
@@ -140,20 +144,6 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
-	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get storageCluster. %v", err)
-	}
-
-	if storageCluster.UID != onboardingTicket.StorageCluster {
-		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket storageCluster not match existing storageCluster.")
-	}
-
-	if !storageCluster.Spec.AllowRemoteStorageConsumers {
-		return nil, status.Errorf(codes.PermissionDenied, "onboarding remote storageConsumer(s) is not allowed.")
-	}
-
-	storageQuotaInGiB := ptr.Deref(onboardingTicket.StorageQuotaInGiB, 0)
 
 	if onboardingTicket.SubjectRole != services.ClientRole {
 		err := fmt.Errorf("invalid onboarding ticket for %q, expecting role %s found role %s", req.ConsumerName, services.ClientRole, onboardingTicket.SubjectRole)
@@ -161,37 +151,39 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	storageConsumerUUID, err := s.consumerManager.Create(ctx, req, int(storageQuotaInGiB))
-	if err != nil {
-		if !kerrors.IsAlreadyExists(err) && err != errTicketAlreadyExists {
-			return nil, status.Errorf(codes.Internal, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-
-		storageConsumer, err := s.consumerManager.GetByName(ctx, req.ConsumerName)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer. %v", err)
-		}
-
-		if storageConsumer.Spec.Enable {
-			err = fmt.Errorf("storageconsumers.ocs.openshift.io %s already exists", req.ConsumerName)
-			return nil, status.Errorf(codes.AlreadyExists, "failed to create storageConsumer %q. %v", req.ConsumerName, err)
-		}
-		storageConsumerUUID = string(storageConsumer.UID)
+	storageConsumer := &ocsv1alpha1.StorageConsumer{}
+	storageConsumer.Name = onboardingTicket.ID
+	storageConsumer.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
+		klog.Errorf("failed to get storageconsumer referred by the supplied token: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get storageconsumer. %v", err)
+	} else if storageConsumer.Spec.Enable {
+		klog.Errorf("storageconsumer is already enabled %s", storageConsumer.Name)
+		return nil, status.Errorf(codes.InvalidArgument, "refusing to onboard onto storageconsumer with supplied token")
 	}
 
+	onboardingSecret := &corev1.Secret{}
+	onboardingSecret.Name = fmt.Sprintf("onboarding-token-%s", storageConsumer.UID)
+	onboardingSecret.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(onboardingSecret), onboardingSecret); err != nil {
+		klog.Errorf("failed to get onboarding secret corresponding to storageconsumer %s: %v", storageConsumer.Name, err)
+		return nil, status.Errorf(codes.Internal, "failed to get onboarding secret. %v", err)
+	}
+	if req.OnboardingTicket != string(onboardingSecret.Data[defaults.OnboardingTokenKey]) {
+		klog.Errorf("supplied onboarding ticket does not match storageconsumer secret")
+		return nil, status.Errorf(codes.InvalidArgument, "supplied onboarding ticket does not match mapped secret")
+	}
+
+	storageConsumerUUID, err := s.consumerManager.EnableStorageConsumer(ctx, storageConsumer)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to onboard on storageConsumer resource. %v", err)
+	}
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
 }
 
 // AcknowledgeOnboarding acknowledge the onboarding is complete
 func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
-
-	if err := s.consumerManager.EnableStorageConsumer(ctx, req.StorageConsumerUUID); err != nil {
-		if kerrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "storageConsumer not found. %v", err)
-		}
-		return nil, status.Errorf(codes.Internal, "Failed to update the storageConsumer. %v", err)
-	}
-	return &pb.AcknowledgeOnboardingResponse{}, nil
+	return nil, status.Errorf(codes.Unimplemented, "Not expecting a two step onboarding process")
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
@@ -207,8 +199,8 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 	// Verify Status
 	switch consumerObj.Status.State {
-	case ocsv1alpha1.StorageConsumerStateDisabled:
-		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer is in disabled state")
+	case ocsv1alpha1.StorageConsumerStateNotEnabled:
+		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer is in not enabled")
 	case ocsv1alpha1.StorageConsumerStateFailed:
 		// TODO: get correct error message from the storageConsumer status
 		return nil, status.Errorf(codes.Internal, "storageConsumer status failed")
@@ -265,6 +257,90 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	}
 
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
+}
+
+// GetDesiredClientState RPC call to generate the desired state of the client
+func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.GetDesiredClientStateRequest) (*pb.GetDesiredClientStateResponse, error) {
+
+	// Get storage consumer resource using UUID
+	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		klog.Errorf("failed to get StorageConsumer: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
+	}
+
+	klog.Infof("Found StorageConsumer for GetDesiredClientState")
+
+	// Verify Status
+	switch consumer.Status.State {
+	case ocsv1alpha1.StorageConsumerStateNotEnabled:
+		return nil, status.Errorf(codes.FailedPrecondition, "StorageConsumer is not yet enabled")
+	case ocsv1alpha1.StorageConsumerStateFailed:
+		return nil, status.Errorf(codes.Internal, "StorageConsumer status failed")
+	case ocsv1alpha1.StorageConsumerStateConfiguring:
+		return nil, status.Errorf(codes.Unavailable, "waiting for the resources to be provisioned")
+	case ocsv1alpha1.StorageConsumerStateDeleting:
+		return nil, status.Errorf(codes.NotFound, "StorageConsumer is in deleting phase")
+	case ocsv1alpha1.StorageConsumerStateReady:
+		kubeResources, err := s.getKubeResources(ctx, consumer)
+		if err != nil {
+			klog.Errorf("failed to get kube resources: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to get kube resources")
+		}
+
+		response := &pb.GetDesiredClientStateResponse{}
+
+		for _, kubeResource := range kubeResources {
+			gvk := kubeResource.GetObjectKind().GroupVersionKind()
+			if gvk.Group == "" || gvk.Kind == "" || kubeResource.GetName() == "" {
+				klog.Errorf("Resource is not properly structured")
+				return nil, status.Errorf(codes.Internal, "failed to get kube resources.")
+			}
+			sanitizeKubeResource(kubeResource)
+			response.KubeResources = append(response.KubeResources, mustMarshal(kubeResource))
+		}
+
+		channelName, err := s.getOCSSubscriptionChannel(ctx)
+		if err != nil {
+			klog.Errorf("failed to get channel name for Client Operator: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to get channel name for Client Operator")
+		}
+		response.ClientOperatorChannel = channelName
+
+		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+		}
+		response.MaintenanceMode = inMaintenanceMode
+
+		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+		}
+		response.MirrorEnabled = isConsumerMirrorEnabled
+
+		storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		desiredClientConfigHash := getDesiredClientConfigHash(
+			channelName,
+			consumer,
+			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
+			inMaintenanceMode,
+			isConsumerMirrorEnabled,
+		)
+		response.DesiredStateHash = desiredClientConfigHash
+
+		klog.Infof("successfully returned the config details to the consumer.")
+		return response, nil
+	}
+
+	return nil, status.Errorf(codes.Unavailable, "StorageConsumer status is not set")
+
 }
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
@@ -327,6 +403,10 @@ func newScheme() (*runtime.Scheme, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
 	}
+	err = templatev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add templatev1 to scheme. %v", err)
+	}
 
 	return scheme, nil
 }
@@ -334,96 +414,603 @@ func newScheme() (*runtime.Scheme, error) {
 func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
 	var extR []*pb.ExternalResource
 
-	// Configmap with mon endpoints
-	configmap := &v1.ConfigMap{}
-	err := s.client.Get(ctx, types.NamespacedName{Name: monConfigMap, Namespace: s.namespace}, configmap)
+	consumerConfigMap := &v1.ConfigMap{}
+	if consumerResource.Status.ResourceNameMappingConfigMap.Name == "" {
+		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
+	}
+	consumerConfigMap.Name = consumerResource.Status.ResourceNameMappingConfigMap.Name
+	consumerConfigMap.Namespace = consumerResource.Namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
+		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
+	}
+	if consumerConfigMap.Data == nil {
+		return nil, fmt.Errorf("waiting StorageConsumer ResourceNameMappingConfig to be generated")
+	}
+	consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
 	}
 
+	var fsid string
+	if cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace); err != nil {
+		return nil, err
+	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+		return nil, fmt.Errorf("waiting for Ceph FSID")
+	} else {
+		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
+	drRbdStorageId := calculateCephRbdStorageID(
+		fsid,
+		consumerConfig.GetRbdRadosNamespaceName(),
+	)
+	drCephFsId := calculateCephFsStorageID(
+		fsid,
+		consumerConfig.GetSubVolumeGroupName(),
+	)
+
+	if consumerResource.Status.Client.Name == "" {
+		return nil, fmt.Errorf("waiting for the first heart beat before sending the resources")
+	}
+
+	extR, err = s.appendCephConnectionExternalResources(ctx, extR, consumerResource)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendClientProfileExternalResources(
+		extR,
+		consumerResource,
+		consumerConfig,
+		storageCluster,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendCephClientSecretExternalResources(
+		ctx,
+		extR,
+		consumerResource,
+		consumerConfig,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendStorageClassExternalResources(
+		extR,
+		consumerResource,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+		drCephFsId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendVolumeSnapshotClassExternalResources(
+		extR,
+		consumerResource,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+		drCephFsId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendVolumeGroupSnapshotClassExternalResources(
+		extR,
+		consumerResource,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+		drCephFsId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendVolumeReplicationClassExternalResources(
+		ctx,
+		extR,
+		consumerResource,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+	)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	extR, err = s.appendClusterResourceQuotaExternalResources(
+		extR,
+		consumerResource,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendClientProfileMappingExternalResources(
+		ctx,
+		extR,
+		consumerResource,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	extR, err = s.appendNoobaaExternalResources(
+		ctx,
+		extR,
+		consumerResource,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendCephConnectionExternalResources(
+	ctx context.Context,
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]*pb.ExternalResource, error) {
+
+	configmap := &v1.ConfigMap{}
+	configmap.Name = monConfigMap
+	configmap.Namespace = consumer.Namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(configmap), configmap)
+	if err != nil {
+		return extR, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
+	}
 	if configmap.Data["data"] == "" {
-		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
+		return extR, fmt.Errorf("configmap %s data is empty", monConfigMap)
 	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: monConfigMap,
-		Kind: "ConfigMap",
-		Data: mustMarshal(map[string]string{
-			"data":     configmap.Data["data"], // IP Address of all mon's
-			"maxMonId": "0",
-			"mapping":  "{}",
-		})})
 
 	monIps, err := extractMonitorIps(configmap.Data["data"])
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+		return extR, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
 	}
 
 	extR = append(extR, &pb.ExternalResource{
 		Kind: "CephConnection",
-		Name: "monitor-endpoints",
+		Name: consumer.Status.Client.Name,
 		Data: mustMarshal(&csiopv1a1.CephConnectionSpec{Monitors: monIps}),
 	})
+	return extR, nil
+}
 
-	scMon := &v1.Secret{}
-	// Secret storing cluster mon.admin key, fsid and name
-	err = s.client.Get(ctx, types.NamespacedName{Name: monSecret, Namespace: s.namespace}, scMon)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s secret. %v", monSecret, err)
+func (s *OCSProviderServer) appendClientProfileExternalResources(
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+) ([]*pb.ExternalResource, error) {
+	var kernelMountOptions map[string]string
+	for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
+		if kernelMountOptions == nil {
+			kernelMountOptions = map[string]string{}
+		}
+		parts := strings.Split(option, "=")
+		kernelMountOptions[parts[0]] = parts[1]
 	}
 
-	fsid := string(scMon.Data["fsid"])
-	if fsid == "" {
-		return nil, fmt.Errorf("secret %s data fsid is empty", monSecret)
-	}
+	// The client profile name for all the driver maybe the same or different, hence using a map to merge in case of
+	// same name
+	profileMap := make(map[string]*csiopv1a1.ClientProfileSpec)
 
-	// Get mgr pod hostIP
-	podList := &corev1.PodList{}
-	listOpts := []client.ListOption{
-		client.InNamespace(s.namespace),
-		client.MatchingLabels(map[string]string{"app": "rook-ceph-mgr"}),
+	rnsName := consumerConfig.GetRbdRadosNamespaceName()
+	if rnsName == util.ImplicitRbdRadosNamespaceName {
+		rnsName = ""
 	}
-	err = s.client.List(ctx, podList, listOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pod with rook-ceph-mgr label. %v", err)
-	}
-	if len(podList.Items) == 0 {
-		return nil, fmt.Errorf("no pods available with rook-ceph-mgr label")
-	}
-
-	mgrPod := &podList.Items[0]
-	var port int32 = -1
-
-	for i := range mgrPod.Spec.Containers {
-		container := &mgrPod.Spec.Containers[i]
-		if container.Name == "mgr" {
-			for j := range container.Ports {
-				if container.Ports[j].Name == "http-metrics" {
-					port = container.Ports[j].ContainerPort
-				}
+	rbdClientProfileName := consumerConfig.GetRbdClientProfileName()
+	if rbdClientProfileName != "" {
+		rbdClientProfile := profileMap[rbdClientProfileName]
+		if rbdClientProfile == nil {
+			rbdClientProfile = &csiopv1a1.ClientProfileSpec{
+				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 			}
+			profileMap[rbdClientProfileName] = rbdClientProfile
+
+		}
+		rbdClientProfile.Rbd = &csiopv1a1.RbdConfigSpec{
+			RadosNamespace: rnsName,
 		}
 	}
 
-	if port < 0 {
-		return nil, fmt.Errorf("mgr pod port is empty")
+	cephFsClientProfileName := consumerConfig.GetCephFsClientProfileName()
+	if cephFsClientProfileName != "" {
+		cephFsClientProfile := profileMap[cephFsClientProfileName]
+		if cephFsClientProfile == nil {
+			cephFsClientProfile = &csiopv1a1.ClientProfileSpec{
+				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+			}
+			profileMap[cephFsClientProfileName] = cephFsClientProfile
+		}
+		cephFsClientProfile.CephFs = &csiopv1a1.CephFsConfigSpec{
+			SubVolumeGroup:     consumerConfig.GetSubVolumeGroupName(),
+			KernelMountOptions: kernelMountOptions,
+			RadosNamespace:     ptr.To(consumerConfig.GetSubVolumeGroupRadosNamespaceName()),
+		}
 	}
 
-	extR = append(extR, &pb.ExternalResource{
-		Name: "monitoring-endpoint",
-		Kind: "CephCluster",
-		Data: mustMarshal(map[string]string{
-			"MonitoringEndpoint": mgrPod.Status.HostIP,
-			"MonitoringPort":     strconv.Itoa(int(port)),
-		})})
+	nfsClientProfileName := consumerConfig.GetCephFsClientProfileName()
+	if nfsClientProfileName != "" {
+		nfsClientProfile := profileMap[nfsClientProfileName]
+		if nfsClientProfile == nil {
+			nfsClientProfile = &csiopv1a1.ClientProfileSpec{
+				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+			}
+			profileMap[nfsClientProfileName] = nfsClientProfile
+		}
+		nfsClientProfile.Nfs = &csiopv1a1.NfsConfigSpec{}
+	}
 
-	if consumerResource.Spec.StorageQuotaInGiB > 0 {
+	for profileName, profileSpec := range profileMap {
+		extR = append(extR, &pb.ExternalResource{
+			Kind: "ClientProfile",
+			Name: profileName,
+			Data: mustMarshal(profileSpec),
+		})
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendCephClientSecretExternalResources(
+	ctx context.Context,
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+) ([]*pb.ExternalResource, error) {
+
+	cephClients := []string{}
+	if consumerConfig.GetCsiRbdProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiRbdNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdNodeSecretName())
+	}
+	if consumerConfig.GetCsiCephFsProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiCephFsNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsNodeSecretName())
+	}
+	if consumerConfig.GetCsiNfsProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiNfsNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsNodeSecretName())
+	}
+
+	for i := range cephClients {
+		cephClient := &rookCephv1.CephClient{}
+		cephClient.Name = cephClients[i]
+		cephClient.Namespace = consumer.Namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephClient), cephClient); err != nil {
+			return extR, err
+		}
+
+		cephUserSecret := &v1.Secret{}
+		cephUserSecret.Namespace = consumer.Namespace
+		if cephClient.Status != nil &&
+			cephClient.Status.Info["secretName"] != "" {
+			cephUserSecret.Name = cephClient.Status.Info["secretName"]
+		}
+		if cephUserSecret.Name == "" {
+			return extR, fmt.Errorf("failed to find cephclient secret name")
+		}
+
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephUserSecret), cephUserSecret); err != nil {
+			return extR, fmt.Errorf("failed to get %s secret. %v", cephUserSecret, err)
+		}
+
+		extR = append(extR, &pb.ExternalResource{
+			Name: cephClients[i],
+			Kind: "Secret",
+			Data: mustMarshal(cephUserSecret.Data),
+		})
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendStorageClassExternalResources(
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId,
+	drCephFsId string,
+) ([]*pb.ExternalResource, error) {
+	scMap := map[string]func() *storagev1.StorageClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		scMap[util.GenerateNameForCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
+			)
+		}
+		scMap[util.GenerateNameForCephBlockPoolVirtualizationStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultVirtRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+			)
+		}
+		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
+			kmsServiceName := kmsConfig.Data["KMS_SERVICE_NAME"]
+			scMap[util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+				return util.NewDefaultEncryptedRbdStorageClass(
+					consumerConfig.GetRbdClientProfileName(),
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+					consumerConfig.GetCsiRbdProvisionerSecretName(),
+					consumerConfig.GetCsiRbdNodeSecretName(),
+					consumer.Status.Client.OperatorNamespace,
+					kmsServiceName,
+					storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
+				)
+			}
+		}
+		scMap[util.GenerateNameForNonResilientCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultNonResilientRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GetTopologyConstrainedPools(storageCluster),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
+			)
+		}
+	}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		scMap[util.GenerateNameForCephFilesystemStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultCephFsStorageClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumerConfig.GetCsiCephFsNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drCephFsId,
+			)
+		}
+	}
+	if consumerConfig.GetNfsClientProfileName() != "" {
+		scMap[util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultNFSStorageClass(
+				consumerConfig.GetNfsClientProfileName(),
+				util.GenerateNameForCephNFS(storageCluster),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				util.GenerateNameForNFSService(storageCluster),
+				consumerConfig.GetCsiNfsProvisionerSecretName(),
+				consumerConfig.GetCsiNfsNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+			)
+		}
+	}
+	for i := range consumer.Spec.StorageClasses {
+		storageClassName := consumer.Spec.StorageClasses[i].Name
+		scGen := scMap[storageClassName]
+		if scGen != nil {
+			extR = append(extR, &pb.ExternalResource{
+				Kind: "StorageClass",
+				Name: storageClassName,
+				Data: mustMarshal(scGen()),
+			})
+		} else {
+			//TODO: Day-2 storageClasses
+			klog.Warningf("encountered an unexpected storage class: %s", storageClassName)
+		}
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendVolumeSnapshotClassExternalResources(
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId,
+	drCephFsId string,
+) ([]*pb.ExternalResource, error) {
+	vscMap := map[string]func() *snapapi.VolumeSnapshotClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultRbdSnapshotClass(
+				consumerConfig.GetRbdClientProfileName(),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+			)
+		}
+	}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultCephFsSnapshotClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drCephFsId,
+			)
+		}
+	}
+	if consumerConfig.GetNfsClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultNfsSnapshotClass(
+				consumerConfig.GetNfsClientProfileName(),
+				consumerConfig.GetCsiNfsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+			)
+		}
+	}
+	for i := range consumer.Spec.VolumeSnapshotClasses {
+		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
+		vscGen := vscMap[snapshotClassName]
+		if vscGen != nil {
+			extR = append(extR, &pb.ExternalResource{
+				Kind: "VolumeSnapshotClass",
+				Name: snapshotClassName,
+				Data: mustMarshal(vscGen()),
+			})
+		} else {
+			//TODO: Day-2 snapshotclass
+			klog.Warningf("encountered an unexpected volume snapshot class: %s", snapshotClassName)
+		}
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId,
+	drCephFsId string,
+) ([]*pb.ExternalResource, error) {
+	vgscMap := map[string]func() *groupsnapapi.VolumeGroupSnapshotClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+			return util.NewDefaultRbdGroupSnapshotClass(
+				consumerConfig.GetRbdClientProfileName(),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				drRbdStorageId,
+			)
+		}
+	}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+			return util.NewDefaultCephFsGroupSnapshotClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				drCephFsId,
+			)
+		}
+	}
+	for i := range consumer.Spec.VolumeGroupSnapshotClasses {
+		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
+		vgscGen := vgscMap[groupSnapshotClassName]
+		if vgscGen != nil {
+			extR = append(extR, &pb.ExternalResource{
+				Kind: "VolumeGroupSnapshotClass",
+				Name: groupSnapshotClassName,
+				Data: mustMarshal(vgscGen()),
+			})
+		} else {
+			//TODO: Day-2 groupSnapshotclass
+			klog.Warningf("encountered an unexpected volume group snapshot class: %s", groupSnapshotClassName)
+		}
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendVolumeReplicationClassExternalResources(
+	ctx context.Context,
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId string,
+) ([]*pb.ExternalResource, error) {
+
+	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
+		return nil, err
+	} else if !mirrorEnabled {
+		klog.Infof("skipping distribution of VolumeReplicationClass as mirroring is not enabled for the consumer")
+		return extR, nil
+	}
+
+	//TODO: this is a ugly hack to generate the peerStorageID for generating replicationID
+	// peerStorageID should come from GetStorageClientInfo
+	peerStorageID, err := s.getPeerStorageID(ctx, storageCluster, consumer.Namespace, consumerConfig.GetRbdRadosNamespaceName())
+	if err != nil {
+		return nil, err
+	}
+
+	storageIDs := []string{drRbdStorageId, peerStorageID}
+	slices.Sort(storageIDs)
+	replicationID := util.CalculateMD5Hash(storageIDs)
+
+	for i := range consumer.Spec.VolumeReplicationClasses {
+		replicationClassName := consumer.Spec.VolumeReplicationClasses[i].Name
+		//TODO: The code is written under the assumption VRC name is exactly the same as the template name and there
+		// is 1:1 mapping between template and vrc. The restriction will be relaxed in the future
+		vrcTemplate := &templatev1.Template{}
+		vrcTemplate.Name = replicationClassName
+		vrcTemplate.Namespace = consumer.Namespace
+
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(vrcTemplate), vrcTemplate); err != nil {
+			return nil, fmt.Errorf("failed to get VolumeReplicationClass template: %s, %v", replicationClassName, err)
+		}
+
+		if len(vrcTemplate.Objects) != 1 {
+			return nil, fmt.Errorf("unexpected number of Volume Replication Class found expected 1")
+		}
+
+		vrc := &replicationv1alpha1.VolumeReplicationClass{}
+		if err := json.Unmarshal(vrcTemplate.Objects[0].Raw, vrc); err != nil {
+			return nil, fmt.Errorf("failed to unmarshall volume replication class: %s, %v", replicationClassName, err)
+
+		}
+
+		if vrc.Name != replicationClassName {
+			return nil, fmt.Errorf("volume replication class name mismatch: %s, %v", replicationClassName, vrc.Name)
+		}
+
+		switch vrc.Spec.Provisioner {
+		case util.RbdDriverName:
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
+			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
+			util.AddLabel(vrc, ramenDRStorageIDLabelKey, drRbdStorageId)
+			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
+			util.AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
+		default:
+			return nil, fmt.Errorf("unsupported Provisioner for VolumeReplicationClass")
+		}
+
+		extR = append(extR, &pb.ExternalResource{
+			Kind: "VolumeReplicationClass",
+			Name: replicationClassName,
+			Data: mustMarshal(vrc),
+		})
+
+	}
+	return extR, nil
+}
+
+func (s *OCSProviderServer) appendClusterResourceQuotaExternalResources(
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]*pb.ExternalResource, error) {
+	if consumer.Spec.StorageQuotaInGiB > 0 {
 		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
 			Selector: quotav1.ClusterResourceQuotaSelector{
 				LabelSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
 						{
-							Key:      string(consumerResource.UID),
+							Key:      string(consumer.UID),
 							Operator: metav1.LabelSelectorOpDoesNotExist,
 						},
 					},
@@ -431,7 +1018,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			},
 			Quota: corev1.ResourceQuotaSpec{
 				Hard: corev1.ResourceList{"requests.storage": *resource.NewQuantity(
-					int64(consumerResource.Spec.StorageQuotaInGiB)*oneGibInBytes,
+					int64(consumer.Spec.StorageQuotaInGiB)*oneGibInBytes,
 					resource.BinarySI,
 				)},
 			},
@@ -442,13 +1029,18 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			Kind: "ClusterResourceQuota",
 			Data: mustMarshal(clusterResourceQuotaSpec),
 		})
-
 	}
+	return extR, nil
+}
 
+func (s *OCSProviderServer) appendClientProfileMappingExternalResources(
+	ctx context.Context,
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]*pb.ExternalResource, error) {
 	cbpList := &rookCephv1.CephBlockPoolList{}
-	err = s.client.List(ctx, cbpList, client.InNamespace(s.namespace))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
+	if err := s.client.List(ctx, cbpList, client.InNamespace(s.namespace)); err != nil {
+		return extR, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
 	}
 	blockPoolMapping := []csiopv1a1.BlockPoolIdPair{}
 	for i := range cbpList.Items {
@@ -467,10 +1059,10 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		// This is an assumption and should go away when deprecating the StorageClaim API
 		// The current proposal is to read the clientProfile name from the storageConsumer status and
 		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
-		clientName := consumerResource.Status.Client.Name
+		clientName := consumer.Status.Client.Name
 		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
 		extR = append(extR, &pb.ExternalResource{
-			Name: consumerResource.Status.Client.Name,
+			Name: consumer.Status.Client.Name,
 			Kind: "ClientProfileMapping",
 			Data: mustMarshal(&csiopv1a1.ClientProfileMappingSpec{
 				Mappings: []csiopv1a1.MappingsSpec{
@@ -483,41 +1075,45 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			}),
 		})
 	}
+	return extR, nil
+}
 
+func (s *OCSProviderServer) appendNoobaaExternalResources(
+	ctx context.Context,
+	extR []*pb.ExternalResource,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]*pb.ExternalResource, error) {
+	// Noobaa Configuration
 	// Fetch noobaa remote secret and management address and append to extResources
-	consumerName := consumerResource.Name
 	noobaaOperatorSecret := &v1.Secret{}
-	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumerName)
+	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumer.Name)
 	noobaaOperatorSecret.Namespace = s.namespace
 
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); err != nil {
-		if kerrors.IsNotFound(err) {
-			// ignoring because it is a provider cluster and the noobaa secret does not exist
-			return extR, nil
-
-		}
-		return nil, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); kerrors.IsNotFound(err) {
+		return extR, nil
+	} else if err != nil {
+		return extR, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
 	}
 
 	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
 	if !ok || len(authToken) == 0 {
-		return nil, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+		return extR, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
 	}
 
 	noobaMgmtRoute := &routev1.Route{}
 	noobaMgmtRoute.Name = "noobaa-mgmt"
 	noobaMgmtRoute.Namespace = s.namespace
 
-	if err = s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
-		return nil, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
+		return extR, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
 	}
 	if len(noobaMgmtRoute.Status.Ingress) == 0 {
-		return nil, fmt.Errorf("no Ingress available in noobaa-mgmt route")
+		return extR, fmt.Errorf("no Ingress available in noobaa-mgmt route")
 	}
 
 	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
 	if noobaaMgmtAddress == "" {
-		return nil, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
+		return extR, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
 	}
 	extR = append(extR, &pb.ExternalResource{
 		Name: "noobaa-remote-join-secret",
@@ -537,6 +1133,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 			},
 		}),
 	})
+
 	return extR, nil
 }
 
@@ -625,14 +1222,7 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 	}
 
 	switch ticketData.SubjectRole {
-	case services.ClientRole:
-		if ticketData.StorageQuotaInGiB != nil {
-			quota := *ticketData.StorageQuotaInGiB
-			if quota > math.MaxInt {
-				return nil, fmt.Errorf("invalid value sent in onboarding ticket, storage quota should be greater than 0 and less than %v: %v", math.MaxInt, quota)
-			}
-		}
-	case services.PeerRole:
+	case services.ClientRole, services.PeerRole:
 	default:
 		return nil, fmt.Errorf("invalid onboarding ticket subject role")
 	}
@@ -1050,9 +1640,25 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer resource: %v", err)
 	}
 
-	channelName, err := s.getOCSSubscriptionChannel(ctx)
+	clientOperatorVersion, err := semver.Parse(req.ClientOperatorVersion)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientOperatorVersion: %v", err)
+	}
+
+	channelName := ""
+	adjusted := strings.EqualFold(storageConsumer.GetAnnotations()[util.Is419AdjustedAnnotationKey], "true")
+	if !adjusted && clientOperatorVersion.Major == 4 && clientOperatorVersion.Minor == 18 {
+		// TODO (leelavg): need to be removed in 4.20
+		// We have a new controller which maps the resources from 4.18 to 4.19 way of management,
+		// until the resources are mapped we don't want connected client to be upgrading, we'll
+		// relax the condition on knowing the resources are mapped in a separate PR
+		channelName = "stable-4.18"
+	} else {
+		channel, err := s.getOCSSubscriptionChannel(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+		}
+		channelName = channel
 	}
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
@@ -1223,26 +1829,28 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			continue
 		}
 
-		owner := util.FindOwnerRefByKind(consumer, "StorageCluster")
-		if owner == nil {
-			klog.Infof("no owner found for consumer %v", req.ClientIDs[i])
+		if !consumer.Spec.Enable {
+			klog.Infof("consumer is not yet enaled skipping %v", req.ClientIDs[i])
 			continue
 		}
 
+		idx := slices.IndexFunc(consumer.OwnerReferences, func(ref metav1.OwnerReference) bool {
+			return ref.Kind == "StorageCluster"
+		})
+		if idx == -1 {
+			klog.Infof("no owner found for consumer %v", req.ClientIDs[i])
+			continue
+		}
+		owner := &consumer.OwnerReferences[idx]
 		if owner.UID != types.UID(req.StorageClusterUID) {
 			klog.Infof("storageCluster specified on the req does not own the client %v", req.ClientIDs[i])
 			continue
 		}
 
-		rnsList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
-		err = s.client.List(
-			ctx,
-			rnsList,
-			client.InNamespace(s.namespace),
-			client.MatchingLabels{controllers.StorageConsumerNameLabel: consumer.Name},
-			client.Limit(2),
-		)
-		if err != nil {
+		consumerConfigMap := &corev1.ConfigMap{}
+		consumerConfigMap.Name = consumer.Status.ResourceNameMappingConfigMap.Name
+		consumerConfigMap.Namespace = consumer.Namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); err != nil {
 			response.Errors = append(response.Errors,
 				&pb.StorageClientInfoError{
 					ClientID: req.ClientIDs[i],
@@ -1253,21 +1861,14 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			klog.Error(err)
 			continue
 		}
-		if len(rnsList.Items) > 1 {
-			response.Errors = append(response.Errors,
-				&pb.StorageClientInfoError{
-					ClientID: req.ClientIDs[i],
-					Code:     pb.ErrorCode_Internal,
-					Message:  "failed loading client information",
-				},
-			)
-			klog.Errorf("invalid number of radosnamespace found for the Client %v", req.ClientIDs[i])
-			continue
-		}
+
 		clientInfo := &pb.ClientInfo{ClientID: req.ClientIDs[i]}
-		if len(rnsList.Items) == 1 {
-			clientInfo.RadosNamespace = rnsList.Items[0].Name
+
+		consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+		if consumerConfig.GetRbdRadosNamespaceName() != "" {
+			clientInfo.RadosNamespace = consumerConfig.GetRbdRadosNamespaceName()
 		}
+
 		response.ClientsInfo = append(response.ClientsInfo, clientInfo)
 	}
 
@@ -1384,4 +1985,808 @@ func getPeerCephFSID(ctx context.Context, cl client.Client, secretName, namespac
 		return "", err
 	}
 	return token.FSID, nil
+}
+
+func (s *OCSProviderServer) getPeerStorageID(ctx context.Context, storageCluster *ocsv1.StorageCluster, namespace, radosnamespace string) (string, error) {
+	blockPool := &rookCephv1.CephBlockPool{}
+	blockPool.Name = util.GenerateNameForCephBlockPool(storageCluster.Name)
+	blockPool.Namespace = namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(blockPool), blockPool); err != nil {
+		return "", fmt.Errorf("failed to get %s CephBlockPool. %v", blockPool.Name, err)
+	}
+
+	peerCephfsid, err := getPeerCephFSID(
+		ctx,
+		s.client,
+		mirroring.GetMirroringSecretName(blockPool.Name),
+		blockPool.Namespace,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to get peer Ceph FSID. %v", err)
+	}
+
+	rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+	rns.Name = fmt.Sprintf("%s-%s", blockPool.Name, radosnamespace)
+	if radosnamespace == util.ImplicitRbdRadosNamespaceName {
+		rns.Name = fmt.Sprintf(
+			"%s-builtin-%s",
+			blockPool.Name,
+			util.ImplicitRbdRadosNamespaceName[1:len(util.ImplicitRbdRadosNamespaceName)-1],
+		)
+	}
+	rns.Namespace = namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(rns), rns); err != nil {
+		return "", err
+	}
+
+	if rns.Spec.Mirroring == nil {
+		return "", fmt.Errorf("failed to get mirroring details")
+	}
+
+	peerStorageID := calculateCephRbdStorageID(
+		peerCephfsid,
+		*rns.Spec.Mirroring.RemoteNamespace,
+	)
+	return peerStorageID, nil
+}
+
+func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) ([]client.Object, error) {
+
+	consumerConfigMap := &v1.ConfigMap{}
+	if consumer.Status.ResourceNameMappingConfigMap.Name == "" {
+		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
+	}
+	consumerConfigMap.Name = consumer.Status.ResourceNameMappingConfigMap.Name
+	consumerConfigMap.Namespace = consumer.Namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
+	}
+	if consumerConfigMap.Data == nil {
+		return nil, fmt.Errorf("waiting StorageConsumer ResourceNameMappingConfig to be generated")
+	}
+	consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	var fsid string
+	if cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace); err != nil {
+		return nil, err
+	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+		return nil, fmt.Errorf("waiting for Ceph FSID")
+	} else {
+		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
+	drRbdStorageId := calculateCephRbdStorageID(
+		fsid,
+		consumerConfig.GetRbdRadosNamespaceName(),
+	)
+	drCephFsId := calculateCephFsStorageID(
+		fsid,
+		consumerConfig.GetSubVolumeGroupName(),
+	)
+
+	if consumer.Status.Client.Name == "" {
+		return nil, fmt.Errorf("waiting for the first heart beat before sending the resources")
+	}
+
+	kubeResources := []client.Object{}
+	kubeResources, err = s.appendCephConnectionKubeResources(ctx, kubeResources, consumer)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendClientProfileKubeResources(
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendCephClientSecretKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+		consumerConfig,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendStorageClassKubeResources(
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+		drCephFsId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendVolumeSnapshotClassKubeResources(
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+		drCephFsId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendVolumeGroupSnapshotClassKubeResources(
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+		drCephFsId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		drRbdStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendClusterResourceQuotaKubeResources(
+		kubeResources,
+		consumer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendClientProfileMappingKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeResources, err = s.appendNoobaaKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendCephConnectionKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+
+	configmap := &v1.ConfigMap{}
+	configmap.Name = monConfigMap
+	configmap.Namespace = consumer.Namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(configmap), configmap)
+	if err != nil {
+		return kubeResources, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
+	}
+	if configmap.Data["data"] == "" {
+		return kubeResources, fmt.Errorf("configmap %s data is empty", monConfigMap)
+	}
+
+	monIps, err := extractMonitorIps(configmap.Data["data"])
+	if err != nil {
+		return kubeResources, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+	}
+
+	kubeResources = append(
+		kubeResources,
+		&csiopv1a1.CephConnection{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      consumer.Status.Client.Name,
+				Namespace: consumer.Status.Client.OperatorNamespace,
+			},
+			Spec: csiopv1a1.CephConnectionSpec{
+				Monitors: monIps,
+			},
+		})
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendClientProfileKubeResources(
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+) ([]client.Object, error) {
+	var kernelMountOptions map[string]string
+	for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
+		if kernelMountOptions == nil {
+			kernelMountOptions = map[string]string{}
+		}
+		parts := strings.Split(option, "=")
+		kernelMountOptions[parts[0]] = parts[1]
+	}
+
+	// The client profile name for all the driver maybe the same or different, hence using a map to merge in case of
+	// same name
+	profileMap := make(map[string]*csiopv1a1.ClientProfile)
+
+	rnsName := consumerConfig.GetRbdRadosNamespaceName()
+	if rnsName == util.ImplicitRbdRadosNamespaceName {
+		rnsName = ""
+	}
+	rbdClientProfileName := consumerConfig.GetRbdClientProfileName()
+	if rbdClientProfileName != "" {
+		rbdClientProfile := profileMap[rbdClientProfileName]
+		if rbdClientProfile == nil {
+			rbdClientProfile = &csiopv1a1.ClientProfile{
+				Spec: csiopv1a1.ClientProfileSpec{
+					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+				},
+			}
+			profileMap[rbdClientProfileName] = rbdClientProfile
+
+		}
+		rbdClientProfile.Spec.Rbd = &csiopv1a1.RbdConfigSpec{
+			RadosNamespace: rnsName,
+		}
+	}
+
+	cephFsClientProfileName := consumerConfig.GetCephFsClientProfileName()
+	if cephFsClientProfileName != "" {
+		cephFsClientProfile := profileMap[cephFsClientProfileName]
+		if cephFsClientProfile == nil {
+			cephFsClientProfile = &csiopv1a1.ClientProfile{
+				Spec: csiopv1a1.ClientProfileSpec{
+					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+				},
+			}
+			profileMap[cephFsClientProfileName] = cephFsClientProfile
+		}
+		cephFsClientProfile.Spec.CephFs = &csiopv1a1.CephFsConfigSpec{
+			SubVolumeGroup:     consumerConfig.GetSubVolumeGroupName(),
+			KernelMountOptions: kernelMountOptions,
+			RadosNamespace:     ptr.To(consumerConfig.GetSubVolumeGroupRadosNamespaceName()),
+		}
+	}
+
+	nfsClientProfileName := consumerConfig.GetCephFsClientProfileName()
+	if nfsClientProfileName != "" {
+		nfsClientProfile := profileMap[nfsClientProfileName]
+		if nfsClientProfile == nil {
+			nfsClientProfile = &csiopv1a1.ClientProfile{
+				Spec: csiopv1a1.ClientProfileSpec{
+					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+				},
+			}
+			profileMap[nfsClientProfileName] = nfsClientProfile
+		}
+		nfsClientProfile.Spec.Nfs = &csiopv1a1.NfsConfigSpec{}
+	}
+
+	for _, profileObj := range profileMap {
+		profileObj.Namespace = consumer.Status.Client.OperatorNamespace
+		kubeResources = append(kubeResources, profileObj)
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendCephClientSecretKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+) ([]client.Object, error) {
+
+	cephClients := []string{}
+	if consumerConfig.GetCsiRbdProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiRbdNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdNodeSecretName())
+	}
+	if consumerConfig.GetCsiCephFsProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiCephFsNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsNodeSecretName())
+	}
+	if consumerConfig.GetCsiNfsProvisionerSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsProvisionerSecretName())
+	}
+	if consumerConfig.GetCsiNfsNodeSecretName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsNodeSecretName())
+	}
+
+	for i := range cephClients {
+		cephClient := &rookCephv1.CephClient{}
+		cephClient.Name = cephClients[i]
+		cephClient.Namespace = consumer.Namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephClient), cephClient); err != nil {
+			return kubeResources, err
+		}
+
+		cephUserSecret := &v1.Secret{}
+		cephUserSecret.Namespace = consumer.Namespace
+		if cephClient.Status != nil &&
+			cephClient.Status.Info["secretName"] != "" {
+			cephUserSecret.Name = cephClient.Status.Info["secretName"]
+		}
+		if cephUserSecret.Name == "" {
+			return kubeResources, fmt.Errorf("failed to find cephclient secret name")
+		}
+
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephUserSecret), cephUserSecret); err != nil {
+			return kubeResources, fmt.Errorf("failed to get %s secret. %v", cephUserSecret, err)
+		}
+
+		cephUserSecret.Name = cephClients[i]
+		cephUserSecret.Namespace = consumer.Status.Client.OperatorNamespace
+
+		kubeResources = append(kubeResources, cephUserSecret)
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendStorageClassKubeResources(
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId,
+	drCephFsId string,
+) ([]client.Object, error) {
+	scMap := map[string]func() *storagev1.StorageClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		scMap[util.GenerateNameForCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
+			)
+		}
+		scMap[util.GenerateNameForCephBlockPoolVirtualizationStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultVirtRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+			)
+		}
+		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
+			kmsServiceName := kmsConfig.Data["KMS_SERVICE_NAME"]
+			scMap[util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+				return util.NewDefaultEncryptedRbdStorageClass(
+					consumerConfig.GetRbdClientProfileName(),
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+					consumerConfig.GetCsiRbdProvisionerSecretName(),
+					consumerConfig.GetCsiRbdNodeSecretName(),
+					consumer.Status.Client.OperatorNamespace,
+					kmsServiceName,
+					storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
+				)
+			}
+		}
+		scMap[util.GenerateNameForNonResilientCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultNonResilientRbdStorageClass(
+				consumerConfig.GetRbdClientProfileName(),
+				util.GetTopologyConstrainedPools(storageCluster),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
+			)
+		}
+	}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		scMap[util.GenerateNameForCephFilesystemStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultCephFsStorageClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumerConfig.GetCsiCephFsNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drCephFsId,
+			)
+		}
+	}
+	if consumerConfig.GetNfsClientProfileName() != "" {
+		scMap[util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			return util.NewDefaultNFSStorageClass(
+				consumerConfig.GetNfsClientProfileName(),
+				util.GenerateNameForCephNFS(storageCluster),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				util.GenerateNameForNFSService(storageCluster),
+				consumerConfig.GetCsiNfsProvisionerSecretName(),
+				consumerConfig.GetCsiNfsNodeSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+			)
+		}
+	}
+	for i := range consumer.Spec.StorageClasses {
+		storageClassName := consumer.Spec.StorageClasses[i].Name
+		scGen := scMap[storageClassName]
+		if scGen != nil {
+			sc := scGen()
+			sc.Name = storageClassName
+			kubeResources = append(kubeResources, sc)
+		} else {
+			//TODO: Day-2 storageClasses
+			klog.Warningf("encountered an unexpected storage class: %s", storageClassName)
+		}
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId,
+	drCephFsId string,
+) ([]client.Object, error) {
+	vscMap := map[string]func() *snapapi.VolumeSnapshotClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultRbdSnapshotClass(
+				consumerConfig.GetRbdClientProfileName(),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drRbdStorageId,
+			)
+		}
+	}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultCephFsSnapshotClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				drCephFsId,
+			)
+		}
+	}
+	if consumerConfig.GetNfsClientProfileName() != "" {
+		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
+			return util.NewDefaultNfsSnapshotClass(
+				consumerConfig.GetNfsClientProfileName(),
+				consumerConfig.GetCsiNfsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+			)
+		}
+	}
+	for i := range consumer.Spec.VolumeSnapshotClasses {
+		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
+		vscGen := vscMap[snapshotClassName]
+		if vscGen != nil {
+			vsc := vscGen()
+			vsc.Name = snapshotClassName
+			kubeResources = append(kubeResources, vsc)
+		} else {
+			//TODO: Day-2 snapshotclass
+			klog.Warningf("encountered an unexpected volume snapshot class: %s", snapshotClassName)
+		}
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId,
+	drCephFsId string,
+) ([]client.Object, error) {
+	vgscMap := map[string]func() *groupsnapapi.VolumeGroupSnapshotClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+			return util.NewDefaultRbdGroupSnapshotClass(
+				consumerConfig.GetRbdClientProfileName(),
+				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				drRbdStorageId,
+			)
+		}
+	}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+			return util.NewDefaultCephFsGroupSnapshotClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				drCephFsId,
+			)
+		}
+	}
+	for i := range consumer.Spec.VolumeGroupSnapshotClasses {
+		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
+		vgscGen := vgscMap[groupSnapshotClassName]
+		if vgscGen != nil {
+			vgsc := vgscGen()
+			vgsc.Name = groupSnapshotClassName
+			kubeResources = append(kubeResources, vgsc)
+		} else {
+			//TODO: Day-2 groupSnapshotclass
+			klog.Warningf("encountered an unexpected volume group snapshot class: %s", groupSnapshotClassName)
+		}
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	drRbdStorageId string,
+) ([]client.Object, error) {
+	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
+		return kubeResources, err
+	} else if !mirrorEnabled {
+		klog.Infof("skipping distribution of VolumeReplicationClass as mirroring is not enabled for the consumer")
+		return kubeResources, nil
+	}
+
+	//TODO: this is a ugly hack to generate the peerStorageID for generating replicationID
+	// peerStorageID should come from GetStorageClientInfo
+	peerStorageID, err := s.getPeerStorageID(ctx, storageCluster, consumer.Namespace, consumerConfig.GetRbdRadosNamespaceName())
+	if err != nil {
+		return kubeResources, err
+	}
+
+	storageIDs := []string{drRbdStorageId, peerStorageID}
+	slices.Sort(storageIDs)
+	replicationID := util.CalculateMD5Hash(storageIDs)
+
+	for i := range consumer.Spec.VolumeReplicationClasses {
+		replicationClassName := consumer.Spec.VolumeReplicationClasses[i].Name
+		//TODO: The code is written under the assumption VRC name is exactly the same as the template name and there
+		// is 1:1 mapping between template and vrc. The restriction will be relaxed in the future
+		vrcTemplate := &templatev1.Template{}
+		vrcTemplate.Name = replicationClassName
+		vrcTemplate.Namespace = consumer.Namespace
+
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(vrcTemplate), vrcTemplate); err != nil {
+			return kubeResources, fmt.Errorf("failed to get VolumeReplicationClass template: %s, %v", replicationClassName, err)
+		}
+
+		if len(vrcTemplate.Objects) != 1 {
+			return kubeResources, fmt.Errorf("unexpected number of Volume Replication Class found expected 1")
+		}
+
+		vrc := &replicationv1alpha1.VolumeReplicationClass{}
+		if err := json.Unmarshal(vrcTemplate.Objects[0].Raw, vrc); err != nil {
+			return kubeResources, fmt.Errorf("failed to unmarshall volume replication class: %s, %v", replicationClassName, err)
+
+		}
+
+		if vrc.Name != replicationClassName {
+			return kubeResources, fmt.Errorf("volume replication class name mismatch: %s, %v", replicationClassName, vrc.Name)
+		}
+
+		switch vrc.Spec.Provisioner {
+		case util.RbdDriverName:
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
+			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
+			util.AddLabel(vrc, ramenDRStorageIDLabelKey, drRbdStorageId)
+			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
+			util.AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
+		default:
+			return kubeResources, fmt.Errorf("unsupported Provisioner for VolumeReplicationClass")
+		}
+		kubeResources = append(kubeResources, vrc)
+	}
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendClusterResourceQuotaKubeResources(
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+	if consumer.Spec.StorageQuotaInGiB > 0 {
+		clusterResourceQuota := &quotav1.ClusterResourceQuota{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: util.GetClusterResourceQuotaName(consumer.Status.Client.Name),
+			},
+			Spec: quotav1.ClusterResourceQuotaSpec{
+				Selector: quotav1.ClusterResourceQuotaSelector{
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      string(consumer.UID),
+								Operator: metav1.LabelSelectorOpDoesNotExist,
+							},
+						},
+					},
+				},
+				Quota: corev1.ResourceQuotaSpec{
+					Hard: corev1.ResourceList{"requests.storage": *resource.NewQuantity(
+						int64(consumer.Spec.StorageQuotaInGiB)*oneGibInBytes,
+						resource.BinarySI,
+					)},
+				},
+			},
+		}
+
+		kubeResources = append(kubeResources, clusterResourceQuota)
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+	cbpList := &rookCephv1.CephBlockPoolList{}
+	if err := s.client.List(ctx, cbpList, client.InNamespace(s.namespace)); err != nil {
+		return kubeResources, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
+	}
+	blockPoolMapping := []csiopv1a1.BlockPoolIdPair{}
+	for i := range cbpList.Items {
+		cephBlockPool := &cbpList.Items[i]
+		remoteBlockPoolID := cephBlockPool.GetAnnotations()[util.BlockPoolMirroringTargetIDAnnotation]
+		if remoteBlockPoolID != "" {
+			localBlockPoolID := strconv.Itoa(cephBlockPool.Status.PoolID)
+			blockPoolMapping = append(
+				blockPoolMapping,
+				csiopv1a1.BlockPoolIdPair{localBlockPoolID, remoteBlockPoolID},
+			)
+		}
+	}
+
+	if len(blockPoolMapping) > 0 {
+		// This is an assumption and should go away when deprecating the StorageClaim API
+		// The current proposal is to read the clientProfile name from the storageConsumer status and
+		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
+		clientName := consumer.Status.Client.Name
+		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
+		kubeResources = append(
+			kubeResources,
+			&csiopv1a1.ClientProfileMapping{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      consumer.Status.Client.Name,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
+				Spec: csiopv1a1.ClientProfileMappingSpec{
+					Mappings: []csiopv1a1.MappingsSpec{
+						{
+							LocalClientProfile:  clientProfileName,
+							RemoteClientProfile: clientProfileName,
+							BlockPoolIdMapping:  blockPoolMapping,
+						},
+					},
+				},
+			},
+		)
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendNoobaaKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+	// Noobaa Configuration
+	// Fetch noobaa remote secret and management address and append to extResources
+	noobaaOperatorSecret := &v1.Secret{}
+	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumer.Name)
+	noobaaOperatorSecret.Namespace = s.namespace
+
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); kerrors.IsNotFound(err) {
+		return kubeResources, nil
+	} else if err != nil {
+		return kubeResources, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
+	}
+
+	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
+	if !ok || len(authToken) == 0 {
+		return kubeResources, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
+	}
+
+	noobaMgmtRoute := &routev1.Route{}
+	noobaMgmtRoute.Name = "noobaa-mgmt"
+	noobaMgmtRoute.Namespace = s.namespace
+
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
+		return kubeResources, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
+	}
+	if len(noobaMgmtRoute.Status.Ingress) == 0 {
+		return kubeResources, fmt.Errorf("no Ingress available in noobaa-mgmt route")
+	}
+
+	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
+	if noobaaMgmtAddress == "" {
+		return kubeResources, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
+	}
+
+	kubeResources = append(kubeResources,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "noobaa-remote-join-secret",
+				Namespace: consumer.Status.Client.OperatorNamespace,
+			},
+			Data: map[string][]byte{
+				"auth_token": authToken,
+				"mgmt_addr":  []byte(noobaaMgmtAddress),
+			},
+		},
+		&nbv1.NooBaa{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "noobaa-remote",
+				Namespace: consumer.Status.Client.OperatorNamespace,
+			},
+			Spec: nbv1.NooBaaSpec{
+				JoinSecret: &v1.SecretReference{
+					Name:      "noobaa-remote-join-secret",
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
+			},
+		},
+	)
+
+	return kubeResources, nil
+}
+
+func sanitizeKubeResource(obj client.Object) {
+	name := obj.GetName()
+	namespace := obj.GetNamespace()
+	labels := obj.GetLabels()
+	annotations := obj.GetAnnotations()
+
+	zeroFieldByName(obj, "Status")
+	zeroFieldByName(obj, "ObjectMeta")
+
+	obj.SetName(name)
+	obj.SetNamespace(namespace)
+	obj.SetLabels(labels)
+	obj.SetAnnotations(annotations)
+}
+
+func zeroFieldByName(obj any, fieldName string) {
+	st := reflect.Indirect(reflect.ValueOf(obj))
+	if st.Kind() != reflect.Struct {
+		return
+	}
+
+	field := st.FieldByName(fieldName)
+	if field.CanSet() {
+		field.SetZero()
+	}
 }

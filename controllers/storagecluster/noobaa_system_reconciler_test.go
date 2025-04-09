@@ -8,6 +8,7 @@ import (
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 
 	cephCluster := cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephClusterFromString(namespacedName.Name),
+			Name:      util.GenerateNameForCephClusterFromString(namespacedName.Name),
 			Namespace: namespacedName.Namespace,
 		},
 	}
@@ -124,7 +125,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 		assert.Equal(t, noobaa.Name, namespacedName.Name)
 		assert.Equal(t, noobaa.Namespace, namespacedName.Namespace)
 		if !c.isCreate {
-			assert.Equal(t, *noobaa.Spec.DBStorageClass, defaultStorageClass)
+			assert.Equal(t, *noobaa.Spec.DBSpec.DBStorageClass, defaultStorageClass)
 			assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, defaultStorageClass)
 		}
 	}
@@ -165,7 +166,7 @@ func TestNooBaaSkipUnskip(t *testing.T) {
 		}
 
 		cephCluster := cephv1.CephCluster{}
-		cephCluster.Name = generateNameForCephClusterFromString(sc.Name)
+		cephCluster.Name = util.GenerateNameForCephClusterFromString(sc.Name)
 		cephCluster.Namespace = sc.Namespace
 		cephCluster.Status.State = cephv1.ClusterStateCreated
 		err := reconciler.Client.Create(context.TODO(), &cephCluster)
@@ -259,7 +260,7 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		reconciler.Log = noobaaReconcileTestLogger
 
 		cephCluster := cephv1.CephCluster{}
-		cephCluster.Name = generateNameForCephClusterFromString(namespacedName.Name)
+		cephCluster.Name = util.GenerateNameForCephClusterFromString(namespacedName.Name)
 		cephCluster.Namespace = namespacedName.Namespace
 		cephCluster.Status.State = cephv1.ClusterStateCreated
 		err := reconciler.Client.Create(context.TODO(), &cephCluster)
@@ -363,13 +364,13 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			assert.Failf(t, "[%s] unable to set noobaa desired state", c.label)
 		}
 		if c.dbStorageClassName == "" {
-			c.dbStorageClassName = generateNameForCephBlockPoolSC(&c.sc)
+			c.dbStorageClassName = util.GenerateNameForCephBlockPoolStorageClass(&c.sc)
 		}
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
 		assert.NotEmptyf(t, noobaa.Labels, "[%s] expected noobaa Labels not found", c.label)
 		assert.Equalf(t, noobaa.Labels["app"], "noobaa", "[%s] expected noobaa Label mismatch", c.label)
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
-		assert.Equal(t, *noobaa.Spec.DBStorageClass, c.dbStorageClassName)
+		assert.Equal(t, *noobaa.Spec.DBSpec.DBStorageClass, c.dbStorageClassName)
 		assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, c.dbStorageClassName)
 		noobaaplacement := getPlacement(&c.sc, "noobaa-core")
 		assert.Equal(t, noobaa.Spec.Tolerations, noobaaplacement.Tolerations)
@@ -379,7 +380,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			assert.Equalf(t, *noobaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)
 		}
 		if c.envDB != "" {
-			assert.Equalf(t, *noobaa.Spec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
+			assert.Equalf(t, *noobaa.Spec.DBSpec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
 		}
 	}
 }
@@ -413,7 +414,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 	assert.NoError(t, err)
 
 	// get the ceph cluster
-	request.Name = generateNameForCephCluster(cr)
+	request.Name = util.GenerateNameForCephCluster(cr)
 	foundCeph := &cephv1.CephCluster{}
 	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, foundCeph)
 	assert.NoError(t, err)
@@ -558,7 +559,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	cephCluster := &cephv1.CephCluster{}
 	err = reconciler.Client.Get(ctxTodo,
-		types.NamespacedName{Name: generateNameForCephCluster(cr)},
+		types.NamespacedName{Name: util.GenerateNameForCephCluster(cr)},
 		cephCluster)
 	if err == nil {
 		cephCluster.Status.State = cephv1.ClusterStateCreated

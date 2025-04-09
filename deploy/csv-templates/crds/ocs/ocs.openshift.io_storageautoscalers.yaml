@@ -27,9 +27,13 @@ spec:
       jsonPath: .spec.deviceClass
       name: DeviceClass
       type: string
-    - description: Last Run Time Stamp
-      jsonPath: .status.lastRunTimeStamp
-      name: LastRunTimeStamp
+    - description: Last Run Start Time Stamp
+      jsonPath: .status.lastExpansion.startTime
+      name: LastRunStartTime
+      type: date
+    - description: Last Run Completion Time Stamp
+      jsonPath: .status.lastExpansion.completionTime
+      name: LastRunCompletionTime
       type: date
     name: v1
     schema:

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -502,10 +501,6 @@ func (r *OCSInitializationReconciler) getCsiTolerations(csiTolerationKey string)
 // When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
 func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
 
-	allowConsumers := slices.ContainsFunc(r.clusters.GetInternalStorageClusters(), func(sc ocsv1.StorageCluster) bool {
-		return sc.Spec.AllowRemoteStorageConsumers
-	})
-
 	enableCephfsVal, err := r.getEnableCephfsKeyValue()
 	if err != nil {
 		r.Log.Error(err, "Failed to get enableCephfsKeyValue")
@@ -519,7 +514,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
 		util.EnableCephfsKey:             enableCephfsVal,
-		util.DisableCSIDriverKey:         strconv.FormatBool(allowConsumers),
+		util.DisableCSIDriverKey:         strconv.FormatBool(true),
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{
@@ -565,7 +560,7 @@ func (r *OCSInitializationReconciler) getEnableTopologyKeyValue() string {
 			return "true"
 		} else if sc.Spec.ExternalStorage.Enable {
 			// In external mode, check if the non-resilient storageClass exists
-			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			scName := util.GenerateNameForNonResilientCephBlockPoolStorageClass(&sc)
 			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
 			if storageClass != nil {
 				return "true"
@@ -587,7 +582,7 @@ func (r *OCSInitializationReconciler) getTopologyDomainLabelsKeyValue() string {
 		} else if sc.Spec.ExternalStorage.Enable {
 			// In external mode, check if the non-resilient storageClass exists
 			// determine the failure domain key from the storageClass parameter
-			scName := util.GenerateNameForNonResilientCephBlockPoolSC(&sc)
+			scName := util.GenerateNameForNonResilientCephBlockPoolStorageClass(&sc)
 			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
 			if storageClass != nil {
 				return getFailureDomainKeyFromStorageClassParameter(storageClass)

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/imdario/mergo"
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,9 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 )
 
 func TestCephFileSystem(t *testing.T) {
@@ -57,36 +56,6 @@ func assertCephFileSystem(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	assert.Equal(t, expectedAf[0].ObjectMeta.Name, actualFs.ObjectMeta.Name)
 	assert.Equal(t, expectedAf[0].Spec, actualFs.Spec)
-}
-
-func TestCreateDefaultSubvolumeGroup(t *testing.T) {
-	var objects []client.Object
-	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
-	filesystem, err := reconciler.newCephFilesystemInstances(cr)
-	assert.NoError(t, err)
-
-	err = reconciler.createDefaultSubvolumeGroup(filesystem[0].Name, filesystem[0].Namespace, filesystem[0].OwnerReferences)
-	assert.NoError(t, err)
-
-	svg := &cephv1.CephFilesystemSubVolumeGroup{}
-	expectedsvgName := generateNameForCephSubvolumeGroup(filesystem[0].Name)
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expectedsvgName, Namespace: filesystem[0].Namespace}, svg)
-	assert.NoError(t, err) // no error
-}
-
-func TestDeleteDefaultSubvolumeGroup(t *testing.T) {
-	var objects []client.Object
-	t, reconciler, cr, _ := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
-	filesystem, err := reconciler.newCephFilesystemInstances(cr)
-	assert.NoError(t, err)
-
-	err = reconciler.deleteDefaultSubvolumeGroup(filesystem[0].Name, filesystem[0].Namespace)
-	assert.NoError(t, err)
-
-	svg := &cephv1.CephFilesystemSubVolumeGroup{}
-	expectedsvgName := generateNameForCephSubvolumeGroup(filesystem[0].Name)
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expectedsvgName, Namespace: filesystem[0].Namespace}, svg)
-	assert.Error(t, err) // error as csi svg is deleted
 }
 
 func TestGetActiveMetadataServers(t *testing.T) {
@@ -154,7 +123,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				Spec: api.StorageClusterSpec{
 					ManagedResources: api.ManagedResourcesSpec{
 						CephFilesystems: api.ManageCephFilesystems{
-							DataPoolSpec: cephv1.PoolSpec{
+							DataPoolSpec: &cephv1.PoolSpec{
 								DeviceClass: "gold",
 								Replicated: cephv1.ReplicatedSpec{
 									Size:            2,
@@ -274,7 +243,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				Spec: api.StorageClusterSpec{
 					ManagedResources: api.ManagedResourcesSpec{
 						CephFilesystems: api.ManageCephFilesystems{
-							DataPoolSpec: cephv1.PoolSpec{
+							DataPoolSpec: &cephv1.PoolSpec{
 								DeviceClass: "gold",
 								Replicated: cephv1.ReplicatedSpec{
 									TargetSizeRatio: 0.1,
@@ -379,12 +348,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -463,12 +432,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -484,12 +453,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -505,12 +474,12 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
 						},
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -545,7 +514,7 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						DataPoolSpec: cephv1.PoolSpec{
+						DataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},
@@ -580,7 +549,7 @@ func TestBulkFlagBehaviorCephFilesystem(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephFilesystems: api.ManageCephFilesystems{
-						MetadataPoolSpec: cephv1.PoolSpec{
+						MetadataPoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},

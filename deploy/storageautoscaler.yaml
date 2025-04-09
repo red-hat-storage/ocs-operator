@@ -1,0 +1,13 @@
+apiVersion: ocs.openshift.io/v1
+kind: StorageAutoScaler
+metadata:
+  name: ssdscaler
+  namespace: openshift-storage
+spec:
+  storageCluster:
+    name: ocs-storagecluster
+  deviceClass: ssd
+  storageCapacityLimit: 100Ti
+  maxOsdSize: 8Ti
+  storageScalingThresholdPercent: 70
+  timeoutSeconds: 1800

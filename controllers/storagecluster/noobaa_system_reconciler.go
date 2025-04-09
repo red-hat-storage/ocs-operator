@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
@@ -12,6 +13,7 @@ import (
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,23 +50,23 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	if !r.IsNoobaaStandalone {
 		// find cephCluster
 		foundCeph := &rookCephv1.CephCluster{}
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: statusutil.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
-			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 			return reconcile.Result{}, err
 		}
 		if !sc.Spec.ExternalStorage.Enable {
 			if foundCeph.Status.State != rookCephv1.ClusterStateCreated {
-				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
 		} else {
 			if foundCeph.Status.State != rookCephv1.ClusterStateConnected {
-				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, generateNameForCephCluster(sc)))
+				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
 		}
@@ -102,7 +104,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	}
 	// Need to happen after the noobaa CR update was confirmed
 	sc.Status.Images.NooBaaCore.ActualImage = *nb.Spec.Image
-	sc.Status.Images.NooBaaDB.ActualImage = *nb.Spec.DBImage
+	sc.Status.Images.NooBaaDB.ActualImage = *nb.Spec.DBSpec.DBImage
 
 	objectRef, err := reference.GetReference(r.Scheme, nb)
 	if err != nil {
@@ -139,27 +141,34 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		"app": "noobaa",
 	}
 
-	if sc.Spec.AllowRemoteStorageConsumers {
-		util.AddAnnotation(nb, "MulticloudObjectGatewayProviderMode", "true")
+	util.AddAnnotation(nb, "MulticloudObjectGatewayProviderMode", "true")
+
+	// Set DB information inside DBSpec and not directly in NooBaaSpec
+	// DBSpec is used for deploying a posgres client, while the DB fields were used for the single DB instance.
+	// The fields in NooBaaSpec should be left unmodified, to keep the old DB up until data is imported into the new DB cluster.
+	dbMinVolumeSize := dBVolumeResources.Requests.Storage().String()
+	nb.Spec.DBSpec = &nbv1.NooBaaDBSpec{
+		DBImage:         &r.images.NooBaaDB,
+		DBMinVolumeSize: dbMinVolumeSize,
 	}
 
 	if !r.IsNoobaaStandalone {
-		storageClassName := generateNameForCephBlockPoolSC(sc)
+		storageClassName := util.GenerateNameForCephBlockPoolStorageClass(sc)
 
 		if sc.Spec.ExternalStorage.Enable {
-			externalStorageClassName, err := r.generateNameForExternalModeCephBlockPoolSC(nb)
+			externalStorageClassName, err := r.GenerateNameForExternalModeCephBlockPoolSC(nb)
 			if err != nil {
 				return err
 			}
 			storageClassName = externalStorageClassName
 		}
 
-		nb.Spec.DBStorageClass = &storageClassName
+		nb.Spec.DBSpec.DBStorageClass = &storageClassName
 		nb.Spec.PVPoolDefaultStorageClass = &storageClassName
 	}
 
 	nb.Spec.CoreResources = &coreResources
-	nb.Spec.DBResources = &dbResources
+	nb.Spec.DBSpec.DBResources = &dbResources
 
 	component := "noobaa-standalone"
 	// fallback to 'noobaa-core' if either the cluster is not standalone or if "noobaa-standalone" placement is not found
@@ -179,13 +188,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		nb.Spec.Affinity = nil
 	}
 
-	nb.Spec.DBVolumeResources = &corev1.VolumeResourceRequirements{
-		Limits:   dBVolumeResources.Limits,
-		Requests: dBVolumeResources.Requests,
-	}
 	nb.Spec.Image = &r.images.NooBaaCore
-	nb.Spec.DBImage = &r.images.NooBaaDB
-	nb.Spec.DBType = nbv1.DBTypePostgres
 
 	// Default endpoint spec.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
@@ -210,7 +213,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 		dbStorageClass := sc.Spec.MultiCloudGateway.DbStorageClassName
 		if dbStorageClass != "" {
-			nb.Spec.DBStorageClass = &dbStorageClass
+			nb.Spec.DBSpec.DBStorageClass = &dbStorageClass
 			nb.Spec.PVPoolDefaultStorageClass = &dbStorageClass
 		}
 		if sc.Spec.MultiCloudGateway.Endpoints != nil {
@@ -248,7 +251,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	// PS: sc.Spec.Encryption.Enable field is deprecated and added for backward compatibility
 	if sc.Spec.Encryption.KeyManagementService.Enable &&
 		(util.IsClusterOrDeviceSetEncrypted(sc) || r.IsNoobaaStandalone) {
-		if kmsConfig, err := getKMSConfigMap(KMSConfigMapName, sc, r.Client); err != nil {
+		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, sc, r.Client); err != nil {
 			return err
 		} else if kmsConfig != nil {
 			// Set default KMS_PROVIDER, if it is empty. Possible values are: vault, ibmkeyprotect, kmip.
@@ -302,7 +305,7 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 			pvcs := &corev1.PersistentVolumeClaimList{}
 			opts := []client.ListOption{
 				client.InNamespace(sc.Namespace),
-				client.MatchingLabels(map[string]string{"noobaa-core": "noobaa"}),
+				client.MatchingLabels(map[string]string{"app": "noobaa"}),
 			}
 			err = r.Client.List(context.TODO(), pvcs, opts...)
 			if err != nil {
@@ -339,4 +342,34 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 		}
 	}
 	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
+}
+
+func (r *StorageClusterReconciler) GenerateNameForExternalModeCephBlockPoolSC(nb *nbv1.NooBaa) (string, error) {
+	var storageClassName string
+
+	if nb.Spec.DBStorageClass != nil {
+		storageClassName = *nb.Spec.DBStorageClass
+	} else {
+		// list all storage classes and pick the first one
+		// whose provisioner suffix matches with `rbd.csi.ceph.com` suffix
+		storageClasses := &storagev1.StorageClassList{}
+		err := r.Client.List(r.ctx, storageClasses)
+		if err != nil {
+			r.Log.Error(err, "Failed to list storage classes")
+			return "", err
+		}
+
+		for _, sc := range storageClasses.Items {
+			if strings.HasSuffix(sc.Provisioner, "rbd.csi.ceph.com") {
+				storageClassName = sc.Name
+				break
+			}
+		}
+	}
+
+	if storageClassName == "" {
+		return "", fmt.Errorf("no storage class found with provisioner suffix `rbd.csi.ceph.com`")
+	}
+
+	return storageClassName, nil
 }

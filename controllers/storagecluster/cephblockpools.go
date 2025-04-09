@@ -40,7 +40,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 
 	cephBlockPool := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephBlockPool(storageCluster),
+			Name:      util.GenerateNameForCephBlockPool(storageCluster.Name),
 			Namespace: storageCluster.Namespace,
 		},
 	}
@@ -69,7 +69,9 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		// Pass the poolSpec from the storageCluster CR
 
 		existingPoolSpec := cephBlockPool.Spec.PoolSpec
-		cephBlockPool.Spec.PoolSpec = storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
+		if storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec != nil {
+			cephBlockPool.Spec.PoolSpec = *storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
+		}
 
 		// Set default values in the poolSpec as necessary
 		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
@@ -146,7 +148,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 
 	cephBlockPool := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephNFSBlockPool(storageCluster),
+			Name:      util.GenerateNameForCephNFSBlockPool(storageCluster),
 			Namespace: storageCluster.Namespace,
 		},
 	}
@@ -194,7 +196,7 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 
 		cephBlockPool := &cephv1.CephBlockPool{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForNonResilientCephBlockPool(storageCluster, failureDomainValue),
+				Name:      util.GenerateNameForNonResilientCephBlockPool(storageCluster.Name, failureDomainValue),
 				Namespace: storageCluster.Namespace,
 			},
 		}

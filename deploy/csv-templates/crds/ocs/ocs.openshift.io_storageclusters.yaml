@@ -64,6 +64,9 @@ spec:
                   AllowRemoteStorageConsumers Indicates that the OCS cluster should deploy the needed
                   components to enable connections from remote consumers.
                 type: boolean
+                x-kubernetes-validations:
+                - message: allowRemoteStorageConsumers is immutable
+                  rule: oldSelf == self
               arbiter:
                 description: |-
                   ArbiterSpec specifies the storage cluster options related to arbiter.
@@ -5135,8 +5138,11 @@ spec:
               providerAPIServerServiceType:
                 description: |-
                   ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
-                  The supported values are NodePort or LoadBalancer. The default ServiceType is NodePort if the value is empty.
-                  This will only be used when AllowRemoteStorageConsumers is set to true
+                  The default ServiceType is derived from hostNetwork field.
+                enum:
+                - ClusterIP
+                - NodePort
+                - LoadBalancer
                 type: string
               resourceProfile:
                 description: |-

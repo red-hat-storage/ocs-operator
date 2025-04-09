@@ -27,7 +27,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 
 	t.Run("Ensure that Deployment,Service is created when storageCluster is created", func(t *testing.T) {
 
-		r, instance := createSetupForOcsProviderTest(t, "")
+		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeNodePort)
 
 		obj := &ocsProviderServer{}
 		res, err := obj.ensureCreated(r, instance)
@@ -194,18 +194,6 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		assert.Equal(t, expectedService.Spec, service.Spec)
 	})
 
-	t.Run("Ensure that Service is not created when ProviderAPIServerServiceType is set to any other value than NodePort, ClusterIP or LoadBalancer", func(t *testing.T) {
-
-		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeExternalName)
-
-		obj := &ocsProviderServer{}
-		_, err := obj.ensureCreated(r, instance)
-		assert.Errorf(t, err, "only supports service of type")
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		assert.True(t, errors.IsNotFound(r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service)))
-	})
 }
 
 func TestOcsProviderServerEnsureDeleted(t *testing.T) {

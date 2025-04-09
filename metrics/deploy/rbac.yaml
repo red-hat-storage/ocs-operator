@@ -83,6 +83,7 @@ rules:
   resources:
   - storageconsumers
   - storageclusters
+  - storageautoscalers
   verbs:
     - get
     - list

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
 	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -15,8 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 )
 
 var (
@@ -86,7 +87,7 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 
 	expectedCbp := cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephBlockPool(cr),
+			Name:      util.GenerateNameForCephBlockPool(cr.Name),
 			Namespace: cr.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -136,7 +137,7 @@ func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, c
 
 	expectedCbp := cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateNameForCephNFSBlockPool(cr),
+			Name:      util.GenerateNameForCephNFSBlockPool(cr),
 			Namespace: cr.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -177,7 +178,7 @@ func TestBulkFlagBehaviorCephBlockPool(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephBlockPools: api.ManageCephBlockPools{
-						PoolSpec: cephv1.PoolSpec{
+						PoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "false",
 							},
@@ -231,7 +232,7 @@ func TestBulkFlagBehaviorCephBlockPool(t *testing.T) {
 			storageClusterSpec: &api.StorageClusterSpec{
 				ManagedResources: api.ManagedResourcesSpec{
 					CephBlockPools: api.ManageCephBlockPools{
-						PoolSpec: cephv1.PoolSpec{
+						PoolSpec: &cephv1.PoolSpec{
 							Parameters: map[string]string{
 								"bulk": "true",
 							},

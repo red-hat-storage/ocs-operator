@@ -10,9 +10,8 @@ const (
 )
 
 type OnboardingTicket struct {
-	ID                string                `json:"id"`
-	ExpirationDate    int64                 `json:"expirationDate,string"`
-	SubjectRole       OnboardingSubjectRole `json:"subjectRole"`
-	StorageQuotaInGiB *uint                 `json:"storageQuotaInGiB,omitempty"`
-	StorageCluster    types.UID             `json:"storageCluster"`
+	ID             string                `json:"id"`
+	ExpirationDate int64                 `json:"expirationDate,string"`
+	SubjectRole    OnboardingSubjectRole `json:"subjectRole"`
+	StorageCluster types.UID             `json:"storageCluster"`
 }

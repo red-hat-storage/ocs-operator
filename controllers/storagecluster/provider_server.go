@@ -58,23 +58,17 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 }
 
 func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-
-	// We do not check instance.Spec.AllowRemoteStorageConsumers because provider can disable this functionality
-	// and we need to delete the resources even the flag is not enabled (uninstall case).
-
-	// This func is directly called by the ensureCreated if the flag is disabled and deletes the resource
-	// Which means we do not need to call ensureDeleted while reconciling unless we are uninstalling
-
-	// NOTE: Do not add the check
-
 	if err := r.verifyNoStorageConsumerExist(instance); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	var finalErr error
 
+	apiServerService := &corev1.Service{}
+	apiServerService.Name = ocsProviderServerName
+	apiServerService.Namespace = instance.Namespace
 	for _, resource := range []client.Object{
-		GetProviderAPIServerService(instance),
+		apiServerService,
 		GetProviderAPIServerDeployment(instance),
 	} {
 		err := r.Client.Delete(r.ctx, resource)
@@ -137,18 +131,6 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 
 func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if instance.Spec.ProviderAPIServerServiceType != "" {
-		switch instance.Spec.ProviderAPIServerServiceType {
-		case corev1.ServiceTypeClusterIP, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
-		default:
-			err := fmt.Errorf("providerAPIServer only supports service of type %s, %s and %s",
-				corev1.ServiceTypeNodePort, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeClusterIP)
-			r.Log.Error(err, "Failed to create/update service, Requested ServiceType is", "ServiceType", instance.Spec.ProviderAPIServerServiceType)
-			return reconcile.Result{}, err
-		}
-
-	}
-
 	desiredService := GetProviderAPIServerService(instance)
 	actualService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -179,7 +161,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 
 	r.Log.Info("Service create/update succeeded")
 
-	switch instance.Spec.ProviderAPIServerServiceType {
+	switch desiredService.Spec.Type {
 	case corev1.ServiceTypeLoadBalancer:
 		endpoint := o.getLoadBalancerServiceEndpoint(actualService)
 
@@ -194,7 +176,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 	case corev1.ServiceTypeClusterIP:
 		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", actualService.Spec.ClusterIP, ocsProviderServicePort)
 
-	default: // Nodeport is the default ServiceType for the provider server
+	case corev1.ServiceTypeNodePort:
 		nodeAddresses, err := o.getWorkerNodesInternalIPAddresses(r)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -342,11 +324,12 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 }
 
 func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service {
-
-	if instance.Spec.ProviderAPIServerServiceType == "" {
-		instance.Spec.ProviderAPIServerServiceType = corev1.ServiceTypeNodePort
+	serviceType := corev1.ServiceTypeClusterIP
+	if instance.Spec.ProviderAPIServerServiceType != "" {
+		serviceType = instance.Spec.ProviderAPIServerServiceType
+	} else if instance.Spec.HostNetwork {
+		serviceType = corev1.ServiceTypeNodePort
 	}
-
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ocsProviderServerName,
@@ -363,7 +346,7 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 				{
 					NodePort: func() int32 {
 						// ClusterIP service doesn't need nodePort
-						if instance.Spec.ProviderAPIServerServiceType == corev1.ServiceTypeClusterIP {
+						if serviceType == corev1.ServiceTypeClusterIP {
 							return 0
 						}
 						return ocsProviderServiceNodePort
@@ -372,7 +355,7 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},
-			Type: instance.Spec.ProviderAPIServerServiceType,
+			Type: serviceType,
 		},
 	}
 }

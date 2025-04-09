@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -17,16 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	errTicketAlreadyExists = errors.New("onboarding ticket already used by another storageConsumer")
-)
-
 type ocsConsumerManager struct {
-	client       client.Client
-	namespace    string
-	nameByTicket map[string]string
-	nameByUID    map[types.UID]string
-	mutex        sync.RWMutex
+	client    client.Client
+	namespace string
+	nameByUID map[types.UID]string
+	mutex     sync.RWMutex
 }
 
 func newConsumerManager(ctx context.Context, cl client.Client, namespace string) (*ocsConsumerManager, error) {
@@ -36,73 +30,17 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 		return nil, fmt.Errorf("failed to list storage consumers. %v", err)
 	}
 
-	nameByTicket := map[string]string{}
 	nameByUID := map[types.UID]string{}
 
 	for _, consumer := range consumers.Items {
 		nameByUID[consumer.UID] = consumer.Name
-
-		if ticket, ok := consumer.GetAnnotations()[TicketAnnotation]; ok {
-			nameByTicket[ticket] = consumer.Name
-		}
 	}
 
 	return &ocsConsumerManager{
-		client:       cl,
-		namespace:    namespace,
-		nameByTicket: nameByTicket,
-		nameByUID:    nameByUID,
+		client:    cl,
+		namespace: namespace,
+		nameByUID: nameByUID,
 	}, nil
-}
-
-// Create creates a new storageConsumer resource, updates the consumer cache and returns the storageConsumer UID
-func (c *ocsConsumerManager) Create(ctx context.Context, onboard ifaces.StorageClientOnboarding, storageQuotaInGiB int) (string, error) {
-	ticket := onboard.GetOnboardingTicket()
-	name := onboard.GetConsumerName()
-	c.mutex.RLock()
-	if _, ok := c.nameByTicket[ticket]; ok {
-		c.mutex.RUnlock()
-		klog.Warning("onboarding ticket already in use")
-		return "", errTicketAlreadyExists
-	}
-	c.mutex.RUnlock()
-
-	consumerObj := &ocsv1alpha1.StorageConsumer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.namespace,
-			Annotations: map[string]string{
-				TicketAnnotation: ticket,
-			},
-		},
-		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Enable:            false,
-			StorageQuotaInGiB: storageQuotaInGiB,
-		},
-		Status: ocsv1alpha1.StorageConsumerStatus{
-			Client: ocsv1alpha1.ClientStatus{
-				OperatorVersion: onboard.GetClientOperatorVersion(),
-			},
-		},
-	}
-
-	err := c.client.Create(ctx, consumerObj)
-	if err != nil {
-		if kerrors.IsAlreadyExists(err) {
-			klog.Warningf("storageConsumer %q already exists", name)
-			return "", err
-		}
-		return "", fmt.Errorf("failed to create storageConsumer resource %q. %v", consumerObj.Name, err)
-	}
-
-	c.mutex.Lock()
-	c.nameByUID[consumerObj.UID] = consumerObj.Name
-	c.nameByTicket[ticket] = consumerObj.Name
-	c.mutex.Unlock()
-
-	klog.Infof("successfully created storageConsumer resource %q", name)
-
-	return string(consumerObj.UID), nil
 }
 
 // Delete deletes the storageConsumer resource using UID and updates the consumer cache
@@ -150,23 +88,22 @@ func (c *ocsConsumerManager) Delete(ctx context.Context, id string) error {
 }
 
 // EnableStorageConsumer enables storageConsumer resource
-func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, id string) error {
-	// Get storage consumer resource using UID
-	consumerObj, err := c.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	consumerObj.Spec.Enable = true
-	err = c.client.Update(ctx, consumerObj)
-	if err != nil {
+func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (string, error) {
+	consumer.Spec.Enable = true
+	// update here acts as a synchronization point even if two api calls
+	// resolves to a single storageconsumer the resourceVersion of one of
+	// the calls will not match and be dropped
+	if err := c.client.Update(ctx, consumer); err != nil {
 		klog.Errorf("Failed to enable storageConsumer %v", err)
-		return fmt.Errorf("failed to update storageConsumer resource %q. %v", consumerObj.Name, err)
+		return "", fmt.Errorf("failed to update storageConsumer resource %q. %v", consumer.Name, err)
 	}
 
-	klog.Infof("successfully Enabled the StorageConsumer resource %q", consumerObj.Name)
+	c.mutex.Lock()
+	c.nameByUID[consumer.UID] = consumer.Name
+	c.mutex.Unlock()
+	klog.Infof("successfully Enabled the StorageConsumer resource %q", consumer.Name)
 
-	return nil
+	return string(consumer.UID), nil
 }
 
 // GetByName returns a storageConsumer resource using the Name
@@ -218,6 +155,7 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.LastHeartbeat = metav1.Now()
 	consumerObj.Status.Client.PlatformVersion = status.GetPlatformVersion()
 	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
+	consumerObj.Status.Client.OperatorNamespace = status.GetOperatorNamespace()
 	consumerObj.Status.Client.ClusterID = status.GetClusterID()
 	consumerObj.Status.Client.Name = status.GetClientName()
 	consumerObj.Status.Client.ID = status.GetClientID()

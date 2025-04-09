@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
@@ -23,6 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,6 +33,90 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+var (
+	createVirtualMachineCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "virtualmachines"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "kubevirt.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "kubevirt.io",
+				Scope: extv1.NamespaceScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "VirtualMachine",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
+	createStorageClientCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "storageclients"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "ocs.openshift.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "ocs.openshift.io",
+				Scope: extv1.ClusterScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "StorageClient",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1alpha1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
+	createVolumeGroupSnapshotClassCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "volumegroupsnapshotclasses"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "groupsnapshot.storage.k8s.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "groupsnapshot.storage.k8s.io",
+				Scope: extv1.ClusterScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "VolumeGroupSnapshotClass",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1beta1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
 )
 
 func createDefaultStorageCluster() *api.StorageCluster {
@@ -45,8 +132,7 @@ func createStorageCluster(scName, failureDomainName string,
 				UninstallModeAnnotation: string(UninstallModeGraceful),
 				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
 			},
-			Finalizers:      []string{storageClusterFinalizer},
-			OwnerReferences: []metav1.OwnerReference{{Name: "storage-test", Kind: "StorageSystem", APIVersion: "v1"}},
+			Finalizers: []string{storageClusterFinalizer},
 		},
 		Spec: api.StorageClusterSpec{
 			Monitoring: &api.MonitoringSpec{
@@ -299,11 +385,21 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		},
 	}
 
+	clientConfigMap := &v1.ConfigMap{}
+	clientConfigMap.Name = ocsClientConfigMapName
+	clientConfigMap.Namespace = sc.Namespace
+
+	consumer := &ocsv1a1.StorageConsumer{}
+	consumer.Name = defaults.LocalStorageConsumerName
+	consumer.UID = "fake-uid"
+
 	obj = append(
 		obj,
 		mockNodeList.DeepCopy(),
+		consumer,
 		cbp,
 		cfs,
+		clientConfigMap,
 		cnfs,
 		cnfsbp,
 		cnfssvc,

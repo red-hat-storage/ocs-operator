@@ -92,6 +92,22 @@ func (cc *OCSProviderClient) GetStorageConfig(ctx context.Context, consumerUUID 
 	return cc.Client.GetStorageConfig(apiCtx, req)
 }
 
+// GetDesiredClientState RPC call to generate the desired state of the client
+func (cc *OCSProviderClient) GetDesiredClientState(ctx context.Context, consumerUUID string) (*pb.GetDesiredClientStateResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.GetDesiredClientStateRequest{
+		StorageConsumerUUID: consumerUUID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetDesiredClientState(apiCtx, req)
+}
+
 // OffboardConsumer deletes the StorageConsumer CR on the storage provider cluster
 func (cc *OCSProviderClient) OffboardConsumer(ctx context.Context, consumerUUID string) (*pb.OffboardConsumerResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {

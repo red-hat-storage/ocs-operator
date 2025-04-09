@@ -5,10 +5,11 @@ import (
 	"maps"
 	"strconv"
 
-	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 
+	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,9 +18,6 @@ import (
 )
 
 const (
-	tokenLifetimeInHours         = 48
-	onboardingPrivateKeyFilePath = "/etc/private-key/key"
-
 	ocsClientConfigMapName = "ocs-client-operator-config"
 	manageNoobaaSubKey     = "manageNoobaaSubscription"
 )
@@ -29,11 +27,6 @@ type storageClient struct{}
 var _ resourceManager = &storageClient{}
 
 func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster) (reconcile.Result, error) {
-
-	if !storagecluster.Spec.AllowRemoteStorageConsumers {
-		r.Log.Info("Spec.AllowRemoteStorageConsumers is disabled")
-		return s.ensureDeleted(r, storagecluster)
-	}
 
 	if !r.AvailableCrds[StorageClientCrdName] {
 		return reconcile.Result{}, fmt.Errorf("StorageClient CRD is not available")
@@ -47,11 +40,25 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 	storageClient.Name = storagecluster.Name
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
-			token, err := util.GenerateClientOnboardingToken(tokenLifetimeInHours, onboardingPrivateKeyFilePath, nil, storagecluster.UID)
-			if err != nil {
-				return fmt.Errorf("unable to generate onboarding token: %v", err)
+			localStorageConsumer := &ocsv1a1.StorageConsumer{}
+			localStorageConsumer.Name = defaults.LocalStorageConsumerName
+			localStorageConsumer.Namespace = storagecluster.Namespace
+			if err := r.Get(r.ctx, client.ObjectKeyFromObject(localStorageConsumer), localStorageConsumer); err != nil {
+				return fmt.Errorf("failed to get storageconsumer %s: %v", localStorageConsumer.Name, err)
+			} else if localStorageConsumer.Status.OnboardingTicketSecret.Name == "" {
+				return fmt.Errorf("no reference to onboarding secret found in storageconsumer %s status", localStorageConsumer.Name)
 			}
-			storageClient.Spec.OnboardingTicket = token
+
+			onboardingSecret := &corev1.Secret{}
+			onboardingSecret.Name = localStorageConsumer.Status.OnboardingTicketSecret.Name
+			onboardingSecret.Namespace = storagecluster.Namespace
+			if err := r.Get(r.ctx, client.ObjectKeyFromObject(onboardingSecret), onboardingSecret); err != nil {
+				return fmt.Errorf("failed to get onboarding secret %s: %v", onboardingSecret.Name, err)
+			} else if len(onboardingSecret.Data[defaults.OnboardingTokenKey]) == 0 {
+				return fmt.Errorf("no 'onboarding-token' field found in onboarding secret %s", onboardingSecret.Name)
+			}
+
+			storageClient.Spec.OnboardingTicket = string(onboardingSecret.Data[defaults.OnboardingTokenKey])
 		}
 		// we could just use svcName:port however in-cluster traffic from "*.svc" is generally not proxied and
 		// we using qualified name upto ".svc" makes connection not go through any proxies.

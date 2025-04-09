@@ -49,10 +49,10 @@ OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 # We are using rook dowsntream image now, i.e, red-hat-storage/rook code
 # and we should continue to use dowsntream image only due to few
 # downstream only changes present in rook downstream fork.
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-793bbb006"
-LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20241111"
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-ab4f1ba58"
+LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20250326"
 LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s"
-LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v18.2.0"
+LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v19.2.1"
 # TODO: change image once the quay repo is changed
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
 
@@ -64,7 +64,7 @@ DEFAULT_OPERATOR_BUNDLE_NAME="ocs-operator-bundle"
 DEFAULT_FILE_BASED_CATALOG_NAME="ocs-operator-catalog"
 DEFAULT_METRICS_EXPORTER_IMAGE_NAME="ocs-metrics-exporter"
 DEFAULT_UX_BACKEND_OAUTH_IMAGE_NAME="openshift/origin-oauth-proxy"
-DEFAULT_UX_BACKEND_OAUTH_IMAGE_TAG="4.16.0"
+DEFAULT_UX_BACKEND_OAUTH_IMAGE_TAG="4.19.0"
 
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-${DEFAULT_IMAGE_REGISTRY}}"
 REGISTRY_NAMESPACE="${REGISTRY_NAMESPACE:-${DEFAULT_REGISTRY_NAMESPACE}}"
@@ -88,10 +88,11 @@ FILE_BASED_CATALOG_FULL_IMAGE_NAME="${FILE_BASED_CATALOG_FULL_IMAGE_NAME:-${DEFA
 METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:-${DEFAULT_METRICS_EXPORTER_FULL_IMAGE_NAME}}"
 UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_UX_BACKEND_OAUTH_FULL_IMAGE_NAME}}"
 
-CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:release-4.17-fb535da"
-OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-5595a28"
-NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20241111"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-793bbb006"
+CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.11.0"
+CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-0ac7669"
+OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:3c618ad"
+NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250326"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-ab4f1ba58"
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"
 
 OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"

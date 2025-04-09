@@ -20,16 +20,19 @@ import (
 	"context"
 	"testing"
 
+	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+
 	noobaaApis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	"github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -37,31 +40,29 @@ import (
 func createFakeScheme(t *testing.T) *runtime.Scheme {
 	scheme := runtime.NewScheme()
 
-	err := v1.AddToScheme(scheme)
-	if err != nil {
+	if err := v1.AddToScheme(scheme); err != nil {
 		assert.Fail(t, "unable to build scheme")
 	}
-
-	err = ocsv1alpha1.AddToScheme(scheme)
-	if err != nil {
+	if err := ocsv1alpha1.AddToScheme(scheme); err != nil {
 		assert.Fail(t, "failed to add ocsv1alpha1 scheme")
 	}
-
-	err = routev1.AddToScheme(scheme)
-	if err != nil {
+	if err := routev1.AddToScheme(scheme); err != nil {
 		assert.Fail(t, "failed to add routev1 scheme")
 	}
-	err = noobaaApis.AddToScheme(scheme)
-	if err != nil {
+	if err := noobaaApis.AddToScheme(scheme); err != nil {
 		assert.Fail(t, "failed to add nbapis scheme")
 	}
-	err = configv1.AddToScheme(scheme)
-	if err != nil {
+	if err := configv1.AddToScheme(scheme); err != nil {
 		assert.Fail(t, "failed to add configv1 scheme")
+	}
+	if err := rookcephv1.AddToScheme(scheme); err != nil {
+		assert.Fail(t, "failed to add rookcephv1 scheme")
 	}
 
 	return scheme
 }
+
+//TODO: add more unit-tests related to consumer reconcile
 
 func TestNoobaaAccount(t *testing.T) {
 	var r StorageConsumerReconciler
@@ -74,9 +75,16 @@ func TestNoobaaAccount(t *testing.T) {
 	r.storageConsumer = &ocsv1alpha1.StorageConsumer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "provider",
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "StorageCluster",
+					Name: "storagecluster",
+				},
+			},
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Enable: true,
+			Enable:                       true,
+			ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: "provider"},
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			CephResources: []*ocsv1alpha1.CephResourcesSpec{
@@ -87,18 +95,28 @@ func TestNoobaaAccount(t *testing.T) {
 				},
 			},
 			Client: ocsv1alpha1.ClientStatus{
-				ClusterID: "provider",
+				ClusterID:       "provider",
+				OperatorVersion: "4.19.0",
 			},
 		},
 	}
-	r.noobaaAccount = &v1alpha1.NooBaaAccount{
+	cephfilesystem := &rookcephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "consumer-acc",
+			Name: "storagecluster-cephfilesystem",
+		},
+	}
+	err := client.Create(ctx, cephfilesystem)
+	assert.NoError(t, err)
+	noobaaAccount := &v1alpha1.NooBaaAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "provider",
 		},
 		Status: v1alpha1.NooBaaAccountStatus{
 			Phase: v1alpha1.NooBaaAccountPhaseReady,
 		},
 	}
+	err = client.Create(ctx, noobaaAccount)
+	assert.NoError(t, err)
 	clusterVersionProvider := &configv1.ClusterVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "version",
@@ -107,19 +125,50 @@ func TestNoobaaAccount(t *testing.T) {
 			ClusterID: "12345",
 		},
 	}
-	err := client.Create(ctx, clusterVersionProvider)
+	err = client.Create(ctx, clusterVersionProvider)
+	assert.NoError(t, err)
+	assert.NoError(t, err)
+	storageCluster := &v1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "storagecluster",
+		},
+	}
+	err = client.Create(ctx, storageCluster)
+	assert.NoError(t, err)
+	cephCluster := &rookcephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ceph-cluster",
+		},
+		Status: rookcephv1.ClusterStatus{
+			CephStatus: &rookcephv1.CephStatus{
+				FSID: "1234",
+			},
+		},
+	}
+	err = client.Create(ctx, cephCluster)
+	assert.NoError(t, err)
+	consumerConfig := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "provider",
+			UID:  types.UID("12345"),
+		},
+	}
+	err = client.Create(ctx, consumerConfig)
 	assert.NoError(t, err)
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
 
-	want := []*ocsv1alpha1.CephResourcesSpec{
-		{
-			Kind:  "NooBaaAccount",
-			Name:  "consumer-acc",
-			Phase: "Ready",
-		},
+	want := &ocsv1alpha1.CephResourcesSpec{
+		Kind:  "NooBaaAccount",
+		Name:  "provider",
+		Phase: "Ready",
 	}
-	assert.Equal(t, r.storageConsumer.Status.CephResources, want)
+
+	for i := range r.storageConsumer.Status.CephResources {
+		if r.storageConsumer.Status.CephResources[i].Kind == "NooBaaAccount" {
+			assert.Equal(t, want, r.storageConsumer.Status.CephResources[i])
+		}
+	}
 
 	// When StorageConsumer cr status in Error state
 	client = fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -128,28 +177,47 @@ func TestNoobaaAccount(t *testing.T) {
 	r.storageConsumer = &ocsv1alpha1.StorageConsumer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "consumer",
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "StorageCluster",
+					Name: "storagecluster",
+				},
+			},
 		},
 		Spec: ocsv1alpha1.StorageConsumerSpec{
-			Enable: true,
+			Enable:                       true,
+			ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: "consumer"},
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
 			CephResources: []*ocsv1alpha1.CephResourcesSpec{
 				{
 					Kind:  "NooBaaAccount",
-					Name:  "consumer-acc",
+					Name:  "consumer",
 					Phase: "Error",
 				},
 			},
+			Client: ocsv1alpha1.ClientStatus{
+				OperatorVersion: "4.19.0",
+			},
 		},
 	}
-	r.noobaaAccount = &v1alpha1.NooBaaAccount{
+	cephfilesystem = &rookcephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "consumer-acc",
+			Name: "storagecluster-cephfilesystem",
+		},
+	}
+	err = client.Create(ctx, cephfilesystem)
+	assert.NoError(t, err)
+	noobaaAccount = &v1alpha1.NooBaaAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "consumer",
 		},
 		Status: v1alpha1.NooBaaAccountStatus{
 			Phase: v1alpha1.NooBaaAccountPhaseRejected,
 		},
 	}
+	err = client.Create(ctx, noobaaAccount)
+	assert.NoError(t, err)
 	clusterVersionConsumer := &configv1.ClusterVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "version",
@@ -160,15 +228,45 @@ func TestNoobaaAccount(t *testing.T) {
 	}
 	err = client.Create(ctx, clusterVersionConsumer)
 	assert.NoError(t, err)
+	cephCluster = &rookcephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ceph-cluster",
+		},
+		Status: rookcephv1.ClusterStatus{
+			CephStatus: &rookcephv1.CephStatus{
+				FSID: "1234",
+			},
+		},
+	}
+	err = client.Create(ctx, cephCluster)
+	assert.NoError(t, err)
+	consumerConfig = &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "consumer",
+			UID:  types.UID("12345"),
+		},
+	}
+	err = client.Create(ctx, consumerConfig)
+	assert.NoError(t, err)
+	storageCluster = &v1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "storagecluster",
+		},
+	}
+	err = client.Create(ctx, storageCluster)
+	assert.NoError(t, err)
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
 
-	want = []*ocsv1alpha1.CephResourcesSpec{
-		{
-			Kind:  "NooBaaAccount",
-			Name:  "consumer-acc",
-			Phase: "Rejected",
-		},
+	want = &ocsv1alpha1.CephResourcesSpec{
+		Kind:  "NooBaaAccount",
+		Name:  "consumer",
+		Phase: "Rejected",
 	}
-	assert.Equal(t, r.storageConsumer.Status.CephResources, want)
+
+	for i := range r.storageConsumer.Status.CephResources {
+		if r.storageConsumer.Status.CephResources[i].Kind == "NooBaaAccount" {
+			assert.Equal(t, want, r.storageConsumer.Status.CephResources[i])
+		}
+	}
 }

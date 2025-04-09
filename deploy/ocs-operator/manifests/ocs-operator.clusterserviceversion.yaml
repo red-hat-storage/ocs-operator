@@ -94,7 +94,7 @@ metadata:
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.25.4
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageclusterpeers.ocs.openshift.io","storageconsumers.ocs.openshift.io","storagerequests.ocs.openshift.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageautoscalers.ocs.openshift.io","storageclusterpeers.ocs.openshift.io","storageconsumers.ocs.openshift.io","storagerequests.ocs.openshift.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -116,6 +116,12 @@ spec:
       displayName: OCS Initialization
       kind: OCSInitialization
       name: ocsinitializations.ocs.openshift.io
+      version: v1
+    - description: StorageAutoScaler represents the automatic storage scaling for
+        storage cluster.
+      displayName: Storage Auto Scaling
+      kind: StorageAutoScaler
+      name: storageautoscalers.ocs.openshift.io
       version: v1
     - description: StorageClusterPeer is the Schema for the storageclusterpeers API
       displayName: Storage Cluster Peer
@@ -342,6 +348,14 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resourceNames:
+          - k8s
+          resources:
+          - prometheuses/api
+          verbs:
+          - get
         - apiGroups:
           - monitoring.coreos.com
           resources:
@@ -574,11 +588,11 @@ spec:
                 - name: OCS_METRICS_EXPORTER_IMAGE
                   value: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 - name: ROOK_CEPH_IMAGE
-                  value: quay.io/ocs-dev/rook-ceph:vmaster-793bbb006
+                  value: quay.io/ocs-dev/rook-ceph:vmaster-ab4f1ba58
                 - name: CEPH_IMAGE
-                  value: quay.io/ceph/ceph:v18.2.0
+                  value: quay.io/ceph/ceph:v19.2.1
                 - name: NOOBAA_CORE_IMAGE
-                  value: quay.io/noobaa/noobaa-core:master-20241111
+                  value: quay.io/noobaa/noobaa-core:master-20250326
                 - name: NOOBAA_DB_IMAGE
                   value: quay.io/sclorg/postgresql-15-c9s
                 - name: PROVIDER_API_SERVER_IMAGE
@@ -676,7 +690,7 @@ spec:
                 - -openshift-service-account=ux-backend-server
                 - -openshift-delegate-urls={"/":{"group":"ocs.openshift.io","resource":"storageclusters","namespace":"openshift-storage","verb":"create"}}
                 - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-                image: quay.io/openshift/origin-oauth-proxy:4.16.0
+                image: quay.io/openshift/origin-oauth-proxy:4.19.0
                 imagePullPolicy: IfNotPresent
                 name: oauth-proxy
                 ports:
@@ -735,15 +749,15 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: quay.io/ocs-dev/rook-ceph:vmaster-793bbb006
+  - image: quay.io/ocs-dev/rook-ceph:vmaster-ab4f1ba58
     name: rook-container
-  - image: quay.io/ceph/ceph:v18.2.0
+  - image: quay.io/ceph/ceph:v19.2.1
     name: ceph-container
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
   - image: quay.io/ocs-dev/ocs-metrics-exporter:latest
     name: ocs-metrics-exporter
-  - image: quay.io/openshift/origin-oauth-proxy:4.16.0
+  - image: quay.io/openshift/origin-oauth-proxy:4.19.0
     name: ux-backend-oauth-image
   - image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
     name: kube-rbac-proxy

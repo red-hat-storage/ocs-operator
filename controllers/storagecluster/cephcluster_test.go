@@ -156,7 +156,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 		KMSConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      KMSConfigMapName,
+				Name:      defaults.KMSConfigMapName,
 				Namespace: sc.Namespace,
 			},
 			Data: map[string]string{
@@ -270,7 +270,7 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 
 		actual := newCephCluster(c.sc, "", nil, log)
-		assert.Equal(t, generateNameForCephCluster(c.sc), actual.Name)
+		assert.Equal(t, ocsutil.GenerateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
 
@@ -611,7 +611,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 
 func createDummyKMSConfigMap(kmsProvider, kmsAddr string, kmsAuthMethod string) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{}
-	cm.Name = KMSConfigMapName
+	cm.Name = defaults.KMSConfigMapName
 	cm.Data = make(map[string]string)
 	cm.Data["KMS_PROVIDER"] = kmsProvider
 	cm.Data["KMS_SERVICE_NAME"] = "my-connection"
@@ -727,7 +727,7 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	// following part of the tests are only for valid tests
 	cephCluster := &rookCephv1.CephCluster{}
 	err = reconciler.Client.Get(ctxTodo,
-		types.NamespacedName{Name: generateNameForCephCluster(cr)},
+		types.NamespacedName{Name: ocsutil.GenerateNameForCephCluster(cr)},
 		cephCluster)
 	if err != nil {
 		t.Errorf("Get CephCluster Failed: %v", err)
@@ -1505,7 +1505,7 @@ func TestEnsureRDRMigration(t *testing.T) {
 	_, err = obj.ensureCreated(&reconciler, sc)
 	assert.NilError(t, err)
 	actual := &rookCephv1.CephCluster{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: generateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: ocsutil.GenerateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStore), actual.Spec.Storage.Store.Type)
 	assert.Equal(t, "yes-really-update-store", actual.Spec.Storage.Store.UpdateStore)

@@ -42,9 +42,61 @@ spec:
               enable:
                 description: Enable flag ignores a reconcile if set to false
                 type: boolean
+              resourceNameMappingConfigMap:
+                description: |-
+                  LocalObjectReference contains enough information to let you locate the
+                  referenced object inside the same namespace.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              storageClasses:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               storageQuotaInGiB:
                 description: StorageQuotaInGiB describes quota for the consumer
                 type: integer
+              volumeGroupSnapshotClasses:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              volumeReplicationClasses:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              volumeSnapshotClasses:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
             type: object
           status:
             description: StorageConsumerStatus defines the observed state of StorageConsumer
@@ -88,6 +140,9 @@ spec:
                   name:
                     description: Name is the name of connected storageclient
                     type: string
+                  operatorNamespace:
+                    description: Client Operator Namespace
+                    type: string
                   operatorVersion:
                     description: StorageClient Operator Version
                     type: string
@@ -103,6 +158,38 @@ spec:
                 description: Timestamp of last heartbeat received from consumer
                 format: date-time
                 type: string
+              onboardingTicketSecret:
+                description: |-
+                  LocalObjectReference contains enough information to let you locate the
+                  referenced object inside the same namespace.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              resourceNameMappingConfigMap:
+                description: |-
+                  LocalObjectReference contains enough information to let you locate the
+                  referenced object inside the same namespace.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               state:
                 description: State describes the state of StorageConsumer
                 type: string

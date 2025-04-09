@@ -8,6 +8,8 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -60,7 +62,7 @@ func (r *StorageClusterReconciler) newCephRbdMirrorInstances(initData *ocsv1.Sto
 	ret := []*cephv1.CephRBDMirror{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      generateNameForCephRbdMirror(initData),
+				Name:      util.GenerateNameForCephRbdMirror(initData),
 				Namespace: initData.Namespace,
 			},
 			Spec: cephv1.RBDMirroringSpec{

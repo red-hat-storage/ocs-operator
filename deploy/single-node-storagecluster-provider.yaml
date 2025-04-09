@@ -11,7 +11,6 @@ metadata:
   namespace: openshift-storage
 spec:
   flexibleScaling: true
-  allowRemoteStorageConsumers: true
   providerAPIServerServiceType: ClusterIP
   monPVCTemplate:
     spec:
@@ -52,12 +51,8 @@ spec:
     # reconcileStrategy: ignore
     disableLoadBalancerService: true
   managedResources:
-    cephBlockPools:
-      disableSnapshotClass: true
-      disableStorageClass: true
-    cephFilesystems:
-      disableSnapshotClass: true
-      disableStorageClass: true
+    cephBlockPools: {}
+    cephFilesystems: {}
     cephObjectStores:
       hostNetwork: false
     cephCluster: {}
