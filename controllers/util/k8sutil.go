@@ -116,6 +116,21 @@ func GetPodsWithLabels(ctx context.Context, kubeClient client.Client, namespace 
 	return podList, nil
 }
 
+// HasDuplicateTolerations returns true if a list has duplicate tolerations
+func HasDuplicateTolerations(tolerations []corev1.Toleration) bool {
+	if len(tolerations) < 2 {
+		return false
+	}
+	duplicate := make(map[corev1.Toleration]bool)
+	for _, toleration := range tolerations {
+		if duplicate[toleration] {
+			return true
+		}
+		duplicate[toleration] = true
+	}
+	return false
+}
+
 // GetStorageClassWithName returns the storage class object by name
 func GetStorageClassWithName(ctx context.Context, kubeClient client.Client, name string) *storagev1.StorageClass {
 	sc := &storagev1.StorageClass{}
