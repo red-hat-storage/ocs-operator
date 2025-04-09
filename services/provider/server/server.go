@@ -35,6 +35,7 @@ import (
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
+	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -57,6 +58,7 @@ import (
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 const (
@@ -79,6 +81,7 @@ const (
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
 	client                    client.Client
+	scheme                    *runtime.Scheme
 	consumerManager           *ocsConsumerManager
 	storageRequestManager     *storageRequestManager
 	storageClusterPeerManager *storageClusterPeerManager
@@ -113,6 +116,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 
 	return &OCSProviderServer{
 		client:                    client,
+		scheme:                    scheme,
 		consumerManager:           consumerManager,
 		storageRequestManager:     storageRequestManager,
 		storageClusterPeerManager: storageClusterPeerManager,
@@ -285,17 +289,21 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		kubeResources, err := s.getKubeResources(ctx, consumer)
 		if err != nil {
 			klog.Errorf("failed to get kube resources: %v", err)
-			return nil, status.Errorf(codes.Internal, "failed to get kube resources")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
 		response := &pb.GetDesiredClientStateResponse{}
 
 		for _, kubeResource := range kubeResources {
-			gvk := kubeResource.GetObjectKind().GroupVersionKind()
-			if gvk.Group == "" || gvk.Kind == "" || kubeResource.GetName() == "" {
-				klog.Errorf("Resource is not properly structured")
-				return nil, status.Errorf(codes.Internal, "failed to get kube resources.")
+			gvk, err := apiutil.GVKForObject(kubeResource, s.scheme)
+			if err != nil {
+				return nil, err
 			}
+			if kubeResource.GetName() == "" {
+				klog.Errorf("Resource is missing a name: %v", kubeResource)
+				return nil, status.Errorf(codes.Internal, "failed to produce client state.")
+			}
+			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			sanitizeKubeResource(kubeResource)
 			response.KubeResources = append(response.KubeResources, mustMarshal(kubeResource))
 		}
@@ -303,21 +311,21 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		channelName, err := s.getOCSSubscriptionChannel(ctx)
 		if err != nil {
 			klog.Errorf("failed to get channel name for Client Operator: %v", err)
-			return nil, status.Errorf(codes.Internal, "failed to get channel name for Client Operator")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.ClientOperatorChannel = channelName
 
 		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.MaintenanceMode = inMaintenanceMode
 
 		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.MirrorEnabled = isConsumerMirrorEnabled
 
@@ -383,29 +391,44 @@ func newScheme() (*runtime.Scheme, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
 	}
-	err = corev1.AddToScheme(scheme)
-	if err != nil {
+	if err = corev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add corev1 to scheme. %v", err)
 	}
-	err = rookCephv1.AddToScheme(scheme)
-	if err != nil {
+	if err = rookCephv1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add rookCephv1 to scheme. %v", err)
 	}
-	err = opv1a1.AddToScheme(scheme)
-	if err != nil {
+	if err = opv1a1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add operatorsv1alpha1 to scheme. %v", err)
 	}
-	err = ocsv1.AddToScheme(scheme)
-	if err != nil {
+	if err = ocsv1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add ocsv1 to scheme. %v", err)
 	}
-	err = routev1.AddToScheme(scheme)
-	if err != nil {
+	if err = routev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
 	}
-	err = templatev1.AddToScheme(scheme)
-	if err != nil {
+	if err = templatev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add templatev1 to scheme. %v", err)
+	}
+	if err = csiopv1a1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add csiopv1a1 to scheme. %v", err)
+	}
+	if err = storagev1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add storagev1 to scheme. %v", err)
+	}
+	if err = snapapi.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add snapapi to scheme. %v", err)
+	}
+	if err = groupsnapapi.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add groupsnapapi to scheme. %v", err)
+	}
+	if err = replicationv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add replicationv1alpha1 to scheme. %v", err)
+	}
+	if err = quotav1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add quotav1 to scheme. %v", err)
+	}
+	if err = nbapis.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
 	}
 
 	return scheme, nil
@@ -2241,6 +2264,10 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		rbdClientProfile := profileMap[rbdClientProfileName]
 		if rbdClientProfile == nil {
 			rbdClientProfile = &csiopv1a1.ClientProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      rbdClientProfileName,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
 				Spec: csiopv1a1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
@@ -2258,6 +2285,10 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		cephFsClientProfile := profileMap[cephFsClientProfileName]
 		if cephFsClientProfile == nil {
 			cephFsClientProfile = &csiopv1a1.ClientProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cephFsClientProfileName,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
 				Spec: csiopv1a1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
@@ -2276,6 +2307,10 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		nfsClientProfile := profileMap[nfsClientProfileName]
 		if nfsClientProfile == nil {
 			nfsClientProfile = &csiopv1a1.ClientProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nfsClientProfileName,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
 				Spec: csiopv1a1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
@@ -2286,7 +2321,6 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 	}
 
 	for _, profileObj := range profileMap {
-		profileObj.Namespace = consumer.Status.Client.OperatorNamespace
 		kubeResources = append(kubeResources, profileObj)
 	}
 	return kubeResources, nil
