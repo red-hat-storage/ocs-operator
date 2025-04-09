@@ -1,18 +1,28 @@
 package util
 
 import (
+	"context"
+	"errors"
 	"fmt"
+
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	defaultStorageClassAnnotation = "storageclass.kubernetes.io/is-default-class"
-	ramenDRStorageIDLabelKey      = "ramendr.openshift.io/storageid"
+	storageIdLabelKey             = "ramendr.openshift.io/storageid"
+)
+
+var (
+	UnsupportedProvisioner = errors.New("unsupportedProvisioner")
 )
 
 func GenerateNameForCephBlockPoolStorageClass(storageCluster *ocsv1.StorageCluster) string {
@@ -70,7 +80,7 @@ func NewDefaultRbdStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	drStorageID string,
+	storageId string,
 	isDefaultStorageClass bool,
 ) *storagev1.StorageClass {
 
@@ -103,8 +113,8 @@ func NewDefaultRbdStorageClass(
 	if isDefaultStorageClass {
 		AddAnnotation(sc, defaultStorageClassAnnotation, "true")
 	}
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(sc, storageIdLabelKey, storageId)
 	}
 	return sc
 }
@@ -115,7 +125,7 @@ func NewDefaultVirtRbdStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	drStorageID string,
+	storageId string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -147,8 +157,8 @@ func NewDefaultVirtRbdStorageClass(
 		},
 	}
 
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(sc, storageIdLabelKey, storageId)
 	}
 	return sc
 }
@@ -203,7 +213,7 @@ func NewDefaultNonResilientRbdStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	drStorageID string,
+	storageId string,
 	disableKeyRotation bool,
 ) *storagev1.StorageClass {
 
@@ -237,8 +247,8 @@ func NewDefaultNonResilientRbdStorageClass(
 	if disableKeyRotation {
 		AddAnnotation(sc, defaults.KeyRotationEnableAnnotation, "false")
 	}
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(sc, storageIdLabelKey, storageId)
 	}
 	return sc
 }
@@ -249,7 +259,7 @@ func NewDefaultCephFsStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	drStorageID string,
+	storageId string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -274,8 +284,8 @@ func NewDefaultCephFsStorageClass(
 		},
 	}
 
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(sc, storageIdLabelKey, storageId)
 	}
 	return sc
 }
@@ -335,4 +345,60 @@ func NewDefaultNFSStorageClass(
 	}
 
 	return sc
+}
+
+func StorageClassFromExisting(
+	ctx context.Context,
+	kubeClient client.Client,
+	storageClassName string,
+	consumer *ocsv1a1.StorageConsumer,
+	consumerConfig StorageConsumerResources,
+	rbdStorageId,
+	cephFsStorageId,
+	nfsStorageId string,
+) (*storagev1.StorageClass, error) {
+	storageClass := &storagev1.StorageClass{}
+	storageClass.Name = storageClassName
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(storageClass), storageClass); err != nil {
+		return nil, err
+	}
+	clientProfileName := ""
+	provisionerSecretName := ""
+	nodeSecretName := ""
+	storageId := ""
+	operatorNamespace := consumer.Status.Client.OperatorNamespace
+	switch storageClass.Provisioner {
+	case RbdDriverName:
+		clientProfileName = consumerConfig.GetRbdClientProfileName()
+		provisionerSecretName = consumerConfig.GetCsiRbdProvisionerSecretName()
+		nodeSecretName = consumerConfig.GetCsiRbdNodeSecretName()
+		storageId = rbdStorageId
+	case CephFSDriverName:
+		clientProfileName = consumerConfig.GetCephFsClientProfileName()
+		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerSecretName()
+		nodeSecretName = consumerConfig.GetCsiCephFsNodeSecretName()
+		storageId = cephFsStorageId
+	case NfsDriverName:
+		clientProfileName = consumerConfig.GetNfsClientProfileName()
+		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerSecretName()
+		nodeSecretName = consumerConfig.GetCsiNfsNodeSecretName()
+		storageId = nfsStorageId
+	default:
+		return nil, UnsupportedProvisioner
+	}
+
+	params := storageClass.Parameters
+	if params == nil {
+		params = map[string]string{}
+		storageClass.Parameters = params
+	}
+	params["clusterID"] = clientProfileName
+	params["csi.storage.k8s.io/provisioner-secret-name"] = provisionerSecretName
+	params["csi.storage.k8s.io/provisioner-secret-namespace"] = operatorNamespace
+	params["csi.storage.k8s.io/node-stage-secret-name"] = nodeSecretName
+	params["csi.storage.k8s.io/node-stage-secret-namespace"] = operatorNamespace
+	params["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerSecretName
+	params["csi.storage.k8s.io/controller-expand-secret-namespace"] = operatorNamespace
+	AddLabel(storageClass, storageIdLabelKey, storageId)
+	return storageClass, nil
 }
