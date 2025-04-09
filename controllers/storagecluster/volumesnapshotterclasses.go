@@ -4,15 +4,22 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	// csiProvisionerSecretName is the default name of the csi provisioner secret name
+	csiProvisionerSecretName = "rook-csi-%s-provisioner"
 )
 
 type ocsSnapshotClass struct{}
@@ -70,24 +77,75 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 	return nil
 }
 
+func (r *StorageClusterReconciler) getClusterIDAndSecretName(instance *ocsv1.StorageCluster, snapshotType util.SnapshotterType) (string, string, error) {
+	clusterID := instance.Namespace
+	secretName := fmt.Sprintf(csiProvisionerSecretName, snapshotType)
+
+	if !instance.Spec.ExternalStorage.Enable {
+		return clusterID, secretName, nil
+	}
+
+	data, ok := externalOCSResources[instance.UID]
+	if !ok {
+		err := fmt.Errorf("unable to retrieve external resource from externalOCSResources")
+		log.Error(err, "unable to generate name for snapshot class secret for external mode")
+		return "", "", err
+	}
+	// print the Secret name which contains the prefix as the rook-csi-rbd/cephfs-provisioner default secret name
+	// for example if the secret name is rook-csi-rbd-node-rookStorage-provisioner it will check the prefix with rook-csi-rbd-node if it matches it will return that name
+	for _, d := range data {
+		if d.Kind == "Secret" {
+			if strings.Contains(d.Name, fmt.Sprintf(csiProvisionerSecretName, snapshotType)) {
+				secretName = d.Name
+			}
+		}
+
+		if (d.Kind == "CephBlockPoolRadosNamespace") && (snapshotType == util.RbdSnapshotter) {
+			radosNamespaceName = d.Data["radosNamespaceName"]
+			// get the clusterID from the radosNamespace status
+			radosNamespace := &cephv1.CephBlockPoolRadosNamespace{}
+			err := r.Client.Get(context.TODO(), types.NamespacedName{Name: radosNamespaceName, Namespace: instance.Namespace}, radosNamespace)
+			if err != nil {
+				log.Error(err, "CephBlockPoolRadosNamespace not found", "CephBlockPoolRadosNamespace", klog.KRef(instance.Namespace, radosNamespaceName))
+				return "", "", err
+			}
+			// get the clusterID from the radosNamespace status
+			if radosNamespace.Status.Info["clusterID"] != "" {
+				clusterID = radosNamespace.Status.Info["clusterID"]
+			}
+		}
+	}
+
+	return clusterID, secretName, nil
+
+}
+
 // ensureCreated functions ensures that snpashotter classes are created
 func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-
+	rbdClusterID, rbdProvisionerSecret, err := r.getClusterIDAndSecretName(instance, util.RbdSnapshotter)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	rbdSnapClass := SnapshotClassConfiguration{
-		snapshotClass:     util.NewDefaultRbdSnapshotClass(instance.Namespace, "rook-csi-rbd-provisioner", instance.Namespace, ""),
+		snapshotClass:     util.NewDefaultRbdSnapshotClass(rbdClusterID, rbdProvisionerSecret, instance.Namespace, ""),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
 	}
 	rbdSnapClass.snapshotClass.Name = util.GenerateNameForSnapshotClass(instance.Name, util.RbdSnapshotter)
+
+	cephfsClusterID, cephfsProvisionerSecret, err := r.getClusterIDAndSecretName(instance, util.CephfsSnapshotter)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	cephFsSnapClass := SnapshotClassConfiguration{
-		snapshotClass:     util.NewDefaultCephFsSnapshotClass(instance.Namespace, "rook-csi-cephfs-provisioner", instance.Namespace, ""),
+		snapshotClass:     util.NewDefaultCephFsSnapshotClass(cephfsClusterID, cephfsProvisionerSecret, instance.Namespace, ""),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
 	}
 	cephFsSnapClass.snapshotClass.Name = util.GenerateNameForSnapshotClass(instance.Name, util.CephfsSnapshotter)
 	volumeSnapshotClasses := []SnapshotClassConfiguration{rbdSnapClass, cephFsSnapClass}
 
-	err := r.createSnapshotClasses(volumeSnapshotClasses)
+	err = r.createSnapshotClasses(volumeSnapshotClasses)
 	if err != nil {
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
