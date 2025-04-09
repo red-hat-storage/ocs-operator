@@ -74,10 +74,14 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		return reconcile.Result{}, nil
 	}
 
+	rbdClusterID, rbdProvisionerSecret, err := r.getClusterIDAndSecretName(instance, util.RbdSnapshotter)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	rbdGroupSnapshotClass := GroupSnapshotClassConfiguration{
 		groupSnapshotClass: util.NewDefaultRbdGroupSnapshotClass(
-			instance.Namespace,
-			"rook-csi-rbd-provisioner",
+			rbdClusterID,
+			rbdProvisionerSecret,
 			instance.Namespace,
 			util.GenerateNameForCephBlockPool(instance.Name),
 			"",
@@ -85,10 +89,15 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
 	}
 	rbdGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance, util.RbdGroupSnapshotter)
+
+	cephfsClusterID, cephfsProvisionerSecret, err := r.getClusterIDAndSecretName(instance, util.CephfsSnapshotter)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	cephFsGroupSnapshotClass := GroupSnapshotClassConfiguration{
 		groupSnapshotClass: util.NewDefaultCephFsGroupSnapshotClass(
-			instance.Namespace,
-			"rook-csi-cephfs-provisioner",
+			cephfsClusterID,
+			cephfsProvisionerSecret,
 			instance.Namespace,
 			util.GenerateNameForCephFilesystem(instance.Name),
 			"",
@@ -102,7 +111,7 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		cephFsGroupSnapshotClass,
 	}
 
-	err := r.createGroupSnapshotClasses(volumeGroupSnapshotClasses)
+	err = r.createGroupSnapshotClasses(volumeGroupSnapshotClasses)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
