@@ -25,7 +25,7 @@ func NewDefaultRbdSnapshotClass(
 	clusterID,
 	provisionerSecret,
 	namespace,
-	drStorageID string,
+	storageId string,
 ) *snapapi.VolumeSnapshotClass {
 
 	sc := &snapapi.VolumeSnapshotClass{
@@ -41,8 +41,8 @@ func NewDefaultRbdSnapshotClass(
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(sc, storageIdLabelKey, storageId)
 	}
 	return sc
 }
@@ -51,7 +51,7 @@ func NewDefaultCephFsSnapshotClass(
 	clusterID,
 	provisionerSecret,
 	namespace,
-	drStorageID string,
+	storageId string,
 ) *snapapi.VolumeSnapshotClass {
 
 	sc := &snapapi.VolumeSnapshotClass{
@@ -67,8 +67,8 @@ func NewDefaultCephFsSnapshotClass(
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
-	if drStorageID != "" {
-		AddLabel(sc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(sc, storageIdLabelKey, storageId)
 	}
 	return sc
 }

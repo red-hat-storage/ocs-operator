@@ -521,6 +521,15 @@ spec:
         serviceAccountName: ocs-operator
       - rules:
         - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+        serviceAccountName: ocs-provider-server
+      - rules:
+        - apiGroups:
           - authentication.k8s.io
           resources:
           - tokenreviews
