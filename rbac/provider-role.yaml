@@ -49,15 +49,6 @@ rules:
       - get
       - list
   - apiGroups:
-      - ocs.openshift.io
-    resources:
-      - storagerequests
-    verbs:
-      - get
-      - list
-      - create
-      - delete
-  - apiGroups:
       - operators.coreos.com
     resources:
       - subscriptions
