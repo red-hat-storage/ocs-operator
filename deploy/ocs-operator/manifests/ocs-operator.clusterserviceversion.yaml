@@ -244,6 +244,7 @@ spec:
           - ceph.rook.io
           resources:
           - cephblockpools
+          - cephclients
           - cephclusters
           - cephfilesystems
           - cephnfses
