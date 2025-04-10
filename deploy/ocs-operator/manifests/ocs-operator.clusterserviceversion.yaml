@@ -94,7 +94,7 @@ metadata:
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.25.4
-    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageautoscalers.ocs.openshift.io","storageclusterpeers.ocs.openshift.io","storageconsumers.ocs.openshift.io","storagerequests.ocs.openshift.io"]'
+    operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageautoscalers.ocs.openshift.io","storageclusterpeers.ocs.openshift.io","storageconsumers.ocs.openshift.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/red-hat-storage/ocs-operator
@@ -145,11 +145,6 @@ spec:
       displayName: Storage Consumer
       kind: StorageConsumer
       name: storageconsumers.ocs.openshift.io
-      version: v1alpha1
-    - description: StorageRequest is the Schema for the StorageRequests API
-      displayName: Storage Request
-      kind: StorageRequest
-      name: storagerequests.ocs.openshift.io
       version: v1alpha1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
@@ -237,7 +232,6 @@ spec:
           - ceph.rook.io
           resources:
           - cephblockpoolradosnamespaces
-          - cephfilesystemsubvolumegroups
           verbs:
           - create
           - delete
@@ -250,7 +244,6 @@ spec:
           - ceph.rook.io
           resources:
           - cephblockpools
-          - cephclients
           - cephclusters
           - cephfilesystems
           - cephnfses
@@ -262,6 +255,17 @@ spec:
           - delete
           - get
           - list
+          - update
+          - watch
+        - apiGroups:
+          - ceph.rook.io
+          resources:
+          - cephfilesystemsubvolumegroups
+          verbs:
+          - create
+          - get
+          - list
+          - patch
           - update
           - watch
         - apiGroups:
@@ -405,7 +409,6 @@ spec:
           - '*'
           - storageclusterpeers
           - storageconsumers
-          - storagerequests
           verbs:
           - create
           - delete
@@ -425,7 +428,6 @@ spec:
           resources:
           - storageclusterpeers/status
           - storageconsumers/status
-          - storagerequests/status
           verbs:
           - get
           - patch
@@ -435,6 +437,15 @@ spec:
           resources:
           - storageclusters
           verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storagerequests
+          verbs:
+          - delete
           - get
           - list
           - watch
@@ -523,7 +534,6 @@ spec:
           - create
           - delete
           - get
-          - list
           - update
           - watch
         - apiGroups:
