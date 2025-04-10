@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -35,6 +36,7 @@ import (
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
+	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -57,6 +59,7 @@ import (
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 const (
@@ -79,6 +82,7 @@ const (
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
 	client                    client.Client
+	scheme                    *runtime.Scheme
 	consumerManager           *ocsConsumerManager
 	storageRequestManager     *storageRequestManager
 	storageClusterPeerManager *storageClusterPeerManager
@@ -113,6 +117,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 
 	return &OCSProviderServer{
 		client:                    client,
+		scheme:                    scheme,
 		consumerManager:           consumerManager,
 		storageRequestManager:     storageRequestManager,
 		storageClusterPeerManager: storageClusterPeerManager,
@@ -285,17 +290,21 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		kubeResources, err := s.getKubeResources(ctx, consumer)
 		if err != nil {
 			klog.Errorf("failed to get kube resources: %v", err)
-			return nil, status.Errorf(codes.Internal, "failed to get kube resources")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
 		response := &pb.GetDesiredClientStateResponse{}
 
 		for _, kubeResource := range kubeResources {
-			gvk := kubeResource.GetObjectKind().GroupVersionKind()
-			if gvk.Group == "" || gvk.Kind == "" || kubeResource.GetName() == "" {
-				klog.Errorf("Resource is not properly structured")
-				return nil, status.Errorf(codes.Internal, "failed to get kube resources.")
+			gvk, err := apiutil.GVKForObject(kubeResource, s.scheme)
+			if err != nil {
+				return nil, err
 			}
+			if kubeResource.GetName() == "" {
+				klog.Errorf("Resource is missing a name: %v", kubeResource)
+				return nil, status.Errorf(codes.Internal, "failed to produce client state.")
+			}
+			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			sanitizeKubeResource(kubeResource)
 			response.KubeResources = append(response.KubeResources, mustMarshal(kubeResource))
 		}
@@ -303,21 +312,21 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		channelName, err := s.getOCSSubscriptionChannel(ctx)
 		if err != nil {
 			klog.Errorf("failed to get channel name for Client Operator: %v", err)
-			return nil, status.Errorf(codes.Internal, "failed to get channel name for Client Operator")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.ClientOperatorChannel = channelName
 
 		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.MaintenanceMode = inMaintenanceMode
 
 		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.MirrorEnabled = isConsumerMirrorEnabled
 
@@ -383,29 +392,44 @@ func newScheme() (*runtime.Scheme, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
 	}
-	err = corev1.AddToScheme(scheme)
-	if err != nil {
+	if err = corev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add corev1 to scheme. %v", err)
 	}
-	err = rookCephv1.AddToScheme(scheme)
-	if err != nil {
+	if err = rookCephv1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add rookCephv1 to scheme. %v", err)
 	}
-	err = opv1a1.AddToScheme(scheme)
-	if err != nil {
+	if err = opv1a1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add operatorsv1alpha1 to scheme. %v", err)
 	}
-	err = ocsv1.AddToScheme(scheme)
-	if err != nil {
+	if err = ocsv1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add ocsv1 to scheme. %v", err)
 	}
-	err = routev1.AddToScheme(scheme)
-	if err != nil {
+	if err = routev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add routev1 to scheme. %v", err)
 	}
-	err = templatev1.AddToScheme(scheme)
-	if err != nil {
+	if err = templatev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add templatev1 to scheme. %v", err)
+	}
+	if err = csiopv1a1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add csiopv1a1 to scheme. %v", err)
+	}
+	if err = storagev1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add storagev1 to scheme. %v", err)
+	}
+	if err = snapapi.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add snapapi to scheme. %v", err)
+	}
+	if err = groupsnapapi.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add groupsnapapi to scheme. %v", err)
+	}
+	if err = replicationv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add replicationv1alpha1 to scheme. %v", err)
+	}
+	if err = quotav1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add quotav1 to scheme. %v", err)
+	}
+	if err = nbapis.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
 	}
 
 	return scheme, nil
@@ -443,11 +467,11 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		fsid = cephCluster.Status.CephStatus.FSID
 	}
 
-	drRbdStorageId := calculateCephRbdStorageID(
+	rbdStorageId := calculateCephRbdStorageID(
 		fsid,
 		consumerConfig.GetRbdRadosNamespaceName(),
 	)
-	drCephFsId := calculateCephFsStorageID(
+	cephFsStorageId := calculateCephFsStorageID(
 		fsid,
 		consumerConfig.GetSubVolumeGroupName(),
 	)
@@ -482,12 +506,13 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 	}
 
 	extR, err = s.appendStorageClassExternalResources(
+		ctx,
 		extR,
 		consumerResource,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
-		drCephFsId,
+		rbdStorageId,
+		cephFsStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -498,8 +523,8 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		consumerResource,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
-		drCephFsId,
+		rbdStorageId,
+		cephFsStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -510,8 +535,8 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		consumerResource,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
-		drCephFsId,
+		rbdStorageId,
+		cephFsStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -523,7 +548,7 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		consumerResource,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
+		rbdStorageId,
 	)
 	if err != nil {
 		klog.Error(err)
@@ -724,12 +749,13 @@ func (s *OCSProviderServer) appendCephClientSecretExternalResources(
 }
 
 func (s *OCSProviderServer) appendStorageClassExternalResources(
+	ctx context.Context,
 	extR []*pb.ExternalResource,
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId,
-	drCephFsId string,
+	rbdStorageId,
+	cephFsStorageId string,
 ) ([]*pb.ExternalResource, error) {
 	scMap := map[string]func() *storagev1.StorageClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -740,7 +766,7 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumerConfig.GetCsiRbdNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
 			)
 		}
@@ -751,7 +777,7 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumerConfig.GetCsiRbdNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 			)
 		}
 		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
@@ -775,7 +801,7 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumerConfig.GetCsiRbdNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
 			)
 		}
@@ -788,7 +814,7 @@ func (s *OCSProviderServer) appendStorageClassExternalResources(
 				consumerConfig.GetCsiCephFsProvisionerSecretName(),
 				consumerConfig.GetCsiCephFsNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drCephFsId,
+				cephFsStorageId,
 			)
 		}
 	}
@@ -827,8 +853,8 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassExternalResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId,
-	drCephFsId string,
+	rbdStorageId,
+	cephFsStorageId string,
 ) ([]*pb.ExternalResource, error) {
 	vscMap := map[string]func() *snapapi.VolumeSnapshotClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -837,7 +863,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassExternalResources(
 				consumerConfig.GetRbdClientProfileName(),
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 			)
 		}
 	}
@@ -847,7 +873,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassExternalResources(
 				consumerConfig.GetCephFsClientProfileName(),
 				consumerConfig.GetCsiCephFsProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drCephFsId,
+				cephFsStorageId,
 			)
 		}
 	}
@@ -882,8 +908,8 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId,
-	drCephFsId string,
+	rbdStorageId,
+	cephFsStorageId string,
 ) ([]*pb.ExternalResource, error) {
 	vgscMap := map[string]func() *groupsnapapi.VolumeGroupSnapshotClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -893,7 +919,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
 				util.GenerateNameForCephBlockPool(storageCluster.Name),
-				drRbdStorageId,
+				rbdStorageId,
 			)
 		}
 	}
@@ -904,7 +930,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
 				consumerConfig.GetCsiCephFsProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
 				util.GenerateNameForCephFilesystem(storageCluster.Name),
-				drCephFsId,
+				cephFsStorageId,
 			)
 		}
 	}
@@ -931,7 +957,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassExternalResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId string,
+	rbdStorageId string,
 ) ([]*pb.ExternalResource, error) {
 
 	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
@@ -948,7 +974,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassExternalResources(
 		return nil, err
 	}
 
-	storageIDs := []string{drRbdStorageId, peerStorageID}
+	storageIDs := []string{rbdStorageId, peerStorageID}
 	slices.Sort(storageIDs)
 	replicationID := util.CalculateMD5Hash(storageIDs)
 
@@ -983,7 +1009,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassExternalResources(
 			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
 			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
 			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
-			util.AddLabel(vrc, ramenDRStorageIDLabelKey, drRbdStorageId)
+			util.AddLabel(vrc, ramenDRStorageIDLabelKey, rbdStorageId)
 			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
 			util.AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
 		default:
@@ -2061,11 +2087,11 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		fsid = cephCluster.Status.CephStatus.FSID
 	}
 
-	drRbdStorageId := calculateCephRbdStorageID(
+	rbdStorageId := calculateCephRbdStorageID(
 		fsid,
 		consumerConfig.GetRbdRadosNamespaceName(),
 	)
-	drCephFsId := calculateCephFsStorageID(
+	cephFsStorageId := calculateCephFsStorageID(
 		fsid,
 		consumerConfig.GetSubVolumeGroupName(),
 	)
@@ -2101,12 +2127,13 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 	}
 
 	kubeResources, err = s.appendStorageClassKubeResources(
+		ctx,
 		kubeResources,
 		consumer,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
-		drCephFsId,
+		rbdStorageId,
+		cephFsStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -2117,8 +2144,8 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		consumer,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
-		drCephFsId,
+		rbdStorageId,
+		cephFsStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -2129,8 +2156,8 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		consumer,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
-		drCephFsId,
+		rbdStorageId,
+		cephFsStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -2142,7 +2169,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		consumer,
 		consumerConfig,
 		storageCluster,
-		drRbdStorageId,
+		rbdStorageId,
 	)
 	if err != nil {
 		return nil, err
@@ -2241,6 +2268,10 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		rbdClientProfile := profileMap[rbdClientProfileName]
 		if rbdClientProfile == nil {
 			rbdClientProfile = &csiopv1a1.ClientProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      rbdClientProfileName,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
 				Spec: csiopv1a1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
@@ -2258,6 +2289,10 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		cephFsClientProfile := profileMap[cephFsClientProfileName]
 		if cephFsClientProfile == nil {
 			cephFsClientProfile = &csiopv1a1.ClientProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cephFsClientProfileName,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
 				Spec: csiopv1a1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
@@ -2276,6 +2311,10 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		nfsClientProfile := profileMap[nfsClientProfileName]
 		if nfsClientProfile == nil {
 			nfsClientProfile = &csiopv1a1.ClientProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nfsClientProfileName,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
 				Spec: csiopv1a1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
@@ -2286,7 +2325,6 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 	}
 
 	for _, profileObj := range profileMap {
-		profileObj.Namespace = consumer.Status.Client.OperatorNamespace
 		kubeResources = append(kubeResources, profileObj)
 	}
 	return kubeResources, nil
@@ -2350,12 +2388,13 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResources(
 }
 
 func (s *OCSProviderServer) appendStorageClassKubeResources(
+	ctx context.Context,
 	kubeResources []client.Object,
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId,
-	drCephFsId string,
+	rbdStorageId,
+	cephFsStorageId string,
 ) ([]client.Object, error) {
 	scMap := map[string]func() *storagev1.StorageClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -2366,7 +2405,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumerConfig.GetCsiRbdNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
 			)
 		}
@@ -2377,7 +2416,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumerConfig.GetCsiRbdNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 			)
 		}
 		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
@@ -2401,7 +2440,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumerConfig.GetCsiRbdNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
 			)
 		}
@@ -2414,7 +2453,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiCephFsProvisionerSecretName(),
 				consumerConfig.GetCsiCephFsNodeSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drCephFsId,
+				cephFsStorageId,
 			)
 		}
 	}
@@ -2432,15 +2471,33 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 		}
 	}
 	for i := range consumer.Spec.StorageClasses {
+		var storageClass *storagev1.StorageClass
+		var err error
 		storageClassName := consumer.Spec.StorageClasses[i].Name
 		scGen := scMap[storageClassName]
 		if scGen != nil {
-			sc := scGen()
-			sc.Name = storageClassName
-			kubeResources = append(kubeResources, sc)
+			storageClass = scGen()
+			storageClass.Name = storageClassName
 		} else {
-			//TODO: Day-2 storageClasses
-			klog.Warningf("encountered an unexpected storage class: %s", storageClassName)
+			storageClass, err = util.StorageClassFromExisting(
+				ctx,
+				s.client,
+				storageClassName,
+				consumer,
+				consumerConfig,
+				rbdStorageId,
+				cephFsStorageId,
+				cephFsStorageId,
+			)
+		}
+		if kerrors.IsNotFound(err) {
+			klog.Warningf("StorageClass with name %s doesn't exist in the cluster", storageClassName)
+		} else if errors.Is(err, util.UnsupportedProvisioner) {
+			klog.Warningf("Encountered unsupported provisioner in storage class %s", storageClassName)
+		} else if storageClass == nil {
+			klog.Warningf("The name %s does not points to a builtin or an existing storage class, skipping", storageClassName)
+		} else {
+			kubeResources = append(kubeResources, storageClass)
 		}
 	}
 	return kubeResources, nil
@@ -2451,8 +2508,8 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId,
-	drCephFsId string,
+	rbdStorageId,
+	cephFsStorageId string,
 ) ([]client.Object, error) {
 	vscMap := map[string]func() *snapapi.VolumeSnapshotClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -2461,7 +2518,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 				consumerConfig.GetRbdClientProfileName(),
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drRbdStorageId,
+				rbdStorageId,
 			)
 		}
 	}
@@ -2471,7 +2528,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 				consumerConfig.GetCephFsClientProfileName(),
 				consumerConfig.GetCsiCephFsProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
-				drCephFsId,
+				cephFsStorageId,
 			)
 		}
 	}
@@ -2504,8 +2561,8 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId,
-	drCephFsId string,
+	rbdStorageId,
+	cephFsStorageId string,
 ) ([]client.Object, error) {
 	vgscMap := map[string]func() *groupsnapapi.VolumeGroupSnapshotClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -2515,7 +2572,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 				consumerConfig.GetCsiRbdProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
 				util.GenerateNameForCephBlockPool(storageCluster.Name),
-				drRbdStorageId,
+				rbdStorageId,
 			)
 		}
 	}
@@ -2526,7 +2583,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 				consumerConfig.GetCsiCephFsProvisionerSecretName(),
 				consumer.Status.Client.OperatorNamespace,
 				util.GenerateNameForCephFilesystem(storageCluster.Name),
-				drCephFsId,
+				cephFsStorageId,
 			)
 		}
 	}
@@ -2551,7 +2608,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 	storageCluster *ocsv1.StorageCluster,
-	drRbdStorageId string,
+	rbdStorageId string,
 ) ([]client.Object, error) {
 	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
 		return kubeResources, err
@@ -2567,7 +2624,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 		return kubeResources, err
 	}
 
-	storageIDs := []string{drRbdStorageId, peerStorageID}
+	storageIDs := []string{rbdStorageId, peerStorageID}
 	slices.Sort(storageIDs)
 	replicationID := util.CalculateMD5Hash(storageIDs)
 
@@ -2602,7 +2659,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
 			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
 			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
-			util.AddLabel(vrc, ramenDRStorageIDLabelKey, drRbdStorageId)
+			util.AddLabel(vrc, ramenDRStorageIDLabelKey, rbdStorageId)
 			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
 			util.AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
 		default:

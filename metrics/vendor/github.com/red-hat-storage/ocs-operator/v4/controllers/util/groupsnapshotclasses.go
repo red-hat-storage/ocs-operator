@@ -29,7 +29,7 @@ func NewDefaultRbdGroupSnapshotClass(
 	provisionerSecret,
 	namespace,
 	pool,
-	drStorageID string,
+	storageId string,
 ) *groupsnapapi.VolumeGroupSnapshotClass {
 
 	gsc := &groupsnapapi.VolumeGroupSnapshotClass{
@@ -46,8 +46,8 @@ func NewDefaultRbdGroupSnapshotClass(
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
-	if drStorageID != "" {
-		AddLabel(gsc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(gsc, storageIdLabelKey, storageId)
 	}
 	return gsc
 }
@@ -57,7 +57,7 @@ func NewDefaultCephFsGroupSnapshotClass(
 	provisionerSecret,
 	namespace,
 	fsName,
-	drStorageID string,
+	storageId string,
 ) *groupsnapapi.VolumeGroupSnapshotClass {
 
 	gsc := &groupsnapapi.VolumeGroupSnapshotClass{
@@ -74,8 +74,8 @@ func NewDefaultCephFsGroupSnapshotClass(
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
-	if drStorageID != "" {
-		AddLabel(gsc, ramenDRStorageIDLabelKey, drStorageID)
+	if storageId != "" {
+		AddLabel(gsc, storageIdLabelKey, storageId)
 	}
 	return gsc
 }
