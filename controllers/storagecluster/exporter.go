@@ -872,7 +872,7 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 					"storageclusters",
 					"storageautoscalers",
 				},
-				Verbs:     []string{"get", "list", "watch"},
+				Verbs: []string{"get", "list", "watch"},
 			},
 		}
 
