@@ -117,9 +117,6 @@ type StorageClusterSpec struct {
 	// provisioned by the storagecluster controller to be used in
 	// storageDeviceSets section of the CR.
 	BackingStorageClasses []BackingStorageClass `json:"backingStorageClasses,omitempty"`
-	// DefaultStorageProfile is the default storage profile to use for
-	// the storagerequest as StorageProfile is optional.
-	DefaultStorageProfile string `json:"defaultStorageProfile,omitempty"`
 }
 
 // CSIDriverSpec defines the CSI driver settings for the StorageCluster.

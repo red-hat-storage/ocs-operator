@@ -56,7 +56,6 @@ rules:
   - ceph.rook.io
   resources:
   - cephblockpoolradosnamespaces
-  - cephfilesystemsubvolumegroups
   verbs:
   - create
   - delete
@@ -81,6 +80,17 @@ rules:
   - delete
   - get
   - list
+  - update
+  - watch
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephfilesystemsubvolumegroups
+  verbs:
+  - create
+  - get
+  - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -224,7 +234,6 @@ rules:
   - '*'
   - storageclusterpeers
   - storageconsumers
-  - storagerequests
   verbs:
   - create
   - delete
@@ -244,7 +253,6 @@ rules:
   resources:
   - storageclusterpeers/status
   - storageconsumers/status
-  - storagerequests/status
   verbs:
   - get
   - patch
@@ -254,6 +262,15 @@ rules:
   resources:
   - storageclusters
   verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storagerequests
+  verbs:
+  - delete
   - get
   - list
   - watch

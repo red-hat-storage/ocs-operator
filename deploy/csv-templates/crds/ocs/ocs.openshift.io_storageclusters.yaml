@@ -568,11 +568,6 @@ spec:
                         type: boolean
                     type: object
                 type: object
-              defaultStorageProfile:
-                description: |-
-                  DefaultStorageProfile is the default storage profile to use for
-                  the storagerequest as StorageProfile is optional.
-                type: string
               enableCephTools:
                 description: |-
                   EnableCephTools toggles on whether or not the ceph tools pod
