@@ -54,7 +54,6 @@ import (
 const (
 	onboardingPrivateKeyFilePath  = "/etc/private-key/key"
 	StorageConsumerAnnotation     = "ocs.openshift.io.storageconsumer"
-	StorageRequestAnnotation      = "ocs.openshift.io.storagerequest"
 	StorageCephUserTypeAnnotation = "ocs.openshift.io.cephusertype"
 	StorageProfileLabel           = "ocs.openshift.io/storageprofile"
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
@@ -75,8 +74,8 @@ type StorageConsumerReconciler struct {
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaaaccounts,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
