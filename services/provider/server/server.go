@@ -1476,6 +1476,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 	}
 
 	kubeResources, err = s.appendVolumeSnapshotClassKubeResources(
+		ctx,
 		kubeResources,
 		consumer,
 		consumerConfig,
@@ -1488,6 +1489,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 	}
 
 	kubeResources, err = s.appendVolumeGroupSnapshotClassKubeResources(
+		ctx,
 		kubeResources,
 		consumer,
 		consumerConfig,
@@ -1840,6 +1842,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 }
 
 func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
+	ctx context.Context,
 	kubeResources []client.Object,
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
@@ -1878,21 +1881,40 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 		}
 	}
 	for i := range consumer.Spec.VolumeSnapshotClasses {
+		var snapshotClass *snapapi.VolumeSnapshotClass
+		var err error
 		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
 		vscGen := vscMap[snapshotClassName]
 		if vscGen != nil {
 			vsc := vscGen()
 			vsc.Name = snapshotClassName
-			kubeResources = append(kubeResources, vsc)
 		} else {
-			//TODO: Day-2 snapshotclass
-			klog.Warningf("encountered an unexpected volume snapshot class: %s", snapshotClassName)
+			snapshotClass, err = util.VolumeSnapshotClassFromExisting(
+				ctx,
+				s.client,
+				snapshotClassName,
+				consumer,
+				consumerConfig,
+				rbdStorageId,
+				cephFsStorageId,
+				cephFsStorageId,
+			)
+		}
+		if kerrors.IsNotFound(err) {
+			klog.Warningf("VolumeSnapshotClass with name %s doesn't exist in the cluster", snapshotClassName)
+		} else if errors.Is(err, util.UnsupportedDriver) {
+			klog.Warningf("Encountered unsupported driver in volume snapshot class %s", snapshotClassName)
+		} else if snapshotClass == nil {
+			klog.Warningf("The name %s does not points to a builtin or an existing volumesnapshot class, skipping", snapshotClassName)
+		} else {
+			kubeResources = append(kubeResources, snapshotClass)
 		}
 	}
 	return kubeResources, nil
 }
 
 func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
+	ctx context.Context,
 	kubeResources []client.Object,
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
@@ -1924,15 +1946,33 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		}
 	}
 	for i := range consumer.Spec.VolumeGroupSnapshotClasses {
+		var groupSnapshotClass *groupsnapapi.VolumeGroupSnapshotClass
+		var err error
 		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
 		vgscGen := vgscMap[groupSnapshotClassName]
 		if vgscGen != nil {
 			vgsc := vgscGen()
 			vgsc.Name = groupSnapshotClassName
-			kubeResources = append(kubeResources, vgsc)
 		} else {
-			//TODO: Day-2 groupSnapshotclass
-			klog.Warningf("encountered an unexpected volume group snapshot class: %s", groupSnapshotClassName)
+			groupSnapshotClass, err = util.VolumeGroupSnapshotClassFromExisting(
+				ctx,
+				s.client,
+				groupSnapshotClassName,
+				consumer,
+				consumerConfig,
+				rbdStorageId,
+				cephFsStorageId,
+				cephFsStorageId,
+			)
+		}
+		if kerrors.IsNotFound(err) {
+			klog.Warningf("VolumeGroupSnapshotClass with name %s doesn't exist in the cluster", groupSnapshotClassName)
+		} else if errors.Is(err, util.UnsupportedDriver) {
+			klog.Warningf("Encountered unsupported driver in volume group snapshot class %s", groupSnapshotClassName)
+		} else if groupSnapshotClass == nil {
+			klog.Warningf("The name %s does not points to a builtin or an existing volume group snapshot class, skipping", groupSnapshotClassName)
+		} else {
+			kubeResources = append(kubeResources, groupSnapshotClass)
 		}
 	}
 	return kubeResources, nil
