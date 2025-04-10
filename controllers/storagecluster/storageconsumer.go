@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"fmt"
+	"slices"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -9,6 +10,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,11 +22,24 @@ const (
 	localStorageConsumerConfigMapName = "storageconsumer-internal"
 )
 
+var (
+	supportedProvisioners = []string{
+		util.RbdDriverName,
+		util.CephFSDriverName,
+		util.NfsDriverName,
+	}
+)
+
 type storageConsumer struct{}
 
 var _ resourceManager = &storageConsumer{}
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+
+	storageClassesInCluster := &storagev1.StorageClassList{}
+	if err := r.List(r.ctx, storageClassesInCluster); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to list storageclasses: %v", err)
+	}
 
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
@@ -34,10 +49,8 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			return err
 		}
 		spec := &storageConsumer.Spec
-		// will be filled by the consumer controller based on defaults
 		spec.ResourceNameMappingConfigMap.Name = localStorageConsumerConfigMapName
 		spec.StorageClasses = []ocsv1a1.StorageClassSpec{
-			// TODO: after finding virt availability need to send corresponding sc
 			{Name: util.GenerateNameForCephBlockPoolStorageClass(storageCluster)},
 			{Name: util.GenerateNameForCephFilesystemStorageClass(storageCluster)},
 		}
@@ -86,6 +99,24 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 				spec.StorageClasses,
 				ocsv1a1.StorageClassSpec{Name: util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)},
 			)
+		}
+
+		distributedStorageClassNames := map[string]bool{}
+		for idx := range spec.StorageClasses {
+			distributedStorageClassNames[spec.StorageClasses[idx].Name] = true
+		}
+		for idx := range storageClassesInCluster.Items {
+			// TODO: skip storageclasses that are from external mode if both internal & external mode is enabled
+			storageClass := storageClassesInCluster.Items[idx]
+			storageClassName := storageClass.Name
+			storageClassProvisioner := storageClass.Provisioner
+			if slices.Contains(supportedProvisioners, storageClassProvisioner) &&
+				!distributedStorageClassNames[storageClassName] {
+				spec.StorageClasses = append(
+					spec.StorageClasses,
+					ocsv1a1.StorageClassSpec{Name: storageClassName},
+				)
+			}
 		}
 
 		return nil
