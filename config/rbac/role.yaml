@@ -57,10 +57,8 @@ rules:
   resources:
   - cephblockpoolradosnamespaces
   - cephblockpools
-  - cephclients
   - cephclusters
   - cephfilesystems
-  - cephfilesystemsubvolumegroups
   - cephnfses
   - cephobjectstores
   - cephobjectstoreusers
@@ -329,7 +327,6 @@ rules:
   - create
   - delete
   - get
-  - list
   - update
   - watch
 - apiGroups:
