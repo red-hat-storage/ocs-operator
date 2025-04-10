@@ -631,6 +631,7 @@ spec:
                 volumeMounts:
                 - mountPath: /etc/private-key
                   name: onboarding-private-key
+              priorityClassName: system-cluster-critical
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: ocs-operator
