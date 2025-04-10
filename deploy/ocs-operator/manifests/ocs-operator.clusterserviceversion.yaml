@@ -714,6 +714,7 @@ spec:
                   name: ux-proxy-secret
                 - mountPath: /etc/tls/private
                   name: ux-cert-secret
+              priorityClassName: system-cluster-critical
               serviceAccountName: ux-backend-server
               tolerations:
               - effect: NoSchedule
