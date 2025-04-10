@@ -39,6 +39,7 @@ mon_pg_warn_max_object_skew = 0
 mon_data_avail_warn = 15
 mon_warn_on_pool_no_redundancy = false
 bluestore_prefer_deferred_size_hdd = 0
+bluestore_slow_ops_warn_lifetime = 0
 [osd]
 osd_memory_target_cgroup_limit_ratio = 0.8
 `
