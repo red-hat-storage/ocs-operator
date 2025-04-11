@@ -316,6 +316,7 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 						},
 					},
 					Tolerations:        getPlacement(instance, defaults.APIServerKey).Tolerations,
+					PriorityClassName:  systemClusterCritical,
 					ServiceAccountName: ocsProviderServerName,
 				},
 			},

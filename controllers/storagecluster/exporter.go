@@ -489,6 +489,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						}},
 					},
 				},
+				PriorityClassName:  systemClusterCritical,
 				ServiceAccountName: metricsExporterName,
 				Volumes: []corev1.Volume{
 					{
@@ -872,7 +873,7 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 					"storageclusters",
 					"storageautoscalers",
 				},
-				Verbs:     []string{"get", "list", "watch"},
+				Verbs: []string{"get", "list", "watch"},
 			},
 		}
 

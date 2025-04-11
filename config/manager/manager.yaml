@@ -59,3 +59,4 @@ spec:
           # this is marked as optional as the secret gets created only in provider mode
           optional: true
           secretName: onboarding-private-key
+      priorityClassName: system-cluster-critical
