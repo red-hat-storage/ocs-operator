@@ -449,3 +449,15 @@ spec:
       for: 5m
       labels:
         severity: warning
+    - alert: DuplicateStorageAutoScalerCRsFound
+      annotations:
+        description: |-
+          Duplicate StorageAutoScaler CRs found in the namespace {{ $labels.namespace }} trying to scale device class {{ $labels.device_class }} under storage cluster {{ $labels.storagecluster }}.
+        message: Duplicate StorageAutoScaler CRs found.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/DuplicateStorageAutoScalerCRsFound.md
+        severity_level: warning
+      expr: |
+        count by (namespace, managedBy, storagecluster, device_class) (ocs_storageautoscaler_capacity_reached) > 1
+      for: 1m
+      labels:
+        severity: warning
