@@ -502,6 +502,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, serverVersion *v
 		cephCluster.Spec.WaitTimeoutForHealthyOSDInMinutes = sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes
 	}
 
+	if sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout != 0 {
+		cephCluster.Spec.DisruptionManagement.OSDMaintenanceTimeout = sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout
+	}
+
 	if sc.Spec.LogCollector != nil {
 		if sc.Spec.LogCollector.Periodicity != "" {
 			cephCluster.Spec.LogCollector.Periodicity = sc.Spec.LogCollector.Periodicity
