@@ -214,31 +214,101 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	case ocsv1alpha1.StorageConsumerStateDeleting:
 		return nil, status.Errorf(codes.NotFound, "storageConsumer is already in deleting phase")
 	case ocsv1alpha1.StorageConsumerStateReady:
-		conString, err := s.getExternalResources(ctx, consumerObj)
+		kubeResources, err := s.getKubeResources(ctx, consumerObj)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get external resources. %v", err)
+			klog.Errorf("failed to get kube resources: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
-		channelName, err := s.getOCSSubscriptionChannel(ctx)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
-		}
+		response := &pb.StorageConfigResponse{SystemAttributes: &pb.SystemAttributes{}}
 
-		storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
-		if err != nil {
-			return nil, err
+		for _, kubeResource := range kubeResources {
+			gvk, err := apiutil.GVKForObject(kubeResource, s.scheme)
+			if err != nil {
+				return nil, err
+			}
+			switch gvk {
+			case csiopv1a1.GroupVersion.WithKind("CephConnection"):
+				cephConn := kubeResource.(*csiopv1a1.CephConnection)
+				response.ExternalResource = append(
+					response.ExternalResource,
+					&pb.ExternalResource{
+						Name: cephConn.Name,
+						Kind: "CephConnection",
+						Data: mustMarshal(cephConn.Spec),
+					},
+				)
+			case quotav1.SchemeGroupVersion.WithKind("ClusterResourceQuota"):
+				quota := kubeResource.(*quotav1.ClusterResourceQuota)
+				response.ExternalResource = append(
+					response.ExternalResource,
+					&pb.ExternalResource{
+						Name: quota.Name,
+						Kind: "ClusterResourceQuota",
+						Data: mustMarshal(quota.Spec),
+					},
+				)
+			case csiopv1a1.GroupVersion.WithKind("ClientProfileMapping"):
+				clientProfileMapping := kubeResource.(*csiopv1a1.ClientProfileMapping)
+				response.ExternalResource = append(
+					response.ExternalResource,
+					&pb.ExternalResource{
+						Name: clientProfileMapping.Name,
+						Kind: "ClientProfileMapping",
+						Data: mustMarshal(clientProfileMapping.Spec),
+					},
+				)
+			case nbv1.SchemeGroupVersion.WithKind("Noobaa"):
+				noobaa := kubeResource.(*nbv1.NooBaa)
+				response.ExternalResource = append(
+					response.ExternalResource,
+					&pb.ExternalResource{
+						Name: noobaa.Name,
+						Kind: "Noobaa",
+						Data: mustMarshal(noobaa.Spec),
+					},
+				)
+			case corev1.SchemeGroupVersion.WithKind("Secret"):
+				secret := kubeResource.(*corev1.Secret)
+				if secret.Name == "noobaa-remote-join-secret" {
+					oldSecretFormat := map[string]string{}
+					for k, v := range secret.Data {
+						oldSecretFormat[k] = string(v)
+					}
+					response.ExternalResource = append(
+						response.ExternalResource,
+						&pb.ExternalResource{
+							Name: secret.Name,
+							Kind: "Secret",
+							Data: mustMarshal(oldSecretFormat),
+						},
+					)
+				}
+			}
 		}
 
 		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
+		response.SystemAttributes.SystemInMaintenanceMode = inMaintenanceMode
 
 		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumerObj)
 		if err != nil {
 			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		response.SystemAttributes.MirrorEnabled = isConsumerMirrorEnabled
+
+		channelName, err := s.getOCSSubscriptionChannel(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
+		storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+		if err != nil {
+			return nil, err
 		}
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
@@ -249,16 +319,10 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			isConsumerMirrorEnabled,
 		)
 
+		response.DesiredConfigHash = desiredClientConfigHash
+
 		klog.Infof("successfully returned the config details to the consumer.")
-		return &pb.StorageConfigResponse{
-				ExternalResource:  conString,
-				DesiredConfigHash: desiredClientConfigHash,
-				SystemAttributes: &pb.SystemAttributes{
-					SystemInMaintenanceMode: inMaintenanceMode,
-					MirrorEnabled:           isConsumerMirrorEnabled,
-				},
-			},
-			nil
+		return response, nil
 	}
 
 	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
@@ -433,734 +497,6 @@ func newScheme() (*runtime.Scheme, error) {
 	}
 
 	return scheme, nil
-}
-
-func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerResource *ocsv1alpha1.StorageConsumer) ([]*pb.ExternalResource, error) {
-	var extR []*pb.ExternalResource
-
-	consumerConfigMap := &v1.ConfigMap{}
-	if consumerResource.Status.ResourceNameMappingConfigMap.Name == "" {
-		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
-	}
-	consumerConfigMap.Name = consumerResource.Status.ResourceNameMappingConfigMap.Name
-	consumerConfigMap.Namespace = consumerResource.Namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
-	}
-	if consumerConfigMap.Data == nil {
-		return nil, fmt.Errorf("waiting StorageConsumer ResourceNameMappingConfig to be generated")
-	}
-	consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
-
-	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	var fsid string
-	if cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace); err != nil {
-		return nil, err
-	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
-		return nil, fmt.Errorf("waiting for Ceph FSID")
-	} else {
-		fsid = cephCluster.Status.CephStatus.FSID
-	}
-
-	rbdStorageId := calculateCephRbdStorageID(
-		fsid,
-		consumerConfig.GetRbdRadosNamespaceName(),
-	)
-	cephFsStorageId := calculateCephFsStorageID(
-		fsid,
-		consumerConfig.GetSubVolumeGroupName(),
-	)
-
-	if consumerResource.Status.Client.Name == "" {
-		return nil, fmt.Errorf("waiting for the first heart beat before sending the resources")
-	}
-
-	extR, err = s.appendCephConnectionExternalResources(ctx, extR, consumerResource)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendClientProfileExternalResources(
-		extR,
-		consumerResource,
-		consumerConfig,
-		storageCluster,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendCephClientSecretExternalResources(
-		ctx,
-		extR,
-		consumerResource,
-		consumerConfig,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendStorageClassExternalResources(
-		ctx,
-		extR,
-		consumerResource,
-		consumerConfig,
-		storageCluster,
-		rbdStorageId,
-		cephFsStorageId,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendVolumeSnapshotClassExternalResources(
-		extR,
-		consumerResource,
-		consumerConfig,
-		storageCluster,
-		rbdStorageId,
-		cephFsStorageId,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendVolumeGroupSnapshotClassExternalResources(
-		extR,
-		consumerResource,
-		consumerConfig,
-		storageCluster,
-		rbdStorageId,
-		cephFsStorageId,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendVolumeReplicationClassExternalResources(
-		ctx,
-		extR,
-		consumerResource,
-		consumerConfig,
-		storageCluster,
-		rbdStorageId,
-	)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-
-	extR, err = s.appendClusterResourceQuotaExternalResources(
-		extR,
-		consumerResource,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendClientProfileMappingExternalResources(
-		ctx,
-		extR,
-		consumerResource,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	extR, err = s.appendNoobaaExternalResources(
-		ctx,
-		extR,
-		consumerResource,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendCephConnectionExternalResources(
-	ctx context.Context,
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-) ([]*pb.ExternalResource, error) {
-
-	configmap := &v1.ConfigMap{}
-	configmap.Name = monConfigMap
-	configmap.Namespace = consumer.Namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(configmap), configmap)
-	if err != nil {
-		return extR, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
-	}
-	if configmap.Data["data"] == "" {
-		return extR, fmt.Errorf("configmap %s data is empty", monConfigMap)
-	}
-
-	monIps, err := extractMonitorIps(configmap.Data["data"])
-	if err != nil {
-		return extR, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
-	}
-
-	extR = append(extR, &pb.ExternalResource{
-		Kind: "CephConnection",
-		Name: consumer.Status.Client.Name,
-		Data: mustMarshal(&csiopv1a1.CephConnectionSpec{Monitors: monIps}),
-	})
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendClientProfileExternalResources(
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-	consumerConfig util.StorageConsumerResources,
-	storageCluster *ocsv1.StorageCluster,
-) ([]*pb.ExternalResource, error) {
-	var kernelMountOptions map[string]string
-	for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
-		if kernelMountOptions == nil {
-			kernelMountOptions = map[string]string{}
-		}
-		parts := strings.Split(option, "=")
-		kernelMountOptions[parts[0]] = parts[1]
-	}
-
-	// The client profile name for all the driver maybe the same or different, hence using a map to merge in case of
-	// same name
-	profileMap := make(map[string]*csiopv1a1.ClientProfileSpec)
-
-	rnsName := consumerConfig.GetRbdRadosNamespaceName()
-	if rnsName == util.ImplicitRbdRadosNamespaceName {
-		rnsName = ""
-	}
-	rbdClientProfileName := consumerConfig.GetRbdClientProfileName()
-	if rbdClientProfileName != "" {
-		rbdClientProfile := profileMap[rbdClientProfileName]
-		if rbdClientProfile == nil {
-			rbdClientProfile = &csiopv1a1.ClientProfileSpec{
-				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
-			}
-			profileMap[rbdClientProfileName] = rbdClientProfile
-
-		}
-		rbdClientProfile.Rbd = &csiopv1a1.RbdConfigSpec{
-			RadosNamespace: rnsName,
-		}
-	}
-
-	cephFsClientProfileName := consumerConfig.GetCephFsClientProfileName()
-	if cephFsClientProfileName != "" {
-		cephFsClientProfile := profileMap[cephFsClientProfileName]
-		if cephFsClientProfile == nil {
-			cephFsClientProfile = &csiopv1a1.ClientProfileSpec{
-				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
-			}
-			profileMap[cephFsClientProfileName] = cephFsClientProfile
-		}
-		cephFsClientProfile.CephFs = &csiopv1a1.CephFsConfigSpec{
-			SubVolumeGroup:     consumerConfig.GetSubVolumeGroupName(),
-			KernelMountOptions: kernelMountOptions,
-			RadosNamespace:     ptr.To(consumerConfig.GetSubVolumeGroupRadosNamespaceName()),
-		}
-	}
-
-	nfsClientProfileName := consumerConfig.GetCephFsClientProfileName()
-	if nfsClientProfileName != "" {
-		nfsClientProfile := profileMap[nfsClientProfileName]
-		if nfsClientProfile == nil {
-			nfsClientProfile = &csiopv1a1.ClientProfileSpec{
-				CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
-			}
-			profileMap[nfsClientProfileName] = nfsClientProfile
-		}
-		nfsClientProfile.Nfs = &csiopv1a1.NfsConfigSpec{}
-	}
-
-	for profileName, profileSpec := range profileMap {
-		extR = append(extR, &pb.ExternalResource{
-			Kind: "ClientProfile",
-			Name: profileName,
-			Data: mustMarshal(profileSpec),
-		})
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendCephClientSecretExternalResources(
-	ctx context.Context,
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-	consumerConfig util.StorageConsumerResources,
-) ([]*pb.ExternalResource, error) {
-
-	cephClients := []string{}
-	if consumerConfig.GetCsiRbdProvisionerSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiRbdProvisionerSecretName())
-	}
-	if consumerConfig.GetCsiRbdNodeSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiRbdNodeSecretName())
-	}
-	if consumerConfig.GetCsiCephFsProvisionerSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiCephFsProvisionerSecretName())
-	}
-	if consumerConfig.GetCsiCephFsNodeSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiCephFsNodeSecretName())
-	}
-	if consumerConfig.GetCsiNfsProvisionerSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiNfsProvisionerSecretName())
-	}
-	if consumerConfig.GetCsiNfsNodeSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiNfsNodeSecretName())
-	}
-
-	for i := range cephClients {
-		cephClient := &rookCephv1.CephClient{}
-		cephClient.Name = cephClients[i]
-		cephClient.Namespace = consumer.Namespace
-		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephClient), cephClient); err != nil {
-			return extR, err
-		}
-
-		cephUserSecret := &v1.Secret{}
-		cephUserSecret.Namespace = consumer.Namespace
-		if cephClient.Status != nil &&
-			cephClient.Status.Info["secretName"] != "" {
-			cephUserSecret.Name = cephClient.Status.Info["secretName"]
-		}
-		if cephUserSecret.Name == "" {
-			return extR, fmt.Errorf("failed to find cephclient secret name")
-		}
-
-		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephUserSecret), cephUserSecret); err != nil {
-			return extR, fmt.Errorf("failed to get %s secret. %v", cephUserSecret, err)
-		}
-
-		extR = append(extR, &pb.ExternalResource{
-			Name: cephClients[i],
-			Kind: "Secret",
-			Data: mustMarshal(cephUserSecret.Data),
-		})
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendStorageClassExternalResources(
-	ctx context.Context,
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-	consumerConfig util.StorageConsumerResources,
-	storageCluster *ocsv1.StorageCluster,
-	rbdStorageId,
-	cephFsStorageId string,
-) ([]*pb.ExternalResource, error) {
-	scMap := map[string]func() *storagev1.StorageClass{}
-	if consumerConfig.GetRbdClientProfileName() != "" {
-		scMap[util.GenerateNameForCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
-			return util.NewDefaultRbdStorageClass(
-				consumerConfig.GetRbdClientProfileName(),
-				util.GenerateNameForCephBlockPool(storageCluster.Name),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumerConfig.GetCsiRbdNodeSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				rbdStorageId,
-				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
-			)
-		}
-		scMap[util.GenerateNameForCephBlockPoolVirtualizationStorageClass(storageCluster)] = func() *storagev1.StorageClass {
-			return util.NewDefaultVirtRbdStorageClass(
-				consumerConfig.GetRbdClientProfileName(),
-				util.GenerateNameForCephBlockPool(storageCluster.Name),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumerConfig.GetCsiRbdNodeSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				rbdStorageId,
-			)
-		}
-		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
-			kmsServiceName := kmsConfig.Data["KMS_SERVICE_NAME"]
-			scMap[util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
-				return util.NewDefaultEncryptedRbdStorageClass(
-					consumerConfig.GetRbdClientProfileName(),
-					util.GenerateNameForCephBlockPool(storageCluster.Name),
-					consumerConfig.GetCsiRbdProvisionerSecretName(),
-					consumerConfig.GetCsiRbdNodeSecretName(),
-					consumer.Status.Client.OperatorNamespace,
-					kmsServiceName,
-					storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
-				)
-			}
-		}
-		scMap[util.GenerateNameForNonResilientCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
-			return util.NewDefaultNonResilientRbdStorageClass(
-				consumerConfig.GetRbdClientProfileName(),
-				util.GetTopologyConstrainedPools(storageCluster),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumerConfig.GetCsiRbdNodeSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				rbdStorageId,
-				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
-			)
-		}
-	}
-	if consumerConfig.GetCephFsClientProfileName() != "" {
-		scMap[util.GenerateNameForCephFilesystemStorageClass(storageCluster)] = func() *storagev1.StorageClass {
-			return util.NewDefaultCephFsStorageClass(
-				consumerConfig.GetCephFsClientProfileName(),
-				util.GenerateNameForCephFilesystem(storageCluster.Name),
-				consumerConfig.GetCsiCephFsProvisionerSecretName(),
-				consumerConfig.GetCsiCephFsNodeSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				cephFsStorageId,
-			)
-		}
-	}
-	if consumerConfig.GetNfsClientProfileName() != "" {
-		scMap[util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)] = func() *storagev1.StorageClass {
-			return util.NewDefaultNFSStorageClass(
-				consumerConfig.GetNfsClientProfileName(),
-				util.GenerateNameForCephNFS(storageCluster),
-				util.GenerateNameForCephFilesystem(storageCluster.Name),
-				util.GenerateNameForNFSService(storageCluster),
-				consumerConfig.GetCsiNfsProvisionerSecretName(),
-				consumerConfig.GetCsiNfsNodeSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-			)
-		}
-	}
-	for i := range consumer.Spec.StorageClasses {
-		storageClassName := consumer.Spec.StorageClasses[i].Name
-		scGen := scMap[storageClassName]
-		if scGen != nil {
-			extR = append(extR, &pb.ExternalResource{
-				Kind: "StorageClass",
-				Name: storageClassName,
-				Data: mustMarshal(scGen()),
-			})
-		} else {
-			//TODO: Day-2 storageClasses
-			klog.Warningf("encountered an unexpected storage class: %s", storageClassName)
-		}
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendVolumeSnapshotClassExternalResources(
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-	consumerConfig util.StorageConsumerResources,
-	storageCluster *ocsv1.StorageCluster,
-	rbdStorageId,
-	cephFsStorageId string,
-) ([]*pb.ExternalResource, error) {
-	vscMap := map[string]func() *snapapi.VolumeSnapshotClass{}
-	if consumerConfig.GetRbdClientProfileName() != "" {
-		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
-			return util.NewDefaultRbdSnapshotClass(
-				consumerConfig.GetRbdClientProfileName(),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				rbdStorageId,
-			)
-		}
-	}
-	if consumerConfig.GetCephFsClientProfileName() != "" {
-		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
-			return util.NewDefaultCephFsSnapshotClass(
-				consumerConfig.GetCephFsClientProfileName(),
-				consumerConfig.GetCsiCephFsProvisionerSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				cephFsStorageId,
-			)
-		}
-	}
-	if consumerConfig.GetNfsClientProfileName() != "" {
-		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
-			return util.NewDefaultNfsSnapshotClass(
-				consumerConfig.GetNfsClientProfileName(),
-				consumerConfig.GetCsiNfsProvisionerSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-			)
-		}
-	}
-	for i := range consumer.Spec.VolumeSnapshotClasses {
-		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
-		vscGen := vscMap[snapshotClassName]
-		if vscGen != nil {
-			extR = append(extR, &pb.ExternalResource{
-				Kind: "VolumeSnapshotClass",
-				Name: snapshotClassName,
-				Data: mustMarshal(vscGen()),
-			})
-		} else {
-			//TODO: Day-2 snapshotclass
-			klog.Warningf("encountered an unexpected volume snapshot class: %s", snapshotClassName)
-		}
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendVolumeGroupSnapshotClassExternalResources(
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-	consumerConfig util.StorageConsumerResources,
-	storageCluster *ocsv1.StorageCluster,
-	rbdStorageId,
-	cephFsStorageId string,
-) ([]*pb.ExternalResource, error) {
-	vgscMap := map[string]func() *groupsnapapi.VolumeGroupSnapshotClass{}
-	if consumerConfig.GetRbdClientProfileName() != "" {
-		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
-			return util.NewDefaultRbdGroupSnapshotClass(
-				consumerConfig.GetRbdClientProfileName(),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				util.GenerateNameForCephBlockPool(storageCluster.Name),
-				rbdStorageId,
-			)
-		}
-	}
-	if consumerConfig.GetCephFsClientProfileName() != "" {
-		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
-			return util.NewDefaultCephFsGroupSnapshotClass(
-				consumerConfig.GetCephFsClientProfileName(),
-				consumerConfig.GetCsiCephFsProvisionerSecretName(),
-				consumer.Status.Client.OperatorNamespace,
-				util.GenerateNameForCephFilesystem(storageCluster.Name),
-				cephFsStorageId,
-			)
-		}
-	}
-	for i := range consumer.Spec.VolumeGroupSnapshotClasses {
-		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
-		vgscGen := vgscMap[groupSnapshotClassName]
-		if vgscGen != nil {
-			extR = append(extR, &pb.ExternalResource{
-				Kind: "VolumeGroupSnapshotClass",
-				Name: groupSnapshotClassName,
-				Data: mustMarshal(vgscGen()),
-			})
-		} else {
-			//TODO: Day-2 groupSnapshotclass
-			klog.Warningf("encountered an unexpected volume group snapshot class: %s", groupSnapshotClassName)
-		}
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendVolumeReplicationClassExternalResources(
-	ctx context.Context,
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-	consumerConfig util.StorageConsumerResources,
-	storageCluster *ocsv1.StorageCluster,
-	rbdStorageId string,
-) ([]*pb.ExternalResource, error) {
-
-	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
-		return nil, err
-	} else if !mirrorEnabled {
-		klog.Infof("skipping distribution of VolumeReplicationClass as mirroring is not enabled for the consumer")
-		return extR, nil
-	}
-
-	//TODO: this is a ugly hack to generate the peerStorageID for generating replicationID
-	// peerStorageID should come from GetStorageClientInfo
-	peerStorageID, err := s.getPeerStorageID(ctx, storageCluster, consumer.Namespace, consumerConfig.GetRbdRadosNamespaceName())
-	if err != nil {
-		return nil, err
-	}
-
-	storageIDs := []string{rbdStorageId, peerStorageID}
-	slices.Sort(storageIDs)
-	replicationID := util.CalculateMD5Hash(storageIDs)
-
-	for i := range consumer.Spec.VolumeReplicationClasses {
-		replicationClassName := consumer.Spec.VolumeReplicationClasses[i].Name
-		//TODO: The code is written under the assumption VRC name is exactly the same as the template name and there
-		// is 1:1 mapping between template and vrc. The restriction will be relaxed in the future
-		vrcTemplate := &templatev1.Template{}
-		vrcTemplate.Name = replicationClassName
-		vrcTemplate.Namespace = consumer.Namespace
-
-		if err := s.client.Get(ctx, client.ObjectKeyFromObject(vrcTemplate), vrcTemplate); err != nil {
-			return nil, fmt.Errorf("failed to get VolumeReplicationClass template: %s, %v", replicationClassName, err)
-		}
-
-		if len(vrcTemplate.Objects) != 1 {
-			return nil, fmt.Errorf("unexpected number of Volume Replication Class found expected 1")
-		}
-
-		vrc := &replicationv1alpha1.VolumeReplicationClass{}
-		if err := json.Unmarshal(vrcTemplate.Objects[0].Raw, vrc); err != nil {
-			return nil, fmt.Errorf("failed to unmarshall volume replication class: %s, %v", replicationClassName, err)
-
-		}
-
-		if vrc.Name != replicationClassName {
-			return nil, fmt.Errorf("volume replication class name mismatch: %s, %v", replicationClassName, vrc.Name)
-		}
-
-		switch vrc.Spec.Provisioner {
-		case util.RbdDriverName:
-			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
-			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
-			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
-			util.AddLabel(vrc, ramenDRStorageIDLabelKey, rbdStorageId)
-			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
-			util.AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
-		default:
-			return nil, fmt.Errorf("unsupported Provisioner for VolumeReplicationClass")
-		}
-
-		extR = append(extR, &pb.ExternalResource{
-			Kind: "VolumeReplicationClass",
-			Name: replicationClassName,
-			Data: mustMarshal(vrc),
-		})
-
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendClusterResourceQuotaExternalResources(
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-) ([]*pb.ExternalResource, error) {
-	if consumer.Spec.StorageQuotaInGiB > 0 {
-		clusterResourceQuotaSpec := &quotav1.ClusterResourceQuotaSpec{
-			Selector: quotav1.ClusterResourceQuotaSelector{
-				LabelSelector: &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{
-							Key:      string(consumer.UID),
-							Operator: metav1.LabelSelectorOpDoesNotExist,
-						},
-					},
-				},
-			},
-			Quota: corev1.ResourceQuotaSpec{
-				Hard: corev1.ResourceList{"requests.storage": *resource.NewQuantity(
-					int64(consumer.Spec.StorageQuotaInGiB)*oneGibInBytes,
-					resource.BinarySI,
-				)},
-			},
-		}
-
-		extR = append(extR, &pb.ExternalResource{
-			Name: "QuotaForConsumer",
-			Kind: "ClusterResourceQuota",
-			Data: mustMarshal(clusterResourceQuotaSpec),
-		})
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendClientProfileMappingExternalResources(
-	ctx context.Context,
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-) ([]*pb.ExternalResource, error) {
-	cbpList := &rookCephv1.CephBlockPoolList{}
-	if err := s.client.List(ctx, cbpList, client.InNamespace(s.namespace)); err != nil {
-		return extR, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
-	}
-	blockPoolMapping := []csiopv1a1.BlockPoolIdPair{}
-	for i := range cbpList.Items {
-		cephBlockPool := &cbpList.Items[i]
-		remoteBlockPoolID := cephBlockPool.GetAnnotations()[util.BlockPoolMirroringTargetIDAnnotation]
-		if remoteBlockPoolID != "" {
-			localBlockPoolID := strconv.Itoa(cephBlockPool.Status.PoolID)
-			blockPoolMapping = append(
-				blockPoolMapping,
-				csiopv1a1.BlockPoolIdPair{localBlockPoolID, remoteBlockPoolID},
-			)
-		}
-	}
-
-	if len(blockPoolMapping) > 0 {
-		// This is an assumption and should go away when deprecating the StorageClaim API
-		// The current proposal is to read the clientProfile name from the storageConsumer status and
-		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
-		clientName := consumer.Status.Client.Name
-		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
-		extR = append(extR, &pb.ExternalResource{
-			Name: consumer.Status.Client.Name,
-			Kind: "ClientProfileMapping",
-			Data: mustMarshal(&csiopv1a1.ClientProfileMappingSpec{
-				Mappings: []csiopv1a1.MappingsSpec{
-					{
-						LocalClientProfile:  clientProfileName,
-						RemoteClientProfile: clientProfileName,
-						BlockPoolIdMapping:  blockPoolMapping,
-					},
-				},
-			}),
-		})
-	}
-	return extR, nil
-}
-
-func (s *OCSProviderServer) appendNoobaaExternalResources(
-	ctx context.Context,
-	extR []*pb.ExternalResource,
-	consumer *ocsv1alpha1.StorageConsumer,
-) ([]*pb.ExternalResource, error) {
-	// Noobaa Configuration
-	// Fetch noobaa remote secret and management address and append to extResources
-	noobaaOperatorSecret := &v1.Secret{}
-	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumer.Name)
-	noobaaOperatorSecret.Namespace = s.namespace
-
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaaOperatorSecret), noobaaOperatorSecret); kerrors.IsNotFound(err) {
-		return extR, nil
-	} else if err != nil {
-		return extR, fmt.Errorf("failed to get %s secret. %v", noobaaOperatorSecret.Name, err)
-	}
-
-	authToken, ok := noobaaOperatorSecret.Data["auth_token"]
-	if !ok || len(authToken) == 0 {
-		return extR, fmt.Errorf("auth_token not found in %s secret", noobaaOperatorSecret.Name)
-	}
-
-	noobaMgmtRoute := &routev1.Route{}
-	noobaMgmtRoute.Name = "noobaa-mgmt"
-	noobaMgmtRoute.Namespace = s.namespace
-
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(noobaMgmtRoute), noobaMgmtRoute); err != nil {
-		return extR, fmt.Errorf("failed to get noobaa-mgmt route. %v", err)
-	}
-	if len(noobaMgmtRoute.Status.Ingress) == 0 {
-		return extR, fmt.Errorf("no Ingress available in noobaa-mgmt route")
-	}
-
-	noobaaMgmtAddress := noobaMgmtRoute.Status.Ingress[0].Host
-	if noobaaMgmtAddress == "" {
-		return extR, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
-	}
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote-join-secret",
-		Kind: "Secret",
-		Data: mustMarshal(map[string]string{
-			"auth_token": string(authToken),
-			"mgmt_addr":  noobaaMgmtAddress,
-		}),
-	})
-
-	extR = append(extR, &pb.ExternalResource{
-		Name: "noobaa-remote",
-		Kind: "Noobaa",
-		Data: mustMarshal(&nbv1.NooBaaSpec{
-			JoinSecret: &v1.SecretReference{
-				Name: "noobaa-remote-join-secret",
-			},
-		}),
-	})
-
-	return extR, nil
 }
 
 func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name string) (string, string, error) {

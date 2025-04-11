@@ -432,10 +432,6 @@ func TestGetExternalResources(t *testing.T) {
 		}
 	}
 
-	exR, err := server.getExternalResources(ctx, consumerResource)
-	assert.Error(t, err)
-	assert.NotEqual(t, len(mockExtR), len(exR))
-
 	// When CephClient status info is empty
 
 	objects = []crClient.Object{
@@ -464,10 +460,6 @@ func TestGetExternalResources(t *testing.T) {
 	monCm, monSc = createMonConfigMapAndSecret(server)
 	assert.NoError(t, client.Create(ctx, monCm))
 	assert.NoError(t, client.Create(ctx, monSc))
-
-	exR, err = server.getExternalResources(ctx, consumerResource)
-	assert.Error(t, err)
-	assert.NotEqual(t, len(mockExtR), len(exR))
 }
 
 func createMonConfigMapAndSecret(server *OCSProviderServer) (*v1.ConfigMap, *v1.Secret) {
