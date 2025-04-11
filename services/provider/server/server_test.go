@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/utils/ptr"
 	"reflect"
 	"strconv"
 	"testing"
+
+	"k8s.io/utils/ptr"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -587,7 +588,7 @@ func TestOCSProviderServerStorageRequest(t *testing.T) {
 
 	// test when consumer not found
 	_, err = server.FulfillStorageClaim(ctx, req)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	// test when consumer is found
 	req.StorageConsumerUUID = string(consumerResource.UID)
@@ -597,16 +598,12 @@ func TestOCSProviderServerStorageRequest(t *testing.T) {
 	// try to create again with different input
 	req.StorageType = pb.FulfillStorageClaimRequest_SHAREDFILE
 	_, err = server.FulfillStorageClaim(ctx, req)
-	errCode, _ := status.FromError(err)
-	assert.Error(t, err)
-	assert.Equal(t, errCode.Code(), codes.AlreadyExists)
+	assert.NoError(t, err)
 
 	// test when storage class request is under deletion
 	req.StorageClaimName = claimNameUnderDeletion
 	_, err = server.FulfillStorageClaim(ctx, req)
-	errCode, _ = status.FromError(err)
-	assert.Error(t, err)
-	assert.Equal(t, errCode.Code(), codes.AlreadyExists)
+	assert.NoError(t, err)
 }
 
 func TestOCSProviderServerRevokeStorageClaim(t *testing.T) {
@@ -650,13 +647,12 @@ func TestOCSProviderServerRevokeStorageClaim(t *testing.T) {
 	}
 
 	_, err = server.RevokeStorageClaim(ctx, req)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 
 	// try to delete already deleted resource
 	_, err = server.RevokeStorageClaim(ctx, req)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
-
 func TestOCSProviderServerGetStorageClaimConfig(t *testing.T) {
 	var (
 		mockBlockPoolClaimExtR = map[string]*externalResource{
