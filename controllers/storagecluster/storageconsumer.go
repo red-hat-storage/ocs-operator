@@ -25,6 +25,20 @@ type storageConsumer struct{}
 var _ resourceManager = &storageConsumer{}
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+	// TODO (leelavg): revisit in 4.20 whether this can be retired or not
+	// If the cluster was configured in provider mode pre4.19 a storageconsumer would already exist for serving storage to local services.
+	// We use allowRemoteStorageConsumers for finding the older provider mode as this field is made immutable from 4.19.
+	if storageCluster.Spec.AllowRemoteStorageConsumers {
+		storageConsumerList := &ocsv1a1.StorageConsumerList{}
+		if err := r.List(r.ctx, storageConsumerList, client.InNamespace(r.OperatorNamespace), client.Limit(1)); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to list storageconsumers: %v", err)
+		}
+		if len(storageConsumerList.Items) > 0 {
+			r.Log.Info("Skipping creation of internal storageconsumer as the cluster was configured in provider mode pre4.19")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("expected storageconsumer to exist from pre4.19 provider mode")
+	}
 
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
