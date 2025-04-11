@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -1829,4 +1830,18 @@ func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 		actual := determineDefaultCephDeviceClass(c.foundDeviceClasses, c.isReplica1, c.replica1DeviceClasses)
 		assert.Equal(t, c.expectedDeviceClass, actual)
 	}
+}
+
+func TestEnsureUpgradeReliabilityParams(t *testing.T) {
+	sc := &ocsv1.StorageCluster{}
+	mockStorageCluster.DeepCopyInto(sc)
+	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+	sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes = 20 * time.Minute
+	sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout = 45 * time.Minute
+
+	r := createFakeStorageClusterReconciler(t)
+	expected, err := newCephCluster(sc, "", r.serverVersion, nil, log)
+	assert.NilError(t, err)
+	assert.Equal(t, 20*time.Minute, expected.Spec.WaitTimeoutForHealthyOSDInMinutes)
+	assert.Equal(t, 45*time.Minute, expected.Spec.DisruptionManagement.OSDMaintenanceTimeout)
 }

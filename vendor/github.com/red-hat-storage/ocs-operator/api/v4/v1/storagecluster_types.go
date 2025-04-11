@@ -185,6 +185,10 @@ type ManageCephCluster struct {
 	// This timeout won't be applied if `skipUpgradeChecks` is `true`.
 	// The default wait timeout is 10 minutes.
 	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
+	// A duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the
+	// default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true` in cephCluster CR.
+	// The default value is `30` minutes.
+	OsdMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
