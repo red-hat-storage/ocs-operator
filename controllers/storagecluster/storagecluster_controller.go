@@ -18,7 +18,9 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/webhook"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	admrv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -32,6 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
@@ -211,6 +215,14 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	ocsMutatingWebhookPredicate := builder.WithPredicates(
+		predicate.NewPredicateFuncs(
+			func(obj client.Object) bool {
+				return obj.GetName() == OcsMutatingWebhookConfigName
+			},
+		),
+	)
+
 	build := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}, builder.WithPredicates(cephClusterIgnoreTimeUpdatePredicate)).
@@ -260,7 +272,8 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.NamePredicate(OdfInfoConfigMapName),
 				util.NamespacePredicate(r.OperatorNamespace),
 			),
-		)
+		).
+		Watches(&admrv1.MutatingWebhookConfiguration{}, enqueueStorageClusterRequest, ocsMutatingWebhookPredicate)
 
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		build.Owns(&nbv1.NooBaa{}, builder.WithPredicates(noobaaIgnoreTimeUpdatePredicate))
@@ -268,6 +281,18 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.AvailableCrds[StorageClientCrdName] {
 		build.Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest)
 	}
+
+	mgr.GetWebhookServer().Register(
+		mutateStorageClassEndpoint,
+		&ctrlwebhook.Admission{
+			Handler: &webhook.StorageClassAdmission{
+				Client:    mgr.GetClient(),
+				Namespace: r.OperatorNamespace,
+				Decoder:   admission.NewDecoder(mgr.GetScheme()),
+				Log:       mgr.GetLogger().WithName("webhook.storageclass"),
+			},
+		},
+	)
 
 	return build.Complete(r)
 }

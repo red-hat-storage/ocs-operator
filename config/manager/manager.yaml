@@ -50,6 +50,8 @@ spec:
         volumeMounts:
         - mountPath: /etc/private-key
           name: onboarding-private-key
+        - mountPath: /etc/tls/private
+          name: webhook-cert-secret
       terminationGracePeriodSeconds: 10
       securityContext:
         runAsNonRoot: true
@@ -59,3 +61,6 @@ spec:
           # this is marked as optional as the secret gets created only in provider mode
           optional: true
           secretName: onboarding-private-key
+      - name: webhook-cert-secret
+        secret:
+          secretName: ocs-operator-webhook-cert-secret
