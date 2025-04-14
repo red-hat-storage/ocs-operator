@@ -22,10 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const (
-	localStorageConsumerConfigMapName = "storageconsumer-internal"
-)
-
 var (
 	supportedCsiDrivers = []string{
 		util.RbdDriverName,
@@ -61,7 +57,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			return err
 		}
 		spec := &storageConsumer.Spec
-		spec.ResourceNameMappingConfigMap.Name = localStorageConsumerConfigMapName
+		spec.ResourceNameMappingConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
@@ -79,9 +75,14 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
 	}
 	consumerConfigMap := &corev1.ConfigMap{}
-	consumerConfigMap.Name = localStorageConsumerConfigMapName
+	consumerConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 	consumerConfigMap.Namespace = storageCluster.Namespace
-	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
+
+	if err = r.Client.Get(r.ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); client.IgnoreNotFound(err) != nil {
+		return ctrl.Result{}, err
+	}
+
+	if consumerConfigMap.UID == "" {
 		data := util.GetStorageConsumerDefaultResourceNames(
 			defaults.LocalStorageConsumerName,
 			string(storageConsumer.UID),
@@ -96,9 +97,9 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		resourceMap.ReplaceNfsClientProfileName("openshift-storage")
 		// NB: Do we need to allow user changing/overwriting any values in this configmap?
 		consumerConfigMap.Data = data
-		return nil
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", localStorageConsumerConfigMapName, err)
+		if err = r.Client.Create(r.ctx, consumerConfigMap); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to create storageconsumer configmap: %v", err)
+		}
 	}
 
 	return ctrl.Result{}, nil
