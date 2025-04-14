@@ -527,6 +527,20 @@ spec:
           verbs:
           - get
           - list
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshotclasses
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - groupsnapshot.storage.k8s.io
+          resources:
+          - volumegroupsnapshotclasses
+          verbs:
+          - get
+          - list
         serviceAccountName: ocs-provider-server
       - rules:
         - apiGroups:
