@@ -759,6 +759,7 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 						},
 					},
 				},
+				PriorityClassName:  "system-cluster-critical",
 				ServiceAccountName: "ux-backend-server",
 			},
 		},
