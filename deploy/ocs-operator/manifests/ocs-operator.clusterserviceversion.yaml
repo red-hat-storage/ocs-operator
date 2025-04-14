@@ -411,6 +411,13 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
+          - storageclients
+          verbs:
+          - get
+        - apiGroups:
+          - ocs.openshift.io
+          resources:
+          - storageclients/status
           - storageclusterpeers/finalizers
           - storagerequests/finalizers
           verbs:
