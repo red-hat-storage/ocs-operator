@@ -22,14 +22,18 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -72,6 +76,9 @@ func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) er
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;watch;create;update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;create;update
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update
 
 func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
@@ -106,35 +113,61 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 		return reconcile.Result{}, err
 	}
 
-	availableServices, err := util.GetAvailableServices(ctx, r.Client, storageCluster)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
+	consumerConfigMapName := fmt.Sprintf("storageconsumer-%v", util.FnvHash(storageConsumer.Name))
+
+	if err = r.reconcileConsumerConfigMap(ctx, storageCluster, storageConsumer, consumerConfigMapName); err != nil {
+		return reconcile.Result{}, err
 	}
 
-	consumerConfigMap := &corev1.ConfigMap{}
-	consumerConfigMap.Name = fmt.Sprintf("storageconsumer-%v", util.FnvHash(storageConsumer.Name))
-	consumerConfigMap.Namespace = storageConsumer.Namespace
+	if err = r.reconcileStorageRequest(ctx, storageCluster, storageConsumer); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if err = r.reconcileStorageConsumer(ctx, storageCluster, storageConsumer, consumerConfigMapName); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *StorageConsumerUpgradeReconciler) reconcileConsumerConfigMap(
+	ctx context.Context,
+	storageCluster *ocsv1.StorageCluster,
+	storageConsumer *ocsv1alpha1.StorageConsumer,
+	configMapName string,
+) error {
+
+	availableServices, err := util.GetAvailableServices(ctx, r.Client, storageCluster)
+	if err != nil {
+		return fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
+	}
 
 	data := util.GetStorageConsumerDefaultResourceNames(
 		storageConsumer.Name,
 		string(storageConsumer.UID),
 		availableServices,
 	)
+
+	consumerConfigMap := &corev1.ConfigMap{}
+	consumerConfigMap.Name = configMapName
+	consumerConfigMap.Namespace = storageConsumer.Namespace
+
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); client.IgnoreNotFound(err) != nil {
-		return reconcile.Result{}, err
+		return err
 	}
 
-	if consumerConfigMap.UID != "" {
+	if consumerConfigMap.UID == "" {
 		// For Provider Mode we supported creating one rbdClaim where we generate clientProfile, secret and rns name using
 		// consumer UID and Storage Claim name
 		// The name of StorageClass is the same as name of storageClaim in provider mode
 		rbdClaimName := util.GenerateNameForCephBlockPoolStorageClass(storageCluster)
 		rbdClaimMd5Sum := md5.Sum([]byte(rbdClaimName))
 		rbdClientProfile := hex.EncodeToString(rbdClaimMd5Sum[:])
-		rbdStorageRequestHash := getStorageRequestName(string(storageConsumer.UID), rbdClaimName)
+		rbdStorageRequestHash := getStorageRequestHash(string(storageConsumer.UID), rbdClaimName)
 		rbdNodeSecretName := storageClaimCephCsiSecretName("node", rbdStorageRequestHash)
 		rbdProvisionerSecretName := storageClaimCephCsiSecretName("provisioner", rbdStorageRequestHash)
-		rbdStorageRequestMd5Sum := md5.Sum([]byte(rbdStorageRequestHash))
+		rbdStorageRequestName := getStorageRequestName(string(storageConsumer.UID), rbdClaimName)
+		rbdStorageRequestMd5Sum := md5.Sum([]byte(rbdStorageRequestName))
 		rnsName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(rbdStorageRequestMd5Sum[:16]))
 
 		// For Provider Mode we supported creating one cephFs claim where we generate clientProfile, secret and svg name using
@@ -143,10 +176,11 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 		cephFsClaimName := util.GenerateNameForCephFilesystemStorageClass(storageCluster)
 		cephFsClaimMd5Sum := md5.Sum([]byte(cephFsClaimName))
 		cephFSClientProfile := hex.EncodeToString(cephFsClaimMd5Sum[:])
-		cephFsStorageRequestHash := getStorageRequestName(string(storageConsumer.UID), cephFsClaimName)
+		cephFsStorageRequestHash := getStorageRequestHash(string(storageConsumer.UID), cephFsClaimName)
 		cephFsNodeSecretName := storageClaimCephCsiSecretName("node", cephFsStorageRequestHash)
 		cephFsProvisionerSecretName := storageClaimCephCsiSecretName("provisioner", cephFsStorageRequestHash)
-		cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestHash))
+		cephFsStorageRequestName := getStorageRequestName(string(storageConsumer.UID), cephFsClaimName)
+		cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestName))
 		svgName := fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(cephFsStorageRequestMd5Sum[:16]))
 
 		resourceMap := util.WrapStorageConsumerResourceMap(data)
@@ -162,12 +196,82 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 		consumerConfigMap.Data = data
 
 		if err := r.Client.Create(ctx, consumerConfigMap); err != nil {
-			return reconcile.Result{}, err
+			return err
 		}
 	}
+	return nil
+}
 
+func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
+	ctx context.Context,
+	storageCluster *ocsv1.StorageCluster,
+	storageConsumer *ocsv1alpha1.StorageConsumer,
+) error {
+
+	rbdClaimName := util.GenerateNameForCephBlockPoolStorageClass(storageCluster)
+	rbdStorageRequestName := getStorageRequestName(string(storageConsumer.UID), rbdClaimName)
+	rbdStorageRequestMd5Sum := md5.Sum([]byte(rbdStorageRequestName))
+	rnsName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(rbdStorageRequestMd5Sum[:16]))
+
+	// Removing the onwerRef from rns to preserve it after deletion the StorageRequest
+	if err := r.removeStorageRequestOwner(ctx, "CephBlockPoolRadosNamespace", rnsName, storageConsumer.Namespace); err != nil {
+		return err
+	}
+
+	rbdStorageRequest := &metav1.PartialObjectMetadata{}
+	rbdStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
+	rbdStorageRequest.Name = rbdStorageRequestName
+	rbdStorageRequest.Namespace = storageConsumer.Namespace
+	if err := r.Client.Delete(ctx, rbdStorageRequest); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	cephFsClaimName := util.GenerateNameForCephFilesystemStorageClass(storageCluster)
+	cephFsStorageRequestName := getStorageRequestName(string(storageConsumer.UID), cephFsClaimName)
+	cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestName))
+	svgName := fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(cephFsStorageRequestMd5Sum[:16]))
+
+	// Removing the onwerRef from svg to preserve it after deletion the StorageRequest
+	if err := r.removeStorageRequestOwner(ctx, "CephFilesystemSubVolumeGroup", svgName, storageConsumer.Namespace); err != nil {
+		return err
+	}
+
+	cephFsStorageRequest := &metav1.PartialObjectMetadata{}
+	cephFsStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
+	cephFsStorageRequest.Name = cephFsStorageRequestName
+	cephFsStorageRequest.Namespace = storageConsumer.Namespace
+	if err := r.Client.Delete(ctx, rbdStorageRequest); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *StorageConsumerUpgradeReconciler) removeStorageRequestOwner(ctx context.Context, kind, name, namespace string) error {
+	obj := &metav1.PartialObjectMetadata{}
+	obj.SetGroupVersionKind(rookCephv1.SchemeGroupVersion.WithKind(kind))
+	obj.Name = name
+	obj.Namespace = namespace
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(obj), obj); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	if obj.UID != "" {
+		refs := obj.GetOwnerReferences()
+		if idx := slices.IndexFunc(refs, func(owner metav1.OwnerReference) bool {
+			return owner.Kind == "StorageRequest"
+		}); idx != -1 {
+			obj.SetOwnerReferences(slices.Delete(refs, idx, idx+1))
+			if err := r.Client.Patch(ctx, obj, client.MergeFrom(obj)); client.IgnoreNotFound(err) != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(ctx context.Context, storageCluster *ocsv1.StorageCluster, storageConsumer *ocsv1alpha1.StorageConsumer, consumerConfigMapName string) error {
 	spec := &storageConsumer.Spec
-	spec.ResourceNameMappingConfigMap.Name = consumerConfigMap.Name
+	spec.ResourceNameMappingConfigMap.Name = consumerConfigMapName
 	spec.StorageClasses = []ocsv1alpha1.StorageClassSpec{
 		{Name: util.GenerateNameForCephBlockPoolStorageClass(storageCluster)},
 		{Name: util.GenerateNameForCephFilesystemStorageClass(storageCluster)},
@@ -183,10 +287,9 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 	util.AddAnnotation(storageConsumer, util.Is419AdjustedAnnotationKey, strconv.FormatBool(true))
 
 	if err := r.Client.Update(ctx, storageConsumer); client.IgnoreNotFound(err) != nil {
-		return reconcile.Result{}, err
+		return err
 	}
-
-	return reconcile.Result{}, nil
+	return nil
 }
 
 // getStorageRequestHash generates a hash for a StorageRequest based
