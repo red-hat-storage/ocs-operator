@@ -1,9 +1,12 @@
 package util
 
 import (
+	"context"
 	"fmt"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -78,4 +81,52 @@ func NewDefaultCephFsGroupSnapshotClass(
 		AddLabel(gsc, storageIdLabelKey, storageId)
 	}
 	return gsc
+}
+
+func VolumeGroupSnapshotClassFromExisting(
+	ctx context.Context,
+	kubeClient client.Client,
+	volumeGroupSnapshotClassName string,
+	consumer *ocsv1a1.StorageConsumer,
+	consumerConfig StorageConsumerResources,
+	rbdStorageId,
+	cephFsStorageId,
+	nfsStorageId string,
+) (*groupsnapapi.VolumeGroupSnapshotClass, error) {
+	gsc := &groupsnapapi.VolumeGroupSnapshotClass{}
+	gsc.Name = volumeGroupSnapshotClassName
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(gsc), gsc); err != nil {
+		return nil, err
+	}
+	clientProfileName := ""
+	provisionerSecretName := ""
+	storageId := ""
+	operatorNamespace := consumer.Status.Client.OperatorNamespace
+	switch gsc.Driver {
+	case RbdDriverName:
+		clientProfileName = consumerConfig.GetRbdClientProfileName()
+		provisionerSecretName = consumerConfig.GetCsiRbdProvisionerSecretName()
+		storageId = rbdStorageId
+	case CephFSDriverName:
+		clientProfileName = consumerConfig.GetCephFsClientProfileName()
+		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerSecretName()
+		storageId = cephFsStorageId
+	case NfsDriverName:
+		clientProfileName = consumerConfig.GetNfsClientProfileName()
+		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerSecretName()
+		storageId = nfsStorageId
+	default:
+		return nil, UnsupportedDriver
+	}
+
+	params := gsc.Parameters
+	if params == nil {
+		params = map[string]string{}
+		gsc.Parameters = params
+	}
+	params["clusterID"] = clientProfileName
+	params["csi.storage.k8s.io/group-snapshotter-secret-name"] = provisionerSecretName
+	params["csi.storage.k8s.io/group-snapshotter-secret-namespace"] = operatorNamespace
+	AddLabel(gsc, storageIdLabelKey, storageId)
+	return gsc, nil
 }
