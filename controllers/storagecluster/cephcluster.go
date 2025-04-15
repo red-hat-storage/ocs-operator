@@ -570,6 +570,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			UpgradeOSDRequiresHealthyPGs: sc.Spec.ManagedResources.CephCluster.UpgradeOSDRequiresHealthyPGs,
 			// if resource profile change is in progress, then set this flag to false
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
+			CephConfig: map[string]map[string]string{
+				"global": {
+					"mon_target_pg_per_osd": "400",
+				},
+			},
 		},
 	}
 
