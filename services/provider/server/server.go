@@ -1886,8 +1886,8 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
 		vscGen := vscMap[snapshotClassName]
 		if vscGen != nil {
-			vsc := vscGen()
-			vsc.Name = snapshotClassName
+			snapshotClass = vscGen()
+			snapshotClass.Name = snapshotClassName
 		} else {
 			snapshotClass, err = util.VolumeSnapshotClassFromExisting(
 				ctx,
@@ -1951,8 +1951,8 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
 		vgscGen := vgscMap[groupSnapshotClassName]
 		if vgscGen != nil {
-			vgsc := vgscGen()
-			vgsc.Name = groupSnapshotClassName
+			groupSnapshotClass = vgscGen()
+			groupSnapshotClass.Name = groupSnapshotClassName
 		} else {
 			groupSnapshotClass, err = util.VolumeGroupSnapshotClassFromExisting(
 				ctx,
