@@ -77,8 +77,8 @@ func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) er
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;watch;create;update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;create;update
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;patch
 
 func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
@@ -240,7 +240,7 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	cephFsStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
 	cephFsStorageRequest.Name = cephFsStorageRequestName
 	cephFsStorageRequest.Namespace = storageConsumer.Namespace
-	if err := r.Client.Delete(ctx, rbdStorageRequest); client.IgnoreNotFound(err) != nil {
+	if err := r.Client.Delete(ctx, cephFsStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
 	}
 
