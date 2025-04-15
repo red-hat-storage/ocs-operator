@@ -56,11 +56,22 @@ rules:
   - ceph.rook.io
   resources:
   - cephblockpoolradosnamespaces
+  - cephfilesystemsubvolumegroups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ceph.rook.io
+  resources:
   - cephblockpools
   - cephclients
   - cephclusters
   - cephfilesystems
-  - cephfilesystemsubvolumegroups
   - cephnfses
   - cephobjectstores
   - cephobjectstoreusers
