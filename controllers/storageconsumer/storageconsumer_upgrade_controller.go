@@ -28,8 +28,10 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +40,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -114,6 +117,19 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 	}
 
 	consumerConfigMapName := fmt.Sprintf("storageconsumer-%v", util.FnvHash(storageConsumer.Name))
+	consumerName := storageConsumer.Name
+
+	clusterID := util.GetClusterID(ctx, r.Client, &log)
+	if clusterID == "" {
+		return reconcile.Result{}, fmt.Errorf("failed to get openshift cluster ID")
+	}
+
+	internalConsumer := clusterID == storageConsumer.Status.Client.ClusterID
+
+	if internalConsumer {
+		consumerConfigMapName = defaults.LocalStorageConsumerConfigMapName
+		consumerName = defaults.LocalStorageConsumerName
+	}
 
 	if err = r.reconcileConsumerConfigMap(ctx, storageCluster, storageConsumer, consumerConfigMapName); err != nil {
 		return reconcile.Result{}, err
@@ -123,8 +139,18 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 		return reconcile.Result{}, err
 	}
 
-	if err = r.reconcileStorageConsumer(ctx, storageCluster, storageConsumer, consumerConfigMapName); err != nil {
+	if err = r.reconcileStorageConsumer(ctx, storageCluster, consumerName, consumerConfigMapName); err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if internalConsumer {
+		if err = r.reconcileStorageClient(ctx, storageCluster, consumerName); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err = r.Client.Delete(ctx, storageConsumer); err != nil {
+			return reconcile.Result{}, err
+		}
+		util.RestartPod(ctx, r.Client, &log, "ocs-provider-server", storageCluster.Namespace)
 	}
 
 	return reconcile.Result{}, nil
@@ -269,24 +295,58 @@ func (r *StorageConsumerUpgradeReconciler) removeStorageRequestOwner(ctx context
 	return nil
 }
 
-func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(ctx context.Context, storageCluster *ocsv1.StorageCluster, storageConsumer *ocsv1alpha1.StorageConsumer, consumerConfigMapName string) error {
-	spec := &storageConsumer.Spec
-	spec.ResourceNameMappingConfigMap.Name = consumerConfigMapName
-	spec.StorageClasses = []ocsv1alpha1.StorageClassSpec{
-		{Name: util.GenerateNameForCephBlockPoolStorageClass(storageCluster)},
-		{Name: util.GenerateNameForCephFilesystemStorageClass(storageCluster)},
-	}
-	spec.VolumeSnapshotClasses = []ocsv1alpha1.VolumeSnapshotClassSpec{
-		{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)},
-		{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)},
-	}
-	spec.VolumeGroupSnapshotClasses = []ocsv1alpha1.VolumeGroupSnapshotClassSpec{
-		{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)},
-		{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)},
-	}
-	util.AddAnnotation(storageConsumer, util.Is419AdjustedAnnotationKey, strconv.FormatBool(true))
+func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(
+	ctx context.Context,
+	storageCluster *ocsv1.StorageCluster,
+	consumerName, consumerConfigMapName string,
+) error {
 
-	if err := r.Client.Update(ctx, storageConsumer); client.IgnoreNotFound(err) != nil {
+	storageConsumer := &ocsv1alpha1.StorageConsumer{}
+	storageConsumer.Name = consumerName
+	storageConsumer.Namespace = storageCluster.Namespace
+
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, storageConsumer, func() error {
+		spec := &storageConsumer.Spec
+		spec.Enable = true
+		spec.ResourceNameMappingConfigMap.Name = consumerConfigMapName
+		spec.StorageClasses = []ocsv1alpha1.StorageClassSpec{
+			{Name: util.GenerateNameForCephBlockPoolStorageClass(storageCluster)},
+			{Name: util.GenerateNameForCephFilesystemStorageClass(storageCluster)},
+		}
+		spec.VolumeSnapshotClasses = []ocsv1alpha1.VolumeSnapshotClassSpec{
+			{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)},
+			{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)},
+		}
+		spec.VolumeGroupSnapshotClasses = []ocsv1alpha1.VolumeGroupSnapshotClassSpec{
+			{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)},
+			{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)},
+		}
+		util.AddAnnotation(storageConsumer, util.Is419AdjustedAnnotationKey, strconv.FormatBool(true))
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// reconcileStorageClient Updates the status of the internal client to point to the new consumer
+func (r *StorageConsumerUpgradeReconciler) reconcileStorageClient(ctx context.Context, storageCluster *ocsv1.StorageCluster, consumerName string) error {
+	storageConsumer := &ocsv1alpha1.StorageConsumer{}
+	storageConsumer.Name = consumerName
+	storageConsumer.Namespace = storageCluster.Namespace
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
+		return err
+	}
+
+	storageClient := &ocsclientv1a1.StorageClient{}
+	storageClient.Name = storageCluster.Name
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(storageClient), storageClient); err != nil {
+		return err
+	}
+
+	storageClient.Status.ConsumerID = string(storageConsumer.UID)
+	if err := r.Client.Status().Update(ctx, storageClient); err != nil {
 		return err
 	}
 	return nil
