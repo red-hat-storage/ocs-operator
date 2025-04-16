@@ -1008,8 +1008,8 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	}
 
 	channelName := ""
-	adjusted := strings.EqualFold(storageConsumer.GetAnnotations()[util.Is419AdjustedAnnotationKey], "true")
-	if !adjusted && clientOperatorVersion.Major == 4 && clientOperatorVersion.Minor == 18 {
+	_, notAdjusted := storageConsumer.GetAnnotations()[util.TicketAnnotation]
+	if notAdjusted && (clientOperatorVersion.Major == 4 && clientOperatorVersion.Minor == 18) {
 		// TODO (leelavg): need to be removed in 4.20
 		// We have a new controller which maps the resources from 4.18 to 4.19 way of management,
 		// until the resources are mapped we don't want connected client to be upgrading, we'll
