@@ -23,8 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"strconv"
-	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -51,11 +49,10 @@ type StorageConsumerUpgradeReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
 	operatorVersionPredicate := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			obj := e.Object.(*ocsv1alpha1.StorageConsumer)
-			return obj != nil && strings.HasPrefix(obj.Status.Client.OperatorVersion, "4.18")
+			_, ok := e.Object.GetAnnotations()[util.TicketAnnotation]
+			return ok
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
@@ -284,7 +281,7 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(ctx context.
 		{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)},
 		{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)},
 	}
-	util.AddAnnotation(storageConsumer, util.Is419AdjustedAnnotationKey, strconv.FormatBool(true))
+	delete(storageConsumer.GetAnnotations(), util.TicketAnnotation)
 
 	if err := r.Client.Update(ctx, storageConsumer); client.IgnoreNotFound(err) != nil {
 		return err
