@@ -969,6 +969,13 @@ spec:
                         minimum: 0
                         nullable: true
                         type: number
+                      cephConfig:
+                        additionalProperties:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        description: Ceph Config options
+                        type: object
                       continueUpgradeAfterChecksEvenIfNotHealthy:
                         description: Whether or not continue if PGs are not clean
                           during an upgrade
