@@ -45,7 +45,8 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 			localStorageConsumer.Namespace = storagecluster.Namespace
 			if err := r.Get(r.ctx, client.ObjectKeyFromObject(localStorageConsumer), localStorageConsumer); err != nil {
 				return fmt.Errorf("failed to get storageconsumer %s: %v", localStorageConsumer.Name, err)
-			} else if localStorageConsumer.Status.OnboardingTicketSecret.Name == "" {
+			} else if localStorageConsumer.Status.OnboardingTicketSecret == nil ||
+				localStorageConsumer.Status.OnboardingTicketSecret.Name == "" {
 				return fmt.Errorf("no reference to onboarding secret found in storageconsumer %s status", localStorageConsumer.Name)
 			}
 
