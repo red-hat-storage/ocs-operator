@@ -69,7 +69,6 @@ rules:
   - ceph.rook.io
   resources:
   - cephblockpools
-  - cephclients
   - cephclusters
   - cephfilesystems
   - cephnfses
@@ -224,7 +223,6 @@ rules:
   - '*'
   - storageclusterpeers
   - storageconsumers
-  - storagerequests
   verbs:
   - create
   - delete
@@ -244,7 +242,6 @@ rules:
   resources:
   - storageclusterpeers/status
   - storageconsumers/status
-  - storagerequests/status
   verbs:
   - get
   - patch
@@ -342,7 +339,6 @@ rules:
   - create
   - delete
   - get
-  - list
   - update
   - watch
 - apiGroups:
