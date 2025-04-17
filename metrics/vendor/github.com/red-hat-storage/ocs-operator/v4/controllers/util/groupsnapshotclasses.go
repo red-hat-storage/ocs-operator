@@ -105,15 +105,15 @@ func VolumeGroupSnapshotClassFromExisting(
 	switch gsc.Driver {
 	case RbdDriverName:
 		clientProfileName = consumerConfig.GetRbdClientProfileName()
-		provisionerSecretName = consumerConfig.GetCsiRbdProvisionerSecretName()
+		provisionerSecretName = consumerConfig.GetCsiRbdProvisionerCephUserName()
 		storageId = rbdStorageId
 	case CephFSDriverName:
 		clientProfileName = consumerConfig.GetCephFsClientProfileName()
-		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerSecretName()
+		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerCephUserName()
 		storageId = cephFsStorageId
 	case NfsDriverName:
 		clientProfileName = consumerConfig.GetNfsClientProfileName()
-		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerSecretName()
+		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerCephUserName()
 		storageId = nfsStorageId
 	default:
 		return nil, UnsupportedDriver

@@ -217,14 +217,14 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientRBDProvisioner(
-					consumerResources.GetCsiRbdProvisionerSecretName(),
+					consumerResources.GetCsiRbdProvisionerCephUserName(),
 					consumerResources.GetRbdRadosNamespaceName(),
 					consumerConfigMap,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientRBDNode(
-					consumerResources.GetCsiRbdNodeSecretName(),
+					consumerResources.GetCsiRbdNodeCephUserName(),
 					consumerResources.GetRbdRadosNamespaceName(),
 					consumerConfigMap,
 				); err != nil {
@@ -241,7 +241,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientCephFSProvisioner(
-					consumerResources.GetCsiCephFsProvisionerSecretName(),
+					consumerResources.GetCsiCephFsProvisionerCephUserName(),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 				); err != nil {
@@ -249,7 +249,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				}
 
 				if err := r.reconcileCephClientCephFSNode(
-					consumerResources.GetCsiCephFsNodeSecretName(),
+					consumerResources.GetCsiCephFsNodeCephUserName(),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 				); err != nil {
@@ -259,14 +259,14 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 
 			if availableServices.Nfs {
 				if err := r.reconcileCephClientNfsProvisioner(
-					consumerResources.GetCsiNfsProvisionerSecretName(),
+					consumerResources.GetCsiNfsProvisionerCephUserName(),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientNfsNode(
-					consumerResources.GetCsiNfsNodeSecretName(),
+					consumerResources.GetCsiNfsNodeCephUserName(),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 				); err != nil {

@@ -370,18 +370,18 @@ func StorageClassFromExisting(
 	switch storageClass.Provisioner {
 	case RbdDriverName:
 		clientProfileName = consumerConfig.GetRbdClientProfileName()
-		provisionerSecretName = consumerConfig.GetCsiRbdProvisionerSecretName()
-		nodeSecretName = consumerConfig.GetCsiRbdNodeSecretName()
+		provisionerSecretName = consumerConfig.GetCsiRbdProvisionerCephUserName()
+		nodeSecretName = consumerConfig.GetCsiRbdNodeCephUserName()
 		storageId = rbdStorageId
 	case CephFSDriverName:
 		clientProfileName = consumerConfig.GetCephFsClientProfileName()
-		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerSecretName()
-		nodeSecretName = consumerConfig.GetCsiCephFsNodeSecretName()
+		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerCephUserName()
+		nodeSecretName = consumerConfig.GetCsiCephFsNodeCephUserName()
 		storageId = cephFsStorageId
 	case NfsDriverName:
 		clientProfileName = consumerConfig.GetNfsClientProfileName()
-		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerSecretName()
-		nodeSecretName = consumerConfig.GetCsiNfsNodeSecretName()
+		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerCephUserName()
+		nodeSecretName = consumerConfig.GetCsiNfsNodeCephUserName()
 		storageId = nfsStorageId
 	default:
 		return nil, UnsupportedProvisioner
