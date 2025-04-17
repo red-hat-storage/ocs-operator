@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	"fmt"
-	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -67,8 +66,6 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		// Pass the poolSpec from the storageCluster CR
-
-		existingPoolSpec := cephBlockPool.Spec.PoolSpec
 		if storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec != nil {
 			cephBlockPool.Spec.PoolSpec = *storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
 		}
@@ -76,14 +73,6 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		// Set default values in the poolSpec as necessary
 		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
-
-		// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
-		if cephBlockPool.CreationTimestamp.IsZero() {
-			setBulkFlagParameter(&cephBlockPool.Spec.PoolSpec.Parameters)
-		}
-
-		// Ensures the bulk flag set during new pool creation is not removed during updates.
-		preserveBulkFlagParameter(existingPoolSpec.Parameters, &cephBlockPool.Spec.PoolSpec.Parameters)
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
@@ -224,33 +213,16 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 			poolSpec.DeviceClass = failureDomainValue
 			poolSpec.EnableCrushUpdates = true
 			poolSpec.FailureDomain = getFailureDomain(storageCluster)
-			existingParameters := poolSpec.Parameters
 			poolSpec.Parameters = storageCluster.Spec.ManagedResources.CephNonResilientPools.Parameters
 			if poolSpec.Parameters == nil {
 				poolSpec.Parameters = make(map[string]string)
 			}
-
-			// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
-			if cephBlockPool.CreationTimestamp.IsZero() {
-				setBulkFlagParameter(&poolSpec.Parameters)
+			if _, ok := poolSpec.Parameters["pg_num"]; !ok {
+				poolSpec.Parameters["pg_num"] = "16"
 			}
-
-			// Ensures the bulk flag set during new pool creation is not removed during updates.
-			preserveBulkFlagParameter(existingParameters, &poolSpec.Parameters)
-
-			// set the pg_num & pgp_num parameters only when bulk flag is not set or false
-			if bulk, ok := poolSpec.Parameters["bulk"]; !ok {
-				b, err := strconv.ParseBool(bulk)
-				if err != nil || !b {
-					if _, ok := poolSpec.Parameters["pg_num"]; !ok {
-						poolSpec.Parameters["pg_num"] = "16"
-					}
-					if _, ok := poolSpec.Parameters["pgp_num"]; !ok {
-						poolSpec.Parameters["pgp_num"] = "16"
-					}
-				}
+			if _, ok := poolSpec.Parameters["pgp_num"]; !ok {
+				poolSpec.Parameters["pgp_num"] = "16"
 			}
-
 			poolSpec.Replicated = cephv1.ReplicatedSpec{
 				Size:                   1,
 				RequireSafeReplicaSize: false,

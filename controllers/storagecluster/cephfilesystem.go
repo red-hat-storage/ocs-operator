@@ -110,13 +110,6 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 
 			r.Log.Info("Restoring original CephFilesystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 			existing.ObjectMeta.OwnerReferences = cephFilesystem.ObjectMeta.OwnerReferences
-
-			// Ensures the bulk flag set during new pool creation is not removed during updates.
-			preserveBulkFlagParameter(existing.Spec.MetadataPool.PoolSpec.Parameters, &cephFilesystem.Spec.MetadataPool.PoolSpec.Parameters)
-			for i := range existing.Spec.DataPools {
-				preserveBulkFlagParameter(existing.Spec.DataPools[i].PoolSpec.Parameters, &cephFilesystem.Spec.DataPools[i].PoolSpec.Parameters)
-			}
-
 			existing.Spec = cephFilesystem.Spec
 			err = r.Client.Update(context.TODO(), &existing)
 			if err != nil {
@@ -125,13 +118,6 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
-
-			// The bulk flag is set to true only during new pool creation, as setting it on existing pools can cause data movement.
-			setBulkFlagParameter(&cephFilesystem.Spec.MetadataPool.PoolSpec.Parameters)
-			for i := range cephFilesystem.Spec.DataPools {
-				setBulkFlagParameter(&cephFilesystem.Spec.DataPools[i].PoolSpec.Parameters)
-			}
-
 			err = r.Client.Create(context.TODO(), cephFilesystem)
 			if err != nil {
 				r.Log.Error(err, "Unable to create CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
