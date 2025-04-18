@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	ocsClientConfigMapName = "ocs-client-operator-config"
-	manageNoobaaSubKey     = "manageNoobaaSubscription"
+	ocsClientConfigMapName             = "ocs-client-operator-config"
+	manageNoobaaSubKey                 = "manageNoobaaSubscription"
+	useHostNetworkForCsiControllersKey = "useHostNetworkForCsiControllers"
 )
 
 type storageClient struct{}
@@ -32,7 +33,7 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 		return reconcile.Result{}, fmt.Errorf("StorageClient CRD is not available")
 	}
 
-	if err := s.updateClientConfigMap(r, storagecluster.Namespace); err != nil {
+	if err := s.updateClientConfigMap(r, storagecluster.Namespace, storagecluster.Spec.HostNetwork); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -87,7 +88,7 @@ func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluste
 	return reconcile.Result{}, nil
 }
 
-func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, namespace string) error {
+func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, namespace string, useHostNetworkForCsiControllers bool) error {
 	clientConfig := &corev1.ConfigMap{}
 	clientConfig.Name = ocsClientConfigMapName
 	clientConfig.Namespace = namespace
@@ -102,6 +103,7 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 		clientConfig.Data = map[string]string{}
 	}
 	clientConfig.Data[manageNoobaaSubKey] = strconv.FormatBool(false)
+	clientConfig.Data[useHostNetworkForCsiControllersKey] = strconv.FormatBool(useHostNetworkForCsiControllers)
 
 	if !maps.Equal(clientConfig.Data, existingData) {
 		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
