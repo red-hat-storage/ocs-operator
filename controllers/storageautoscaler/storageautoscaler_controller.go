@@ -67,6 +67,31 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
+	// if more than one storage autoscaler is present in the cluster with same device class and same storage cluster
+	// return error
+	storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
+	err = r.List(ctx, storageAutoScalerList,
+		client.InNamespace(request.Namespace),
+		client.MatchingFields{"spec.storageCluster.name": storageAutoScaler.Spec.StorageCluster.Name, "spec.deviceClass": storageAutoScaler.Spec.DeviceClass},
+	)
+	if err != nil {
+		r.Log.Error(err, "failed to list storage autoscaler")
+		return reconcile.Result{}, err
+	}
+
+	if len(storageAutoScalerList.Items) > 1 {
+		// update the status
+		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
+		err := r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		err = fmt.Errorf("more than one storage autoscaler present with same device class and same storage cluster")
+		r.Log.Error(err, "duplicate cr detected", "device class", storageAutoScaler.Spec.DeviceClass, "storage cluster", storageAutoScaler.Spec.StorageCluster.Name)
+		return reconcile.Result{}, err
+	}
+
 	// if no expansion is in-progress update the phase to "not-started"
 	if storageAutoScaler.Status.Phase == "" {
 		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
