@@ -451,6 +451,11 @@ type MultiCloudGatewaySpec struct {
 	// +optional
 	DisableLoadBalancerService bool `json:"disableLoadBalancerService,omitempty"`
 
+	// DisableRoutes (optional) disables the reconciliation of openshift route resources in the cluster
+	// +nullable
+	// +optional
+	DisableRoutes bool `json:"disableRoutes,omitempty"`
+
 	// Allows Noobaa to connect to an external Postgres server
 	// +optional
 	ExternalPgConfig *ExternalPGSpec `json:"externalPgConfig,omitempty"`
