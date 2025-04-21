@@ -64,6 +64,26 @@ var (
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
+		"crashcollector": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("0.1"),
+				corev1.ResourceMemory: resource.MustParse("60Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("0.1"),
+				corev1.ResourceMemory: resource.MustParse("60Mi"),
+			},
+		},
+		"exporter": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("0.05"),
+				corev1.ResourceMemory: resource.MustParse("50Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("0.05"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+		},
 	}
 
 	LeanDaemonResources = map[string]corev1.ResourceRequirements{
