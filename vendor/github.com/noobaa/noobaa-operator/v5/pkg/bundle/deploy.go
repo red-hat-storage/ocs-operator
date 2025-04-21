@@ -1423,7 +1423,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "725c47214b416f1013e75f3407b2ff5c718f1593eb0979019658816d9ce1146c"
+const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "1637077ca2e0d584cd4203469f809b215af45ee4ba5358a283bbd7a5bf1b573e"
 
 const File_deploy_crds_noobaa_io_noobaas_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -2633,10 +2633,17 @@ spec:
               dbSpec:
                 description: DBSpec (optional) DB spec for a managed postgres cluster
                 properties:
+                  dbConf:
+                    additionalProperties:
+                      type: string
+                    description: DBConf (optional) overrides the default postgresql
+                      db config
+                    type: object
                   dbMinVolumeSize:
                     description: |-
-                      DBMinVolumeSize (optional) overrides the default PVC resource requirements for the database volume.
-                      The actual requested PVC might be larger if the DB requires more space.
+                      DBMinVolumeSize (optional) The initial size of the database volume.The actual size might be larger.
+                      Increasing the size of the volume is supported if the underlying storage class supports volume expansion.
+                      The new size should be larger than actualVolumeSize in dbStatus for the volume to be resized.
                     type: string
                   dbResources:
                     description: DBResources (optional) overrides the default resource
@@ -2998,6 +3005,11 @@ spec:
               disableLoadBalancerService:
                 description: DisableLoadBalancerService (optional) sets the service
                   type to ClusterIP instead of LoadBalancer
+                nullable: true
+                type: boolean
+              disableRoutes:
+                description: DisableRoutes (optional) disables the reconciliation
+                  of openshift route resources in the cluster
                 nullable: true
                 type: boolean
               endpoints:
@@ -3396,6 +3408,10 @@ spec:
               dbStatus:
                 description: DBStatus is the status of the postgres cluster
                 properties:
+                  actualVolumeSize:
+                    description: ActualVolumeSize is the actual size of the postgres
+                      cluster volume. This can be different than the requested size
+                    type: string
                   currentPgMajorVersion:
                     description: CurrentPgMajorVersion is the major version of the
                       postgres cluster
@@ -3964,7 +3980,7 @@ data:
     shared_preload_libraries = 'pg_stat_statements'
 `
 
-const Sha256_deploy_internal_deployment_endpoint_yaml = "21b206c9119e37c4ebba84d5c1e2b1d45b06c716b4def69db9ba9268ef75e1e1"
+const Sha256_deploy_internal_deployment_endpoint_yaml = "e76dc7c81a02fb396263e61311b2bc0d765f32377d1b9d2ec3f435fced2fb0c3"
 
 const File_deploy_internal_deployment_endpoint_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -4085,7 +4101,6 @@ spec:
             - name: ENDPOINT_GROUP_ID
             - name: LOCAL_MD_SERVER
             - name: LOCAL_N2N_AGENT
-            - name: NOOBAA_ROOT_SECRET
             - name: NODE_EXTRA_CA_CERTS
             - name: GUARANTEED_LOGS_PATH
             - name: CONTAINER_CPU_REQUEST
@@ -5025,7 +5040,7 @@ spec:
       noobaa-s3-svc: "true"
 `
 
-const Sha256_deploy_internal_statefulset_core_yaml = "50e5b11d8e0a2f2bb8a6db8d154b34b6569e160fa7ad2b1fb154001b36c8a152"
+const Sha256_deploy_internal_statefulset_core_yaml = "14226b25028637a7176dbdb4a6fa6e90a9e63cddd5f39cbe0c044f433b0a4764"
 
 const File_deploy_internal_statefulset_core_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -5145,7 +5160,6 @@ spec:
               value: postgres
             - name: CONTAINER_PLATFORM
               value: KUBERNETES
-            - name: NOOBAA_ROOT_SECRET
             - name: NODE_EXTRA_CA_CERTS
             - name: AGENT_PROFILE
               value: VALUE_AGENT_PROFILE
@@ -6190,7 +6204,7 @@ spec:
         #     name: socket
 `
 
-const Sha256_deploy_role_yaml = "657d632a42e9ed89ad6c0b2d909517346ab32ab0f8f208d5c9178fa8ad28681d"
+const Sha256_deploy_role_yaml = "6d98627f4b3c9834710856edf01c6ed71fcefe1e78b15189343423ecc524e18d"
 
 const File_deploy_role_yaml = `apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -6224,6 +6238,14 @@ rules:
   - serviceaccounts
   verbs:
   - '*'
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+  resourceNames:
+  - noobaa-db-pg-0
 - apiGroups:
   - apps
   resources:

@@ -20,7 +20,7 @@ require (
 	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.6
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250325115430-401802f15851
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250415145404-9b448831a834
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/openshift/api v0.0.0-20250303104811-f587fb60f627
@@ -133,6 +133,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.mongodb.org/mongo-driver v1.16.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
+	go.opentelemetry.io/otel/sdk/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect

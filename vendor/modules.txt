@@ -293,7 +293,7 @@ github.com/mwitkow/go-conntrack
 # github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f
 ## explicit
 github.com/mxk/go-flowrate/flowrate
-# github.com/noobaa/noobaa-operator/v5 v5.0.0-20250325115430-401802f15851
+# github.com/noobaa/noobaa-operator/v5 v5.0.0-20250415145404-9b448831a834
 ## explicit; go 1.23.0
 github.com/noobaa/noobaa-operator/v5/pkg/apis
 github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1
@@ -492,6 +492,8 @@ go.opentelemetry.io/otel/codes
 go.opentelemetry.io/otel/internal
 go.opentelemetry.io/otel/internal/attribute
 go.opentelemetry.io/otel/semconv/v1.26.0
+# go.opentelemetry.io/otel/sdk/metric v1.35.0
+## explicit; go 1.22.0
 # go.opentelemetry.io/otel/trace v1.35.0
 ## explicit; go 1.22.0
 go.opentelemetry.io/otel/trace
