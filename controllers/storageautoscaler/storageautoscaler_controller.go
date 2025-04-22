@@ -88,17 +88,31 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 
 	// if no expansion is in-progress update the phase to "not-started"
 	if storageAutoScaler.Status.Phase == "" {
-		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
 		storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseNotStarted
-		err := r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
+		err := r.updateStatus(ctx, storageAutoScaler)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
-	// if the expansion is InProgress or Failed, verify the scaling
-	if storageAutoScaler.Status.Phase == ocsv1.StorageAutoScalerPhaseInProgress || storageAutoScaler.Status.Phase == ocsv1.StorageAutoScalerPhaseFailed {
-		return r.verifyScaling(ctx, storageAutoScaler)
+	// get the current osd size and count from prometheus
+	currentOsdSize, currentOsdCount, err := r.getCurrentOsdSizeAndCount(ctx, storageAutoScaler)
+	if err != nil {
+		r.Log.Error(err, "failed to get current osd size and count")
+		return reconcile.Result{}, err
+	}
+
+	// get the desired osd size and count from storagecluster
+	desiredOsdSize, desiredOsdCount := getDesiredOsdSizeAndCount(storageCluster, storageAutoScaler)
+
+	// expansion is InProgress
+	if currentOsdSize.Cmp(desiredOsdSize) != 0 || currentOsdCount != desiredOsdCount {
+		return r.reverifyScaling(ctx, storageAutoScaler, desiredOsdSize, desiredOsdCount)
+	}
+
+	// if the expansion is Succeeded
+	if storageAutoScaler.Status.Phase == ocsv1.StorageAutoScalerPhaseFailed || storageAutoScaler.Status.Phase == ocsv1.StorageAutoScalerPhaseInProgress {
+		return r.updatePhaseToSucceeded(ctx, storageAutoScaler)
 	}
 
 	// if the last expansion is succeeded ScrapeInterval ago, do not scale
@@ -150,15 +164,14 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 
 	if expectedStorageCapacity.Cmp(storageAutoScaler.Spec.StorageCapacityLimit) > 0 {
 		r.Log.Info("storage capacity limit reached")
-		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
 		// update the status
 		bool := true
 		storageAutoScaler.Status.StorageCapacityLimitReached = &bool
 		storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
-			Message:   "storage capacity limit reached for storageAutoScaler" + storageAutoScaler.Name + "device class" + storageAutoScaler.Spec.DeviceClass + "least expected storage capacity is " + expectedStorageCapacity.String(),
+			Message:   fmt.Sprintf("storage capacity limit reached for storageAutoScaler %q device class %q least expected storage capacity is %q", storageAutoScaler.Name, storageAutoScaler.Spec.DeviceClass, expectedStorageCapacity.String()),
 			Timestamp: metav1.Now(),
 		}
-		err := r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
+		err := r.updateStatus(ctx, storageAutoScaler)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -166,7 +179,6 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 	}
 
 	// update the status
-	originalStorageAutoScaler := storageAutoScaler.DeepCopy()
 	storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInProgress
 	storageAutoScaler.Status.Error = nil
 	storageAutoScaler.Status.LastExpansion = &ocsv1.LastExpansionStatus{
@@ -179,7 +191,7 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 		StartTime:               metav1.Now(),
 		CompletionTime:          metav1.Time{},
 	}
-	err = r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
+	err = r.updateStatus(ctx, storageAutoScaler)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -203,7 +215,280 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	return r.verifyScaling(ctx, storageAutoScaler)
+	return reconcile.Result{Requeue: true}, nil
+}
+
+func (r *StorageAutoscalerReconciler) updateStatus(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler) error {
+	if err := r.Status().Update(ctx, storageAutoScaler); err != nil {
+		r.Log.Error(err, "failed to update storage autoscaler status")
+		return err
+	}
+	r.Log.Info("storage autoscaler status updated")
+	return nil
+}
+
+func (r *StorageAutoscalerReconciler) detectInvalidState(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, storageCluster *ocsv1.StorageCluster, namespace string) (bool, error) {
+	// if more than one storage autoscaler is present in the cluster with same device class and same storage cluster
+	// return error
+	duplicateCr, err := r.detectDuplicateStorageAutoScaler(ctx, storageAutoScaler, namespace)
+	if err != nil {
+		return false, err
+	}
+
+	// list the storagecluster deviceset storageclass
+	duplicateClass, err := r.detectLsoStorageclass(ctx, storageCluster, storageAutoScaler)
+	if err != nil {
+		return false, err
+	}
+
+	// check if the storage profile is lean
+	leanProfile, err := r.detectLeanResourceProfile(ctx, storageCluster, storageAutoScaler)
+	if err != nil {
+		return false, err
+	}
+
+	if duplicateCr || duplicateClass || leanProfile {
+		r.Log.Info("storage autoscaler is in invalid state", "namespace", storageAutoScaler.Namespace, "name", storageAutoScaler.Name)
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *StorageAutoscalerReconciler) detectLsoStorageclass(ctx context.Context, storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (bool, error) {
+	for _, deviceSet := range storageCluster.Spec.StorageDeviceSets {
+		storageclassName := deviceSet.DataPVCTemplate.Spec.StorageClassName
+		// list the storageclass
+		storageClass := &storagev1.StorageClass{}
+		err := r.Get(ctx, types.NamespacedName{Name: *storageclassName}, storageClass)
+		if err != nil {
+			r.Log.Error(err, "failed to get storage class")
+			return false, err
+		}
+		if storageClass.Provisioner == "kubernetes.io/no-provisioner" {
+			err = fmt.Errorf("storage class %q has no provisioner", storageClass.Name)
+			r.Log.Error(err, "storage class has provisioner as no-provisioner, which is an lso storageclass, autoscaler does not support lso storageclass, delete the autoStorageScaler cr as scaling is not supported")
+
+			// update the status
+			storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInvalid
+			storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
+				Message:   fmt.Sprintf("storage class %q has provisioner as no-provisioner, which is an lso storageclass, autoscaler does not support lso storageclass, delete the autoStorageScaler cr as scaling is not supported", storageClass.Name),
+				Timestamp: metav1.Now(),
+			}
+			err := r.updateStatus(ctx, storageAutoScaler)
+			if err != nil {
+				return false, err
+			}
+			// not sending an error as user can see in the cr status
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (r *StorageAutoscalerReconciler) detectDuplicateStorageAutoScaler(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, namespace string) (bool, error) {
+	storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
+	err := r.List(ctx, storageAutoScalerList,
+		client.InNamespace(namespace),
+	)
+	if err != nil {
+		r.Log.Error(err, "failed to list storage autoscaler")
+		return false, err
+	}
+
+	for _, storageAutoScalerItem := range storageAutoScalerList.Items {
+		if storageAutoScalerItem.Name != storageAutoScaler.Name && storageAutoScalerItem.Spec.DeviceClass == storageAutoScaler.Spec.DeviceClass && storageAutoScalerItem.Spec.StorageCluster.Name == storageAutoScaler.Spec.StorageCluster.Name {
+			err = fmt.Errorf("more than one storage autoscaler present with same device class and same storage cluster name, names are %q and %q", storageAutoScaler.Name, storageAutoScalerItem.Name)
+			r.Log.Error(err, "duplicate cr detected", "device class", storageAutoScaler.Spec.DeviceClass, "storage cluster", storageAutoScaler.Spec.StorageCluster.Name)
+
+			storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
+				Message:   fmt.Sprintf("duplicate cr detected, more than one storage autoscaler present with same device class and same storage cluster name, names are %q and %q delete any one of the autoStorageScaler cr", storageAutoScaler.Name, storageAutoScalerItem.Name),
+				Timestamp: metav1.Now(),
+			}
+			err := r.updateStatus(ctx, storageAutoScaler)
+			if err != nil {
+				return false, err
+			}
+			// not sending an error as user can see in the cr status
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (r *StorageAutoscalerReconciler) detectLeanResourceProfile(ctx context.Context, storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (bool, error) {
+	if strings.ToLower(storageCluster.Spec.ResourceProfile) != "lean" {
+		return false, nil
+	}
+
+	err := fmt.Errorf("storage profile is lean, autoscaler does not support lean storage profile, delete the autoStorageScaler cr as scaling is not supported")
+	r.Log.Error(err, "storage profile is lean")
+
+	storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
+		Message:   "storage profile is lean, autoscaler does not support lean storage profile, delete the autoStorageScaler cr as scaling is not supported",
+		Timestamp: metav1.Now(),
+	}
+	err = r.updateStatus(ctx, storageAutoScaler)
+	if err != nil {
+		return false, err
+	}
+	// not sending an error as user can see in the cr status
+	return true, nil
+}
+
+func (r *StorageAutoscalerReconciler) getCurrentOsdSizeAndCount(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler) (resource.Quantity, int, error) {
+	currentOsdCount := 0
+	currentOsdSize := resource.Quantity{}
+	osdCountQuery := `count by (device_class, namespace, managedBy) (ceph_osd_metadata)`
+	metrics, err := scrapeMetrics(ctx, r.OperatorNamespace, osdCountQuery, r.Log)
+	if err != nil {
+		r.Log.Error(err, "failed to scrape metrics")
+		return currentOsdSize, currentOsdCount, err
+	}
+
+	for _, osd := range metrics {
+		deviceClass := osd.Metric["device_class"]
+		verified := true
+		if string(deviceClass) == storageAutoScaler.Spec.DeviceClass {
+			currentOsdCount = int(osd.Value)
+			break
+		}
+
+		if !verified {
+			r.Log.Info("device class not found in metrics", "device class", storageAutoScaler.Spec.DeviceClass)
+			return currentOsdSize, currentOsdCount, fmt.Errorf("device class not found in metrics, device class: %q", storageAutoScaler.Spec.DeviceClass)
+		}
+	}
+
+	osdSizeQuery := `(ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes))`
+	metrics, err = scrapeMetrics(ctx, r.OperatorNamespace, osdSizeQuery, r.Log)
+	if err != nil {
+		r.Log.Error(err, "failed to scrape metrics")
+		return currentOsdSize, currentOsdCount, err
+	}
+
+	for _, osd := range metrics {
+		deviceClass := osd.Metric["device_class"]
+		verified := true
+		if string(deviceClass) == storageAutoScaler.Spec.DeviceClass {
+			currentOsdSize = resource.MustParse(osd.Value.String())
+			break
+		}
+
+		if !verified {
+			r.Log.Info("device class not found in metrics", "device class", storageAutoScaler.Spec.DeviceClass)
+			return currentOsdSize, currentOsdCount, fmt.Errorf("device class not found in metrics, device class: %q", storageAutoScaler.Spec.DeviceClass)
+		}
+	}
+
+	return currentOsdSize, currentOsdCount, nil
+}
+
+func getDesiredOsdSizeAndCount(storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (resource.Quantity, int) {
+	var desiredOsdSize resource.Quantity
+	var desiredOsdCount, deviceSetCount, replicaCount int
+
+	// assuming heterogeneous distribution of osd across device sets
+	// so osd size and count is same for all device sets
+	for _, deviceSet := range storageCluster.Spec.StorageDeviceSets {
+		deviceClass := storageAutoScaler.Spec.DeviceClass
+		if deviceClassMatchesDeviceSet(deviceClass, deviceSet) {
+			desiredOsdSize = deviceSet.DataPVCTemplate.Spec.Resources.Requests["storage"]
+			replicaCount = deviceSet.Replica
+			desiredOsdCount = deviceSet.Count * replicaCount
+			deviceSetCount++
+		}
+	}
+
+	return desiredOsdSize, desiredOsdCount * deviceSetCount
+}
+
+func (r *StorageAutoscalerReconciler) reverifyScaling(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, desiredOsdSize resource.Quantity, desiredOsdCount int) (reconcile.Result, error) {
+	if timeoutHasElapsed(storageAutoScaler.Spec.TimeoutSeconds, storageAutoScaler.Status.LastExpansion) {
+		storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseFailed
+		storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
+			Message:   fmt.Sprintf("auto scaling is taking longer than expected and may not succeed for storageAutoScaler %q device class %q", storageAutoScaler.Name, storageAutoScaler.Spec.DeviceClass),
+			Timestamp: metav1.Now(),
+		}
+		err := r.updateStatus(ctx, storageAutoScaler)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		err = fmt.Errorf("auto scaling is taking longer than expected and may not succeed, for device class %q", storageAutoScaler.Spec.DeviceClass)
+		r.Log.Error(err, "auto scaling verification failed, will retry")
+	}
+
+	// if storagecluster is manually edited, change the desired osd size and count in the status
+	if storageAutoScaler.Status.LastExpansion != nil {
+		if storageAutoScaler.Status.LastExpansion.ExpectedOsdSize.Cmp(desiredOsdSize) != 0 || storageAutoScaler.Status.LastExpansion.ExpectedOsdCount != uint16(desiredOsdCount) {
+			storageAutoScaler.Status.LastExpansion.ExpectedOsdSize = desiredOsdSize
+			storageAutoScaler.Status.LastExpansion.ExpectedOsdCount = uint16(desiredOsdCount)
+			storageAutoScaler.Status.LastExpansion.ExpectedStorageCapacity = *resource.NewQuantity(int64(desiredOsdCount)*desiredOsdSize.Value(), desiredOsdSize.Format)
+			err := r.updateStatus(ctx, storageAutoScaler)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			r.Log.Info("storage cluster is manually edited, updating the desired osd size and count in the status")
+		}
+	}
+
+	return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
+
+}
+
+func (r *StorageAutoscalerReconciler) updatePhaseToSucceeded(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler) (reconcile.Result, error) {
+	storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseSucceeded
+	storageAutoScaler.Status.Error = nil
+	storageAutoScaler.Status.LastExpansion.CompletionTime = metav1.Now()
+	storageAutoScaler.Status.LastExpansion.StartOsdSize = storageAutoScaler.Status.LastExpansion.ExpectedOsdSize
+	storageAutoScaler.Status.LastExpansion.StartOsdCount = storageAutoScaler.Status.LastExpansion.ExpectedOsdCount
+	storageAutoScaler.Status.LastExpansion.StartStorageCapacity = storageAutoScaler.Status.LastExpansion.ExpectedStorageCapacity
+
+	err := r.updateStatus(ctx, storageAutoScaler)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	r.Log.Info("scaling verified")
+	return reconcile.Result{}, nil
+}
+
+func timeoutHasElapsed(timeoutSeconds int, lastExpansion *ocsv1.LastExpansionStatus) bool {
+	if lastExpansion == nil {
+		return false
+	}
+
+	return time.Since(lastExpansion.StartTime.Time).Seconds() >= float64(timeoutSeconds)
+}
+
+func (r *StorageAutoscalerReconciler) checkIfCephClusterIsNotHealthy(ctx context.Context, storagecluster *ocsv1.StorageCluster) (bool, error) {
+	cephHealthStatus := `ceph_health_status`
+	metrics, err := scrapeMetrics(ctx, r.OperatorNamespace, cephHealthStatus, r.Log)
+	if err != nil {
+		r.Log.Info("failed to scrape metrics")
+		return false, err
+	}
+
+	cephClusterPresent := false
+
+	for _, metric := range metrics {
+		if string(metric.Metric["namespace"]) == storagecluster.Namespace {
+			cephClusterPresent = true
+			if int(metric.Value) != 0 {
+				r.Log.Info("ceph cluster is not healthy", "ceph_health_status", metric.Value)
+				return true, nil
+			}
+		}
+	}
+
+	if !cephClusterPresent {
+		r.Log.Info("ceph cluster not found in metrics")
+		return false, errors.New("ceph cluster not found in metrics")
+	}
+
+	return false, nil
 }
 
 func checkIfScalingRequired(usage interface{}, threshold int) bool {
@@ -246,132 +531,6 @@ func calculateExpectedOsdSizeAndCount(storageCluster *ocsv1.StorageCluster, stor
 	return startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity
 }
 
-func (r *StorageAutoscalerReconciler) checkIfCephClusterIsNotHealthy(ctx context.Context, storagecluster *ocsv1.StorageCluster) (bool, error) {
-	cephHealthStatus := `ceph_health_status`
-	metrics, err := scrapeMetrics(ctx, r.OperatorNamespace, cephHealthStatus, r.Log)
-	if err != nil {
-		r.Log.Info("failed to scrape metrics")
-		return false, err
-	}
-
-	cephClusterPresent := false
-
-	for _, metric := range metrics {
-		if string(metric.Metric["namespace"]) == storagecluster.Namespace {
-			cephClusterPresent = true
-			if int(metric.Value) != 0 {
-				r.Log.Info("ceph cluster is not healthy", "ceph_health_status", metric.Value)
-				return true, nil
-			}
-		}
-	}
-
-	if !cephClusterPresent {
-		r.Log.Info("ceph cluster not found in metrics")
-		return false, errors.New("ceph cluster not found in metrics")
-	}
-
-	return false, nil
-}
-
 func deviceClassMatchesDeviceSet(deviceClass string, deviceSet ocsv1.StorageDeviceSet) bool {
 	return (deviceSet.DeviceClass == "" && deviceClass == "ssd") || deviceSet.DeviceClass == deviceClass
-}
-
-func (r *StorageAutoscalerReconciler) updateStatus(ctx context.Context, storageAutoScaler, originalStorageAutoScaler *ocsv1.StorageAutoScaler) error {
-	if err := r.Status().Patch(ctx, storageAutoScaler, client.MergeFrom(originalStorageAutoScaler)); err != nil {
-		r.Log.Error(err, "failed to update storage autoscaler status")
-		return err
-	}
-	r.Log.Info("storage autoscaler status updated")
-	return nil
-}
-
-func (r *StorageAutoscalerReconciler) detectInvalidState(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, storageCluster *ocsv1.StorageCluster, namespace string) (bool, error) {
-	// if more than one storage autoscaler is present in the cluster with same device class and same storage cluster
-	// return error
-	duplicateCr, err := r.detectDuplicateStorageAutoScaler(ctx, storageAutoScaler, namespace)
-	if err != nil {
-		return false, err
-	}
-
-	// list the storagecluster deviceset storageclass
-	duplicateClass, err := r.detectLsoStorageclass(ctx, storageCluster)
-	if err != nil {
-		return false, err
-	}
-
-	// check if the storage profile is lean
-	leanProfile, err := r.detectLeanResourceProfile(storageCluster)
-	if err != nil {
-		return false, err
-	}
-
-	if duplicateCr || duplicateClass || leanProfile {
-		// update the status
-		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
-		storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInvalid
-		err := r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
-		if err != nil {
-			return false, err
-		}
-		r.Log.Info("storage autoscaler is in invalid state", "namespace", storageAutoScaler.Namespace, "name", storageAutoScaler.Name)
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (r *StorageAutoscalerReconciler) detectLsoStorageclass(ctx context.Context, storageCluster *ocsv1.StorageCluster) (bool, error) {
-	for _, deviceSet := range storageCluster.Spec.StorageDeviceSets {
-		storageclassName := deviceSet.DataPVCTemplate.Spec.StorageClassName
-		// list the storageclass
-		storageClass := &storagev1.StorageClass{}
-		err := r.Get(ctx, types.NamespacedName{Name: *storageclassName}, storageClass)
-		if err != nil {
-			r.Log.Error(err, "failed to get storage class")
-			return false, err
-		}
-		if storageClass.Provisioner == "kubernetes.io/no-provisioner" {
-			err = fmt.Errorf("storage class %s has no provisioner", storageClass.Name)
-			r.Log.Error(err, "storage class has provisioner as no-provisioner, which is an lso storageclass, autoscaler does not support lso storageclass, delete the autoStorageScaler cr as scaling is not supported")
-			// not sending an error as user can see in the cr status
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (r *StorageAutoscalerReconciler) detectDuplicateStorageAutoScaler(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, namespace string) (bool, error) {
-	storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
-	err := r.List(ctx, storageAutoScalerList,
-		client.InNamespace(namespace),
-	)
-	if err != nil {
-		r.Log.Error(err, "failed to list storage autoscaler")
-		return false, err
-	}
-
-	for _, storageAutoScalerItem := range storageAutoScalerList.Items {
-		if storageAutoScalerItem.Name != storageAutoScaler.Name && storageAutoScalerItem.Spec.DeviceClass == storageAutoScaler.Spec.DeviceClass && storageAutoScalerItem.Spec.StorageCluster.Name == storageAutoScaler.Spec.StorageCluster.Name {
-			err = fmt.Errorf("more than one storage autoscaler present with same device class and same storage cluster name, names are %s and %s", storageAutoScaler.Name, storageAutoScalerItem.Name)
-			r.Log.Error(err, "duplicate cr detected", "device class", storageAutoScaler.Spec.DeviceClass, "storage cluster", storageAutoScaler.Spec.StorageCluster.Name)
-			// not sending an error as user can see in the cr status
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (r *StorageAutoscalerReconciler) detectLeanResourceProfile(storageCluster *ocsv1.StorageCluster) (bool, error) {
-	if strings.ToLower(storageCluster.Spec.ResourceProfile) != "lean" {
-		return false, nil
-	}
-
-	err := fmt.Errorf("storage profile is lean, autoscaler does not support lean storage profile, delete the autoStorageScaler cr as scaling is not supported")
-	r.Log.Error(err, "storage profile is lean")
-	// not sending an error as user can see in the cr status
-	return true, nil
 }
