@@ -69,15 +69,18 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 
 	// if more than one storage autoscaler is present in the cluster with same device class and same storage cluster
 	// return error
-	err = r.detectDuplicateStorageAutoScaler(ctx, storageAutoScaler, request.Namespace)
+	duplicateCr, err := r.detectDuplicateStorageAutoScaler(ctx, storageAutoScaler, request.Namespace)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+	if duplicateCr {
+		return reconcile.Result{}, nil
 	}
 
 	// if no expansion is in-progress update the phase to "not-started"
 	if storageAutoScaler.Status.Phase == "" {
 		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
-		storageAutoScaler.Status.Phase = "NotStarted"
+		storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseNotStarted
 		err := r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -85,7 +88,7 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 	}
 
 	// if the expansion is InProgress or Failed, verify the scaling
-	if storageAutoScaler.Status.Phase == "InProgress" || storageAutoScaler.Status.Phase == "Failed" {
+	if storageAutoScaler.Status.Phase == ocsv1.StorageAutoScalerPhaseInProgress || storageAutoScaler.Status.Phase == ocsv1.StorageAutoScalerPhaseFailed {
 		return r.verifyScaling(ctx, storageAutoScaler)
 	}
 
@@ -109,9 +112,12 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 	}
 
 	// list the storagecluster deviceset storageclass
-	err = r.detectLsoStorageclass(ctx, storageCluster)
+	duplicateClass, err := r.detectLsoStorageclass(ctx, storageCluster)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+	if duplicateClass {
+		return reconcile.Result{}, nil
 	}
 
 	// check if the ceph cluster is healthy
@@ -170,7 +176,7 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 
 	// update the status
 	originalStorageAutoScaler := storageAutoScaler.DeepCopy()
-	storageAutoScaler.Status.Phase = "InProgress"
+	storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInProgress
 	storageAutoScaler.Status.Error = nil
 	storageAutoScaler.Status.LastExpansion = &ocsv1.LastExpansionStatus{
 		StartOsdCount:           uint16(startOsdCount),
@@ -209,7 +215,7 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 	return r.verifyScaling(ctx, storageAutoScaler)
 }
 
-func (r *StorageAutoscalerReconciler) detectLsoStorageclass(ctx context.Context, storageCluster *ocsv1.StorageCluster) error {
+func (r *StorageAutoscalerReconciler) detectLsoStorageclass(ctx context.Context, storageCluster *ocsv1.StorageCluster) (bool, error) {
 	for _, deviceSet := range storageCluster.Spec.StorageDeviceSets {
 		storageclassName := deviceSet.DataPVCTemplate.Spec.StorageClassName
 		// list the storageclass
@@ -217,14 +223,16 @@ func (r *StorageAutoscalerReconciler) detectLsoStorageclass(ctx context.Context,
 		err := r.Get(ctx, types.NamespacedName{Name: *storageclassName}, storageClass)
 		if err != nil {
 			r.Log.Error(err, "failed to get storage class")
-			return err
+			return false, err
 		}
 		if storageClass.Provisioner == "kubernetes.io/no-provisioner" {
-			r.Log.Info("storage class has no provisioner")
-			return errors.New("storage class has provisioner as no-provisioner, which is an lso storageclass, autoscaler does not support lso storageclass, delete the autoStorageScaler cr as scaling is not supported")
+			err = fmt.Errorf("storage class %s has no provisioner", storageClass.Name)
+			r.Log.Error(err, "storage class has provisioner as no-provisioner, which is an lso storageclass, autoscaler does not support lso storageclass, delete the autoStorageScaler cr as scaling is not supported")
+			// not sending an error as user can see in the cr status
+			return true, nil
 		}
 	}
-	return nil
+	return false, nil
 }
 
 func checkIfScalingRequired(usage interface{}, threshold int) bool {
@@ -308,30 +316,32 @@ func (r *StorageAutoscalerReconciler) updateStatus(ctx context.Context, storageA
 	return nil
 }
 
-func (r *StorageAutoscalerReconciler) detectDuplicateStorageAutoScaler(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, namespace string) error {
+func (r *StorageAutoscalerReconciler) detectDuplicateStorageAutoScaler(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler, namespace string) (bool, error) {
 	storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
 	err := r.List(ctx, storageAutoScalerList,
 		client.InNamespace(namespace),
 	)
 	if err != nil {
 		r.Log.Error(err, "failed to list storage autoscaler")
-		return err
+		return false, err
 	}
 
 	for _, storageAutoScalerItem := range storageAutoScalerList.Items {
 		if storageAutoScalerItem.Name != storageAutoScaler.Name && storageAutoScalerItem.Spec.DeviceClass == storageAutoScaler.Spec.DeviceClass && storageAutoScalerItem.Spec.StorageCluster.Name == storageAutoScaler.Spec.StorageCluster.Name {
 			// update the status
 			originalStorageAutoScaler := storageAutoScaler.DeepCopy()
+			storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInvalid
 			err := r.updateStatus(ctx, storageAutoScaler, originalStorageAutoScaler)
 			if err != nil {
-				return err
+				return false, err
 			}
 
 			err = fmt.Errorf("more than one storage autoscaler present with same device class and same storage cluster name, names are %s and %s", storageAutoScaler.Name, storageAutoScalerItem.Name)
 			r.Log.Error(err, "duplicate cr detected", "device class", storageAutoScaler.Spec.DeviceClass, "storage cluster", storageAutoScaler.Spec.StorageCluster.Name)
-			return err
+			// not sending an error as user can see in the cr status
+			return true, nil
 		}
 	}
 
-	return nil
+	return false, nil
 }
