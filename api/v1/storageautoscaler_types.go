@@ -52,6 +52,7 @@ type StorageAutoScalerSpec struct {
 type StorageAutoScalerPhase string
 
 const (
+	StorageAutoScalerPhaseInvalid    StorageAutoScalerPhase = "Invalid"
 	StorageAutoScalerPhaseNotStarted StorageAutoScalerPhase = "NotStarted"
 	StorageAutoScalerPhaseInProgress StorageAutoScalerPhase = "InProgress"
 	StorageAutoScalerPhaseSucceeded  StorageAutoScalerPhase = "Succeeded"
