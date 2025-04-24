@@ -38,6 +38,7 @@ const (
 )
 
 // StorageConsumerSpec defines the desired state of StorageConsumer
+// +kubebuilder:validation:XValidation:rule="!(has(self.storageQuotaInGiB) && has(oldSelf.storageQuotaInGiB) && self.storageQuotaInGiB < oldSelf.storageQuotaInGiB && self.storageQuotaInGiB != 0)",message="storageQuotaInGiB cannot be decreased unless setting to 0"
 type StorageConsumerSpec struct {
 	// Enable flag ignores a reconcile if set to false
 	Enable bool `json:"enable,omitempty"`
