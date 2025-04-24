@@ -22,7 +22,7 @@ import (
 func (r *StorageAutoscalerReconciler) verifyScaling(ctx context.Context, storageAutoScaler *ocsv1.StorageAutoScaler) (reconcile.Result, error) {
 	if timeoutHasElapsed(storageAutoScaler.Spec.TimeoutSeconds, storageAutoScaler.Status.LastExpansion.StartTime) {
 		originalStorageAutoScaler := storageAutoScaler.DeepCopy()
-		storageAutoScaler.Status.Phase = "Failed"
+		storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseFailed
 		storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
 			Message:   "scaling verification timed out for storageAutoScaler" + storageAutoScaler.Name + "device class " + storageAutoScaler.Spec.DeviceClass,
 			Timestamp: metav1.Now(),
@@ -58,7 +58,7 @@ func (r *StorageAutoscalerReconciler) verifyScaling(ctx context.Context, storage
 
 	// update the status
 	originalStorageAutoScaler := storageAutoScaler.DeepCopy()
-	storageAutoScaler.Status.Phase = "Succeeded"
+	storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseSucceeded
 	storageAutoScaler.Status.Error = nil
 	storageAutoScaler.Status.LastExpansion.CompletionTime = metav1.Now()
 	storageAutoScaler.Status.LastExpansion.StartOsdSize = expectedOsdSize
