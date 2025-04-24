@@ -1719,6 +1719,8 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResources(
 
 		cephUserSecret.Name = cephClients[i]
 		cephUserSecret.Namespace = consumer.Status.Client.OperatorNamespace
+		// clearing the secretType to be empty/Opaque instead of type rook.
+		cephUserSecret.Type = ""
 
 		kubeResources = append(kubeResources, cephUserSecret)
 	}
