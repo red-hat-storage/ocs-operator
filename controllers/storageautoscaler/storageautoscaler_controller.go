@@ -38,13 +38,76 @@ type StorageAutoscalerReconciler struct {
 
 // SetupWithManager sets up the reconciler with the manager
 func (r *StorageAutoscalerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	enqueueAutoScaler := handler.EnqueueRequestsFromMapFunc(
+		func(context context.Context, obj client.Object) []reconcile.Request {
+			storageCluster, ok := obj.(*ocsv1.StorageCluster)
+			if !ok {
+				return nil
+			}
+
+			// list the storage autoscaler objects
+			storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
+			err := r.List(context, storageAutoScalerList,
+				client.InNamespace(storageCluster.Namespace),
+			)
+			if err != nil {
+				r.Log.Error(err, "failed to list storage autoscaler")
+				return nil
+			}
+			// create a reconcile request for each storage autoscaler object
+			requests := make([]reconcile.Request, 0, len(storageAutoScalerList.Items))
+			for _, storageAutoScaler := range storageAutoScalerList.Items {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: storageAutoScaler.Namespace,
+						Name:      storageAutoScaler.Name,
+					},
+				})
+			}
+			return requests
+		},
+	)
+
+	osdPredicate := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldStorageCluster, ok := e.ObjectOld.(*ocsv1.StorageCluster)
+			if !ok {
+				return false
+			}
+			newStorageCluster, ok := e.ObjectNew.(*ocsv1.StorageCluster)
+			if !ok {
+				return false
+			}
+
+			// check if the osd size or count or replica has changed
+			for i, deviceSet := range oldStorageCluster.Spec.StorageDeviceSets {
+				if deviceSet.Count != newStorageCluster.Spec.StorageDeviceSets[i].Count {
+					return true
+				}
+				oldOsdSize := deviceSet.DataPVCTemplate.Spec.Resources.Requests["storage"]
+				newOsdSize := newStorageCluster.Spec.StorageDeviceSets[i].DataPVCTemplate.Spec.Resources.Requests["storage"]
+				if oldOsdSize.Cmp(newOsdSize) != 0 {
+					return true
+				}
+				if deviceSet.Replica != newStorageCluster.Spec.StorageDeviceSets[i].Replica {
+					return true
+				}
+			}
+
+			return false
+		},
+	}
+
 	// get the eventCh from the storage autoscaler scraper
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageAutoScaler{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		// watch for generic events to trigger the reconcile
 		WatchesRawSource(source.Channel(r.EventCh,
 			&handler.EnqueueRequestForObject{},
-		)).Complete(r)
+		)).
+		// watch for storagecluster osd size and count changes
+		Watches(&ocsv1.StorageCluster{}, enqueueAutoScaler, builder.WithPredicates(osdPredicate)).
+		Complete(r)
 }
 
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=prometheuses/api,resourceNames=k8s,verbs=get
