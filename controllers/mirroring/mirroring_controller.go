@@ -79,7 +79,7 @@ func (r *MirroringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		&ocsv1alpha1.StorageConsumer{},
 		clientIDIndexName,
 		func(obj client.Object) []string {
-			if storageConsumer, ok := obj.(*ocsv1alpha1.StorageConsumer); ok {
+			if storageConsumer, ok := obj.(*ocsv1alpha1.StorageConsumer); ok && storageConsumer.Status.Client != nil {
 				return []string{storageConsumer.Status.Client.ID}
 			}
 			return nil
@@ -531,7 +531,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			}
 			consumerOwner := &rns.OwnerReferences[consumerIndex]
 			consumer := storageConsumerByName[consumerOwner.Name]
-			if consumer == nil || consumer.Status.Client.ID == "" {
+			if consumer == nil || consumer.Status.Client == nil {
 				continue
 			}
 			remoteClientID := clientMappingConfig.Data[consumer.Status.Client.ID]

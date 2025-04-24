@@ -171,7 +171,7 @@ func getConnectedClients(r *StorageClusterReconciler, storageCluster *ocsv1.Stor
 
 	for storageConsumerIdx := range storageConsumers.Items {
 		storageConsumer := &storageConsumers.Items[storageConsumerIdx]
-		if !storageConsumer.Spec.Enable {
+		if storageConsumer.Status.Client == nil {
 			continue
 		}
 		clusterID := storageConsumer.Status.Client.ClusterID
