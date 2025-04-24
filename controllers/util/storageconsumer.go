@@ -20,12 +20,12 @@ const (
 	rbdRadosNamespaceKey            = "rbd-rados-ns"
 	subVolumeGroupKey               = "cephfs-subvolumegroup"
 	subVolumeGroupRadosNamespaceKey = "cephfs-subvolumegroup-rados-ns"
-	csiRbdProvisionerSecretKey      = "csi-rbd-provisioner-secret"
-	csiRbdNodeSecretKey             = "csi-rbd-node-secret"
-	csiCephFsProvisionerSecretKey   = "csi-cephfs-provisioner-secret"
-	csiCephFsNodeSecretKey          = "csi-cephfs-node-secret"
-	csiNfsProvisionerSecretKey      = "csi-nfs-provisioner-secret"
-	csiNfsNodeSecretKey             = "csi-nfs-node-secret"
+	csiRbdProvisionerCephUserKey    = "csi-rbd-provisioner-ceph-user"
+	csiRbdNodeCephUserKey           = "csi-rbd-node-ceph-user"
+	csiCephFsProvisionerCephUserKey = "csi-cephfs-provisioner-ceph-user"
+	csiCephFsNodeCephUserKey        = "csi-cephfs-node-ceph-user"
+	csiNfsProvisionerCephUserKey    = "csi-nfs-provisioner-ceph-user"
+	csiNfsNodeCephUserKey           = "csi-nfs-node-ceph-user"
 	rbdClientProfileKey             = "csiop-rbd-client-profile"
 	cephFsClientProfileKey          = "csiop-cephfs-client-profile"
 	nfsClientProfileKey             = "csiop-nfs-client-profile"
@@ -43,12 +43,12 @@ type StorageConsumerResources interface {
 	GetRbdRadosNamespaceName() string
 	GetSubVolumeGroupName() string
 	GetSubVolumeGroupRadosNamespaceName() string
-	GetCsiRbdProvisionerSecretName() string
-	GetCsiRbdNodeSecretName() string
-	GetCsiCephFsProvisionerSecretName() string
-	GetCsiCephFsNodeSecretName() string
-	GetCsiNfsProvisionerSecretName() string
-	GetCsiNfsNodeSecretName() string
+	GetCsiRbdProvisionerCephUserName() string
+	GetCsiRbdNodeCephUserName() string
+	GetCsiCephFsProvisionerCephUserName() string
+	GetCsiCephFsNodeCephUserName() string
+	GetCsiNfsProvisionerCephUserName() string
+	GetCsiNfsNodeCephUserName() string
 	GetRbdClientProfileName() string
 	GetCephFsClientProfileName() string
 	GetNfsClientProfileName() string
@@ -57,12 +57,12 @@ type StorageConsumerResources interface {
 	SetRbdRadosNamespaceName(string)
 	SetSubVolumeGroupName(string)
 	SetSubVolumeGroupRadosNamespaceName(string)
-	SetCsiRbdProvisionerSecretName(string)
-	SetCsiRbdNodeSecretName(string)
-	SetCsiCephFsProvisionerSecretName(string)
-	SetCsiCephFsNodeSecretName(string)
-	SetCsiNfsProvisionerSecretName(string)
-	SetCsiNfsNodeSecretName(string)
+	SetCsiRbdProvisionerCephUserName(string)
+	SetCsiRbdNodeCephUserName(string)
+	SetCsiCephFsProvisionerCephUserName(string)
+	SetCsiCephFsNodeCephUserName(string)
+	SetCsiNfsProvisionerCephUserName(string)
+	SetCsiNfsNodeCephUserName(string)
 	SetRbdClientProfileName(string)
 	SetCephFsClientProfileName(string)
 	SetNfsClientProfileName(string)
@@ -70,12 +70,12 @@ type StorageConsumerResources interface {
 	ReplaceRbdRadosNamespaceName(string)
 	ReplaceSubVolumeGroupName(string)
 	ReplaceSubVolumeGroupRadosNamespaceName(string)
-	ReplaceCsiRbdProvisionerSecretName(string)
-	ReplaceCsiRbdNodeSecretName(string)
-	ReplaceCsiCephFsProvisionerSecretName(string)
-	ReplaceCsiCephFsNodeSecretName(string)
-	ReplaceCsiNfsProvisionerSecretName(string)
-	ReplaceCsiNfsNodeSecretName(string)
+	ReplaceCsiRbdProvisionerCephUserName(string)
+	ReplaceCsiRbdNodeCephUserName(string)
+	ReplaceCsiCephFsProvisionerCephUserName(string)
+	ReplaceCsiCephFsNodeCephUserName(string)
+	ReplaceCsiNfsProvisionerCephUserName(string)
+	ReplaceCsiNfsNodeCephUserName(string)
 	ReplaceRbdClientProfileName(string)
 	ReplaceCephFsClientProfileName(string)
 	ReplaceNfsClientProfileName(string)
@@ -102,28 +102,28 @@ func (wrapper storageConsumerResourceMapWrapper) GetSubVolumeGroupRadosNamespace
 	return wrapper.data[subVolumeGroupRadosNamespaceKey]
 }
 
-func (wrapper storageConsumerResourceMapWrapper) GetCsiRbdProvisionerSecretName() string {
-	return wrapper.data[csiRbdProvisionerSecretKey]
+func (wrapper storageConsumerResourceMapWrapper) GetCsiRbdProvisionerCephUserName() string {
+	return wrapper.data[csiRbdProvisionerCephUserKey]
 }
 
-func (wrapper storageConsumerResourceMapWrapper) GetCsiRbdNodeSecretName() string {
-	return wrapper.data[csiRbdNodeSecretKey]
+func (wrapper storageConsumerResourceMapWrapper) GetCsiRbdNodeCephUserName() string {
+	return wrapper.data[csiRbdNodeCephUserKey]
 }
 
-func (wrapper storageConsumerResourceMapWrapper) GetCsiCephFsProvisionerSecretName() string {
-	return wrapper.data[csiCephFsProvisionerSecretKey]
+func (wrapper storageConsumerResourceMapWrapper) GetCsiCephFsProvisionerCephUserName() string {
+	return wrapper.data[csiCephFsProvisionerCephUserKey]
 }
 
-func (wrapper storageConsumerResourceMapWrapper) GetCsiCephFsNodeSecretName() string {
-	return wrapper.data[csiCephFsNodeSecretKey]
+func (wrapper storageConsumerResourceMapWrapper) GetCsiCephFsNodeCephUserName() string {
+	return wrapper.data[csiCephFsNodeCephUserKey]
 }
 
-func (wrapper storageConsumerResourceMapWrapper) GetCsiNfsProvisionerSecretName() string {
-	return wrapper.data[csiNfsProvisionerSecretKey]
+func (wrapper storageConsumerResourceMapWrapper) GetCsiNfsProvisionerCephUserName() string {
+	return wrapper.data[csiNfsProvisionerCephUserKey]
 }
 
-func (wrapper storageConsumerResourceMapWrapper) GetCsiNfsNodeSecretName() string {
-	return wrapper.data[csiNfsNodeSecretKey]
+func (wrapper storageConsumerResourceMapWrapper) GetCsiNfsNodeCephUserName() string {
+	return wrapper.data[csiNfsNodeCephUserKey]
 }
 
 func (wrapper storageConsumerResourceMapWrapper) GetRbdClientProfileName() string {
@@ -151,28 +151,28 @@ func (wrapper storageConsumerResourceMapWrapper) SetSubVolumeGroupRadosNamespace
 	wrapper.data[subVolumeGroupRadosNamespaceKey] = name
 }
 
-func (wrapper storageConsumerResourceMapWrapper) SetCsiRbdProvisionerSecretName(name string) {
-	wrapper.data[csiRbdProvisionerSecretKey] = name
+func (wrapper storageConsumerResourceMapWrapper) SetCsiRbdProvisionerCephUserName(name string) {
+	wrapper.data[csiRbdProvisionerCephUserKey] = name
 }
 
-func (wrapper storageConsumerResourceMapWrapper) SetCsiRbdNodeSecretName(name string) {
-	wrapper.data[csiRbdNodeSecretKey] = name
+func (wrapper storageConsumerResourceMapWrapper) SetCsiRbdNodeCephUserName(name string) {
+	wrapper.data[csiRbdNodeCephUserKey] = name
 }
 
-func (wrapper storageConsumerResourceMapWrapper) SetCsiCephFsProvisionerSecretName(name string) {
-	wrapper.data[csiCephFsProvisionerSecretKey] = name
+func (wrapper storageConsumerResourceMapWrapper) SetCsiCephFsProvisionerCephUserName(name string) {
+	wrapper.data[csiCephFsProvisionerCephUserKey] = name
 }
 
-func (wrapper storageConsumerResourceMapWrapper) SetCsiCephFsNodeSecretName(name string) {
-	wrapper.data[csiCephFsNodeSecretKey] = name
+func (wrapper storageConsumerResourceMapWrapper) SetCsiCephFsNodeCephUserName(name string) {
+	wrapper.data[csiCephFsNodeCephUserKey] = name
 }
 
-func (wrapper storageConsumerResourceMapWrapper) SetCsiNfsProvisionerSecretName(name string) {
-	wrapper.data[csiNfsProvisionerSecretKey] = name
+func (wrapper storageConsumerResourceMapWrapper) SetCsiNfsProvisionerCephUserName(name string) {
+	wrapper.data[csiNfsProvisionerCephUserKey] = name
 }
 
-func (wrapper storageConsumerResourceMapWrapper) SetCsiNfsNodeSecretName(name string) {
-	wrapper.data[csiNfsNodeSecretKey] = name
+func (wrapper storageConsumerResourceMapWrapper) SetCsiNfsNodeCephUserName(name string) {
+	wrapper.data[csiNfsNodeCephUserKey] = name
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetRbdClientProfileName(name string) {
@@ -205,28 +205,28 @@ func (wrapper storageConsumerResourceMapWrapper) ReplaceSubVolumeGroupRadosNames
 	wrapper.replaceIfExist(subVolumeGroupRadosNamespaceKey, name)
 }
 
-func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiRbdProvisionerSecretName(name string) {
-	wrapper.replaceIfExist(csiRbdProvisionerSecretKey, name)
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiRbdProvisionerCephUserName(name string) {
+	wrapper.replaceIfExist(csiRbdProvisionerCephUserKey, name)
 }
 
-func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiRbdNodeSecretName(name string) {
-	wrapper.replaceIfExist(csiRbdNodeSecretKey, name)
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiRbdNodeCephUserName(name string) {
+	wrapper.replaceIfExist(csiRbdNodeCephUserKey, name)
 }
 
-func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiCephFsProvisionerSecretName(name string) {
-	wrapper.replaceIfExist(csiCephFsProvisionerSecretKey, name)
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiCephFsProvisionerCephUserName(name string) {
+	wrapper.replaceIfExist(csiCephFsProvisionerCephUserKey, name)
 }
 
-func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiCephFsNodeSecretName(name string) {
-	wrapper.replaceIfExist(csiCephFsNodeSecretKey, name)
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiCephFsNodeCephUserName(name string) {
+	wrapper.replaceIfExist(csiCephFsNodeCephUserKey, name)
 }
 
-func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNfsProvisionerSecretName(name string) {
-	wrapper.replaceIfExist(csiNfsProvisionerSecretKey, name)
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNfsProvisionerCephUserName(name string) {
+	wrapper.replaceIfExist(csiNfsProvisionerCephUserKey, name)
 }
 
-func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNfsNodeSecretName(name string) {
-	wrapper.replaceIfExist(csiNfsNodeSecretKey, name)
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNfsNodeCephUserName(name string) {
+	wrapper.replaceIfExist(csiNfsNodeCephUserKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) ReplaceRbdClientProfileName(name string) {
@@ -287,20 +287,20 @@ func GetStorageConsumerDefaultResourceNames(
 	if availableServices.Rbd {
 		resourceNamesMap.SetRbdRadosNamespaceName(storageConsumerName)
 		resourceNamesMap.SetRbdClientProfileName(storageConsumerUid)
-		resourceNamesMap.SetCsiRbdNodeSecretName(fmt.Sprintf("rbd-node-%s", storageConsumerUid))
-		resourceNamesMap.SetCsiRbdProvisionerSecretName(fmt.Sprintf("rbd-provisioner-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiRbdNodeCephUserName(fmt.Sprintf("rbd-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiRbdProvisionerCephUserName(fmt.Sprintf("rbd-provisioner-%s", storageConsumerUid))
 	}
 	if availableServices.CephFs {
 		resourceNamesMap.SetSubVolumeGroupName(storageConsumerName)
 		resourceNamesMap.SetSubVolumeGroupRadosNamespaceName(storageConsumerName)
 		resourceNamesMap.SetCephFsClientProfileName(storageConsumerUid)
-		resourceNamesMap.SetCsiCephFsNodeSecretName(fmt.Sprintf("cephfs-node-%s", storageConsumerUid))
-		resourceNamesMap.SetCsiCephFsProvisionerSecretName(fmt.Sprintf("cephfs-provisioner-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiCephFsNodeCephUserName(fmt.Sprintf("cephfs-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiCephFsProvisionerCephUserName(fmt.Sprintf("cephfs-provisioner-%s", storageConsumerUid))
 	}
 	if availableServices.Nfs {
 		resourceNamesMap.SetNfsClientProfileName(storageConsumerUid)
-		resourceNamesMap.SetCsiNfsNodeSecretName(fmt.Sprintf("nfs-node-%s", storageConsumerUid))
-		resourceNamesMap.SetCsiNfsProvisionerSecretName(fmt.Sprintf("nfs-provisioner-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiNfsNodeCephUserName(fmt.Sprintf("nfs-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiNfsProvisionerCephUserName(fmt.Sprintf("nfs-provisioner-%s", storageConsumerUid))
 	}
 	return defaults
 }

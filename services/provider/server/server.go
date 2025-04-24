@@ -1676,23 +1676,23 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResources(
 ) ([]client.Object, error) {
 
 	cephClients := []string{}
-	if consumerConfig.GetCsiRbdProvisionerSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiRbdProvisionerSecretName())
+	if consumerConfig.GetCsiRbdProvisionerCephUserName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdProvisionerCephUserName())
 	}
-	if consumerConfig.GetCsiRbdNodeSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiRbdNodeSecretName())
+	if consumerConfig.GetCsiRbdNodeCephUserName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiRbdNodeCephUserName())
 	}
-	if consumerConfig.GetCsiCephFsProvisionerSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiCephFsProvisionerSecretName())
+	if consumerConfig.GetCsiCephFsProvisionerCephUserName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsProvisionerCephUserName())
 	}
-	if consumerConfig.GetCsiCephFsNodeSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiCephFsNodeSecretName())
+	if consumerConfig.GetCsiCephFsNodeCephUserName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiCephFsNodeCephUserName())
 	}
-	if consumerConfig.GetCsiNfsProvisionerSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiNfsProvisionerSecretName())
+	if consumerConfig.GetCsiNfsProvisionerCephUserName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsProvisionerCephUserName())
 	}
-	if consumerConfig.GetCsiNfsNodeSecretName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiNfsNodeSecretName())
+	if consumerConfig.GetCsiNfsNodeCephUserName() != "" {
+		cephClients = append(cephClients, consumerConfig.GetCsiNfsNodeCephUserName())
 	}
 
 	for i := range cephClients {
@@ -1742,8 +1742,8 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			return util.NewDefaultRbdStorageClass(
 				consumerConfig.GetRbdClientProfileName(),
 				util.GenerateNameForCephBlockPool(storageCluster.Name),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
+				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
@@ -1753,8 +1753,8 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			return util.NewDefaultVirtRbdStorageClass(
 				consumerConfig.GetRbdClientProfileName(),
 				util.GenerateNameForCephBlockPool(storageCluster.Name),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
+				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
 			)
@@ -1765,8 +1765,8 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				return util.NewDefaultEncryptedRbdStorageClass(
 					consumerConfig.GetRbdClientProfileName(),
 					util.GenerateNameForCephBlockPool(storageCluster.Name),
-					consumerConfig.GetCsiRbdProvisionerSecretName(),
-					consumerConfig.GetCsiRbdNodeSecretName(),
+					consumerConfig.GetCsiRbdProvisionerCephUserName(),
+					consumerConfig.GetCsiRbdNodeCephUserName(),
 					consumer.Status.Client.OperatorNamespace,
 					kmsServiceName,
 					storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
@@ -1777,8 +1777,8 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			return util.NewDefaultNonResilientRbdStorageClass(
 				consumerConfig.GetRbdClientProfileName(),
 				util.GetTopologyConstrainedPools(storageCluster),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
-				consumerConfig.GetCsiRbdNodeSecretName(),
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
+				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
 				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
@@ -1790,8 +1790,8 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			return util.NewDefaultCephFsStorageClass(
 				consumerConfig.GetCephFsClientProfileName(),
 				util.GenerateNameForCephFilesystem(storageCluster.Name),
-				consumerConfig.GetCsiCephFsProvisionerSecretName(),
-				consumerConfig.GetCsiCephFsNodeSecretName(),
+				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+				consumerConfig.GetCsiCephFsNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				cephFsStorageId,
 			)
@@ -1804,8 +1804,8 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				util.GenerateNameForCephNFS(storageCluster),
 				util.GenerateNameForCephFilesystem(storageCluster.Name),
 				util.GenerateNameForNFSService(storageCluster),
-				consumerConfig.GetCsiNfsProvisionerSecretName(),
-				consumerConfig.GetCsiNfsNodeSecretName(),
+				consumerConfig.GetCsiNfsProvisionerCephUserName(),
+				consumerConfig.GetCsiNfsNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 			)
 		}
@@ -1857,7 +1857,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
 			return util.NewDefaultRbdSnapshotClass(
 				consumerConfig.GetRbdClientProfileName(),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
 			)
@@ -1867,7 +1867,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
 			return util.NewDefaultCephFsSnapshotClass(
 				consumerConfig.GetCephFsClientProfileName(),
-				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				cephFsStorageId,
 			)
@@ -1877,7 +1877,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 		vscMap[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = func() *snapapi.VolumeSnapshotClass {
 			return util.NewDefaultNfsSnapshotClass(
 				consumerConfig.GetNfsClientProfileName(),
-				consumerConfig.GetCsiNfsProvisionerSecretName(),
+				consumerConfig.GetCsiNfsProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 			)
 		}
@@ -1929,7 +1929,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
 			return util.NewDefaultRbdGroupSnapshotClass(
 				consumerConfig.GetRbdClientProfileName(),
-				consumerConfig.GetCsiRbdProvisionerSecretName(),
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				util.GenerateNameForCephBlockPool(storageCluster.Name),
 				rbdStorageId,
@@ -1940,7 +1940,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
 			return util.NewDefaultCephFsGroupSnapshotClass(
 				consumerConfig.GetCephFsClientProfileName(),
-				consumerConfig.GetCsiCephFsProvisionerSecretName(),
+				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				util.GenerateNameForCephFilesystem(storageCluster.Name),
 				cephFsStorageId,
@@ -2034,7 +2034,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 
 		switch vrc.Spec.Provisioner {
 		case util.RbdDriverName:
-			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerSecretName()
+			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerCephUserName()
 			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
 			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
 			util.AddLabel(vrc, ramenDRStorageIDLabelKey, rbdStorageId)

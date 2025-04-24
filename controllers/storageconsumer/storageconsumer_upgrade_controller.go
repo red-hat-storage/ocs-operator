@@ -186,10 +186,10 @@ func (r *StorageConsumerUpgradeReconciler) reconcileConsumerConfigMap(
 		resourceMap.ReplaceSubVolumeGroupRadosNamespaceName("csi")
 		resourceMap.ReplaceRbdClientProfileName(rbdClientProfile)
 		resourceMap.ReplaceCephFsClientProfileName(cephFSClientProfile)
-		resourceMap.ReplaceCsiRbdNodeSecretName(rbdNodeSecretName)
-		resourceMap.ReplaceCsiRbdProvisionerSecretName(rbdProvisionerSecretName)
-		resourceMap.ReplaceCsiCephFsNodeSecretName(cephFsNodeSecretName)
-		resourceMap.ReplaceCsiCephFsProvisionerSecretName(cephFsProvisionerSecretName)
+		resourceMap.ReplaceCsiRbdNodeCephUserName(rbdNodeSecretName)
+		resourceMap.ReplaceCsiRbdProvisionerCephUserName(rbdProvisionerSecretName)
+		resourceMap.ReplaceCsiCephFsNodeCephUserName(cephFsNodeSecretName)
+		resourceMap.ReplaceCsiCephFsProvisionerCephUserName(cephFsProvisionerSecretName)
 		consumerConfigMap.Data = data
 
 		if err := r.Client.Create(ctx, consumerConfigMap); err != nil {
