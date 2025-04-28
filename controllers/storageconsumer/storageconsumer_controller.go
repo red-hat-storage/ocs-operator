@@ -276,12 +276,12 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 
 		}
 
-		if availableServices.Mcg {
+		clientStatus := r.storageConsumer.Status.Client
+		if availableServices.Mcg && clientStatus != nil {
 			// A provider cluster already has a NooBaa system and does not require a NooBaa account
 			// to connect to a remote cluster, unlike client clusters.
 			// A NooBaa account only needs to be created if the storage consumer is for a client cluster.
 			clusterID := util.GetClusterID(r.ctx, r.Client, &r.Log)
-			clientStatus := &r.storageConsumer.Status.Client
 			if clusterID != "" &&
 				clientStatus.ClusterID != "" &&
 				clientStatus.ClusterID != clusterID {

@@ -98,7 +98,9 @@ type StorageConsumerStatus struct {
 	// Timestamp of last heartbeat received from consumer
 	LastHeartbeat metav1.Time `json:"lastHeartbeat,omitempty"`
 	// Information of storage client received from consumer
-	Client                       ClientStatus                `json:"client,omitempty"`
+	// +optional
+	// +nullable
+	Client                       *ClientStatus               `json:"client,omitempty"`
 	ResourceNameMappingConfigMap corev1.LocalObjectReference `json:"resourceNameMappingConfigMap,omitempty"`
 	OnboardingTicketSecret       corev1.LocalObjectReference `json:"onboardingTicketSecret,omitempty"`
 }
