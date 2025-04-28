@@ -77,7 +77,7 @@ func TestOdfInfoConfig(t *testing.T) {
 					Enable: true,
 				},
 				Status: v1alpha1.StorageConsumerStatus{
-					Client: v1alpha1.ClientStatus{
+					Client: &v1alpha1.ClientStatus{
 						OperatorVersion: testCase.ocsVersion,
 						ClusterID:       "",
 						ClusterName:     testCase.storageClusterNamespacedName.Name,

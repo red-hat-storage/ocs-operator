@@ -245,7 +245,11 @@ func (in *StorageConsumerStatus) DeepCopyInto(out *StorageConsumerStatus) {
 		}
 	}
 	in.LastHeartbeat.DeepCopyInto(&out.LastHeartbeat)
-	out.Client = in.Client
+	if in.Client != nil {
+		in, out := &in.Client, &out.Client
+		*out = new(ClientStatus)
+		**out = **in
+	}
 	out.ResourceNameMappingConfigMap = in.ResourceNameMappingConfigMap
 	out.OnboardingTicketSecret = in.OnboardingTicketSecret
 }

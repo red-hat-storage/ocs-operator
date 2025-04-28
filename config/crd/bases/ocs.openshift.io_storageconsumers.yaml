@@ -127,6 +127,7 @@ spec:
                 type: array
               client:
                 description: Information of storage client received from consumer
+                nullable: true
                 properties:
                   clientId:
                     description: ID is the k8s UID of connected storageclient

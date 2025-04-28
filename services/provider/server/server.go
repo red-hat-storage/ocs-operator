@@ -1312,6 +1312,10 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	clientMappingConfig.Name = util.StorageClientMappingConfigName
 	clientMappingConfig.Namespace = s.namespace
 
+	if consumer.Status.Client == nil {
+		return false, nil
+	}
+
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(clientMappingConfig), clientMappingConfig); err != nil {
 		return false, client.IgnoreNotFound(err)
 	}
@@ -1432,7 +1436,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		consumerConfig.GetSubVolumeGroupName(),
 	)
 
-	if consumer.Status.Client.Name == "" {
+	if consumer.Status.Client == nil {
 		return nil, fmt.Errorf("waiting for the first heart beat before sending the resources")
 	}
 

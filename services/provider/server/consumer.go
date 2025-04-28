@@ -152,6 +152,10 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 		return err
 	}
 
+	if consumerObj.Status.Client == nil {
+		consumerObj.Status.Client = &ocsv1alpha1.ClientStatus{}
+	}
+
 	consumerObj.Status.LastHeartbeat = metav1.Now()
 	consumerObj.Status.Client.PlatformVersion = status.GetPlatformVersion()
 	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
@@ -217,7 +221,7 @@ func (c *ocsConsumerManager) GetByClientID(ctx context.Context, clientID string)
 	}
 	for i := range consumerObjList.Items {
 		consumer := consumerObjList.Items[i]
-		if consumer.Status.Client.ID == clientID {
+		if consumer.Status.Client != nil && consumer.Status.Client.ID == clientID {
 			return &consumer, nil
 		}
 	}
