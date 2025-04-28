@@ -4,9 +4,9 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-
 	storagev1 "k8s.io/api/storage/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type obcStorageClasses struct{}
@@ -43,7 +43,16 @@ func (s *obcStorageClasses) ensureCreated(r *StorageClusterReconciler, storageCl
 	return ctrl.Result{}, nil
 }
 
-func (s *obcStorageClasses) ensureDeleted(_ *StorageClusterReconciler, _ *ocsv1.StorageCluster) (ctrl.Result, error) {
-	// cleaned up via owner references
+func (s *obcStorageClasses) ensureDeleted(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+	scName := util.GenerateNameForCephRgwStorageClass(storageCluster)
+
+	storageClass := &storagev1.StorageClass{}
+	storageClass.Name = scName
+
+	if err := r.Client.Delete(r.ctx, storageClass); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "failed to delete OBC StorageClass", "Name", scName)
+		return ctrl.Result{}, err
+	}
+	r.Log.Info("Deleted OBC StorageClass", "Name", scName)
 	return ctrl.Result{}, nil
 }
