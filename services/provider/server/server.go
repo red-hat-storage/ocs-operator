@@ -387,9 +387,16 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, err
 		}
 
+		monIps, err := getMonIps(ctx, s.client, consumer.Namespace)
+		if err != nil {
+			klog.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
+			monIps,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
@@ -629,31 +636,40 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	} else {
 		channel, err := s.getOCSSubscriptionChannel(ctx)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+			klog.Errorf("failed to get OCS subscription channel: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 		channelName = channel
 	}
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
-		return nil, err
+		klog.Errorf("Failed to get storage cluster in namespace %s: %v", s.namespace, err)
+		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 	}
 
 	inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
 	if err != nil {
 		klog.Error(err)
-		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 	}
 
 	isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, storageConsumer)
 	if err != nil {
 		klog.Error(err)
-		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
+	}
+
+	monIps, err := getMonIps(ctx, s.client, storageConsumer.Namespace)
+	if err != nil {
+		klog.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
+		monIps,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
@@ -691,9 +707,19 @@ func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
 		networkSpec.Connections.Encryption.Enabled
 }
 
-func extractMonitorIps(data string) ([]string, error) {
+func getMonIps(ctx context.Context, cl client.Client, namespace string) ([]string, error) {
+	configmap := &v1.ConfigMap{}
+	configmap.Name = monConfigMap
+	configmap.Namespace = namespace
+	if err := cl.Get(ctx, client.ObjectKeyFromObject(configmap), configmap); err != nil {
+		return nil, fmt.Errorf("failed to get configmap: %v", err)
+	}
+	if configmap.Data["data"] == "" {
+		klog.Errorf("configmap %s data is empty", monConfigMap)
+		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
+	}
 	var ips []string
-	mons := strings.Split(data, ",")
+	mons := strings.Split(configmap.Data["data"], ",")
 	for _, mon := range mons {
 		parts := strings.Split(mon, "=")
 		if len(parts) != 2 {
@@ -1163,18 +1189,7 @@ func (s *OCSProviderServer) appendCephConnectionKubeResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 ) ([]client.Object, error) {
 
-	configmap := &v1.ConfigMap{}
-	configmap.Name = monConfigMap
-	configmap.Namespace = consumer.Namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(configmap), configmap)
-	if err != nil {
-		return kubeResources, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
-	}
-	if configmap.Data["data"] == "" {
-		return kubeResources, fmt.Errorf("configmap %s data is empty", monConfigMap)
-	}
-
-	monIps, err := extractMonitorIps(configmap.Data["data"])
+	monIps, err := getMonIps(ctx, s.client, consumer.Namespace)
 	if err != nil {
 		return kubeResources, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
 	}
