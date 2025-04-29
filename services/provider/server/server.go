@@ -301,7 +301,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
-			consumerObj,
+			consumerObj.Spec,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
@@ -387,16 +387,17 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, err
 		}
 
-		monIps, err := getMonIps(ctx, s.client, consumer.Namespace)
+		hashKubeResources := []client.Object{}
+		hashKubeResources, err = s.appendCephConnectionKubeResources(ctx, hashKubeResources, consumer)
 		if err != nil {
-			klog.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+			klog.Error(err)
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
-			consumer,
-			monIps,
+			consumer.Spec,
+			hashKubeResources,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
@@ -660,16 +661,17 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 	}
 
-	monIps, err := getMonIps(ctx, s.client, storageConsumer.Namespace)
+	hashKubeResources := []client.Object{}
+	hashKubeResources, err = s.appendCephConnectionKubeResources(ctx, hashKubeResources, storageConsumer)
 	if err != nil {
-		klog.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+		klog.Error(err)
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
-		storageConsumer,
-		monIps,
+		storageConsumer.Spec,
+		hashKubeResources,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
