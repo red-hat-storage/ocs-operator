@@ -448,6 +448,12 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 			continue
 		}
 
+		// TODO (leelavg): this is a temporary fix till a decision is taken for when to proceed with deletion of rns cr
+		if !bp.DeletionTimestamp.IsZero() {
+			r.Log.Info("Skipping reconcile for radosnamespace as blockpool is marked for deletion", "CephBlockPool", bp.Name)
+			continue
+		}
+
 		rns := &rookCephv1.CephBlockPoolRadosNamespace{}
 		rns.Name = fmt.Sprintf("%s-%s", bp.Name, radosNamespaceName)
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
