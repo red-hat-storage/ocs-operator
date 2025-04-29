@@ -399,12 +399,39 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, err
 		}
 
+		consumerConfigMap := &corev1.ConfigMap{}
+		consumerConfigMap.Name = consumer.Status.ResourceNameMappingConfigMap.Name
+		consumerConfigMap.Namespace = consumer.Namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get resource name mapping config map. %v", err)
+		}
+		consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+
+		isRbdDriverEnabled := consumerConfig.GetRbdClientProfileName() != ""
+		if isRbdDriverEnabled {
+			response.RbdDriverRequirements = &pb.RbdDriverRequirements{}
+			response.RbdDriverRequirements.OmapInfo = isConsumerMirrorEnabled
+		}
+
+		isCephFsDriverEnabled := consumerConfig.GetCephFsClientProfileName() != ""
+		if isCephFsDriverEnabled {
+			response.CephFsDriverRequirements = &pb.CephFsDriverRequirements{}
+		}
+
+		isNfsDriverEnabled := consumerConfig.GetNfsClientProfileName() != ""
+		if isNfsDriverEnabled {
+			response.NfsDriverRequirements = &pb.NfsDriverRequirements{}
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
+			isRbdDriverEnabled,
+			isCephFsDriverEnabled,
+			isNfsDriverEnabled,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -1040,12 +1067,27 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
 	}
 
+	consumerConfigMap := &corev1.ConfigMap{}
+	consumerConfigMap.Name = storageConsumer.Status.ResourceNameMappingConfigMap.Name
+	consumerConfigMap.Namespace = storageConsumer.Namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get storage consumer config map: %v", err)
+	}
+
+	consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+	isRbdDriverEnabled := consumerConfig.GetRbdClientProfileName() != ""
+	isCephFsDriverEnabled := consumerConfig.GetCephFsClientProfileName() != ""
+	isNfsDriverEnabled := consumerConfig.GetNfsClientProfileName() != ""
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
+		isRbdDriverEnabled,
+		isCephFsDriverEnabled,
+		isNfsDriverEnabled,
 	)
 
 	return &pb.ReportStatusResponse{

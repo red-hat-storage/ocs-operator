@@ -118,6 +118,16 @@ message StorageConfigResponse{
     SystemAttributes systemAttributes = 3;
 }
 
+message RbdDriverRequirements {
+  bool omapInfo = 1;
+}
+
+message CephFsDriverRequirements {
+}
+
+message NfsDriverRequirements {
+}
+
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
 message GetDesiredClientStateResponse{
   repeated bytes kubeResources = 1;
@@ -125,6 +135,9 @@ message GetDesiredClientStateResponse{
   string clientOperatorChannel = 3;
   bool maintenanceMode = 4;
   bool mirrorEnabled = 5;
+  RbdDriverRequirements RbdDriverRequirements = 6;
+  CephFsDriverRequirements CephFsDriverRequirements = 7;
+  NfsDriverRequirements NfsDriverRequirements = 8;
 }
 
 
