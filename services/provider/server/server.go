@@ -313,7 +313,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
-			consumerObj,
+			consumerObj.Spec,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
@@ -407,7 +407,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
-			consumer,
+			consumer.Spec,
 			monIps,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
@@ -1057,7 +1057,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
-		storageConsumer,
+		storageConsumer.Spec,
 		monIps,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
