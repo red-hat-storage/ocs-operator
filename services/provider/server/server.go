@@ -413,10 +413,11 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
-	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
+	err := s.consumerManager.ClearClientInformation(ctx, req.StorageConsumerUUID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to delete storageConsumer resource with the provided UUID. %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to offboard storageConsumer with the provided UUID. %v", err)
 	}
+	klog.Infof("Successfully Offboarded Client from StorageConsumer with the provided UUID %q", req.StorageConsumerUUID)
 	return &pb.OffboardConsumerResponse{}, nil
 }
 
