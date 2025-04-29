@@ -86,6 +86,12 @@ message RbdDriverRequirements {
     repeated string topologyDomainLables = 1;
 }
 
+message CephFsDriverRequirements {
+}
+
+message NfsDriverRequirements {
+}
+
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
 message GetDesiredClientStateResponse{
     // Note: kubeResources name is reserved till 4.20
@@ -106,6 +112,8 @@ message GetDesiredClientStateResponse{
     // rbdDriverRequirements holds the rbd driver desired state that has to be updated by
     // the client operator, its an optional response   
     optional RbdDriverRequirements rbdDriverRequirements = 7;
+    optional CephFsDriverRequirements CephFsDriverRequirements = 8;
+    optional NfsDriverRequirements NfsDriverRequirements = 9;
 }
 
 
