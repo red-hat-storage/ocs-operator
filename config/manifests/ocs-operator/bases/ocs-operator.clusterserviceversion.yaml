@@ -50,11 +50,6 @@ spec:
       kind: StorageConsumer
       name: storageconsumers.ocs.openshift.io
       version: v1alpha1
-    - description: StorageRequest is the Schema for the StorageRequests API
-      displayName: Storage Request
-      kind: StorageRequest
-      name: storagerequests.ocs.openshift.io
-      version: v1alpha1
   description: |
     **Red Hat OpenShift Container Storage** deploys three operators.
 
