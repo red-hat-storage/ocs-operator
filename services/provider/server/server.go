@@ -1,15 +1,12 @@
 package server
 
 import (
-	"cmp"
 	"context"
 	"crypto"
-	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -26,7 +23,6 @@ import (
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
-	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
@@ -65,7 +61,6 @@ import (
 const (
 	ProviderCertsMountPoint   = "/mnt/cert"
 	onboardingTicketKeySecret = "onboarding-ticket-key"
-	storageRequestNameLabel   = "ocs.openshift.io/storagerequest-name"
 	notAvailable              = "N/A"
 
 	ramenDRStorageIDLabelKey         = "ramendr.openshift.io/storageid"
@@ -84,7 +79,6 @@ type OCSProviderServer struct {
 	client                    client.Client
 	scheme                    *runtime.Scheme
 	consumerManager           *ocsConsumerManager
-	storageRequestManager     *storageRequestManager
 	storageClusterPeerManager *storageClusterPeerManager
 	namespace                 string
 }
@@ -105,11 +99,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageRequestManager, err := newStorageRequestManager(client, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new StorageRequest instance. %v", err)
-	}
-
 	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
@@ -119,7 +108,6 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		client:                    client,
 		scheme:                    scheme,
 		consumerManager:           consumerManager,
-		storageRequestManager:     storageRequestManager,
 		storageClusterPeerManager: storageClusterPeerManager,
 		namespace:                 namespace,
 	}, nil
@@ -499,29 +487,6 @@ func newScheme() (*runtime.Scheme, error) {
 	return scheme, nil
 }
 
-func (s *OCSProviderServer) getCephClientInformation(ctx context.Context, name string) (string, string, error) {
-	cephClient := &rookCephv1.CephClient{}
-	err := s.client.Get(ctx, types.NamespacedName{Name: name, Namespace: s.namespace}, cephClient)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get rook ceph client %s secret. %v", name, err)
-	}
-	if cephClient.Status == nil {
-		return "", "", fmt.Errorf("rook ceph client %s status is nil", name)
-	}
-	if cephClient.Status.Info == nil {
-		return "", "", fmt.Errorf("rook ceph client %s Status.Info is empty", name)
-	}
-
-	if len(cephClient.Annotations) == 0 {
-		return "", "", fmt.Errorf("rook ceph client %s annotation is empty", name)
-	}
-	if cephClient.Annotations[controllers.StorageRequestAnnotation] == "" || cephClient.Annotations[controllers.StorageCephUserTypeAnnotation] == "" {
-		klog.Warningf("rook ceph client %s has missing storage annotations", name)
-	}
-
-	return cephClient.Status.Info["secretName"], cephClient.Annotations[controllers.StorageCephUserTypeAnnotation], nil
-}
-
 func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rsa.PublicKey, error) {
 	pubKeySecret := &corev1.Secret{}
 	err := s.client.Get(ctx, types.NamespacedName{Name: onboardingTicketKeySecret, Namespace: s.namespace}, pubKeySecret)
@@ -553,17 +518,6 @@ func mustMarshal[T any](value T) []byte {
 		panic("failed to marshal")
 	}
 	return newData
-}
-
-func getSubVolumeGroupClusterID(subVolumeGroup *rookCephv1.CephFilesystemSubVolumeGroup) string {
-	str := fmt.Sprintf(
-		"%s-%s-file-%s",
-		subVolumeGroup.Namespace,
-		subVolumeGroup.Spec.FilesystemName,
-		subVolumeGroup.Name,
-	)
-	hash := sha256.Sum256([]byte(str))
-	return hex.EncodeToString(hash[:16])
 }
 
 func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.OnboardingTicket, error) {
@@ -612,361 +566,18 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
-	// Get storage consumer resource using UUID
-	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	klog.Infof("Found StorageConsumer %q (%q)", consumerObj.Name, req.StorageConsumerUUID)
-
-	var storageType string
-	switch req.StorageType {
-	case pb.FulfillStorageClaimRequest_BLOCK:
-		storageType = "block"
-	case pb.FulfillStorageClaimRequest_SHAREDFILE:
-		storageType = "sharedfile"
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, "encountered an unknown storage type, %s", storageType)
-	}
-
-	err = s.storageRequestManager.Create(ctx, consumerObj, req.StorageClaimName, storageType, req.EncryptionMethod, req.StorageProfile)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to fulfill storage class claim for %q. %v", req.StorageConsumerUUID, err)
-		klog.Error(errMsg)
-		if kerrors.IsAlreadyExists(err) {
-			return nil, status.Error(codes.AlreadyExists, errMsg)
-		}
-		return nil, status.Error(codes.Internal, errMsg)
-	}
-
-	return &pb.FulfillStorageClaimResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
 // RevokeStorageClaim RPC call to delete the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
-	err := s.storageRequestManager.Delete(ctx, req.StorageConsumerUUID, req.StorageClaimName)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to revoke storage class claim %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
-		klog.Error(errMsg)
-		return nil, status.Error(codes.Internal, errMsg)
-	}
-
-	return &pb.RevokeStorageClaimResponse{}, nil
-}
-
-func storageClaimCephCsiSecretName(secretType, suffix string) string {
-	return fmt.Sprintf("ceph-client-%s-%s", secretType, suffix)
+	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
-	storageRequest, err := s.storageRequestManager.Get(ctx, req.StorageConsumerUUID, req.StorageClaimName)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to get storage class claim config %q for %q. %v", req.StorageClaimName, req.StorageConsumerUUID, err)
-		if kerrors.IsNotFound(err) {
-			return nil, status.Error(codes.NotFound, errMsg)
-		}
-		return nil, status.Error(codes.Internal, errMsg)
-	}
-
-	// Verify Status.Phase
-	msg := fmt.Sprintf("storage claim %q for %q is in %q phase", req.StorageClaimName, req.StorageConsumerUUID, storageRequest.Status.Phase)
-	klog.Info(msg)
-	if storageRequest.Status.Phase != ocsv1alpha1.StorageRequestReady {
-		switch storageRequest.Status.Phase {
-		case ocsv1alpha1.StorageRequestFailed:
-			return nil, status.Error(codes.Internal, msg)
-		case ocsv1alpha1.StorageRequestInitializing:
-			return nil, status.Error(codes.Unavailable, msg)
-		case ocsv1alpha1.StorageRequestCreating:
-			return nil, status.Error(codes.Unavailable, msg)
-		case "":
-			return nil, status.Errorf(codes.Unavailable, "status is not set for storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
-		default:
-			return nil, status.Error(codes.Internal, msg)
-		}
-	}
-
-	clientProfilemd5Sum := md5.Sum([]byte(req.StorageClaimName))
-	clientProfile := hex.EncodeToString(clientProfilemd5Sum[:])
-
-	var extR []*pb.ExternalResource
-
-	storageRequestHash := getStorageRequestHash(req.StorageConsumerUUID, req.StorageClaimName)
-
-	cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, cephRes := range storageRequest.Status.CephResources {
-		switch cephRes.Kind {
-		case "CephClient":
-			clientSecretName, clientUserType, err := s.getCephClientInformation(ctx, cephRes.Name)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			extSecretName := storageClaimCephCsiSecretName(clientUserType, storageRequestHash)
-
-			cephUserSecret := &v1.Secret{}
-			err = s.client.Get(ctx, types.NamespacedName{Name: clientSecretName, Namespace: s.namespace}, cephUserSecret)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get %s secret. %v", clientSecretName, err)
-			}
-
-			idProp := "userID"
-			keyProp := "userKey"
-			if storageRequest.Spec.Type == "sharedfile" {
-				idProp = "adminID"
-				keyProp = "adminKey"
-			}
-			extR = append(extR, &pb.ExternalResource{
-				Name: extSecretName,
-				Kind: "Secret",
-				Data: mustMarshal(map[string]string{
-					idProp:  cephRes.Name,
-					keyProp: string(cephUserSecret.Data[cephRes.Name]),
-				}),
-			})
-
-		case "CephBlockPoolRadosNamespace":
-			rns := &rookCephv1.CephBlockPoolRadosNamespace{}
-			err = s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, rns)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPoolRadosNamespace. %v", cephRes.Name, err)
-			}
-			provisionerSecretName := storageClaimCephCsiSecretName("provisioner", storageRequestHash)
-			nodeSecretName := storageClaimCephCsiSecretName("node", storageRequestHash)
-			rbdStorageClassData := map[string]string{
-				"clusterID":                 s.namespace,
-				"radosnamespace":            cephRes.Name,
-				"pool":                      rns.Spec.BlockPoolName,
-				"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
-				"csi.storage.k8s.io/fstype": "ext4",
-				"imageFormat":               "2",
-				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
-				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
-				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
-			}
-			if storageRequest.Spec.EncryptionMethod != "" {
-				rbdStorageClassData["encrypted"] = "true"
-				rbdStorageClassData["encryptionKMSID"] = storageRequest.Spec.EncryptionMethod
-			}
-
-			blockPool := &rookCephv1.CephBlockPool{}
-			err = s.client.Get(ctx, types.NamespacedName{Name: rns.Spec.BlockPoolName, Namespace: s.namespace}, blockPool)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get %s CephBlockPool. %v", blockPool.Name, err)
-			}
-
-			// SID for RamenDR
-			storageID := calculateCephRbdStorageID(
-				cephCluster.Status.CephStatus.FSID,
-				rns.Name,
-			)
-
-			radosNamespace := cmp.Or(rns.Spec.Mirroring, &rookCephv1.RadosNamespaceMirroring{}).RemoteNamespace
-			if radosNamespace != nil {
-				peerCephfsid, err := getPeerCephFSID(
-					ctx,
-					s.client,
-					mirroring.GetMirroringSecretName(blockPool.Name),
-					blockPool.Namespace,
-				)
-				if err != nil {
-					klog.Errorf("failed to get peer Ceph FSID. %v", err)
-				}
-
-				peerStorageID := calculateCephRbdStorageID(
-					peerCephfsid,
-					*radosNamespace,
-				)
-
-				storageIDs := []string{storageID, peerStorageID}
-				slices.Sort(storageIDs)
-				replicationID := util.CalculateMD5Hash(storageIDs)
-
-				extR = append(extR,
-					&pb.ExternalResource{
-						Name: fmt.Sprintf("rbd-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
-						Kind: "VolumeReplicationClass",
-						Labels: map[string]string{
-							ramenDRStorageIDLabelKey:     storageID,
-							ramenDRReplicationIDLabelKey: replicationID,
-							ramenMaintenanceModeLabelKey: "Failover",
-						},
-						Annotations: map[string]string{
-							"replication.storage.openshift.io/is-default-class": "true",
-						},
-						Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
-							Parameters: map[string]string{
-								"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
-								"mirroringMode": "snapshot",
-								// This is a temporary fix till we get the replication schedule to ocs-operator
-								"schedulingInterval": volumeReplicationClass5mSchedule,
-								"clusterID":          clientProfile,
-							},
-							Provisioner: util.RbdDriverName,
-						}),
-					},
-					&pb.ExternalResource{
-						Name: fmt.Sprintf("rbd-flatten-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule)),
-						Kind: "VolumeReplicationClass",
-						Labels: map[string]string{
-							ramenDRStorageIDLabelKey:     storageID,
-							ramenDRReplicationIDLabelKey: replicationID,
-							ramenMaintenanceModeLabelKey: "Failover",
-							ramenDRFlattenModeLabelKey:   "force",
-						},
-						Data: mustMarshal(&replicationv1alpha1.VolumeReplicationClassSpec{
-							Parameters: map[string]string{
-								"replication.storage.openshift.io/replication-secret-name": provisionerSecretName,
-								"mirroringMode": "snapshot",
-								"flattenMode":   "force",
-								// This is a temporary fix till we get the replication schedule to ocs-operator
-								"schedulingInterval": volumeReplicationClass5mSchedule,
-								"clusterID":          clientProfile,
-							},
-							Provisioner: util.RbdDriverName,
-						}),
-					},
-				)
-			}
-
-			extR = append(extR,
-				&pb.ExternalResource{
-					Name: "ceph-rbd",
-					Kind: "StorageClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey: storageID,
-					},
-					Data: mustMarshal(rbdStorageClassData),
-				},
-				&pb.ExternalResource{
-					Name: "ceph-rbd",
-					Kind: "VolumeSnapshotClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey: storageID,
-					},
-					Data: mustMarshal(map[string]string{
-						"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
-					}),
-				},
-				&pb.ExternalResource{
-					Name: fmt.Sprintf("%s-groupsnapclass", req.StorageClaimName),
-					Kind: "VolumeGroupSnapshotClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey: storageID,
-					},
-					Data: mustMarshal(map[string]string{
-						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
-						"clusterID": clientProfile,
-						"pool":      rns.Spec.BlockPoolName,
-					}),
-				},
-				&pb.ExternalResource{
-					Kind: "ClientProfile",
-					Name: "ceph-rbd",
-					Data: mustMarshal(&csiopv1a1.ClientProfileSpec{
-						Rbd: &csiopv1a1.RbdConfigSpec{
-							RadosNamespace: cephRes.Name,
-						},
-					})},
-			)
-
-		case "CephFilesystemSubVolumeGroup":
-			subVolumeGroup := &rookCephv1.CephFilesystemSubVolumeGroup{}
-			err := s.client.Get(ctx, types.NamespacedName{Name: cephRes.Name, Namespace: s.namespace}, subVolumeGroup)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to get %s cephFilesystemSubVolumeGroup. %v", cephRes.Name, err)
-			}
-
-			provisionerSecretName := storageClaimCephCsiSecretName("provisioner", storageRequestHash)
-			nodeSecretName := storageClaimCephCsiSecretName("node", storageRequestHash)
-			cephfsStorageClassData := map[string]string{
-				"clusterID":          getSubVolumeGroupClusterID(subVolumeGroup),
-				"subvolumegroupname": subVolumeGroup.Name,
-				"fsName":             subVolumeGroup.Spec.FilesystemName,
-				"pool":               subVolumeGroup.GetLabels()[ocsv1alpha1.CephFileSystemDataPoolLabel],
-				"csi.storage.k8s.io/provisioner-secret-name":       provisionerSecretName,
-				"csi.storage.k8s.io/node-stage-secret-name":        nodeSecretName,
-				"csi.storage.k8s.io/controller-expand-secret-name": provisionerSecretName,
-			}
-
-			storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
-			if err != nil {
-				return nil, err
-			}
-			var kernelMountOptions map[string]string
-			for _, option := range strings.Split(util.GetCephFSKernelMountOptions(storageCluster), ",") {
-				if kernelMountOptions == nil {
-					kernelMountOptions = map[string]string{}
-				}
-				parts := strings.Split(option, "=")
-				kernelMountOptions[parts[0]] = parts[1]
-			}
-
-			// SID for RamenDR
-			storageID := calculateCephFsStorageID(
-				cephCluster.Status.CephStatus.FSID,
-				subVolumeGroup.Name,
-			)
-
-			extR = append(extR,
-				&pb.ExternalResource{
-					Name: "cephfs",
-					Kind: "StorageClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey: storageID,
-					},
-					Data: mustMarshal(cephfsStorageClassData),
-				},
-				&pb.ExternalResource{
-					Name: cephRes.Name,
-					Kind: cephRes.Kind,
-					Data: mustMarshal(map[string]string{
-						"filesystemName": subVolumeGroup.Spec.FilesystemName,
-					})},
-				&pb.ExternalResource{
-					Name: "cephfs",
-					Kind: "VolumeSnapshotClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey: storageID,
-					},
-					Data: mustMarshal(map[string]string{
-						"csi.storage.k8s.io/snapshotter-secret-name": provisionerSecretName,
-					}),
-				},
-				&pb.ExternalResource{
-					Name: fmt.Sprintf("%s-groupsnapclass", req.StorageClaimName),
-					Kind: "VolumeGroupSnapshotClass",
-					Labels: map[string]string{
-						ramenDRStorageIDLabelKey: storageID,
-					},
-					Data: mustMarshal(map[string]string{
-						"csi.storage.k8s.io/group-snapshotter-secret-name": provisionerSecretName,
-						"fsName":    subVolumeGroup.Spec.FilesystemName,
-						"clusterID": clientProfile,
-					}),
-				},
-				&pb.ExternalResource{
-					Kind: "ClientProfile",
-					Name: "cephfs",
-					Data: mustMarshal(&csiopv1a1.ClientProfileSpec{
-						CephFs: &csiopv1a1.CephFsConfigSpec{
-							SubVolumeGroup:     cephRes.Name,
-							KernelMountOptions: kernelMountOptions,
-						},
-					})},
-			)
-		}
-	}
-
-	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
-	return &pb.StorageClaimConfigResponse{ExternalResource: extR}, nil
-
+	return nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // ReportStatus rpc call to check if a consumer can reach to the provider.
