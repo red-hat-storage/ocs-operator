@@ -648,16 +648,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 	}
 
-	// Ensure that verbose logging is enabled when RBD mirroring is enabled
-	// TODO: This is a temporary arrangement, this is to be removed when RDR goes to GA
-	if !instance.Spec.ExternalStorage.Enable {
-		result, err := r.ensureRbdMirrorDebugLogging(instance)
-		if !result.IsZero() || err != nil {
-			r.Log.Error(err, "Failed to ensure RBD mirror debug logging.")
-			return result, err
-		}
-	}
-
 	return reconcile.Result{}, nil
 }
 
