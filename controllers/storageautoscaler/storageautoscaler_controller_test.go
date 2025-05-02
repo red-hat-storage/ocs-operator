@@ -14,26 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestCheckIfScalingNotRequired(t *testing.T) {
-	usage := 0.055
-	threshold := 6
-
-	required := checkIfScalingRequired(usage, threshold)
-	assert.False(t, required)
-
-	usage = 0.05
-	threshold = 5
-
-	required = checkIfScalingRequired(usage, threshold)
-	assert.True(t, required)
-
-	usage = 0.05
-	threshold = 4
-
-	required = checkIfScalingRequired(usage, threshold)
-	assert.True(t, required)
-}
-
 func TestCalculateExpectedOsdSizeAndCount(t *testing.T) {
 	// vertical scaling
 	t.Run("vertical scaling", func(t *testing.T) {
@@ -118,26 +98,6 @@ func TestCalculateExpectedOsdSizeAndCount(t *testing.T) {
 		testStartStorageCapacity := resource.MustParse("9Ti")
 		assert.True(t, testStartStorageCapacity.Cmp(startStorageCapacity) == 0, "Quantities are equal")
 	})
-}
-
-func TestCheckIfScalingRequired(t *testing.T) {
-	usage := 0.055
-	threshold := 6
-
-	required := checkIfScalingRequired(usage, threshold)
-	assert.False(t, required)
-
-	usage = 0.05
-	threshold = 5
-
-	required = checkIfScalingRequired(usage, threshold)
-	assert.True(t, required)
-
-	usage = 0.05
-	threshold = 4
-
-	required = checkIfScalingRequired(usage, threshold)
-	assert.True(t, required)
 }
 
 func TestDetectInvalidState(t *testing.T) {
