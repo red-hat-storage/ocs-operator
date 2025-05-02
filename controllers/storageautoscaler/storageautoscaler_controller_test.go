@@ -1,12 +1,17 @@
 package storageautoscaler
 
 import (
+	"context"
 	"testing"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestCheckIfScalingNotRequired(t *testing.T) {
@@ -133,4 +138,109 @@ func TestCheckIfScalingRequired(t *testing.T) {
 
 	required = checkIfScalingRequired(usage, threshold)
 	assert.True(t, required)
+}
+
+func TestDetectInvalidState(t *testing.T) {
+	storageclassName := "ocs-storagecluster-ceph-rbd"
+	sa := &ocsv1.StorageAutoScaler{}
+	storageautoscaler := &ocsv1.StorageAutoScaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "autoscaler",
+			Namespace: "namespace",
+		},
+		Spec: ocsv1.StorageAutoScalerSpec{
+			DeviceClass: "ssd",
+			StorageCluster: v1.LocalObjectReference{
+				Name: "storagecluster",
+			},
+		},
+	}
+
+	storagecluster := &ocsv1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "storagecluster",
+			Namespace: "namespace",
+		},
+		Spec: ocsv1.StorageClusterSpec{},
+	}
+
+	scheme := runtime.NewScheme()
+	assert.NoError(t, ocsv1.AddToScheme(scheme))
+	assert.NoError(t, storagev1.AddToScheme(scheme))
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(storageautoscaler, storagecluster, &ocsv1.StorageAutoScalerList{}).WithStatusSubresource(sa).Build()
+	r := &StorageAutoscalerReconciler{
+		Client: client,
+	}
+
+	// detect DuplicateStorageAutoscaler
+	t.Run("detect DuplicateStorageAutoscaler", func(t *testing.T) {
+		invalid, err := r.detectInvalidState(context.TODO(), storageautoscaler, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.False(t, invalid)
+
+		// create another StorageAutoScaler
+		storageautoscaler2 := &ocsv1.StorageAutoScaler{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "autoscaler2",
+				Namespace: "namespace",
+			},
+			Spec: ocsv1.StorageAutoScalerSpec{
+				DeviceClass: "ssd",
+				StorageCluster: v1.LocalObjectReference{
+					Name: "storagecluster",
+				},
+			},
+		}
+
+		create := client.Create(context.TODO(), storageautoscaler2)
+		assert.NoError(t, create)
+
+		invalid, err = r.detectInvalidState(context.TODO(), storageautoscaler2, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.True(t, invalid)
+	})
+	t.Run("detect Lean Profile", func(t *testing.T) {
+		// update storagecluster with lean profile
+		storagecluster.Spec.ResourceProfile = "lean"
+		err := client.Update(context.TODO(), storagecluster)
+		assert.NoError(t, err)
+		invalid, err := r.detectInvalidState(context.TODO(), storageautoscaler, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.True(t, invalid)
+
+	})
+	t.Run("detect Lso Storageclass", func(t *testing.T) {
+		// update client with lso storageclass
+		storageclass := &storagev1.StorageClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: storageclassName,
+			},
+			Provisioner: "kubernetes.io/no-provisioner",
+		}
+		err := client.Create(context.TODO(), storageclass)
+		assert.NoError(t, err)
+
+		// update storagecluster with lso storageclass
+		storagecluster.Spec = ocsv1.StorageClusterSpec{
+			StorageDeviceSets: []ocsv1.StorageDeviceSet{
+				{
+					Count:   3,
+					Replica: 3,
+					DataPVCTemplate: v1.PersistentVolumeClaim{
+						Spec: v1.PersistentVolumeClaimSpec{
+							StorageClassName: &storageclassName,
+						},
+					},
+				},
+			},
+		}
+
+		err = client.Update(context.TODO(), storagecluster)
+		assert.NoError(t, err)
+
+		invalid, err := r.detectInvalidState(context.TODO(), storageautoscaler, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.True(t, invalid)
+	})
 }
