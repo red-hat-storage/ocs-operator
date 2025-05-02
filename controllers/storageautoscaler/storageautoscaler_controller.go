@@ -208,7 +208,7 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 
 func checkIfScalingRequired(usage interface{}, threshold int) bool {
 	// check if the highest osd usage is greater than or equal to the threshold
-	return ((usage.(float64) * 100) >= float64(threshold))
+	return ((usage.(OsdUsage).HighestUsage * 100) >= float64(threshold))
 }
 
 func calculateExpectedOsdSizeAndCount(storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (resource.Quantity, resource.Quantity, int, int, resource.Quantity, resource.Quantity) {

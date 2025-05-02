@@ -26,6 +26,11 @@ type StorageAutoscalerScraper struct {
 	EventCh           chan event.GenericEvent
 }
 
+type OsdUsage struct {
+	TotalUsage   float64
+	HighestUsage float64
+}
+
 func (r *StorageAutoscalerScraper) ScrapeMetricsPeriodically(ctx context.Context) {
 	for {
 		select {
@@ -59,7 +64,7 @@ func (r *StorageAutoscalerScraper) enqueueGenericEventsFromMetrics(ctx context.C
 
 	// refresh the sync map
 	r.SyncMap.Clear()
-	// update the sync map with the highest value of osd usage per device class
+	// update the sync map with the highest value of osd usage and total osd usage per device class
 	updateSyncMap(metrics, r.SyncMap)
 
 	filteredObjectList := filterObjectsForScaling(objectList, r.SyncMap, r.Log)
@@ -71,10 +76,10 @@ func (r *StorageAutoscalerScraper) enqueueGenericEventsFromMetrics(ctx context.C
 // update the sync map with the highest value of osd usage per device class
 func updateSyncMap(metrics model.Vector, syncMap *sync.Map) {
 	// create a map of device class to highest osd usage
-	deviceClassUsage := make(map[string]float64)
+	deviceClassUsage := make(map[string]OsdUsage)
 	for _, osd := range metrics {
 		deviceClass := string(osd.Metric["device_class"])
-		deviceClassUsage[deviceClass] = math.Max(deviceClassUsage[deviceClass], float64(osd.Value))
+		deviceClassUsage[deviceClass] = OsdUsage{HighestUsage: math.Max(deviceClassUsage[deviceClass].HighestUsage, float64(osd.Value)), TotalUsage: deviceClassUsage[deviceClass].TotalUsage + float64(osd.Value)}
 	}
 
 	// update the sync map
@@ -107,9 +112,11 @@ func filterObjectsForScaling(storageAutoScalerList *ocsv1.StorageAutoScalerList,
 			err := fmt.Errorf("osd usage is nil for device class, device class: %s", storageAutoScaler.Spec.DeviceClass)
 			log.Error(err, "device class not found in sync map")
 		} else {
-			deviceClassUsage := usage.(float64)
-			if (deviceClassUsage * 100) >= float64(deviceClassThreshold) {
-				objectList = append(objectList, types.NamespacedName{Namespace: storageAutoScaler.Namespace, Name: storageAutoScaler.Name})
+			deviceClassUsage := usage.(OsdUsage)
+			if deviceClassUsage.TotalUsage*100 >= math.Max(float64(deviceClassThreshold)-10, 0) {
+				if (deviceClassUsage.HighestUsage * 100) >= float64(deviceClassThreshold) {
+					objectList = append(objectList, types.NamespacedName{Namespace: storageAutoScaler.Namespace, Name: storageAutoScaler.Name})
+				}
 			}
 		}
 	}
