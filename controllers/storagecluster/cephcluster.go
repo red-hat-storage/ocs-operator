@@ -309,6 +309,8 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			} else {
 				r.Log.Info("Creating CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 			}
+			// set mon_target_pg_per_osd to 400 only during new cluster creation as setting it on existing cluster can cause data movement.
+			setMonTargetPgPerOsd(&cephCluster.Spec.CephConfig)
 			if err := r.Client.Create(context.TODO(), cephCluster); err != nil {
 				r.Log.Error(err, "Unable to create CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 				return reconcile.Result{}, err
@@ -386,6 +388,8 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			sc.Status.Phase = statusutil.PhaseNotReady
 		}
 	}
+
+	preserveMonTargetPgPerOsd(found.Spec.CephConfig, &cephCluster.Spec.CephConfig)
 
 	// Update the CephCluster if it is not in the desired state
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
@@ -572,11 +576,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			UpgradeOSDRequiresHealthyPGs: sc.Spec.ManagedResources.CephCluster.UpgradeOSDRequiresHealthyPGs,
 			// if resource profile change is in progress, then set this flag to false
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
-			CephConfig: map[string]map[string]string{
-				"global": {
-					"mon_target_pg_per_osd": "400",
-				},
-			},
+			CephConfig: sc.Spec.ManagedResources.CephCluster.CephConfig,
 		},
 	}
 
@@ -1562,4 +1562,35 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 	}
 
 	return crs
+}
+
+// setMonTargetPgPerOsd sets the mon_target_pg_per_osd value to 400 if not already set
+func setMonTargetPgPerOsd(cephConfig *map[string]map[string]string) {
+	if *cephConfig == nil {
+		*cephConfig = make(map[string]map[string]string)
+	}
+	if global, exists := (*cephConfig)["global"]; exists {
+		if _, exists := global["mon_target_pg_per_osd"]; !exists {
+			global["mon_target_pg_per_osd"] = "400"
+		}
+	} else {
+		(*cephConfig)["global"] = map[string]string{
+			"mon_target_pg_per_osd": "400",
+		}
+	}
+}
+
+// preserveMonTargetPgPerOsd preserves the mon_target_pg_per_osd value if its present in the existing cephconfig but is missing in the updated cephconfig
+func preserveMonTargetPgPerOsd(existingCephConfig map[string]map[string]string, updatedCephConfig *map[string]map[string]string) {
+	if global, exists := existingCephConfig["global"]; exists {
+		if value, exists := global["mon_target_pg_per_osd"]; exists {
+			if *updatedCephConfig == nil {
+				*updatedCephConfig = make(map[string]map[string]string)
+			}
+			if _, exists := (*updatedCephConfig)["global"]; !exists {
+				(*updatedCephConfig)["global"] = make(map[string]string)
+			}
+			(*updatedCephConfig)["global"]["mon_target_pg_per_osd"] = value
+		}
+	}
 }
