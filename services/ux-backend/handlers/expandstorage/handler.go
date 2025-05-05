@@ -163,6 +163,7 @@ func createCephBlockPool(w http.ResponseWriter, r *http.Request, client client.C
 					Size:                     uint(dataProtectionPolicy),
 					RequireSafeReplicaSize:   true,
 					ReplicasPerFailureDomain: uint(replicasPerFailureDomain),
+					TargetSizeRatio:          0.49,
 				},
 				Parameters: map[string]string{
 					"compression_mode": compression,
