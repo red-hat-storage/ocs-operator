@@ -208,6 +208,9 @@ type ManageCephCluster struct {
 
 	// CephClusterHealthCheckSpec represent the healthcheck for Ceph daemons
 	HealthCheck *rookCephv1.CephClusterHealthCheckSpec `json:"healthCheck,omitempty"`
+
+	// Ceph Config options
+	CephConfig map[string]map[string]string `json:"cephConfig,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
