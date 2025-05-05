@@ -576,7 +576,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			UpgradeOSDRequiresHealthyPGs: sc.Spec.ManagedResources.CephCluster.UpgradeOSDRequiresHealthyPGs,
 			// if resource profile change is in progress, then set this flag to false
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
-			CephConfig: sc.Spec.ManagedResources.CephCluster.CephConfig,
+			CephConfig: getCephClusterCephConfig(sc),
 		},
 	}
 
@@ -1593,4 +1593,24 @@ func preserveMonTargetPgPerOsd(existingCephConfig map[string]map[string]string, 
 			(*updatedCephConfig)["global"]["mon_target_pg_per_osd"] = value
 		}
 	}
+}
+
+func getCephClusterCephConfig(sc *ocsv1.StorageCluster) map[string]map[string]string {
+	cephConfig := map[string]map[string]string{
+		"global": {
+			"mon_max_pg_per_osd": "1000",
+		},
+	}
+	if sc.Spec.ManagedResources.CephCluster.CephConfig != nil {
+		// Merge the existing ceph config with the new one
+		for section, config := range sc.Spec.ManagedResources.CephCluster.CephConfig {
+			if _, ok := cephConfig[section]; !ok {
+				cephConfig[section] = make(map[string]string)
+			}
+			for key, value := range config {
+				cephConfig[section][key] = value
+			}
+		}
+	}
+	return cephConfig
 }
