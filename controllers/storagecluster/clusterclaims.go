@@ -83,7 +83,7 @@ func (obj *ocsClusterClaim) ensureCreated(r *StorageClusterReconciler, instance 
 		StorageCluster: instance,
 	}
 
-	odfVersion, err := creator.getOdfVersion()
+	odfVersion, err := creator.getOdfVersion(r.OperatorNamespace)
 	if err != nil {
 		r.Log.Error(err, "failed to get odf version for operator. retrying again")
 		return reconcile.Result{}, err
@@ -179,9 +179,9 @@ func (c *ClusterClaimCreator) create() error {
 
 	return nil
 }
-func (c *ClusterClaimCreator) getOdfVersion() (string, error) {
+func (c *ClusterClaimCreator) getOdfVersion(operatorNamespace string) (string, error) {
 	var csvs operatorsv1alpha1.ClusterServiceVersionList
-	err := c.Client.List(c.Context, &csvs, &client.ListOptions{Namespace: c.StorageCluster.Namespace})
+	err := c.Client.List(c.Context, &csvs, &client.ListOptions{Namespace: operatorNamespace})
 	if err != nil {
 		return "", err
 	}
