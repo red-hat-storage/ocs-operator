@@ -132,8 +132,13 @@ func NewDefaultVirtRbdStorageClass(
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
 				"description": "Provides RWO and RWX Block volumes suitable for Virtual Machine disks",
-				"reclaimspace.csiaddons.openshift.io/schedule":   "@weekly",
-				"storageclass.kubevirt.io/is-default-virt-class": "true",
+				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
+
+				// this is an interim fix to unblock CNV, we were partially allowing reconcile of this StorageClass
+				// in pre4.19 which was wrong and always reconciling this now is disallowing CNV to remove this
+				// annotation. we anyways allow addition of metadata and user can place this annotation if required.
+
+				// "storageclass.kubevirt.io/is-default-virt-class": "true",
 			},
 			Labels: map[string]string{},
 		},
