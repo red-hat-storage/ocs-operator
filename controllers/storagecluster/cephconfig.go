@@ -41,6 +41,16 @@ mon_warn_on_pool_no_redundancy = false
 bluestore_prefer_deferred_size_hdd = 0
 [osd]
 osd_memory_target_cgroup_limit_ratio = 0.8
+[client.rbd-mirror.a]
+debug_ms = 1
+debug_rbd = 15
+debug_rbd_mirror = 30
+log_file = /var/log/ceph/\$cluster-\$name.log
+[client.rbd-mirror-peer]
+debug_ms = 1
+debug_rbd = 15
+debug_rbd_mirror = 30
+log_file = /var/log/ceph/\$cluster-\$name.log
 `
 )
 
