@@ -168,7 +168,7 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 	volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = true
 
 	if storageCluster.Spec.NFS != nil && storageCluster.Spec.NFS.Enable {
-		volumeSnapshotClassNames[util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)] = true
+		volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = true
 	}
 
 	// for day2 volumesnapshotclasses
