@@ -102,7 +102,9 @@ type StorageConsumerStatus struct {
 	// +nullable
 	Client                       *ClientStatus               `json:"client,omitempty"`
 	ResourceNameMappingConfigMap corev1.LocalObjectReference `json:"resourceNameMappingConfigMap,omitempty"`
-	OnboardingTicketSecret       corev1.LocalObjectReference `json:"onboardingTicketSecret,omitempty"`
+	// +optional
+	// +nullable
+	OnboardingTicketSecret *corev1.LocalObjectReference `json:"onboardingTicketSecret,omitempty"`
 }
 
 // ClientStatus is the information pushed from connected storage client
