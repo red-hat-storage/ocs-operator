@@ -73,9 +73,10 @@ func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) er
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;watch;create;update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;create;update
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;watch;update;patch;delete
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;patch;delete
 
 func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
@@ -219,10 +220,20 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	rbdStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
 	rbdStorageRequest.Name = rbdStorageRequestName
 	rbdStorageRequest.Namespace = storageConsumer.Namespace
-	if err := r.Client.Delete(ctx, rbdStorageRequest); client.IgnoreNotFound(err) != nil {
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(rbdStorageRequest), rbdStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
-	}
+	} else if rbdStorageRequest.UID != "" {
+		rbdStorageRequestCopy := &metav1.PartialObjectMetadata{}
+		rbdStorageRequest.DeepCopyInto(rbdStorageRequestCopy)
+		rbdStorageRequestCopy.Finalizers = []string{}
+		if err := r.Client.Patch(ctx, rbdStorageRequestCopy, client.MergeFrom(rbdStorageRequest)); err != nil {
+			return err
+		}
+		if err := r.Client.Delete(ctx, rbdStorageRequest); err != nil {
+			return err
+		}
 
+	}
 	cephFsClaimName := util.GenerateNameForCephFilesystemStorageClass(storageCluster)
 	cephFsStorageRequestName := getStorageRequestName(string(storageConsumer.UID), cephFsClaimName)
 	cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestName))
@@ -237,8 +248,18 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	cephFsStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
 	cephFsStorageRequest.Name = cephFsStorageRequestName
 	cephFsStorageRequest.Namespace = storageConsumer.Namespace
-	if err := r.Client.Delete(ctx, cephFsStorageRequest); client.IgnoreNotFound(err) != nil {
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(cephFsStorageRequest), cephFsStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
+	} else if cephFsStorageRequest.UID != "" {
+		cephFsStorageRequestCopy := &metav1.PartialObjectMetadata{}
+		cephFsStorageRequest.DeepCopyInto(cephFsStorageRequestCopy)
+		cephFsStorageRequestCopy.Finalizers = []string{}
+		if err := r.Client.Patch(ctx, cephFsStorageRequestCopy, client.MergeFrom(cephFsStorageRequest)); err != nil {
+			return err
+		}
+		if err := r.Client.Delete(ctx, cephFsStorageRequest); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -257,8 +278,10 @@ func (r *StorageConsumerUpgradeReconciler) removeStorageRequestOwner(ctx context
 		if idx := slices.IndexFunc(refs, func(owner metav1.OwnerReference) bool {
 			return owner.Kind == "StorageRequest"
 		}); idx != -1 {
-			obj.SetOwnerReferences(slices.Delete(refs, idx, idx+1))
-			if err := r.Client.Patch(ctx, obj, client.MergeFrom(obj)); client.IgnoreNotFound(err) != nil {
+			objCopy := &metav1.PartialObjectMetadata{}
+			obj.DeepCopyInto(objCopy)
+			objCopy.SetOwnerReferences(slices.Delete(refs, idx, idx+1))
+			if err := r.Client.Patch(ctx, objCopy, client.MergeFrom(obj)); err != nil {
 				return err
 			}
 		}
