@@ -907,15 +907,40 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 }
 
 func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {
-	// found - false, not found - true
-	cephRBDMirrors := &rookCephv1.CephRBDMirror{}
-	cephRBDMirrors.Name = util.CephRBDMirrorName
-	cephRBDMirrors.Namespace = s.namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(cephRBDMirrors), cephRBDMirrors)
-	if client.IgnoreNotFound(err) != nil {
+	storageConsumers := &ocsv1alpha1.StorageConsumerList{}
+	if err := s.client.List(ctx, storageConsumers, &client.ListOptions{Namespace: s.namespace}); err != nil {
 		return false, err
 	}
-	return kerrors.IsNotFound(err), nil
+
+	clientMappingConfig := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.StorageClientMappingConfigName,
+			Namespace: s.namespace,
+		},
+	}
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(clientMappingConfig), clientMappingConfig); err != nil {
+		return false, client.IgnoreNotFound(err)
+	}
+
+	// For each consumer check if mirroring is enabled, then if cephRBDMirror CR doesn't exist
+	for _, consumer := range storageConsumers.Items {
+		if consumer.Status.Client == nil {
+			continue
+		}
+		if clientMappingConfig.Data[consumer.Status.Client.ID] != "" { // mirroring enabled
+			cephRBDMirror := &rookCephv1.CephRBDMirror{}
+			err := s.client.Get(ctx, client.ObjectKey{
+				Name:      util.CephRBDMirrorName,
+				Namespace: s.namespace,
+			}, cephRBDMirror)
+			if kerrors.IsNotFound(err) { // cephRBDMirror CR doesn't exist
+				return true, nil
+			}
+			return false, err
+		}
+	}
+
+	return false, nil
 }
 
 func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (bool, error) {
