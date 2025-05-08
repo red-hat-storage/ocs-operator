@@ -232,6 +232,7 @@ spec:
           - ceph.rook.io
           resources:
           - cephblockpoolradosnamespaces
+          - cephfilesystemsubvolumegroups
           verbs:
           - create
           - delete
@@ -256,17 +257,6 @@ spec:
           - delete
           - get
           - list
-          - update
-          - watch
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephfilesystemsubvolumegroups
-          verbs:
-          - create
-          - get
-          - list
-          - patch
           - update
           - watch
         - apiGroups:
@@ -422,6 +412,7 @@ spec:
           - ocs.openshift.io
           resources:
           - storageclusterpeers/finalizers
+          - storagerequests/finalizers
           verbs:
           - update
         - apiGroups:
@@ -449,6 +440,8 @@ spec:
           - delete
           - get
           - list
+          - patch
+          - update
           - watch
         - apiGroups:
           - operators.coreos.com
