@@ -19,9 +19,11 @@ package v1
 import (
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ***************************************************************************
@@ -237,6 +239,11 @@ type ClusterSpec struct {
 	// +optional
 	// +nullable
 	CephConfig map[string]map[string]string `json:"cephConfig,omitempty"`
+
+	// CephConfigFromSecret works exactly like CephConfig but takes config value from Secret Key reference.
+	// +optional
+	// +nullable
+	CephConfigFromSecret map[string]map[string]v1.SecretKeySelector `json:"cephConfigFromSecret,omitempty"`
 }
 
 // CSIDriverSpec defines CSI Driver settings applied per cluster.
@@ -561,6 +568,18 @@ const (
 	// ObjectHasNoDependentsReason represents when a resource object has no dependents that are
 	// blocking deletion.
 	ObjectHasNoDependentsReason ConditionReason = "ObjectHasNoDependents"
+	// PoolNotEmptyReason represents when a pool contains images or snapshots that are blocking
+	// deletion.
+	PoolNotEmptyReason ConditionReason = "PoolNotEmpty"
+	// PoolEmptyReason represents when a pool does not contain images or snapshots that are blocking
+	// deletion.
+	PoolEmptyReason ConditionReason = "PoolEmpty"
+	// RadosNamespaceNotEmptyReason represents when a rados namespace contains images or snapshots that are blocking
+	// deletion.
+	RadosNamespaceNotEmptyReason ConditionReason = "RadosNamespaceNotEmpty"
+	// RadosNamespaceEmptyReason represents when a rados namespace does not contain images or snapshots that are blocking
+	// deletion.
+	RadosNamespaceEmptyReason ConditionReason = "RadosNamespaceEmpty"
 )
 
 // ConditionType represent a resource's status
@@ -582,6 +601,10 @@ const (
 
 	// ConditionDeletionIsBlocked represents when deletion of the object is blocked.
 	ConditionDeletionIsBlocked ConditionType = "DeletionIsBlocked"
+	// ConditionPoolDeletionIsBlocked represents when deletion of the object is blocked.
+	ConditionPoolDeletionIsBlocked ConditionType = "PoolDeletionIsBlocked"
+	// ConditionRadosNSDeletionIsBlocked represents when deletion of the object is blocked.
+	ConditionRadosNSDeletionIsBlocked ConditionType = "RadosNamespaceDeletionIsBlocked"
 )
 
 // ClusterState represents the state of a Ceph Cluster
@@ -1087,7 +1110,8 @@ type MirroringSpec struct {
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
-	// Mode is the mirroring mode: either pool or image
+	// Mode is the mirroring mode: pool, image or init-only.
+	// +kubebuilder:validation:Enum=pool;image;init-only
 	// +optional
 	Mode string `json:"mode,omitempty"`
 
@@ -1901,7 +1925,7 @@ const (
 
 // ZoneSpec represents a Ceph Object Store Gateway Zone specification
 type ZoneSpec struct {
-	// RGW Zone the Object Store is in
+	// CephObjectStoreZone name this CephObjectStore is part of
 	Name string `json:"name"`
 }
 
@@ -2001,6 +2025,15 @@ type ObjectStoreUserStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// +optional
+	// +nullable
+	Keys []SecretReference `json:"keys,omitempty"`
+}
+
+type SecretReference struct {
+	v1.SecretReference `json:",secretReference"`
+	UID                types.UID `json:"uid,omitempty"`
+	ResourceVersion    string    `json:"resourceVersion,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -2026,6 +2059,10 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +nullable
 	Quotas *ObjectUserQuotaSpec `json:"quotas,omitempty"`
+	// Allows specifying credentials for the user. If not provided, the operator
+	// will generate them.
+	// +optional
+	Keys []ObjectUserKey `json:"keys,omitempty"`
 	// The namespace where the parent CephCluster and CephObjectStore are found
 	// +optional
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`
@@ -2114,6 +2151,15 @@ type ObjectUserQuotaSpec struct {
 	// +optional
 	// +nullable
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
+}
+
+// ObjectUserKey defines a set of rgw user access credentials to be retrieved
+// from secret resources.
+type ObjectUserKey struct {
+	// Secret key selector for the access_key (commonly referred to as AWS_ACCESS_KEY_ID).
+	AccessKeyRef *v1.SecretKeySelector `json:"accessKeyRef,omitempty"`
+	// Secret key selector for the secret_key (commonly referred to as AWS_SECRET_ACCESS_KEY).
+	SecretKeyRef *v1.SecretKeySelector `json:"secretKeyRef,omitempty"`
 }
 
 // +genclient
@@ -2276,6 +2322,8 @@ type BucketTopicStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// +optional
+	Secrets []SecretReference `json:"secrets,omitempty"`
 }
 
 // CephBucketTopicList represents a list Ceph Object Store Bucket Notification Topics
@@ -2364,6 +2412,17 @@ type KafkaEndpointSpec struct {
 	// +kubebuilder:default=broker
 	// +optional
 	AckLevel string `json:"ackLevel,omitempty"`
+	// The authentication mechanism for this topic (PLAIN/SCRAM-SHA-512/SCRAM-SHA-256/GSSAPI/OAUTHBEARER)
+	// +kubebuilder:validation:Enum=PLAIN;SCRAM-SHA-512;SCRAM-SHA-256;GSSAPI;OAUTHBEARER
+	// +kubebuilder:default=PLAIN
+	// +optional
+	Mechanism string `json:"mechanism,omitempty"`
+	// The kafka user name to use for authentication
+	// +optional
+	UserSecretRef *corev1.SecretKeySelector `json:"userSecretRef,omitempty"`
+	// The kafka password to use for authentication
+	// +optional
+	PasswordSecretRef *corev1.SecretKeySelector `json:"passwordSecretRef,omitempty"`
 }
 
 // +genclient
@@ -3444,7 +3503,7 @@ type RadosNamespaceMirroring struct {
 	// RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool
 	// +optional
 	RemoteNamespace *string `json:"remoteNamespace"`
-	// Mode is the mirroring mode; either pool or image
+	// Mode is the mirroring mode; either pool or image.
 	// +kubebuilder:validation:Enum="";pool;image
 	Mode RadosNamespaceMirroringMode `json:"mode"`
 	// SnapshotSchedules is the scheduling of snapshot for mirrored images
@@ -3491,6 +3550,7 @@ type CephBlockPoolRadosNamespaceStatus struct {
 	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
 	// +optional
 	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
+	Conditions             []Condition                 `json:"conditions,omitempty"`
 }
 
 // Represents the source of a volume to mount.
