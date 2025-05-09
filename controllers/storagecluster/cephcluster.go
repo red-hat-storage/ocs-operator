@@ -1563,7 +1563,8 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 func getCephClusterCephConfig(sc *ocsv1.StorageCluster) map[string]map[string]string {
 	cephConfig := map[string]map[string]string{
 		"global": {
-			"mon_max_pg_per_osd": "1000",
+			"mon_target_pg_per_osd": "400",
+			"mon_max_pg_per_osd":    "1000",
 		},
 	}
 	if sc.Spec.ManagedResources.CephCluster.CephConfig != nil {
