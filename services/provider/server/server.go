@@ -115,7 +115,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
-
+	klog.Infof("OnboardConsumer with consumer name %v", req.ConsumerName)
 	version, err := semver.FinalizeVersion(req.ClientOperatorVersion)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "malformed ClientOperatorVersion for client %q is provided. %v", req.ConsumerName, err)
@@ -176,19 +176,19 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 
 // AcknowledgeOnboarding acknowledge the onboarding is complete
 func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
+	klog.Infof("AcknowledgeOnboarding to consumer with id %v the onboarding is complete", req.StorageConsumerUUID)
 	return nil, status.Errorf(codes.Unimplemented, "Not expecting a two step onboarding process")
 }
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
-
 	// Get storage consumer resource using UUID
 	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
 		return nil, err
 	}
 
-	klog.Infof("Found storageConsumer for GetStorageConfig")
+	klog.Infof("storageConsumer for GetStorageConfig found with id %v", req.StorageConsumerUUID)
 
 	// Verify Status
 	switch consumerObj.Status.State {
@@ -326,7 +326,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
 	}
 
-	klog.Infof("Found StorageConsumer for GetDesiredClientState")
+	klog.Infof("storageConsumer for GetDesiredClientState found with id %v", req.StorageConsumerUUID)
 
 	// Verify Status
 	switch consumer.Status.State {
@@ -406,6 +406,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
+	klog.Infof("OffboardConsumer with consumer id %v", req.StorageConsumerUUID)
 	err := s.consumerManager.Delete(ctx, req.StorageConsumerUUID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete storageConsumer resource with the provided UUID. %v", err)
@@ -566,17 +567,20 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
+	klog.Infof("FullfillStorageClaim to create Storageclaim %v", req.StorageClaimName)
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
 // RevokeStorageClaim RPC call to delete the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
+	klog.Infof("RevokeStorageClaim to delete Storageclaim %v", req.StorageClaimName)
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
+	klog.Infof("GetStorageClaim RPC call to get the ceph resources for the StorageClaim %v", req.StorageClaimName)
 	return nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
@@ -764,6 +768,7 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 
 func (s *OCSProviderServer) RequestMaintenanceMode(ctx context.Context, req *pb.RequestMaintenanceModeRequest) (*pb.RequestMaintenanceModeResponse, error) {
 	// Get storage consumer resource using UUID
+	klog.Infof("RequestMaintenanceMode to get storage consumer resource using UUID %v", req.StorageConsumerUUID)
 	if req.Enable {
 		err := s.consumerManager.AddAnnotation(ctx, req.StorageConsumerUUID, util.RequestMaintenanceModeAnnotation, "")
 		if err != nil {
