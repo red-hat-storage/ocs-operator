@@ -447,12 +447,6 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 			continue
 		}
 
-		// TODO (leelavg): this is a temporary fix till a decision is taken for when to proceed with deletion of rns cr
-		if !bp.DeletionTimestamp.IsZero() {
-			r.Log.Info("Skipping reconcile for radosnamespace as blockpool is marked for deletion", "CephBlockPool", bp.Name)
-			continue
-		}
-
 		rns := &rookCephv1.CephBlockPoolRadosNamespace{}
 		rns.Name = fmt.Sprintf("%s-%s", bp.Name, radosNamespaceName)
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
@@ -464,17 +458,28 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 		}
 		rns.Namespace = r.namespace
 
-		if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
-			if err := controllerutil.SetControllerReference(r.storageConsumer, rns, r.Scheme); err != nil {
-				return err
+		shouldReconcile := true
+		if !bp.DeletionTimestamp.IsZero() && bp.Status != nil {
+			idx := slices.IndexFunc(bp.Status.Conditions, func(condition rookCephv1.Condition) bool {
+				return condition.Type == rookCephv1.ConditionPoolDeletionIsBlocked
+			})
+			shouldReconcile = idx == -1 || bp.Status.Conditions[idx].Status != corev1.ConditionFalse
+		}
+		if shouldReconcile {
+			if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
+				if err := controllerutil.SetControllerReference(r.storageConsumer, rns, r.Scheme); err != nil {
+					return err
+				}
+				if err := controllerutil.SetOwnerReference(additionalOwner, rns, r.Scheme); err != nil {
+					return err
+				}
+				rns.Spec.Name = radosNamespaceName
+				rns.Spec.BlockPoolName = bp.Name
+				return nil
+			}); err != nil {
+				multierr.AppendInto(&combinedErr, err)
 			}
-			if err := controllerutil.SetOwnerReference(additionalOwner, rns, r.Scheme); err != nil {
-				return err
-			}
-			rns.Spec.Name = radosNamespaceName
-			rns.Spec.BlockPoolName = bp.Name
-			return nil
-		}); err != nil {
+		} else if err := r.Delete(r.ctx, rns); client.IgnoreNotFound(err) != nil {
 			multierr.AppendInto(&combinedErr, err)
 		}
 	}
