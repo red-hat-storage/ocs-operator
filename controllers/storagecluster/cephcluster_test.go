@@ -9,17 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	tassert "github.com/stretchr/testify/assert"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -93,7 +91,6 @@ func TestEnsureCephCluster(t *testing.T) {
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 		expected := newCephCluster(mockStorageCluster.DeepCopy(), "", nil, log)
-		setMonTargetPgPerOsd(&expected.Spec.CephConfig)
 		expected.Status.State = c.cephClusterState
 
 		if !c.shouldCreate {
@@ -1777,118 +1774,76 @@ func TestIsEncrptionSettingUpdated(t *testing.T) {
 	assert.Equal(t, false, actualResult)
 }
 
-func TestMonTargetPgPerOsdBehaviour(t *testing.T) {
+func TestGetCephClusterCephConfig(t *testing.T) {
 	var cases = []struct {
-		description            string
-		existing               *cephv1.CephCluster
-		storageClusterSpec     *api.StorageClusterSpec
-		expectedTargetPGPerOsd string
+		description    string
+		storageCluster *ocsv1.StorageCluster
+		expectedConfig map[string]map[string]string
 	}{
 		{
-			description:            "case 1: New cluster creation - TargetPGPerOsd should be set to 400",
-			expectedTargetPGPerOsd: "400",
+			description:    "case 1: No cephConfig specified in CR - should use default values",
+			storageCluster: &ocsv1.StorageCluster{},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_target_pg_per_osd": "400",
+					"mon_max_pg_per_osd":    "1000",
+				},
+			},
 		},
 		{
-			description: "case 2: New pool creation, TargetPGPerOsd is specified on CR- should respect CR setting",
-			storageClusterSpec: &api.StorageClusterSpec{
-				ManagedResources: api.ManagedResourcesSpec{
-					CephCluster: api.ManageCephCluster{
-						CephConfig: map[string]map[string]string{
-							"global": {
-								"mon_target_pg_per_osd": "500",
+			description: "case 2: TargetPGPerOsd & MaxPGPerOSD are specified on CR - should respect CR setting",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
+							CephConfig: map[string]map[string]string{
+								"global": {
+									"mon_target_pg_per_osd": "500",
+									"mon_max_pg_per_osd":    "1500",
+								},
 							},
 						},
 					},
 				},
 			},
-			expectedTargetPGPerOsd: "500",
-		},
-		{
-			description: "case 3: Existing cluster with target pg value - should preserve value",
-			existing: &cephv1.CephCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "cephcluster",
-				},
-				Spec: cephv1.ClusterSpec{
-					CephConfig: map[string]map[string]string{
-						"global": {
-							"mon_target_pg_per_osd": "400",
-						},
-					},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_target_pg_per_osd": "500",
+					"mon_max_pg_per_osd":    "1500",
 				},
 			},
-			expectedTargetPGPerOsd: "400",
 		},
 		{
-			description: "case 4: Existing cluster without target pg value - should not set flag",
-			existing: &cephv1.CephCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "cephcluster",
-				},
-				Spec: cephv1.ClusterSpec{},
-			},
-			expectedTargetPGPerOsd: "",
-		},
-		{
-			description: "case 5: Existing cluster without target pg value - CR specifies target pg value - should respect CR setting",
-			existing: &cephv1.CephCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "cephcluster",
-				},
-				Spec: cephv1.ClusterSpec{},
-			},
-			storageClusterSpec: &api.StorageClusterSpec{
-				ManagedResources: api.ManagedResourcesSpec{
-					CephCluster: api.ManageCephCluster{
-						CephConfig: map[string]map[string]string{
-							"global": {
-								"mon_target_pg_per_osd": "200",
+			description: "case 3: Other CephConfigs are specified on CR - should merge default & CR specified values",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
+							CephConfig: map[string]map[string]string{
+								"osd": {
+									"osd_max_backfills": "4",
+								},
 							},
 						},
 					},
 				},
 			},
-			expectedTargetPGPerOsd: "200",
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_target_pg_per_osd": "400",
+					"mon_max_pg_per_osd":    "1000",
+				},
+				"osd": {
+					"osd_max_backfills": "4",
+				},
+			},
 		},
 	}
 
 	for _, c := range cases {
 		t.Logf("Running %s", c.description)
-		sc := &ocsv1.StorageCluster{}
-		mockStorageCluster.DeepCopyInto(sc)
-		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
-		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
-		expected := newCephCluster(mockStorageCluster.DeepCopy(), "", nil, log)
-		if c.storageClusterSpec != nil {
-			_ = mergo.Merge(&sc.Spec, c.storageClusterSpec)
-		}
-		err := reconciler.Client.Create(context.TODO(), sc)
-		assert.NilError(t, err)
 
-		if c.existing != nil {
-			c.existing.ObjectMeta.Name = expected.Name
-			c.existing.ObjectMeta.Namespace = expected.Namespace
-			err := reconciler.Client.Create(context.TODO(), c.existing)
-			assert.NilError(t, err)
-		}
-
-		obj := &ocsCephCluster{}
-		_, err = obj.ensureCreated(&reconciler, sc)
-		assert.NilError(t, err)
-
-		actual := &cephv1.CephCluster{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
-		assert.NilError(t, err)
-		assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
-		assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
-
-		targetPg, exists := actual.Spec.CephConfig["global"]["mon_target_pg_per_osd"]
-		if c.expectedTargetPGPerOsd == "" {
-			assert.Equal(t, false, exists, "mon_target_pg_per_osd should not exist")
-
-		} else {
-			assert.Equal(t, true, exists, "mon_target_pg_per_osd should exist")
-			assert.Equal(t, c.expectedTargetPGPerOsd, targetPg, "mon_target_pg_per_osd value mismatch")
-		}
+		actual := getCephClusterCephConfig(c.storageCluster)
+		tassert.Equal(t, c.expectedConfig, actual)
 	}
 }
