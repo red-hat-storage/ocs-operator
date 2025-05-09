@@ -17,6 +17,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	tassert "github.com/stretchr/testify/assert"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -1771,4 +1772,78 @@ func TestIsEncrptionSettingUpdated(t *testing.T) {
 	// encryption setting has not changed
 	actualResult = isEncrptionSettingUpdated(false, newStorageClassDeviceSet)
 	assert.Equal(t, false, actualResult)
+}
+
+func TestGetCephClusterCephConfig(t *testing.T) {
+	var cases = []struct {
+		description    string
+		storageCluster *ocsv1.StorageCluster
+		expectedConfig map[string]map[string]string
+	}{
+		{
+			description:    "case 1: No cephConfig specified in CR - should use default values",
+			storageCluster: &ocsv1.StorageCluster{},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_target_pg_per_osd": "400",
+					"mon_max_pg_per_osd":    "1000",
+				},
+			},
+		},
+		{
+			description: "case 2: TargetPGPerOsd & MaxPGPerOSD are specified on CR - should respect CR setting",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
+							CephConfig: map[string]map[string]string{
+								"global": {
+									"mon_target_pg_per_osd": "500",
+									"mon_max_pg_per_osd":    "1500",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_target_pg_per_osd": "500",
+					"mon_max_pg_per_osd":    "1500",
+				},
+			},
+		},
+		{
+			description: "case 3: Other CephConfigs are specified on CR - should merge default & CR specified values",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephCluster: ocsv1.ManageCephCluster{
+							CephConfig: map[string]map[string]string{
+								"osd": {
+									"osd_max_backfills": "4",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_target_pg_per_osd": "400",
+					"mon_max_pg_per_osd":    "1000",
+				},
+				"osd": {
+					"osd_max_backfills": "4",
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Logf("Running %s", c.description)
+
+		actual := getCephClusterCephConfig(c.storageCluster)
+		tassert.Equal(t, c.expectedConfig, actual)
+	}
 }
