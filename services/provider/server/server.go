@@ -1372,6 +1372,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
+				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultVirtualizationStorageClass,
 			)
 		}
 		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {

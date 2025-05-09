@@ -243,6 +243,8 @@ type ManageCephBlockPools struct {
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
 	VirtualizationStorageClassName string `json:"virtualizationStorageClassName,omitempty"`
+	// if set to true, the virtualization storageClass will be annotated as the default for kubevirt workloads
+	DefaultVirtualizationStorageClass bool `json:"defaultVirtualizationStorageClass,omitempty"`
 	// PoolSpec specifies the pool specification for the default cephBlockPool
 	PoolSpec *rookCephv1.PoolSpec `json:"poolSpec,omitempty"`
 }

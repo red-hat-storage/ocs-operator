@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	defaultStorageClassAnnotation = "storageclass.kubernetes.io/is-default-class"
-	storageIdLabelKey             = "ramendr.openshift.io/storageid"
+	defaultStorageClassAnnotation     = "storageclass.kubernetes.io/is-default-class"
+	defaultVirtStorageClassAnnotation = "storageclass.kubevirt.io/is-default-virt-class"
+	storageIdLabelKey                 = "ramendr.openshift.io/storageid"
 )
 
 var (
@@ -126,6 +127,7 @@ func NewDefaultVirtRbdStorageClass(
 	nodeSecret,
 	namespace,
 	storageId string,
+	isDefaultVirtStorageClass bool,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -133,12 +135,6 @@ func NewDefaultVirtRbdStorageClass(
 			Annotations: map[string]string{
 				"description": "Provides RWO and RWX Block volumes suitable for Virtual Machine disks",
 				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
-
-				// this is an interim fix to unblock CNV, we were partially allowing reconcile of this StorageClass
-				// in pre4.19 which was wrong and always reconciling this now is disallowing CNV to remove this
-				// annotation. we anyways allow addition of metadata and user can place this annotation if required.
-
-				// "storageclass.kubevirt.io/is-default-virt-class": "true",
 			},
 			Labels: map[string]string{},
 		},
@@ -160,6 +156,10 @@ func NewDefaultVirtRbdStorageClass(
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
 		},
+	}
+
+	if isDefaultVirtStorageClass {
+		AddAnnotation(sc, defaultVirtStorageClassAnnotation, "true")
 	}
 
 	if storageId != "" {
