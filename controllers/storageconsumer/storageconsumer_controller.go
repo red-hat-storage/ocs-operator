@@ -447,12 +447,6 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 			continue
 		}
 
-		// TODO (leelavg): this is a temporary fix till a decision is taken for when to proceed with deletion of rns cr
-		if !bp.DeletionTimestamp.IsZero() {
-			r.Log.Info("Skipping reconcile for radosnamespace as blockpool is marked for deletion", "CephBlockPool", bp.Name)
-			continue
-		}
-
 		rns := &rookCephv1.CephBlockPoolRadosNamespace{}
 		rns.Name = fmt.Sprintf("%s-%s", bp.Name, radosNamespaceName)
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
@@ -464,18 +458,44 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 		}
 		rns.Namespace = r.namespace
 
-		if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
-			if err := controllerutil.SetControllerReference(r.storageConsumer, rns, r.Scheme); err != nil {
-				return err
+		deleteRns := false
+		if !bp.DeletionTimestamp.IsZero() && bp.Status != nil {
+			for idx := range bp.Status.Conditions {
+				condition := &bp.Status.Conditions[idx]
+				// block pool waiting for rns deletion
+				if condition.Type == rookCephv1.ConditionDeletionIsBlocked &&
+					condition.Reason == rookCephv1.ObjectHasDependentsReason &&
+					condition.Status == corev1.ConditionTrue {
+					deleteRns = true
+				}
+				// block pool waiting for rbd images in addition to rns deletion
+				if deleteRns &&
+					condition.Type == rookCephv1.ConditionPoolDeletionIsBlocked &&
+					condition.Reason == rookCephv1.PoolNotEmptyReason &&
+					condition.Status == corev1.ConditionTrue {
+					deleteRns = false
+				}
 			}
-			if err := controllerutil.SetOwnerReference(additionalOwner, rns, r.Scheme); err != nil {
-				return err
+		}
+
+		if deleteRns {
+			if err := r.Delete(r.ctx, rns); client.IgnoreNotFound(err) != nil {
+				multierr.AppendInto(&combinedErr, err)
 			}
-			rns.Spec.Name = radosNamespaceName
-			rns.Spec.BlockPoolName = bp.Name
-			return nil
-		}); err != nil {
-			multierr.AppendInto(&combinedErr, err)
+		} else {
+			if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
+				if err := controllerutil.SetControllerReference(r.storageConsumer, rns, r.Scheme); err != nil {
+					return err
+				}
+				if err := controllerutil.SetOwnerReference(additionalOwner, rns, r.Scheme); err != nil {
+					return err
+				}
+				rns.Spec.Name = radosNamespaceName
+				rns.Spec.BlockPoolName = bp.Name
+				return nil
+			}); err != nil {
+				multierr.AppendInto(&combinedErr, err)
+			}
 		}
 	}
 
