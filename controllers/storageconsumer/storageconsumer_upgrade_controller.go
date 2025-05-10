@@ -73,9 +73,10 @@ func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) er
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers,verbs=get;watch;create;update
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;create;update
-// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests,verbs=get;list;watch;update;patch;delete
+// +kubebuilder:rbac:groups=ocs.openshift.io,resources=storagerequests/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;patch;delete
 
 func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
@@ -219,6 +220,13 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	rbdStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
 	rbdStorageRequest.Name = rbdStorageRequestName
 	rbdStorageRequest.Namespace = storageConsumer.Namespace
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(rbdStorageRequest), rbdStorageRequest); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	rbdStorageRequest.Finalizers = []string{}
+	if err := r.Client.Patch(ctx, rbdStorageRequest, client.MergeFrom(rbdStorageRequest)); client.IgnoreNotFound(err) != nil {
+		return err
+	}
 	if err := r.Client.Delete(ctx, rbdStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
 	}
@@ -237,6 +245,13 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	cephFsStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
 	cephFsStorageRequest.Name = cephFsStorageRequestName
 	cephFsStorageRequest.Namespace = storageConsumer.Namespace
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(cephFsStorageRequest), cephFsStorageRequest); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	cephFsStorageRequest.Finalizers = []string{}
+	if err := r.Client.Patch(ctx, cephFsStorageRequest, client.MergeFrom(cephFsStorageRequest)); client.IgnoreNotFound(err) != nil {
+		return err
+	}
 	if err := r.Client.Delete(ctx, cephFsStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
 	}
