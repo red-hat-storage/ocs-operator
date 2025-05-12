@@ -143,6 +143,14 @@ func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance
 	cephFsSnapClass.snapshotClass.Name = util.GenerateNameForSnapshotClass(instance.Name, util.CephfsSnapshotter)
 	volumeSnapshotClasses := []SnapshotClassConfiguration{rbdSnapClass, cephFsSnapClass}
 
+	if instance.Spec.ExternalStorage.Enable {
+		for i := range volumeSnapshotClasses {
+			volumeSnapshotClasses[i].snapshotClass.Labels = map[string]string{
+				ExternalClassLabelKey: "true",
+			}
+		}
+	}
+
 	err = r.createSnapshotClasses(volumeSnapshotClasses)
 	if err != nil {
 		return reconcile.Result{}, err
