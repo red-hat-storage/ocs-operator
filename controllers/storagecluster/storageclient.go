@@ -64,6 +64,11 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 		// we could just use svcName:port however in-cluster traffic from "*.svc" is generally not proxied and
 		// we using qualified name upto ".svc" makes connection not go through any proxies.
 		storageClient.Spec.StorageProviderEndpoint = fmt.Sprintf("%s.%s.svc:%d", ocsProviderServerName, storagecluster.Namespace, ocsProviderServicePort)
+
+		if controllerutil.AddFinalizer(storageClient, internalComponentFinalizer) {
+			r.Log.Info("Finalizer not found for StorageClient. Adding finalizer.", "StorageClient", storageClient.Name)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -81,6 +86,15 @@ func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluste
 	}
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
+
+	if controllerutil.RemoveFinalizer(storageClient, internalComponentFinalizer) {
+		r.Log.Info("removing finalizer from StorageClient.", "StorageClient", storageClient.Name)
+		if err := r.Update(r.ctx, storageClient); err != nil {
+			r.Log.Info("Failed to remove finalizer from StorageClient", "StorageClient", storageClient.Name)
+			return reconcile.Result{}, fmt.Errorf("failed to remove finalizer from StorageClient: %v", err)
+		}
+	}
+
 	if err := r.Delete(r.ctx, storageClient); err != nil && !kerrors.IsNotFound(err) {
 		r.Log.Error(err, "Failed to initiate deletion of local StorageClient CR")
 		return reconcile.Result{}, err

@@ -84,6 +84,8 @@ const (
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
+var internalComponentFinalizer = "ocs.openshift.io/internal-component"
+
 const labelZoneRegionWithoutBeta = "failure-domain.kubernetes.io/region"
 const labelZoneFailureDomainWithoutBeta = "failure-domain.kubernetes.io/zone"
 const labelRookPrefix = "topology.rook.io"
