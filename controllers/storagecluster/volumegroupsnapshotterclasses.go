@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
@@ -89,6 +90,7 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
 	}
 	rbdGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance, util.RbdGroupSnapshotter)
+	util.AddLabel(rbdGroupSnapshotClass.groupSnapshotClass, util.ExternalClassLabelKey, strconv.FormatBool(true))
 
 	cephfsClusterID, cephfsProvisionerSecret, err := r.getClusterIDAndSecretName(instance, util.CephfsSnapshotter)
 	if err != nil {
@@ -105,12 +107,12 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
 	}
 	cephFsGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter)
+	util.AddLabel(cephFsGroupSnapshotClass.groupSnapshotClass, util.ExternalClassLabelKey, strconv.FormatBool(true))
 
 	volumeGroupSnapshotClasses := []GroupSnapshotClassConfiguration{
 		rbdGroupSnapshotClass,
 		cephFsGroupSnapshotClass,
 	}
-
 	err = r.createGroupSnapshotClasses(volumeGroupSnapshotClasses)
 	if err != nil {
 		return reconcile.Result{}, err
