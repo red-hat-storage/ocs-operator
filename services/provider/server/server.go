@@ -907,15 +907,31 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 }
 
 func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {
-	// found - false, not found - true
-	cephRBDMirrors := &rookCephv1.CephRBDMirror{}
-	cephRBDMirrors.Name = util.CephRBDMirrorName
-	cephRBDMirrors.Namespace = s.namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(cephRBDMirrors), cephRBDMirrors)
-	if client.IgnoreNotFound(err) != nil {
+	storageConsumers := &ocsv1alpha1.StorageConsumerList{}
+	if err := s.client.List(ctx, storageConsumers, &client.ListOptions{Namespace: s.namespace}); err != nil {
 		return false, err
 	}
-	return kerrors.IsNotFound(err), nil
+
+	// check if maintenance mode is requested by at least one consumer
+	atLeastOneConsumerRequestingMaintenanceMode := false
+	for _, consumer := range storageConsumers.Items {
+		if _, ok := consumer.GetAnnotations()[util.RequestMaintenanceModeAnnotation]; ok {
+			atLeastOneConsumerRequestingMaintenanceMode = true
+			break
+		}
+	}
+
+	if atLeastOneConsumerRequestingMaintenanceMode {
+		cephRBDMirror := &rookCephv1.CephRBDMirror{}
+		err := s.client.Get(ctx, client.ObjectKey{Name: util.CephRBDMirrorName, Namespace: s.namespace}, cephRBDMirror)
+		// if rbd-mirror cr is not present, system is in maintenance mode
+		if kerrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	}
+
+	return false, nil
 }
 
 func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (bool, error) {
