@@ -66,6 +66,8 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
 
+		controllerutil.AddFinalizer(storageConsumer, internalComponentFinalizer)
+
 		return nil
 	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer %s: %v", storageConsumer.Name, err)
@@ -104,8 +106,28 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 	return ctrl.Result{}, nil
 }
 
-func (s *storageConsumer) ensureDeleted(_ *StorageClusterReconciler, _ *ocsv1.StorageCluster) (ctrl.Result, error) {
-	// cleaned up via owner references
+func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+	storageConsumer := &ocsv1a1.StorageConsumer{}
+	storageConsumer.Name = defaults.LocalStorageConsumerName
+	storageConsumer.Namespace = storageCluster.Namespace
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get storageconsumer %s: %v", storageConsumer.Name, err)
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.Delete(r.ctx, storageConsumer); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to delete storageconsumer %s: %v", storageConsumer.Name, err)
+	}
+
+	if controllerutil.RemoveFinalizer(storageConsumer, internalComponentFinalizer) {
+		r.Log.Info("Removing finalizer from StorageConsumer.", "StorageConsumer:", storageConsumer.Name, " StorageConsumer Namespace:", storageConsumer.Namespace, " Finalizer:", internalComponentFinalizer)
+		if err := r.Update(r.ctx, storageConsumer); err != nil {
+			r.Log.Info("Failed to remove finalizer from StorageConsumer.", "StorageConsumer:", storageConsumer.Name, "Finalizer:", internalComponentFinalizer)
+			return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from StorageConsumer: %v", err)
+		}
+	}
 	return ctrl.Result{}, nil
 }
 

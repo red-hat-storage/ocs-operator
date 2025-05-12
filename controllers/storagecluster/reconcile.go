@@ -80,13 +80,17 @@ const (
 	StorageClientCrdName = "storageclients.ocs.openshift.io"
 
 	VolumeGroupSnapshotClassCrdName = "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io"
+
+	internalComponentFinalizer = "ocs.openshift.io/internal-component"
+
+	labelZoneRegionWithoutBeta = "failure-domain.kubernetes.io/region"
+
+	labelZoneFailureDomainWithoutBeta = "failure-domain.kubernetes.io/zone"
+
+	labelRookPrefix = "topology.rook.io"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
-
-const labelZoneRegionWithoutBeta = "failure-domain.kubernetes.io/region"
-const labelZoneFailureDomainWithoutBeta = "failure-domain.kubernetes.io/zone"
-const labelRookPrefix = "topology.rook.io"
 
 var validTopologyLabelKeys = []string{
 	// This is the most preferred key as kubernetes recommends zone and region
