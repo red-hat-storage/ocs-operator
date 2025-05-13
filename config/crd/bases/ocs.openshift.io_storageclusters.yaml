@@ -716,6 +716,10 @@ spec:
                           cephBlockPools will be annotated as the default for the
                           whole cluster
                         type: boolean
+                      defaultVirtualizationStorageClass:
+                        description: if set to true, the virtualization storageClass
+                          will be annotated as the default for kubevirt workloads
+                        type: boolean
                       disableSnapshotClass:
                         type: boolean
                       disableStorageClass:
