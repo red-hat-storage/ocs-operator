@@ -147,3 +147,11 @@ func IsClusterOrDeviceSetEncrypted(sc *ocsv1.StorageCluster) bool {
 
 	return false
 }
+
+func JsonMustMarshal[T any](value T) []byte {
+	newData, err := json.Marshal(value)
+	if err != nil {
+		panic("failed to marshal")
+	}
+	return newData
+}
