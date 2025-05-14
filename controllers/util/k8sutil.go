@@ -73,6 +73,8 @@ const (
 	StorageClientMappingConfigName         = "storage-client-mapping"
 	ExternalClassLabelKey                  = "storageclass.ocs.openshift.io/is-external"
 	StorageConsumerMirroringInfoAnnotation = "ocs.openshift.io/consumer-mirroring-info"
+	ForceDeletionAnnotationKey             = "ocs.openshift.io/force-deletion"
+	RookForceDeletionAnnotationKey         = "rook.io/force-deletion"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
