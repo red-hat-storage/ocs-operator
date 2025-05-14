@@ -35,6 +35,8 @@ const (
 	StorageConsumerStateFailed StorageConsumerState = "Failed"
 	// StorageConsumerStateNotEnabled represents NotEnabled state of StorageConsumer
 	StorageConsumerStateNotEnabled StorageConsumerState = "NotEnabled"
+	// StorageConsumerStateClientNotOffboarded represents ClientNotOffboarded state of StorageConsumer
+	StorageConsumerStateClientNotOffboarded StorageConsumerState = "ClientNotOffboarded"
 )
 
 // StorageConsumerSpec defines the desired state of StorageConsumer
