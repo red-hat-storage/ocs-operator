@@ -86,6 +86,17 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, nil
 	}
 
+	// if previously it was in invalid state, update the status to not started
+	if storageAutoScaler.Status.Phase == ocsv1.StorageAutoScalerPhaseInvalid {
+		storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseNotStarted
+		storageAutoScaler.Status.Error = nil
+		storageAutoScaler.Status.LastExpansion = nil
+		err := r.updateStatus(ctx, storageAutoScaler)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	// if no expansion is in-progress update the phase to "not-started"
 	if storageAutoScaler.Status.Phase == "" {
 		storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseNotStarted
@@ -302,6 +313,7 @@ func (r *StorageAutoscalerReconciler) detectDuplicateStorageAutoScaler(ctx conte
 			err = fmt.Errorf("more than one storage autoscaler present with same device class and same storage cluster name, names are %q and %q", storageAutoScaler.Name, storageAutoScalerItem.Name)
 			r.Log.Error(err, "duplicate cr detected", "device class", storageAutoScaler.Spec.DeviceClass, "storage cluster", storageAutoScaler.Spec.StorageCluster.Name)
 
+			storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInvalid
 			storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
 				Message:   fmt.Sprintf("duplicate cr detected, more than one storage autoscaler present with same device class and same storage cluster name, names are %q and %q delete any one of the autoStorageScaler cr", storageAutoScaler.Name, storageAutoScalerItem.Name),
 				Timestamp: metav1.Now(),
@@ -326,6 +338,7 @@ func (r *StorageAutoscalerReconciler) detectLeanResourceProfile(ctx context.Cont
 	err := fmt.Errorf("storage profile is lean, autoscaler does not support lean storage profile, delete the autoStorageScaler cr as scaling is not supported")
 	r.Log.Error(err, "storage profile is lean")
 
+	storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInvalid
 	storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
 		Message:   "storage profile is lean, autoscaler does not support lean storage profile, delete the autoStorageScaler cr as scaling is not supported",
 		Timestamp: metav1.Now(),
