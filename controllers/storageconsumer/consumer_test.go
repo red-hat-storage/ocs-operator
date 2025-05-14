@@ -100,12 +100,14 @@ func TestNoobaaAccount(t *testing.T) {
 			},
 		},
 	}
+	err := client.Create(ctx, r.storageConsumer)
+	assert.NoError(t, err)
 	cephfilesystem := &rookcephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "storagecluster-cephfilesystem",
 		},
 	}
-	err := client.Create(ctx, cephfilesystem)
+	err = client.Create(ctx, cephfilesystem)
 	assert.NoError(t, err)
 	noobaaAccount := &v1alpha1.NooBaaAccount{
 		ObjectMeta: metav1.ObjectMeta{
@@ -201,11 +203,14 @@ func TestNoobaaAccount(t *testing.T) {
 			},
 		},
 	}
+	err = client.Create(ctx, r.storageConsumer)
+	assert.NoError(t, err)
 	cephfilesystem = &rookcephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "storagecluster-cephfilesystem",
 		},
 	}
+
 	err = client.Create(ctx, cephfilesystem)
 	assert.NoError(t, err)
 	noobaaAccount = &v1alpha1.NooBaaAccount{
