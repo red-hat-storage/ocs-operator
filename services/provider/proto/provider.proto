@@ -260,6 +260,7 @@ message ClientInfo{
   // assumption based on existing supported feature set and plan for converged mode
   string radosNamespace = 2;
   string rbdStorageID = 3;
+  string rbdClientProfile = 4;
 }
 
 enum ErrorCode{
