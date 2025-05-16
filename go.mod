@@ -8,6 +8,8 @@ replace github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
 
 replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
 
+replace github.com/kubernetes-csi/external-snapshotter/client/v8 => github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20250328154235-ab0c90e8bf1b
+
 require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0
