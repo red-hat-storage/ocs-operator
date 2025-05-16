@@ -37,6 +37,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -483,6 +484,9 @@ func newScheme() (*runtime.Scheme, error) {
 	}
 	if err = groupsnapapi.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add groupsnapapi to scheme. %v", err)
+	}
+	if err = odfgsapiv1b1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add odfgsapiv1b1 to scheme. %v", err)
 	}
 	if err = replicationv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add replicationv1alpha1 to scheme. %v", err)
@@ -1101,6 +1105,18 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		return nil, err
 	}
 
+	kubeResources, err = s.appendOdfVolumeGroupSnapshotClassKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		cephFsStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
 		ctx,
 		kubeResources,
@@ -1581,6 +1597,65 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		} else {
 			kubeResources = append(kubeResources, groupSnapshotClass)
 		}
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	cephFsStorageId string,
+) ([]client.Object, error) {
+	var groupSnapshotClass *odfgsapiv1b1.VolumeGroupSnapshotClass
+	var err error
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		groupSnapshotClass = &odfgsapiv1b1.VolumeGroupSnapshotClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{},
+				Labels:      map[string]string{},
+			},
+			Driver: util.CephFSDriverName,
+			Parameters: map[string]string{
+				"clusterID": consumerConfig.GetCephFsClientProfileName(),
+				"csi.storage.k8s.io/group-snapshotter-secret-name":      consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+				"csi.storage.k8s.io/group-snapshotter-secret-namespace": consumer.Status.Client.OperatorNamespace,
+				"fsName": util.GenerateNameForCephFilesystem(storageCluster.Name),
+			},
+			DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+		}
+		groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)
+	} else {
+		gsc := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
+		gsc.Name = util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(gsc), gsc); err != nil {
+			return nil, err
+		}
+
+		params := gsc.Parameters
+		if params == nil {
+			params = map[string]string{}
+			gsc.Parameters = params
+		}
+		params["clusterID"] = consumerConfig.GetCephFsClientProfileName()
+		params["csi.storage.k8s.io/group-snapshotter-secret-name"] = consumerConfig.GetCsiCephFsProvisionerCephUserName()
+		params["csi.storage.k8s.io/group-snapshotter-secret-namespace"] = consumer.Status.Client.OperatorNamespace
+		util.AddLabel(gsc, ramenDRStorageIDLabelKey, cephFsStorageId)
+
+	}
+
+	if kerrors.IsNotFound(err) {
+		klog.Warningf("Odf-VolumeGroupSnapshotClass with name %s doesn't exist in the cluster", groupSnapshotClass.Name)
+	} else if errors.Is(err, util.UnsupportedDriver) {
+		klog.Warningf("Encountered unsupported driver in volume group snapshot class %s", groupSnapshotClass.Name)
+	} else if groupSnapshotClass == nil {
+		klog.Warningf("The name %s does not points to a builtin or an existing volume group snapshot class, skipping", groupSnapshotClass.Name)
+	} else if groupSnapshotClass.Labels[util.ExternalClassLabelKey] == "true" {
+		klog.Warningf("The groupSnapshot class %s is an external storage class, skipping", groupSnapshotClass.Name)
+	} else {
+		kubeResources = append(kubeResources, groupSnapshotClass)
 	}
 	return kubeResources, nil
 }
