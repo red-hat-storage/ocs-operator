@@ -149,22 +149,8 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, nil
 	}
 
-	// get the osd usage from the sync map
-	usage, ok := r.SyncMap.Load(storageAutoScaler.Spec.DeviceClass)
-	if !ok {
-		r.Log.Info("osd usage not found for device class in sync map", "device class", storageAutoScaler.Spec.DeviceClass)
-		// return nil error as scraper will retry if needed
-		return reconcile.Result{}, nil
-	}
-
-	if usage == nil {
-		r.Log.Info("osd usage is nil for device class in sync map", "device class", storageAutoScaler.Spec.DeviceClass)
-		// return nil error as scraper will retry if needed
-		return reconcile.Result{}, nil
-	}
-
-	if !checkIfScalingRequired(usage, storageAutoScaler.Spec.StorageScalingThresholdPercent) {
-		r.Log.Info("osd usage is less than the threshold", "device class", storageAutoScaler.Spec.DeviceClass, "usage", usage.(float64)*100)
+	if !isScalingRequired(r.SyncMap, storageAutoScaler.Spec.StorageScalingThresholdPercent, r.Log, storageAutoScaler.Spec.DeviceClass) {
+		r.Log.Info("scaling is not required", "device class", storageAutoScaler.Spec.DeviceClass)
 		return reconcile.Result{}, nil
 	}
 	// scaling is required
@@ -502,11 +488,6 @@ func (r *StorageAutoscalerReconciler) checkIfCephClusterIsNotHealthy(ctx context
 	}
 
 	return false, nil
-}
-
-func checkIfScalingRequired(usage interface{}, threshold int) bool {
-	// check if the highest osd usage is greater than or equal to the threshold
-	return ((usage.(float64) * 100) >= float64(threshold))
 }
 
 func calculateExpectedOsdSizeAndCount(storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (resource.Quantity, resource.Quantity, int, int, resource.Quantity, resource.Quantity) {

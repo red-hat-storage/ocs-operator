@@ -26,6 +26,12 @@ type StorageAutoscalerScraper struct {
 	EventCh           chan event.GenericEvent
 }
 
+type OsdUsage struct {
+	TotalUsage   float64
+	HighestUsage float64
+	TotalOsd     float64
+}
+
 func (r *StorageAutoscalerScraper) ScrapeMetricsPeriodically(ctx context.Context) {
 	for {
 		select {
@@ -59,7 +65,7 @@ func (r *StorageAutoscalerScraper) enqueueGenericEventsFromMetrics(ctx context.C
 
 	// refresh the sync map
 	r.SyncMap.Clear()
-	// update the sync map with the highest value of osd usage per device class
+	// update the sync map with the highest value of osd usage and total osd usage per device class
 	updateSyncMap(metrics, r.SyncMap)
 
 	filteredObjectList := filterObjectsForScaling(objectList, r.SyncMap, r.Log)
@@ -71,10 +77,14 @@ func (r *StorageAutoscalerScraper) enqueueGenericEventsFromMetrics(ctx context.C
 // update the sync map with the highest value of osd usage per device class
 func updateSyncMap(metrics model.Vector, syncMap *sync.Map) {
 	// create a map of device class to highest osd usage
-	deviceClassUsage := make(map[string]float64)
+	deviceClassUsage := make(map[string]OsdUsage)
 	for _, osd := range metrics {
 		deviceClass := string(osd.Metric["device_class"])
-		deviceClassUsage[deviceClass] = math.Max(deviceClassUsage[deviceClass], float64(osd.Value))
+		deviceClassUsage[deviceClass] = OsdUsage{
+			HighestUsage: math.Max(deviceClassUsage[deviceClass].HighestUsage, float64(osd.Value)),
+			TotalUsage:   deviceClassUsage[deviceClass].TotalUsage + float64(osd.Value),
+			TotalOsd:     deviceClassUsage[deviceClass].TotalOsd + 1,
+		}
 	}
 
 	// update the sync map
@@ -99,22 +109,45 @@ func filterObjectsForScaling(storageAutoScalerList *ocsv1.StorageAutoScalerList,
 	for _, storageAutoScaler := range storageAutoScalerList.Items {
 		deviceClass := storageAutoScaler.Spec.DeviceClass
 		deviceClassThreshold := storageAutoScaler.Spec.StorageScalingThresholdPercent
-		// get the osd usage from the sync map
-		usage, ok := syncMap.Load(deviceClass)
-		if !ok {
-			log.Error(fmt.Errorf("osd usage not found for device class"), "osd usage not found for device class", "device class", deviceClass)
-		} else if usage == nil {
-			err := fmt.Errorf("osd usage is nil for device class, device class: %s", storageAutoScaler.Spec.DeviceClass)
-			log.Error(err, "device class not found in sync map")
-		} else {
-			deviceClassUsage := usage.(float64)
-			if (deviceClassUsage * 100) >= float64(deviceClassThreshold) {
-				objectList = append(objectList, types.NamespacedName{Namespace: storageAutoScaler.Namespace, Name: storageAutoScaler.Name})
-			}
+		if isScalingRequired(syncMap, deviceClassThreshold, log, deviceClass) {
+			objectList = append(objectList, types.NamespacedName{Namespace: storageAutoScaler.Namespace, Name: storageAutoScaler.Name})
 		}
 	}
 
 	return objectList
+}
+
+func isScalingRequired(syncMap *sync.Map, deviceClassThreshold int, log logr.Logger, deviceClass string) bool {
+	// get the osd usage from the sync map
+	usage, ok := syncMap.Load(deviceClass)
+	if !ok {
+		log.Error(fmt.Errorf("osd usage not found for device class"), "osd usage not found for device class", "device class", deviceClass)
+	} else if usage == nil {
+		err := fmt.Errorf("osd usage is nil for device class, device class: %s", deviceClass)
+		log.Error(err, "device class not found in sync map")
+	} else {
+		deviceClassUsage := usage.(OsdUsage)
+		if (deviceClassUsage.HighestUsage * 100) >= float64(deviceClassThreshold) {
+			if totalUsageGreaterThanAdjustedThreshold(deviceClassUsage, deviceClassThreshold, log, deviceClass) {
+				return true
+			}
+			log.Info("highest osd usage is greater than the threshold, but total cluster usage is less than the (threshold-10)%, skipping scaling", "device class", deviceClass, "highest osd usage", deviceClassUsage.HighestUsage*100, "total cluster usage", averageOsdUsage(deviceClassUsage, log, deviceClass))
+		}
+	}
+
+	return false
+}
+
+func totalUsageGreaterThanAdjustedThreshold(deviceClassUsage OsdUsage, deviceClassThreshold int, log logr.Logger, deviceClass string) bool {
+	return averageOsdUsage(deviceClassUsage, log, deviceClass) > math.Max(float64(deviceClassThreshold)-10, float64(0))
+}
+
+func averageOsdUsage(deviceClassUsage OsdUsage, log logr.Logger, deviceClass string) float64 {
+	if deviceClassUsage.TotalOsd == 0 {
+		log.Error(fmt.Errorf("total osd is 0"), "highest osd usage is loaded incorrectly", "device class", deviceClass)
+		return 0
+	}
+	return (deviceClassUsage.TotalUsage * 100) / deviceClassUsage.TotalOsd
 }
 
 func sendGenericEvent(objectList []types.NamespacedName, eventCh chan event.GenericEvent, log logr.Logger) {
