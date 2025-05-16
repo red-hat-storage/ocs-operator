@@ -629,7 +629,8 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	} else {
 		channel, err := s.getOCSSubscriptionChannel(ctx)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
+			klog.Errorf("Failed to get ocs subscription channel: %v", err)
+			return nil, status.Errorf(codes.Internal, "Failed to construct status response")
 		}
 		channelName = channel
 	}
@@ -680,6 +681,17 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 	})
 	if subscription == nil {
 		return "", fmt.Errorf("unable to find ocs-operator subscription")
+	}
+	if subscription.Status.InstalledCSV == "" {
+		return "", fmt.Errorf("subscription %s has no installedCSV", subscription.Name)
+	}
+	csv := &opv1a1.ClusterServiceVersion{}
+	err = s.client.Get(ctx, client.ObjectKey{Name: subscription.Status.InstalledCSV, Namespace: s.namespace}, csv)
+	if err != nil {
+		return "", fmt.Errorf("failed to get installed CSV %q: %w", subscription.Status.InstalledCSV, err)
+	}
+	if csv.Status.Phase != opv1a1.CSVPhaseSucceeded {
+		return "", fmt.Errorf("installed CSV %q is in phase %q, not Succeeded", csv.Name, csv.Status.Phase)
 	}
 	return subscription.Spec.Channel, nil
 }
