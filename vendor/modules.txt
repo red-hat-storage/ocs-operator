@@ -249,7 +249,7 @@ github.com/klauspost/compress/zstd/internal/xxhash
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api
-# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
+# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0 => github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20250328154235-ab0c90e8bf1b
 ## explicit; go 1.22.0
 github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1
 github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1
@@ -1273,4 +1273,5 @@ sigs.k8s.io/yaml/goyaml.v2
 # github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 # github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
+# github.com/kubernetes-csi/external-snapshotter/client/v8 => github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20250328154235-ab0c90e8bf1b
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
