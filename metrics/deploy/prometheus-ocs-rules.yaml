@@ -369,16 +369,16 @@ spec:
     rules:
     - alert: OSDCPULoadHigh
       annotations:
-        description: CPU usage for osd on pod {{ $labels.pod }} has exceeded 80%.
+        description: CPU usage for osd on pod {{ $labels.pod }} has exceeded 90% for 12h.
           Consider creating more OSDs to increase performance
         message: High CPU usage detected in OSD container on pod {{ $labels.pod}}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OSDCPULoadHigh.md
-        severity_level: warning
+        severity_level: info
       expr: |
-        pod:container_cpu_usage:sum{pod=~"rook-ceph-osd-.*"} / on(pod) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-osd-.*"} > 0.80
-      for: 30m
+        pod:container_cpu_usage:sum{pod=~"rook-ceph-osd-.*"} / on(pod) kube_pod_resource_limit{resource='cpu',pod=~"rook-ceph-osd-.*"} > 0.90
+      for: 12h
       labels:
-        severity: warning
+        severity: info
     - alert: MDSCPUUsageHigh
       annotations:
         description: |-
