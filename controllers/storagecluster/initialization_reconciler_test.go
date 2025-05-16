@@ -117,6 +117,33 @@ var (
 			},
 		}
 	}
+	createOdfVolumeGroupSnapshotClassCRD = func() *extv1.CustomResourceDefinition {
+		pluralName := "volumegroupsnapshotclasses"
+		return &extv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: extv1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pluralName + "." + "groupsnapshot.storage.openshift.io",
+				UID:  "uid",
+			},
+			Spec: extv1.CustomResourceDefinitionSpec{
+				Group: "groupsnapshot.storage.openshift.io",
+				Scope: extv1.ClusterScoped,
+				Names: extv1.CustomResourceDefinitionNames{
+					Plural: pluralName,
+					Kind:   "VolumeGroupSnapshotClass",
+				},
+				Versions: []extv1.CustomResourceDefinitionVersion{
+					{
+						Name:   "v1beta1",
+						Served: true,
+					},
+				},
+			},
+		}
+	}
 )
 
 func createDefaultStorageCluster() *api.StorageCluster {
@@ -414,13 +441,15 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		createVirtualMachineCRD(),
 		createStorageClientCRD(),
 		createVolumeGroupSnapshotClassCRD(),
+		createOdfVolumeGroupSnapshotClassCRD(),
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	availCrds := map[string]bool{
-		VirtualMachineCrdName:           true,
-		StorageClientCrdName:            true,
-		VolumeGroupSnapshotClassCrdName: true,
+		VirtualMachineCrdName:              true,
+		StorageClientCrdName:               true,
+		VolumeGroupSnapshotClassCrdName:    true,
+		OdfVolumeGroupSnapshotClassCrdName: true,
 	}
 
 	return StorageClusterReconciler{

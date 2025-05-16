@@ -237,11 +237,12 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					util.NamePredicate(VirtualMachineCrdName),
 					util.NamePredicate(StorageClientCrdName),
 					util.NamePredicate(VolumeGroupSnapshotClassCrdName),
+					util.NamePredicate(OdfVolumeGroupSnapshotClassCrdName),
 				),
 				util.EventTypePredicate(
 					// the values in the below map are filled before controller watches are setup and these conditions
 					// will just be evaluated to a boolean by the time builder completes setting up watches.
-					!r.AvailableCrds[VirtualMachineCrdName] || !r.AvailableCrds[StorageClientCrdName] || !r.AvailableCrds[VolumeGroupSnapshotClassCrdName],
+					!r.AvailableCrds[VirtualMachineCrdName] || !r.AvailableCrds[StorageClientCrdName] || !r.AvailableCrds[VolumeGroupSnapshotClassCrdName] || !r.AvailableCrds[OdfVolumeGroupSnapshotClassCrdName],
 					false,
 					true,
 					false,
