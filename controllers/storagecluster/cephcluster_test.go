@@ -836,8 +836,10 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mgr": defaults.BalancedDaemonResources["mgr"],
-				"mon": defaults.BalancedDaemonResources["mon"],
+				"mgr":            defaults.BalancedDaemonResources["mgr"],
+				"mon":            defaults.BalancedDaemonResources["mon"],
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -849,8 +851,10 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mgr": defaults.LeanDaemonResources["mgr"],
-				"mon": defaults.LeanDaemonResources["mon"],
+				"mgr":            defaults.LeanDaemonResources["mgr"],
+				"mon":            defaults.LeanDaemonResources["mon"],
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -862,8 +866,10 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mgr": defaults.BalancedDaemonResources["mgr"],
-				"mon": defaults.BalancedDaemonResources["mon"],
+				"mgr":            defaults.BalancedDaemonResources["mgr"],
+				"mon":            defaults.BalancedDaemonResources["mon"],
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -875,8 +881,10 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 			},
 			expected: map[string]corev1.ResourceRequirements{
-				"mgr": defaults.PerformanceDaemonResources["mgr"],
-				"mon": defaults.PerformanceDaemonResources["mon"],
+				"mgr":            defaults.PerformanceDaemonResources["mgr"],
+				"mon":            defaults.PerformanceDaemonResources["mon"],
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -909,6 +917,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
 					},
 				},
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -941,7 +951,9 @@ func TestNewCephDaemonResources(t *testing.T) {
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
 					},
 				},
-				"mon": defaults.PerformanceDaemonResources["mon"],
+				"mon":            defaults.PerformanceDaemonResources["mon"],
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -975,6 +987,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
 					},
 				},
+				"exporter": defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -1009,6 +1022,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
 					},
 				},
+				"exporter": defaults.DaemonResources["exporter"],
 			},
 		},
 	}

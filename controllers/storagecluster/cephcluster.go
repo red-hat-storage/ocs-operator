@@ -498,9 +498,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				"arbiter": getPlacement(sc, "arbiter"),
 			},
 			PriorityClassNames: rookCephv1.PriorityClassNamesSpec{
-				rookCephv1.KeyMgr: systemNodeCritical,
-				rookCephv1.KeyMon: systemNodeCritical,
-				rookCephv1.KeyOSD: systemNodeCritical,
+				rookCephv1.KeyMgr:            systemNodeCritical,
+				rookCephv1.KeyMon:            systemNodeCritical,
+				rookCephv1.KeyOSD:            systemNodeCritical,
+				rookCephv1.KeyCephExporter:   systemNodeCritical,
+				rookCephv1.KeyCrashCollector: systemNodeCritical,
 			},
 			Resources:    newCephDaemonResources(sc),
 			LogCollector: logCollector,
@@ -1025,8 +1027,10 @@ func countAndReplicaOf(ds *ocsv1.StorageDeviceSet) (int, int) {
 
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
 	resources := map[string]corev1.ResourceRequirements{
-		"mon": defaults.GetProfileDaemonResources("mon", sc),
-		"mgr": defaults.GetProfileDaemonResources("mgr", sc),
+		"mon":            defaults.GetProfileDaemonResources("mon", sc),
+		"mgr":            defaults.GetProfileDaemonResources("mgr", sc),
+		"crashcollector": defaults.GetDaemonResources("crashcollector", sc.Spec.Resources),
+		"exporter":       defaults.GetDaemonResources("exporter", sc.Spec.Resources),
 	}
 	custom := sc.Spec.Resources
 	for k := range custom {
