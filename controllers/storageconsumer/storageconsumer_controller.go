@@ -58,6 +58,7 @@ const (
 	StorageProfileLabel           = "ocs.openshift.io/storageprofile"
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
+	storageConsumerFinalizer      = "storageconsumer.ocs.openshift.io"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -154,6 +155,13 @@ func (r *StorageConsumerReconciler) reconcileNotEnabledPhases() (reconcile.Resul
 
 func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, error) {
 	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
+		if controllerutil.AddFinalizer(r.storageConsumer, storageConsumerFinalizer) {
+			r.Log.Info("Finalizer not found for StorageConsumer. Adding finalizer.")
+			if err := r.Client.Update(r.ctx, r.storageConsumer); err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to update StorageConsumer: %v", err)
+			}
+		}
+
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
 		if err := r.deleteOnboardingSecret(); err != nil {
 			return reconcile.Result{}, nil
@@ -307,7 +315,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		}
 
 	} else {
-		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
+		return r.deletionPhase()
 	}
 
 	return reconcile.Result{}, nil
@@ -730,6 +738,95 @@ func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
 	return nil
 }
 
+func (r *StorageConsumerReconciler) deletionPhase() (reconcile.Result, error) {
+
+	consumerConfigMap := &corev1.ConfigMap{}
+	consumerConfigMap.Namespace = r.namespace
+	consumerConfigMap.Name = cmp.Or(
+		r.storageConsumer.Spec.ResourceNameMappingConfigMap.Name,
+		fmt.Sprintf("storageconsumer-%v", util.FnvHash(r.storageConsumer.Name)),
+	)
+	if err := r.get(consumerConfigMap); client.IgnoreNotFound(err) != nil {
+		return reconcile.Result{}, err
+	}
+
+	// Get config map's controller reference
+	controllerIndex := slices.IndexFunc(
+		consumerConfigMap.OwnerReferences,
+		func(ref metav1.OwnerReference) bool { return ptr.Deref(ref.Controller, false) },
+	)
+	var controllerRef *metav1.OwnerReference
+	if controllerIndex != -1 {
+		controllerRef = &consumerConfigMap.OwnerReferences[controllerIndex]
+	}
+
+	isPrimaryConsumer := controllerRef != nil && controllerRef.UID == r.storageConsumer.UID
+	_, hasForceDeleteAnnotation := r.storageConsumer.GetAnnotations()[util.ForceDeletionAnnotationKey]
+	safeForDeletion := false
+
+	if r.storageConsumer.Status.Client == nil {
+		safeForDeletion = true
+	} else {
+		if hasForceDeleteAnnotation {
+			if isPrimaryConsumer {
+				consumerResources := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+
+				blockPools := &rookCephv1.CephBlockPoolList{}
+				if err := r.List(r.ctx, blockPools, client.InNamespace(r.namespace)); err != nil {
+					return reconcile.Result{}, err
+				}
+				radosNamespaceName := consumerResources.GetRbdRadosNamespaceName()
+				for idx := range blockPools.Items {
+					bp := &blockPools.Items[idx]
+					rns := &rookCephv1.CephBlockPoolRadosNamespace{}
+					rns.Name = fmt.Sprintf("%s-%s", bp.Name, radosNamespaceName)
+					if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
+						rns.Name = fmt.Sprintf(
+							"%s-builtin-%s",
+							bp.Name,
+							util.ImplicitRbdRadosNamespaceName[1:len(util.ImplicitRbdRadosNamespaceName)-1],
+						)
+					}
+					rns.Namespace = r.namespace
+					if err := r.get(rns); client.IgnoreNotFound(err) != nil {
+						return reconcile.Result{}, fmt.Errorf("failed to get CephBlockPoolRadosNamespace: %v", err)
+					} else if rns.UID != "" && util.AddAnnotation(rns, util.RookForceDeletionAnnotationKey, "true") {
+						if err := r.Client.Update(r.ctx, rns); err != nil {
+							return reconcile.Result{}, fmt.Errorf("failed to annotate CephBlockPoolRadosNamespace: %v", err)
+						}
+					}
+				}
+
+				svg := &rookCephv1.CephFilesystemSubVolumeGroup{}
+				svg.Name = consumerResources.GetSubVolumeGroupName()
+				svg.Namespace = r.namespace
+				if err := r.get(svg); client.IgnoreNotFound(err) != nil {
+					return reconcile.Result{}, fmt.Errorf("failed to get CephFileSystemSubVolumeGroup: %v", err)
+				} else if svg.UID != "" && util.AddAnnotation(svg, util.RookForceDeletionAnnotationKey, "true") {
+					if err := r.Client.Update(r.ctx, svg); err != nil {
+						return reconcile.Result{}, fmt.Errorf("failed to annotate CephFileSystemSubVolumeGroup: %v", err)
+					}
+				}
+			}
+			safeForDeletion = true
+		} else {
+			r.storageConsumer.Status.State = ocsv1alpha1.StorageConsumerStateClientNotOffboarded
+		}
+	}
+
+	if safeForDeletion {
+		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
+		if controllerutil.RemoveFinalizer(r.storageConsumer, storageConsumerFinalizer) {
+			r.Log.Info("removing finalizer from StorageConsumer.")
+			if err := r.Client.Update(r.ctx, r.storageConsumer); err != nil {
+				r.Log.Info("Failed to remove finalizer from StorageConsumer")
+				return reconcile.Result{}, fmt.Errorf("failed to remove finalizer from StorageConsumer: %v", err)
+			}
+		}
+	}
+	return reconcile.Result{}, nil
+}
+
 func (r *StorageConsumerReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
 	cephResourceSpec := ocsv1alpha1.CephResourcesSpec{
 		Name:        name,
@@ -777,8 +874,13 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
+	consumerPredicate := util.ComposePredicates(
+		predicate.GenerationChangedPredicate{},
+		predicate.AnnotationChangedPredicate{},
+	)
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(consumerPredicate)).
 		Owns(&nbv1.NooBaaAccount{}).
 		Owns(&corev1.ConfigMap{}, builder.MatchEveryOwner).
 		Owns(

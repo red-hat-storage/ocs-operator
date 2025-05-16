@@ -71,6 +71,8 @@ const (
 	CephRBDMirrorName                    = "cephrbdmirror"
 	OcsClientTimeout                     = 10 * time.Second
 	StorageClientMappingConfigName       = "storage-client-mapping"
+	ForceDeletionAnnotationKey           = "ocs.openshift.io/force-deletion"
+	RookForceDeletionAnnotationKey       = "rook.io/force-deletion"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
