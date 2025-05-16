@@ -10,6 +10,7 @@ import (
 
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -83,6 +84,34 @@ func NewDefaultCephFsGroupSnapshotClass(
 	return gsc
 }
 
+func NewDefaultOdfCephFsGroupSnapshotClass(
+	clusterID,
+	provisionerSecret,
+	namespace,
+	fsName,
+	storageId string,
+) *odfgsapiv1b1.VolumeGroupSnapshotClass {
+
+	gsc := &odfgsapiv1b1.VolumeGroupSnapshotClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{},
+			Labels:      map[string]string{},
+		},
+		Driver: CephFSDriverName,
+		Parameters: map[string]string{
+			"clusterID": clusterID,
+			"csi.storage.k8s.io/group-snapshotter-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/group-snapshotter-secret-namespace": namespace,
+			"fsName": fsName,
+		},
+		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+	}
+	if storageId != "" {
+		AddLabel(gsc, storageIdLabelKey, storageId)
+	}
+	return gsc
+}
+
 func VolumeGroupSnapshotClassFromExisting(
 	ctx context.Context,
 	kubeClient client.Client,
@@ -128,5 +157,34 @@ func VolumeGroupSnapshotClassFromExisting(
 	params["csi.storage.k8s.io/group-snapshotter-secret-name"] = provisionerSecretName
 	params["csi.storage.k8s.io/group-snapshotter-secret-namespace"] = operatorNamespace
 	AddLabel(gsc, storageIdLabelKey, storageId)
+	return gsc, nil
+}
+
+func OdfVolumeGroupSnapshotClassFromExisting(
+	ctx context.Context,
+	kubeClient client.Client,
+	volumeGroupSnapshotClassName string,
+	consumer *ocsv1a1.StorageConsumer,
+	consumerConfig StorageConsumerResources,
+	cephFsStorageId string,
+) (*odfgsapiv1b1.VolumeGroupSnapshotClass, error) {
+	gsc := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
+	gsc.Name = volumeGroupSnapshotClassName
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(gsc), gsc); err != nil {
+		return nil, err
+	}
+	if gsc.Driver != CephFSDriverName {
+		return nil, UnsupportedDriver
+	}
+
+	params := gsc.Parameters
+	if params == nil {
+		params = map[string]string{}
+		gsc.Parameters = params
+	}
+	params["clusterID"] = consumerConfig.GetCephFsClientProfileName()
+	params["csi.storage.k8s.io/group-snapshotter-secret-name"] = consumerConfig.GetCsiCephFsProvisionerCephUserName()
+	params["csi.storage.k8s.io/group-snapshotter-secret-namespace"] = consumer.Status.Client.OperatorNamespace
+	AddLabel(gsc, storageIdLabelKey, cephFsStorageId)
 	return gsc, nil
 }
