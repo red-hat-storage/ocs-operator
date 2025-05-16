@@ -566,7 +566,7 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
 // provider cluster.
 func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	return &pb.FulfillStorageClaimResponse{}, nil
 }
 
 // RevokeStorageClaim RPC call to delete the StorageClaim CR on
