@@ -679,7 +679,22 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return sub.Spec.Package == "ocs-operator"
 	})
 	if subscription == nil {
-		return "", fmt.Errorf("unable to find ocs-operator subscription")
+		klog.Info("unable to find ocs-operator subscription")
+		return "", nil
+	}
+	if subscription.Status.InstalledCSV == "" {
+		klog.Infof("Subscription %q does not have an installed CSV", subscription.Name)
+		return "", nil
+	}
+	csv := &opv1a1.ClusterServiceVersion{}
+	err = s.client.Get(ctx, client.ObjectKey{Name: subscription.Status.InstalledCSV, Namespace: s.namespace}, csv)
+	if err != nil {
+		klog.Errorf("failed to get installed CSV %q: %v", subscription.Status.InstalledCSV, err)
+		return "", err
+	}
+	if csv.Status.Phase != opv1a1.CSVPhaseSucceeded {
+		klog.Infof("installed CSV %q is in phase %q, not Succeeded", csv.Name, csv.Status.Phase)
+		return "", nil
 	}
 	return subscription.Spec.Channel, nil
 }
