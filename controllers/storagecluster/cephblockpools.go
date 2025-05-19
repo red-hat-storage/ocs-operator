@@ -117,6 +117,13 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".mgr"
+
+		// Pass the Replicated Size Spec for the default CephBlockPool from the storageCluster CR
+		manageCBPSpec := &storageCluster.Spec.ManagedResources.CephBlockPools
+		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.Replicated.Size != 0 {
+			cephBlockPool.Spec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
+		}
+
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
