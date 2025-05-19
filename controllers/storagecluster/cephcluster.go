@@ -550,18 +550,6 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				rookCephv1.KeyMonitoring:   getCephClusterMonitoringLabels(*sc),
 				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
 			},
-			HealthCheck: rookCephv1.CephClusterHealthCheckSpec{
-				LivenessProbe: map[rookCephv1.KeyType]*rookCephv1.ProbeSpec{
-					rookCephv1.KeyMgr: {
-						Disabled: true,
-					},
-				},
-				StartupProbe: map[rookCephv1.KeyType]*rookCephv1.ProbeSpec{
-					rookCephv1.KeyMgr: {
-						Disabled: true,
-					},
-				},
-			},
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: util.GetReadAffinityOptions(sc),
 				CephFS: rookCephv1.CSICephFSSpec{
