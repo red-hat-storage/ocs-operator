@@ -75,7 +75,7 @@ func (r *StorageClusterPeerReconciler) SetupWithManager(mgr ctrl.Manager) error 
 func (r *StorageClusterPeerReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	var err error
 	r.ctx = ctx
-	r.log = log.FromContext(ctx, "StorageClient", request)
+	r.log = log.FromContext(ctx, "StorageClusterPeer", request)
 	r.log.Info("Reconciling StorageClusterPeer.")
 
 	// Fetch the StorageClusterPeer instance

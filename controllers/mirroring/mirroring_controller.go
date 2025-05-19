@@ -103,6 +103,7 @@ func (r *MirroringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	generationChangePredicate := builder.WithPredicates(predicate.GenerationChangedPredicate{})
 
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("MirroringController").
 		For(
 			&corev1.ConfigMap{},
 			builder.WithPredicates(util.NamePredicate(util.StorageClientMappingConfigName)),
@@ -170,6 +171,20 @@ func (r *MirroringReconciler) Reconcile(ctx context.Context, request ctrl.Reques
 
 func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.ConfigMap) (ctrl.Result, error) {
 
+	// Fetch the StorageClusterPeer instance
+	if clientMappingConfig.GetAnnotations()[storageClusterPeerAnnotationKey] == "" {
+		return ctrl.Result{}, fmt.Errorf("storageClusterPeer reference not found")
+	}
+
+	storageClusterPeer := &ocsv1.StorageClusterPeer{}
+	storageClusterPeer.Name = clientMappingConfig.GetAnnotations()[storageClusterPeerAnnotationKey]
+	storageClusterPeer.Namespace = clientMappingConfig.Namespace
+
+	if err := r.get(storageClusterPeer); client.IgnoreNotFound(err) != nil {
+		r.log.Error(err, "Failed to get StorageClusterPeer.")
+		return ctrl.Result{}, err
+	}
+
 	shouldMirror := clientMappingConfig.DeletionTimestamp.IsZero() &&
 		clientMappingConfig.Data != nil &&
 		len(clientMappingConfig.Data) > 0
@@ -181,20 +196,12 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 				return ctrl.Result{}, fmt.Errorf("failed to update ConfigMap: %v", err)
 			}
 		}
-	}
-
-	// Fetch the StorageClusterPeer instance
-	if clientMappingConfig.GetAnnotations()[storageClusterPeerAnnotationKey] == "" {
-		return ctrl.Result{}, fmt.Errorf("storageClusterPeer reference not found")
-	}
-
-	storageClusterPeer := &ocsv1.StorageClusterPeer{}
-	storageClusterPeer.Name = clientMappingConfig.GetAnnotations()[storageClusterPeerAnnotationKey]
-	storageClusterPeer.Namespace = clientMappingConfig.Namespace
-
-	if err := r.get(storageClusterPeer); err != nil {
-		r.log.Error(err, "Failed to get StorageClusterPeer.")
-		return ctrl.Result{}, err
+		if controllerutil.AddFinalizer(storageClusterPeer, mirroringFinalizer) {
+			r.log.Info("Finalizer not found for StorageClusterPeer. Adding finalizer.")
+			if err := r.update(storageClusterPeer); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to update StorageClusterPeer: %v", err)
+			}
+		}
 	}
 
 	if storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePeered ||
@@ -246,6 +253,13 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 			if err := r.update(clientMappingConfig); err != nil {
 				r.log.Info("Failed to remove finalizer from ConfigMap")
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from ConfigMap: %v", err)
+			}
+		}
+		if controllerutil.RemoveFinalizer(storageClusterPeer, mirroringFinalizer) {
+			r.log.Info("removing finalizer from StorageClusterPeer.")
+			if err := r.update(storageClusterPeer); err != nil {
+				r.log.Info("Failed to remove finalizer from StorageClusterPeer")
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from StorageClusterPeer: %v", err)
 			}
 		}
 	}
