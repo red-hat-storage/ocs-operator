@@ -71,6 +71,7 @@ const (
 	CephRBDMirrorName                    = "cephrbdmirror"
 	OcsClientTimeout                     = 10 * time.Second
 	StorageClientMappingConfigName       = "storage-client-mapping"
+	ExternalClassLabelKey                = "storageclass.ocs.openshift.io/is-external"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
