@@ -1452,6 +1452,8 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			klog.Warningf("Encountered unsupported provisioner in storage class %s", storageClassName)
 		} else if storageClass == nil {
 			klog.Warningf("The name %s does not points to a builtin or an existing storage class, skipping", storageClassName)
+		} else if storageClass.Labels[util.ExternalClassLabelKey] == "true" {
+			klog.Warningf("The storage class %s is an external storage class, skipping", storageClassName)
 		} else {
 			kubeResources = append(kubeResources, storageClass)
 		}
@@ -1524,6 +1526,8 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 			klog.Warningf("Encountered unsupported driver in volume snapshot class %s", snapshotClassName)
 		} else if snapshotClass == nil {
 			klog.Warningf("The name %s does not points to a builtin or an existing volumesnapshot class, skipping", snapshotClassName)
+		} else if snapshotClass.Labels[util.ExternalClassLabelKey] == "true" {
+			klog.Warningf("The snapshot class %s is an external storage class, skipping", snapshotClassName)
 		} else {
 			kubeResources = append(kubeResources, snapshotClass)
 		}
@@ -1589,6 +1593,8 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 			klog.Warningf("Encountered unsupported driver in volume group snapshot class %s", groupSnapshotClassName)
 		} else if groupSnapshotClass == nil {
 			klog.Warningf("The name %s does not points to a builtin or an existing volume group snapshot class, skipping", groupSnapshotClassName)
+		} else if groupSnapshotClass.Labels[util.ExternalClassLabelKey] == "true" {
+			klog.Warningf("The groupSnapshot class %s is an external storage class, skipping", groupSnapshotClassName)
 		} else {
 			kubeResources = append(kubeResources, groupSnapshotClass)
 		}
