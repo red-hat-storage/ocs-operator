@@ -141,14 +141,16 @@ func (c *StorageConsumerCollector) collectStorageConsumersMetadata(storageConsum
 			prometheus.GaugeValue, float64(storageConsumer.Status.LastHeartbeat.Time.Unix()),
 			storageConsumer.Name)
 
-		ch <- prometheus.MustNewConstMetric(c.ClientOperatorVersion,
-			prometheus.GaugeValue,
-			float64(encodeVersion(storageConsumer.Status.Client.OperatorVersion)),
-			storageConsumer.Name)
+		if storageConsumer.Status.Client != nil {
+			ch <- prometheus.MustNewConstMetric(c.ClientOperatorVersion,
+				prometheus.GaugeValue,
+				float64(encodeVersion(storageConsumer.Status.Client.OperatorVersion)),
+				storageConsumer.Name)
 
-		ch <- prometheus.MustNewConstMetric(c.StorageQuotaUtilizationRatio,
-			prometheus.GaugeValue, storageConsumer.Status.Client.StorageQuotaUtilizationRatio,
-			storageConsumer.Status.Client.Name, storageConsumer.Status.Client.ClusterName)
+			ch <- prometheus.MustNewConstMetric(c.StorageQuotaUtilizationRatio,
+				prometheus.GaugeValue, storageConsumer.Status.Client.StorageQuotaUtilizationRatio,
+				storageConsumer.Status.Client.Name, storageConsumer.Status.Client.ClusterName)
+		}
 	}
 }
 
