@@ -387,9 +387,16 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, err
 		}
 
+		cephConnection, err := s.getDesiredCephConnection(ctx, consumer)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
+			cephConnection.Spec,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
@@ -651,9 +658,16 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
 	}
 
+	cephConnection, err := s.getDesiredCephConnection(ctx, storageConsumer)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
+		cephConnection.Spec,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
@@ -1052,8 +1066,9 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 	}
 
 	kubeResources := []client.Object{}
-	kubeResources, err = s.appendCephConnectionKubeResources(ctx, kubeResources, consumer)
-	if err != nil {
+	if cephConnection, err := s.getDesiredCephConnection(ctx, consumer); err == nil {
+		kubeResources = append(kubeResources, cephConnection)
+	} else {
 		return nil, err
 	}
 
@@ -1157,40 +1172,36 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 	return kubeResources, nil
 }
 
-func (s *OCSProviderServer) appendCephConnectionKubeResources(
+func (s *OCSProviderServer) getDesiredCephConnection(
 	ctx context.Context,
-	kubeResources []client.Object,
 	consumer *ocsv1alpha1.StorageConsumer,
-) ([]client.Object, error) {
+) (*csiopv1a1.CephConnection, error) {
 
 	configmap := &v1.ConfigMap{}
 	configmap.Name = monConfigMap
 	configmap.Namespace = consumer.Namespace
 	err := s.client.Get(ctx, client.ObjectKeyFromObject(configmap), configmap)
 	if err != nil {
-		return kubeResources, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
+		return nil, fmt.Errorf("failed to get %s configMap. %v", monConfigMap, err)
 	}
 	if configmap.Data["data"] == "" {
-		return kubeResources, fmt.Errorf("configmap %s data is empty", monConfigMap)
+		return nil, fmt.Errorf("configmap %s data is empty", monConfigMap)
 	}
 
 	monIps, err := extractMonitorIps(configmap.Data["data"])
 	if err != nil {
-		return kubeResources, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
+		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
 	}
 
-	kubeResources = append(
-		kubeResources,
-		&csiopv1a1.CephConnection{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      consumer.Status.Client.Name,
-				Namespace: consumer.Status.Client.OperatorNamespace,
-			},
-			Spec: csiopv1a1.CephConnectionSpec{
-				Monitors: monIps,
-			},
-		})
-	return kubeResources, nil
+	return &csiopv1a1.CephConnection{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      consumer.Status.Client.Name,
+			Namespace: consumer.Status.Client.OperatorNamespace,
+		},
+		Spec: csiopv1a1.CephConnectionSpec{
+			Monitors: monIps,
+		},
+	}, nil
 }
 
 func (s *OCSProviderServer) appendClientProfileKubeResources(
