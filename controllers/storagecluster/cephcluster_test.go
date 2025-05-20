@@ -1785,7 +1785,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 			storageCluster: &ocsv1.StorageCluster{},
 			expectedConfig: map[string]map[string]string{
 				"global": {
-					"mon_target_pg_per_osd": "400",
+					"mon_target_pg_per_osd": "200",
 					"mon_max_pg_per_osd":    "1000",
 				},
 			},
@@ -1830,7 +1830,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 			},
 			expectedConfig: map[string]map[string]string{
 				"global": {
-					"mon_target_pg_per_osd": "400",
+					"mon_target_pg_per_osd": "200",
 					"mon_max_pg_per_osd":    "1000",
 				},
 				"osd": {
