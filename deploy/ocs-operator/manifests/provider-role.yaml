@@ -52,6 +52,7 @@ rules:
       - operators.coreos.com
     resources:
       - subscriptions
+      - clusterserviceversions
     verbs:
       - get
       - list
