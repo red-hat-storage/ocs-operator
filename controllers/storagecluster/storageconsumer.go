@@ -10,6 +10,7 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -26,6 +27,7 @@ import (
 
 const (
 	localStorageConsumerConfigMapName = "storageconsumer-internal"
+	subVolumeGroupName                = "csi"
 )
 
 var (
@@ -93,8 +95,8 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		)
 		resourceMap := util.WrapStorageConsumerResourceMap(data)
 		resourceMap.ReplaceRbdRadosNamespaceName(util.ImplicitRbdRadosNamespaceName)
-		resourceMap.ReplaceSubVolumeGroupName("csi")
-		resourceMap.ReplaceSubVolumeGroupRadosNamespaceName("csi")
+		resourceMap.ReplaceSubVolumeGroupName(subVolumeGroupName)
+		resourceMap.ReplaceSubVolumeGroupRadosNamespaceName(subVolumeGroupName)
 		resourceMap.ReplaceRbdClientProfileName("openshift-storage")
 		resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
 		resourceMap.ReplaceNfsClientProfileName("openshift-storage")
@@ -103,6 +105,18 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return nil
 	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", localStorageConsumerConfigMapName, err)
+	}
+
+	svgPre4_19 := &rookCephv1.CephFilesystemSubVolumeGroup{}
+	svgPre4_19.Name = fmt.Sprintf("%s-%s", util.GenerateNameForCephFilesystem(storageCluster.Name), subVolumeGroupName)
+	svgPre4_19.Namespace = storageCluster.Namespace
+	// doing a get before delete ensures that we don't hit k8s server during every reconcile
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(svgPre4_19), svgPre4_19); client.IgnoreNotFound(err) != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get pre4_19 subvolumegroup cr: %v", err)
+	} else if svgPre4_19.UID != "" && svgPre4_19.DeletionTimestamp.IsZero() {
+		if err := r.Delete(r.ctx, svgPre4_19); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to delete pre4_19 subvolumegroup cr: %v", err)
+		}
 	}
 
 	return ctrl.Result{}, nil
