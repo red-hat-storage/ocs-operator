@@ -206,19 +206,12 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	storageConsumer *ocsv1alpha1.StorageConsumer,
 ) error {
 
-	rbdClaimName := util.GenerateNameForCephBlockPoolStorageClass(storageCluster)
-	rbdStorageRequestName := getStorageRequestName(string(storageConsumer.UID), rbdClaimName)
-	rbdStorageRequestMd5Sum := md5.Sum([]byte(rbdStorageRequestName))
-	rnsName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(rbdStorageRequestMd5Sum[:16]))
-
-	// Removing the onwerRef from rns to preserve it after deletion the StorageRequest
-	if err := r.removeStorageRequestOwner(ctx, "CephBlockPoolRadosNamespace", rnsName, storageConsumer.Namespace); err != nil {
-		return err
-	}
-
 	rbdStorageRequest := &metav1.PartialObjectMetadata{}
 	rbdStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
-	rbdStorageRequest.Name = rbdStorageRequestName
+	rbdStorageRequest.Name = getStorageRequestName(
+		string(storageConsumer.UID),
+		util.GenerateNameForCephBlockPoolStorageClass(storageCluster),
+	)
 	rbdStorageRequest.Namespace = storageConsumer.Namespace
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(rbdStorageRequest), rbdStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
