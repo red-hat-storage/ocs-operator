@@ -299,12 +299,15 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			return nil, err
 		}
 
+		isKeyRotationEnabled := storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation]
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumerObj,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
+			isKeyRotationEnabled,
 		)
 
 		response.DesiredConfigHash = desiredClientConfigHash
@@ -393,6 +396,8 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		isKeyRotationEnabled := storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation]
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
@@ -400,6 +405,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
+			isKeyRotationEnabled,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -664,6 +670,8 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 	}
 
+	isKeyRotationEnabled := storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation]
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -671,6 +679,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
+		isKeyRotationEnabled,
 	)
 
 	return &pb.ReportStatusResponse{
