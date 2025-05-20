@@ -25,6 +25,7 @@ const (
 	InProgressPhaseStatus
 	SucceededPhaseStatus
 	FailedPhaseStatus
+	InvalidPhaseStatus
 )
 
 type StorageAutoScalerCollector struct {
@@ -76,6 +77,8 @@ func (s *StorageAutoScalerCollector) collectStorageAutoScalerPhaseStatuses(ch ch
 			phaseStatus = succeededPhaseValidation(storageAutoScaler.Status.LastExpansion.CompletionTime)
 		case v1.StorageAutoScalerPhaseInProgress:
 			phaseStatus = InProgressPhaseStatus
+		case v1.StorageAutoScalerPhaseInvalid:
+			phaseStatus = InvalidPhaseStatus
 		default:
 			phaseStatus = NotStartedPhaseStatus
 		}
@@ -139,7 +142,8 @@ func NewStorageAutoScalerCollector(opts *options.Options) *StorageAutoScalerColl
 	return &StorageAutoScalerCollector{
 		AutoScalerPhaseStatus: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "storageautoscaler", "phase_status"),
-			fmt.Sprintf("Phases are; Not Started: %d, In Progress: %d, Succeessfull: %d, Failed: %d", NotStartedPhaseStatus, InProgressPhaseStatus, SucceededPhaseStatus, FailedPhaseStatus),
+			fmt.Sprintf("Phases are; Not Started: %d, In Progress: %d, Succeessfull: %d, Failed: %d, Invalid: %d",
+				NotStartedPhaseStatus, InProgressPhaseStatus, SucceededPhaseStatus, FailedPhaseStatus, InvalidPhaseStatus),
 			[]string{"name", "namespace", "storagecluster", "device_class"},
 			nil,
 		),
