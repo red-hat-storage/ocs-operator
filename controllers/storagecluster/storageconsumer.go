@@ -18,6 +18,8 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -145,6 +147,19 @@ func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageClus
 	return ctrl.Result{}, nil
 }
 
+func getExternalClassesBlaclistSelector() labels.Selector {
+	blackListRequirement, err := labels.NewRequirement(
+		util.ExternalClassLabelKey,
+		selection.NotEquals,
+		[]string{"true"},
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Error in external class label selector definition: %v", err))
+	}
+
+	return labels.NewSelector().Add(*blackListRequirement)
+}
+
 func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
 	[]ocsv1a1.StorageClassSpec, error) {
 
@@ -176,11 +191,13 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 
 	// for day2 storageclasses
 	storageClassesInCluster := &storagev1.StorageClassList{}
-	if err := kubeClient.List(ctx, storageClassesInCluster); err != nil {
+	if err := kubeClient.List(ctx, storageClassesInCluster, &client.MatchingLabelsSelector{
+		// not select storageclass with external labels
+		Selector: getExternalClassesBlaclistSelector(),
+	}); err != nil {
 		return nil, err
 	}
 	for idx := range storageClassesInCluster.Items {
-		// TODO: skip storageclasses that are from external mode if both internal & external mode is enabled
 		sc := &storageClassesInCluster.Items[idx]
 		if slices.Contains(supportedCsiDrivers, sc.Provisioner) {
 			storageClassNames[sc.Name] = true
@@ -209,7 +226,10 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 
 	// for day2 volumesnapshotclasses
 	volumeSnapshotClassesInCluster := &snapapi.VolumeSnapshotClassList{}
-	if err := kubeClient.List(ctx, volumeSnapshotClassesInCluster); err != nil {
+	if err := kubeClient.List(ctx, volumeSnapshotClassesInCluster, &client.MatchingLabelsSelector{
+		// not select snapshotclasses with external labels
+		Selector: getExternalClassesBlaclistSelector(),
+	}); err != nil {
 		return nil, err
 	}
 	for idx := range volumeSnapshotClassesInCluster.Items {
@@ -243,7 +263,10 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 	if crd.UID != "" {
 		// for day2 volumegroupsnapshotclasses
 		volumeGroupSnapshotClassesInCluster := &groupsnapapi.VolumeGroupSnapshotClassList{}
-		if err := kubeClient.List(ctx, volumeGroupSnapshotClassesInCluster); err != nil {
+		if err := kubeClient.List(ctx, volumeGroupSnapshotClassesInCluster, &client.MatchingLabelsSelector{
+			// not select groupsnapshotclasses with external labels
+			Selector: getExternalClassesBlaclistSelector(),
+		}); err != nil {
 			return nil, err
 		}
 		for idx := range volumeGroupSnapshotClassesInCluster.Items {

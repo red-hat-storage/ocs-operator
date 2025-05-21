@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	"context"
-	"crypto/sha512"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -78,14 +77,6 @@ func checkEndpointReachable(endpoint string, timeout time.Duration) error {
 	return nil
 }
 
-func sha512sum(tobeHashed []byte) (string, error) {
-	h := sha512.New()
-	if _, err := h.Write(tobeHashed); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
-}
-
 func parseMonitoringIPs(monIP string) []string {
 	return strings.Fields(strings.ReplaceAll(monIP, ",", " "))
 }
@@ -98,14 +89,6 @@ func findNamedResourceFromArray(extArr []ExternalResource, name string) (Externa
 		}
 	}
 	return ExternalResource{}, fmt.Errorf("Unable to retrieve %q external resource", name)
-}
-
-func (r *StorageClusterReconciler) getExternalSecretDataChecksum(instance *ocsv1.StorageCluster) (string, error) {
-	found, err := r.retrieveSecret(externalClusterDetailsSecret, instance)
-	if err != nil {
-		return "", err
-	}
-	return sha512sum(found.Data[externalClusterDetailsKey])
 }
 
 // retrieveSecret function retrieves the secret object with the specified name
@@ -225,26 +208,12 @@ func (r *StorageClusterReconciler) newExternalCephObjectStoreInstances(
 // being created
 func (obj *ocsExternalResources) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	// rhcs external mode
-	extSecretChecksum, err := r.getExternalSecretDataChecksum(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to get checksum of external secret data.")
-		return reconcile.Result{}, err
-	}
-
-	// if the 'ExternalSecretHash' and fetched hash are same, then return
-	if instance.Status.ExternalSecretHash == extSecretChecksum {
-		return reconcile.Result{}, nil
-	}
-
-	err = r.createExternalStorageClusterResources(instance)
+	err := r.createExternalStorageClusterResources(instance)
 	if err != nil {
 		r.Log.Error(err, "Could not create ExternalStorageClusterResource.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		return reconcile.Result{}, err
 	}
 
-	// external resources are successfully created, update the checksums in the status
-	instance.Status.ExternalSecretHash = extSecretChecksum
 	return reconcile.Result{}, nil
 }
 
@@ -460,6 +429,8 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			for k, v := range d.Data {
 				scc.storageClass.Parameters[k] = v
 			}
+			// add external mode label to storageclass
+			util.AddLabel(scc.storageClass, util.ExternalClassLabelKey, strconv.FormatBool(true))
 			availableSCCs = append(availableSCCs, scc)
 		}
 	}
@@ -552,7 +523,7 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 			if existing.DeletionTimestamp != nil {
 				return fmt.Errorf("failed to restore StorageClass  %s because it is marked for deletion", existing.Name)
 			}
-			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) {
+			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) || existing.Labels[util.ExternalClassLabelKey] != sc.Labels[util.ExternalClassLabelKey] {
 				// Since we have to update the existing StorageClass
 				// So, we will delete the existing storageclass and create a new one
 				r.Log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
