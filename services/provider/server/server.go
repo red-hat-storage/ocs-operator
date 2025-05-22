@@ -872,7 +872,25 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 		consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
 		if consumerConfig.GetRbdRadosNamespaceName() != "" {
 			clientInfo.RadosNamespace = consumerConfig.GetRbdRadosNamespaceName()
+			var fsid string
+			if cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace); err != nil {
+				klog.Errorf("failed to get cephCluster in namespace %s: %v", s.namespace, err)
+				continue
+			} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+				klog.Infof("waiting for Ceph FSID")
+				continue
+			} else {
+				fsid = cephCluster.Status.CephStatus.FSID
+			}
+
+			rbdStorageId := calculateCephRbdStorageID(
+				fsid,
+				consumerConfig.GetRbdRadosNamespaceName(),
+			)
+			clientInfo.RbdStorageID = rbdStorageId
 		}
+
+		clientInfo.ClientProfile[consumerConfig.GetRbdClientProfileNameKey()] = consumerConfig.GetRbdClientProfileName()
 
 		response.ClientsInfo = append(response.ClientsInfo, clientInfo)
 	}

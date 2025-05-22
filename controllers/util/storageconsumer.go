@@ -79,6 +79,20 @@ type StorageConsumerResources interface {
 	ReplaceRbdClientProfileName(string)
 	ReplaceCephFsClientProfileName(string)
 	ReplaceNfsClientProfileName(string)
+
+	// Getters for keys
+	GetRbdRadosNamespaceNameKey() string
+	GetSubVolumeGroupNameKey() string
+	GetSubVolumeGroupRadosNamespaceNameKey() string
+	GetCsiRbdProvisionerCephUserNameKey() string
+	GetCsiRbdNodeCephUserNameKey() string
+	GetCsiCephFsProvisionerCephUserNameKey() string
+	GetCsiCephFsNodeCephUserNameKey() string
+	GetCsiNfsProvisionerCephUserNameKey() string
+	GetCsiNfsNodeCephUserNameKey() string
+	GetRbdClientProfileNameKey() string
+	GetCephFsClientProfileNameKey() string
+	GetNfsClientProfileNameKey() string
 }
 
 type storageConsumerResourceMapWrapper struct {
@@ -87,6 +101,54 @@ type storageConsumerResourceMapWrapper struct {
 
 func WrapStorageConsumerResourceMap(data map[string]string) StorageConsumerResources {
 	return &storageConsumerResourceMapWrapper{data: data}
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetRbdRadosNamespaceNameKey() string {
+	return rbdRadosNamespaceKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetSubVolumeGroupNameKey() string {
+	return subVolumeGroupKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetSubVolumeGroupRadosNamespaceNameKey() string {
+	return subVolumeGroupRadosNamespaceKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCsiRbdProvisionerCephUserNameKey() string {
+	return csiRbdProvisionerCephUserKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCsiRbdNodeCephUserNameKey() string {
+	return csiRbdNodeCephUserKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCsiCephFsProvisionerCephUserNameKey() string {
+	return csiCephFsProvisionerCephUserKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCsiCephFsNodeCephUserNameKey() string {
+	return csiCephFsNodeCephUserKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCsiNfsProvisionerCephUserNameKey() string {
+	return csiNfsProvisionerCephUserKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCsiNfsNodeCephUserNameKey() string {
+	return csiNfsNodeCephUserKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetRbdClientProfileNameKey() string {
+	return rbdClientProfileKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCephFsClientProfileNameKey() string {
+	return cephFsClientProfileKey
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetNfsClientProfileNameKey() string {
+	return nfsClientProfileKey
 }
 
 // Getters
