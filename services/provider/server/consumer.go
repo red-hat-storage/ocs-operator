@@ -227,3 +227,24 @@ func (c *ocsConsumerManager) GetByClientID(ctx context.Context, clientID string)
 	}
 	return nil, nil
 }
+
+func (c *ocsConsumerManager) ClearClientInformation(ctx context.Context, consumerID string) error {
+	uid := types.UID(consumerID)
+	c.mutex.RLock()
+	consumerName, ok := c.nameByUID[uid]
+	c.mutex.RUnlock()
+	if !ok {
+		return fmt.Errorf("no storageConsumer found with the UID %q", consumerID)
+	}
+	consumer := &ocsv1alpha1.StorageConsumer{}
+	consumer.Name = consumerName
+	consumer.Namespace = c.namespace
+	patch := client.RawPatch(types.MergePatchType, []byte(`{"status":{"client":null}}`))
+	err := c.client.Status().Patch(ctx, consumer, patch)
+	if err != nil {
+		return fmt.Errorf("failed to remove client information from storageConsumer status %v: %v", consumerName, err)
+	}
+
+	klog.Infof("successfully removed client information from storageConsumer %v", consumerName)
+	return nil
+}
