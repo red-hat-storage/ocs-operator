@@ -3,6 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgocache "k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sync"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -24,23 +28,70 @@ type ocsConsumerManager struct {
 }
 
 func newConsumerManager(ctx context.Context, cl client.Client, namespace string) (*ocsConsumerManager, error) {
-	consumers := &ocsv1alpha1.StorageConsumerList{}
-	err := cl.List(ctx, consumers, client.InNamespace(namespace))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list storage consumers. %v", err)
-	}
 
-	nameByUID := map[types.UID]string{}
-
-	for _, consumer := range consumers.Items {
-		nameByUID[consumer.UID] = consumer.Name
-	}
-
-	return &ocsConsumerManager{
+	consumerManager := &ocsConsumerManager{
 		client:    cl,
 		namespace: namespace,
-		nameByUID: nameByUID,
-	}, nil
+		nameByUID: map[types.UID]string{},
+	}
+
+	scheme := runtime.NewScheme()
+	if err := ocsv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
+	}
+
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := cache.New(config, cache.Options{Scheme: scheme})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache: %w", err)
+	}
+
+	consumer := &metav1.PartialObjectMetadata{}
+	consumer.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageConsumer"))
+
+	informer, err := c.GetInformer(context.Background(), consumer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get informer: %w", err)
+	}
+	if _, err = informer.AddEventHandler(clientgocache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			consumer, ok := obj.(*metav1.PartialObjectMetadata)
+			if !ok {
+				return
+			}
+			consumerManager.mutex.RLock()
+			consumerManager.nameByUID[consumer.GetUID()] = consumer.Name
+			consumerManager.mutex.RUnlock()
+		},
+
+		DeleteFunc: func(obj any) {
+			consumer, ok := obj.(*metav1.PartialObjectMetadata)
+			if !ok {
+				return
+			}
+			consumerManager.mutex.RLock()
+			delete(consumerManager.nameByUID, consumer.GetUID())
+			consumerManager.mutex.RUnlock()
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("failed to create informer: %w", err)
+	}
+
+	go func() {
+		if err := c.Start(ctx); err != nil {
+			panic(fmt.Errorf("cache failed to start: %w", err))
+		}
+	}()
+
+	if !c.WaitForCacheSync(ctx) {
+		panic("cache did not sync")
+	}
+
+	return consumerManager, nil
 }
 
 // Delete deletes the storageConsumer resource using UID and updates the consumer cache
@@ -97,12 +148,7 @@ func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, consumer
 		klog.Errorf("Failed to enable storageConsumer %v", err)
 		return "", fmt.Errorf("failed to update storageConsumer resource %q. %v", consumer.Name, err)
 	}
-
-	c.mutex.Lock()
-	c.nameByUID[consumer.UID] = consumer.Name
-	c.mutex.Unlock()
 	klog.Infof("successfully Enabled the StorageConsumer resource %q", consumer.Name)
-
 	return string(consumer.UID), nil
 }
 
@@ -134,10 +180,6 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	consumerObj := &ocsv1alpha1.StorageConsumer{}
 	if err := c.client.Get(ctx, types.NamespacedName{Name: consumerName, Namespace: c.namespace}, consumerObj); err != nil {
 		if kerrors.IsNotFound(err) {
-			// update uidStore
-			c.mutex.Lock()
-			delete(c.nameByUID, uid)
-			c.mutex.Unlock()
 			return nil, fmt.Errorf("storageConsumer resource %q not found. %v", consumerName, err)
 		}
 		return nil, fmt.Errorf("failed to get storageConsumer resource with name %q. %v", consumerName, err)
