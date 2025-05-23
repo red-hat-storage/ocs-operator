@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
@@ -323,6 +324,16 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			),
 		).
+		// Watcher for csiDriver
+		Watches(
+			&csiopv1a1.Driver{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      util.RbdDriverName,
+					Namespace: r.OperatorNamespace,
+				},
+			},
+			enqueueOCSInit,
+		).
 		// Watcher for rook-ceph-operator-config cm
 		Watches(
 			&corev1.ConfigMap{
@@ -493,6 +504,29 @@ func (r *OCSInitializationReconciler) getCsiTolerations(csiTolerationKey string)
 	return tolerations
 }
 
+func patchCsiDriver(ctx context.Context, cl client.Client, log *logr.Logger, topologyDomainLabelsKey, namespace string) error {
+	// patch the csi driver to add the topology domain labels
+	rbdDriver := &csiopv1a1.Driver{}
+	err := cl.Get(ctx, types.NamespacedName{Name: util.RbdDriverName, Namespace: namespace}, rbdDriver)
+	if err != nil {
+		log.Error(err, "Failed to get csi driver")
+		return err
+	}
+
+	originalRbddriver := rbdDriver.DeepCopy()
+
+	rbdDriver.Spec.NodePlugin.Topology = &csiopv1a1.TopologySpec{
+		DomainLabels: []string{topologyDomainLabelsKey},
+	}
+
+	err = cl.Patch(ctx, rbdDriver, client.MergeFrom(originalRbddriver))
+	if err != nil {
+		log.Error(err, "Failed to patch csi driver")
+		return err
+	}
+	return nil
+}
+
 // ensureOcsOperatorConfigExists ensures that the ocs-operator-config exists & if not create/update it with required values
 // This configmap is reserved just for ocs operator use, primarily meant for passing values to rook-ceph-operator
 // It is not meant to be modified by the user
@@ -515,6 +549,14 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
 		util.EnableCephfsKey:             enableCephfsVal,
 		util.DisableCSIDriverKey:         strconv.FormatBool(true),
+	}
+
+	if util.EnableTopologyKey == "true" {
+		err = patchCsiDriver(r.ctx, r.Client, &r.Log, util.TopologyDomainLabelsKey, initialData.Namespace)
+		if err != nil {
+			r.Log.Error(err, "Failed to patch csi driver")
+			return err
+		}
 	}
 
 	ocsOperatorConfig := &corev1.ConfigMap{
