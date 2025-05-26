@@ -25,7 +25,6 @@ rules:
   - apiGroups:
       - ocs.openshift.io
     resources:
-      - storageconsumers
       - storageconsumers/finalizers
       - storageconsumers/status
     verbs:
@@ -33,6 +32,16 @@ rules:
       - list
       - create
       - delete
+      - update
+      - patch
+  - apiGroups:
+      - ocs.openshift.io
+    resources:
+      - storageconsumers
+    verbs:
+      - get
+      - list
+      - create
       - update
       - patch
   - apiGroups:
