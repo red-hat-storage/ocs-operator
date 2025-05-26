@@ -118,11 +118,51 @@ message StorageConfigResponse{
     SystemAttributes systemAttributes = 3;
 }
 
+// KubeObjectReconcilePolicy lists all of the possible actions the client should take whenever it 
+// process a KubeObject message
+enum KubeObjectReconcilePolicy {
+    // CreateOnly instructs the client to create the resources using the desired state encoded in the message.
+    // The resource will not get updated if it already exists
+    CreateOnly = 0;
+    // UpdateOnly instructs the client to update an existing kube object if its actual state differs from the 
+    // desired state encoded in the message. The kube object will not get created if it does not already
+    // exists
+    UpdateOnly = 1;
+    // CreateOrUpdate instructs the client to create the kube object if it does not exists, or update it if
+    // its state differs from the state encoded in provided message
+    CreateOrUpdate = 2;
+}
+
+// KubeObjectUpdateStrartegy lists the possible strategy the client is expected to follow when there is a need to 
+// update a kube object
+enum KubeObjectUpdateStrategy {
+    // Update expects the client to use k8s update operator to update the kube object. If the update is not allowed 
+    // (as in the case of an immutable field) no further action will be taken. ResourceVersion conflicts will 
+    // be honored.
+    Update = 0;
+    // Patch expects the client to use k8s patch operator to update the kube object. If the patch is not allowed 
+    // (as in the case of an immutable field) no further action will be taken. ResourceVersion conflicts will
+    // be ignored.
+    Patch = 1;
+    // Replace expects the client to delete the existing kube object and replace it with a new kube object created
+    // from the desired state
+    Replace = 2;
+    // UpdateWithReplaceAsFallback behave similar to Update, but if the update is not allowed (as in the case of 
+    // an immutable field) the client is expected to fallback to Replace behavior
+    UpdateWithReplaceAsFallback = 3;
+}
+
 // KubeObject holds information about a kube object needed for its reconciliation by the 
 // client operator
 message KubeObject {
     // Bytes holds the serialized bytes of the kube object
     bytes bytes  = 1;
+    // KubeObjectReconcilePolicy describes the actin the client should and should not 
+    // take to reconcile a kube object
+    KubeObjectReconcilePolicy reconcilePolicy = 2;
+    // KubeObjectUpdateStrategy describes the means the client should take to update 
+    // an existing instance of a kube object
+    KubeObjectUpdateStrategy updateStrategy = 3;
 }
 
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
@@ -143,6 +183,7 @@ message GetDesiredClientStateResponse{
     // kubeObjects holds the definition and metadata for all kube objects to be reconciled
     // by the client operator
     repeated KubeObject kubeObjects = 6;
+    
 }
 
 
