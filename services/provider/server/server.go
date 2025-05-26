@@ -358,7 +358,9 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			sanitizeKubeResource(kubeResource)
-			response.KubeResources = append(response.KubeResources, mustMarshal(kubeResource))
+			kubeResourceBytes := mustMarshal(kubeResource)
+			response.KubeResources = append(response.KubeResources, kubeResourceBytes)
+			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{ Bytes: kubeResourceBytes })
 		}
 
 		channelName, err := s.getOCSSubscriptionChannel(ctx)
