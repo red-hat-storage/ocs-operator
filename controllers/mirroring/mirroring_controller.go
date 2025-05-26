@@ -15,6 +15,7 @@ package mirroring
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -473,6 +474,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 
 	peerClientIDs := []string{}
 	storageConsumerByName := map[string]*ocsv1alpha1.StorageConsumer{}
+	storageConsumerByPeerClientID := map[string]*ocsv1alpha1.StorageConsumer{}
 	for localClientID, peerClientID := range clientMappingConfig.Data {
 		// Check if the storageConsumer with the ClientID exists, this is a fancy get operation as
 		// there will be only one consumer with the clientID
@@ -495,6 +497,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			continue
 		}
 		storageConsumerByName[storageConsumers.Items[0].Name] = &storageConsumers.Items[0]
+		storageConsumerByPeerClientID[peerClientID] = &storageConsumers.Items[0]
 		peerClientIDs = append(peerClientIDs, peerClientID)
 	}
 
@@ -526,6 +529,22 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 		for i := range response.ClientsInfo {
 			clientInfo := response.ClientsInfo[i]
 			remoteNamespaceByClientID[clientInfo.ClientID] = clientInfo.RadosNamespace
+
+			storageConsumer := storageConsumerByPeerClientID[clientInfo.ClientID]
+			marshaledClientInfo, err := json.Marshal(clientInfo)
+			if err != nil {
+				panic("failed to marshal")
+			}
+			util.AddAnnotation(storageConsumer, util.StorageConsumerMirroringInfoAnnotation, string(marshaledClientInfo))
+			if err := r.update(storageConsumer); err != nil {
+				r.log.Error(
+					err,
+					"failed to update StorageConsumer with mirroring info annotation",
+					"StorageConsumer",
+					client.ObjectKeyFromObject(storageConsumer),
+				)
+				errorOccurred = true
+			}
 		}
 
 		radosNamespaceList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
