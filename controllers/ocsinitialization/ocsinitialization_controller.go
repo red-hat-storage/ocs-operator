@@ -875,6 +875,14 @@ func (r *OCSInitializationReconciler) reconcilePrometheusOperatorCSV(initialData
 	if deploymentSpec == nil {
 		return fmt.Errorf("unable to find prometheus operator deployment spec")
 	}
+
+	deploymentSpec.Spec.Template.Spec.Tolerations = []corev1.Toleration{{
+		Key:      defaults.NodeTolerationKey,
+		Operator: corev1.TolerationOpEqual,
+		Value:    "true",
+		Effect:   corev1.TaintEffectNoSchedule,
+	}}
+
 	currentDeploymentSpec := deploymentSpec.DeepCopy()
 	deploymentSpec.Spec.Replicas = ptr.To(int32(1))
 	if !reflect.DeepEqual(currentDeploymentSpec, deploymentSpec) {
