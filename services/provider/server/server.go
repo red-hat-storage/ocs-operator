@@ -1433,7 +1433,6 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
-				storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
 			)
 		}
 	}
