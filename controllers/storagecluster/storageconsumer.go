@@ -72,6 +72,10 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 
 		controllerutil.AddFinalizer(storageConsumer, internalComponentFinalizer)
 
+		if val, ok := storageCluster.GetAnnotations()[defaults.KeyRotationEnableAnnotation]; ok {
+			util.AddAnnotation(storageConsumer, defaults.KeyRotationEnableAnnotation, val)
+		}
+
 		return nil
 	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer %s: %v", storageConsumer.Name, err)
