@@ -392,7 +392,6 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-node",
 						instance.Namespace,
 						"",
-						instance.GetAnnotations()[defaults.KeyRotationEnableAnnotation] == "false",
 					),
 					isClusterExternal: true,
 				}
