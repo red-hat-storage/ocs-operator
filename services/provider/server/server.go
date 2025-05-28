@@ -361,9 +361,14 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			kubeResourceBytes := mustMarshal(kubeResource)
 			response.KubeResources = append(response.KubeResources, kubeResourceBytes)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{
-				Bytes: kubeResourceBytes,
+				Bytes:           kubeResourceBytes,
 				ReconcilePolicy: pb.KubeObjectReconcilePolicy_CreateOrUpdate,
-				UpdateStrategy: pb.KubeObjectUpdateStrategy_UpdateWithReplaceAsFallback,
+				UpdateStrategy:  pb.KubeObjectUpdateStrategy_UpdateWithReplaceAsFallback,
+				Gvk: &pb.GroupVersionKind{
+					Group:   gvk.Group,
+					Version: gvk.Version,
+					Kind:    gvk.Kind,
+				},
 			})
 		}
 
