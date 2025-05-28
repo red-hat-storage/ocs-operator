@@ -30,7 +30,6 @@ import (
 	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
-	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -38,6 +37,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	groupsnapapi "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -361,9 +361,9 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			kubeResourceBytes := mustMarshal(kubeResource)
 			response.KubeResources = append(response.KubeResources, kubeResourceBytes)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{
-				Bytes: kubeResourceBytes,
+				Bytes:           kubeResourceBytes,
 				ReconcilePolicy: pb.KubeObjectReconcilePolicy_CreateOrUpdate,
-				UpdateStrategy: pb.KubeObjectUpdateStrategy_UpdateWithReplaceAsFallback,
+				UpdateStrategy:  pb.KubeObjectUpdateStrategy_UpdateWithReplaceAsFallback,
 			})
 		}
 
