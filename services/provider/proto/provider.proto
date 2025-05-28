@@ -152,6 +152,13 @@ enum KubeObjectUpdateStrategy {
     UpdateWithReplaceAsFallback = 3;
 }
 
+// GroupVersionKind unambiguously identifies a kind.
+message GroupVersionKind {
+  string group = 1;
+  string version = 2;
+  string kind = 3;
+}
+
 // KubeObject holds information about a kube object needed for its reconciliation by the 
 // client operator
 message KubeObject {
@@ -163,6 +170,8 @@ message KubeObject {
     // KubeObjectUpdateStrategy describes the means the client should take to update 
     // an existing instance of a kube object
     KubeObjectUpdateStrategy updateStrategy = 3;
+    // GVK of the serialized KubeObject
+    GroupVersionKind gvk = 4;
 }
 
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
