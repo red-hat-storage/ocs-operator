@@ -175,7 +175,7 @@ func NewDefaultEncryptedRbdStorageClass(
 	nodeSecret,
 	namespace,
 	encryptionServiceName string,
-	disableKeyRotation bool,
+	KeyRotationAnnotationValue string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -206,8 +206,8 @@ func NewDefaultEncryptedRbdStorageClass(
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
 		},
 	}
-	if disableKeyRotation {
-		AddAnnotation(sc, defaults.KeyRotationEnableAnnotation, "false")
+	if KeyRotationAnnotationValue != "" {
+		AddAnnotation(sc, defaults.KeyRotationEnableAnnotation, KeyRotationAnnotationValue)
 	}
 	return sc
 }
