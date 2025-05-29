@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -58,6 +60,7 @@ const (
 	StorageProfileLabel           = "ocs.openshift.io/storageprofile"
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
+	storageConsumerFinalizer      = "ocs.openshift.io/storageconsumer-protection"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -132,6 +135,14 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
+	if _, notAdjusted := r.storageConsumer.GetAnnotations()[util.TicketAnnotation]; notAdjusted {
+		r.Log.Error(
+			fmt.Errorf("upgraded 4.18 StorageConsumer"),
+			"waiting for StorageConsumer to be adjusted for 4.19",
+		)
+		return reconcile.Result{}, nil
+	}
+
 	r.storageConsumer.Status.CephResources = []*ocsv1alpha1.CephResourcesSpec{}
 	if r.storageConsumer.Spec.Enable {
 		return r.reconcileEnabledPhases()
@@ -153,7 +164,19 @@ func (r *StorageConsumerReconciler) reconcileNotEnabledPhases() (reconcile.Resul
 }
 
 func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, error) {
-	if r.storageConsumer.GetDeletionTimestamp().IsZero() {
+
+	markedForDeletion := !r.storageConsumer.GetDeletionTimestamp().IsZero()
+	_, hasForceDeleteAnnotation := r.storageConsumer.GetAnnotations()[util.ForceDeletionAnnotationKey]
+	forceDeleteRookCr := markedForDeletion && hasForceDeleteAnnotation
+
+	if !markedForDeletion || forceDeleteRookCr {
+		if controllerutil.AddFinalizer(r.storageConsumer, storageConsumerFinalizer) {
+			r.Log.Info("Finalizer not found for StorageConsumer. Adding finalizer.")
+			if err := r.Client.Update(r.ctx, r.storageConsumer); err != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to update StorageConsumer: %v", err)
+			}
+		}
+
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateConfiguring
 		if err := r.deleteOnboardingSecret(); err != nil {
 			return reconcile.Result{}, nil
@@ -162,14 +185,6 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, r.namespace)
 		if err != nil {
 			return reconcile.Result{}, err
-		}
-
-		if _, notAdjusted := r.storageConsumer.GetAnnotations()[util.TicketAnnotation]; notAdjusted {
-			r.Log.Error(
-				fmt.Errorf("upgraded 4.18 StorageConsumer"),
-				"waiting for StorageConsumer to be adjusted for 4.19",
-			)
-			return reconcile.Result{}, nil
 		}
 
 		availableServices, err := util.GetAvailableServices(r.ctx, r.Client, storageCluster)
@@ -216,6 +231,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 					consumerResources.GetRbdRadosNamespaceName(),
 					consumerConfigMap,
 					builtinBlockPools,
+					forceDeleteRookCr,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -240,6 +256,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 					util.GenerateNameForCephFilesystem(storageCluster.Name),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
+					forceDeleteRookCr,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -306,8 +323,19 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateReady
 		}
 
-	} else {
+	}
+
+	if markedForDeletion {
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
+		if r.storageConsumer.Status.Client == nil || hasForceDeleteAnnotation {
+			if controllerutil.RemoveFinalizer(r.storageConsumer, storageConsumerFinalizer) {
+				r.Log.Info("removing finalizer from StorageConsumer.")
+				if err := r.Client.Update(r.ctx, r.storageConsumer); err != nil {
+					r.Log.Info("Failed to remove finalizer from StorageConsumer")
+					return reconcile.Result{}, fmt.Errorf("failed to remove finalizer from StorageConsumer: %v", err)
+				}
+			}
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -437,6 +465,7 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 	radosNamespaceName string,
 	additionalOwner client.Object,
 	builtinBlockPools []string,
+	forceDelete bool,
 ) error {
 	blockPools := &rookCephv1.CephBlockPoolList{}
 	if err := r.List(r.ctx, blockPools, client.InNamespace(r.namespace)); err != nil {
@@ -479,6 +508,9 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 				}
 				rns.Spec.Name = radosNamespaceName
 				rns.Spec.BlockPoolName = bp.Name
+				if forceDelete {
+					util.AddAnnotation(rns, util.RookForceDeletionAnnotationKey, strconv.FormatBool(true))
+				}
 				return nil
 			}); err != nil {
 				multierr.AppendInto(&combinedErr, err)
@@ -495,6 +527,7 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
 	cephFileSystemName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
+	forceDelete bool,
 ) error {
 	cephFs := &rookCephv1.CephFilesystem{}
 	cephFs.Name = cephFileSystemName
@@ -516,6 +549,9 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
 		}
 		svg.Spec.FilesystemName = cephFs.Name
 		svg.Spec.Name = subVolumeGroupName
+		if forceDelete {
+			util.AddAnnotation(svg, util.RookForceDeletionAnnotationKey, strconv.FormatBool(true))
+		}
 		return nil
 	}); err != nil {
 		return err
@@ -777,8 +813,34 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
+	clientStatusPredicate := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			objOld := e.ObjectOld.(*ocsv1alpha1.StorageConsumer)
+			objNew := e.ObjectNew.(*ocsv1alpha1.StorageConsumer)
+			return objOld.Status.Client != nil && objNew.Status.Client == nil
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(
+			&ocsv1alpha1.StorageConsumer{},
+			builder.WithPredicates(
+				predicate.Or(
+					predicate.GenerationChangedPredicate{},
+					predicate.AnnotationChangedPredicate{},
+					clientStatusPredicate,
+				),
+			),
+		).
 		Owns(&nbv1.NooBaaAccount{}).
 		Owns(&corev1.ConfigMap{}, builder.MatchEveryOwner).
 		Owns(

@@ -72,6 +72,8 @@ const (
 	OcsClientTimeout                     = 10 * time.Second
 	StorageClientMappingConfigName       = "storage-client-mapping"
 	ExternalClassLabelKey                = "storageclass.ocs.openshift.io/is-external"
+	ForceDeletionAnnotationKey           = "ocs.openshift.io/force-deletion"
+	RookForceDeletionAnnotationKey       = "rook.io/force-deletion"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
