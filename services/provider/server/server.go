@@ -360,11 +360,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			sanitizeKubeResource(kubeResource)
 			kubeResourceBytes := mustMarshal(kubeResource)
 			response.KubeResources = append(response.KubeResources, kubeResourceBytes)
-			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{
-				Bytes: kubeResourceBytes,
-				ReconcilePolicy: pb.KubeObjectReconcilePolicy_CreateOrUpdate,
-				UpdateStrategy: pb.KubeObjectUpdateStrategy_UpdateWithReplaceAsFallback,
-			})
+			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{ Bytes: kubeResourceBytes })
 		}
 
 		channelName, err := s.getOCSSubscriptionChannel(ctx)
