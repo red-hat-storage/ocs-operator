@@ -72,6 +72,7 @@ const (
 	monSecret                        = "rook-ceph-mon"
 	volumeReplicationClass5mSchedule = "5m"
 	mirroringTokenKey                = "rbdMirrorBootstrapPeerSecretName"
+	clientInfoRbdClientProfileKey    = "csiop-rbd-client-profile"
 )
 
 type OCSProviderServer struct {
@@ -820,6 +821,18 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 	klog.Infof("GetStorageClientsInfo called with request: %s", req)
 
 	response := &pb.StorageClientsInfoResponse{}
+
+	var fsid string
+	if cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace); err != nil {
+		klog.Errorf("failed to get cephCluster in namespace %s: %v", s.namespace, err)
+		return nil, status.Error(codes.Internal, "failed loading client information")
+	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+		klog.Errorf("waiting for Ceph FSID")
+		return nil, status.Error(codes.Internal, "failed loading client information")
+	} else {
+		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
 	for i := range req.ClientIDs {
 		consumer, err := s.consumerManager.GetByClientID(ctx, req.ClientIDs[i])
 		if err != nil {
@@ -870,11 +883,13 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			continue
 		}
 
-		clientInfo := &pb.ClientInfo{ClientID: req.ClientIDs[i]}
+		clientInfo := &pb.ClientInfo{ClientID: req.ClientIDs[i], ClientProfiles: map[string]string{}}
 
 		consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
-		if consumerConfig.GetRbdRadosNamespaceName() != "" {
-			clientInfo.RadosNamespace = consumerConfig.GetRbdRadosNamespaceName()
+		if rns := consumerConfig.GetRbdRadosNamespaceName(); rns != "" {
+			clientInfo.RadosNamespace = rns
+			clientInfo.RbdStorageID = calculateCephRbdStorageID(fsid, rns)
+			clientInfo.ClientProfiles[clientInfoRbdClientProfileKey] = consumerConfig.GetRbdClientProfileName()
 		}
 
 		response.ClientsInfo = append(response.ClientsInfo, clientInfo)
