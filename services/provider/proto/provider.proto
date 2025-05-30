@@ -123,6 +123,8 @@ message StorageConfigResponse{
 message KubeObject {
     // Bytes holds the serialized bytes of the kube object
     bytes bytes  = 1;
+    // GroupVersionKind unambiguously identifies the kind of serialized bytes
+    string groupVersionKind = 2;
 }
 
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
