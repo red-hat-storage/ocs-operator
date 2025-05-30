@@ -1,13 +1,17 @@
 package storagecluster
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strconv"
 
+	nadv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +25,10 @@ const (
 	ocsClientConfigMapName             = "ocs-client-operator-config"
 	manageNoobaaSubKey                 = "manageNoobaaSubscription"
 	useHostNetworkForCsiControllersKey = "useHostNetworkForCsiControllers"
+	// cephNetworkAnnotationKey is the annotation key used to store network details used by ceph
+	cniNetworksAnnotationKey = "k8s.v1.cni.cncf.io/networks"
+	// cephPublicNetworkType is the type of network used by Ceph for public communication
+	cephPublicNetworkType = "public"
 )
 
 type storageClient struct{}
@@ -66,6 +74,14 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 		storageClient.Spec.StorageProviderEndpoint = fmt.Sprintf("%s.%s.svc:%d", ocsProviderServerName, storagecluster.Namespace, ocsProviderServicePort)
 
 		controllerutil.AddFinalizer(storageClient, internalComponentFinalizer)
+
+		if storagecluster.Spec.Network != nil && storagecluster.Spec.Network.IsMultus() {
+			cephNWAnnotationValue, err := getCephNetworkAnnotationValue(storagecluster.Spec.Network, storagecluster.Namespace)
+			if err != nil {
+				return fmt.Errorf("failed to get Ceph network annotation value: %v", err)
+			}
+			util.AddAnnotation(storageClient, cniNetworksAnnotationKey, cephNWAnnotationValue)
+		}
 
 		return nil
 	})
@@ -125,4 +141,20 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 	}
 
 	return nil
+}
+
+// getCephNetworkAnnotationValue returns the network annotation value for the given StorageCluster NetworkSpec.
+func getCephNetworkAnnotationValue(cephNetworkSpec *rookCephv1.NetworkSpec, scNamespace string) (string, error) {
+	if len(cephNetworkSpec.Selectors) != 0 {
+		networkSelectionElement, err := cephNetworkSpec.GetNetworkSelection(scNamespace, rookCephv1.CephNetworkType(cephPublicNetworkType))
+		if err != nil || networkSelectionElement == nil {
+			return "", fmt.Errorf("failed to get network selection element: %v", err)
+		}
+		nwAnnotation, err := json.Marshal([]*nadv1.NetworkSelectionElement{networkSelectionElement})
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal network selection elements: %v", err)
+		}
+		return string(nwAnnotation), nil
+	}
+	return "", fmt.Errorf("invalid ceph network spec")
 }
