@@ -1236,6 +1236,20 @@ func (s *OCSProviderServer) getDesiredCephConnection(
 		},
 		Spec: csiopv1a1.CephConnectionSpec{
 			Monitors: monIps,
+			ReadAffinity: &csiopv1a1.ReadAffinitySpec{
+				CrushLocationLabels: []string{
+					"topology.rook.io/chassis",
+					"topology.rook.io/rack",
+					"topology.rook.io/row",
+					"topology.rook.io/pdu",
+					"topology.rook.io/pod",
+					"topology.rook.io/room",
+					"topology.rook.io/datacenter",
+					"topology.kubernetes.io/region",
+					"topology.kubernetes.io/zone",
+					"kubernetes.io/hostname",
+				},
+			},
 		},
 	}, nil
 }
