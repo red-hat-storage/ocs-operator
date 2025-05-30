@@ -22,7 +22,6 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
@@ -992,69 +991,15 @@ func calculateCephFsStorageID(cephfsid, subVolumeGroupName string) string {
 	return util.CalculateMD5Hash([2]string{cephfsid, subVolumeGroupName})
 }
 
-func getPeerCephFSID(ctx context.Context, cl client.Client, secretName, namespace string) (string, error) {
-	secret := &corev1.Secret{}
-	secret.Name = secretName
-	secret.Namespace = namespace
-	err := cl.Get(ctx, client.ObjectKeyFromObject(secret), secret)
-	if err != nil {
+func (s *OCSProviderServer) getPeerStorageID(
+	consumer *ocsv1alpha1.StorageConsumer,
+) (string, error) {
+	peerClientInfoInBytes := []byte(consumer.GetAnnotations()[util.StorageConsumerMirroringInfoAnnotation])
+	peerClientInfo := &pb.ClientInfo{}
+	if err := json.Unmarshal(peerClientInfoInBytes, peerClientInfo); err != nil {
 		return "", err
 	}
-	decodeString, err := base64.StdEncoding.DecodeString(string(secret.Data["token"]))
-	if err != nil {
-		return "", err
-	}
-	token := struct {
-		FSID string `json:"fsid"`
-	}{}
-	err = json.Unmarshal(decodeString, &token)
-	if err != nil {
-		return "", err
-	}
-	return token.FSID, nil
-}
-
-func (s *OCSProviderServer) getPeerStorageID(ctx context.Context, storageCluster *ocsv1.StorageCluster, namespace, radosnamespace string) (string, error) {
-	blockPool := &rookCephv1.CephBlockPool{}
-	blockPool.Name = util.GenerateNameForCephBlockPool(storageCluster.Name)
-	blockPool.Namespace = namespace
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(blockPool), blockPool); err != nil {
-		return "", fmt.Errorf("failed to get %s CephBlockPool. %v", blockPool.Name, err)
-	}
-
-	peerCephfsid, err := getPeerCephFSID(
-		ctx,
-		s.client,
-		mirroring.GetMirroringSecretName(blockPool.Name),
-		blockPool.Namespace,
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to get peer Ceph FSID. %v", err)
-	}
-
-	rns := &rookCephv1.CephBlockPoolRadosNamespace{}
-	rns.Name = fmt.Sprintf("%s-%s", blockPool.Name, radosnamespace)
-	if radosnamespace == util.ImplicitRbdRadosNamespaceName {
-		rns.Name = fmt.Sprintf(
-			"%s-builtin-%s",
-			blockPool.Name,
-			util.ImplicitRbdRadosNamespaceName[1:len(util.ImplicitRbdRadosNamespaceName)-1],
-		)
-	}
-	rns.Namespace = namespace
-	if err := s.client.Get(ctx, client.ObjectKeyFromObject(rns), rns); err != nil {
-		return "", err
-	}
-
-	if rns.Spec.Mirroring == nil {
-		return "", fmt.Errorf("failed to get mirroring details")
-	}
-
-	peerStorageID := calculateCephRbdStorageID(
-		peerCephfsid,
-		*rns.Spec.Mirroring.RemoteNamespace,
-	)
-	return peerStorageID, nil
+	return peerClientInfo.RbdStorageID, nil
 }
 
 func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) ([]client.Object, error) {
@@ -1191,6 +1136,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		ctx,
 		kubeResources,
 		consumer,
+		consumerConfig,
 	)
 	if err != nil {
 		return nil, err
@@ -1663,9 +1609,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 		return kubeResources, nil
 	}
 
-	//TODO: this is a ugly hack to generate the peerStorageID for generating replicationID
-	// peerStorageID should come from GetStorageClientInfo
-	peerStorageID, err := s.getPeerStorageID(ctx, storageCluster, consumer.Namespace, consumerConfig.GetRbdRadosNamespaceName())
+	peerStorageID, err := s.getPeerStorageID(consumer)
 	if err != nil {
 		return kubeResources, err
 	}
@@ -1755,6 +1699,7 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 	ctx context.Context,
 	kubeResources []client.Object,
 	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
 ) ([]client.Object, error) {
 	cbpList := &rookCephv1.CephBlockPoolList{}
 	if err := s.client.List(ctx, cbpList, client.InNamespace(s.namespace)); err != nil {
@@ -1774,29 +1719,33 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 	}
 
 	if len(blockPoolMapping) > 0 {
-		// This is an assumption and should go away when deprecating the StorageClaim API
-		// The current proposal is to read the clientProfile name from the storageConsumer status and
-		// the remote ClientProfile name should be fetched from the GetClientsInfo rpc
-		clientName := consumer.Status.Client.Name
-		clientProfileName := util.CalculateMD5Hash(fmt.Sprintf("%s-ceph-rbd", clientName))
-		kubeResources = append(
-			kubeResources,
-			&csiopv1a1.ClientProfileMapping{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      consumer.Status.Client.Name,
-					Namespace: consumer.Status.Client.OperatorNamespace,
-				},
-				Spec: csiopv1a1.ClientProfileMappingSpec{
-					Mappings: []csiopv1a1.MappingsSpec{
-						{
-							LocalClientProfile:  clientProfileName,
-							RemoteClientProfile: clientProfileName,
-							BlockPoolIdMapping:  blockPoolMapping,
+		if peerClientInfoInBytes := consumer.GetAnnotations()[util.StorageConsumerMirroringInfoAnnotation]; peerClientInfoInBytes != "" {
+			peerClientInfo := &pb.ClientInfo{}
+			if err := json.Unmarshal([]byte(peerClientInfoInBytes), &peerClientInfo); err != nil {
+				return kubeResources, err
+			}
+
+			if remoteClientProfileName := peerClientInfo.ClientProfiles[clientInfoRbdClientProfileKey]; remoteClientProfileName != "" {
+				kubeResources = append(
+					kubeResources,
+					&csiopv1a1.ClientProfileMapping{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      consumer.Status.Client.Name,
+							Namespace: consumer.Status.Client.OperatorNamespace,
+						},
+						Spec: csiopv1a1.ClientProfileMappingSpec{
+							Mappings: []csiopv1a1.MappingsSpec{
+								{
+									LocalClientProfile:  consumerConfig.GetRbdClientProfileName(),
+									RemoteClientProfile: remoteClientProfileName,
+									BlockPoolIdMapping:  blockPoolMapping,
+								},
+							},
 						},
 					},
-				},
-			},
-		)
+				)
+			}
+		}
 	}
 	return kubeResources, nil
 }
