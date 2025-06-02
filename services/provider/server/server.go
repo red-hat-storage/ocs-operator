@@ -1123,6 +1123,19 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		return nil, err
 	}
 
+	kubeResources, err = s.appendVolumeGroupReplicationClassKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		rbdStorageId,
+		mirroringTargetInfo.RbdStorageID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendClusterResourceQuotaKubeResources(
 		kubeResources,
 		consumer,
@@ -1681,6 +1694,71 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 			return kubeResources, fmt.Errorf("unsupported Provisioner for VolumeReplicationClass")
 		}
 		kubeResources = append(kubeResources, vrc)
+	}
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendVolumeGroupReplicationClassKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	rbdStorageId string,
+	remoteRbdStorageId string,
+) ([]client.Object, error) {
+	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
+		return kubeResources, err
+	} else if !mirrorEnabled {
+		klog.Infof("skipping distribution of VolumeGroupReplicationClass as mirroring is not enabled for the consumer")
+		return kubeResources, nil
+	}
+
+	for i := range consumer.Spec.VolumeGroupReplicationClasses {
+		replicationClassName := consumer.Spec.VolumeGroupReplicationClasses[i].Name
+		//TODO: The code is written under the assumption VRC name is exactly the same as the template name and there
+		// is 1:1 mapping between template and vrc. The restriction will be relaxed in the future
+		vgrcTemplate := &templatev1.Template{}
+		vgrcTemplate.Name = replicationClassName
+		vgrcTemplate.Namespace = consumer.Namespace
+
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(vgrcTemplate), vgrcTemplate); err != nil {
+			return kubeResources, fmt.Errorf("failed to get VolumeGroupReplicationClass template: %s, %v", replicationClassName, err)
+		}
+
+		if len(vgrcTemplate.Objects) != 1 {
+			return kubeResources, fmt.Errorf("unexpected number of Volume Group Replication Class found expected 1")
+		}
+
+		vgrc := &replicationv1alpha1.VolumeGroupReplicationClass{}
+		if err := json.Unmarshal(vgrcTemplate.Objects[0].Raw, vgrc); err != nil {
+			return kubeResources, fmt.Errorf("failed to unmarshall volume group replication class: %s, %v", replicationClassName, err)
+
+		}
+
+		if vgrc.Name != replicationClassName {
+			return kubeResources, fmt.Errorf("volume group replication class name mismatch: %s, %v", replicationClassName, vgrc.Name)
+		}
+
+		switch vgrc.Spec.Provisioner {
+		case util.RbdDriverName:
+			// For VGRC the replicationID will be a combination of RBDStorageID, RemoteRBDStorageID and the poolName
+			// pool name is added to the VGRC's template
+			poolName := vgrc.Spec.Parameters["pool"]
+			storageIDs := []string{rbdStorageId, remoteRbdStorageId, poolName}
+			slices.Sort(storageIDs)
+			replicationID := util.CalculateMD5Hash(storageIDs)
+			vgrc.Spec.Parameters["replication.storage.openshift.io/group-replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerCephUserName()
+			vgrc.Spec.Parameters["replication.storage.openshift.io/group-replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
+			vgrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
+			util.AddLabel(vgrc, ramenDRStorageIDLabelKey, rbdStorageId)
+			util.AddLabel(vgrc, ramenMaintenanceModeLabelKey, "Failover")
+			util.AddLabel(vgrc, ramenDRReplicationIDLabelKey, replicationID)
+		default:
+			return kubeResources, fmt.Errorf("unsupported Provisioner for VolumeGroupReplicationClass")
+		}
+		kubeResources = append(kubeResources, vgrc)
 	}
 
 	return kubeResources, nil
