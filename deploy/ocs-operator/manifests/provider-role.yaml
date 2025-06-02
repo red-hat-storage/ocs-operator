@@ -44,6 +44,7 @@ rules:
       - create
       - update
       - patch
+      - watch
   - apiGroups:
       - ceph.rook.io
     resources:
