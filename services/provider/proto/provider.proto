@@ -273,11 +273,14 @@ message StorageClientsInfoRequest{
 }
 
 message ClientInfo{
+  // clientID holds a unique id that identifies an DF storage client
   string clientID = 1;
-  // For each client we are going to have the same radosnamespace,
-  // assumption based on existing supported feature set and plan for converged mode
+  // radosNamespace is the RBD radosnamespace name that is used by the client
   string radosNamespace = 2;
+  // rbdStorageID is a unique identifier for the RBD storage that is used by the client
   string rbdStorageID = 3;
+  // clientProfiles hold the CSI operator ClientProfile names utilized by the client
+  map<string,string> clientProfiles = 4;
 }
 
 enum ErrorCode{
