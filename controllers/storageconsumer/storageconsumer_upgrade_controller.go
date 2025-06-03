@@ -148,6 +148,7 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 		if err = r.Client.Delete(ctx, storageConsumer); err != nil {
 			return reconcile.Result{}, err
 		}
+		util.RestartPod(ctx, r.Client, &log, "ocs-provider-server", storageCluster.Namespace)
 	}
 
 	return reconcile.Result{}, nil
