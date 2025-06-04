@@ -15,6 +15,7 @@ package mirroring
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -471,38 +472,29 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 	*/
 	errorOccurred := false
 
-	peerClientIDs := []string{}
 	storageConsumerByName := map[string]*ocsv1alpha1.StorageConsumer{}
-	for localClientID, peerClientID := range clientMappingConfig.Data {
-		// Check if the storageConsumer with the ClientID exists, this is a fancy get operation as
-		// there will be only one consumer with the clientID
-		storageConsumers := &ocsv1alpha1.StorageConsumerList{}
-		if err := r.list(
-			storageConsumers,
-			client.MatchingFields{clientIDIndexName: localClientID},
-			client.Limit(2),
-		); err != nil {
-			r.log.Error(err, "failed to list the StorageConsumer")
-			errorOccurred = true
-			continue
-		}
-		if len(storageConsumers.Items) != 1 {
-			r.log.Error(
-				fmt.Errorf("invalid number of StorageConumers found"),
-				fmt.Sprintf("expected 1 StorageConsumer but got %v", len(storageConsumers.Items)),
-			)
-			errorOccurred = true
-			continue
-		}
-		storageConsumerByName[storageConsumers.Items[0].Name] = &storageConsumers.Items[0]
-		peerClientIDs = append(peerClientIDs, peerClientID)
+	storageConsumerByRemoteClientID := map[string]*ocsv1alpha1.StorageConsumer{}
+
+	storageConsumerList := &ocsv1alpha1.StorageConsumerList{}
+	if err := r.List(r.ctx, storageConsumerList); err != nil {
+		r.log.Error(err, "failed to list storage consumers")
+		return true
 	}
 
-	if len(peerClientIDs) > 0 && ocsClient != nil {
+	for i := range storageConsumerList.Items {
+		consumer := &storageConsumerList.Items[i]
+		if cl := consumer.Status.Client; cl != nil && clientMappingConfig.Data[cl.ID] != "" {
+			storageConsumerByName[consumer.Name] = consumer
+			remoteClientID := clientMappingConfig.Data[cl.ID]
+			storageConsumerByRemoteClientID[remoteClientID] = consumer
+		}
+	}
+
+	if len(storageConsumerByRemoteClientID) > 0 && ocsClient != nil {
 		response, err := ocsClient.GetStorageClientsInfo(
 			r.ctx,
 			storageClusterPeer.Status.PeerInfo.StorageClusterUid,
-			peerClientIDs,
+			maps.Keys(storageConsumerByRemoteClientID),
 		)
 		if err != nil {
 			r.log.Error(err, "failed to get StorageClient(s) info from Peer")
@@ -525,7 +517,23 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 		remoteNamespaceByClientID := map[string]string{}
 		for i := range response.ClientsInfo {
 			clientInfo := response.ClientsInfo[i]
-			remoteNamespaceByClientID[clientInfo.ClientID] = clientInfo.RadosNamespace
+
+			consumer := storageConsumerByRemoteClientID[clientInfo.ClientID]
+			remoteNamespaceByClientID[consumer.Status.Client.ID] = clientInfo.RadosNamespace
+			marshaledClientInfo, err := json.Marshal(clientInfo)
+			if err != nil {
+				panic("failed to marshal")
+			}
+			util.AddAnnotation(consumer, util.StorageConsumerMirroringInfoAnnotation, string(marshaledClientInfo))
+			if err := r.update(consumer); err != nil {
+				r.log.Error(
+					err,
+					"failed to update StorageConsumer with mirroring info annotation",
+					"StorageConsumer",
+					client.ObjectKeyFromObject(consumer),
+				)
+				errorOccurred = true
+			}
 		}
 
 		radosNamespaceList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
@@ -548,8 +556,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			if consumer == nil || consumer.Status.Client == nil {
 				continue
 			}
-			remoteClientID := clientMappingConfig.Data[consumer.Status.Client.ID]
-			remoteNamespace := remoteNamespaceByClientID[remoteClientID]
+			remoteNamespace := remoteNamespaceByClientID[consumer.Status.Client.ID]
 			_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
 				if remoteNamespace != "" && shouldMirror {
 					rns.Spec.Mirroring = &rookCephv1.RadosNamespaceMirroring{
