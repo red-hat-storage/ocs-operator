@@ -70,6 +70,15 @@ spec:
               storageQuotaInGiB:
                 description: StorageQuotaInGiB describes quota for the consumer
                 type: integer
+              volumeGroupReplicationClasses:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               volumeGroupSnapshotClasses:
                 items:
                   properties:
