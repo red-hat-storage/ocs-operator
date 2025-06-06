@@ -618,6 +618,7 @@ spec:
                     drop:
                     - all
                   readOnlyRootFilesystem: true
+                terminationMessagePolicy: FallbackToLogsOnError
                 volumeMounts:
                 - mountPath: /etc/private-key
                   name: onboarding-private-key
