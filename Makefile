@@ -72,6 +72,10 @@ verify-latest-deploy-yaml: gen-latest-deploy-yaml
 	@echo "Verifying deployment yaml changes"
 	hack/verify-latest-deploy-yaml.sh
 
+verify-protobuf: gen-protobuf
+	@echo "Verifying protobuf files"
+	hack/verify-protobuf.sh
+
 verify-latest-csv: gen-latest-csv
 	@echo "Verifying latest CSV"
 	hack/verify-latest-csv.sh
@@ -126,7 +130,7 @@ unit-test:
 	@echo "Executing unit tests"
 	hack/unit-test.sh
 
-ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-csv verify-operator-bundle verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-protobuf verify-latest-csv verify-operator-bundle verify-latest-deploy-yaml
 
 # Generate code
 generate: controller-gen
