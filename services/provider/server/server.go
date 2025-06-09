@@ -363,6 +363,8 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{Bytes: kubeResourceBytes})
 		}
 
+		response.ProviderVersion = ocsVersion.Version
+
 		channelName, err := s.getOCSSubscriptionChannel(ctx)
 		if err != nil {
 			klog.Errorf("failed to get channel name for Client Operator: %v", err)

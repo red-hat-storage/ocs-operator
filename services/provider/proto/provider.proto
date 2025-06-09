@@ -133,16 +133,18 @@ message GetDesiredClientStateResponse{
     // desiredStateHash is a hash for representing the latest desired state corresponding to 
     // this message
     string desiredStateHash = 2;
+    // providerVersion is the version of the ocs operator running on the provider cluster
+    string providerVersion = 3;
     // clientOperatorChannel indicate the desired channel that should be used for the 
     // the client operator
-    string clientOperatorChannel = 3;
+    string clientOperatorChannel = 4;
     // minatenanceMode indicates that the target client should consider itself in maintenance mode
-    bool maintenanceMode = 4;
+    bool maintenanceMode = 5;
     // mirrorEnabled indicates that the target client should consider itself enabled for mirroring
-    bool mirrorEnabled = 5;
+    bool mirrorEnabled = 6;
     // kubeObjects holds the definition and metadata for all kube objects to be reconciled
     // by the client operator
-    repeated KubeObject kubeObjects = 6;
+    repeated KubeObject kubeObjects = 7;
 }
 
 
