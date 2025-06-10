@@ -213,6 +213,11 @@ func (in *StorageConsumerSpec) DeepCopyInto(out *StorageConsumerSpec) {
 		*out = make([]VolumeGroupSnapshotClassSpec, len(*in))
 		copy(*out, *in)
 	}
+	if in.OdfVolumeGroupSnapshotClasses != nil {
+		in, out := &in.OdfVolumeGroupSnapshotClasses, &out.OdfVolumeGroupSnapshotClasses
+		*out = make([]VolumeGroupSnapshotClassSpec, len(*in))
+		copy(*out, *in)
+	}
 	if in.VolumeReplicationClasses != nil {
 		in, out := &in.VolumeReplicationClasses, &out.VolumeReplicationClasses
 		*out = make([]VolumeReplicationClassSpec, len(*in))
