@@ -143,6 +143,8 @@ message GetDesiredClientStateResponse{
     // kubeObjects holds the definition and metadata for all kube objects to be reconciled
     // by the client operator
     repeated KubeObject kubeObjects = 6;
+    // NonResilientPoolsTopologyKey for replica-1
+    string nonResilientPoolsTopologyKey = 7;
 }
 
 
