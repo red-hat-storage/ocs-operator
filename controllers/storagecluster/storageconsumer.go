@@ -76,6 +76,15 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			util.AddAnnotation(storageConsumer, defaults.KeyRotationEnableAnnotation, val)
 		}
 
+		if storageCluster.Spec.ManagedResources.CephNonResilientPools.Enable {
+			// add a annotation to the storageconsumer that has the topology key for non resilient pools
+			topologyKey := storageCluster.Status.FailureDomainKey
+			util.AddAnnotation(storageConsumer, util.AnnotationNonResilientPoolsTopologyKey, topologyKey)
+		} else {
+			// remove the annotation if it exists
+			delete(storageConsumer.GetAnnotations(), util.AnnotationNonResilientPoolsTopologyKey)
+		}
+
 		return nil
 	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer %s: %v", storageConsumer.Name, err)
