@@ -395,6 +395,14 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		topologyKey := ""
+		if consumer.GetAnnotations()[util.TopologyDomainLabelsKey] != "" {
+			// If the consumer has topology labels, we need to set the topology key
+			// in the response.
+			topologyKey = consumer.GetAnnotations()[util.TopologyDomainLabelsKey]
+		}
+		response.NonResilientPoolsTopologyKey = topologyKey
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
@@ -402,6 +410,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
+			topologyKey,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
