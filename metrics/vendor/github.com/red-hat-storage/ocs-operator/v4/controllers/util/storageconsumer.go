@@ -13,8 +13,9 @@ import (
 
 const (
 	// Reserved RadosNamespaceName for internal use and their representation at different layes
-	ImplicitRbdRadosNamespaceName = "<implicit>"
-	TicketAnnotation              = "ocs.openshift.io/provider-onboarding-ticket"
+	ImplicitRbdRadosNamespaceName          = "<implicit>"
+	TicketAnnotation                       = "ocs.openshift.io/provider-onboarding-ticket"
+	AnnotationNonResilientPoolsTopologyKey = "ocs.openshift.io/non-resilient-pools-topology-key"
 
 	// Constants for ConfigMap keys
 	rbdRadosNamespaceKey            = "rbd-rados-ns"
