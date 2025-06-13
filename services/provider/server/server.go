@@ -1133,13 +1133,15 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		return nil, err
 	}
 
-	kubeResources, err = s.appendNoobaaKubeResources(
-		ctx,
-		kubeResources,
-		consumer,
-	)
-	if err != nil {
-		return nil, err
+	if false {
+		kubeResources, err = s.appendNoobaaKubeResources(
+			ctx,
+			kubeResources,
+			consumer,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return kubeResources, nil
