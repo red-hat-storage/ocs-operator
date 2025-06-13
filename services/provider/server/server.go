@@ -49,12 +49,16 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 const (
@@ -694,21 +698,79 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		klog.Info("unable to find ocs-operator subscription")
 		return "", nil
 	}
-	if subscription.Status.InstalledCSV == "" {
+
+	// Check if the installed CSV of the subscription is in Succeeded phase
+	installedCSVName := subscription.Status.InstalledCSV
+	if installedCSVName == "" {
 		klog.Infof("Subscription %q does not have an installed CSV", subscription.Name)
 		return "", nil
 	}
-	csv := &opv1a1.ClusterServiceVersion{}
-	err = s.client.Get(ctx, client.ObjectKey{Name: subscription.Status.InstalledCSV, Namespace: s.namespace}, csv)
+	installedCSV := &opv1a1.ClusterServiceVersion{}
+	err = s.client.Get(ctx, client.ObjectKey{Name: installedCSVName, Namespace: s.namespace}, installedCSV)
 	if err != nil {
-		klog.Errorf("failed to get installed CSV %q: %v", subscription.Status.InstalledCSV, err)
+		klog.Errorf("failed to get installed CSV %q: %v", installedCSVName, err)
 		return "", err
 	}
-	if csv.Status.Phase != opv1a1.CSVPhaseSucceeded {
-		klog.Infof("installed CSV %q is in phase %q, not Succeeded", csv.Name, csv.Status.Phase)
+	if installedCSV.Status.Phase != opv1a1.CSVPhaseSucceeded {
+		klog.Infof("installed CSV %q is in phase %q, not Succeeded", installedCSV.Name, installedCSV.Status.Phase)
 		return "", nil
 	}
+
+	// check if the installed CSV is the expected one for the channel from the package manifest
+	expectedCSVName, err := getExpectedCSVNameForChannel(ctx, subscription.Spec.Package, s.namespace, subscription.Spec.Channel)
+	if err != nil {
+		return "", err
+	}
+	if installedCSVName != expectedCSVName {
+		klog.Infof("installed CSV %q does not match expected %q", installedCSV.Name, expectedCSVName)
+		return "", nil
+	}
+
 	return subscription.Spec.Channel, nil
+}
+
+func getExpectedCSVNameForChannel(ctx context.Context, PackageManifestname, namespace, channel string) (string, error) {
+	// Fetch PackageManifest
+	config, err := config.GetConfig()
+	if err != nil {
+		return "", err
+	}
+	dynClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return "", fmt.Errorf("failed to create new dynamic client. %v", err)
+	}
+	gvr := schema.GroupVersionResource{
+		Group:    "packages.operators.coreos.com",
+		Version:  "v1",
+		Resource: "packagemanifests",
+	}
+	obj, err := dynClient.Resource(gvr).Namespace(namespace).Get(ctx, PackageManifestname, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get PackageManifest %q: %w", PackageManifestname, err)
+	}
+
+	// Extract status.channels & Search for matching channel
+	channels, found, err := unstructured.NestedSlice(obj.Object, "status", "channels")
+	if err != nil || !found {
+		klog.Infof("channels not found in packagemanifest %q: %v", PackageManifestname, err)
+		return "", nil
+	}
+	for i := range channels {
+		chMap, ok := channels[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		if chMap["name"] == channel {
+			currentCSV, ok := chMap["currentCSV"].(string)
+			if !ok {
+				klog.Infof("currentCSV not found or invalid for channel %s, in packagemanifest", channel)
+				return "", nil
+			}
+			return currentCSV, nil
+		}
+	}
+
+	return "", fmt.Errorf("channel %q not found in PackageManifest", channel)
 }
 
 func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
