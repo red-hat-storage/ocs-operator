@@ -249,18 +249,18 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 	}
 
 	if !shouldMirror {
-		if controllerutil.RemoveFinalizer(clientMappingConfig, mirroringFinalizer) {
-			r.log.Info("removing finalizer from ConfigMap.")
-			if err := r.update(clientMappingConfig); err != nil {
-				r.log.Info("Failed to remove finalizer from ConfigMap")
-				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from ConfigMap: %v", err)
-			}
-		}
 		if controllerutil.RemoveFinalizer(storageClusterPeer, mirroringFinalizer) {
 			r.log.Info("removing finalizer from StorageClusterPeer.")
 			if err := r.update(storageClusterPeer); err != nil {
 				r.log.Info("Failed to remove finalizer from StorageClusterPeer")
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from StorageClusterPeer: %v", err)
+			}
+		}
+		if controllerutil.RemoveFinalizer(clientMappingConfig, mirroringFinalizer) {
+			r.log.Info("removing finalizer from ConfigMap.")
+			if err := r.update(clientMappingConfig); err != nil {
+				r.log.Info("Failed to remove finalizer from ConfigMap")
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from ConfigMap: %v", err)
 			}
 		}
 	}
