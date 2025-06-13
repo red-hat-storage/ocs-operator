@@ -223,7 +223,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 					&pb.ExternalResource{
 						Name: cephConn.Name,
 						Kind: "CephConnection",
-						Data: mustMarshal(cephConn.Spec),
+						Data: util.JsonMustMarshal(cephConn.Spec),
 					},
 				)
 			case quotav1.SchemeGroupVersion.WithKind("ClusterResourceQuota"):
@@ -233,7 +233,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 					&pb.ExternalResource{
 						Name: quota.Name,
 						Kind: "ClusterResourceQuota",
-						Data: mustMarshal(quota.Spec),
+						Data: util.JsonMustMarshal(quota.Spec),
 					},
 				)
 			case csiopv1a1.GroupVersion.WithKind("ClientProfileMapping"):
@@ -243,7 +243,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 					&pb.ExternalResource{
 						Name: clientProfileMapping.Name,
 						Kind: "ClientProfileMapping",
-						Data: mustMarshal(clientProfileMapping.Spec),
+						Data: util.JsonMustMarshal(clientProfileMapping.Spec),
 					},
 				)
 			case nbv1.SchemeGroupVersion.WithKind("Noobaa"):
@@ -253,7 +253,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 					&pb.ExternalResource{
 						Name: noobaa.Name,
 						Kind: "Noobaa",
-						Data: mustMarshal(noobaa.Spec),
+						Data: util.JsonMustMarshal(noobaa.Spec),
 					},
 				)
 			case corev1.SchemeGroupVersion.WithKind("Secret"):
@@ -268,7 +268,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 						&pb.ExternalResource{
 							Name: secret.Name,
 							Kind: "Secret",
-							Data: mustMarshal(oldSecretFormat),
+							Data: util.JsonMustMarshal(oldSecretFormat),
 						},
 					)
 				}
@@ -358,7 +358,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			sanitizeKubeResource(kubeResource)
-			kubeResourceBytes := mustMarshal(kubeResource)
+			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
 			response.KubeResources = append(response.KubeResources, kubeResourceBytes)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{Bytes: kubeResourceBytes})
 		}
@@ -389,7 +389,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, err
 		}
 
-		cephConnection, err := s.getDesiredCephConnection(ctx, consumer)
+		cephConnection, err := s.getDesiredCephConnection(ctx, consumer, storageCluster)
 		if err != nil {
 			klog.Error(err)
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
@@ -520,14 +520,6 @@ func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rs
 	}
 
 	return publicKey, nil
-}
-
-func mustMarshal[T any](value T) []byte {
-	newData, err := json.Marshal(value)
-	if err != nil {
-		panic("failed to marshal")
-	}
-	return newData
 }
 
 func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.OnboardingTicket, error) {
@@ -664,7 +656,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
 	}
 
-	cephConnection, err := s.getDesiredCephConnection(ctx, storageConsumer)
+	cephConnection, err := s.getDesiredCephConnection(ctx, storageConsumer, storageCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
@@ -1044,7 +1036,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 	}
 
 	kubeResources := []client.Object{}
-	if cephConnection, err := s.getDesiredCephConnection(ctx, consumer); err == nil {
+	if cephConnection, err := s.getDesiredCephConnection(ctx, consumer, storageCluster); err == nil {
 		kubeResources = append(kubeResources, cephConnection)
 	} else {
 		return nil, err
@@ -1156,6 +1148,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 func (s *OCSProviderServer) getDesiredCephConnection(
 	ctx context.Context,
 	consumer *ocsv1alpha1.StorageConsumer,
+	storageCluster *ocsv1.StorageCluster,
 ) (*csiopv1a1.CephConnection, error) {
 
 	configmap := &v1.ConfigMap{}
@@ -1174,13 +1167,39 @@ func (s *OCSProviderServer) getDesiredCephConnection(
 		return nil, fmt.Errorf("failed to extract monitor IPs from configmap %s: %v", monConfigMap, err)
 	}
 
+	readAffinityOptions := util.GetReadAffinityOptions(storageCluster)
+	readAffinityDisabledAnnotation, _ := strconv.ParseBool(consumer.Annotations["ocs.openshift.io/disable-read-affinity"])
+
+	var readAffinity *csiopv1a1.ReadAffinitySpec = nil
+	if readAffinityOptions.Enabled && !readAffinityDisabledAnnotation {
+		labels := readAffinityOptions.CrushLocationLabels
+		if len(labels) == 0 {
+			labels = []string{
+				"kubernetes.io/hostname",
+				"topology.kubernetes.io/region",
+				"topology.kubernetes.io/zone",
+				"topology.rook.io/datacenter",
+				"topology.rook.io/room",
+				"topology.rook.io/pod",
+				"topology.rook.io/pdu",
+				"topology.rook.io/row",
+				"topology.rook.io/rack",
+				"topology.rook.io/chassis",
+			}
+		}
+		readAffinity = &csiopv1a1.ReadAffinitySpec{
+			CrushLocationLabels: labels,
+		}
+	}
+
 	return &csiopv1a1.CephConnection{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      consumer.Status.Client.Name,
 			Namespace: consumer.Status.Client.OperatorNamespace,
 		},
 		Spec: csiopv1a1.CephConnectionSpec{
-			Monitors: monIps,
+			Monitors:     monIps,
+			ReadAffinity: readAffinity,
 		},
 	}, nil
 }
