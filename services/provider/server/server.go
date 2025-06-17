@@ -396,8 +396,10 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		}
 
 		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
-		response.RbdDriverRequirements = &pb.RbdDriverRequirements{
-			TopologyDomainLables: []string{topologyKey},
+		if topologyKey != "" {
+			response.RbdDriverRequirements = &pb.RbdDriverRequirements{
+				TopologyDomainLables: []string{topologyKey},
+			}
 		}
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
