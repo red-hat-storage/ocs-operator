@@ -125,6 +125,12 @@ message KubeObject {
     bytes bytes  = 1;
 }
 
+// RbdDriverRequirements holds the desired spec of the rbd driver
+message RbdDriverRequirements {
+    // topologyDomainLables are the list of topology that needs to be set in nodeplugin
+    repeated string topologyDomainLables = 1;
+}
+
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
 message GetDesiredClientStateResponse{
     // kubeResources holds the definition of all kube objects to be reconciled by the client operator
@@ -143,6 +149,9 @@ message GetDesiredClientStateResponse{
     // kubeObjects holds the definition and metadata for all kube objects to be reconciled
     // by the client operator
     repeated KubeObject kubeObjects = 6;
+    // rbdDriverRequirements holds the rbd driver desired state that has to be updated by
+    // the client operator, its an optional response   
+    optional RbdDriverRequirements rbdDriverRequirements = 7;
 }
 
 
