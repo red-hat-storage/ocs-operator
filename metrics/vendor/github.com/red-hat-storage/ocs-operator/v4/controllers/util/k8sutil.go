@@ -78,6 +78,7 @@ const (
 	BackwardCompatabilityInfoAnnotationKey = "ocs.openshift.io/backward-compatability-info"
 	CsiCephUserGenerationLabelKey          = "ocs.openshift.io/csi-ceph-user-generation"
 	CreatedAtDfVersionLabelKey             = "ocs.openshift.io/created-at-df-version"
+	ForInternalUseOnlyLabelKey             = "ocs.openshift.io/for-internal-use-only"
 )
 
 type BackwardCompatabilityInfo struct {

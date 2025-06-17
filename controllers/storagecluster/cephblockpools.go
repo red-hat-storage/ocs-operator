@@ -125,7 +125,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 		}
 
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
-		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
+		util.AddLabel(cephBlockPool, util.ForInternalUseOnlyLabelKey, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
@@ -171,7 +171,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.Name = ".nfs"
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
-		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
+		util.AddLabel(cephBlockPool, util.ForInternalUseOnlyLabelKey, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})

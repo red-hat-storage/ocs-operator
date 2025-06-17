@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -133,6 +135,11 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 		return "", err
 	}
 
+	infoCephBlockPools, err := getInfoCephBlockPools(r, storageCluster)
+	if err != nil {
+		return "", err
+	}
+
 	annotations := map[string]string{}
 	for key, value := range storageCluster.GetAnnotations() {
 		parts := strings.Split(key, "/")
@@ -151,6 +158,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 			CephClusterFSID:         cephFSId,
 			StorageClusterUID:       string(storageCluster.UID),
 			Annotations:             annotations,
+			InfoCephBlockPools:      infoCephBlockPools,
 		},
 	}
 	yamlData, err := yaml.Marshal(data)
@@ -221,4 +229,24 @@ func getCephFsid(r *StorageClusterReconciler, storageCluster *ocsv1.StorageClust
 	}
 
 	return string(val), nil
+}
+
+func getInfoCephBlockPools(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) ([]ocsv1a1.InfoCephBlockPool, error) {
+	cephBlockPoolsList := &rookCephv1.CephBlockPoolList{}
+	if err := r.Client.List(r.ctx, cephBlockPoolsList, client.InNamespace(storageCluster.Namespace)); err != nil {
+		return nil, err
+	}
+	infoCephBlockPools := []ocsv1a1.InfoCephBlockPool{}
+
+	for idx := range cephBlockPoolsList.Items {
+		cephBlockPool := &cephBlockPoolsList.Items[idx]
+		if forInternalUseOnly, _ := strconv.ParseBool(cephBlockPool.GetLabels()[util.ForInternalUseOnlyLabelKey]); !forInternalUseOnly {
+			infoCephBlockPools = append(infoCephBlockPools, ocsv1a1.InfoCephBlockPool{
+				Name:          cephBlockPool.Name,
+				MirrorEnabled: cephBlockPool.Spec.Mirroring.Enabled,
+			})
+		}
+	}
+
+	return infoCephBlockPools, nil
 }
