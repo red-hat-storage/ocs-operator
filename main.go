@@ -70,6 +70,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/storageclusterpeer"
 	controllers "github.com/red-hat-storage/ocs-operator/v4/controllers/storageconsumer"
+	upgradecontroller "github.com/red-hat-storage/ocs-operator/v4/controllers/upgrade"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	// +kubebuilder:scaffold:imports
@@ -252,11 +253,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.StorageConsumerUpgradeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+	if err = (&upgradecontroller.UpgradeReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumerUpgrade")
+		setupLog.Error(err, "unable to create controller", "controller", "Upgrade")
 		os.Exit(1)
 	}
 
