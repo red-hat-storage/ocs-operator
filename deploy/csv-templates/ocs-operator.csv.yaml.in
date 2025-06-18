@@ -86,7 +86,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
-  name: ocs-operator.v4.19.0
+  name: ocs-operator.v4.20.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -659,4 +659,4 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Red Hat
-  version: 4.19.0
+  version: 4.20.0
