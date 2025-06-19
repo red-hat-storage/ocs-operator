@@ -104,6 +104,17 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	ctx := context.Background()
+
+	if err := mgr.GetCache().IndexField(
+		ctx,
+		&ocsv1alpha1.StorageConsumer{},
+		util.UIDIndexName,
+		util.UIDIndexFieldFunc,
+	); err != nil {
+		return fmt.Errorf("failed to set up FieldIndexer on StorageConsumer for UID: %v", err)
+	}
+
 	r.recorder = util.NewEventReporter(mgr.GetEventRecorderFor("controller_storagecluster"))
 
 	// Compose a predicate that is an OR of the specified predicates
@@ -251,7 +262,16 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
 		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
-		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate)).
+		Watches(
+			&ocsv1alpha1.StorageConsumer{},
+			enqueueStorageClusterRequest,
+			builder.WithPredicates(
+				predicate.Or(
+					predicate.AnnotationChangedPredicate{},
+					storageConsumerStatusPredicate,
+				),
+			),
+		).
 		Watches(&ocsv1.StorageClusterPeer{}, enqueueStorageClusterRequest, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&corev1.ConfigMap{},
