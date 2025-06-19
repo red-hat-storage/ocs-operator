@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -49,7 +50,9 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
@@ -72,6 +75,12 @@ const (
 	volumeReplicationClass5mSchedule = "5m"
 	mirroringTokenKey                = "rbdMirrorBootstrapPeerSecretName"
 	clientInfoRbdClientProfileKey    = "csiop-rbd-client-profile"
+)
+
+var (
+	knownOcsInstalledCsvName        string
+	knownOcsSubscriptionChannelName string
+	ocsSubChannelAndCsvMutex        sync.Mutex
 )
 
 type OCSProviderServer struct {
@@ -395,6 +404,13 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
+		if topologyKey != "" {
+			response.RbdDriverRequirements = &pb.RbdDriverRequirements{
+				TopologyDomainLables: []string{topologyKey},
+			}
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
@@ -402,6 +418,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
+			topologyKey,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -662,6 +679,8 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 	}
 
+	topologyKey := storageConsumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -669,6 +688,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
+		topologyKey,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -694,21 +714,86 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		klog.Info("unable to find ocs-operator subscription")
 		return "", nil
 	}
-	if subscription.Status.InstalledCSV == "" {
-		klog.Infof("Subscription %q does not have an installed CSV", subscription.Name)
-		return "", nil
+
+	ocsSubChannelAndCsvMutex.Lock()
+	defer ocsSubChannelAndCsvMutex.Unlock()
+
+	// If the installed CSV has changed then validate the current channel otherwise return the known valid channel
+	if subscription.Status.InstalledCSV != knownOcsInstalledCsvName {
+		ok, err := s.isSubscriptionChannelValid(ctx, subscription)
+		if err != nil || !ok {
+			return "", err
+		}
+		knownOcsInstalledCsvName = subscription.Status.InstalledCSV
+		knownOcsSubscriptionChannelName = subscription.Spec.Channel
+	}
+
+	return knownOcsSubscriptionChannelName, nil
+}
+
+func (s *OCSProviderServer) isSubscriptionChannelValid(ctx context.Context, subscription *opv1a1.Subscription) (bool, error) {
+	installedCSVName := subscription.Status.InstalledCSV
+	channelName := subscription.Spec.Channel
+
+	// Check if the installed CSV of the subscription is in Succeeded phase
+	if installedCSVName == "" {
+		klog.Infof("subscription %q does not have an installed CSV", subscription.Name)
+		return false, nil
 	}
 	csv := &opv1a1.ClusterServiceVersion{}
-	err = s.client.Get(ctx, client.ObjectKey{Name: subscription.Status.InstalledCSV, Namespace: s.namespace}, csv)
+	err := s.client.Get(ctx, client.ObjectKey{Name: installedCSVName, Namespace: s.namespace}, csv)
 	if err != nil {
-		klog.Errorf("failed to get installed CSV %q: %v", subscription.Status.InstalledCSV, err)
-		return "", err
+		klog.Errorf("failed to get installed CSV %q: %v", installedCSVName, err)
+		return false, err
 	}
 	if csv.Status.Phase != opv1a1.CSVPhaseSucceeded {
 		klog.Infof("installed CSV %q is in phase %q, not Succeeded", csv.Name, csv.Status.Phase)
-		return "", nil
+		return false, nil
 	}
-	return subscription.Spec.Channel, nil
+
+	// Check if the installed CSV is the expected one for the channel from the package manifest
+	packageManifest := &unstructured.Unstructured{}
+	packageManifest.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "packages.operators.coreos.com",
+		Version: "v1",
+		Kind:    "PackageManifest",
+	})
+	err = s.client.Get(ctx, client.ObjectKey{Name: subscription.Spec.Package, Namespace: s.namespace}, packageManifest)
+	if err != nil {
+		klog.Errorf("failed to get PackageManifest %q: %v", subscription.Spec.Package, err)
+		return false, err
+	}
+	channels, found, err := unstructured.NestedSlice(packageManifest.Object, "status", "channels")
+	if err != nil {
+		klog.Errorf("error getting channels from PackageManifest %q: %v", packageManifest.GetName(), err)
+		return false, err
+	}
+	if !found {
+		klog.Infof("channels not found in PackageManifest %q", packageManifest.GetName())
+		return false, nil
+	}
+	var expectedCSVName string
+	for _, ch := range channels {
+		chMap, ok := ch.(map[string]any)
+		if !ok {
+			continue
+		}
+		if chMap["name"].(string) == channelName {
+			expectedCSVName, ok = chMap["currentCSV"].(string)
+			if !ok {
+				klog.Infof("currentCSV not found or invalid in channel %s", channelName)
+				return false, nil
+			}
+			break
+		}
+	}
+	if installedCSVName != expectedCSVName {
+		klog.Infof("installed CSV %q does not match expected %q", installedCSVName, expectedCSVName)
+		return false, nil
+	}
+
+	klog.Infof("subscription for %q with channel %q is valid with installed CSV %q", subscription.Spec.Package, channelName, installedCSVName)
+	return true, nil
 }
 
 func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
@@ -1133,13 +1218,15 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		return nil, err
 	}
 
-	kubeResources, err = s.appendNoobaaKubeResources(
-		ctx,
-		kubeResources,
-		consumer,
-	)
-	if err != nil {
-		return nil, err
+	if false {
+		kubeResources, err = s.appendNoobaaKubeResources(
+			ctx,
+			kubeResources,
+			consumer,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return kubeResources, nil
