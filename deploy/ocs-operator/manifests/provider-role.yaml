@@ -72,6 +72,7 @@ rules:
       - packagemanifests
     verbs:
       - get
+      - list
   - apiGroups:
       - ocs.openshift.io
     resources:
