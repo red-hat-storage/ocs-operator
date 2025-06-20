@@ -994,7 +994,8 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			} else {
 				ds.Count = sc.Spec.ManagedResources.CephNonResilientPools.Count
 			}
-			if sc.Spec.ManagedResources.CephNonResilientPools.Resources != nil {
+			if sc.Spec.ManagedResources.CephNonResilientPools.Resources != nil &&
+				!reflect.DeepEqual(*sc.Spec.ManagedResources.CephNonResilientPools.Resources, corev1.ResourceRequirements{}) {
 				ds.Resources = *sc.Spec.ManagedResources.CephNonResilientPools.Resources
 			} else {
 				ds.Resources = defaults.GetProfileDaemonResources("osd", sc)
@@ -1005,7 +1006,8 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			annotations := map[string]string{
 				"crushDeviceClass": failureDomainValue,
 			}
-			if sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate != nil {
+			if sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate != nil &&
+				!reflect.DeepEqual(*sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate, corev1.PersistentVolumeClaim{}) {
 				ds.VolumeClaimTemplates = []rookCephv1.VolumeClaimTemplate{{
 					ObjectMeta: sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate.ObjectMeta,
 					Spec:       sc.Spec.ManagedResources.CephNonResilientPools.VolumeClaimTemplate.Spec,
