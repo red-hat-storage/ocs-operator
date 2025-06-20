@@ -62,6 +62,7 @@ const (
 	ConsumerUUIDLabel             = "ocs.openshift.io/storageconsumer-uuid"
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
 	storageConsumerFinalizer      = "ocs.openshift.io/storageconsumer-protection"
+	primaryConsumerUIDAnnotation  = "ocs.openshift.io/primary-consumer-uid"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -200,17 +201,9 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			return reconcile.Result{}, err
 		}
 
-		// Get config map's controller reference
-		controllerIndex := slices.IndexFunc(
-			consumerConfigMap.OwnerReferences,
-			func(ref metav1.OwnerReference) bool { return ptr.Deref(ref.Controller, false) },
-		)
-		var controllerRef *metav1.OwnerReference
-		if controllerIndex != -1 {
-			controllerRef = &consumerConfigMap.OwnerReferences[controllerIndex]
-		}
+		primaryConsumerUID := consumerConfigMap.GetAnnotations()[primaryConsumerUIDAnnotation]
 
-		isPrimaryConsumer := controllerRef != nil && controllerRef.UID == r.storageConsumer.UID
+		isPrimaryConsumer := primaryConsumerUID == string(r.storageConsumer.UID)
 
 		if isPrimaryConsumer {
 			consumerResources := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
@@ -445,21 +438,6 @@ func (r *StorageConsumerReconciler) reconcileConsumerConfigMap(
 ) error {
 
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
-		if consumerConfigMap.Data == nil {
-			consumerConfigMap.Data = map[string]string{}
-		}
-
-		defaultConsumerResourceNames := util.GetStorageConsumerDefaultResourceNames(
-			r.storageConsumer.Name,
-			string(r.storageConsumer.UID),
-			availableServices,
-		)
-		for key := range defaultConsumerResourceNames {
-			consumerConfigMap.Data[key] = cmp.Or(
-				strings.Trim(consumerConfigMap.Data[key], " "),
-				defaultConsumerResourceNames[key],
-			)
-		}
 
 		// Get config map's controller reference
 		controllerIndex := slices.IndexFunc(
@@ -470,8 +448,8 @@ func (r *StorageConsumerReconciler) reconcileConsumerConfigMap(
 		if controllerIndex != -1 {
 			controllerRef = &consumerConfigMap.OwnerReferences[controllerIndex]
 		}
-		// If there is no controller ref, take control over the config map
-		if controllerRef == nil {
+
+		if controllerRef == nil || controllerRef.UID == r.storageConsumer.UID {
 			if err := controllerutil.SetControllerReference(
 				r.storageConsumer,
 				consumerConfigMap,
@@ -479,14 +457,40 @@ func (r *StorageConsumerReconciler) reconcileConsumerConfigMap(
 			); err != nil {
 				return err
 			}
-			// If I am not the config map controller add me as an owner
-		} else if controllerRef.UID != r.storageConsumer.UID {
+
+			if consumerConfigMap.Data == nil {
+				consumerConfigMap.Data = map[string]string{}
+			}
+			defaultConsumerResourceNames := util.GetStorageConsumerDefaultResourceNames(
+				r.storageConsumer.Name,
+				string(r.storageConsumer.UID),
+				availableServices,
+			)
+			for key := range defaultConsumerResourceNames {
+				consumerConfigMap.Data[key] = cmp.Or(
+					strings.Trim(consumerConfigMap.Data[key], " "),
+					defaultConsumerResourceNames[key],
+				)
+			}
+
+			util.AddAnnotation(consumerConfigMap, primaryConsumerUIDAnnotation, string(r.storageConsumer.UID))
+		} else {
 			if err := controllerutil.SetOwnerReference(
 				r.storageConsumer,
 				consumerConfigMap,
 				r.Scheme,
 			); err != nil {
 				return err
+			}
+
+			primaryRefIndex := slices.IndexFunc(
+				consumerConfigMap.OwnerReferences,
+				func(ref metav1.OwnerReference) bool {
+					return string(ref.UID) == consumerConfigMap.GetAnnotations()[primaryConsumerUIDAnnotation]
+				},
+			)
+			if primaryRefIndex == -1 {
+				util.AddAnnotation(consumerConfigMap, primaryConsumerUIDAnnotation, string(r.storageConsumer.UID))
 			}
 		}
 		return nil
