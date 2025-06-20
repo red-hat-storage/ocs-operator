@@ -101,6 +101,9 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 	consumerConfigMap.Name = localStorageConsumerConfigMapName
 	consumerConfigMap.Namespace = storageCluster.Namespace
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
+		if err := controllerutil.SetControllerReference(storageCluster, consumerConfigMap, r.Scheme); err != nil {
+			return err
+		}
 		data := util.GetStorageConsumerDefaultResourceNames(
 			defaults.LocalStorageConsumerName,
 			string(storageConsumer.UID),
