@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"fmt"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"strings"
 	"sync"
 
@@ -133,6 +134,11 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 		return "", err
 	}
 
+	cephBlockPools, err := getCephBlockPools(r, storageCluster)
+	if err != nil {
+		return "", err
+	}
+
 	annotations := map[string]string{}
 	for key, value := range storageCluster.GetAnnotations() {
 		parts := strings.Split(key, "/")
@@ -151,6 +157,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 			CephClusterFSID:         cephFSId,
 			StorageClusterUID:       string(storageCluster.UID),
 			Annotations:             annotations,
+			CephBlockPools:          cephBlockPools,
 		},
 	}
 	yamlData, err := yaml.Marshal(data)
@@ -221,4 +228,24 @@ func getCephFsid(r *StorageClusterReconciler, storageCluster *ocsv1.StorageClust
 	}
 
 	return string(val), nil
+}
+
+func getCephBlockPools(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) ([]ocsv1a1.CephBlockPool, error) {
+	cephBlockPools := &rookCephv1.CephBlockPoolList{}
+	err := r.Client.List(r.ctx, cephBlockPools, client.InNamespace(storageCluster.Namespace))
+	if err != nil {
+		return nil, err
+	}
+	drEnabledCephBlockPools := make([]ocsv1a1.CephBlockPool, 0, len(cephBlockPools.Items))
+
+	for idx := range cephBlockPools.Items {
+		cephBlockPool := &cephBlockPools.Items[idx]
+		if _, ok := cephBlockPool.GetAnnotations()[util.ForbidMirroringLabel]; !ok {
+			drEnabledCephBlockPools = append(drEnabledCephBlockPools, ocsv1a1.CephBlockPool{
+				Name: cephBlockPool.Name,
+			})
+		}
+	}
+
+	return drEnabledCephBlockPools, nil
 }
