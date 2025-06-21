@@ -17,12 +17,14 @@ limitations under the License.
 package controllers
 
 import (
+	"cmp"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -140,12 +142,6 @@ func (r *StorageConsumerUpgradeReconciler) reconcileConsumerConfigMap(
 		return fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
 	}
 
-	data := util.GetStorageConsumerDefaultResourceNames(
-		storageConsumer.Name,
-		string(storageConsumer.UID),
-		availableServices,
-	)
-
 	consumerConfigMap := &corev1.ConfigMap{}
 	consumerConfigMap.Name = configMapName
 	consumerConfigMap.Namespace = storageConsumer.Namespace
@@ -181,17 +177,32 @@ func (r *StorageConsumerUpgradeReconciler) reconcileConsumerConfigMap(
 		cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestName))
 		svgName := fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(cephFsStorageRequestMd5Sum[:16]))
 
-		resourceMap := util.WrapStorageConsumerResourceMap(data)
-		resourceMap.ReplaceRbdRadosNamespaceName(rnsName)
-		resourceMap.ReplaceSubVolumeGroupName(svgName)
-		resourceMap.ReplaceSubVolumeGroupRadosNamespaceName("csi")
-		resourceMap.ReplaceRbdClientProfileName(rbdClientProfile)
-		resourceMap.ReplaceCephFsClientProfileName(cephFSClientProfile)
-		resourceMap.ReplaceCsiRbdNodeCephUserName(rbdNodeSecretName)
-		resourceMap.ReplaceCsiRbdProvisionerCephUserName(rbdProvisionerSecretName)
-		resourceMap.ReplaceCsiCephFsNodeCephUserName(cephFsNodeSecretName)
-		resourceMap.ReplaceCsiCephFsProvisionerCephUserName(cephFsProvisionerSecretName)
-		consumerConfigMap.Data = data
+		if consumerConfigMap.Data == nil {
+			consumerConfigMap.Data = map[string]string{}
+		}
+		resourceMap := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+		resourceMap.SetRbdRadosNamespaceName(rnsName)
+		resourceMap.SetSubVolumeGroupName(svgName)
+		resourceMap.SetSubVolumeGroupRadosNamespaceName("csi")
+		resourceMap.SetRbdClientProfileName(rbdClientProfile)
+		resourceMap.SetCephFsClientProfileName(cephFSClientProfile)
+		resourceMap.SetCsiRbdNodeCephUserName(rbdNodeSecretName)
+		resourceMap.SetCsiRbdProvisionerCephUserName(rbdProvisionerSecretName)
+		resourceMap.SetCsiCephFsNodeCephUserName(cephFsNodeSecretName)
+		resourceMap.SetCsiCephFsProvisionerCephUserName(cephFsProvisionerSecretName)
+
+		defaultConsumerResourceNames := util.GetStorageConsumerDefaultResourceNames(
+			storageConsumer.Name,
+			string(storageConsumer.UID),
+			availableServices,
+		)
+
+		for key := range defaultConsumerResourceNames {
+			consumerConfigMap.Data[key] = cmp.Or(
+				strings.Trim(consumerConfigMap.Data[key], " "),
+				defaultConsumerResourceNames[key],
+			)
+		}
 
 		if err := r.Client.Create(ctx, consumerConfigMap); err != nil {
 			return err

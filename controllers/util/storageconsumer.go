@@ -140,52 +140,58 @@ func (wrapper storageConsumerResourceMapWrapper) GetNfsClientProfileName() strin
 }
 
 // Setters
+func (wrapper storageConsumerResourceMapWrapper) setIfDoesntExist(key, value string) {
+	if _, exist := wrapper.data[key]; !exist {
+		wrapper.data[key] = value
+	}
+}
+
 func (wrapper storageConsumerResourceMapWrapper) SetRbdRadosNamespaceName(name string) {
-	wrapper.data[rbdRadosNamespaceKey] = name
+	wrapper.setIfDoesntExist(rbdRadosNamespaceKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetSubVolumeGroupName(name string) {
-	wrapper.data[subVolumeGroupKey] = name
+	wrapper.setIfDoesntExist(subVolumeGroupKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetSubVolumeGroupRadosNamespaceName(name string) {
-	wrapper.data[subVolumeGroupRadosNamespaceKey] = name
+	wrapper.setIfDoesntExist(subVolumeGroupRadosNamespaceKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetCsiRbdProvisionerCephUserName(name string) {
-	wrapper.data[csiRbdProvisionerCephUserKey] = name
+	wrapper.setIfDoesntExist(csiRbdProvisionerCephUserKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetCsiRbdNodeCephUserName(name string) {
-	wrapper.data[csiRbdNodeCephUserKey] = name
+	wrapper.setIfDoesntExist(csiRbdNodeCephUserKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetCsiCephFsProvisionerCephUserName(name string) {
-	wrapper.data[csiCephFsProvisionerCephUserKey] = name
+	wrapper.setIfDoesntExist(csiCephFsProvisionerCephUserKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetCsiCephFsNodeCephUserName(name string) {
-	wrapper.data[csiCephFsNodeCephUserKey] = name
+	wrapper.setIfDoesntExist(csiCephFsNodeCephUserKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetCsiNfsProvisionerCephUserName(name string) {
-	wrapper.data[csiNfsProvisionerCephUserKey] = name
+	wrapper.setIfDoesntExist(csiNfsProvisionerCephUserKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetCsiNfsNodeCephUserName(name string) {
-	wrapper.data[csiNfsNodeCephUserKey] = name
+	wrapper.setIfDoesntExist(csiNfsNodeCephUserKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetRbdClientProfileName(name string) {
-	wrapper.data[rbdClientProfileKey] = name
+	wrapper.setIfDoesntExist(rbdClientProfileKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetCephFsClientProfileName(name string) {
-	wrapper.data[cephFsClientProfileKey] = name
+	wrapper.setIfDoesntExist(cephFsClientProfileKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) SetNfsClientProfileName(name string) {
-	wrapper.data[nfsClientProfileKey] = name
+	wrapper.setIfDoesntExist(nfsClientProfileKey, name)
 }
 
 func (wrapper storageConsumerResourceMapWrapper) replaceIfExist(key, value string) {

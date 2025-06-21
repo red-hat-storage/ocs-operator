@@ -1,10 +1,12 @@
 package storagecluster
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -14,6 +16,7 @@ import (
 
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
+	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -57,15 +60,27 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
 	}
 
+	consumerName, err := getInternalStorageConsumerName(r, storageCluster.Name, storageCluster.Namespace)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get internal storage consumer name: %v", err)
+	}
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
-	storageConsumer.Name = defaults.LocalStorageConsumerName
+	storageConsumer.Name = consumerName
 	storageConsumer.Namespace = storageCluster.Namespace
+
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageConsumer, func() error {
 		if err := controllerutil.SetControllerReference(storageCluster, storageConsumer, r.Scheme); err != nil {
 			return err
 		}
+		//TODO: remove in 4.20
+		if _, notAdjusted := storageConsumer.GetAnnotations()[util.TicketAnnotation]; notAdjusted {
+			return nil
+		}
 		spec := &storageConsumer.Spec
-		spec.ResourceNameMappingConfigMap.Name = localStorageConsumerConfigMapName
+		if spec.ResourceNameMappingConfigMap.Name == "" {
+			spec.ResourceNameMappingConfigMap.Name = localStorageConsumerConfigMapName
+		}
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
@@ -98,29 +113,43 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
 	}
 	consumerConfigMap := &corev1.ConfigMap{}
-	consumerConfigMap.Name = localStorageConsumerConfigMapName
+	consumerConfigMap.Name = storageConsumer.Spec.ResourceNameMappingConfigMap.Name
 	consumerConfigMap.Namespace = storageCluster.Namespace
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
 		if err := controllerutil.SetControllerReference(storageCluster, consumerConfigMap, r.Scheme); err != nil {
 			return err
 		}
-		data := util.GetStorageConsumerDefaultResourceNames(
+		if consumerConfigMap.Data == nil {
+			consumerConfigMap.Data = map[string]string{}
+		}
+		resourceMap := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+		if availableServices.Rbd {
+			resourceMap.SetRbdRadosNamespaceName(util.ImplicitRbdRadosNamespaceName)
+			resourceMap.SetRbdClientProfileName("openshift-storage")
+		}
+		if availableServices.CephFs {
+			resourceMap.SetSubVolumeGroupName(subVolumeGroupName)
+			resourceMap.SetSubVolumeGroupRadosNamespaceName(subVolumeGroupName)
+			resourceMap.SetCephFsClientProfileName("openshift-storage")
+		}
+		if availableServices.Nfs {
+			resourceMap.SetNfsClientProfileName("openshift-storage")
+		}
+		defaultConsumerResourceNames := util.GetStorageConsumerDefaultResourceNames(
 			defaults.LocalStorageConsumerName,
 			string(storageConsumer.UID),
 			availableServices,
 		)
-		resourceMap := util.WrapStorageConsumerResourceMap(data)
-		resourceMap.ReplaceRbdRadosNamespaceName(util.ImplicitRbdRadosNamespaceName)
-		resourceMap.ReplaceSubVolumeGroupName(subVolumeGroupName)
-		resourceMap.ReplaceSubVolumeGroupRadosNamespaceName(subVolumeGroupName)
-		resourceMap.ReplaceRbdClientProfileName("openshift-storage")
-		resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
-		resourceMap.ReplaceNfsClientProfileName("openshift-storage")
-		// NB: Do we need to allow user changing/overwriting any values in this configmap?
-		consumerConfigMap.Data = data
+		for key := range defaultConsumerResourceNames {
+			consumerConfigMap.Data[key] = cmp.Or(
+				strings.Trim(consumerConfigMap.Data[key], " "),
+				defaultConsumerResourceNames[key],
+			)
+		}
+
 		return nil
 	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", localStorageConsumerConfigMapName, err)
+		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", consumerConfigMap.Name, err)
 	}
 
 	svgPre4_19 := &rookCephv1.CephFilesystemSubVolumeGroup{}
@@ -139,8 +168,12 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 }
 
 func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+	consumerName, err := getInternalStorageConsumerName(r, storageCluster.Name, storageCluster.Namespace)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get internal storage consumer name: %v", err)
+	}
 	storageConsumer := &ocsv1a1.StorageConsumer{}
-	storageConsumer.Name = defaults.LocalStorageConsumerName
+	storageConsumer.Name = consumerName
 	storageConsumer.Namespace = storageCluster.Namespace
 	if err := r.Get(r.ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
 		if client.IgnoreNotFound(err) != nil {
@@ -161,6 +194,39 @@ func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageClus
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func getInternalStorageConsumerName(r *StorageClusterReconciler, storageClientName, namespace string) (string, error) {
+	storageConsumerObj := &ocsv1a1.StorageConsumer{}
+	storageConsumerObj.Name = defaults.LocalStorageConsumerName
+	storageConsumerObj.Namespace = namespace
+	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(storageConsumerObj), storageConsumerObj); client.IgnoreNotFound(err) != nil {
+		return "", fmt.Errorf("failed to get the internal storageconsumer: %v", err)
+	}
+	if storageConsumerObj.UID == "" {
+		storageClientObj := &ocsclientv1a1.StorageClient{}
+		storageClientObj.Name = storageClientName
+		if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(storageClientObj), storageClientObj); client.IgnoreNotFound(err) != nil {
+			return "", fmt.Errorf("failed to get the internal storageclient: %v", err)
+		}
+		if storageClientObj.UID != "" && storageClientObj.Status.ConsumerID != "" {
+			// Get the StorageConsumer from UID
+			storageConsumers := &ocsv1a1.StorageConsumerList{}
+			if err := r.Client.List(
+				r.ctx,
+				storageConsumers,
+				client.MatchingFields{util.UIDIndexName: storageClientObj.Status.ConsumerID},
+			); err != nil {
+				return "", fmt.Errorf("failed to list the internal storageconsumers: %v", err)
+			}
+			if len(storageConsumers.Items) == 1 {
+				return storageConsumers.Items[0].Name, nil
+			} else if len(storageConsumers.Items) > 1 {
+				return "", fmt.Errorf("more than one storage consumer is available for the storage client")
+			}
+		}
+	}
+	return storageConsumerObj.Name, nil
 }
 
 func getExternalClassesBlaclistSelector() labels.Selector {

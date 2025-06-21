@@ -59,6 +59,7 @@ const (
 
 	// This is the name for the FieldIndex
 	OwnerUIDIndexName   = "ownerUID"
+	UIDIndexName        = "UID"
 	AnnotationIndexName = "annotation"
 
 	OdfInfoNamespacedNameClaimName      = "odfinfo.odf.openshift.io"
@@ -184,6 +185,10 @@ func OwnersIndexFieldFunc(obj client.Object) []string {
 		owners = append(owners, string(refs[i].UID))
 	}
 	return owners
+}
+
+func UIDIndexFieldFunc(obj client.Object) []string {
+	return []string{string(obj.GetUID())}
 }
 
 func AnnotationIndexFieldFunc(obj client.Object) []string {
