@@ -24,31 +24,36 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/go-logr/logr"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
-type StorageConsumerUpgradeReconciler struct {
+type UpgradeReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme            *runtime.Scheme
+	OperatorNamespace string
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *UpgradeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	operatorVersionPredicate := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			_, ok := e.Object.GetAnnotations()[util.TicketAnnotation]
@@ -65,9 +70,38 @@ func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) er
 		},
 	}
 
+	handler := handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
+		return []reconcile.Request{}
+	})
+
+	createPredicate := builder.WithPredicates(predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			// Do not reconcile on delete events
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			// Do not reconcile on update events
+			// This is to avoid unnecessary reconciles when the CSI driver is updated
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			// Do not reconcile on generic events
+			return false
+		},
+	})
+
 	return ctrl.NewControllerManagedBy(mgr).
-		Named("StorageConsumerUpgrade").
+		Named("Upgrade").
 		For(&ocsv1alpha1.StorageConsumer{}, builder.WithPredicates(operatorVersionPredicate)).
+		// watch for csi driver CR creation
+		Watches(
+			&csiopv1a1.Driver{},
+			handler,
+			createPredicate,
+		).
 		Complete(r)
 }
 
@@ -78,10 +112,26 @@ func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) er
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;patch;delete
 
-func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+func (r *UpgradeReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	log := ctrl.LoggerFrom(ctx)
 
+	_, err := r.reconcileStorageConsumerUpgrade(ctx, request, log)
+	if err != nil {
+		log.Error(err, "Failed to reconcile StorageConsumer upgrade")
+		return reconcile.Result{}, err
+	}
+
+	_, err = r.reconcileCsiDriverUpgrade(ctx, log)
+	if err != nil {
+		log.Error(err, "Failed to reconcile CSI driver upgrade")
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *UpgradeReconciler) reconcileStorageConsumerUpgrade(ctx context.Context, request reconcile.Request, log logr.Logger) (reconcile.Result, error) {
 	storageConsumer := &ocsv1alpha1.StorageConsumer{}
 	storageConsumer.Name = request.Name
 	storageConsumer.Namespace = request.Namespace
@@ -128,7 +178,7 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 	return reconcile.Result{}, nil
 }
 
-func (r *StorageConsumerUpgradeReconciler) reconcileConsumerConfigMap(
+func (r *UpgradeReconciler) reconcileConsumerConfigMap(
 	ctx context.Context,
 	storageCluster *ocsv1.StorageCluster,
 	storageConsumer *ocsv1alpha1.StorageConsumer,
@@ -200,7 +250,7 @@ func (r *StorageConsumerUpgradeReconciler) reconcileConsumerConfigMap(
 	return nil
 }
 
-func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
+func (r *UpgradeReconciler) reconcileStorageRequest(
 	ctx context.Context,
 	storageCluster *ocsv1.StorageCluster,
 	storageConsumer *ocsv1alpha1.StorageConsumer,
@@ -258,7 +308,7 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	return nil
 }
 
-func (r *StorageConsumerUpgradeReconciler) removeStorageRequestOwner(ctx context.Context, kind, name, namespace string) error {
+func (r *UpgradeReconciler) removeStorageRequestOwner(ctx context.Context, kind, name, namespace string) error {
 	obj := &metav1.PartialObjectMetadata{}
 	obj.SetGroupVersionKind(rookCephv1.SchemeGroupVersion.WithKind(kind))
 	obj.Name = name
@@ -282,7 +332,7 @@ func (r *StorageConsumerUpgradeReconciler) removeStorageRequestOwner(ctx context
 	return nil
 }
 
-func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(ctx context.Context, storageCluster *ocsv1.StorageCluster, storageConsumer *ocsv1alpha1.StorageConsumer, consumerConfigMapName string) error {
+func (r *UpgradeReconciler) reconcileStorageConsumer(ctx context.Context, storageCluster *ocsv1.StorageCluster, storageConsumer *ocsv1alpha1.StorageConsumer, consumerConfigMapName string) error {
 	spec := &storageConsumer.Spec
 	spec.ResourceNameMappingConfigMap.Name = consumerConfigMapName
 	spec.StorageClasses = []ocsv1alpha1.StorageClassSpec{
@@ -331,4 +381,52 @@ func getStorageRequestName(consumerUUID, storageClaimName string) string {
 
 func storageClaimCephCsiSecretName(secretType, suffix string) string {
 	return fmt.Sprintf("ceph-client-%s-%s", secretType, suffix)
+}
+
+func (r *UpgradeReconciler) reconcileCsiDriverUpgrade(ctx context.Context, log logr.Logger) (reconcile.Result, error) {
+	// list the rook ceph cm
+	rookCephOperatorConfig := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: util.RookCephOperatorConfigName, Namespace: r.OperatorNamespace}, rookCephOperatorConfig)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("Rook Ceph Operator ConfigMap not found, skipping CSI driver upgrade reconciliation")
+			return reconcile.Result{}, nil
+		}
+		log.Error(err, "Failed to get Rook Ceph Operator ConfigMap")
+		return reconcile.Result{}, err
+	}
+
+	// Get the CSI tolerations from the Rook Ceph Operator ConfigMap
+	csiPluginTolerations, plugin := rookCephOperatorConfig.Data[util.CsiPluginTolerationKey]
+	csiProvisionerToleration, provisioner := rookCephOperatorConfig.Data[util.CsiProvisionerTolerationKey]
+	if (!plugin && !provisioner) || (csiPluginTolerations == "" && csiProvisionerToleration == "") {
+		log.Info("No CSI tolerations found in Rook Ceph Operator ConfigMap, skipping CSI driver upgrade reconciliation")
+		return reconcile.Result{}, nil
+	}
+
+	// List the csi drivers in the cluster
+	csiDrivers := &csiopv1a1.DriverList{}
+	if err := r.Client.List(ctx, csiDrivers); err != nil {
+		log.Error(err, "Failed to list CSI drivers")
+		return reconcile.Result{}, err
+	}
+
+	// Iterate over the CSI drivers and update the tolerations if they are not set
+	for _, driver := range csiDrivers.Items {
+		if plugin && csiPluginTolerations != "" {
+			patchPluginTolration(&driver)
+		}
+
+		if provisioner && csiProvisionerToleration != "" {
+			patchProvisionerTolration(&driver)
+		}
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func patchPluginTolration(driver *csiopv1a1.Driver) {
+}
+
+func patchProvisionerTolration(driver *csiopv1a1.Driver) {
 }
