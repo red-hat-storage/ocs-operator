@@ -26,8 +26,7 @@ import (
 )
 
 const (
-	localStorageConsumerConfigMapName = "storageconsumer-internal"
-	subVolumeGroupName                = "csi"
+	subVolumeGroupName = "csi"
 )
 
 var (
@@ -65,7 +64,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			return err
 		}
 		spec := &storageConsumer.Spec
-		spec.ResourceNameMappingConfigMap.Name = localStorageConsumerConfigMapName
+		spec.ResourceNameMappingConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
@@ -98,7 +97,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
 	}
 	consumerConfigMap := &corev1.ConfigMap{}
-	consumerConfigMap.Name = localStorageConsumerConfigMapName
+	consumerConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 	consumerConfigMap.Namespace = storageCluster.Namespace
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
 		if err := controllerutil.SetControllerReference(storageCluster, consumerConfigMap, r.Scheme); err != nil {
@@ -116,11 +115,14 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		resourceMap.ReplaceRbdClientProfileName("openshift-storage")
 		resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
 		resourceMap.ReplaceNfsClientProfileName("openshift-storage")
-		// NB: Do we need to allow user changing/overwriting any values in this configmap?
+
+		if oldConsumerUID := storageConsumer.GetAnnotations()[util.ProviderModeUpgradedConsumerUID]; oldConsumerUID != "" {
+			util.FillBackwardCompatibleConsumerConfigValues(storageCluster, oldConsumerUID, resourceMap)
+		}
 		consumerConfigMap.Data = data
 		return nil
 	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", localStorageConsumerConfigMapName, err)
+		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", defaults.LocalStorageConsumerConfigMapName, err)
 	}
 
 	svgPre4_19 := &rookCephv1.CephFilesystemSubVolumeGroup{}
