@@ -38,6 +38,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -48,6 +49,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -500,6 +502,9 @@ func newScheme() (*runtime.Scheme, error) {
 	}
 	if err = groupsnapapi.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add groupsnapapi to scheme. %v", err)
+	}
+	if err = odfgsapiv1b1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add odfgsapiv1b1 to scheme. %v", err)
 	}
 	if err = replicationv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add replicationv1alpha1 to scheme. %v", err)
@@ -1208,6 +1213,18 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		return nil, err
 	}
 
+	kubeResources, err = s.appendOdfVolumeGroupSnapshotClassKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		cephFsStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
 		ctx,
 		kubeResources,
@@ -1718,6 +1735,54 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 			kubeResources = append(kubeResources, groupSnapshotClass)
 		}
 	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	cephFsStorageId string,
+) ([]client.Object, error) {
+	groupSnapshotClassName := util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)
+	existing := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
+	err := s.client.Get(ctx, client.ObjectKey{Name: groupSnapshotClassName}, existing)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			gsc := &odfgsapiv1b1.VolumeGroupSnapshotClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        groupSnapshotClassName,
+					Annotations: map[string]string{},
+					Labels:      map[string]string{},
+				},
+				Driver: util.CephFSDriverName,
+				Parameters: map[string]string{
+					"clusterID": consumerConfig.GetCephFsClientProfileName(),
+					"csi.storage.k8s.io/group-snapshotter-secret-name":      consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+					"csi.storage.k8s.io/group-snapshotter-secret-namespace": consumer.Status.Client.OperatorNamespace,
+					"fsName": util.GenerateNameForCephFilesystem(storageCluster.Name),
+				},
+				DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+			}
+			if cephFsStorageId != "" {
+				util.AddLabel(gsc, ramenDRStorageIDLabelKey, cephFsStorageId)
+			}
+			kubeResources = append(kubeResources, gsc)
+			klog.Infof("ODF-VolumeGroupSnapshotClass created.")
+			return kubeResources, nil
+		} else if meta.IsNoMatchError(err) {
+			klog.Infof("ODF-VolumeGroupSnapshotClass kind not found. Hence ignored.")
+			return kubeResources, nil
+		} else {
+			klog.Errorf("Failed to get ODF-VolumeGroupSnapshotClass %q: %v", groupSnapshotClassName, err)
+			return nil, err
+		}
+	} else {
+		kubeResources = append(kubeResources, existing)
+	}
+
 	return kubeResources, nil
 }
 
