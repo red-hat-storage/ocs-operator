@@ -484,6 +484,11 @@ func (s *OCSProviderServer) getExternalResources(ctx context.Context, consumerRe
 		})
 	}
 
+	if true {
+		return extR, nil
+	}
+
+	// NOTE: the rest of the code is related to noobaa which is deprecated and already removed in future versions
 	// Fetch noobaa remote secret and management address and append to extResources
 	consumerName := consumerResource.Name
 	noobaaOperatorSecret := &v1.Secret{}
