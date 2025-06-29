@@ -75,7 +75,12 @@ const (
 	StorageConsumerMirroringInfoAnnotation = "ocs.openshift.io/consumer-mirroring-info"
 	ForceDeletionAnnotationKey             = "ocs.openshift.io/force-deletion"
 	RookForceDeletionAnnotationKey         = "rook.io/force-deletion"
+	BackwardCompatabilityInfoAnnotationKey = "ocs.openshift.io/backward-compatability-info"
 )
+
+type BackwardCompatabilityInfo struct {
+	Pre4_19InternalConsumer string `json:"pre4_19InternalConsumer"`
+}
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
 

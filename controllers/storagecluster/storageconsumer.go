@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -20,14 +21,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
-	localStorageConsumerConfigMapName = "storageconsumer-internal"
-	subVolumeGroupName                = "csi"
+	subVolumeGroupName = "csi"
 )
 
 var (
@@ -44,6 +45,12 @@ var _ resourceManager = &storageConsumer{}
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
 
+	//TODO: This code is to be removed in 4.20 when AllowRemoteStorageConsumers is removed. This is for the Storage Cluster
+	// reconciler to wait so that it doesn't create StorageConsumer with wrong names
+	if storageCluster.Spec.AllowRemoteStorageConsumers && len(storageCluster.GetAnnotations()[util.BackwardCompatabilityInfoAnnotationKey]) <= 0 {
+		return ctrl.Result{}, fmt.Errorf("invalid Configuration, allowRemoteStorageConsumers is set while missing a compatibility mode annotation on the storage cluster")
+	}
+
 	storageClassesSpec, err := getLocalStorageClassNames(r.ctx, r.Client, storageCluster)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate storageclasses list for distribution: %v", err)
@@ -57,6 +64,13 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
 	}
 
+	backwardCompatibleInfo := &util.BackwardCompatabilityInfo{}
+	if backwardCompatibleValue, ok := storageCluster.GetAnnotations()[util.BackwardCompatabilityInfoAnnotationKey]; ok {
+		if err := json.Unmarshal([]byte(backwardCompatibleValue), backwardCompatibleInfo); err != nil {
+			return ctrl.Result{}, fmt.Errorf("invalid backwardCompatibleInfo annotation, value is not a json: %v", err)
+		}
+	}
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
@@ -65,7 +79,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			return err
 		}
 		spec := &storageConsumer.Spec
-		spec.ResourceNameMappingConfigMap.Name = localStorageConsumerConfigMapName
+		spec.ResourceNameMappingConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
@@ -98,29 +112,45 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
 	}
 	consumerConfigMap := &corev1.ConfigMap{}
-	consumerConfigMap.Name = localStorageConsumerConfigMapName
+	consumerConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 	consumerConfigMap.Namespace = storageCluster.Namespace
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, consumerConfigMap, func() error {
+		owners := consumerConfigMap.OwnerReferences
+		controllerIndex := slices.IndexFunc(
+			owners,
+			func(ref metav1.OwnerReference) bool {
+				return ref.UID != storageCluster.UID && ptr.Deref(ref.Controller, false)
+			},
+		)
+		if controllerIndex != -1 {
+			owners[controllerIndex].Controller = nil
+		}
+
 		if err := controllerutil.SetControllerReference(storageCluster, consumerConfigMap, r.Scheme); err != nil {
 			return err
 		}
+
 		data := util.GetStorageConsumerDefaultResourceNames(
 			defaults.LocalStorageConsumerName,
 			string(storageConsumer.UID),
 			availableServices,
 		)
 		resourceMap := util.WrapStorageConsumerResourceMap(data)
-		resourceMap.ReplaceRbdRadosNamespaceName(util.ImplicitRbdRadosNamespaceName)
-		resourceMap.ReplaceSubVolumeGroupName(subVolumeGroupName)
-		resourceMap.ReplaceSubVolumeGroupRadosNamespaceName(subVolumeGroupName)
-		resourceMap.ReplaceRbdClientProfileName("openshift-storage")
-		resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
-		resourceMap.ReplaceNfsClientProfileName("openshift-storage")
-		// NB: Do we need to allow user changing/overwriting any values in this configmap?
+		if backwardCompatibleInfo.Pre4_19InternalConsumer == "" {
+			resourceMap.ReplaceRbdRadosNamespaceName(util.ImplicitRbdRadosNamespaceName)
+			resourceMap.ReplaceSubVolumeGroupName(subVolumeGroupName)
+			resourceMap.ReplaceSubVolumeGroupRadosNamespaceName(subVolumeGroupName)
+			resourceMap.ReplaceRbdClientProfileName("openshift-storage")
+			resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
+			resourceMap.ReplaceNfsClientProfileName("openshift-storage")
+		} else {
+			util.FillBackwardCompatibleConsumerConfigValues(storageCluster, backwardCompatibleInfo.Pre4_19InternalConsumer, resourceMap)
+		}
+
 		consumerConfigMap.Data = data
 		return nil
 	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", localStorageConsumerConfigMapName, err)
+		return ctrl.Result{}, fmt.Errorf("failed to create/update storageconsumer configmap %s: %v", consumerConfigMap.Name, err)
 	}
 
 	svgPre4_19 := &rookCephv1.CephFilesystemSubVolumeGroup{}

@@ -2,8 +2,10 @@ package util
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -304,4 +306,78 @@ func GetStorageConsumerDefaultResourceNames(
 		resourceNamesMap.SetCsiNfsProvisionerCephUserName(fmt.Sprintf("nfs-provisioner-%s", storageConsumerUid))
 	}
 	return defaults
+}
+
+// These methods are for backward compatibility for provider mode upgraded cluster
+
+func FillBackwardCompatibleConsumerConfigValues(
+	storageCluster *ocsv1.StorageCluster,
+	storageConsumerUID string,
+	resourceMap StorageConsumerResources,
+) {
+
+	// For Provider Mode we supported creating one rbdClaim where we generate clientProfile, secret and rns name using
+	// consumer UID and Storage Claim name
+	// The name of StorageClass is the same as name of storageClaim in provider mode
+	rbdClaimName := GenerateNameForCephBlockPoolStorageClass(storageCluster)
+	rbdClaimMd5Sum := md5.Sum([]byte(rbdClaimName))
+	rbdClientProfile := hex.EncodeToString(rbdClaimMd5Sum[:])
+	rbdStorageRequestHash := getStorageRequestHash(storageConsumerUID, rbdClaimName)
+	rbdNodeSecretName := storageClaimCephCsiSecretName("node", rbdStorageRequestHash)
+	rbdProvisionerSecretName := storageClaimCephCsiSecretName("provisioner", rbdStorageRequestHash)
+	rbdStorageRequestName := GetStorageRequestName(storageConsumerUID, rbdClaimName)
+	rbdStorageRequestMd5Sum := md5.Sum([]byte(rbdStorageRequestName))
+	rnsName := fmt.Sprintf("cephradosnamespace-%s", hex.EncodeToString(rbdStorageRequestMd5Sum[:16]))
+
+	// For Provider Mode we supported creating one cephFs claim where we generate clientProfile, secret and svg name using
+	// consumer UID and Storage Claim name
+	// The name of StorageClass is the same as name of storageClaim in provider mode
+	cephFsClaimName := GenerateNameForCephFilesystemStorageClass(storageCluster)
+	cephFsClaimMd5Sum := md5.Sum([]byte(cephFsClaimName))
+	cephFSClientProfile := hex.EncodeToString(cephFsClaimMd5Sum[:])
+	cephFsStorageRequestHash := getStorageRequestHash(storageConsumerUID, cephFsClaimName)
+	cephFsNodeSecretName := storageClaimCephCsiSecretName("node", cephFsStorageRequestHash)
+	cephFsProvisionerSecretName := storageClaimCephCsiSecretName("provisioner", cephFsStorageRequestHash)
+	cephFsStorageRequestName := GetStorageRequestName(storageConsumerUID, cephFsClaimName)
+	cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestName))
+	svgName := fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(cephFsStorageRequestMd5Sum[:16]))
+
+	resourceMap.ReplaceRbdRadosNamespaceName(rnsName)
+	resourceMap.ReplaceSubVolumeGroupName(svgName)
+	resourceMap.ReplaceSubVolumeGroupRadosNamespaceName("csi")
+	resourceMap.ReplaceRbdClientProfileName(rbdClientProfile)
+	resourceMap.ReplaceCephFsClientProfileName(cephFSClientProfile)
+	resourceMap.ReplaceCsiRbdNodeCephUserName(rbdNodeSecretName)
+	resourceMap.ReplaceCsiRbdProvisionerCephUserName(rbdProvisionerSecretName)
+	resourceMap.ReplaceCsiCephFsNodeCephUserName(cephFsNodeSecretName)
+	resourceMap.ReplaceCsiCephFsProvisionerCephUserName(cephFsProvisionerSecretName)
+
+}
+
+// GetStorageRequestName generates a name for a StorageRequest resource.
+func GetStorageRequestName(consumerUUID, storageClaimName string) string {
+	return fmt.Sprintf("storagerequest-%s", getStorageRequestHash(consumerUUID, storageClaimName))
+}
+
+// getStorageRequestHash generates a hash for a StorageRequest based
+// on the MD5 hash of the StorageClaim name and storageConsumer UUID.
+func getStorageRequestHash(consumerUUID, storageClaimName string) string {
+	s := struct {
+		StorageConsumerUUID string `json:"storageConsumerUUID"`
+		StorageClaimName    string `json:"storageClaimName"`
+	}{
+		consumerUUID,
+		storageClaimName,
+	}
+
+	requestName, err := json.Marshal(s)
+	if err != nil {
+		panic("failed to marshal storage class request name")
+	}
+	md5Sum := md5.Sum(requestName)
+	return hex.EncodeToString(md5Sum[:16])
+}
+
+func storageClaimCephCsiSecretName(secretType, suffix string) string {
+	return fmt.Sprintf("ceph-client-%s-%s", secretType, suffix)
 }
