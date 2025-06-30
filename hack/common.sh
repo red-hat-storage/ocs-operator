@@ -118,3 +118,6 @@ PROTOC_GEN_GO_GRPC="${GRPC_BIN}/protoc-gen-go-grpc"
 
 # gRPC services
 SERVICES=("provider")
+
+# CSI Ceph User generation
+CSI_CEPH_USER_CURR_GEN=${CSI_CEPH_USER_CURR_GEN:-1}
