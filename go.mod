@@ -1,6 +1,8 @@
 module github.com/red-hat-storage/ocs-operator/v4
 
-go 1.23.5
+go 1.24.0
+
+toolchain go1.24.4
 
 replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 
