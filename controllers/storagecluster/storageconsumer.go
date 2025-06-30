@@ -11,10 +11,10 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -62,13 +62,6 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 	volumeGroupSnapshotClassesSpec, err := getLocalVolumeGroupSnapshotClassNames(r.ctx, r.Client, storageCluster)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
-	}
-
-	backwardCompatibleInfo := &util.BackwardCompatabilityInfo{}
-	if backwardCompatibleValue, ok := storageCluster.GetAnnotations()[util.BackwardCompatabilityInfoAnnotationKey]; ok {
-		if err := json.Unmarshal([]byte(backwardCompatibleValue), backwardCompatibleInfo); err != nil {
-			return ctrl.Result{}, fmt.Errorf("invalid backwardCompatibleInfo annotation, value is not a json: %v", err)
-		}
 	}
 
 	storageConsumer := &ocsv1a1.StorageConsumer{}
@@ -136,14 +129,27 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			availableServices,
 		)
 		resourceMap := util.WrapStorageConsumerResourceMap(data)
-		if backwardCompatibleInfo.Pre4_19InternalConsumer == "" {
+		if backwardCompatibleValue, exist := storageCluster.GetAnnotations()[util.BackwardCompatabilityInfoAnnotationKey]; !exist {
 			resourceMap.ReplaceRbdRadosNamespaceName(util.ImplicitRbdRadosNamespaceName)
 			resourceMap.ReplaceSubVolumeGroupName(subVolumeGroupName)
 			resourceMap.ReplaceSubVolumeGroupRadosNamespaceName(subVolumeGroupName)
 			resourceMap.ReplaceRbdClientProfileName("openshift-storage")
 			resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
 			resourceMap.ReplaceNfsClientProfileName("openshift-storage")
+			resourceMap.ReplaceCsiRbdNodeCephUserName("rook-csi-rbd-node")
+			resourceMap.ReplaceCsiRbdProvisionerCephUserName("rook-csi-rbd-provisioner")
+			resourceMap.ReplaceCsiCephFsNodeCephUserName("rook-csi-cephfs-node")
+			resourceMap.ReplaceCsiCephFsProvisionerCephUserName("rook-csi-cephfs-provisioner")
+			resourceMap.ReplaceCsiNfsNodeCephUserName("rook-csi-nfs-node")
+			resourceMap.ReplaceCsiNfsProvisionerCephUserName("rook-csi-nfs-provisioner")
 		} else {
+			backwardCompatibleInfo := &util.BackwardCompatabilityInfo{}
+			if err := json.Unmarshal([]byte(backwardCompatibleValue), backwardCompatibleInfo); err != nil {
+				return fmt.Errorf("invalid backwardCompatibleInfo annotation, value is not a json: %v", err)
+			}
+			if backwardCompatibleInfo.Pre4_19InternalConsumer == "" {
+				return fmt.Errorf("invalid backwardCompatibleInfo Pre4_19InternalConsumer is not set")
+			}
 			util.FillBackwardCompatibleConsumerConfigValues(storageCluster, backwardCompatibleInfo.Pre4_19InternalConsumer, resourceMap)
 		}
 
