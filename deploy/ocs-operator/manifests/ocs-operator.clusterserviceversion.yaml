@@ -633,8 +633,6 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                - name: CSI_CEPH_USER_CURR_GEN
-                  value: "1"
                 - name: KUBE_RBAC_PROXY_IMAGE
                   value: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
                 - name: OCS_METRICS_EXPORTER_IMAGE
