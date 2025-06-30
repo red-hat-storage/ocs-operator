@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,6 +77,8 @@ const (
 	ForceDeletionAnnotationKey             = "ocs.openshift.io/force-deletion"
 	RookForceDeletionAnnotationKey         = "rook.io/force-deletion"
 	BackwardCompatabilityInfoAnnotationKey = "ocs.openshift.io/backward-compatability-info"
+	CsiCephUserGenerationLabelKey          = "ocs.openshift.io/csi-ceph-user-generation"
+	CsiCephUserCurrGenEnvVarName           = "CSI_CEPH_USER_CURR_GEN"
 )
 
 type BackwardCompatabilityInfo struct {
@@ -90,6 +93,15 @@ func GetPodNamespace() string {
 		panic(fmt.Errorf("%s must be set", PodNamespaceEnvVar))
 	}
 	return podNamespace
+}
+
+// GetCsiCephUserCurrGeneration returns the current generation number for csi ceph user
+func GetCsiCephUserCurrGeneration() (int64, error) {
+	csiCephUserCurrGenerationAsString := os.Getenv(CsiCephUserCurrGenEnvVarName)
+	if csiCephUserCurrGenerationAsString == "" {
+		return 0, nil
+	}
+	return strconv.ParseInt(csiCephUserCurrGenerationAsString, 10, 64)
 }
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
