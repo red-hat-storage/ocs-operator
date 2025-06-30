@@ -555,6 +555,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 				CephFS: rookCephv1.CSICephFSSpec{
 					KernelMountOptions: util.GetCephFSKernelMountOptions(sc),
 				},
+				SkipUserCreation: true,
 			},
 			SkipUpgradeChecks:            sc.Spec.ManagedResources.CephCluster.SkipUpgradeChecks,
 			UpgradeOSDRequiresHealthyPGs: sc.Spec.ManagedResources.CephCluster.UpgradeOSDRequiresHealthyPGs,
