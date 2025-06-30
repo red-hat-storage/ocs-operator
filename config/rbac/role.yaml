@@ -235,6 +235,18 @@ rules:
 - apiGroups:
   - ocs.openshift.io
   resources:
+  - storageclients
+  verbs:
+  - get
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageclients/status
+  verbs:
+  - patch
+- apiGroups:
+  - ocs.openshift.io
+  resources:
   - storageclusterpeers/finalizers
   - storagerequests/finalizers
   verbs:
