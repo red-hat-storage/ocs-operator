@@ -41,10 +41,24 @@ function gen_ocs_csv() {
 	gen_args="generate kustomize manifests --input-dir config/manifests/ocs-operator --output-dir config/manifests/ocs-operator --package ocs-operator -q"
 	# shellcheck disable=SC2086
 	$OPERATOR_SDK $gen_args
-	pushd config/manager
+	echo "---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: CSI_CEPH_USER_CURR_GEN
+          value: ${CSI_CEPH_USER_CURR_GEN}
+    target:
+      kind: Deployment
+      name: ocs-operator
+" > kustomization.yaml
+	$KUSTOMIZE edit add resource config/manifests/ocs-operator
 	$KUSTOMIZE edit set image ocs-dev/ocs-operator="$OCS_IMAGE"
-	popd
-	$KUSTOMIZE build config/manifests/ocs-operator | $OPERATOR_SDK generate bundle -q --overwrite=false --output-dir deploy/ocs-operator --kustomize-dir config/manifests/ocs-operator --package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ux-backend-server,ocs-provider-server
+	$KUSTOMIZE build | $OPERATOR_SDK generate bundle -q --overwrite=false --output-dir deploy/ocs-operator --kustomize-dir config/manifests/ocs-operator --package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ux-backend-server,ocs-provider-server
+	rm kustomization.yaml
 	mv deploy/ocs-operator/manifests/*clusterserviceversion.yaml $OCS_CSV
 	cp config/crd/bases/* $ocs_crds_outdir
 }
