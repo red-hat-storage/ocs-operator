@@ -29,6 +29,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -136,6 +137,18 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	if _, notAdjusted := r.storageConsumer.GetAnnotations()[util.TicketAnnotation]; notAdjusted {
 		r.Log.Info("waiting for StorageConsumer to be adjusted for 4.19")
 		return reconcile.Result{}, nil
+	}
+
+	if _, exist := r.storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; !exist {
+		majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if util.AddLabel(r.storageConsumer, util.CreatedAtDfVersionLabelKey, majorAndMinorVersion) {
+			if err := r.Update(r.ctx, r.storageConsumer); err != nil {
+				return reconcile.Result{}, nil
+			}
+		}
 	}
 
 	r.storageConsumer.Status.CephResources = []*ocsv1alpha1.CephResourcesSpec{}
