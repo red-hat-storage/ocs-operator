@@ -75,6 +75,7 @@ const (
 	volumeReplicationClass5mSchedule = "5m"
 	mirroringTokenKey                = "rbdMirrorBootstrapPeerSecretName"
 	clientInfoRbdClientProfileKey    = "csiop-rbd-client-profile"
+	csiCephUserCurrGen               = 1
 )
 
 var (
@@ -1410,56 +1411,104 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResources(
 	consumerConfig util.StorageConsumerResources,
 ) ([]client.Object, error) {
 
-	cephClients := []string{}
-	if consumerConfig.GetCsiRbdProvisionerCephUserName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiRbdProvisionerCephUserName())
-	}
-	if consumerConfig.GetCsiRbdNodeCephUserName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiRbdNodeCephUserName())
-	}
-	if consumerConfig.GetCsiCephFsProvisionerCephUserName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiCephFsProvisionerCephUserName())
-	}
-	if consumerConfig.GetCsiCephFsNodeCephUserName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiCephFsNodeCephUserName())
-	}
-	if consumerConfig.GetCsiNfsProvisionerCephUserName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiNfsProvisionerCephUserName())
-	}
-	if consumerConfig.GetCsiNfsNodeCephUserName() != "" {
-		cephClients = append(cephClients, consumerConfig.GetCsiNfsNodeCephUserName())
-	}
-
-	for i := range cephClients {
-		cephClient := &rookCephv1.CephClient{}
-		cephClient.Name = cephClients[i]
-		cephClient.Namespace = consumer.Namespace
-		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephClient), cephClient); err != nil {
-			return kubeResources, err
+	var err error
+	if destSecretName := consumerConfig.GetCsiRbdProvisionerCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiRbdProvisionerCephClientName(csiCephUserCurrGen, consumer.UID)
+		if kubeResources, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			kubeResources,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
 		}
-
-		cephUserSecret := &v1.Secret{}
-		cephUserSecret.Namespace = consumer.Namespace
-		if cephClient.Status != nil &&
-			cephClient.Status.Info["secretName"] != "" {
-			cephUserSecret.Name = cephClient.Status.Info["secretName"]
-		}
-		if cephUserSecret.Name == "" {
-			return kubeResources, fmt.Errorf("failed to find cephclient secret name")
-		}
-
-		if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephUserSecret), cephUserSecret); err != nil {
-			return kubeResources, fmt.Errorf("failed to get %s secret. %v", cephUserSecret, err)
-		}
-
-		cephUserSecret.Name = cephClients[i]
-		cephUserSecret.Namespace = consumer.Status.Client.OperatorNamespace
-		// clearing the secretType to be empty/Opaque instead of type rook.
-		cephUserSecret.Type = ""
-
-		kubeResources = append(kubeResources, cephUserSecret)
 	}
+	if destSecretName := consumerConfig.GetCsiRbdNodeCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiRbdNodeCephClientName(csiCephUserCurrGen, consumer.UID)
+		if kubeResources, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			kubeResources,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
+		}
+	}
+	if destSecretName := consumerConfig.GetCsiCephFsProvisionerCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiCephFsProvisionerCephClientName(csiCephUserCurrGen, consumer.UID)
+		if kubeResources, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			kubeResources,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
+		}
+	}
+	if destSecretName := consumerConfig.GetCsiCephFsNodeCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiCephFsNodeCephClientName(csiCephUserCurrGen, consumer.UID)
+		if kubeResources, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			kubeResources,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
+		}
+	}
+	if destSecretName := consumerConfig.GetCsiNfsProvisionerCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiNfsProvisionerCephClientName(csiCephUserCurrGen, consumer.UID)
+		if kubeResources, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			kubeResources,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
+		}
+	}
+	if destSecretName := consumerConfig.GetCsiNfsNodeCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiNfsNodeCephClientName(csiCephUserCurrGen, consumer.UID)
+		if kubeResources, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			kubeResources,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendCephClientSecretKubeResource(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	srcSecretName string,
+	destSecretName string,
+) ([]client.Object, error) {
+	cephUserSecret := &v1.Secret{}
+	cephUserSecret.Name = srcSecretName
+	cephUserSecret.Namespace = consumer.Namespace
+
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephUserSecret), cephUserSecret); err != nil {
+		return kubeResources, fmt.Errorf("failed to get %s secret. %v", cephUserSecret, err)
+	}
+
+	cephUserSecret.Name = destSecretName
+	cephUserSecret.Namespace = consumer.Status.Client.OperatorNamespace
+	// clearing the secretType to be empty/Opaque instead of type rook.
+	cephUserSecret.Type = ""
+
+	return append(kubeResources, cephUserSecret), nil
 }
 
 func (s *OCSProviderServer) appendStorageClassKubeResources(
