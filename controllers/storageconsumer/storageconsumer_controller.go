@@ -19,9 +19,6 @@ package controllers
 import (
 	"cmp"
 	"context"
-	"crypto/md5"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
@@ -42,7 +39,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -892,22 +888,4 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&rookCephv1.CephFilesystem{}, enqueueForAllStorageConsumers).
 		Watches(&rookCephv1.CephNFS{}, enqueueForAllStorageConsumers).
 		Complete(r)
-}
-
-func GenerateHashForCephClient(storageConsumerName, cephUserType string) string {
-	var c struct {
-		StorageConsumerName string `json:"id"`
-		CephUserType        string `json:"cephUserType"`
-	}
-
-	c.StorageConsumerName = storageConsumerName
-	c.CephUserType = cephUserType
-
-	cephClient, err := json.Marshal(c)
-	if err != nil {
-		klog.Errorf("failed to marshal ceph client name for consumer %s. %v", storageConsumerName, err)
-		panic("failed to marshal")
-	}
-	name := md5.Sum([]byte(cephClient))
-	return hex.EncodeToString(name[:16])
 }
