@@ -77,6 +77,7 @@ const (
 	RookForceDeletionAnnotationKey         = "rook.io/force-deletion"
 	BackwardCompatabilityInfoAnnotationKey = "ocs.openshift.io/backward-compatability-info"
 	CsiCephUserGenerationLabelKey          = "ocs.openshift.io/csi-ceph-user-generation"
+	CreatedAtDfVersionLabelKey             = "ocs.openshift.io/created-at-df-version"
 )
 
 type BackwardCompatabilityInfo struct {

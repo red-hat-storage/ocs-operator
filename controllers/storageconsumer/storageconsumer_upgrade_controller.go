@@ -335,6 +335,7 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(
 	consumerConfigMapName string,
 ) error {
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, storageConsumer, func() error {
+		util.AddLabel(storageConsumer, util.CreatedAtDfVersionLabelKey, "4.18")
 		spec := &storageConsumer.Spec
 		spec.ResourceNameMappingConfigMap.Name = consumerConfigMapName
 
