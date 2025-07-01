@@ -290,20 +290,20 @@ func GetStorageConsumerDefaultResourceNames(
 	if availableServices.Rbd {
 		resourceNamesMap.SetRbdRadosNamespaceName(storageConsumerName)
 		resourceNamesMap.SetRbdClientProfileName(storageConsumerUid)
-		resourceNamesMap.SetCsiRbdNodeCephUserName(fmt.Sprintf("rbd-node-%s", storageConsumerUid))
-		resourceNamesMap.SetCsiRbdProvisionerCephUserName(fmt.Sprintf("rbd-provisioner-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiRbdNodeCephUserName(fmt.Sprintf("csi-rbd-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiRbdProvisionerCephUserName(fmt.Sprintf("csi-rbd-provisioner-%s", storageConsumerUid))
 	}
 	if availableServices.CephFs {
 		resourceNamesMap.SetSubVolumeGroupName(storageConsumerName)
 		resourceNamesMap.SetSubVolumeGroupRadosNamespaceName(storageConsumerName)
 		resourceNamesMap.SetCephFsClientProfileName(storageConsumerUid)
-		resourceNamesMap.SetCsiCephFsNodeCephUserName(fmt.Sprintf("cephfs-node-%s", storageConsumerUid))
-		resourceNamesMap.SetCsiCephFsProvisionerCephUserName(fmt.Sprintf("cephfs-provisioner-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiCephFsNodeCephUserName(fmt.Sprintf("csi-cephfs-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiCephFsProvisionerCephUserName(fmt.Sprintf("csi-cephfs-provisioner-%s", storageConsumerUid))
 	}
 	if availableServices.Nfs {
 		resourceNamesMap.SetNfsClientProfileName(storageConsumerUid)
-		resourceNamesMap.SetCsiNfsNodeCephUserName(fmt.Sprintf("nfs-node-%s", storageConsumerUid))
-		resourceNamesMap.SetCsiNfsProvisionerCephUserName(fmt.Sprintf("nfs-provisioner-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiNfsNodeCephUserName(fmt.Sprintf("csi-nfs-node-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiNfsProvisionerCephUserName(fmt.Sprintf("csi-nfs-provisioner-%s", storageConsumerUid))
 	}
 	return defaults
 }
