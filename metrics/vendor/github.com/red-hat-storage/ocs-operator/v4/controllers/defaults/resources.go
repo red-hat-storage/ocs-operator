@@ -66,18 +66,32 @@ var (
 		},
 		"ocs-metrics-exporter": {
 			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("50Mi"),
-				"cpu":    resource.MustParse("50m"),
+				"memory": resource.MustParse("512Mi"),
+				"cpu":    resource.MustParse("250m"),
+			},
+			Limits: corev1.ResourceList{
+				"memory": resource.MustParse("1.5Gi"),
+				"cpu":    resource.MustParse("1"),
 			},
 		},
 		"crashcollector": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("0.1"),
-				corev1.ResourceMemory: resource.MustParse("60Mi"),
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("50Mi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("0.1"),
-				corev1.ResourceMemory: resource.MustParse("60Mi"),
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("100Mi"),
+			},
+		},
+		"logcollector": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("50Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("250Mi"),
 			},
 		},
 		"exporter": {
